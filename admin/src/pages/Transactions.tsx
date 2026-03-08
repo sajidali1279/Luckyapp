@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
@@ -14,16 +14,17 @@ export default function Transactions() {
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
     queryFn: () => storesApi.getAll(),
-    onSuccess: (d: any) => {
-      const stores = d?.data?.data || [];
-      // Auto-select first store for store managers
-      if (!selectedStore && user?.storeIds?.length) {
-        setSelectedStore(user.storeIds[0]);
-      } else if (!selectedStore && stores.length) {
-        setSelectedStore(stores[0].id);
-      }
-    },
-  } as any);
+  });
+
+  useEffect(() => {
+    if (selectedStore) return;
+    if (user?.storeIds?.length) {
+      setSelectedStore(user.storeIds[0]);
+    } else {
+      const stores = storesData?.data?.data || [];
+      if (stores.length) setSelectedStore(stores[0].id);
+    }
+  }, [storesData, user, selectedStore]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['transactions', selectedStore, statusFilter],
