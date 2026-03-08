@@ -1,62 +1,85 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-
-// Admin/DevAdmin login uses phone + Firebase OTP (same flow, different UI)
-// For simplicity in the web dashboard we use a token-based login
-// (Admin accounts are pre-created by DevAdmin and given a login link/code)
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
+  const navigate = useNavigate();
 
-  // NOTE: Firebase web SDK for phone auth — same flow as mobile
-  // In production: integrate Firebase JS SDK here
-  // For now, placeholder that calls backend directly with a test token
-  async function handleLogin() {
+  function formatPhone(text: string) {
+    const digits = text.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    const rawPhone = phone.replace(/\D/g, '');
+    if (rawPhone.length < 10) { toast.error('Enter a valid 10-digit phone number'); return; }
+    if (pin.length !== 4) { toast.error('PIN must be 4 digits'); return; }
+
     setLoading(true);
     try {
-      toast.error('Integrate Firebase Web SDK here for production OTP flow');
+      const { data } = await authApi.login(rawPhone, pin);
+      const user = data.data.user;
+      if (['CUSTOMER', 'EMPLOYEE'].includes(user.role)) {
+        toast.error('You do not have admin access');
+        return;
+      }
+      setAuth(user, data.data.token);
+      navigate('/');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.logo}>⛽ Lucky Stop</h1>
-        <h2 style={styles.subtitle}>Admin Dashboard</h2>
-        <p style={styles.note}>
-          Sign in with your registered phone number.
-          <br />
-          Only authorized staff can access this panel.
-        </p>
+    <div style={s.container}>
+      <div style={s.card}>
+        <h1 style={s.logo}>⛽ Lucky Stop</h1>
+        <h2 style={s.subtitle}>Admin Dashboard</h2>
+        <p style={s.note}>Sign in with your registered phone number and PIN.</p>
 
-        <div style={styles.form}>
-          <label style={styles.label}>Phone Number</label>
+        <form style={s.form} onSubmit={handleLogin}>
+          <label style={s.label}>Phone Number</label>
           <input
-            style={styles.input}
+            style={s.input}
             type="tel"
-            placeholder="+1 (555) 000-0000"
+            placeholder="(555) 000-0000"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(formatPhone(e.target.value))}
+            autoComplete="tel"
           />
-          <button style={styles.button} onClick={handleLogin} disabled={loading}>
-            {loading ? 'Sending...' : 'Send Code'}
+
+          <label style={s.label}>4-Digit PIN</label>
+          <input
+            style={{ ...s.input, letterSpacing: 8, fontSize: 20, textAlign: 'center' }}
+            type="password"
+            placeholder="••••"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            maxLength={4}
+            inputMode="numeric"
+          />
+
+          <button style={s.button} type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' },
   card: { background: '#fff', borderRadius: 16, padding: 40, width: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' },
   logo: { fontSize: 32, fontWeight: 800, color: '#E63946', margin: 0 },
@@ -64,9 +87,9 @@ const styles: Record<string, React.CSSProperties> = {
   note: { color: '#6c757d', fontSize: 14, lineHeight: 1.6, marginBottom: 24 },
   form: { display: 'flex', flexDirection: 'column', gap: 12 },
   label: { fontWeight: 600, fontSize: 14, color: '#212529' },
-  input: { padding: '12px 16px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 16 },
+  input: { padding: '12px 16px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 16, outline: 'none' },
   button: {
     padding: '14px 16px', backgroundColor: '#E63946', color: '#fff',
-    border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: 'pointer',
+    border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 8,
   },
 };

@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
 });
 
 export const authApi = {
-  verify: (idToken: string) => api.post('/auth/verify', { idToken }),
+  login: (phone: string, pin: string) => api.post('/auth/login', { phone, pin }),
 };
 
 export const billingApi = {
@@ -39,6 +39,10 @@ export const pointsApi = {
   getStoreTransactions: (storeId: string, status?: string, page = 1) =>
     api.get(`/points/store/${storeId}?page=${page}${status ? `&status=${status}` : ''}`),
   reject: (transactionId: string) => api.patch(`/points/${transactionId}/reject`),
+};
+
+export const storesApi = {
+  getAll: () => api.get('/billing/stores'),
 };
 
 export default api;
