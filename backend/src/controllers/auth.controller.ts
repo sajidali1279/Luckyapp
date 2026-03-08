@@ -195,6 +195,36 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
   });
 }
 
+// ─── List Customers (SuperAdmin+) ────────────────────────────────────────────
+
+export async function listCustomers(req: AuthRequest, res: Response) {
+  const { search = '', page = '1', limit = '50' } = req.query as { search?: string; page?: string; limit?: string };
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const where = {
+    role: Role.CUSTOMER,
+    ...(search ? {
+      OR: [
+        { phone: { contains: search } },
+        { name: { contains: search, mode: 'insensitive' as const } },
+      ],
+    } : {}),
+  };
+
+  const [customers, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: parseInt(limit),
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  res.json({ success: true, data: { customers, total, page: parseInt(page) } });
+}
+
 // ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────
 
 export async function listStaff(_req: AuthRequest, res: Response) {

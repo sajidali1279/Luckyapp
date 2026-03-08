@@ -3,13 +3,14 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
   getMyTransactions,
   rejectTransaction,
   getStoreTransactions,
+  getStoreSummary,
 } from '../controllers/points.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer,
@@ -35,6 +36,7 @@ router.patch('/auth/profile', authenticate, updateProfile);                     
 router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin);       // Create SuperAdmin (HQ account)
 router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);         // Create employee/manager
 router.get('/staff', authenticate, requireRole(Role.SUPER_ADMIN), listStaff);                        // List all staff
+router.get('/users/customers', authenticate, requireRole(Role.SUPER_ADMIN), listCustomers);          // List customers
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
 router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 
@@ -52,6 +54,7 @@ router.post(
 );
 
 // ─── Points (Admin) ───────────────────────────────────────────────────────────
+router.get('/points/store/:storeId/summary', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSummary);
 router.get('/points/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreTransactions);
 router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STORE_MANAGER), rejectTransaction);
 

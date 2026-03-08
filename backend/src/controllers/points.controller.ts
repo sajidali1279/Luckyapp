@@ -169,6 +169,53 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
   res.json({ success: true, message: 'Transaction rejected' });
 }
 
+// Manager: store dashboard summary stats
+export async function getStoreSummary(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [todayStats, pendingCount, allTimeStats] = await prisma.$transaction([
+    prisma.pointsTransaction.aggregate({
+      where: { storeId, status: TransactionStatus.APPROVED, createdAt: { gte: todayStart } },
+      _count: true,
+      _sum: { pointsAwarded: true, purchaseAmount: true },
+    }),
+    prisma.pointsTransaction.count({ where: { storeId, status: TransactionStatus.PENDING } }),
+    prisma.pointsTransaction.aggregate({
+      where: { storeId, status: TransactionStatus.APPROVED },
+      _count: true,
+      _sum: { pointsAwarded: true, purchaseAmount: true },
+    }),
+  ]);
+
+  const recent = await prisma.pointsTransaction.findMany({
+    where: { storeId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    include: { customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } } },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      today: {
+        transactions: todayStats._count,
+        pointsAwarded: todayStats._sum.pointsAwarded || 0,
+        purchaseVolume: todayStats._sum.purchaseAmount || 0,
+      },
+      pending: pendingCount,
+      allTime: {
+        transactions: allTimeStats._count,
+        pointsAwarded: allTimeStats._sum.pointsAwarded || 0,
+        purchaseVolume: allTimeStats._sum.purchaseAmount || 0,
+      },
+      recent,
+    },
+  });
+}
+
 // Admin: view all transactions for a store with receipt photos
 export async function getStoreTransactions(req: AuthRequest, res: Response) {
   const { storeId } = req.params;

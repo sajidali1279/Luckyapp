@@ -21,6 +21,7 @@ export default function Navbar() {
           <>
             <NavLink to="/offers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Offers</NavLink>
             <NavLink to="/banners" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Banners</NavLink>
+            <NavLink to="/customers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Customers</NavLink>
           </>
         )}
         <NavLink to="/transactions" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Transactions</NavLink>

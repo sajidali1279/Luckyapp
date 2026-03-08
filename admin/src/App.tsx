@@ -10,6 +10,7 @@ import Offers from './pages/Offers';
 import Banners from './pages/Banners';
 import Transactions from './pages/Transactions';
 import Staff from './pages/Staff';
+import Customers from './pages/Customers';
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ export default function App() {
             <Route element={<SuperAdminOnly />}>
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />
+              <Route path="/customers" element={<Customers />} />
             </Route>
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
