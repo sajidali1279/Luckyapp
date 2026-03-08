@@ -46,7 +46,13 @@ export const pointsApi = {
 };
 
 export const storesApi = {
-  getAll: () => api.get('/billing/stores'),
+  getAll: () => api.get('/stores'),
+};
+
+export const staffApi = {
+  list: () => api.get('/staff'),
+  toggleActive: (userId: string) => api.patch(`/users/${userId}/toggle-active`),
+  resetPin: (userId: string, newPin: string) => api.patch(`/users/${userId}/reset-pin`, { newPin }),
 };
 
 export default api;

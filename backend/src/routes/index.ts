@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -18,6 +18,7 @@ import {
 import {
   updateStoreBilling,
   getAllStoresBilling,
+  getStores,
   createBillingRecord,
   markBillingPaid,
   getDevRevenue,
@@ -31,8 +32,11 @@ router.post('/auth/register', register);                                        
 router.post('/auth/login', login);                                                // Phone + PIN login
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
 router.patch('/auth/profile', authenticate, updateProfile);                       // Update name
-router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin); // Create SuperAdmin (HQ account)
-router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);   // Create employee/manager
+router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin);       // Create SuperAdmin (HQ account)
+router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);         // Create employee/manager
+router.get('/staff', authenticate, requireRole(Role.SUPER_ADMIN), listStaff);                        // List all staff
+router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
+router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 
 // ─── Points (Customer) ────────────────────────────────────────────────────────
 router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMyTransactions);
@@ -61,6 +65,9 @@ router.delete('/offers/:offerId', authenticate, requireRole(Role.SUPER_ADMIN), d
 router.get('/banners', authenticate, getActiveBanners); // All authenticated users
 router.post('/banners', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), createBanner);
 router.delete('/banners/:bannerId', authenticate, requireRole(Role.SUPER_ADMIN), deleteBanner);
+
+// ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
+router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);

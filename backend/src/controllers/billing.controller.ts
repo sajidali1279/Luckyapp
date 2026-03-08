@@ -4,6 +4,16 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType } from '@prisma/client';
 
+// SUPER_ADMIN+ — basic store list (no billing info)
+export async function getStores(_req: AuthRequest, res: Response) {
+  const stores = await prisma.store.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, city: true, state: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ success: true, data: stores });
+}
+
 // DevAdmin only — change billing type for a store
 const billingSchema = z.object({
   billingType: z.nativeEnum(BillingType),

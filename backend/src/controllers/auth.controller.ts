@@ -195,6 +195,54 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
   });
 }
 
+// ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────
+
+export async function listStaff(_req: AuthRequest, res: Response) {
+  const staff = await prisma.user.findMany({
+    where: { role: { not: Role.CUSTOMER } },
+    select: {
+      id: true, phone: true, name: true, role: true, isActive: true, createdAt: true,
+      storeRoles: { select: { store: { select: { id: true, name: true } }, role: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ success: true, data: staff });
+}
+
+// ─── Toggle User Active (SuperAdmin+) ────────────────────────────────────────
+
+export async function toggleUserActive(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  if (userId === req.user!.id) {
+    res.status(400).json({ success: false, error: 'Cannot deactivate your own account' });
+    return;
+  }
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { isActive: !target.isActive },
+    select: { id: true, isActive: true },
+  });
+  res.json({ success: true, data: updated });
+}
+
+// ─── Reset User PIN (SuperAdmin+) ─────────────────────────────────────────────
+
+export async function resetUserPin(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const { newPin } = req.body as { newPin: string };
+  if (!newPin || !/^\d{4}$/.test(newPin)) {
+    res.status(400).json({ success: false, error: 'New PIN must be 4 digits' });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { pinHash } });
+  res.json({ success: true, message: 'PIN reset successfully' });
+}
+
 // ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────
 
 const createStaffSchema = z.object({
