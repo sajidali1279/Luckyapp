@@ -9,11 +9,13 @@ import { z } from 'zod';
 
 const SALT_ROUNDS = 12;
 
+const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30; // 30 days
+
 function issueJwt(user: { id: string; phone: string; role: Role }, storeIds: string[]) {
   return jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, storeIds },
     process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+    { expiresIn: JWT_EXPIRES_IN_SECONDS }
   );
 }
 
