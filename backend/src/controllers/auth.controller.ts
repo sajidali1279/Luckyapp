@@ -161,7 +161,41 @@ export async function updateProfile(req: AuthRequest, res: Response) {
   res.json({ success: true, data: user });
 }
 
-// ─── Create Staff Account (Admin/SuperAdmin only) ─────────────────────────────
+// ─── Create Super Admin (DevAdmin only) ───────────────────────────────────────
+
+const createSuperAdminSchema = z.object({
+  phone: z.string().min(10).max(15),
+  name: z.string().min(1),
+  pin: z.string().length(4).regex(/^\d{4}$/),
+});
+
+export async function createSuperAdmin(req: AuthRequest, res: Response) {
+  const parsed = createSuperAdminSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const { phone, name, pin } = parsed.data;
+
+  const existing = await prisma.user.findUnique({ where: { phone } });
+  if (existing) {
+    res.status(409).json({ success: false, error: 'Phone number already in use' });
+    return;
+  }
+
+  const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
+  const user = await prisma.user.create({
+    data: { phone, name, pinHash, role: Role.SUPER_ADMIN, isProfileComplete: true },
+  });
+
+  res.status(201).json({
+    success: true,
+    data: { id: user.id, phone: user.phone, name: user.name, role: user.role },
+  });
+}
+
+// ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────
 
 const createStaffSchema = z.object({
   phone: z.string().min(10).max(15),

@@ -9,6 +9,7 @@ import Billing from './pages/Billing';
 import Offers from './pages/Offers';
 import Banners from './pages/Banners';
 import Transactions from './pages/Transactions';
+import Staff from './pages/Staff';
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ export default function App() {
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/staff" element={<Staff />} />
             <Route element={<SuperAdminOnly />}>
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />

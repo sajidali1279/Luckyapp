@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -31,7 +31,8 @@ router.post('/auth/register', register);                                        
 router.post('/auth/login', login);                                                // Phone + PIN login
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
 router.patch('/auth/profile', authenticate, updateProfile);                       // Update name
-router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount); // Create employee/manager
+router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin); // Create SuperAdmin (HQ account)
+router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);   // Create employee/manager
 
 // ─── Points (Customer) ────────────────────────────────────────────────────────
 router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMyTransactions);

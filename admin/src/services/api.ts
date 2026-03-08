@@ -12,6 +12,10 @@ api.interceptors.request.use((config) => {
 
 export const authApi = {
   login: (phone: string, pin: string) => api.post('/auth/login', { phone, pin }),
+  createSuperAdmin: (phone: string, name: string, pin: string) =>
+    api.post('/auth/super-admin', { phone, name, pin }),
+  createStaff: (phone: string, name: string, pin: string, role: string, storeId: string) =>
+    api.post('/auth/staff', { phone, name, pin, role, storeId }),
 };
 
 export const billingApi = {
