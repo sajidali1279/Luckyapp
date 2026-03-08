@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Claude Code internal
+.claude/
+
+# Mobile
+mobile/.expo/
+mobile/android/
+mobile/ios/
+
+# Firebase credentials — NEVER commit
+*.json.key
+google-services.json
+GoogleService-Info.plist

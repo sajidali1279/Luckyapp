@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  DEV_ADMIN    // Developer (you) — full access + billing
+  SUPER_ADMIN  // LuckyStop HQ — all stores, offers, banners
+  STORE_MANAGER // Per-store management
+  EMPLOYEE     // Scan QR, upload receipt, grant points
+  CUSTOMER     // Mobile app user
+}
+
+enum BillingType {
+  MONTHLY_SUBSCRIPTION
+  PER_TRANSACTION
+  HYBRID
+}
+
+enum TransactionStatus {
+  PENDING    // Waiting for receipt upload
+  APPROVED   // Points granted
+  REJECTED   // Rejected by admin/auto
+}
+
+enum OfferType {
+  ALL_STORES   // Applies to all 14 stores
+  SPECIFIC_STORE
+}
+
+enum ProductCategory {
+  GROCERIES
+  FROZEN_FOODS
+  FRESH_FOODS
+  GAS
+  DIESEL
+  TOBACCO_VAPES
+  HOT_FOODS
+  OTHER
+}
+
+// ─── Core Models ──────────────────────────────────────────────────────────────
+
+model User {
+  id              String   @id @default(uuid())
+  phone           String   @unique
+  name            String?
+  role            Role     @default(CUSTOMER)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Auth — phone + PIN (no OTP, no Firebase Auth)
+  pinHash         String?           // bcrypt hash of 4-digit PIN
+  isProfileComplete Boolean @default(false)  // true after user sets name + PIN
+
+  // Customer-specific
+  qrCode          String?  @unique  // Unique QR identifier for customer
+  pointsBalance   Float    @default(0)
+
+  // Relations
+  storeRoles      UserStoreRole[]      // Which stores this employee/manager belongs to
+  pointsEarned    PointsTransaction[]  @relation("PointsEarner")
+  pointsGranted   PointsTransaction[]  @relation("PointsGranter")
+  redemptions     Redemption[]
+  pushTokens      PushToken[]
+
+  @@map("users")
+}
+
+model Store {
+  id          String   @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  phone       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Billing (managed by DevAdmin only)
+  billingType       BillingType @default(MONTHLY_SUBSCRIPTION)
+  subscriptionPrice Float       @default(99.00)  // Monthly price in dollars
+  transactionFeeRate Float      @default(0.02)   // 2% per transaction for DevAdmin cut
+
+  // Relations
+  userRoles         UserStoreRole[]
+  transactions      PointsTransaction[]
+  offers            Offer[]
+  banners           Banner[]
+  billing           BillingRecord[]
+
+  @@map("stores")
+}
+
+// Links employees/managers to their specific stores
+model UserStoreRole {
+  id        String   @id @default(uuid())
+  userId    String
+  storeId   String
+  role      Role     // EMPLOYEE or STORE_MANAGER
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@map("user_store_roles")
+}
+
+// ─── Points System ────────────────────────────────────────────────────────────
+
+model PointsTransaction {
+  id              String            @id @default(uuid())
+  customerId      String
+  grantedById     String            // Employee who scanned
+  storeId         String
+  purchaseAmount  Float             // Total purchase in dollars
+  pointsAwarded   Float             // 5% of purchaseAmount
+  devCut          Float             // 2% of purchaseAmount (your revenue)
+  storeCost       Float             // 7% total borne by LuckyStop
+  category        ProductCategory   @default(OTHER)
+  status          TransactionStatus @default(PENDING)
+  receiptImageUrl String?           // Required before APPROVED
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  customer    User  @relation("PointsEarner", fields: [customerId], references: [id])
+  grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
+  store       Store @relation(fields: [storeId], references: [id])
+
+  @@map("points_transactions")
+}
+
+// ─── Offers & Promotions ──────────────────────────────────────────────────────
+
+model Offer {
+  id          String      @id @default(uuid())
+  title       String
+  description String
+  imageUrl    String?
+  type        OfferType   @default(ALL_STORES)
+  storeId     String?     // null = all stores
+  category    ProductCategory?  // null = all categories
+  bonusRate   Float?      // e.g. 0.08 = 8% instead of 5% for this offer
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  store Store? @relation(fields: [storeId], references: [id])
+
+  @@map("offers")
+}
+
+model Banner {
+  id        String    @id @default(uuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?   // Optional deep link
+  storeId   String?   // null = all stores
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  store Store? @relation(fields: [storeId], references: [id])
+
+  @@map("banners")
+}
+
+// ─── Rewards (what customers can redeem) ─────────────────────────────────────
+
+model Reward {
+  id            String   @id @default(uuid())
+  name          String
+  description   String
+  imageUrl      String?
+  pointsCost    Float    // Points needed to redeem
+  isActive      Boolean  @default(true)
+  stockLimit    Int?     // null = unlimited
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  redemptions Redemption[]
+
+  @@map("rewards")
+}
+
+model Redemption {
+  id          String   @id @default(uuid())
+  customerId  String
+  rewardId    String
+  pointsSpent Float
+  redeemedAt  DateTime @default(now())
+  verifiedAt  DateTime?  // When employee confirmed at store
+  verifiedBy  String?    // Employee user ID
+
+  customer User   @relation(fields: [customerId], references: [id])
+  reward   Reward @relation(fields: [rewardId], references: [id])
+
+  @@map("redemptions")
+}
+
+// ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
+
+model BillingRecord {
+  id          String   @id @default(uuid())
+  storeId     String
+  billingType BillingType
+  amount      Float
+  period      String   // e.g. "2024-03"
+  isPaid      Boolean  @default(false)
+  paidAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@map("billing_records")
+}
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String   // "ios" | "android"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}

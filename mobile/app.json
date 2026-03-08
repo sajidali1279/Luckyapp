@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Lucky Stop",
+    "slug": "luckystop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E63946"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.luckystop.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#E63946"
+      },
+      "package": "com.luckystop.app",
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
+        "expo-notifications",
+        { "sounds": [] }
+      ]
+    ],
+    "scheme": "luckystop"
+  }
+}
