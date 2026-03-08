@@ -20,8 +20,11 @@
       "expo-camera",
       [
         "expo-notifications",
-        { "sounds": [] }
-      ]
+        {
+          "sounds": []
+        }
+      ],
+      "expo-secure-store"
     ],
     "scheme": "luckystop"
   }

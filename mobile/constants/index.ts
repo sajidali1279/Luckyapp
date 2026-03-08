@@ -1,6 +1,4 @@
-export const API_URL = __DEV__
-  ? 'http://localhost:3000/api'
-  : 'https://luckystop-api.onrender.com/api';
+export const API_URL = 'https://luckystop-api.onrender.com/api';
 
 export const COLORS = {
   primary: '#E63946',      // Lucky Stop red
