@@ -8,6 +8,9 @@ import routes from './routes';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (required when running behind Render/load balancer)
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
