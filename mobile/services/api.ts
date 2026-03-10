@@ -36,6 +36,8 @@ export const authApi = {
     api.patch('/auth/profile', { name }),
   changePin: (currentPin: string, newPin: string) =>
     api.patch('/auth/pin', { currentPin, newPin }),
+  registerPushToken: (token: string, platform: string) =>
+    api.post('/auth/push-token', { token, platform }),
 };
 
 export const pointsApi = {
@@ -47,6 +49,8 @@ export const pointsApi = {
     api.post(`/points/grant/${transactionId}/receipt`, receiptFile, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  redeemCredits: (data: { customerQrCode: string; storeId: string; amount: number }) =>
+    api.post('/points/redeem', data),
   getStoreTransactions: (storeId: string, page = 1, status?: string) =>
     api.get(`/points/store/${storeId}?page=${page}${status ? `&status=${status}` : ''}`),
   rejectTransaction: (transactionId: string) =>

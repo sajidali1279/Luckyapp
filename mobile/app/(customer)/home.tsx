@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -8,7 +7,7 @@ import { offersApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 export default function CustomerHome() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
 
   const { data: bannersData } = useQuery({
     queryKey: ['banners'],
@@ -31,15 +30,15 @@ export default function CustomerHome() {
           <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
           <Text style={styles.storeName}>Lucky Stop Rewards</Text>
         </View>
-        <TouchableOpacity onPress={logout}>
-          <Text style={styles.logoutText}>Sign out</Text>
+        <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
+          <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Points Balance Card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Your Balance</Text>
-        <Text style={styles.balanceAmount}>${user?.pointsBalance?.toFixed(2) || '0.00'}</Text>
+        <Text style={styles.balanceAmount}>${Number(user?.pointsBalance || 0).toFixed(2)}</Text>
         <Text style={styles.balanceSubtext}>Earn 5¢ for every $1 spent</Text>
 
         <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
@@ -110,7 +109,8 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
   storeName: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  logoutText: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  profileBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
   balanceCard: {
     margin: 16, backgroundColor: COLORS.secondary, borderRadius: 20, padding: 24, alignItems: 'center',

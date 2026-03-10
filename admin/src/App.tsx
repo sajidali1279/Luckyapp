@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 function ProtectedLayout() {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
-  if (['CUSTOMER', 'EMPLOYEE'].includes(user.role)) return <Navigate to="/login" replace />;
+  if (!['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) return <Navigate to="/login" replace />;
   return (
     <>
       <Navbar />

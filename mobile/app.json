@@ -13,7 +13,11 @@
       "adaptiveIcon": {
         "backgroundColor": "#E63946"
       },
-      "package": "com.luckystop.app"
+      "package": "com.luckystop.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -26,6 +30,13 @@
       ],
       "expo-secure-store"
     ],
-    "scheme": "luckystop"
+    "scheme": "luckystop",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c13d7114-4241-4e51-ad30-d69096d570ee"
+      }
+    },
+    "owner": "sajid1017"
   }
 }

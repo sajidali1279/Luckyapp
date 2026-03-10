@@ -5,6 +5,26 @@ import { AuthRequest } from '../types';
 import { ProductCategory, TransactionStatus, Role } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 
+// ─── Push Notification Helper ─────────────────────────────────────────────────
+
+async function sendPushNotification(userId: string, title: string, body: string) {
+  try {
+    const tokens = await prisma.pushToken.findMany({
+      where: { userId },
+      select: { token: true },
+    });
+    if (tokens.length === 0) return;
+    const messages = tokens.map(({ token }) => ({ to: token, title, body, sound: 'default' }));
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(messages),
+    });
+  } catch {
+    // Non-critical — don't let push failure break the response
+  }
+}
+
 const CUSTOMER_CASHBACK_RATE = parseFloat(process.env.CUSTOMER_CASHBACK_RATE || '0.05');
 const DEV_CUT_RATE = parseFloat(process.env.DEV_CUT_RATE || '0.02');
 
@@ -123,10 +143,66 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     }),
   ]);
 
+  // Notify customer their points were credited
+  sendPushNotification(
+    transaction.customerId,
+    '💰 Points Credited!',
+    `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`
+  );
+
   res.json({
     success: true,
     message: `$${transaction.pointsAwarded.toFixed(2)} credited to customer account`,
     data: updatedTransaction,
+  });
+}
+
+// Employee: redeem customer credits (deduct from balance)
+const redeemSchema = z.object({
+  customerQrCode: z.string(),
+  storeId: z.string().uuid(),
+  amount: z.number().positive(),
+});
+
+export async function redeemCredits(req: AuthRequest, res: Response) {
+  const parsed = redeemSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const { customerQrCode, storeId, amount } = parsed.data;
+  const employee = req.user!;
+
+  const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
+  if (!customer) {
+    res.status(404).json({ success: false, error: 'Customer QR code not found' });
+    return;
+  }
+  if (customer.pointsBalance < amount) {
+    res.status(400).json({
+      success: false,
+      error: `Insufficient balance. Customer has $${customer.pointsBalance.toFixed(2)}.`,
+    });
+    return;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: customer.id },
+    data: { pointsBalance: { decrement: amount } },
+    select: { id: true, name: true, phone: true, pointsBalance: true },
+  });
+
+  sendPushNotification(
+    customer.id,
+    '🎉 Redemption Successful!',
+    `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`
+  );
+
+  res.json({
+    success: true,
+    message: `$${amount.toFixed(2)} redeemed successfully`,
+    data: { customer: { ...updated, pointsBalance: Number(updated.pointsBalance) }, amountRedeemed: amount },
   });
 }
 

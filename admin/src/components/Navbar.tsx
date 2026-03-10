@@ -5,7 +5,6 @@ export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
-  const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   function handleLogout() {
     logout();
@@ -17,15 +16,11 @@ export default function Navbar() {
       <div style={s.brand}>⛽ Lucky Stop Admin</div>
       <div style={s.links}>
         <NavLink to="/" end style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Dashboard</NavLink>
-        {isSuperAdmin && (
-          <>
-            <NavLink to="/offers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Offers</NavLink>
-            <NavLink to="/banners" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Banners</NavLink>
-            <NavLink to="/customers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Customers</NavLink>
-          </>
-        )}
+        <NavLink to="/offers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Offers</NavLink>
+        <NavLink to="/banners" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Banners</NavLink>
         <NavLink to="/transactions" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Transactions</NavLink>
         <NavLink to="/staff" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Staff</NavLink>
+        <NavLink to="/customers" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Customers</NavLink>
         {isDevAdmin && (
           <NavLink to="/billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>Billing</NavLink>
         )}

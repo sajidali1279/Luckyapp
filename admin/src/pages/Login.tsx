@@ -28,8 +28,8 @@ export default function Login() {
     try {
       const { data } = await authApi.login(rawPhone, pin);
       const user = data.data.user;
-      if (['CUSTOMER', 'EMPLOYEE'].includes(user.role)) {
-        toast.error('You do not have admin access');
+      if (!['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+        toast.error('This dashboard is for Super Admins and Dev Admins only. Use the mobile app instead.');
         return;
       }
       setAuth(user, data.data.token);
@@ -46,7 +46,7 @@ export default function Login() {
       <div style={s.card}>
         <h1 style={s.logo}>⛽ Lucky Stop</h1>
         <h2 style={s.subtitle}>Admin Dashboard</h2>
-        <p style={s.note}>Sign in with your registered phone number and PIN.</p>
+        <p style={s.note}>For Super Admins and Dev Admins only. All other roles use the mobile app.</p>
 
         <form style={s.form} onSubmit={handleLogin}>
           <label style={s.label}>Phone Number</label>

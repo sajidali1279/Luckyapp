@@ -112,9 +112,25 @@ export async function login(req: Request, res: Response) {
     success: true,
     data: {
       token,
-      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: user.pointsBalance, storeIds },
+      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: Number(user.pointsBalance), storeIds },
     },
   });
+}
+
+// ─── Register Push Token ──────────────────────────────────────────────────────
+
+export async function registerPushToken(req: AuthRequest, res: Response) {
+  const { token, platform } = req.body as { token: string; platform: string };
+  if (!token || !platform) {
+    res.status(400).json({ success: false, error: 'token and platform required' });
+    return;
+  }
+  await prisma.pushToken.upsert({
+    where: { token },
+    update: { userId: req.user!.id },
+    create: { userId: req.user!.id, token, platform },
+  });
+  res.json({ success: true });
 }
 
 // ─── Change PIN ───────────────────────────────────────────────────────────────

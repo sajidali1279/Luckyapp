@@ -10,10 +10,12 @@ export default function Transactions() {
   const qc = useQueryClient();
   const [selectedStore, setSelectedStore] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const isAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
     queryFn: () => storesApi.getAll(),
+    enabled: isAdmin,
   });
 
   useEffect(() => {
@@ -43,7 +45,6 @@ export default function Transactions() {
 
   const stores = storesData?.data?.data || [];
   const transactions = data?.data?.data || [];
-  const isAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   return (
     <div style={s.container}>

@@ -17,6 +17,7 @@ export default function Staff() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const [tab, setTab] = useState<Tab>('list');
 
   // Create form state
@@ -30,8 +31,8 @@ export default function Staff() {
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
   const [newPin, setNewPin] = useState('');
 
-  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
-  const { data: staffData, isLoading } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
+  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll(), enabled: isSuperAdmin });
+  const { data: staffData, isLoading } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list(), enabled: isSuperAdmin });
 
   const stores = storesData?.data?.data || [];
   const staffList: any[] = staffData?.data?.data || [];
@@ -97,7 +98,7 @@ export default function Staff() {
         </div>
         <div style={s.tabs}>
           <button style={{ ...s.tab, ...(tab === 'list' ? s.tabActive : {}) }} onClick={() => setTab('list')}>Staff List</button>
-          <button style={{ ...s.tab, ...(tab === 'create' ? s.tabActive : {}) }} onClick={() => setTab('create')}>+ Create Account</button>
+          {isSuperAdmin && <button style={{ ...s.tab, ...(tab === 'create' ? s.tabActive : {}) }} onClick={() => setTab('create')}>+ Create Account</button>}
         </div>
       </div>
 

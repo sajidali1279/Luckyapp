@@ -48,8 +48,8 @@ export default function HistoryScreen() {
               <Text style={styles.category}>{item.category?.replace('_', ' ')}</Text>
             </View>
             <View style={styles.cardRight}>
-              <Text style={styles.points}>+${item.pointsAwarded.toFixed(2)}</Text>
-              <Text style={styles.purchase}>on ${item.purchaseAmount.toFixed(2)}</Text>
+              <Text style={styles.points}>+${Number(item.pointsAwarded).toFixed(2)}</Text>
+              <Text style={styles.purchase}>on ${Number(item.purchaseAmount).toFixed(2)}</Text>
             </View>
           </View>
         )}
