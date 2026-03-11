@@ -5,6 +5,9 @@ import { billingApi } from '../services/api';
 
 const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as const;
 
+function needsSubscription(type: string) { return type === 'MONTHLY_SUBSCRIPTION' || type === 'HYBRID'; }
+function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' || type === 'HYBRID'; }
+
 export default function Billing() {
   const qc = useQueryClient();
   const [editingStore, setEditingStore] = useState<string | null>(null);
@@ -38,21 +41,30 @@ export default function Billing() {
     setEditingStore(store.id);
     setBillingForm({
       billingType: store.billingType,
-      subscriptionPrice: store.subscriptionPrice,
-      transactionFeeRate: store.transactionFeeRate,
+      subscriptionPrice: String(store.subscriptionPrice),
+      transactionFeeRate: String(store.transactionFeeRate),
     });
   }
 
   function saveEdit(storeId: string) {
-    const subscriptionPrice = parseFloat(billingForm.subscriptionPrice);
-    const transactionFeeRate = parseFloat(billingForm.transactionFeeRate);
-    if (!billingForm.billingType) { toast.error('Billing type is required'); return; }
-    if (isNaN(subscriptionPrice) || subscriptionPrice <= 0) { toast.error('Enter a valid subscription price'); return; }
-    if (isNaN(transactionFeeRate) || transactionFeeRate < 0 || transactionFeeRate > 1) { toast.error('Transaction fee must be between 0 and 1'); return; }
-    updateBilling.mutate({
-      storeId,
-      data: { billingType: billingForm.billingType, subscriptionPrice, transactionFeeRate },
-    });
+    const { billingType, subscriptionPrice, transactionFeeRate } = billingForm;
+    if (!billingType) { toast.error('Billing type is required'); return; }
+
+    const payload: Record<string, any> = { billingType };
+
+    if (needsSubscription(billingType)) {
+      const price = parseFloat(subscriptionPrice);
+      if (isNaN(price) || price <= 0) { toast.error('Enter a valid monthly price'); return; }
+      payload.subscriptionPrice = price;
+    }
+
+    if (needsTransactionFee(billingType)) {
+      const fee = parseFloat(transactionFeeRate);
+      if (isNaN(fee) || fee < 0 || fee > 1) { toast.error('Transaction fee must be between 0 and 1 (e.g. 0.02)'); return; }
+      payload.transactionFeeRate = fee;
+    }
+
+    updateBilling.mutate({ storeId, data: payload });
   }
 
   if (isLoading) return <div style={styles.loading}>Loading...</div>;
@@ -89,60 +101,92 @@ export default function Billing() {
           </tr>
         </thead>
         <tbody>
-          {stores.map((store: any) => (
-            <tr key={store.id}>
-              <td style={styles.td}>{store.name}</td>
-              <td style={styles.td}>{store.city}</td>
-              <td style={styles.td}>
-                {editingStore === store.id ? (
-                  <select
-                    value={billingForm.billingType}
-                    onChange={(e) => setBillingForm((f) => ({ ...f, billingType: e.target.value }))}
-                    style={styles.select}
-                  >
-                    {BILLING_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
-                  </select>
-                ) : (
-                  <span style={styles.badge}>{store.billingType.replace(/_/g, ' ')}</span>
-                )}
-              </td>
-              <td style={styles.td}>
-                {editingStore === store.id ? (
-                  <input
-                    type="number"
-                    value={billingForm.subscriptionPrice}
-                    onChange={(e) => setBillingForm((f) => ({ ...f, subscriptionPrice: e.target.value }))}
-                    style={styles.input}
-                  />
-                ) : (
-                  `$${store.subscriptionPrice}/mo`
-                )}
-              </td>
-              <td style={styles.td}>
-                {editingStore === store.id ? (
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={billingForm.transactionFeeRate}
-                    onChange={(e) => setBillingForm((f) => ({ ...f, transactionFeeRate: e.target.value }))}
-                    style={styles.input}
-                  />
-                ) : (
-                  `${(store.transactionFeeRate * 100).toFixed(1)}%`
-                )}
-              </td>
-              <td style={styles.td}>
-                {editingStore === store.id ? (
-                  <>
-                    <button style={styles.saveBtn} onClick={() => saveEdit(store.id)}>Save</button>
-                    <button style={styles.cancelBtn} onClick={() => setEditingStore(null)}>Cancel</button>
-                  </>
-                ) : (
-                  <button style={styles.editBtn} onClick={() => startEdit(store)}>Edit</button>
-                )}
-              </td>
-            </tr>
-          ))}
+          {stores.map((store: any) => {
+            const isEditing = editingStore === store.id;
+            const activeType = isEditing ? billingForm.billingType : store.billingType;
+            return (
+              <tr key={store.id}>
+                <td style={styles.td}>{store.name}</td>
+                <td style={styles.td}>{store.city}</td>
+
+                {/* Billing Type */}
+                <td style={styles.td}>
+                  {isEditing ? (
+                    <select
+                      value={billingForm.billingType}
+                      onChange={(e) => setBillingForm((f) => ({ ...f, billingType: e.target.value }))}
+                      style={styles.select}
+                    >
+                      {BILLING_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  ) : (
+                    <span style={styles.badge}>{store.billingType.replace(/_/g, ' ')}</span>
+                  )}
+                </td>
+
+                {/* Monthly Price — only relevant for MONTHLY_SUBSCRIPTION or HYBRID */}
+                <td style={styles.td}>
+                  {isEditing ? (
+                    needsSubscription(activeType) ? (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 99"
+                        value={billingForm.subscriptionPrice}
+                        onChange={(e) => setBillingForm((f) => ({ ...f, subscriptionPrice: e.target.value }))}
+                        style={styles.input}
+                      />
+                    ) : (
+                      <span style={styles.na}>—</span>
+                    )
+                  ) : (
+                    needsSubscription(store.billingType)
+                      ? `$${Number(store.subscriptionPrice).toFixed(2)}/mo`
+                      : <span style={styles.na}>—</span>
+                  )}
+                </td>
+
+                {/* Transaction Fee — only relevant for PER_TRANSACTION or HYBRID */}
+                <td style={styles.td}>
+                  {isEditing ? (
+                    needsTransactionFee(activeType) ? (
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.001"
+                        placeholder="e.g. 0.02"
+                        value={billingForm.transactionFeeRate}
+                        onChange={(e) => setBillingForm((f) => ({ ...f, transactionFeeRate: e.target.value }))}
+                        style={styles.input}
+                      />
+                    ) : (
+                      <span style={styles.na}>—</span>
+                    )
+                  ) : (
+                    needsTransactionFee(store.billingType)
+                      ? `${(store.transactionFeeRate * 100).toFixed(1)}%`
+                      : <span style={styles.na}>—</span>
+                  )}
+                </td>
+
+                {/* Actions */}
+                <td style={styles.td}>
+                  {isEditing ? (
+                    <>
+                      <button style={styles.saveBtn} onClick={() => saveEdit(store.id)} disabled={updateBilling.isPending}>
+                        {updateBilling.isPending ? '…' : 'Save'}
+                      </button>
+                      <button style={styles.cancelBtn} onClick={() => setEditingStore(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <button style={styles.editBtn} onClick={() => startEdit(store)}>Edit</button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -162,6 +206,7 @@ const styles: Record<string, React.CSSProperties> = {
   th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 13, color: '#6c757d', fontWeight: 600 },
   td: { padding: '14px 16px', borderBottom: '1px solid #dee2e6', fontSize: 14 },
   badge: { background: '#E63946', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600 },
+  na: { color: '#adb5bd', fontSize: 13 },
   input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', width: 90 },
   select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6' },
   editBtn: { padding: '6px 14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' },
