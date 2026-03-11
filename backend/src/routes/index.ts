@@ -14,7 +14,7 @@ import {
   redeemCredits,
 } from '../controllers/points.controller';
 import {
-  createOffer, getActiveOffers, updateOffer, deleteOffer,
+  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory,
   createBanner, getActiveBanners, deleteBanner,
 } from '../controllers/offers.controller';
 import {
@@ -67,6 +67,7 @@ router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STO
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
+router.get('/offers/history', authenticate, requireRole(Role.SUPER_ADMIN), getOffersHistory);
 router.post('/offers', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), createOffer);
 router.patch('/offers/:offerId', authenticate, requireRole(Role.SUPER_ADMIN), updateOffer);
 router.delete('/offers/:offerId', authenticate, requireRole(Role.SUPER_ADMIN), deleteOffer);

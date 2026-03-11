@@ -134,6 +134,17 @@ export async function deleteOffer(req: AuthRequest, res: Response) {
   res.json({ success: true, message: 'Offer deactivated' });
 }
 
+// Returns all past offers (expired or inactive) for the admin reuse panel
+export async function getOffersHistory(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const offers = await prisma.offer.findMany({
+    where: { OR: [{ isActive: false }, { endDate: { lt: now } }] },
+    orderBy: { createdAt: 'desc' },
+    take: 60,
+  });
+  res.json({ success: true, data: offers });
+}
+
 // ─── Banners ──────────────────────────────────────────────────────────────────
 
 export async function createBanner(req: AuthRequest, res: Response) {

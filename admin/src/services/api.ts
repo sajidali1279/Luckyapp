@@ -36,6 +36,7 @@ export const offersApi = {
   update: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
   delete: (offerId: string) => api.delete(`/offers/${offerId}`),
   getActive: () => api.get('/offers'),
+  getHistory: () => api.get('/offers/history'),
 };
 
 export const bannersApi = {
