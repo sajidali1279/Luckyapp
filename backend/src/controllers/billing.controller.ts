@@ -88,6 +88,11 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
   const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const toDate = to ? new Date(to + 'T23:59:59') : new Date();
 
+  if (fromDate >= toDate) {
+    res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
+    return;
+  }
+
   const transactions = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: fromDate, lte: toDate } },
     select: {

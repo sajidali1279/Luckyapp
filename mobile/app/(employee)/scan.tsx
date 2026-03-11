@@ -53,6 +53,15 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: 'Enter a valid purchase amount' });
       return;
     }
+    if (amount > 9999) {
+      Toast.show({ type: 'error', text1: 'Amount too high', text2: 'Maximum purchase is $9,999' });
+      return;
+    }
+    const decimals = purchaseAmount.includes('.') ? purchaseAmount.split('.')[1].length : 0;
+    if (decimals > 2) {
+      Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Max 2 decimal places' });
+      return;
+    }
     if (!storeId) {
       Toast.show({ type: 'error', text1: 'No store assigned to your account' });
       return;
@@ -98,6 +107,15 @@ export default function EmployeeScanScreen() {
     const amount = parseFloat(redeemAmount);
     if (!amount || isNaN(amount) || amount <= 0) {
       Toast.show({ type: 'error', text1: 'Enter a valid amount' });
+      return;
+    }
+    if (amount > 9999) {
+      Toast.show({ type: 'error', text1: 'Amount too high', text2: 'Maximum redemption is $9,999' });
+      return;
+    }
+    const decimals = redeemAmount.includes('.') ? redeemAmount.split('.')[1].length : 0;
+    if (decimals > 2) {
+      Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Max 2 decimal places' });
       return;
     }
     if (!storeId) {

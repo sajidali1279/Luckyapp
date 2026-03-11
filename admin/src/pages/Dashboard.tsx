@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { billingApi, offersApi, bannersApi, customersApi, staffApi } from '../services/api';
+import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 function greeting() {
@@ -24,12 +24,14 @@ export default function Dashboard() {
   const { data: bannersData } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
   const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
   const { data: staffData } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
+  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
 
   const revenue = revenueData?.data?.data;
   const activeOffers = (offersData?.data?.data || []).length;
   const activeBanners = (bannersData?.data?.data || []).length;
   const totalCustomers = customersData?.data?.data?.total || 0;
   const totalStaff = (staffData?.data?.data || []).length;
+  const activeStores = (storesData?.data?.data || []).length;
 
   const QUICK_ACTIONS = [
     { icon: '📢', title: 'Offers', desc: 'Create & manage promotions', to: '/offers', color: '#E63946' },
@@ -49,7 +51,7 @@ export default function Dashboard() {
           <p style={s.welcomeSub}>
             {isDevAdmin
               ? 'You have full access to all stores, billing, and system settings.'
-              : 'Manage your 14 Lucky Stop locations from one place.'}
+              : `Manage your ${activeStores || 14} Lucky Stop locations from one place.`}
           </p>
         </div>
         <div style={{ ...s.roleBadge, ...(isDevAdmin ? s.roleBadgeDev : {}) }}>
@@ -73,7 +75,7 @@ export default function Dashboard() {
       {/* Platform stats */}
       <h2 style={s.sectionTitle}>Platform Overview</h2>
       <div style={s.statsGrid}>
-        <StatCard icon="🏪" label="Active Stores" value="14" />
+        <StatCard icon="🏪" label="Active Stores" value={activeStores || '—'} />
         <StatCard icon="🙋" label="Customers" value={totalCustomers} />
         <StatCard icon="👷" label="Staff Members" value={totalStaff} />
         <StatCard icon="📢" label="Active Offers" value={activeOffers} />

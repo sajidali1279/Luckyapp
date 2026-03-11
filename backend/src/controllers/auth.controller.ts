@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 const SALT_ROUNDS = 12;
 
-const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 function issueJwt(user: { id: string; phone: string; role: Role }, storeIds: string[]) {
   return jwt.sign(

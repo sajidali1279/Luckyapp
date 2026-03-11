@@ -18,7 +18,7 @@ export default function RootLayout() {
     if (!user) {
       router.replace('/(auth)/login');
     } else if (isEmployee(user.role)) {
-      router.replace('/(employee)/scan');
+      router.replace('/(employee)/home');
     } else {
       router.replace('/(customer)/home');
     }

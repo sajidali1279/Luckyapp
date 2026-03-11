@@ -1,13 +1,26 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi } from '../../services/api';
+import { offersApi, authApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 export default function CustomerHome() {
-  const { user } = useAuthStore();
+  const { user, token, setAuth } = useAuthStore();
+
+  // Refresh balance every time this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      authApi.getMe().then(({ data }) => {
+        if (data?.data && user && token) {
+          setAuth({ ...user, pointsBalance: data.data.pointsBalance }, token);
+        }
+      }).catch(() => {});
+    }, [])
+  );
 
   const { data: bannersData } = useQuery({
     queryKey: ['banners'],

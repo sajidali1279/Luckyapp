@@ -38,6 +38,7 @@ export const authApi = {
     api.patch('/auth/pin', { currentPin, newPin }),
   registerPushToken: (token: string, platform: string) =>
     api.post('/auth/push-token', { token, platform }),
+  getMe: () => api.get('/auth/me'),
 };
 
 export const pointsApi = {
