@@ -44,13 +44,14 @@ export default function Billing() {
   }
 
   function saveEdit(storeId: string) {
+    const subscriptionPrice = parseFloat(billingForm.subscriptionPrice);
+    const transactionFeeRate = parseFloat(billingForm.transactionFeeRate);
+    if (!billingForm.billingType) { toast.error('Billing type is required'); return; }
+    if (isNaN(subscriptionPrice) || subscriptionPrice <= 0) { toast.error('Enter a valid subscription price'); return; }
+    if (isNaN(transactionFeeRate) || transactionFeeRate < 0 || transactionFeeRate > 1) { toast.error('Transaction fee must be between 0 and 1'); return; }
     updateBilling.mutate({
       storeId,
-      data: {
-        billingType: billingForm.billingType,
-        subscriptionPrice: parseFloat(billingForm.subscriptionPrice),
-        transactionFeeRate: parseFloat(billingForm.transactionFeeRate),
-      },
+      data: { billingType: billingForm.billingType, subscriptionPrice, transactionFeeRate },
     });
   }
 
