@@ -17,8 +17,8 @@ export async function getStores(_req: AuthRequest, res: Response) {
 // DevAdmin only — change billing type for a store
 const billingSchema = z.object({
   billingType: z.nativeEnum(BillingType),
-  subscriptionPrice: z.number().positive().optional(),
-  transactionFeeRate: z.number().min(0).max(1).optional(),
+  subscriptionPrice: z.coerce.number().positive().optional(),
+  transactionFeeRate: z.coerce.number().min(0).max(1).optional(),
 });
 
 export async function updateStoreBilling(req: AuthRequest, res: Response) {
