@@ -24,6 +24,7 @@ import {
   createBillingRecord,
   markBillingPaid,
   getDevRevenue,
+  getAnalytics,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -79,6 +80,7 @@ router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);
 router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDevRevenue);
+router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);

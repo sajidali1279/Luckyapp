@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Billing from './pages/Billing';
+import Analytics from './pages/Analytics';
 import Offers from './pages/Offers';
 import Banners from './pages/Banners';
 import Transactions from './pages/Transactions';
@@ -55,6 +56,7 @@ export default function App() {
             </Route>
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
+              <Route path="/analytics" element={<Analytics />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

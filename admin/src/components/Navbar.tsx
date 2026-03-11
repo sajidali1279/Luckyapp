@@ -46,9 +46,14 @@ export default function Navbar() {
           </NavLink>
         ))}
         {isDevAdmin && (
-          <NavLink to="/billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-            <span style={s.linkIcon}>💳</span>Billing
-          </NavLink>
+          <>
+            <NavLink to="/analytics" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>📈</span>Analytics
+            </NavLink>
+            <NavLink to="/billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>💳</span>Billing
+            </NavLink>
+          </>
         )}
       </div>
 
