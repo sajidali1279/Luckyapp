@@ -15,16 +15,18 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
 
-  const { data: revenueData } = useQuery({
+  const { data: revenueData, isLoading: loadingRevenue } = useQuery({
     queryKey: ['revenue'],
     queryFn: () => billingApi.getRevenue(),
     enabled: isDevAdmin,
   });
-  const { data: offersData } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
-  const { data: bannersData } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
-  const { data: customersData } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
-  const { data: staffData } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
-  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  const { data: offersData, isLoading: loadingOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
+  const { data: bannersData, isLoading: loadingBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
+  const { data: customersData, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
+  const { data: staffData, isLoading: loadingStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
+  const { data: storesData, isLoading: loadingStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+
+  const isLoading = loadingOffers || loadingBanners || loadingCustomers || loadingStaff || loadingStores;
 
   const revenue = revenueData?.data?.data;
   const activeOffers = (offersData?.data?.data || []).length;
@@ -51,7 +53,7 @@ export default function Dashboard() {
           <p style={s.welcomeSub}>
             {isDevAdmin
               ? 'You have full access to all stores, billing, and system settings.'
-              : `Manage your ${activeStores || 14} Lucky Stop locations from one place.`}
+              : `Manage your ${isLoading ? '...' : activeStores} Lucky Stop locations from one place.`}
           </p>
         </div>
         <div style={{ ...s.roleBadge, ...(isDevAdmin ? s.roleBadgeDev : {}) }}>
@@ -75,11 +77,11 @@ export default function Dashboard() {
       {/* Platform stats */}
       <h2 style={s.sectionTitle}>Platform Overview</h2>
       <div style={s.statsGrid}>
-        <StatCard icon="🏪" label="Active Stores" value={activeStores || '—'} />
-        <StatCard icon="🙋" label="Customers" value={totalCustomers} />
-        <StatCard icon="👷" label="Staff Members" value={totalStaff} />
-        <StatCard icon="📢" label="Active Offers" value={activeOffers} />
-        <StatCard icon="🖼️" label="Active Banners" value={activeBanners} />
+        <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} />
+        <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} />
+        <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} />
+        <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffers} />
+        <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} />
       </div>
 
       {/* Quick actions */}

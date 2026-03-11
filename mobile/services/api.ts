@@ -65,10 +65,3 @@ export const offersApi = {
     api.get(`/banners${storeId ? `?storeId=${storeId}` : ''}`),
 };
 
-export const billingApi = {
-  getAllStores: () => api.get('/billing/stores'),
-  getRevenue: () => api.get('/billing/revenue'),
-  updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
-  createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
-  markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
-};

@@ -11,6 +11,18 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
 type Step = 'scan' | 'mode' | 'grant-amount' | 'receipt' | 'grant-done' | 'redeem-amount' | 'redeem-done';
+type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
+
+const CATEGORIES: { value: Category; label: string; icon: string }[] = [
+  { value: 'GROCERIES', label: 'Groceries', icon: '🛒' },
+  { value: 'GAS', label: 'Gas', icon: '⛽' },
+  { value: 'DIESEL', label: 'Diesel', icon: '🚛' },
+  { value: 'HOT_FOODS', label: 'Hot Foods', icon: '🌮' },
+  { value: 'FROZEN_FOODS', label: 'Frozen', icon: '🧊' },
+  { value: 'FRESH_FOODS', label: 'Fresh', icon: '🥗' },
+  { value: 'TOBACCO_VAPES', label: 'Tobacco/Vapes', icon: '🚬' },
+  { value: 'OTHER', label: 'Other', icon: '🏪' },
+];
 
 export default function EmployeeScanScreen() {
   const { user, logout } = useAuthStore();
@@ -25,6 +37,8 @@ export default function EmployeeScanScreen() {
   const [pointsAwarded, setPointsAwarded] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState<Category>('OTHER');
+  const isGrantFlow = step === 'grant-amount' || step === 'receipt' || step === 'grant-done';
 
   const storeId = user?.storeIds?.[0];
 
@@ -38,6 +52,7 @@ export default function EmployeeScanScreen() {
     setTransactionId('');
     setPointsAwarded(0);
     setReceiptImage(null);
+    setCategory('OTHER');
   }
 
   function handleQrScan({ data }: { data: string }) {
@@ -72,6 +87,7 @@ export default function EmployeeScanScreen() {
         customerQrCode: customerQr,
         storeId,
         purchaseAmount: amount,
+        category,
       });
       setTransactionId(data.data.transactionId);
       setCustomerInfo(data.data.customer);
@@ -97,7 +113,8 @@ export default function EmployeeScanScreen() {
       await pointsApi.uploadReceipt(transactionId, formData);
       setStep('grant-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Upload failed', text2: err.response?.data?.error });
+      setReceiptImage(null); // force re-take on failure
+      Toast.show({ type: 'error', text1: 'Upload failed — retake receipt', text2: err.response?.data?.error });
     } finally {
       setLoading(false);
     }
@@ -160,7 +177,12 @@ export default function EmployeeScanScreen() {
     );
   }
 
-  const stepIndex = { scan: 0, mode: 1, 'grant-amount': 2, receipt: 3, 'redeem-amount': 2, 'grant-done': 4, 'redeem-done': 4 }[step] ?? 0;
+  const grantSteps = ['Scan', 'Select', 'Amount', 'Receipt', 'Done'];
+  const redeemSteps = ['Scan', 'Select', 'Amount', 'Done'];
+  const stepLabels = isGrantFlow ? grantSteps : redeemSteps;
+  const stepIndex = isGrantFlow
+    ? ({ scan: 0, mode: 1, 'grant-amount': 2, receipt: 3, 'grant-done': 4 } as Record<string, number>)[step] ?? 0
+    : ({ scan: 0, mode: 1, 'redeem-amount': 2, 'redeem-done': 3 } as Record<string, number>)[step] ?? 0;
 
   return (
     <View style={s.fill}>
@@ -179,7 +201,7 @@ export default function EmployeeScanScreen() {
         </View>
 
         <View style={s.steps}>
-          {['Scan', 'Select', 'Details', 'Done'].map((label, i) => (
+          {stepLabels.map((label, i) => (
             <View key={label} style={s.stepItem}>
               <View style={[s.stepDot, i <= stepIndex && s.stepDotActive]} />
               <Text style={[s.stepLabel, i <= stepIndex && s.stepLabelActive]}>{label}</Text>
@@ -236,6 +258,19 @@ export default function EmployeeScanScreen() {
       {/* ── Grant: Amount ── */}
       {step === 'grant-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body}>
+          <Text style={s.sectionLabel}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll}>
+            {CATEGORIES.map((c) => (
+              <TouchableOpacity
+                key={c.value}
+                style={[s.catChip, category === c.value && s.catChipActive]}
+                onPress={() => setCategory(c.value)}
+              >
+                <Text style={s.catIcon}>{c.icon}</Text>
+                <Text style={[s.catLabel, category === c.value && s.catLabelActive]}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <Text style={s.sectionLabel}>Purchase Total ($)</Text>
           <View style={s.amountRow}>
             <Text style={s.dollar}>$</Text>
@@ -388,6 +423,14 @@ const s = StyleSheet.create({
   modeCardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   modeCardSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
   arrow: { fontSize: 24, color: COLORS.textMuted },
+
+  // Category chips
+  catScroll: { marginBottom: 4 },
+  catChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 24, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.white, marginRight: 8 },
+  catChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '15' },
+  catIcon: { fontSize: 16 },
+  catLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+  catLabelActive: { color: COLORS.primary },
 
   // Amount
   sectionLabel: { fontSize: 15, fontWeight: '700', color: COLORS.text },

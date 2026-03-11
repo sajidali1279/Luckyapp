@@ -63,16 +63,37 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
   res.json({ success: true, data: offers });
 }
 
+const updateOfferSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  type: z.nativeEnum(OfferType).optional(),
+  storeId: z.string().uuid().nullable().optional(),
+  category: z.nativeEnum(ProductCategory).nullable().optional(),
+  bonusRate: z.coerce.number().min(0).max(1).nullable().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  isActive: z.boolean().optional(),
+}).refine(d => {
+  if (d.startDate && d.endDate) return new Date(d.startDate) < new Date(d.endDate);
+  return true;
+}, { message: 'startDate must be before endDate' });
+
 export async function updateOffer(req: AuthRequest, res: Response) {
   const { offerId } = req.params;
-  const data = req.body;
 
+  const parsed = updateOfferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const { startDate, endDate, ...rest } = parsed.data;
   const offer = await prisma.offer.update({
     where: { id: offerId },
     data: {
-      ...data,
-      ...(data.startDate && { startDate: new Date(data.startDate) }),
-      ...(data.endDate && { endDate: new Date(data.endDate) }),
+      ...rest,
+      ...(startDate && { startDate: new Date(startDate) }),
+      ...(endDate && { endDate: new Date(endDate) }),
     },
   });
 
