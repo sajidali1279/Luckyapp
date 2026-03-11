@@ -1,25 +1,28 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
-const NAV_LINKS = [
-  { to: '/', label: 'Dashboard', icon: '📊', end: true },
-  { to: '/offers', label: 'Offers', icon: '📢' },
-  { to: '/banners', label: 'Banners', icon: '🖼️' },
-  { to: '/transactions', label: 'Transactions', icon: '🧾' },
-  { to: '/staff', label: 'Staff', icon: '👥' },
-  { to: '/customers', label: 'Customers', icon: '🙋' },
+const ALL_NAV_LINKS = [
+  { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/offers', label: 'Offers', icon: '📢', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/banners', label: 'Banners', icon: '🖼️', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/transactions', label: 'Transactions', icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/staff', label: 'Staff', icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/customers', label: 'Customers', icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
   SUPER_ADMIN: 'Super Admin',
+  STORE_MANAGER: 'Store Manager',
 };
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
+  const navLinks = ALL_NAV_LINKS.filter(l => l.roles.includes(user?.role || ''));
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -34,7 +37,7 @@ export default function Navbar() {
       </div>
 
       <div style={s.links}>
-        {NAV_LINKS.map((link) => (
+        {navLinks.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
@@ -62,7 +65,7 @@ export default function Navbar() {
           <div style={s.avatar}>{initials}</div>
           <div style={s.userInfo}>
             <div style={s.userName}>{user?.name || user?.phone}</div>
-            <div style={{ ...s.roleTag, ...(isDevAdmin ? s.roleTagDev : {}) }}>
+            <div style={{ ...s.roleTag, ...(isDevAdmin ? s.roleTagDev : isStoreManager ? s.roleTagMgr : {}) }}>
               {ROLE_LABELS[user?.role || ''] || user?.role}
             </div>
           </div>
@@ -114,6 +117,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
   },
   roleTagDev: { color: '#2DC653' },
+  roleTagMgr: { color: '#4cc9f0' },
   logout: {
     background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
     border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,

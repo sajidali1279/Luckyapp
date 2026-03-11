@@ -12,19 +12,28 @@ import Banners from './pages/Banners';
 import Transactions from './pages/Transactions';
 import Staff from './pages/Staff';
 import Customers from './pages/Customers';
+import StoreManagerDashboard from './pages/StoreManagerDashboard';
 
 const queryClient = new QueryClient();
+
+const ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'];
 
 function ProtectedLayout() {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
-  if (!['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) return <Navigate to="/login" replace />;
+  if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   return (
     <>
       <Navbar />
       <Outlet />
     </>
   );
+}
+
+function DashboardRoute() {
+  const { user } = useAuthStore();
+  if (user?.role === 'STORE_MANAGER') return <StoreManagerDashboard />;
+  return <Dashboard />;
 }
 
 function DevAdminOnly() {
@@ -46,7 +55,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<DashboardRoute />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/staff" element={<Staff />} />
             <Route element={<SuperAdminOnly />}>

@@ -252,6 +252,9 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, address: true, city: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
+
   const [todayStats, pendingCount, allTimeStats] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED, createdAt: { gte: todayStart } },
@@ -276,6 +279,7 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
   res.json({
     success: true,
     data: {
+      store,
       today: {
         transactions: todayStats._count,
         pointsAwarded: todayStats._sum.pointsAwarded || 0,

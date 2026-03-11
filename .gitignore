@@ -11,6 +11,11 @@ mobile/.expo/
 mobile/android/
 mobile/ios/
 
+# Build outputs
+*.apk
+*.ipa
+*.aab
+
 # Firebase credentials — NEVER commit
 *.json.key
 google-services.json

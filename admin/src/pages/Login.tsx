@@ -27,8 +27,8 @@ export default function Login() {
     try {
       const { data } = await authApi.login(rawPhone, pin);
       const user = data.data.user;
-      if (!['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-        toast.error('This dashboard is for admins only. Use the mobile app instead.');
+      if (!['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'].includes(user.role)) {
+        toast.error('Access denied. Employees and customers use the mobile app.');
         return;
       }
       setAuth(user, data.data.token);
@@ -109,7 +109,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p style={s.hint}>Super Admins and Dev Admins only.<br />All other roles use the mobile app.</p>
+          <p style={s.hint}>For Dev Admins, Super Admins, and Store Managers.<br />Employees and customers use the mobile app.</p>
         </div>
       </div>
     </div>
