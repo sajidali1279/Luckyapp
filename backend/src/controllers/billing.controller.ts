@@ -36,15 +36,74 @@ export async function updateStoreBilling(req: AuthRequest, res: Response) {
   res.json({ success: true, data: store });
 }
 
-export async function getAllStoresBilling(req: AuthRequest, res: Response) {
-  const stores = await prisma.store.findMany({
-    select: {
-      id: true, name: true, city: true, billingType: true,
-      subscriptionPrice: true, transactionFeeRate: true, isActive: true,
-      billing: { orderBy: { createdAt: 'desc' }, take: 3 },
-    },
+export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const [stores, txStats30, txStats90, redemptionStats] = await Promise.all([
+    prisma.store.findMany({
+      select: {
+        id: true, name: true, city: true, billingType: true,
+        subscriptionPrice: true, transactionFeeRate: true, isActive: true,
+        billing: { orderBy: { createdAt: 'desc' }, take: 3 },
+      },
+    }),
+    // Per-store transaction totals — last 30 days
+    prisma.pointsTransaction.groupBy({
+      by: ['storeId'],
+      where: { status: 'APPROVED', createdAt: { gte: thirtyDaysAgo } },
+      _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: true,
+    }),
+    // Per-store transaction totals — last 90 days
+    prisma.pointsTransaction.groupBy({
+      by: ['storeId'],
+      where: { status: 'APPROVED', createdAt: { gte: ninetyDaysAgo } },
+      _sum: { purchaseAmount: true },
+      _count: true,
+    }),
+    // Per-store credit redemptions (all time)
+    prisma.creditRedemption.groupBy({
+      by: ['storeId'],
+      _sum: { amount: true, devCut: true },
+      _count: true,
+    }),
+  ]);
+
+  // Build lookup maps
+  const tx30Map = Object.fromEntries(txStats30.map((r) => [r.storeId, r]));
+  const tx90Map = Object.fromEntries(txStats90.map((r) => [r.storeId, r]));
+  const redemptionMap = Object.fromEntries(redemptionStats.map((r) => [r.storeId, r]));
+
+  const enriched = stores.map((store) => {
+    const t30 = tx30Map[store.id];
+    const t90 = tx90Map[store.id];
+    const r   = redemptionMap[store.id];
+    return {
+      ...store,
+      revenue: {
+        last30Days: {
+          transactions: t30?._count ?? 0,
+          purchaseVolume: parseFloat((t30?._sum?.purchaseAmount ?? 0).toFixed(2)),
+          pointsAwarded:  parseFloat((t30?._sum?.pointsAwarded  ?? 0).toFixed(2)),
+        },
+        last90Days: {
+          transactions:   t90?._count ?? 0,
+          purchaseVolume: parseFloat((t90?._sum?.purchaseAmount ?? 0).toFixed(2)),
+          // Monthly average from 90-day window
+          avgMonthlyVolume: parseFloat(((t90?._sum?.purchaseAmount ?? 0) / 3).toFixed(2)),
+        },
+        allTime: {
+          redemptions:   r?._count ?? 0,
+          redeemedAmount: parseFloat((r?._sum?.amount  ?? 0).toFixed(2)),
+          devCut:         parseFloat((r?._sum?.devCut  ?? 0).toFixed(2)),
+        },
+      },
+    };
   });
-  res.json({ success: true, data: stores });
+
+  res.json({ success: true, data: enriched });
 }
 
 export async function createBillingRecord(req: AuthRequest, res: Response) {
