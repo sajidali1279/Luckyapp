@@ -109,7 +109,11 @@ export default function Billing() {
             const isEditing = editingStore === store.id;
             const isExpanded = expandedStore === store.id;
             const activeType = isEditing ? billingForm.billingType : store.billingType;
-            const rev = store.revenue;
+            const rev = store.revenue ?? {
+              last30Days: { transactions: 0, purchaseVolume: 0, pointsAwarded: 0 },
+              last90Days: { transactions: 0, purchaseVolume: 0, avgMonthlyVolume: 0 },
+              allTime: { redemptions: 0, redeemedAmount: 0, devCut: 0 },
+            };
 
             return (
               <>
