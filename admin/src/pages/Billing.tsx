@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
@@ -116,8 +116,8 @@ export default function Billing() {
             };
 
             return (
-              <>
-                <tr key={store.id} style={isExpanded ? s.rowExpanded : undefined}>
+              <Fragment key={store.id}>
+                <tr style={isExpanded ? s.rowExpanded : undefined}>
                   {/* Store name */}
                   <td style={s.td}>
                     <button
@@ -248,7 +248,7 @@ export default function Billing() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </tbody>
