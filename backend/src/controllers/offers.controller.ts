@@ -13,7 +13,7 @@ const offerSchema = z.object({
   type: z.nativeEnum(OfferType).default(OfferType.ALL_STORES),
   storeId: z.string().uuid().optional(),
   category: z.nativeEnum(ProductCategory).optional(),
-  bonusRate: z.number().min(0).max(1).optional(),
+  bonusRate: z.coerce.number().min(0).max(1).optional(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
 });
