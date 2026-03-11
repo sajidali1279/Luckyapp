@@ -5,6 +5,29 @@ import { AuthRequest } from '../types';
 import { OfferType, ProductCategory } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 
+// Broadcast a push notification to all customers who have tokens
+async function notifyAllCustomers(title: string, body: string) {
+  try {
+    const tokens = await prisma.pushToken.findMany({
+      where: { user: { role: 'CUSTOMER' } },
+      select: { token: true },
+    });
+    if (tokens.length === 0) return;
+    // Expo push API accepts up to 100 messages per request — chunk if needed
+    const chunks: { token: string }[][] = [];
+    for (let i = 0; i < tokens.length; i += 100) chunks.push(tokens.slice(i, i + 100));
+    for (const chunk of chunks) {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(chunk.map(({ token }) => ({ to: token, title, body, sound: 'default' }))),
+      });
+    }
+  } catch {
+    // Non-critical — don't block the response
+  }
+}
+
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
 const offerSchema = z.object({
@@ -39,6 +62,12 @@ export async function createOffer(req: AuthRequest, res: Response) {
   const offer = await prisma.offer.create({
     data: { ...parsed.data, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) },
   });
+
+  // Notify all customers about the new promotion (fire-and-forget)
+  notifyAllCustomers(
+    '🎉 New Promotion!',
+    `${offer.title} — check the Lucky Stop app for details.`
+  );
 
   res.status(201).json({ success: true, data: offer });
 }

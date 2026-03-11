@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import routes from './routes';
+import { startBillingCron } from './utils/billing-cron';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,6 +47,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(PORT, () => {
   console.log(`Lucky Stop API running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
+  startBillingCron();
 });
 
 export default app;
