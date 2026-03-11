@@ -65,10 +65,12 @@ export default function Billing() {
         <div style={styles.revenueBox}>
           <h3 style={{ margin: 0, marginBottom: 16 }}>Revenue Summary</h3>
           <div style={styles.revenueGrid}>
-            <div><p style={styles.revLabel}>Total Dev Cut (Transactions)</p><p style={styles.revValue}>${revenue.totalDevCutFromTransactions?.toFixed(2)}</p></div>
-            <div><p style={styles.revLabel}>Subscription Revenue</p><p style={styles.revValue}>${revenue.totalSubscriptionRevenue?.toFixed(2)}</p></div>
-            <div><p style={styles.revLabel}>Total Purchase Volume</p><p style={styles.revValue}>${revenue.totalPurchaseVolume?.toFixed(2)}</p></div>
-            <div><p style={styles.revLabel}>Total Transactions</p><p style={styles.revValue}>{revenue.totalTransactions}</p></div>
+            <div><p style={styles.revLabel}>Dev Cut (5% of redemptions)</p><p style={styles.revValue}>${Number(revenue.totalDevCut ?? 0).toFixed(2)}</p></div>
+            <div><p style={styles.revLabel}>Subscription Revenue</p><p style={styles.revValue}>${Number(revenue.totalSubscriptionRevenue ?? 0).toFixed(2)}</p></div>
+            <div><p style={styles.revLabel}>Credits Redeemed</p><p style={styles.revValue}>${Number(revenue.totalRedeemedAmount ?? 0).toFixed(2)}</p></div>
+            <div><p style={styles.revLabel}>Purchase Volume</p><p style={styles.revValue}>${Number(revenue.totalPurchaseVolume ?? 0).toFixed(2)}</p></div>
+            <div><p style={styles.revLabel}>Approved Transactions</p><p style={styles.revValue}>{revenue.totalTransactions}</p></div>
+            <div><p style={styles.revLabel}>Redemption Count</p><p style={styles.revValue}>{revenue.totalRedemptions}</p></div>
           </div>
         </div>
       )}
@@ -152,7 +154,7 @@ const styles: Record<string, React.CSSProperties> = {
   sub: { color: '#6c757d', marginBottom: 24 },
   loading: { padding: 32, textAlign: 'center' },
   revenueBox: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 },
+  revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 },
   revLabel: { color: '#6c757d', fontSize: 13, margin: 0 },
   revValue: { fontSize: 24, fontWeight: 800, color: '#2DC653', margin: '4px 0 0' },
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden' },
