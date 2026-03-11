@@ -26,6 +26,9 @@ export const billingApi = {
   updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
   markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
+  getCategoryRates: () => api.get('/billing/category-rates'),
+  updateCategoryRate: (category: string, cashbackRate: number) =>
+    api.patch(`/billing/category-rates/${category}`, { cashbackRate }),
 };
 
 export const offersApi = {

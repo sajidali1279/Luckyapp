@@ -25,8 +25,8 @@ async function sendPushNotification(userId: string, title: string, body: string)
   }
 }
 
-const CUSTOMER_CASHBACK_RATE = parseFloat(process.env.CUSTOMER_CASHBACK_RATE || '0.05');
-const DEV_CUT_RATE = parseFloat(process.env.DEV_CUT_RATE || '0.02');
+const DEFAULT_CASHBACK_RATE = parseFloat(process.env.DEFAULT_CASHBACK_RATE || '0.05');
+const DEV_REDEMPTION_CUT_RATE = parseFloat(process.env.DEV_REDEMPTION_CUT_RATE || '0.05');
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -58,9 +58,13 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  const pointsAwarded = parseFloat((purchaseAmount * CUSTOMER_CASHBACK_RATE).toFixed(2));
-  const devCut = parseFloat((purchaseAmount * DEV_CUT_RATE).toFixed(2));
-  const storeCost = parseFloat((pointsAwarded + devCut).toFixed(2));
+  // Look up per-category cashback rate (falls back to default if not configured)
+  const categoryRate = await prisma.categoryRate.findUnique({ where: { category } });
+  const cashbackRate = categoryRate?.cashbackRate ?? DEFAULT_CASHBACK_RATE;
+
+  const pointsAwarded = parseFloat((purchaseAmount * cashbackRate).toFixed(2));
+  // devCut is now 0 on grants — dev earns 5% when customer REDEEMS credits
+  const storeCost = pointsAwarded; // store only bears the cashback cost
 
   // Create transaction in PENDING state — no points credited yet
   const transaction = await prisma.pointsTransaction.create({
@@ -70,8 +74,9 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       storeId,
       purchaseAmount,
       pointsAwarded,
-      devCut,
+      devCut: 0,
       storeCost,
+      cashbackRate,
       category,
       notes,
       status: TransactionStatus.PENDING,
@@ -86,6 +91,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       customer: { id: customer.id, name: customer.name, phone: customer.phone },
       pointsAwarded,
       purchaseAmount,
+      cashbackRate,
     },
   });
 }
@@ -187,11 +193,19 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     return;
   }
 
-  const updated = await prisma.user.update({
-    where: { id: customer.id },
-    data: { pointsBalance: { decrement: amount } },
-    select: { id: true, name: true, phone: true, pointsBalance: true },
-  });
+  const devCut = parseFloat((amount * DEV_REDEMPTION_CUT_RATE).toFixed(2));
+
+  // Atomically: deduct balance + record redemption
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: customer.id },
+      data: { pointsBalance: { decrement: amount } },
+      select: { id: true, name: true, phone: true, pointsBalance: true },
+    }),
+    prisma.creditRedemption.create({
+      data: { customerId: customer.id, storeId, amount, devCut, processedBy: employee.id },
+    }),
+  ]);
 
   sendPushNotification(
     customer.id,

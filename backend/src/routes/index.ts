@@ -25,6 +25,8 @@ import {
   markBillingPaid,
   getDevRevenue,
   getAnalytics,
+  getCategoryRates,
+  updateCategoryRate,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -84,5 +86,7 @@ router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getA
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
+router.get('/billing/category-rates', authenticate, requireRole(Role.DEV_ADMIN), getCategoryRates);
+router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);
 
 export default router;

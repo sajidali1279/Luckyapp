@@ -1,7 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell,
+} from 'recharts';
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import toast from 'react-hot-toast';
 
 function greeting() {
   const h = new Date().getHours();
@@ -10,50 +15,60 @@ function greeting() {
   return 'Good evening';
 }
 
+function fmt$(n: number) {
+  return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const CAT_ICONS: Record<string, string> = {
+  GROCERIES: '🛒', FROZEN_FOODS: '🧊', FRESH_FOODS: '🥗',
+  GAS: '⛽', DIESEL: '🚛', TOBACCO_VAPES: '🚬', HOT_FOODS: '🌮', OTHER: '🏪',
+};
+
+const CHART_COLORS = ['#1D3557', '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
+
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
+  const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
 
-  const { data: revenueData, isLoading: loadingRevenue } = useQuery({
-    queryKey: ['revenue'],
-    queryFn: () => billingApi.getRevenue(),
-    enabled: isDevAdmin,
-  });
+  // Platform stats
   const { data: offersData, isLoading: loadingOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
   const { data: bannersData, isLoading: loadingBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
   const { data: customersData, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
   const { data: staffData, isLoading: loadingStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
   const { data: storesData, isLoading: loadingStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
 
-  const isLoading = loadingOffers || loadingBanners || loadingCustomers || loadingStaff || loadingStores;
+  // DevAdmin revenue & analytics
+  const { data: revenueData } = useQuery({
+    queryKey: ['revenue'], queryFn: () => billingApi.getRevenue(), enabled: isDevAdmin,
+  });
+  const { data: analyticsData } = useQuery({
+    queryKey: ['analytics-30d'], queryFn: () => billingApi.getAnalytics(), enabled: isDevAdmin,
+  });
+  const { data: ratesData } = useQuery({
+    queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled: isDevAdmin,
+  });
 
-  const revenue = revenueData?.data?.data;
   const activeOffers = (offersData?.data?.data || []).length;
   const activeBanners = (bannersData?.data?.data || []).length;
   const totalCustomers = customersData?.data?.data?.total || 0;
   const totalStaff = (staffData?.data?.data || []).length;
   const activeStores = (storesData?.data?.data || []).length;
-
-  const QUICK_ACTIONS = [
-    { icon: '📢', title: 'Offers', desc: 'Create & manage promotions', to: '/offers', color: '#E63946' },
-    { icon: '🖼️', title: 'Banners', desc: 'Upload promotional banners', to: '/banners', color: '#1D3557' },
-    { icon: '🧾', title: 'Transactions', desc: 'Review point grant activity', to: '/transactions', color: '#F4A261' },
-    { icon: '👥', title: 'Staff', desc: 'Manage employee accounts', to: '/staff', color: '#2DC653' },
-    { icon: '🙋', title: 'Customers', desc: 'View and manage customers', to: '/customers', color: '#457b9d' },
-    ...(isDevAdmin ? [{ icon: '💳', title: 'Billing', desc: 'Manage store subscriptions', to: '/billing', color: '#6f42c1' }] : []),
-  ];
+  const revenue = revenueData?.data?.data;
+  const analytics = analyticsData?.data?.data;
+  const categoryRates: { category: string; label: string; cashbackRate: number }[] = ratesData?.data?.data || [];
 
   return (
     <div style={s.container}>
-      {/* Welcome header */}
+
+      {/* ── Welcome ── */}
       <div style={s.welcomeCard}>
         <div>
           <h1 style={s.welcomeTitle}>{greeting()}, {user?.name?.split(' ')[0] || 'Admin'} 👋</h1>
           <p style={s.welcomeSub}>
             {isDevAdmin
-              ? 'You have full access to all stores, billing, and system settings.'
-              : `Manage your ${isLoading ? '...' : activeStores} Lucky Stop locations from one place.`}
+              ? 'Full system access — billing, analytics, and platform settings.'
+              : `Manage your ${loadingStores ? '…' : activeStores} Lucky Stop locations.`}
           </p>
         </div>
         <div style={{ ...s.roleBadge, ...(isDevAdmin ? s.roleBadgeDev : {}) }}>
@@ -61,21 +76,23 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Dev Admin revenue stats */}
+      {/* ── Revenue (DevAdmin only) ── */}
       {isDevAdmin && revenue && (
         <>
-          <h2 style={s.sectionTitle}>Revenue Overview</h2>
+          <h2 style={s.section}>Revenue Overview</h2>
           <div style={s.statsGrid}>
-            <StatCard icon="🧾" label="Total Transactions" value={revenue.totalTransactions} />
-            <StatCard icon="💵" label="Purchase Volume" value={`$${Number(revenue.totalPurchaseVolume || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-            <StatCard icon="💰" label="Your Dev Cut" value={`$${Number(revenue.totalDevCutFromTransactions || 0).toFixed(2)}`} valueColor="#2DC653" />
-            <StatCard icon="📋" label="Subscription Revenue" value={`$${Number(revenue.totalSubscriptionRevenue || 0).toFixed(2)}`} valueColor="#2DC653" />
+            <StatCard icon="🧾" label="Transactions" value={revenue.totalTransactions} />
+            <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
+            <StatCard icon="⭐" label="Points Issued" value={fmt$(revenue.totalPointsAwarded)} />
+            <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
+            <StatCard icon="💰" label="Dev Cut (5% of redemptions)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" />
+            <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" />
           </div>
         </>
       )}
 
-      {/* Platform stats */}
-      <h2 style={s.sectionTitle}>Platform Overview</h2>
+      {/* ── Platform Overview ── */}
+      <h2 style={s.section}>Platform Overview</h2>
       <div style={s.statsGrid}>
         <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} />
         <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} />
@@ -84,22 +101,89 @@ export default function Dashboard() {
         <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} />
       </div>
 
-      {/* Quick actions */}
-      <h2 style={s.sectionTitle}>Quick Actions</h2>
-      <div style={s.actionGrid}>
-        {QUICK_ACTIONS.map((a) => (
-          <button key={a.to} onClick={() => navigate(a.to)} style={s.actionCard}>
-            <div style={{ ...s.actionIconBox, background: a.color + '18', color: a.color }}>
-              {a.icon}
+      {/* ── Analytics Charts (DevAdmin only) ── */}
+      {isDevAdmin && analytics && (
+        <>
+          <h2 style={s.section}>Last 30 Days — Activity</h2>
+          <div style={s.chartsRow}>
+            <div style={s.chartBox}>
+              <div style={s.chartTitle}>Daily Transactions</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => l} />
+                  <Line type="monotone" dataKey="transactions" stroke="#1D3557" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            <div>
-              <div style={s.actionTitle}>{a.title}</div>
-              <div style={s.actionDesc}>{a.desc}</div>
+            <div style={s.chartBox}>
+              <div style={s.chartTitle}>Daily Dev Cut ($)</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`, 'Dev Cut']} />
+                  <Line type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            <span style={s.actionArrow}>›</span>
-          </button>
-        ))}
-      </div>
+          </div>
+
+          {/* Category breakdown bar chart */}
+          {analytics.byCategory?.length > 0 && (
+            <>
+              <h2 style={s.section}>Purchase Volume by Category</h2>
+              <div style={s.chartBoxFull}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 80, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                    <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} tickFormatter={(v) => v.replace('_', ' ')} width={80} />
+                    <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`, 'Purchase Volume']} />
+                    <Bar dataKey="purchaseVolume" radius={[0, 4, 4, 0]}>
+                      {analytics.byCategory.map((_: any, i: number) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Category Cashback Rates (DevAdmin only) ── */}
+      {isDevAdmin && categoryRates.length > 0 && (
+        <>
+          <h2 style={s.section}>Cashback Rates by Category</h2>
+          <p style={s.sectionSub}>
+            Set how much credit customers earn per purchase category. Dev cut is always 5% of redeemed credits.
+          </p>
+          <div style={s.ratesGrid}>
+            {categoryRates.map((r) => (
+              <CategoryRateCard
+                key={r.category}
+                category={r.category}
+                label={r.label}
+                rate={r.cashbackRate}
+                icon={CAT_ICONS[r.category] || '🏪'}
+                onSave={(rate) => {
+                  billingApi.updateCategoryRate(r.category, rate)
+                    .then(() => {
+                      qc.invalidateQueries({ queryKey: ['category-rates'] });
+                      toast.success(`${r.label} rate updated`);
+                    })
+                    .catch(() => toast.error('Failed to update rate'));
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -112,6 +196,48 @@ function StatCard({ icon, label, value, valueColor = '#1D3557' }: { icon: string
         <div style={s.statLabel}>{label}</div>
         <div style={{ ...s.statValue, color: valueColor }}>{value}</div>
       </div>
+    </div>
+  );
+}
+
+function CategoryRateCard({ category, label, rate, icon, onSave }: {
+  category: string; label: string; rate: number; icon: string; onSave: (r: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [input, setInput] = useState(String((rate * 100).toFixed(1)));
+
+  function save() {
+    const parsed = parseFloat(input);
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) { toast.error('Enter a value between 0 and 100'); return; }
+    onSave(parsed / 100);
+    setEditing(false);
+  }
+
+  return (
+    <div style={s.rateCard}>
+      <div style={s.rateHeader}>
+        <span style={s.rateIcon}>{icon}</span>
+        <span style={s.rateLabel}>{label}</span>
+      </div>
+      {editing ? (
+        <div style={s.rateEditRow}>
+          <input
+            style={s.rateInput}
+            type="number" min="0" max="100" step="0.5"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            autoFocus
+          />
+          <span style={s.ratePercent}>%</span>
+          <button style={s.rateSaveBtn} onClick={save}>✓</button>
+          <button style={s.rateCancelBtn} onClick={() => { setEditing(false); setInput(String((rate * 100).toFixed(1))); }}>✕</button>
+        </div>
+      ) : (
+        <div style={s.rateDisplay} onClick={() => setEditing(true)}>
+          <span style={s.rateValue}>{(rate * 100).toFixed(1)}%</span>
+          <span style={s.rateEditHint}>cashback · click to edit</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -134,33 +260,39 @@ const s: Record<string, React.CSSProperties> = {
   },
   roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#2DC653', borderColor: 'rgba(45,198,83,0.3)' },
 
-  sectionTitle: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginBottom: 14, marginTop: 0 },
+  section: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginBottom: 6, marginTop: 0 },
+  sectionSub: { fontSize: 13, color: '#6c757d', marginBottom: 16, marginTop: 0 },
 
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 36 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 14, marginBottom: 36 },
   statCard: {
     background: '#fff', borderRadius: 14, padding: '18px 20px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     display: 'flex', alignItems: 'center', gap: 14,
     border: '1px solid #f0f1f2',
   },
-  statIcon: { fontSize: 28, flexShrink: 0 },
-  statLabel: { color: '#6c757d', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 26, fontWeight: 800, marginTop: 2 },
+  statIcon: { fontSize: 26, flexShrink: 0 },
+  statLabel: { color: '#6c757d', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue: { fontSize: 22, fontWeight: 800, marginTop: 2 },
 
-  actionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 },
-  actionCard: {
-    background: '#fff', borderRadius: 14, padding: '18px 20px',
-    display: 'flex', alignItems: 'center', gap: 16,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    border: '1px solid #f0f1f2',
-    cursor: 'pointer', textAlign: 'left', width: '100%',
+  chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 },
+  chartBox: { background: '#fff', borderRadius: 14, padding: '18px 20px', border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
+  chartBoxFull: { background: '#fff', borderRadius: 14, padding: '18px 20px', border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28 },
+  chartTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  ratesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 36 },
+  rateCard: { background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
+  rateHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+  rateIcon: { fontSize: 20 },
+  rateLabel: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  rateDisplay: { cursor: 'pointer', padding: '8px 0' },
+  rateValue: { fontSize: 26, fontWeight: 800, color: '#1D3557', display: 'block' },
+  rateEditHint: { fontSize: 11, color: '#adb5bd', marginTop: 2 },
+  rateEditRow: { display: 'flex', alignItems: 'center', gap: 6 },
+  rateInput: {
+    width: 70, fontSize: 20, fontWeight: 700, border: '2px solid #1D3557',
+    borderRadius: 8, padding: '4px 8px', outline: 'none',
   },
-  actionIconBox: {
-    width: 44, height: 44, borderRadius: 12,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 20, flexShrink: 0,
-  },
-  actionTitle: { color: '#1D3557', fontWeight: 700, fontSize: 15 },
-  actionDesc: { color: '#6c757d', fontSize: 13, marginTop: 2 },
-  actionArrow: { color: '#dee2e6', fontSize: 24, marginLeft: 'auto', flexShrink: 0 },
+  ratePercent: { fontSize: 18, color: '#6c757d', fontWeight: 700 },
+  rateSaveBtn: { background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700 },
+  rateCancelBtn: { background: '#f8f9fa', color: '#6c757d', border: '1px solid #dee2e6', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' },
 };
