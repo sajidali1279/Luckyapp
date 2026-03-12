@@ -1,4 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, ActivityIndicator, SafeAreaView } from 'react-native';
+import {
+  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  Image, ActivityIndicator, RefreshControl, StatusBar, SafeAreaView,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { offersApi } from '../../services/api';
@@ -6,206 +9,364 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
 function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
 
 export default function EmployeeHomeScreen() {
   const { user } = useAuthStore();
+  const firstName = user?.name?.split(' ')[0] || 'there';
+  const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
 
-  const { data: offersData, isLoading: offersLoading } = useQuery({
-    queryKey: ['offers'],
-    queryFn: () => offersApi.getActive(),
-  });
+  const {
+    data: offersData, isLoading: offersLoading,
+    refetch: refetchOffers, isRefetching: offersRefetching,
+  } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
 
-  const { data: bannersData } = useQuery({
-    queryKey: ['banners'],
-    queryFn: () => offersApi.getBanners(),
-  });
+  const {
+    data: bannersData,
+    refetch: refetchBanners, isRefetching: bannersRefetching,
+  } = useQuery({ queryKey: ['banners'], queryFn: () => offersApi.getBanners() });
 
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => o.bonusRate);
   const deals = allOffers.filter((o: any) => o.dealText);
   const banners: any[] = bannersData?.data?.data || [];
+  const isRefreshing = offersRefetching || bannersRefetching;
+
+  function onRefresh() {
+    refetchOffers();
+    refetchBanners();
+  }
 
   return (
-    <SafeAreaView style={s.safe}>
-      {/* Header */}
-      <View style={s.header}>
-        <View>
-          <Text style={s.greeting}>{getGreeting()}, {user?.name?.split(' ')[0] || 'there'}!</Text>
-          <Text style={s.subGreeting}>Lucky Stop Staff</Text>
-        </View>
-        <View style={s.avatar}>
-          <Text style={s.avatarText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
-        </View>
-      </View>
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
-      <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-        {/* Quick Actions */}
-        <Text style={s.sectionTitle}>Quick Actions</Text>
-        <View style={s.actionsRow}>
-          <TouchableOpacity style={[s.actionCard, { backgroundColor: COLORS.primary }]} onPress={() => router.push('/(employee)/scan')}>
-            <Text style={s.actionIcon}>📷</Text>
+      {/* ── Header ── */}
+      <SafeAreaView style={s.headerBg}>
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.storeLine}>⛽ Lucky Stop Staff</Text>
+            <Text style={s.greeting}>{getGreeting()}, {firstName}!</Text>
+          </View>
+          <View style={s.avatarCircle}>
+            <Text style={s.avatarText}>{initial}</Text>
+          </View>
+        </View>
+        <View style={s.statusRow}>
+          <View style={s.statusDot} />
+          <Text style={s.statusText}>
+            On Duty · {user?.role?.replace(/_/g, ' ')}
+          </Text>
+        </View>
+      </SafeAreaView>
+
+      {/* ── Active promotions strip ── */}
+      {promotions.length > 0 && (
+        <View style={s.promoStrip}>
+          <Text style={s.promoStripText}>
+            🔥 {promotions.length} promo{promotions.length > 1 ? 's' : ''} active today — bonus cashback applied automatically
+          </Text>
+        </View>
+      )}
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.body}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
+        {/* ── Quick Actions ── */}
+        <Text style={s.sectionLabel}>Quick Actions</Text>
+
+        <TouchableOpacity
+          style={s.actionCard}
+          onPress={() => router.push('/(employee)/scan')}
+          activeOpacity={0.86}
+        >
+          <View style={[s.actionIconBg, { backgroundColor: COLORS.primary + '18' }]}>
+            <Text style={s.actionEmoji}>📱</Text>
+          </View>
+          <View style={s.actionBody}>
             <Text style={s.actionTitle}>Grant Points</Text>
-            <Text style={s.actionSub}>Scan customer QR</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.actionCard, { backgroundColor: COLORS.secondary }]} onPress={() => router.push('/(employee)/scan')}>
-            <Text style={s.actionIcon}>🎁</Text>
-            <Text style={s.actionTitle}>Redeem Credits</Text>
-            <Text style={s.actionSub}>Apply customer balance</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={s.actionSub}>Scan QR · Enter purchase · Upload receipt</Text>
+          </View>
+          <View style={[s.actionBadge, { backgroundColor: COLORS.primary }]}>
+            <Text style={s.actionBadgeText}>›</Text>
+          </View>
+        </TouchableOpacity>
 
-        {/* Cashback Promotions */}
-        <Text style={s.sectionTitle}>📢 Active Promotions</Text>
+        <TouchableOpacity
+          style={[s.actionCard, s.actionCardAlt]}
+          onPress={() => router.push('/(employee)/scan')}
+          activeOpacity={0.86}
+        >
+          <View style={[s.actionIconBg, { backgroundColor: COLORS.accent + '20' }]}>
+            <Text style={s.actionEmoji}>🎁</Text>
+          </View>
+          <View style={s.actionBody}>
+            <Text style={[s.actionTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
+            <Text style={s.actionSub}>Apply customer balance toward purchase</Text>
+          </View>
+          <View style={[s.actionBadge, { backgroundColor: COLORS.accent }]}>
+            <Text style={s.actionBadgeText}>›</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* ── Active Promotions ── */}
+        <Text style={[s.sectionLabel, { marginTop: 24 }]}>📢 Active Promotions</Text>
+
         {offersLoading ? (
-          <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 20 }} />
+          <View style={s.loadingCard}>
+            <ActivityIndicator color={COLORS.primary} />
+          </View>
         ) : promotions.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyText}>No active cashback promotions right now</Text>
+            <Text style={s.emptyEmoji}>📭</Text>
+            <Text style={s.emptyTitle}>No active promotions</Text>
+            <Text style={s.emptySub}>Standard 5% cashback applies to all purchases</Text>
           </View>
         ) : (
-          promotions.map((offer: any) => (
-            <View key={offer.id} style={s.offerCard}>
-              <View style={s.offerLeft}>
-                <Text style={s.offerTitle}>{offer.title}</Text>
-                {offer.description ? <Text style={s.offerDesc}>{offer.description}</Text> : null}
-                {offer.category ? <Text style={s.offerTag}>{offer.category.replace(/_/g, ' ')}</Text> : null}
+          promotions.map((p: any) => (
+            <View key={p.id} style={s.promoCard}>
+              <View style={s.promoInfo}>
+                <Text style={s.promoTitle}>{p.title}</Text>
+                {p.description ? (
+                  <Text style={s.promoDesc} numberOfLines={2}>{p.description}</Text>
+                ) : null}
+                {p.category ? (
+                  <View style={s.promoTag}>
+                    <Text style={s.promoTagText}>{p.category.replace(/_/g, ' ')}</Text>
+                  </View>
+                ) : null}
               </View>
-              <View style={s.bonusBadge}>
-                <Text style={s.bonusText}>{Math.round(offer.bonusRate * 100)}%</Text>
+              <View style={s.promoBadge}>
+                <Text style={s.promoBadgeRate}>{Math.round(p.bonusRate * 100)}</Text>
+                <Text style={s.promoBadgePct}>%</Text>
               </View>
             </View>
           ))
         )}
 
-        {/* Price Deals */}
+        {/* ── Today's Deals ── */}
         {deals.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>🏷️ Today's Deals</Text>
-            {deals.map((offer: any) => (
-              <View key={offer.id} style={s.dealCard}>
+            <Text style={[s.sectionLabel, { marginTop: 24 }]}>🏷️ Today's Deals</Text>
+            {deals.map((d: any) => (
+              <View key={d.id} style={s.dealCard}>
                 <View style={s.dealBadge}>
-                  <Text style={s.dealBadgeText}>{offer.dealText}</Text>
+                  <Text style={s.dealBadgeText}>{d.dealText}</Text>
                 </View>
-                <View style={s.offerLeft}>
-                  <Text style={s.offerTitle}>{offer.title}</Text>
-                  {offer.description ? <Text style={s.offerDesc}>{offer.description}</Text> : null}
-                  {offer.category ? <Text style={s.offerTag}>{offer.category.replace(/_/g, ' ')}</Text> : null}
+                <View style={{ flex: 1 }}>
+                  <Text style={s.dealTitle}>{d.title}</Text>
+                  {d.description && d.description !== d.dealText ? (
+                    <Text style={s.dealSub} numberOfLines={1}>{d.description}</Text>
+                  ) : null}
+                  {d.category ? (
+                    <Text style={s.dealCat}>{d.category.replace(/_/g, ' ')}</Text>
+                  ) : null}
                 </View>
               </View>
             ))}
           </>
         )}
 
-        {/* Banners */}
+        {/* ── Store Banners ── */}
         {banners.length > 0 && (
           <>
-            <Text style={s.sectionTitle}>🎟️ Store Banners</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.bannerScroll}>
-              {banners.map((banner: any) => (
-                <View key={banner.id} style={s.bannerCard}>
-                  {banner.imageUrl ? (
-                    <Image source={{ uri: banner.imageUrl }} style={s.bannerImage} resizeMode="cover" />
+            <Text style={[s.sectionLabel, { marginTop: 24 }]}>🎟️ Store Banners</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+            >
+              {banners.map((b: any) => (
+                <View key={b.id} style={s.bannerCard}>
+                  {b.imageUrl ? (
+                    <Image source={{ uri: b.imageUrl }} style={s.bannerImg} resizeMode="cover" />
                   ) : (
-                    <View style={[s.bannerImage, s.bannerPlaceholder]}>
-                      <Text style={{ color: COLORS.textMuted }}>Banner</Text>
+                    <View style={[s.bannerImg, s.bannerPlaceholder]}>
+                      <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>Banner</Text>
                     </View>
                   )}
-                  {banner.title ? <Text style={s.bannerTitle}>{banner.title}</Text> : null}
+                  {b.title ? (
+                    <Text style={s.bannerLabel} numberOfLines={1}>{b.title}</Text>
+                  ) : null}
                 </View>
               ))}
             </ScrollView>
           </>
         )}
 
-        {/* Info footer */}
-        <View style={s.infoCard}>
-          <Text style={s.infoIcon}>💡</Text>
-          <Text style={s.infoText}>Customers earn <Text style={s.infoBold}>5¢ per $1</Text> spent. Always scan their QR and upload the receipt.</Text>
+        {/* ── Info Footer ── */}
+        <View style={s.infoFooter}>
+          <InfoRow icon="💰" text={<>Standard cashback: <Text style={s.infoBold}>5¢ per $1</Text> spent</>} />
+          <InfoRow icon="📸" text="Always upload a receipt to complete the transaction" />
+          {promotions.length > 0 && (
+            <InfoRow icon="🔥" text={<>Active promotions <Text style={s.infoBold}>apply automatically</Text></>} />
+          )}
         </View>
+
+        <View style={{ height: 16 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function InfoRow({ icon, text }: { icon: string; text: any }) {
+  return (
+    <View style={s.infoRow}>
+      <Text style={s.infoIcon}>{icon}</Text>
+      <Text style={s.infoText}>{text}</Text>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  header: {
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  root: { flex: 1, backgroundColor: COLORS.background },
+
+  // Header
+  headerBg: { backgroundColor: COLORS.secondary },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4,
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  subGreeting: { fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22,
+  storeLine: {
+    color: 'rgba(255,255,255,0.55)', fontSize: 11,
+    fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase',
+  },
+  greeting: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 3 },
+  avatarCircle: {
+    width: 46, height: 46, borderRadius: 23,
     backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.25)',
   },
-  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  avatarText: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  statusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
+  },
+  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.success },
+  statusText: {
+    color: 'rgba(255,255,255,0.6)', fontSize: 12,
+    fontWeight: '600', textTransform: 'capitalize',
+  },
 
-  body: { padding: 16, gap: 12, paddingBottom: 32 },
+  // Promo strip
+  promoStrip: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16, paddingVertical: 11,
+  },
+  promoStripText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginTop: 8 },
+  // Body
+  body: { padding: 16, paddingBottom: 24 },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10,
+  },
 
-  actionsRow: { flexDirection: 'row', gap: 12 },
+  // Action cards
   actionCard: {
-    flex: 1, borderRadius: 16, padding: 18,
-    alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4, borderLeftColor: COLORS.primary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
   },
-  actionIcon: { fontSize: 30 },
-  actionTitle: { color: '#fff', fontWeight: '800', fontSize: 14, textAlign: 'center' },
-  actionSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, textAlign: 'center' },
-
-  offerCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  actionCardAlt: { borderLeftColor: COLORS.accent },
+  actionIconBg: {
+    width: 50, height: 50, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  offerLeft: { flex: 1 },
-  offerTitle: { fontWeight: '700', fontSize: 15, color: COLORS.text },
-  offerDesc: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
-  offerTag: { color: COLORS.accent, fontSize: 12, fontWeight: '600', marginTop: 4, textTransform: 'capitalize' },
-  bonusBadge: {
-    backgroundColor: COLORS.accent, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6, marginLeft: 12,
+  actionEmoji: { fontSize: 24 },
+  actionBody: { flex: 1 },
+  actionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  actionSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
+  actionBadge: {
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  bonusText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  actionBadgeText: { color: '#fff', fontSize: 22, fontWeight: '300', marginTop: -2 },
 
-  bannerScroll: { gap: 12, paddingRight: 4 },
-  bannerCard: { width: 200, borderRadius: 14, overflow: 'hidden', backgroundColor: COLORS.white },
-  bannerImage: { width: 200, height: 110 },
-  bannerPlaceholder: { backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  bannerTitle: { padding: 10, fontWeight: '600', fontSize: 13, color: COLORS.text },
-
-  emptyCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 24,
+  // Promotions
+  loadingCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 32,
     alignItems: 'center',
   },
-  emptyText: { color: COLORS.textMuted, fontSize: 14 },
+  emptyCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 28,
+    alignItems: 'center', gap: 6,
+  },
+  emptyEmoji: { fontSize: 38, marginBottom: 4 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  emptySub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 19 },
 
+  promoCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  promoInfo: { flex: 1, paddingRight: 14 },
+  promoTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  promoDesc: { color: COLORS.textMuted, fontSize: 13, marginTop: 4, lineHeight: 18 },
+  promoTag: {
+    backgroundColor: COLORS.success + '20', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginTop: 7, alignSelf: 'flex-start',
+  },
+  promoTagText: { color: COLORS.success, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  promoBadge: {
+    width: 62, height: 62, borderRadius: 31, backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  promoBadgeRate: { color: '#fff', fontSize: 24, fontWeight: '800', lineHeight: 26 },
+  promoBadgePct: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginTop: -2 },
+
+  // Deals
   dealCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   dealBadge: {
-    backgroundColor: COLORS.accent, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 8, minWidth: 70, alignItems: 'center',
+    backgroundColor: COLORS.accent, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10, minWidth: 82, alignItems: 'center',
   },
-  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 14, textAlign: 'center' },
+  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 13, textAlign: 'center' },
+  dealTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  dealSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  dealCat: { color: COLORS.accent, fontSize: 11, fontWeight: '600', marginTop: 4, textTransform: 'capitalize' },
 
-  infoCard: {
-    backgroundColor: COLORS.secondary + '15', borderRadius: 14, padding: 16,
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 8,
+  // Banners
+  bannerCard: { width: 200, borderRadius: 16, overflow: 'hidden', backgroundColor: COLORS.white },
+  bannerImg: { width: 200, height: 116 },
+  bannerPlaceholder: {
+    backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
   },
-  infoIcon: { fontSize: 20 },
-  infoText: { flex: 1, color: COLORS.text, fontSize: 13, lineHeight: 20 },
+  bannerLabel: { padding: 10, fontWeight: '600', fontSize: 13, color: COLORS.text },
+
+  // Info footer
+  infoFooter: {
+    backgroundColor: COLORS.secondary + '0d', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: COLORS.secondary + '18', marginTop: 24, gap: 10,
+  },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  infoIcon: { fontSize: 15, marginTop: 1 },
+  infoText: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 20 },
   infoBold: { fontWeight: '700', color: COLORS.secondary },
 });
