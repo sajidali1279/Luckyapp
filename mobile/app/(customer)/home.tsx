@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, SafeAreaView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
@@ -39,16 +39,19 @@ export default function CustomerHome() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
-          <Text style={styles.storeName}>Lucky Stop Rewards</Text>
+      <SafeAreaView style={styles.headerBg}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
+            <Text style={styles.storeName}>Lucky Stop Rewards</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
+            <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
-          <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
-        </TouchableOpacity>
-      </View>
+      </SafeAreaView>
 
       {/* Points Balance Card */}
       <View style={styles.balanceCard}>
@@ -133,9 +136,10 @@ export default function CustomerHome() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  headerBg: { backgroundColor: COLORS.primary },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 60, backgroundColor: COLORS.primary,
+    padding: 20, paddingTop: 14, backgroundColor: COLORS.primary,
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },
   storeName: { fontSize: 22, fontWeight: '800', color: '#fff' },
