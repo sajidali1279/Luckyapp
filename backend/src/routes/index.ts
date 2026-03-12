@@ -27,6 +27,10 @@ import {
   getAnalytics,
   getCategoryRates,
   updateCategoryRate,
+  getDevCutRate,
+  updateDevCutRate,
+  generateMonthlyBilling,
+  getMonthlyRecords,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -89,5 +93,9 @@ router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.D
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
 router.get('/billing/category-rates', authenticate, requireRole(Role.DEV_ADMIN), getCategoryRates);
 router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);
+router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), getDevCutRate);
+router.put('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), updateDevCutRate);
+router.post('/billing/generate-monthly', authenticate, requireRole(Role.DEV_ADMIN), generateMonthlyBilling);
+router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
 
 export default router;

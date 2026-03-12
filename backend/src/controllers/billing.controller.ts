@@ -167,35 +167,135 @@ export async function updateCategoryRate(req: AuthRequest, res: Response) {
   res.json({ success: true, data: rate });
 }
 
+// ─── Dev Cut Rate Config ──────────────────────────────────────────────────────
+
+const DEFAULT_DEV_CUT_RATE = parseFloat(process.env.DEV_CUT_RATE || '0.04');
+
+export async function getDevCutRate(_req: AuthRequest, res: Response) {
+  const config = await prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } });
+  const rate = parseFloat(config?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  res.json({ success: true, data: { rate } });
+}
+
+export async function updateDevCutRate(req: AuthRequest, res: Response) {
+  const parsed = z.object({ rate: z.number().min(0).max(0.5) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+  await prisma.appConfig.upsert({
+    where: { key: 'DEV_CUT_RATE' },
+    update: { value: String(parsed.data.rate) },
+    create: { key: 'DEV_CUT_RATE', value: String(parsed.data.rate) },
+  });
+  res.json({ success: true, data: { rate: parsed.data.rate } });
+}
+
+// ─── Monthly Billing Auto-Generation ─────────────────────────────────────────
+
+export async function generateMonthlyBilling(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const stores = await prisma.store.findMany({
+    where: { isActive: true, billingType: { in: ['MONTHLY_SUBSCRIPTION', 'HYBRID'] } },
+    select: { id: true, name: true, subscriptionPrice: true },
+  });
+
+  if (stores.length === 0) {
+    res.json({ success: true, message: 'No subscription stores found', data: { created: 0, period } });
+    return;
+  }
+
+  // Skip stores that already have a subscription record for this period
+  const existing = await prisma.billingRecord.findMany({
+    where: { period, storeId: { in: stores.map((s) => s.id) }, billingType: BillingType.MONTHLY_SUBSCRIPTION },
+    select: { storeId: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.storeId));
+  const toCreate = stores.filter((s) => !existingIds.has(s.id));
+
+  if (toCreate.length === 0) {
+    res.json({ success: true, message: `All ${stores.length} stores already billed for ${period}`, data: { created: 0, period } });
+    return;
+  }
+
+  await prisma.billingRecord.createMany({
+    data: toCreate.map((s) => ({
+      storeId: s.id,
+      billingType: BillingType.MONTHLY_SUBSCRIPTION,
+      amount: s.subscriptionPrice,
+      period,
+    })),
+  });
+
+  res.json({
+    success: true,
+    message: `Generated ${toCreate.length} billing record(s) for ${period}`,
+    data: { created: toCreate.length, period, stores: toCreate.map((s) => s.name) },
+  });
+}
+
+export async function getMonthlyRecords(req: AuthRequest, res: Response) {
+  const { period, isPaid } = req.query as { period?: string; isPaid?: string };
+
+  const records = await prisma.billingRecord.findMany({
+    where: {
+      ...(period && { period }),
+      ...(isPaid !== undefined && { isPaid: isPaid === 'true' }),
+    },
+    include: { store: { select: { id: true, name: true, city: true } } },
+    orderBy: [{ period: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  // Group by period for the UI
+  const grouped: Record<string, typeof records> = {};
+  for (const r of records) {
+    if (!grouped[r.period]) grouped[r.period] = [];
+    grouped[r.period].push(r);
+  }
+
+  res.json({ success: true, data: { records, grouped } });
+}
+
 // ─── Revenue & Analytics ──────────────────────────────────────────────────────
 
 // DevAdmin: total revenue summary
 export async function getDevRevenue(_req: AuthRequest, res: Response) {
-  const [transactionStats, redemptionStats, subscriptionStats] = await Promise.all([
+  const [transactionStats, txDevCut, redemptionStats, subscriptionStats, devCutConfig] = await Promise.all([
     prisma.pointsTransaction.aggregate({
       _sum: { purchaseAmount: true, pointsAwarded: true },
       _count: true,
       where: { status: 'APPROVED' },
     }),
+    // Dev cut earned at grant time (new model)
+    prisma.pointsTransaction.aggregate({
+      _sum: { devCut: true },
+      where: { status: 'APPROVED' },
+    }),
     prisma.creditRedemption.aggregate({
-      _sum: { amount: true, devCut: true },
+      _sum: { amount: true },
       _count: true,
     }),
     prisma.billingRecord.aggregate({
       _sum: { amount: true },
       where: { isPaid: true },
     }),
+    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
+
+  const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
 
   res.json({
     success: true,
     data: {
+      devCutRate,
       totalTransactions: transactionStats._count,
       totalPurchaseVolume: transactionStats._sum.purchaseAmount ?? 0,
       totalPointsAwarded: transactionStats._sum.pointsAwarded ?? 0,
+      totalDevCut: txDevCut._sum.devCut ?? 0,               // 4% of cashback issued (at grant time)
       totalRedemptions: redemptionStats._count,
       totalRedeemedAmount: redemptionStats._sum.amount ?? 0,
-      totalDevCut: redemptionStats._sum.devCut ?? 0,          // 5% of all redeemed credits
       totalSubscriptionRevenue: subscriptionStats._sum.amount ?? 0,
     },
   });

@@ -129,8 +129,8 @@ model PointsTransaction {
   storeId         String
   purchaseAmount  Float
   pointsAwarded   Float             // cashback credited to customer
-  devCut          Float             // legacy field — now always 0 (dev earns on redemption)
-  storeCost       Float             // = pointsAwarded (store bears cashback cost)
+  devCut          Float             // dev's cut of cashback issued (taken at grant time)
+  storeCost       Float             // full cashback issued — store bears this cost
   cashbackRate    Float             @default(0.05) // rate used at time of grant
   category        ProductCategory   @default(OTHER)
   status          TransactionStatus @default(PENDING)
@@ -272,6 +272,16 @@ model BillingRecord {
   store Store @relation(fields: [storeId], references: [id])
 
   @@map("billing_records")
+}
+
+// ─── Platform Config (DevAdmin key-value store) ───────────────────────────────
+
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_config")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

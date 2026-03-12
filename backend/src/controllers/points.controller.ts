@@ -26,7 +26,7 @@ async function sendPushNotification(userId: string, title: string, body: string)
 }
 
 const DEFAULT_CASHBACK_RATE = parseFloat(process.env.DEFAULT_CASHBACK_RATE || '0.05');
-const DEV_REDEMPTION_CUT_RATE = parseFloat(process.env.DEV_REDEMPTION_CUT_RATE || '0.05');
+const DEFAULT_DEV_CUT_RATE  = parseFloat(process.env.DEV_CUT_RATE || '0.04');
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -58,9 +58,9 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Look up per-category rate AND any active promotional offer simultaneously
+  // Look up per-category rate, active promotional offer, and dev cut rate simultaneously
   const now = new Date();
-  const [categoryRate, activeOffer] = await Promise.all([
+  const [categoryRate, activeOffer, devCutConfig] = await Promise.all([
     prisma.categoryRate.findUnique({ where: { category } }),
     prisma.offer.findFirst({
       where: {
@@ -76,6 +76,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       orderBy: { bonusRate: 'desc' }, // highest promo wins if multiple active
       select: { bonusRate: true, title: true },
     }),
+    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
 
   const baseCashbackRate = categoryRate?.cashbackRate ?? DEFAULT_CASHBACK_RATE;
@@ -83,9 +84,12 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const cashbackRate = Math.max(baseCashbackRate, activeOffer?.bonusRate ?? 0);
   const promotionApplied = (activeOffer?.bonusRate ?? 0) > baseCashbackRate ? activeOffer!.title : null;
 
-  const pointsAwarded = parseFloat((purchaseAmount * cashbackRate).toFixed(2));
-  // devCut is now 0 on grants — dev earns 5% when customer REDEEMS credits
-  const storeCost = pointsAwarded; // store only bears the cashback cost
+  // Dev cut is taken from cashback issued — customer receives the remainder, store pays the full amount
+  const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  const cashbackIssued = parseFloat((purchaseAmount * cashbackRate).toFixed(4));
+  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(2));
+  const pointsAwarded = parseFloat((cashbackIssued - devCut).toFixed(2));
+  const storeCost = cashbackIssued; // store pays the full cashback amount (dev cut is taken from that pool)
 
   // Create transaction in PENDING state — no points credited yet
   const transaction = await prisma.pointsTransaction.create({
@@ -95,7 +99,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       storeId,
       purchaseAmount,
       pointsAwarded,
-      devCut: 0,
+      devCut,
       storeCost,
       cashbackRate,
       category,
@@ -215,8 +219,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     return;
   }
 
-  const devCut = parseFloat((amount * DEV_REDEMPTION_CUT_RATE).toFixed(2));
-
+  // Dev cut is taken at grant time — no cut applied on redemption
   // Atomically: deduct balance + record redemption
   const [updated] = await prisma.$transaction([
     prisma.user.update({
@@ -225,7 +228,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
       select: { id: true, name: true, phone: true, pointsBalance: true },
     }),
     prisma.creditRedemption.create({
-      data: { customerId: customer.id, storeId, amount, devCut, processedBy: employee.id },
+      data: { customerId: customer.id, storeId, amount, devCut: 0, processedBy: employee.id },
     }),
   ]);
 

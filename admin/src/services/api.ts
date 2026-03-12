@@ -29,6 +29,11 @@ export const billingApi = {
   getCategoryRates: () => api.get('/billing/category-rates'),
   updateCategoryRate: (category: string, cashbackRate: number) =>
     api.patch(`/billing/category-rates/${category}`, { cashbackRate }),
+  getDevCutRate: () => api.get('/billing/config/dev-cut-rate'),
+  updateDevCutRate: (rate: number) => api.put('/billing/config/dev-cut-rate', { rate }),
+  generateMonthlyBilling: () => api.post('/billing/generate-monthly'),
+  getMonthlyRecords: (period?: string, isPaid?: boolean) =>
+    api.get(`/billing/monthly-records${period ? `?period=${period}` : ''}${isPaid !== undefined ? `${period ? '&' : '?'}isPaid=${isPaid}` : ''}`),
 };
 
 export const offersApi = {
