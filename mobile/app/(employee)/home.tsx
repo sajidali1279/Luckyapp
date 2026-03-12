@@ -25,7 +25,9 @@ export default function EmployeeHomeScreen() {
     queryFn: () => offersApi.getBanners(),
   });
 
-  const offers: any[] = offersData?.data?.data || [];
+  const allOffers: any[] = offersData?.data?.data || [];
+  const promotions = allOffers.filter((o: any) => o.bonusRate);
+  const deals = allOffers.filter((o: any) => o.dealText);
   const banners: any[] = bannersData?.data?.data || [];
 
   return (
@@ -57,29 +59,46 @@ export default function EmployeeHomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Active Offers */}
+        {/* Cashback Promotions */}
         <Text style={s.sectionTitle}>📢 Active Promotions</Text>
         {offersLoading ? (
           <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 20 }} />
-        ) : offers.length === 0 ? (
+        ) : promotions.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyText}>No active promotions right now</Text>
+            <Text style={s.emptyText}>No active cashback promotions right now</Text>
           </View>
         ) : (
-          offers.map((offer: any) => (
+          promotions.map((offer: any) => (
             <View key={offer.id} style={s.offerCard}>
               <View style={s.offerLeft}>
                 <Text style={s.offerTitle}>{offer.title}</Text>
                 {offer.description ? <Text style={s.offerDesc}>{offer.description}</Text> : null}
-                {offer.category ? <Text style={s.offerTag}>{offer.category.replace('_', ' ')}</Text> : null}
+                {offer.category ? <Text style={s.offerTag}>{offer.category.replace(/_/g, ' ')}</Text> : null}
               </View>
-              {offer.bonusMultiplier && offer.bonusMultiplier > 1 ? (
-                <View style={s.bonusBadge}>
-                  <Text style={s.bonusText}>{offer.bonusMultiplier}x</Text>
-                </View>
-              ) : null}
+              <View style={s.bonusBadge}>
+                <Text style={s.bonusText}>{Math.round(offer.bonusRate * 100)}%</Text>
+              </View>
             </View>
           ))
+        )}
+
+        {/* Price Deals */}
+        {deals.length > 0 && (
+          <>
+            <Text style={s.sectionTitle}>🏷️ Today's Deals</Text>
+            {deals.map((offer: any) => (
+              <View key={offer.id} style={s.dealCard}>
+                <View style={s.dealBadge}>
+                  <Text style={s.dealBadgeText}>{offer.dealText}</Text>
+                </View>
+                <View style={s.offerLeft}>
+                  <Text style={s.offerTitle}>{offer.title}</Text>
+                  {offer.description ? <Text style={s.offerDesc}>{offer.description}</Text> : null}
+                  {offer.category ? <Text style={s.offerTag}>{offer.category.replace(/_/g, ' ')}</Text> : null}
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
         {/* Banners */}
@@ -171,6 +190,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: { color: COLORS.textMuted, fontSize: 14 },
+
+  dealCard: {
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  dealBadge: {
+    backgroundColor: COLORS.accent, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 8, minWidth: 70, alignItems: 'center',
+  },
+  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 14, textAlign: 'center' },
 
   infoCard: {
     backgroundColor: COLORS.secondary + '15', borderRadius: 14, padding: 16,

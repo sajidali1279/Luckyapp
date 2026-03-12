@@ -38,6 +38,7 @@ export default function EmployeeScanScreen() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<Category>('OTHER');
+  const [promotionApplied, setPromotionApplied] = useState<string | null>(null);
   const isGrantFlow = step === 'grant-amount' || step === 'receipt' || step === 'grant-done';
 
   const storeId = user?.storeIds?.[0];
@@ -53,6 +54,7 @@ export default function EmployeeScanScreen() {
     setPointsAwarded(0);
     setReceiptImage(null);
     setCategory('OTHER');
+    setPromotionApplied(null);
   }
 
   function handleQrScan({ data }: { data: string }) {
@@ -92,6 +94,7 @@ export default function EmployeeScanScreen() {
       setTransactionId(data.data.transactionId);
       setCustomerInfo(data.data.customer);
       setPointsAwarded(data.data.pointsAwarded);
+      setPromotionApplied(data.data.promotionApplied || null);
       setStep('receipt');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create transaction' });
@@ -306,6 +309,11 @@ export default function EmployeeScanScreen() {
           <View style={s.customerCard}>
             <Text style={s.customerName}>{customerInfo?.name || customerInfo?.phone}</Text>
             <Text style={s.pendingPoints}>+${pointsAwarded.toFixed(2)} pending receipt upload</Text>
+            {promotionApplied && (
+              <View style={s.promoBanner}>
+                <Text style={s.promoBannerText}>🎉 Promo applied: {promotionApplied}</Text>
+              </View>
+            )}
           </View>
 
           <Text style={s.sectionLabel}>Receipt Photo (Required)</Text>
@@ -448,6 +456,8 @@ const s = StyleSheet.create({
   customerCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20, alignItems: 'center' },
   customerName: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   pendingPoints: { color: COLORS.primary, fontWeight: '700', fontSize: 16, marginTop: 8 },
+  promoBanner: { backgroundColor: COLORS.accent + '20', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginTop: 10 },
+  promoBannerText: { color: COLORS.accent, fontWeight: '700', fontSize: 13 },
 
   // Receipt
   receiptBox: { backgroundColor: COLORS.white, borderRadius: 14, borderWidth: 2, borderColor: COLORS.border, borderStyle: 'dashed', padding: 32, alignItems: 'center', gap: 8 },

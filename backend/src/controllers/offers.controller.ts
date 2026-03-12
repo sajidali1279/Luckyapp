@@ -37,6 +37,7 @@ const offerSchema = z.object({
   storeId: z.string().uuid().optional(),
   category: z.nativeEnum(ProductCategory).optional(),
   bonusRate: z.coerce.number().min(0).max(1).optional(),
+  dealText: z.string().min(1).max(40).optional(), // e.g. "2 for $5"
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
 });
@@ -99,6 +100,7 @@ const updateOfferSchema = z.object({
   storeId: z.string().uuid().nullable().optional(),
   category: z.nativeEnum(ProductCategory).nullable().optional(),
   bonusRate: z.coerce.number().min(0).max(1).nullable().optional(),
+  dealText: z.string().min(1).max(40).nullable().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().optional(),

@@ -190,7 +190,8 @@ model Offer {
   type        OfferType   @default(ALL_STORES)
   storeId     String?
   category    ProductCategory?
-  bonusRate   Float?
+  bonusRate   Float?      // cashback promotion rate (auto-applied at grant time)
+  dealText    String?     // price deal label e.g. "2 for $5" (display only)
   startDate   DateTime
   endDate     DateTime
   isActive    Boolean     @default(true)

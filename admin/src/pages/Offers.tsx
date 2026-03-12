@@ -49,6 +49,21 @@ const TEMPLATES: Template[] = [
   { icon: '💰', group: 'Loyalty', title: 'Big Spender Bonus', description: 'Earn 3x points on any single purchase over $50 this week. Bigger purchase, bigger rewards.', bonusRate: '10', category: '' },
   { icon: '🌟', group: 'Loyalty', title: 'Weekend Double Points', description: 'Every Saturday and Sunday, earn double cashback on all purchases store-wide.', bonusRate: '5', category: '' },
   { icon: '🎁', group: 'Loyalty', title: 'Surprise Bonus Week', description: 'Surprise! All customers earn extra cashback on every purchase this week. No limits, no exclusions.', bonusRate: '5', category: '' },
+  // 🥤 Products
+  { icon: '🥤', group: 'Products', title: 'Coca-Cola Double Points Day', description: 'Buy any Coca-Cola product today and earn double cashback. Classic taste, better rewards at Lucky Stop!', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🥤', group: 'Products', title: 'Coke Variety Pack Bonus', description: 'Pick up a Coke, Diet Coke, Coke Zero, or Sprite and earn 2x points. Mix and match — all Coca-Cola products included.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🔵', group: 'Products', title: 'Pepsi Points Fiesta', description: 'Earn double cashback on all Pepsi products this week. Pepsi, Diet Pepsi, Mountain Dew — all count!', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🔵', group: 'Products', title: 'Pepsi Weekend Rush', description: 'Grab a cold Pepsi this weekend and earn 3x points. The refreshing choice that keeps on rewarding.', bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🟢', group: 'Products', title: 'Monster Energy Madness', description: 'Fuel your day with Monster Energy and earn triple cashback on every can. All Monster flavors included!', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🟢', group: 'Products', title: 'Monster Monday Boost', description: 'Start your week with a Monster Energy and earn 3x points every Monday. Stay charged, stay rewarded.', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🐂', group: 'Products', title: 'Red Bull Give You Wings Deal', description: 'Red Bull earns you double cashback all week long. Pick up your favorite flavor and soar with rewards.', bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🐂', group: 'Products', title: 'Red Bull 4-Pack Bonus', description: 'Buy a Red Bull 4-pack and earn 3x points. The more cans, the more credits back in your Lucky Stop wallet.', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🟡', group: 'Products', title: "Frito-Lay Snack Attack", description: "Double points on all Frito-Lay snacks this week — Lay's, Doritos, Cheetos, Fritos, and more. Snack big, earn big!", bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🟡', group: 'Products', title: 'Game Day Frito-Lay Bundle', description: "Stock up on Doritos, Lay's, and Tostitos for game day and earn 2x cashback. Snack smarter at Lucky Stop.", bonusRate: '5', category: 'GROCERIES' },
+  { icon: '☕', group: 'Products', title: 'Coffee Lover Bonus', description: 'Earn 3x points on all hot coffee purchases this week. Whether it\'s your morning cup or afternoon pick-me-up — you\'re covered.', bonusRate: '10', category: 'HOT_FOODS' },
+  { icon: '☕', group: 'Products', title: 'Morning Coffee Double Points', description: 'First coffee of the day earns double cashback before 10am every day this week. Wake up and earn at Lucky Stop.', bonusRate: '7', category: 'HOT_FOODS' },
+  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Dasani, Aquafina, Smartwater — stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '💧', group: 'Products', title: 'Water Case Bonus', description: 'Buy a case of water and earn 3x points instantly. Stock up at Lucky Stop and save big on your balance.', bonusRate: '10', category: 'GROCERIES' },
 ];
 
 const TEMPLATE_GROUPS = [...new Set(TEMPLATES.map((t) => t.group))];
@@ -75,10 +90,21 @@ function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { m
 
 export default function Offers() {
   const qc = useQueryClient();
+  const [mainTab, setMainTab] = useState<'promotions' | 'deals'>('promotions');
   const [showForm, setShowForm] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeGroup, setActiveGroup] = useState(TEMPLATE_GROUPS[0]);
+  // Deal form state
+  const [showDealForm, setShowDealForm] = useState(false);
+  const [dealTitle, setDealTitle] = useState('');
+  const [dealText, setDealText] = useState('');
+  const [dealDescription, setDealDescription] = useState('');
+  const [dealCategory, setDealCategory] = useState('');
+  const [dealType, setDealType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
+  const [dealStoreId, setDealStoreId] = useState('');
+  const [dealStartDate, setDealStartDate] = useState(todayStr());
+  const [dealEndDate, setDealEndDate] = useState(endOfMonthStr());
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
@@ -169,6 +195,36 @@ export default function Offers() {
   }
 
   const groupedTemplates = TEMPLATES.filter((t) => t.group === activeGroup);
+  const promotionOffers = offers.filter((o: any) => !o.dealText);
+  const dealOffers = offers.filter((o: any) => o.dealText);
+  const pastPromotions = pastOffers.filter((o: any) => !o.dealText);
+  const pastDeals = pastOffers.filter((o: any) => o.dealText);
+
+  function resetDealForm() {
+    setShowDealForm(false);
+    setDealTitle(''); setDealText(''); setDealDescription('');
+    setDealCategory(''); setDealType('ALL_STORES'); setDealStoreId('');
+    setDealStartDate(todayStr()); setDealEndDate(endOfMonthStr());
+  }
+
+  function handleCreateDeal(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dealTitle.trim()) { toast.error('Title is required'); return; }
+    if (!dealText.trim()) { toast.error('Deal text is required (e.g. "2 for $5")'); return; }
+    if (!dealStartDate || !dealEndDate) { toast.error('Start and end dates are required'); return; }
+    if (dealType === 'SPECIFIC_STORE' && !dealStoreId) { toast.error('Select a store'); return; }
+    const fd = new FormData();
+    fd.append('title', dealTitle.trim());
+    fd.append('description', dealDescription.trim() || dealText.trim());
+    fd.append('dealText', dealText.trim());
+    fd.append('type', dealType);
+    fd.append('startDate', new Date(dealStartDate).toISOString());
+    fd.append('endDate', new Date(dealEndDate + 'T23:59:59').toISOString());
+    if (dealType === 'SPECIFIC_STORE' && dealStoreId) fd.append('storeId', dealStoreId);
+    if (dealCategory) fd.append('category', dealCategory);
+    createMutation.mutate(fd);
+    resetDealForm();
+  }
 
   return (
     <div style={s.container}>
@@ -176,16 +232,39 @@ export default function Offers() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>📢 Offers & Promotions</h1>
-          <p style={s.sub}>Create promotions for all stores or target a specific location</p>
+          <p style={s.sub}>Promotions boost cashback automatically — Deals display price specials in the app</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button style={s.templateBtn} onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); }}>
-            💡 {showTemplates ? 'Hide' : 'Suggestions'} ({TEMPLATES.length})
-          </button>
-          <button style={s.addBtn} onClick={() => { setShowForm(!showForm); setShowTemplates(false); }}>
-            {showForm ? 'Cancel' : '+ New Offer'}
-          </button>
+          {mainTab === 'promotions' && (
+            <>
+              <button style={s.templateBtn} onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); }}>
+                💡 {showTemplates ? 'Hide' : 'Suggestions'} ({TEMPLATES.length})
+              </button>
+              <button style={s.addBtn} onClick={() => { setShowForm(!showForm); setShowTemplates(false); }}>
+                {showForm ? 'Cancel' : '+ New Promotion'}
+              </button>
+            </>
+          )}
+          {mainTab === 'deals' && (
+            <button style={s.addBtn} onClick={() => setShowDealForm(!showDealForm)}>
+              {showDealForm ? 'Cancel' : '+ New Deal'}
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div style={s.mainTabs}>
+        <button style={{ ...s.mainTab, ...(mainTab === 'promotions' ? s.mainTabActive : {}) }}
+          onClick={() => { setMainTab('promotions'); setShowDealForm(false); }}>
+          📢 Promotions
+          <span style={s.tabCount}>{promotionOffers.length}</span>
+        </button>
+        <button style={{ ...s.mainTab, ...(mainTab === 'deals' ? s.mainTabActive : {}) }}
+          onClick={() => { setMainTab('deals'); setShowForm(false); setShowTemplates(false); }}>
+          🏷️ Deals
+          <span style={s.tabCount}>{dealOffers.length}</span>
+        </button>
       </div>
 
       {/* Suggestion Templates */}
@@ -272,44 +351,134 @@ export default function Offers() {
         </form>
       )}
 
-      {/* Active Offers */}
-      {isLoading ? (
-        <div style={s.empty}>Loading...</div>
-      ) : offers.length === 0 ? (
-        <div style={s.empty}>No active offers. Use a template above or create one manually.</div>
-      ) : (
+      {/* ── Promotions Tab ── */}
+      {mainTab === 'promotions' && (
         <>
-          <h2 style={s.sectionHead}>Active Offers ({offers.length})</h2>
-          <div style={s.grid}>
-            {offers.map((offer: any) => (
-              <OfferCard key={offer.id} offer={offer} onDelete={() => deleteMutation.mutate(offer.id)} onReuse={() => reuseOffer(offer)} />
-            ))}
+          {isLoading ? (
+            <div style={s.empty}>Loading...</div>
+          ) : promotionOffers.length === 0 ? (
+            <div style={s.empty}>No active promotions. Use a template or create one manually.</div>
+          ) : (
+            <>
+              <h2 style={s.sectionHead}>Active Promotions ({promotionOffers.length})</h2>
+              <div style={s.grid}>
+                {promotionOffers.map((offer: any) => (
+                  <OfferCard key={offer.id} offer={offer} onDelete={() => deleteMutation.mutate(offer.id)} onReuse={() => reuseOffer(offer)} />
+                ))}
+              </div>
+            </>
+          )}
+          <div style={{ marginTop: 40 }}>
+            <button style={s.historyToggle} onClick={() => setShowHistory(!showHistory)}>
+              {showHistory ? '▾' : '▸'} Past Promotions (click to load &amp; reuse)
+            </button>
+            {showHistory && (
+              pastPromotions.length === 0 ? (
+                <div style={s.empty}>No past promotions found.</div>
+              ) : (
+                <>
+                  <p style={{ color: '#6c757d', fontSize: 13, margin: '0 0 16px' }}>
+                    {pastPromotions.length} past promotions — click ♻️ Reuse on any to pre-fill the form.
+                  </p>
+                  <div style={s.grid}>
+                    {pastPromotions.map((offer: any) => (
+                      <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} />
+                    ))}
+                  </div>
+                </>
+              )
+            )}
           </div>
         </>
       )}
 
-      {/* Past Offers */}
-      <div style={{ marginTop: 40 }}>
-        <button style={s.historyToggle} onClick={() => setShowHistory(!showHistory)}>
-          {showHistory ? '▾' : '▸'} Past Promotions (click to load &amp; reuse)
-        </button>
-        {showHistory && (
-          pastOffers.length === 0 ? (
-            <div style={s.empty}>No past promotions found.</div>
+      {/* ── Deals Tab ── */}
+      {mainTab === 'deals' && (
+        <>
+          {/* Deal create form */}
+          {showDealForm && (
+            <form id="deal-form" style={s.form} onSubmit={handleCreateDeal}>
+              <h3 style={{ margin: '0 0 16px', color: '#1D3557' }}>
+                {dealTitle ? `🏷️ ${dealTitle}` : 'New Deal'}
+              </h3>
+              <label style={s.label}>Product / Item Name *</label>
+              <input style={s.input} value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} placeholder="e.g. Monster Energy, 2-Liter Pepsi" />
+              <label style={s.label}>Deal Text * (shown prominently in-app)</label>
+              <input style={s.input} value={dealText} onChange={(e) => setDealText(e.target.value)} placeholder='e.g. 2 for $5, 3 for $4, Buy 2 Get 1 Free' maxLength={40} />
+              <label style={s.label}>Description (optional)</label>
+              <input style={s.input} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal..." />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={s.label}>Start Date *</label>
+                  <input style={s.input} type="date" value={dealStartDate} onChange={(e) => setDealStartDate(e.target.value)} />
+                </div>
+                <div>
+                  <label style={s.label}>End Date *</label>
+                  <input style={s.input} type="date" value={dealEndDate} onChange={(e) => setDealEndDate(e.target.value)} />
+                </div>
+              </div>
+              <label style={s.label}>Apply To</label>
+              <select style={s.input} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
+                <option value="ALL_STORES">🌐 All 14 Stores</option>
+                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
+              </select>
+              {dealType === 'SPECIFIC_STORE' && (
+                <>
+                  <label style={s.label}>Select Store *</label>
+                  <select style={s.input} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
+                    <option value="">-- Choose a store --</option>
+                    {stores.map((store: any) => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <label style={s.label}>Product Category (optional)</label>
+              <select style={s.input} value={dealCategory} onChange={(e) => setDealCategory(e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Creating...' : 'Post Deal'}
+                </button>
+                <button style={s.cancelFormBtn} type="button" onClick={resetDealForm}>Cancel</button>
+              </div>
+            </form>
+          )}
+
+          {isLoading ? (
+            <div style={s.empty}>Loading...</div>
+          ) : dealOffers.length === 0 ? (
+            <div style={s.empty}>No active deals. Click "+ New Deal" to post one.</div>
           ) : (
             <>
-              <p style={{ color: '#6c757d', fontSize: 13, margin: '0 0 16px' }}>
-                {pastOffers.length} past promotions — click ♻️ Reuse on any to pre-fill the form with its details.
-              </p>
+              <h2 style={s.sectionHead}>Active Deals ({dealOffers.length})</h2>
               <div style={s.grid}>
-                {pastOffers.map((offer: any) => (
-                  <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} />
+                {dealOffers.map((offer: any) => (
+                  <DealCard key={offer.id} offer={offer} onDelete={() => deleteMutation.mutate(offer.id)} />
                 ))}
               </div>
             </>
-          )
-        )}
-      </div>
+          )}
+
+          <div style={{ marginTop: 40 }}>
+            <button style={s.historyToggle} onClick={() => setShowHistory(!showHistory)}>
+              {showHistory ? '▾' : '▸'} Past Deals (click to load)
+            </button>
+            {showHistory && (
+              pastDeals.length === 0 ? (
+                <div style={s.empty}>No past deals found.</div>
+              ) : (
+                <div style={s.grid}>
+                  {pastDeals.map((offer: any) => (
+                    <DealCard key={offer.id} offer={offer} isPast />
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -340,6 +509,36 @@ function OfferCard({ offer, onDelete, onReuse, isPast }: {
           <button style={s.reuseBtn} onClick={onReuse}>♻️ Reuse</button>
           {!isPast && onDelete && <button style={s.deleteBtn} onClick={onDelete}>Delete</button>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Deal Card ────────────────────────────────────────────────────────────────
+
+function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => void; isPast?: boolean }) {
+  return (
+    <div style={{ ...s.card, ...(isPast ? s.cardPast : {}), borderLeft: '4px solid #E63946' }}>
+      {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
+      <div style={s.cardBody}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          <span style={offer.type === 'ALL_STORES' ? s.tagAll : s.tagStore}>
+            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : '📍 Store'}
+          </span>
+          {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
+          {isPast && <span style={s.tagPast}>Expired</span>}
+        </div>
+        <div style={s.dealTextBig}>{offer.dealText}</div>
+        <h3 style={s.cardTitle}>{offer.title}</h3>
+        {offer.description && offer.description !== offer.dealText && (
+          <p style={s.cardDesc}>{offer.description}</p>
+        )}
+        <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
+        {!isPast && onDelete && (
+          <div style={{ marginTop: 12 }}>
+            <button style={s.deleteBtn} onClick={onDelete}>Delete</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -392,4 +591,10 @@ const s: Record<string, React.CSSProperties> = {
   deleteBtn: { background: 'none', border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', color: '#6c757d', fontSize: 13 },
   historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
   empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
+
+  mainTabs: { display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid #e9ecef', paddingBottom: 0 },
+  mainTab: { padding: '10px 20px', borderRadius: '8px 8px 0 0', border: '1px solid #e9ecef', borderBottom: 'none', background: '#f8f9fa', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#6c757d', display: 'flex', alignItems: 'center', gap: 8, marginBottom: -2 },
+  mainTabActive: { background: '#fff', color: '#1D3557', borderColor: '#e9ecef', borderBottomColor: '#fff' },
+  tabCount: { background: '#e9ecef', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 },
+  dealTextBig: { fontSize: 26, fontWeight: 800, color: '#E63946', marginBottom: 6 },
 };

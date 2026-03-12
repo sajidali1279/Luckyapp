@@ -33,7 +33,9 @@ export default function CustomerHome() {
   });
 
   const banners = bannersData?.data?.data || [];
-  const offers = offersData?.data?.data || [];
+  const allOffers: any[] = offersData?.data?.data || [];
+  const promotions = allOffers.filter((o: any) => o.bonusRate);
+  const deals = allOffers.filter((o: any) => o.dealText);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -85,21 +87,36 @@ export default function CustomerHome() {
         </View>
       )}
 
-      {/* Active Offers */}
-      {offers.length > 0 && (
+      {/* Cashback Promotions */}
+      {promotions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Current Offers</Text>
-          {offers.map((offer: any) => (
+          <Text style={styles.sectionTitle}>🔥 Active Promotions</Text>
+          {promotions.map((offer: any) => (
             <View key={offer.id} style={styles.offerCard}>
               {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
               <View style={styles.offerContent}>
                 <Text style={styles.offerTitle}>{offer.title}</Text>
                 <Text style={styles.offerDesc}>{offer.description}</Text>
-                {offer.bonusRate && (
-                  <Text style={styles.offerBonus}>
-                    🔥 {Math.round(offer.bonusRate * 100)}% cashback on this!
-                  </Text>
-                )}
+                <Text style={styles.offerBonus}>
+                  🔥 {Math.round(offer.bonusRate * 100)}% cashback — auto-applied!
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Price Deals */}
+      {deals.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏷️ Today's Deals</Text>
+          {deals.map((offer: any) => (
+            <View key={offer.id} style={styles.dealCard}>
+              {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
+              <View style={styles.offerContent}>
+                <Text style={styles.dealText}>{offer.dealText}</Text>
+                <Text style={styles.offerTitle}>{offer.title}</Text>
+                {offer.description ? <Text style={styles.offerDesc}>{offer.description}</Text> : null}
               </View>
             </View>
           ))}
@@ -156,6 +173,11 @@ const styles = StyleSheet.create({
   offerTitle: { fontWeight: '700', fontSize: 15, color: COLORS.text },
   offerDesc: { color: COLORS.textMuted, fontSize: 13, marginTop: 4 },
   offerBonus: { color: COLORS.primary, fontWeight: '600', fontSize: 13, marginTop: 6 },
+  dealCard: {
+    backgroundColor: COLORS.white, borderRadius: 12, overflow: 'hidden', marginBottom: 12,
+    flexDirection: 'row', borderLeftWidth: 4, borderLeftColor: COLORS.accent,
+  },
+  dealText: { fontSize: 22, fontWeight: '800', color: COLORS.accent, marginBottom: 4 },
 
   historyLink: { padding: 20, alignItems: 'center' },
   historyLinkText: { color: COLORS.primary, fontWeight: '600' },

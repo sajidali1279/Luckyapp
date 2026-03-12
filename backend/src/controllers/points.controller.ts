@@ -58,9 +58,30 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Look up per-category cashback rate (falls back to default if not configured)
-  const categoryRate = await prisma.categoryRate.findUnique({ where: { category } });
-  const cashbackRate = categoryRate?.cashbackRate ?? DEFAULT_CASHBACK_RATE;
+  // Look up per-category rate AND any active promotional offer simultaneously
+  const now = new Date();
+  const [categoryRate, activeOffer] = await Promise.all([
+    prisma.categoryRate.findUnique({ where: { category } }),
+    prisma.offer.findFirst({
+      where: {
+        isActive: true,
+        bonusRate: { not: null },
+        startDate: { lte: now },
+        endDate: { gte: now },
+        AND: [
+          { OR: [{ type: 'ALL_STORES' }, { storeId }] },
+          { OR: [{ category: null }, { category }] },
+        ],
+      },
+      orderBy: { bonusRate: 'desc' }, // highest promo wins if multiple active
+      select: { bonusRate: true, title: true },
+    }),
+  ]);
+
+  const baseCashbackRate = categoryRate?.cashbackRate ?? DEFAULT_CASHBACK_RATE;
+  // Promotion wins if its rate is higher than the default — reverts automatically when offer expires
+  const cashbackRate = Math.max(baseCashbackRate, activeOffer?.bonusRate ?? 0);
+  const promotionApplied = (activeOffer?.bonusRate ?? 0) > baseCashbackRate ? activeOffer!.title : null;
 
   const pointsAwarded = parseFloat((purchaseAmount * cashbackRate).toFixed(2));
   // devCut is now 0 on grants — dev earns 5% when customer REDEEMS credits
@@ -92,6 +113,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       pointsAwarded,
       purchaseAmount,
       cashbackRate,
+      promotionApplied, // null if regular rate; string title if a promo boosted the rate
     },
   });
 }
