@@ -58,6 +58,11 @@ export const pointsApi = {
     api.patch(`/points/${transactionId}/reject`),
 };
 
+export const receiptApi = {
+  getToken: (tokenId: string) => api.get(`/points/receipt-token/${tokenId}`),
+  selfGrant: (tokenId: string) => api.post('/points/self-grant', { tokenId }),
+};
+
 export const offersApi = {
   getActive: (storeId?: string) =>
     api.get(`/offers${storeId ? `?storeId=${storeId}` : ''}`),

@@ -6,14 +6,43 @@ import prisma from '../config/prisma';
 import { Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
+import { audit } from '../utils/audit';
 
 const SALT_ROUNDS = 12;
 
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-function issueJwt(user: { id: string; phone: string; role: Role }, storeIds: string[]) {
+// ─── Per-phone login lockout (in-memory) ──────────────────────────────────────
+const MAX_FAILURES = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+interface FailRecord { count: number; lockedUntil: number | null }
+const loginFailures = new Map<string, FailRecord>();
+
+function checkLockout(phone: string): string | null {
+  const rec = loginFailures.get(phone);
+  if (!rec) return null;
+  if (rec.lockedUntil && Date.now() < rec.lockedUntil) {
+    const mins = Math.ceil((rec.lockedUntil - Date.now()) / 60000);
+    return `Too many failed attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`;
+  }
+  return null;
+}
+
+function recordFailure(phone: string) {
+  const rec = loginFailures.get(phone) ?? { count: 0, lockedUntil: null };
+  rec.count += 1;
+  rec.lockedUntil = rec.count >= MAX_FAILURES ? Date.now() + LOCKOUT_MS : null;
+  loginFailures.set(phone, rec);
+}
+
+function clearFailures(phone: string) {
+  loginFailures.delete(phone);
+}
+
+function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role }, storeIds: string[]) {
   return jwt.sign(
-    { id: user.id, phone: user.phone, role: user.role, storeIds },
+    { id: user.id, phone: user.phone, name: user.name || null, role: user.role, storeIds },
     process.env.JWT_SECRET!,
     { expiresIn: JWT_EXPIRES_IN_SECONDS }
   );
@@ -77,6 +106,13 @@ export async function login(req: Request, res: Response) {
 
   const { phone, pin, pushToken, platform } = parsed.data;
 
+  // Check lockout before touching DB
+  const lockMsg = checkLockout(phone);
+  if (lockMsg) {
+    res.status(429).json({ success: false, error: lockMsg });
+    return;
+  }
+
   const user = await prisma.user.findUnique({ where: { phone } });
 
   // Constant-time comparison even if user not found (prevents timing attacks)
@@ -84,9 +120,12 @@ export async function login(req: Request, res: Response) {
   const pinValid = await bcrypt.compare(pin, user?.pinHash ?? dummyHash);
 
   if (!user || !pinValid) {
+    recordFailure(phone);
     res.status(401).json({ success: false, error: 'Incorrect phone number or PIN' });
     return;
   }
+
+  clearFailures(phone);
 
   if (!user.isActive) {
     res.status(403).json({ success: false, error: 'Account deactivated. Contact support.' });
@@ -281,6 +320,11 @@ export async function toggleUserActive(req: AuthRequest, res: Response) {
     data: { isActive: !target.isActive },
     select: { id: true, isActive: true },
   });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'TOGGLE_USER', entity: 'user', entityId: userId,
+    details: { targetName: target.name, targetPhone: target.phone, targetRole: target.role, isActive: updated.isActive },
+  });
   res.json({ success: true, data: updated });
 }
 
@@ -297,6 +341,11 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
   await prisma.user.update({ where: { id: userId }, data: { pinHash } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'RESET_PIN', entity: 'user', entityId: userId,
+    details: { targetName: user.name, targetPhone: user.phone, targetRole: user.role },
+  });
   res.json({ success: true, message: 'PIN reset successfully' });
 }
 
@@ -335,6 +384,12 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
     data: { userId: staff.id, storeId, role: role as Role },
   });
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CREATE_STAFF', entity: 'staff', entityId: staff.id,
+    details: { name: staff.name, phone: staff.phone, role: staff.role, storeId },
+    storeId,
+  });
   res.status(201).json({
     success: true,
     data: { id: staff.id, phone: staff.phone, name: staff.name, role: staff.role },

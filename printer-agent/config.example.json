@@ -1,0 +1,31 @@
+{
+  "_comment": "Copy this file to config.json and fill in your values.",
+
+  "storeApiKey": "sk_store_REPLACE_WITH_KEY_FROM_ADMIN_PORTAL",
+
+  "luckyStopApiUrl": "https://luckystop-api.onrender.com/api",
+
+  "printer": {
+    "mode": "tcp",
+    "_modeOptions": "tcp | usb",
+
+    "_tcpComment": "Used when mode is 'tcp'. Point the Verifone POS to THIS machine's IP on proxyPort.",
+    "proxyPort": 9100,
+    "realPrinterIp": "192.168.1.50",
+    "realPrinterPort": 9100,
+
+    "_usbComment": "Used when mode is 'usb'. The real printer COM port (e.g. COM3).",
+    "comPort": "COM3",
+    "baudRate": 19200
+  },
+
+  "qr": {
+    "size": 5,
+    "_sizeComment": "QR module size for thermal printer: 1–16. 5 prints ~2cm square.",
+    "printStoreName": true,
+    "printMessage": "Scan with Lucky Stop app to earn cashback!"
+  },
+
+  "tokenExpiry": 15,
+  "_tokenExpiryComment": "Minutes before the receipt QR code expires."
+}

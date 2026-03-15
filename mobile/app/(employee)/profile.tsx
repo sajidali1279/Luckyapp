@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, SafeAreaView, StatusBar, ActivityIndicator,
+  ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Switch,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -11,7 +12,15 @@ import { COLORS } from '../../constants';
 type Panel = null | 'name' | 'pin';
 
 export default function EmployeeProfileScreen() {
-  const { user, token, logout, setAuth } = useAuthStore();
+  const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled } = useAuthStore();
+  const [bioAvailable, setBioAvailable] = useState(false);
+
+  useEffect(() => {
+    LocalAuthentication.hasHardwareAsync().then(async (hw) => {
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setBioAvailable(hw && enrolled);
+    });
+  }, []);
   const [panel, setPanel] = useState<Panel>(null);
   const [name, setName] = useState(user?.name || '');
   const [currentPin, setCurrentPin] = useState('');
@@ -158,6 +167,32 @@ export default function EmployeeProfileScreen() {
             <TouchableOpacity style={s.panelBtn} onPress={handleChangePin} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Change PIN</Text>}
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Biometric toggle */}
+        {bioAvailable && (
+          <View style={s.settingRow}>
+            <View style={[s.settingIconBg, { backgroundColor: '#6C5CE718' }]}>
+              <Text style={s.settingEmoji}>🔐</Text>
+            </View>
+            <View style={s.settingBody}>
+              <Text style={s.settingTitle}>Biometric Login</Text>
+              <Text style={s.settingValue}>{biometricEnabled ? 'Enabled' : 'Disabled'}</Text>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={async (val) => {
+                if (val) {
+                  const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Confirm to enable' });
+                  if (r.success) { await setBiometricEnabled(true); Toast.show({ type: 'success', text1: 'Biometric login enabled' }); }
+                } else {
+                  await setBiometricEnabled(false);
+                }
+              }}
+              trackColor={{ false: COLORS.border, true: COLORS.primary + '80' }}
+              thumbColor={biometricEnabled ? COLORS.primary : '#f4f3f4'}
+            />
           </View>
         )}
 

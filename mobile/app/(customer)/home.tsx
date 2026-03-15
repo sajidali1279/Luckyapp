@@ -64,6 +64,18 @@ export default function CustomerHome() {
         </TouchableOpacity>
       </View>
 
+      {/* Scan Receipt */}
+      <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.85}>
+        <View style={styles.scanReceiptLeft}>
+          <Text style={styles.scanReceiptIcon}>📄</Text>
+          <View>
+            <Text style={styles.scanReceiptTitle}>Scan Receipt QR</Text>
+            <Text style={styles.scanReceiptSub}>Earn points instantly — no cashier needed</Text>
+          </View>
+        </View>
+        <Text style={styles.scanReceiptArrow}>›</Text>
+      </TouchableOpacity>
+
       {/* QR Code */}
       <View style={styles.qrSection}>
         <Text style={styles.sectionTitle}>Your QR Code</Text>
@@ -185,4 +197,18 @@ const styles = StyleSheet.create({
 
   historyLink: { padding: 20, alignItems: 'center' },
   historyLinkText: { color: COLORS.primary, fontWeight: '600' },
+
+  scanReceiptCard: {
+    marginHorizontal: 16, marginBottom: 4,
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    flexDirection: 'row', alignItems: 'center',
+    borderLeftWidth: 4, borderLeftColor: COLORS.primary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  scanReceiptLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scanReceiptIcon: { fontSize: 28 },
+  scanReceiptTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  scanReceiptSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  scanReceiptArrow: { fontSize: 22, color: COLORS.textMuted, fontWeight: '300' },
 });

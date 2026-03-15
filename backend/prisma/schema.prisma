@@ -94,6 +94,9 @@ model Store {
   subscriptionPrice Float       @default(99.00)
   transactionFeeRate Float      @default(0.02)
 
+  // Printer agent authentication
+  apiKey            String?     @unique
+
   // Relations
   userRoles         UserStoreRole[]
   transactions      PointsTransaction[]
@@ -101,6 +104,7 @@ model Store {
   offers            Offer[]
   banners           Banner[]
   billing           BillingRecord[]
+  receiptTokens     ReceiptToken[]
 
   @@map("stores")
 }
@@ -274,6 +278,26 @@ model BillingRecord {
   @@map("billing_records")
 }
 
+// ─── Receipt QR Tokens (printer agent → customer self-grant) ─────────────────
+
+model ReceiptToken {
+  id        String    @id @default(uuid())
+  storeId   String
+  txRef     String    // POS transaction reference — prevents duplicate QR generation
+  total     Float
+  items     String    // JSON: [{category: ProductCategory, amount: number}]
+  usedBy    String?   // customer userId who claimed it
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, txRef])
+  @@index([expiresAt])
+  @@map("receipt_tokens")
+}
+
 // ─── Platform Config (DevAdmin key-value store) ───────────────────────────────
 
 model AppConfig {
@@ -282,6 +306,28 @@ model AppConfig {
   updatedAt DateTime @updatedAt
 
   @@map("app_config")
+}
+
+// ─── Audit Log (DevAdmin fraud monitoring) ───────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorName  String?
+  actorRole  String
+  action     String   // CREATE_OFFER, DELETE_OFFER, CREATE_BANNER, DELETE_BANNER, GRANT_POINTS, REJECT_TRANSACTION, REDEEM_CREDITS, CREATE_STAFF, TOGGLE_USER, RESET_PIN, SELF_GRANT
+  entity     String   // offer, banner, transaction, staff, user
+  entityId   String?
+  details    String?  // JSON: context fields (amounts, names, etc.)
+  storeId    String?
+  storeName  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([storeId])
+  @@index([action])
+  @@map("audit_logs")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

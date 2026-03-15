@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { offersApi, storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -90,6 +91,8 @@ function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { m
 
 export default function Offers() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role === 'STORE_MANAGER';
   const [mainTab, setMainTab] = useState<'promotions' | 'deals'>('promotions');
   const [showForm, setShowForm] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -320,20 +323,28 @@ export default function Offers() {
           </div>
           <label style={s.label}>Bonus Cashback % (optional — adds on top of standard rate)</label>
           <input style={s.input} type="number" min="0" max="100" value={bonusRate} onChange={(e) => setBonusRate(e.target.value)} placeholder="e.g. 5 = customers earn 10% total" />
-          <label style={s.label}>Apply To</label>
-          <select style={s.input} value={type} onChange={(e) => { setType(e.target.value as any); setStoreId(''); }}>
-            <option value="ALL_STORES">🌐 All 14 Stores</option>
-            <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-          </select>
-          {type === 'SPECIFIC_STORE' && (
+          {isStoreManager ? (
+            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
+              📍 This promotion will apply to your store only
+            </div>
+          ) : (
             <>
-              <label style={s.label}>Select Store *</label>
-              <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">-- Choose a store --</option>
-                {stores.map((store: any) => (
-                  <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
-                ))}
+              <label style={s.label}>Apply To</label>
+              <select style={s.input} value={type} onChange={(e) => { setType(e.target.value as any); setStoreId(''); }}>
+                <option value="ALL_STORES">🌐 All 14 Stores</option>
+                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
               </select>
+              {type === 'SPECIFIC_STORE' && (
+                <>
+                  <label style={s.label}>Select Store *</label>
+                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                    <option value="">-- Choose a store --</option>
+                    {stores.map((store: any) => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </>
           )}
           <label style={s.label}>Product Category (optional)</label>
@@ -417,20 +428,28 @@ export default function Offers() {
                   <input style={s.input} type="date" value={dealEndDate} onChange={(e) => setDealEndDate(e.target.value)} />
                 </div>
               </div>
-              <label style={s.label}>Apply To</label>
-              <select style={s.input} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
-                <option value="ALL_STORES">🌐 All 14 Stores</option>
-                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-              </select>
-              {dealType === 'SPECIFIC_STORE' && (
+              {isStoreManager ? (
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
+                  📍 This deal will apply to your store only
+                </div>
+              ) : (
                 <>
-                  <label style={s.label}>Select Store *</label>
-                  <select style={s.input} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
-                    <option value="">-- Choose a store --</option>
-                    {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
-                    ))}
+                  <label style={s.label}>Apply To</label>
+                  <select style={s.input} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
+                    <option value="ALL_STORES">🌐 All 14 Stores</option>
+                    <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
                   </select>
+                  {dealType === 'SPECIFIC_STORE' && (
+                    <>
+                      <label style={s.label}>Select Store *</label>
+                      <select style={s.input} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
+                        <option value="">-- Choose a store --</option>
+                        {stores.map((store: any) => (
+                          <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                 </>
               )}
               <label style={s.label}>Product Category (optional)</label>

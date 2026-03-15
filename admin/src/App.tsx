@@ -13,6 +13,7 @@ import Transactions from './pages/Transactions';
 import Staff from './pages/Staff';
 import Customers from './pages/Customers';
 import StoreManagerDashboard from './pages/StoreManagerDashboard';
+import ActivityLog from './pages/ActivityLog';
 
 const queryClient = new QueryClient();
 
@@ -58,14 +59,15 @@ export default function App() {
             <Route path="/" element={<DashboardRoute />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/staff" element={<Staff />} />
+            <Route path="/offers" element={<Offers />} />
+            <Route path="/banners" element={<Banners />} />
             <Route element={<SuperAdminOnly />}>
-              <Route path="/offers" element={<Offers />} />
-              <Route path="/banners" element={<Banners />} />
               <Route path="/customers" element={<Customers />} />
             </Route>
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/activity" element={<ActivityLog />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

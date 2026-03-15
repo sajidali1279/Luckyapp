@@ -17,39 +17,63 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+  // Quick login
+  quickLoginPhone: string | null;
+  biometricEnabled: boolean;
+  // Actions
   setAuth: (user: AuthUser, token: string) => Promise<void>;
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
   updateBalance: (newBalance: number) => void;
+  setQuickLoginPhone: (phone: string) => Promise<void>;
+  setBiometricEnabled: (enabled: boolean) => Promise<void>;
+  clearQuickLogin: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isLoading: true,
+  quickLoginPhone: null,
+  biometricEnabled: false,
 
   setAuth: async (user, token) => {
     await SecureStore.setItemAsync('jwt_token', token);
     await SecureStore.setItemAsync('user_data', JSON.stringify(user));
-    set({ user, token, isLoading: false });
+    // Save phone for quick login
+    await SecureStore.setItemAsync('quick_login_phone', user.phone);
+    set({ user, token, isLoading: false, quickLoginPhone: user.phone });
   },
 
   logout: async () => {
     await SecureStore.deleteItemAsync('jwt_token');
     await SecureStore.deleteItemAsync('user_data');
+    // Keep quick_login_phone and biometric_enabled for next time
     set({ user: null, token: null, isLoading: false });
   },
 
   loadFromStorage: async () => {
     try {
-      const [token, userData] = await Promise.all([
+      const [token, userData, quickPhone, bioEnabled] = await Promise.all([
         SecureStore.getItemAsync('jwt_token'),
         SecureStore.getItemAsync('user_data'),
+        SecureStore.getItemAsync('quick_login_phone'),
+        SecureStore.getItemAsync('biometric_enabled'),
       ]);
       if (token && userData) {
-        set({ token, user: JSON.parse(userData), isLoading: false });
+        set({
+          token,
+          user: JSON.parse(userData),
+          isLoading: false,
+          quickLoginPhone: quickPhone,
+          biometricEnabled: bioEnabled === 'true',
+        });
       } else {
-        set({ isLoading: false });
+        set({
+          isLoading: false,
+          quickLoginPhone: quickPhone,
+          biometricEnabled: bioEnabled === 'true',
+        });
       }
     } catch {
       set({ isLoading: false });
@@ -60,6 +84,22 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((state) => ({
       user: state.user ? { ...state.user, pointsBalance: newBalance } : null,
     })),
+
+  setQuickLoginPhone: async (phone) => {
+    await SecureStore.setItemAsync('quick_login_phone', phone);
+    set({ quickLoginPhone: phone });
+  },
+
+  setBiometricEnabled: async (enabled) => {
+    await SecureStore.setItemAsync('biometric_enabled', String(enabled));
+    set({ biometricEnabled: enabled });
+  },
+
+  clearQuickLogin: async () => {
+    await SecureStore.deleteItemAsync('quick_login_phone');
+    await SecureStore.deleteItemAsync('biometric_enabled');
+    set({ quickLoginPhone: null, biometricEnabled: false });
+  },
 }));
 
 // Role helpers

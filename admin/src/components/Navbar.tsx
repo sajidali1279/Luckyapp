@@ -3,8 +3,8 @@ import { useAuthStore } from '../store/authStore';
 
 const ALL_NAV_LINKS = [
   { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/offers', label: 'Offers', icon: '📢', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-  { to: '/banners', label: 'Banners', icon: '🖼️', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/offers', label: 'Offers', icon: '📢', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/banners', label: 'Banners', icon: '🖼️', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
   { to: '/transactions', label: 'Transactions', icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
   { to: '/staff', label: 'Staff', icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/customers', label: 'Customers', icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
@@ -55,6 +55,9 @@ export default function Navbar() {
             </NavLink>
             <NavLink to="/billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>💳</span>Billing
+            </NavLink>
+            <NavLink to="/activity" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>🔍</span>Activity
             </NavLink>
           </>
         )}

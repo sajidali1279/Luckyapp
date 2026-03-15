@@ -72,4 +72,10 @@ export const staffApi = {
   resetPin: (userId: string, newPin: string) => api.patch(`/users/${userId}/reset-pin`, { newPin }),
 };
 
+export const auditApi = {
+  getLogs: (params?: Record<string, string>) =>
+    api.get('/audit/logs', { params }),
+  getStats: () => api.get('/audit/stats'),
+};
+
 export default api;

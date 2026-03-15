@@ -96,6 +96,22 @@ export default function StoreManagerDashboard() {
           </div>
           <span style={s.arrow}>›</span>
         </button>
+        <button style={s.actionCard} onClick={() => navigate('/offers')}>
+          <div style={{ ...s.actionIcon, background: '#E6394618', color: '#E63946' }}>📢</div>
+          <div>
+            <div style={s.actionTitle}>Manage Offers</div>
+            <div style={s.actionDesc}>Create promotions & deals for your store</div>
+          </div>
+          <span style={s.arrow}>›</span>
+        </button>
+        <button style={s.actionCard} onClick={() => navigate('/banners')}>
+          <div style={{ ...s.actionIcon, background: '#2DC65318', color: '#2DC653' }}>🖼️</div>
+          <div>
+            <div style={s.actionTitle}>Manage Banners</div>
+            <div style={s.actionDesc}>Upload promotional images for your store</div>
+          </div>
+          <span style={s.arrow}>›</span>
+        </button>
       </div>
 
       {/* Pending Transactions */}

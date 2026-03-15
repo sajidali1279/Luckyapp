@@ -4,6 +4,7 @@ import { Request } from 'express';
 export interface AuthUser {
   id: string;
   phone: string;
+  name?: string;
   role: Role;
   storeIds?: string[];  // Stores this employee/manager belongs to
 }

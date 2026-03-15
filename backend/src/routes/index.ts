@@ -18,6 +18,14 @@ import {
   createBanner, getActiveBanners, deleteBanner,
 } from '../controllers/offers.controller';
 import {
+  generateReceiptToken,
+  getReceiptToken,
+  selfGrant,
+  getStoreApiKey,
+  regenerateStoreApiKey,
+} from '../controllers/receipt.controller';
+import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
+import {
   updateStoreBilling,
   getAllStoresBilling,
   getStores,
@@ -50,6 +58,11 @@ router.get('/users/customers', authenticate, requireRole(Role.SUPER_ADMIN), list
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
 router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 
+// ─── Receipt QR (Printer Agent → Customer Self-Serve) ────────────────────────
+router.post('/points/receipt-token', generateReceiptToken);                                             // Printer agent generates QR token (store API key auth)
+router.get('/points/receipt-token/:tokenId', authenticate, getReceiptToken);                            // Customer previews receipt before claiming
+router.post('/points/self-grant', authenticate, requireRole(Role.CUSTOMER), selfGrant);                 // Customer claims receipt QR points
+
 // ─── Points (Customer) ────────────────────────────────────────────────────────
 router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMyTransactions);
 
@@ -71,15 +84,15 @@ router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STO
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
-router.get('/offers/history', authenticate, requireRole(Role.SUPER_ADMIN), getOffersHistory);
-router.post('/offers', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), createOffer);
-router.patch('/offers/:offerId', authenticate, requireRole(Role.SUPER_ADMIN), updateOffer);
-router.delete('/offers/:offerId', authenticate, requireRole(Role.SUPER_ADMIN), deleteOffer);
+router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
+router.post('/offers', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createOffer);
+router.patch('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), updateOffer);
+router.delete('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), deleteOffer);
 
 // ─── Banners ──────────────────────────────────────────────────────────────────
 router.get('/banners', authenticate, getActiveBanners); // All authenticated users
-router.post('/banners', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), createBanner);
-router.delete('/banners/:bannerId', authenticate, requireRole(Role.SUPER_ADMIN), deleteBanner);
+router.post('/banners', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createBanner);
+router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER), deleteBanner);
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
@@ -97,5 +110,11 @@ router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_AD
 router.put('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), updateDevCutRate);
 router.post('/billing/generate-monthly', authenticate, requireRole(Role.DEV_ADMIN), generateMonthlyBilling);
 router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
+router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
+router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);
+
+// ─── Audit Log (DevAdmin only) ────────────────────────────────────────────────
+router.get('/audit/logs', authenticate, requireRole(Role.DEV_ADMIN), getAuditLogs);
+router.get('/audit/stats', authenticate, requireRole(Role.DEV_ADMIN), getAuditStats);
 
 export default router;

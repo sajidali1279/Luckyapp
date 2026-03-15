@@ -14,8 +14,19 @@ app.set('trust proxy', 1);
 
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
+
+// CORS — allow only known origins (mobile app has no origin, so passes through)
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // No origin = React Native / Postman / server-to-server — always allow
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));

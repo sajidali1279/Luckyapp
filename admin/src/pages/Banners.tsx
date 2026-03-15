@@ -2,9 +2,12 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { bannersApi, storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 export default function Banners() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role === 'STORE_MANAGER';
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [storeTarget, setStoreTarget] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
@@ -74,21 +77,28 @@ export default function Banners() {
           <label style={s.label}>Title *</label>
           <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
 
-          <label style={s.label}>Apply To</label>
-          <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-            <option value="ALL_STORES">🌐 All 14 Stores</option>
-            <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-          </select>
-
-          {storeTarget === 'SPECIFIC_STORE' && (
+          {isStoreManager ? (
+            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
+              📍 This banner will appear for your store only
+            </div>
+          ) : (
             <>
-              <label style={s.label}>Select Store *</label>
-              <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">-- Choose a store --</option>
-                {stores.map((store: any) => (
-                  <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
-                ))}
+              <label style={s.label}>Apply To</label>
+              <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
+                <option value="ALL_STORES">🌐 All 14 Stores</option>
+                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
               </select>
+              {storeTarget === 'SPECIFIC_STORE' && (
+                <>
+                  <label style={s.label}>Select Store *</label>
+                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                    <option value="">-- Choose a store --</option>
+                    {stores.map((store: any) => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </>
           )}
 

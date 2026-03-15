@@ -2,8 +2,9 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { ProductCategory, TransactionStatus, Role } from '@prisma/client';
+import { ProductCategory, TransactionStatus } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
+import { audit } from '../utils/audit';
 
 // ─── Push Notification Helper ─────────────────────────────────────────────────
 
@@ -182,6 +183,18 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`
   );
 
+  audit({
+    actorId: employee.id, actorName: employee.name, actorRole: employee.role,
+    action: 'GRANT_POINTS', entity: 'transaction', entityId: transactionId,
+    details: {
+      purchaseAmount: transaction.purchaseAmount,
+      pointsAwarded: transaction.pointsAwarded,
+      category: transaction.category,
+      customerId: transaction.customerId,
+    },
+    storeId: transaction.storeId,
+  });
+
   res.json({
     success: true,
     message: `$${transaction.pointsAwarded.toFixed(2)} credited to customer account`,
@@ -238,6 +251,13 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`
   );
 
+  audit({
+    actorId: employee.id, actorName: employee.name, actorRole: employee.role,
+    action: 'REDEEM_CREDITS', entity: 'credit_redemption',
+    details: { amount, customerId: customer.id, customerName: customer.name, customerPhone: customer.phone },
+    storeId,
+  });
+
   res.json({
     success: true,
     message: `$${amount.toFixed(2)} redeemed successfully`,
@@ -279,6 +299,18 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
   await prisma.pointsTransaction.update({
     where: { id: transactionId },
     data: { status: TransactionStatus.REJECTED },
+  });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'REJECT_TRANSACTION', entity: 'transaction', entityId: transactionId,
+    details: {
+      purchaseAmount: transaction.purchaseAmount,
+      pointsAwarded: transaction.pointsAwarded,
+      category: transaction.category,
+      customerId: transaction.customerId,
+    },
+    storeId: transaction.storeId,
   });
 
   res.json({ success: true, message: 'Transaction rejected' });
