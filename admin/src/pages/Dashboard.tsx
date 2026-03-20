@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
 } from 'recharts';
-import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi } from '../services/api';
+import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,7 @@ export default function Dashboard() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   // Platform stats
   const { data: offersData, isLoading: loadingOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
@@ -37,6 +38,14 @@ export default function Dashboard() {
   const { data: customersData, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
   const { data: staffData, isLoading: loadingStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
   const { data: storesData, isLoading: loadingStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+
+  // SuperAdmin platform summary
+  const { data: platformData } = useQuery({
+    queryKey: ['platform-summary'],
+    queryFn: () => pointsApi.getPlatformSummary(),
+    enabled: isSuperAdmin,
+    refetchInterval: 60000,
+  });
 
   // DevAdmin revenue & analytics
   const { data: revenueData } = useQuery({
@@ -57,6 +66,7 @@ export default function Dashboard() {
   const revenue = revenueData?.data?.data;
   const analytics = analyticsData?.data?.data;
   const categoryRates: { category: string; label: string; cashbackRate: number }[] = ratesData?.data?.data || [];
+  const platform = platformData?.data?.data;
 
   return (
     <div style={s.container}>
@@ -85,8 +95,28 @@ export default function Dashboard() {
             <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
             <StatCard icon="⭐" label="Points Issued" value={fmt$(revenue.totalPointsAwarded)} />
             <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
-            <StatCard icon="💰" label="Dev Cut (5% of redemptions)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" />
+            <StatCard icon="💰" label="Dev Cut (cashback)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" />
             <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" />
+          </div>
+        </>
+      )}
+
+      {/* ── SuperAdmin Platform Summary ── */}
+      {isSuperAdmin && platform && (
+        <>
+          <h2 style={s.section}>Today's Activity</h2>
+          <div style={s.statsGrid}>
+            <StatCard icon="🧾" label="Today's Transactions" value={platform.today.transactions} />
+            <StatCard icon="💵" label="Today's Volume" value={fmt$(platform.today.purchaseVolume)} />
+            <StatCard icon="⭐" label="Today's Cashback" value={fmt$(platform.today.cashbackIssued)} />
+            <StatCard
+              icon="⏳"
+              label="Pending Reviews"
+              value={platform.pending}
+              valueColor={platform.pending > 0 ? '#E63946' : '#2DC653'}
+            />
+            <StatCard icon="💰" label="Credits Outstanding" value={fmt$(platform.totalCreditsOutstanding)} valueColor="#F4A261" />
+            <StatCard icon="📅" label="This Month Volume" value={fmt$(platform.thisMonth.purchaseVolume)} />
           </div>
         </>
       )}
@@ -100,6 +130,45 @@ export default function Dashboard() {
         <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffers} />
         <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} />
       </div>
+
+      {/* ── Store Performance Table (SuperAdmin) ── */}
+      {isSuperAdmin && platform?.storeRanking?.length > 0 && (
+        <>
+          <h2 style={s.section}>Store Performance — This Month</h2>
+          <div style={s.storeTable}>
+            <div style={s.storeTableHeader}>
+              <span style={s.storeColName}>Store</span>
+              <span style={s.storeColNum}>Transactions</span>
+              <span style={s.storeColNum}>Purchase Volume</span>
+              <span style={s.storeColNum}>Cashback Issued</span>
+              <span style={s.storeColBar}>Activity</span>
+            </div>
+            {platform.storeRanking.map((store: any, i: number) => {
+              const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
+              const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
+              return (
+                <div key={store.id} style={{ ...s.storeTableRow, background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
+                  <span style={s.storeColName}>
+                    <span style={s.storeRank}>#{i + 1}</span>
+                    <span>
+                      <div style={{ fontWeight: 700, color: '#1D3557', fontSize: 14 }}>{store.name}</div>
+                      <div style={{ fontSize: 11, color: '#adb5bd' }}>{store.city}</div>
+                    </span>
+                  </span>
+                  <span style={s.storeColNum}>{store.transactions}</span>
+                  <span style={{ ...s.storeColNum, fontWeight: 700 }}>{fmt$(store.purchaseVolume)}</span>
+                  <span style={{ ...s.storeColNum, color: '#2DC653', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
+                  <span style={s.storeColBar}>
+                    <div style={s.barTrack}>
+                      <div style={{ ...s.barFill, width: `${barWidth}%` }} />
+                    </div>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* ── Analytics Charts (DevAdmin only) ── */}
       {isDevAdmin && analytics && (
@@ -132,7 +201,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Category breakdown bar chart */}
           {analytics.byCategory?.length > 0 && (
             <>
               <h2 style={s.section}>Purchase Volume by Category</h2>
@@ -273,6 +341,32 @@ const s: Record<string, React.CSSProperties> = {
   statIcon: { fontSize: 26, flexShrink: 0 },
   statLabel: { color: '#6c757d', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 22, fontWeight: 800, marginTop: 2 },
+
+  // Store performance table
+  storeTable: {
+    background: '#fff', borderRadius: 14, overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2',
+    marginBottom: 36,
+  },
+  storeTableHeader: {
+    display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr',
+    padding: '10px 20px', background: '#f8f9fa',
+    fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  storeTableRow: {
+    display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr',
+    padding: '14px 20px', alignItems: 'center',
+    borderTop: '1px solid #f0f1f2',
+  },
+  storeColName: { display: 'flex', alignItems: 'center', gap: 10 },
+  storeColNum: { fontSize: 14, color: '#495057' },
+  storeColBar: { paddingRight: 12 },
+  storeRank: {
+    fontSize: 11, fontWeight: 800, color: '#adb5bd',
+    background: '#f8f9fa', borderRadius: 6, padding: '2px 7px', flexShrink: 0,
+  },
+  barTrack: { height: 8, background: '#f0f1f2', borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: '100%', background: 'linear-gradient(90deg, #1D3557, #457b9d)', borderRadius: 4, transition: 'width 0.4s ease' },
 
   chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 },
   chartBox: { background: '#fff', borderRadius: 14, padding: '18px 20px', border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },

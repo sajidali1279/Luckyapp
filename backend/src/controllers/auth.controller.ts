@@ -288,7 +288,36 @@ export async function listCustomers(req: AuthRequest, res: Response) {
     prisma.user.count({ where }),
   ]);
 
-  res.json({ success: true, data: { customers, total, page: parseInt(page) } });
+  // Enrich with transaction stats
+  const customerIds = customers.map((c) => c.id);
+  const txStats = await prisma.pointsTransaction.groupBy({
+    by: ['customerId'],
+    where: { customerId: { in: customerIds }, status: 'APPROVED' },
+    _count: { id: true },
+    _sum: { purchaseAmount: true },
+  });
+  const txMap = Object.fromEntries(txStats.map((r) => [r.customerId, r]));
+  const enriched = customers.map((c) => ({
+    ...c,
+    txCount: txMap[c.id]?._count.id ?? 0,
+    totalSpent: parseFloat((txMap[c.id]?._sum.purchaseAmount ?? 0).toFixed(2)),
+  }));
+
+  // Total credits outstanding across all customers (not just this page)
+  const creditsAgg = await prisma.user.aggregate({
+    where: { role: 'CUSTOMER' },
+    _sum: { pointsBalance: true },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      customers: enriched,
+      total,
+      page: parseInt(page),
+      totalCreditsOutstanding: parseFloat((creditsAgg._sum.pointsBalance ?? 0).toFixed(2)),
+    },
+  });
 }
 
 // ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────

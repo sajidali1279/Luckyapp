@@ -55,6 +55,9 @@ export const pointsApi = {
   getStoreTransactions: (storeId: string, status?: string, page = 1) =>
     api.get(`/points/store/${storeId}?page=${page}${status ? `&status=${status}` : ''}`),
   reject: (transactionId: string) => api.patch(`/points/${transactionId}/reject`),
+  getPlatformSummary: () => api.get('/points/platform-summary'),
+  getAllTransactions: (params: Record<string, string>) =>
+    api.get('/points/all', { params }),
 };
 
 export const customersApi = {

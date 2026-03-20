@@ -12,6 +12,8 @@ import {
   getStoreTransactions,
   getStoreSummary,
   redeemCredits,
+  getPlatformSummary,
+  getAllTransactions,
 } from '../controllers/points.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory,
@@ -81,6 +83,8 @@ router.post(
 router.get('/points/store/:storeId/summary', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSummary);
 router.get('/points/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreTransactions);
 router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STORE_MANAGER), rejectTransaction);
+router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformSummary);
+router.get('/points/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllTransactions);
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users

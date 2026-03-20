@@ -196,43 +196,73 @@ export async function updateDevCutRate(req: AuthRequest, res: Response) {
 export async function generateMonthlyBilling(_req: AuthRequest, res: Response) {
   const now = new Date();
   const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   const stores = await prisma.store.findMany({
-    where: { isActive: true, billingType: { in: ['MONTHLY_SUBSCRIPTION', 'HYBRID'] } },
-    select: { id: true, name: true, subscriptionPrice: true },
+    where: { isActive: true },
+    select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true },
   });
 
   if (stores.length === 0) {
-    res.json({ success: true, message: 'No subscription stores found', data: { created: 0, period } });
+    res.json({ success: true, message: 'No active stores found', data: { created: 0, period } });
     return;
   }
 
-  // Skip stores that already have a subscription record for this period
+  // Skip stores already billed for this period (by type)
   const existing = await prisma.billingRecord.findMany({
-    where: { period, storeId: { in: stores.map((s) => s.id) }, billingType: BillingType.MONTHLY_SUBSCRIPTION },
-    select: { storeId: true },
+    where: { period, storeId: { in: stores.map((s) => s.id) } },
+    select: { storeId: true, billingType: true },
   });
-  const existingIds = new Set(existing.map((r) => r.storeId));
-  const toCreate = stores.filter((s) => !existingIds.has(s.id));
+  const existingSet = new Set(existing.map((r) => `${r.storeId}:${r.billingType}`));
+
+  const toCreate: { storeId: string; billingType: BillingType; amount: number; period: string }[] = [];
+
+  // ── Flat subscription fee (MONTHLY_SUBSCRIPTION + HYBRID) ─────────────────
+  for (const store of stores) {
+    if (store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID') {
+      if (!existingSet.has(`${store.id}:MONTHLY_SUBSCRIPTION`)) {
+        toCreate.push({ storeId: store.id, billingType: BillingType.MONTHLY_SUBSCRIPTION, amount: store.subscriptionPrice, period });
+      }
+    }
+  }
+
+  // ── Per-transaction fee (PER_TRANSACTION + HYBRID) ─────────────────────────
+  const perTxStores = stores.filter((s) => s.billingType === 'PER_TRANSACTION' || s.billingType === 'HYBRID');
+  if (perTxStores.length > 0) {
+    const txStats = await prisma.pointsTransaction.groupBy({
+      by: ['storeId'],
+      where: {
+        storeId: { in: perTxStores.map((s) => s.id) },
+        status: 'APPROVED',
+        createdAt: { gte: monthStart, lte: monthEnd },
+      },
+      _sum: { purchaseAmount: true },
+    });
+    const txVolumeMap = Object.fromEntries(txStats.map((r) => [r.storeId, r._sum.purchaseAmount ?? 0]));
+
+    for (const store of perTxStores) {
+      if (!existingSet.has(`${store.id}:PER_TRANSACTION`)) {
+        const volume = txVolumeMap[store.id] ?? 0;
+        const amount = parseFloat((volume * store.transactionFeeRate).toFixed(2));
+        if (amount > 0) {
+          toCreate.push({ storeId: store.id, billingType: BillingType.PER_TRANSACTION, amount, period });
+        }
+      }
+    }
+  }
 
   if (toCreate.length === 0) {
-    res.json({ success: true, message: `All ${stores.length} stores already billed for ${period}`, data: { created: 0, period } });
+    res.json({ success: true, message: `All stores already billed for ${period}`, data: { created: 0, period } });
     return;
   }
 
-  await prisma.billingRecord.createMany({
-    data: toCreate.map((s) => ({
-      storeId: s.id,
-      billingType: BillingType.MONTHLY_SUBSCRIPTION,
-      amount: s.subscriptionPrice,
-      period,
-    })),
-  });
+  await prisma.billingRecord.createMany({ data: toCreate });
 
   res.json({
     success: true,
     message: `Generated ${toCreate.length} billing record(s) for ${period}`,
-    data: { created: toCreate.length, period, stores: toCreate.map((s) => s.name) },
+    data: { created: toCreate.length, period },
   });
 }
 

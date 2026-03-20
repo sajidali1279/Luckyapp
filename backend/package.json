@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "ts-node src/utils/seed.ts",
-    "db:seed-test": "ts-node src/utils/seed-test-data.ts"
+    "db:seed-test": "ts-node src/utils/seed-test-data.ts",
+    "db:add-sales": "ts-node prisma/add-sales.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",

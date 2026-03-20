@@ -394,3 +394,127 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
 
   res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
 }
+
+// SuperAdmin+: platform-wide summary stats
+export async function getPlatformSummary(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [todayStats, monthStats, pendingCount, allTimeStats, perStore, creditsOut] = await prisma.$transaction([
+    prisma.pointsTransaction.aggregate({
+      where: { status: 'APPROVED', createdAt: { gte: todayStart } },
+      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+    }),
+    prisma.pointsTransaction.aggregate({
+      where: { status: 'APPROVED', createdAt: { gte: monthStart } },
+      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+    }),
+    prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
+    prisma.pointsTransaction.aggregate({
+      where: { status: 'APPROVED' },
+      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+    }),
+    prisma.pointsTransaction.groupBy({
+      by: ['storeId'],
+      where: { status: 'APPROVED', createdAt: { gte: monthStart } },
+      _count: true,
+      _sum: { purchaseAmount: true, pointsAwarded: true },
+      orderBy: { _sum: { purchaseAmount: 'desc' } },
+    }),
+    prisma.user.aggregate({
+      where: { role: 'CUSTOMER' },
+      _sum: { pointsBalance: true },
+    }),
+  ]);
+
+  const storeIds = perStore.map((r) => r.storeId);
+  const stores = await prisma.store.findMany({
+    where: { id: { in: storeIds } },
+    select: { id: true, name: true, city: true },
+  });
+  const storeMap = Object.fromEntries(stores.map((s) => [s.id, s]));
+
+  res.json({
+    success: true,
+    data: {
+      today: {
+        transactions: todayStats._count,
+        purchaseVolume: parseFloat((todayStats._sum.purchaseAmount ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat((todayStats._sum.pointsAwarded ?? 0).toFixed(2)),
+      },
+      thisMonth: {
+        transactions: monthStats._count,
+        purchaseVolume: parseFloat((monthStats._sum.purchaseAmount ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat((monthStats._sum.pointsAwarded ?? 0).toFixed(2)),
+      },
+      pending: pendingCount,
+      allTime: {
+        transactions: allTimeStats._count,
+        purchaseVolume: parseFloat((allTimeStats._sum.purchaseAmount ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat((allTimeStats._sum.pointsAwarded ?? 0).toFixed(2)),
+      },
+      totalCreditsOutstanding: parseFloat((creditsOut._sum.pointsBalance ?? 0).toFixed(2)),
+      storeRanking: perStore.map((r) => ({
+        ...(storeMap[r.storeId] ?? { id: r.storeId, name: 'Unknown', city: '' }),
+        transactions: r._count,
+        purchaseVolume: parseFloat(((r._sum?.purchaseAmount) ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((r._sum?.pointsAwarded) ?? 0).toFixed(2)),
+      })),
+    },
+  });
+}
+
+// SuperAdmin+: all-store transactions with filters
+export async function getAllTransactions(req: AuthRequest, res: Response) {
+  const {
+    storeId, status, category, from, to,
+    page = '1', limit = '25',
+  } = req.query as Record<string, string>;
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = Math.min(parseInt(limit), 100);
+
+  const where: Record<string, unknown> = {};
+  if (storeId)  where.storeId  = storeId;
+  if (status)   where.status   = status;
+  if (category) where.category = category;
+  if (from || to) {
+    const dateFilter: Record<string, Date> = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to)   dateFilter.lte = new Date(to + 'T23:59:59');
+    where.createdAt = dateFilter;
+  }
+
+  const [transactions, total, aggStats] = await prisma.$transaction([
+    prisma.pointsTransaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+      include: {
+        customer:  { select: { id: true, name: true, phone: true } },
+        grantedBy: { select: { id: true, name: true, phone: true } },
+        store:     { select: { id: true, name: true } },
+      },
+    }),
+    prisma.pointsTransaction.count({ where }),
+    prisma.pointsTransaction.aggregate({
+      where: { ...where, status: 'APPROVED' },
+      _sum: { purchaseAmount: true, pointsAwarded: true },
+    }),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      transactions, total,
+      page: parseInt(page), limit: take,
+      summary: {
+        purchaseVolume: parseFloat((aggStats._sum.purchaseAmount ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat((aggStats._sum.pointsAwarded ?? 0).toFixed(2)),
+      },
+    },
+  });
+}
