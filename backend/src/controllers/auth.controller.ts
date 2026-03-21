@@ -159,12 +159,19 @@ export async function login(req: Request, res: Response) {
 // ─── Get Current User (balance refresh) ──────────────────────────────────────
 
 export async function getMe(req: AuthRequest, res: Response) {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true },
-  });
+  const [user, storeRoles] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true },
+    }),
+    prisma.userStoreRole.findMany({
+      where: { userId: req.user!.id },
+      select: { storeId: true },
+    }),
+  ]);
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
-  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance) } });
+  const storeIds = storeRoles.map((r) => r.storeId);
+  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance), storeIds } });
 }
 
 // ─── Register Push Token ──────────────────────────────────────────────────────

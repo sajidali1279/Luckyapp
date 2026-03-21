@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType, ProductCategory } from '@prisma/client';
+import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
 
 // SUPER_ADMIN+ — basic store list (no billing info)
 export async function getStores(_req: AuthRequest, res: Response) {
@@ -168,8 +169,6 @@ export async function updateCategoryRate(req: AuthRequest, res: Response) {
 }
 
 // ─── Dev Cut Rate Config ──────────────────────────────────────────────────────
-
-const DEFAULT_DEV_CUT_RATE = parseFloat(process.env.DEV_CUT_RATE || '0.04');
 
 export async function getDevCutRate(_req: AuthRequest, res: Response) {
   const config = await prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } });

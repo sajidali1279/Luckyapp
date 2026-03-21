@@ -5,29 +5,8 @@ import { AuthRequest } from '../types';
 import { ProductCategory, TransactionStatus } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
-
-// ─── Push Notification Helper ─────────────────────────────────────────────────
-
-async function sendPushNotification(userId: string, title: string, body: string) {
-  try {
-    const tokens = await prisma.pushToken.findMany({
-      where: { userId },
-      select: { token: true },
-    });
-    if (tokens.length === 0) return;
-    const messages = tokens.map(({ token }) => ({ to: token, title, body, sound: 'default' }));
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(messages),
-    });
-  } catch {
-    // Non-critical — don't let push failure break the response
-  }
-}
-
-const DEFAULT_CASHBACK_RATE = parseFloat(process.env.DEFAULT_CASHBACK_RATE || '0.05');
-const DEFAULT_DEV_CUT_RATE  = parseFloat(process.env.DEV_CUT_RATE || '0.04');
+import { sendPushToUser } from '../utils/push';
+import { DEFAULT_CASHBACK_RATE, DEFAULT_DEV_CUT_RATE } from '../config/constants';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -177,7 +156,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   ]);
 
   // Notify customer their points were credited
-  sendPushNotification(
+  sendPushToUser(
     transaction.customerId,
     '💰 Points Credited!',
     `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`
@@ -245,7 +224,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     }),
   ]);
 
-  sendPushNotification(
+  sendPushToUser(
     customer.id,
     '🎉 Redemption Successful!',
     `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`

@@ -3,14 +3,13 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory } from '@prisma/client';
+import { DEFAULT_DEV_CUT_RATE, DEFAULT_CASHBACK_RATE } from '../config/constants';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getStoreByApiKey(apiKey: string) {
   return prisma.store.findUnique({ where: { apiKey } });
 }
-
-const DEFAULT_DEV_CUT_RATE = parseFloat(process.env.DEV_CUT_RATE || '0.04');
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 // ─── POST /points/receipt-token  (called by printer agent) ───────────────────
@@ -94,7 +93,7 @@ export async function getReceiptToken(req: Request, res: Response) {
   const rateMap: Record<string, number> = {};
   categoryRates.forEach((r) => { rateMap[r.category] = r.cashbackRate; });
 
-  const DEFAULT_RATE = 0.05;
+  const DEFAULT_RATE = DEFAULT_CASHBACK_RATE;
   const devCutConfig = await prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } });
   const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
 
@@ -164,7 +163,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
 
   const rateMap: Record<string, number> = {};
   categoryRatesRows.forEach((r) => { rateMap[r.category] = r.cashbackRate; });
-  const DEFAULT_RATE = 0.05;
+  const DEFAULT_RATE = DEFAULT_CASHBACK_RATE;
   const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
 
   // Create one transaction per category line item (for accurate category tracking)
