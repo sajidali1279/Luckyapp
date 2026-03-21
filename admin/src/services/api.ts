@@ -31,9 +31,17 @@ export const billingApi = {
     api.patch(`/billing/category-rates/${category}`, { cashbackRate }),
   getDevCutRate: () => api.get('/billing/config/dev-cut-rate'),
   updateDevCutRate: (rate: number) => api.put('/billing/config/dev-cut-rate', { rate }),
-  generateMonthlyBilling: () => api.post('/billing/generate-monthly'),
-  getMonthlyRecords: (period?: string, isPaid?: boolean) =>
-    api.get(`/billing/monthly-records${period ? `?period=${period}` : ''}${isPaid !== undefined ? `${period ? '&' : '?'}isPaid=${isPaid}` : ''}`),
+  generateMonthlyBilling: (period?: string) =>
+    api.post(`/billing/generate-monthly${period ? `?period=${period}` : ''}`),
+  generateAllMissingBills: () => api.post('/billing/generate-all'),
+  getMonthlyRecords: (period?: string, storeId?: string, isPaid?: boolean) => {
+    const params = new URLSearchParams();
+    if (period)  params.set('period', period);
+    if (storeId) params.set('storeId', storeId);
+    if (isPaid !== undefined) params.set('isPaid', String(isPaid));
+    const qs = params.toString();
+    return api.get(`/billing/monthly-records${qs ? `?${qs}` : ''}`);
+  },
 };
 
 export const offersApi = {

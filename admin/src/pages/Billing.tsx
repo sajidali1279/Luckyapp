@@ -3,6 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 
+interface BillNotes {
+  txCount: number; purchaseVolume: number;
+  cashbackIssued: number; devCutEarned: number; customerCashback: number;
+  effectiveCashbackRate: number; effectiveDevCutRate: number;
+  categories: { category: string; txCount: number; purchaseVolume: number; cashbackIssued: number; devCutEarned: number; customerCashback: number }[];
+  subscriptionFee: number; transactionFeeRate: number; transactionFee: number;
+  totalAmountOwed: number; periodStart: string; periodEnd: string;
+}
+
 type Tab = 'stores' | 'monthly' | 'settings';
 
 const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as const;
@@ -55,6 +64,7 @@ export default function Billing() {
     queryKey: ['monthly-records', selectedPeriod, filterPaid],
     queryFn: () => billingApi.getMonthlyRecords(
       selectedPeriod || undefined,
+      undefined,
       filterPaid === 'all' ? undefined : filterPaid === 'paid',
     ),
     enabled: tab === 'monthly',
@@ -74,14 +84,18 @@ export default function Billing() {
     onError: () => toast.error('Failed to update rate'),
   });
 
+  const [expandedBill, setExpandedBill] = useState<string | null>(null);
+
   const generateBills = useMutation({
-    mutationFn: () => billingApi.generateMonthlyBilling(),
-    onSuccess: (res) => {
-      const msg = res.data?.message || 'Done';
-      toast.success(msg);
-      qc.invalidateQueries({ queryKey: ['monthly-records'] });
-    },
+    mutationFn: () => billingApi.generateMonthlyBilling(selectedPeriod || undefined),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
     onError: () => toast.error('Failed to generate bills'),
+  });
+
+  const generateAllBills = useMutation({
+    mutationFn: () => billingApi.generateAllMissingBills(),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
+    onError: () => toast.error('Failed to generate all bills'),
   });
 
   const markPaid = useMutation({
@@ -263,16 +277,12 @@ export default function Billing() {
       {/* ══════════════════ MONTHLY BILLS TAB ══════════════════ */}
       {tab === 'monthly' && (
         <div>
+          {/* ── Toolbar ── */}
           <div style={s.monthlyToolbar}>
             <div style={s.monthlyFilters}>
               <div>
                 <label style={s.filterLabel}>Period</label>
-                <input
-                  type="month"
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  style={s.input}
-                />
+                <input type="month" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} style={s.input} />
               </div>
               <div>
                 <label style={s.filterLabel}>Status</label>
@@ -283,17 +293,18 @@ export default function Billing() {
                 </select>
               </div>
             </div>
-            <button
-              style={s.generateBtn}
-              onClick={() => generateBills.mutate()}
-              disabled={generateBills.isPending}
-            >
-              {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate Bills for ${currentPeriod()}`}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={s.generateBtn} onClick={() => generateBills.mutate()} disabled={generateBills.isPending}>
+                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || currentPeriod()}`}
+              </button>
+              <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
+                {generateAllBills.isPending ? '⏳ Backfilling…' : '📅 Backfill All Missing'}
+              </button>
+            </div>
           </div>
 
           <p style={s.monthlyHint}>
-            "Generate Bills" creates one subscription invoice per active store for the current month. Safe to run multiple times — it skips stores already billed for the period.
+            Each bill is one compound record per store — subscription fee + transaction fee + full cashback breakdown. Rates are captured from actual transaction data so changing rates later won't alter historical bills. "Backfill All Missing" generates every month since each store's creation date.
           </p>
 
           {monthlyLoading ? (
@@ -301,7 +312,7 @@ export default function Billing() {
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
               <p style={{ margin: 0, color: '#6c757d' }}>No billing records for this filter.</p>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#adb5bd' }}>Click "Generate Bills" to create records for the current month.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#adb5bd' }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
             </div>
           ) : (
             <table style={s.table}>
@@ -309,44 +320,138 @@ export default function Billing() {
                 <tr>
                   <th style={s.th}>Store</th>
                   <th style={s.th}>Period</th>
-                  <th style={s.th}>Type</th>
-                  <th style={s.th}>Amount</th>
+                  <th style={s.th}>Billing Type</th>
+                  <th style={s.th}>Txns</th>
+                  <th style={s.th}>Purchase Volume</th>
+                  <th style={s.th}>Cashback Issued</th>
+                  <th style={s.th}>Dev Cut Earned</th>
+                  <th style={s.th}>Total Owed</th>
                   <th style={s.th}>Status</th>
-                  <th style={s.th}>Paid At</th>
                   <th style={s.th}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {monthlyRecords.map((r: any) => (
-                  <tr key={r.id}>
-                    <td style={s.td}>
-                      <div style={{ fontWeight: 700, color: '#1D3557' }}>{r.store?.name}</div>
-                      <div style={s.cityLabel}>{r.store?.city}</div>
-                    </td>
-                    <td style={s.td}>{r.period}</td>
-                    <td style={s.td}><span style={s.badge}>{r.billingType.replace(/_/g, ' ')}</span></td>
-                    <td style={s.td}><strong>{fmt$(r.amount)}</strong></td>
-                    <td style={s.td}>
-                      <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>
-                        {r.isPaid ? '✓ Paid' : '⏳ Unpaid'}
-                      </span>
-                    </td>
-                    <td style={s.td}>
-                      {r.paidAt ? new Date(r.paidAt).toLocaleDateString() : <span style={s.na}>—</span>}
-                    </td>
-                    <td style={s.td}>
-                      {!r.isPaid && (
-                        <button
-                          style={s.saveBtn}
-                          onClick={() => markPaid.mutate(r.id)}
-                          disabled={markPaid.isPending}
-                        >
-                          Mark Paid
-                        </button>
+                {monthlyRecords.map((r: any) => {
+                  const n: BillNotes | null = r.notes;
+                  const isExp = expandedBill === r.id;
+                  return (
+                    <Fragment key={r.id}>
+                      <tr style={isExp ? s.rowExpanded : undefined}>
+                        <td style={s.td}>
+                          <button style={s.expandBtn} onClick={() => setExpandedBill(isExp ? null : r.id)}>
+                            {isExp ? '▾' : '▸'} {r.store?.name}
+                          </button>
+                          <div style={s.cityLabel}>{r.store?.city}</div>
+                        </td>
+                        <td style={s.td}>{r.period}</td>
+                        <td style={s.td}><span style={s.badge}>{r.billingType.replace(/_/g, ' ')}</span></td>
+                        <td style={s.td}>{n?.txCount ?? '—'}</td>
+                        <td style={s.td}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
+                        <td style={s.td}>
+                          {n ? <><div>{fmt$(n.cashbackIssued)}</div><div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} rate</div></> : '—'}
+                        </td>
+                        <td style={s.td}>
+                          {n ? <><div style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(n.devCutEarned)}</div><div style={s.cityLabel}>{fmtPct(n.effectiveDevCutRate)} of cashback</div></> : '—'}
+                        </td>
+                        <td style={s.td}><strong style={{ color: '#E63946' }}>{fmt$(r.amount)}</strong></td>
+                        <td style={s.td}>
+                          <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                          {r.paidAt && <div style={s.cityLabel}>{new Date(r.paidAt).toLocaleDateString()}</div>}
+                        </td>
+                        <td style={s.td}>
+                          {!r.isPaid && <button style={s.saveBtn} onClick={() => markPaid.mutate(r.id)} disabled={markPaid.isPending}>Mark Paid</button>}
+                        </td>
+                      </tr>
+
+                      {/* ── Expanded compound bill detail ── */}
+                      {isExp && n && (
+                        <tr>
+                          <td colSpan={10} style={s.expandedCell}>
+                            <div style={s.billDetail}>
+
+                              {/* Fee split summary */}
+                              <div style={s.billSection}>
+                                <div style={s.billSectionTitle}>Fee Breakdown</div>
+                                <div style={s.feeGrid}>
+                                  {n.subscriptionFee > 0 && (
+                                    <div style={s.feeRow}>
+                                      <span>Monthly Subscription</span>
+                                      <span style={{ fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</span>
+                                    </div>
+                                  )}
+                                  {n.transactionFee > 0 && (
+                                    <div style={s.feeRow}>
+                                      <span>Transaction Fee ({fmtPct(n.transactionFeeRate)} × {fmt$(n.purchaseVolume)})</span>
+                                      <span style={{ fontWeight: 700 }}>{fmt$(n.transactionFee)}</span>
+                                    </div>
+                                  )}
+                                  <div style={{ ...s.feeRow, borderTop: '2px solid #dee2e6', marginTop: 4, paddingTop: 8, fontWeight: 800, color: '#E63946' }}>
+                                    <span>Total Owed to Platform</span>
+                                    <span>{fmt$(n.totalAmountOwed)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Cashback split */}
+                              <div style={s.billSection}>
+                                <div style={s.billSectionTitle}>Cashback Split ({n.txCount} transactions)</div>
+                                <div style={s.feeGrid}>
+                                  <div style={s.feeRow}>
+                                    <span>Total Purchase Volume</span>
+                                    <span>{fmt$(n.purchaseVolume)}</span>
+                                  </div>
+                                  <div style={s.feeRow}>
+                                    <span>Cashback Issued ({fmtPct(n.effectiveCashbackRate)} of volume)</span>
+                                    <span>{fmt$(n.cashbackIssued)}</span>
+                                  </div>
+                                  <div style={s.feeRow}>
+                                    <span style={{ color: '#2DC653' }}>→ Dev Cut ({fmtPct(n.effectiveDevCutRate)} of cashback)</span>
+                                    <span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(n.devCutEarned)}</span>
+                                  </div>
+                                  <div style={s.feeRow}>
+                                    <span>→ Customer Cashback (net credited)</span>
+                                    <span>{fmt$(n.customerCashback)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Category breakdown */}
+                              {n.categories.length > 0 && (
+                                <div style={{ ...s.billSection, flex: '2 1 400px' }}>
+                                  <div style={s.billSectionTitle}>By Category</div>
+                                  <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr>
+                                        {['Category', 'Txns', 'Volume', 'Cashback', 'Dev Cut', 'Customer'].map((h) => (
+                                          <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 11, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {n.categories.map((c) => (
+                                        <tr key={c.category}>
+                                          <td style={s.catTd}>{c.category.replace(/_/g, ' ')}</td>
+                                          <td style={s.catTd}>{c.txCount}</td>
+                                          <td style={s.catTd}>{fmt$(c.purchaseVolume)}</td>
+                                          <td style={s.catTd}>{fmt$(c.cashbackIssued)}</td>
+                                          <td style={{ ...s.catTd, color: '#2DC653', fontWeight: 600 }}>{fmt$(c.devCutEarned)}</td>
+                                          <td style={s.catTd}>{fmt$(c.customerCashback)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ padding: '6px 20px 12px', fontSize: 12, color: '#adb5bd' }}>
+                              Period: {n.periodStart} → {n.periodEnd} · Rates captured from actual transaction data
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -355,10 +460,10 @@ export default function Billing() {
           {monthlyRecords.length > 0 && (
             <div style={s.monthlyTotals}>
               <span>
-                <strong>{monthlyRecords.length}</strong> records ·{' '}
-                Total: <strong>{fmt$(monthlyRecords.reduce((s: number, r: any) => s + r.amount, 0))}</strong> ·{' '}
-                Collected: <strong style={{ color: '#2DC653' }}>{fmt$(monthlyRecords.filter((r: any) => r.isPaid).reduce((s: number, r: any) => s + r.amount, 0))}</strong> ·{' '}
-                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$(monthlyRecords.filter((r: any) => !r.isPaid).reduce((s: number, r: any) => s + r.amount, 0))}</strong>
+                <strong>{monthlyRecords.length}</strong> bills ·{' '}
+                Total: <strong>{fmt$(monthlyRecords.reduce((acc: number, r: any) => acc + r.amount, 0))}</strong> ·{' '}
+                Collected: <strong style={{ color: '#2DC653' }}>{fmt$(monthlyRecords.filter((r: any) => r.isPaid).reduce((acc: number, r: any) => acc + r.amount, 0))}</strong> ·{' '}
+                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$(monthlyRecords.filter((r: any) => !r.isPaid).reduce((acc: number, r: any) => acc + r.amount, 0))}</strong>
               </span>
             </div>
           )}
@@ -528,9 +633,18 @@ const s: Record<string, React.CSSProperties> = {
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
   filterLabel: { display: 'block', fontSize: 12, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  backfillBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   monthlyHint: { fontSize: 13, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
   monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#495057' },
+
+  // Compound bill detail
+  billDetail: { display: 'flex', flexWrap: 'wrap', gap: 16, padding: '16px 20px' },
+  billSection: { flex: '1 1 260px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
+  billSectionTitle: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
+  feeGrid: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
+  feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', padding: '4px 0' },
+  catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 13, color: '#495057' },
 
   // Settings
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 },

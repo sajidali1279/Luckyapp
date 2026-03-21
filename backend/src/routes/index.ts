@@ -40,6 +40,7 @@ import {
   getDevCutRate,
   updateDevCutRate,
   generateMonthlyBilling,
+  generateAllMissingBills,
   getMonthlyRecords,
 } from '../controllers/billing.controller';
 
@@ -113,6 +114,7 @@ router.patch('/billing/category-rates/:category', authenticate, requireRole(Role
 router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), getDevCutRate);
 router.put('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), updateDevCutRate);
 router.post('/billing/generate-monthly', authenticate, requireRole(Role.DEV_ADMIN), generateMonthlyBilling);
+router.post('/billing/generate-all', authenticate, requireRole(Role.DEV_ADMIN), generateAllMissingBills);
 router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);

@@ -190,94 +190,205 @@ export async function updateDevCutRate(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { rate: parsed.data.rate } });
 }
 
-// ─── Monthly Billing Auto-Generation ─────────────────────────────────────────
+// ─── Billing helpers ──────────────────────────────────────────────────────────
 
-export async function generateMonthlyBilling(_req: AuthRequest, res: Response) {
-  const now = new Date();
-  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+function periodBounds(period: string): { start: Date; end: Date } {
+  const [y, m] = period.split('-').map(Number);
+  return {
+    start: new Date(y, m - 1, 1),
+    end:   new Date(y, m, 0, 23, 59, 59, 999),
+  };
+}
+
+function toPeriod(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** All month periods from storeCreated up to and including upTo, oldest first. */
+function allPeriodsSince(storeCreated: Date, upTo: string): string[] {
+  const periods: string[] = [];
+  const cur = new Date(storeCreated.getFullYear(), storeCreated.getMonth(), 1);
+  const [uy, um] = upTo.split('-').map(Number);
+  const endMonth = new Date(uy, um - 1, 1);
+  while (cur <= endMonth) {
+    periods.push(toPeriod(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return periods;
+}
+
+interface CategoryRow {
+  category: string;
+  txCount: number;
+  purchaseVolume: number;
+  cashbackIssued: number;
+  devCutEarned: number;
+  customerCashback: number;
+}
+
+interface BillNotes {
+  txCount: number;
+  purchaseVolume: number;
+  cashbackIssued: number;
+  devCutEarned: number;
+  customerCashback: number;
+  effectiveCashbackRate: number; // cashbackIssued / purchaseVolume
+  effectiveDevCutRate: number;   // devCutEarned / cashbackIssued
+  categories: CategoryRow[];
+  subscriptionFee: number;
+  transactionFeeRate: number;
+  transactionFee: number;
+  totalAmountOwed: number;
+  periodStart: string;
+  periodEnd: string;
+}
+
+async function buildBillForPeriod(
+  store: { id: string; billingType: string; subscriptionPrice: number; transactionFeeRate: number },
+  period: string,
+): Promise<{ amount: number; notes: BillNotes } | null> {
+  const { start, end } = periodBounds(period);
+
+  // Use actual per-transaction data — rates are already baked in at grant time,
+  // so changing rates later doesn't retroactively alter historical bills.
+  const txRows = await prisma.pointsTransaction.groupBy({
+    by: ['category'],
+    where: { storeId: store.id, status: 'APPROVED', createdAt: { gte: start, lte: end } },
+    _count: { id: true },
+    _sum: { purchaseAmount: true, storeCost: true, devCut: true, pointsAwarded: true },
+  });
+
+  const txCount          = txRows.reduce((s, r) => s + (r._count.id         ?? 0), 0);
+  const purchaseVolume   = parseFloat(txRows.reduce((s, r) => s + (r._sum?.purchaseAmount ?? 0), 0).toFixed(2));
+  const cashbackIssued   = parseFloat(txRows.reduce((s, r) => s + (r._sum?.storeCost      ?? 0), 0).toFixed(2));
+  const devCutEarned     = parseFloat(txRows.reduce((s, r) => s + (r._sum?.devCut         ?? 0), 0).toFixed(2));
+  const customerCashback = parseFloat(txRows.reduce((s, r) => s + (r._sum?.pointsAwarded  ?? 0), 0).toFixed(2));
+
+  const categories: CategoryRow[] = txRows.map((r) => ({
+    category:        String(r.category),
+    txCount:         r._count.id ?? 0,
+    purchaseVolume:  parseFloat((r._sum?.purchaseAmount ?? 0).toFixed(2)),
+    cashbackIssued:  parseFloat((r._sum?.storeCost      ?? 0).toFixed(2)),
+    devCutEarned:    parseFloat((r._sum?.devCut         ?? 0).toFixed(2)),
+    customerCashback:parseFloat((r._sum?.pointsAwarded  ?? 0).toFixed(2)),
+  })).sort((a, b) => b.purchaseVolume - a.purchaseVolume);
+
+  const needsSub        = store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID';
+  const needsTx         = store.billingType === 'PER_TRANSACTION'      || store.billingType === 'HYBRID';
+  const subscriptionFee = needsSub ? store.subscriptionPrice : 0;
+  const transactionFee  = needsTx  ? parseFloat((purchaseVolume * store.transactionFeeRate).toFixed(2)) : 0;
+  const totalAmountOwed = parseFloat((subscriptionFee + transactionFee).toFixed(2));
+
+  // Don't generate a bill if there's nothing to charge and no activity
+  if (totalAmountOwed === 0 && txCount === 0) return null;
+
+  const notes: BillNotes = {
+    txCount, purchaseVolume,
+    cashbackIssued, devCutEarned, customerCashback,
+    effectiveCashbackRate: purchaseVolume > 0 ? parseFloat((cashbackIssued / purchaseVolume).toFixed(4)) : 0,
+    effectiveDevCutRate:   cashbackIssued > 0 ? parseFloat((devCutEarned / cashbackIssued).toFixed(4)) : 0,
+    categories,
+    subscriptionFee, transactionFeeRate: store.transactionFeeRate,
+    transactionFee, totalAmountOwed,
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd:   end.toISOString().slice(0, 10),
+  };
+
+  return { amount: totalAmountOwed, notes };
+}
+
+// ─── Generate compound bill for one period (default = current month) ──────────
+
+export async function generateMonthlyBilling(req: AuthRequest, res: Response) {
+  const period = (req.query.period as string) || toPeriod(new Date());
 
   const stores = await prisma.store.findMany({
     where: { isActive: true },
     select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true },
   });
-
   if (stores.length === 0) {
-    res.json({ success: true, message: 'No active stores found', data: { created: 0, period } });
+    res.json({ success: true, message: 'No active stores', data: { created: 0, skipped: 0, period } });
     return;
   }
 
-  // Skip stores already billed for this period (by type)
-  const existing = await prisma.billingRecord.findMany({
-    where: { period, storeId: { in: stores.map((s) => s.id) } },
-    select: { storeId: true, billingType: true },
-  });
-  const existingSet = new Set(existing.map((r) => `${r.storeId}:${r.billingType}`));
+  // One compound record per store per period — skip if already billed
+  const existingIds = new Set(
+    (await prisma.billingRecord.findMany({
+      where: { period, storeId: { in: stores.map((s) => s.id) } },
+      select: { storeId: true },
+    })).map((r) => r.storeId),
+  );
 
-  const toCreate: { storeId: string; billingType: BillingType; amount: number; period: string }[] = [];
-
-  // ── Flat subscription fee (MONTHLY_SUBSCRIPTION + HYBRID) ─────────────────
+  let created = 0; let skipped = 0;
   for (const store of stores) {
-    if (store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID') {
-      if (!existingSet.has(`${store.id}:MONTHLY_SUBSCRIPTION`)) {
-        toCreate.push({ storeId: store.id, billingType: BillingType.MONTHLY_SUBSCRIPTION, amount: store.subscriptionPrice, period });
-      }
-    }
-  }
-
-  // ── Per-transaction fee (PER_TRANSACTION + HYBRID) ─────────────────────────
-  const perTxStores = stores.filter((s) => s.billingType === 'PER_TRANSACTION' || s.billingType === 'HYBRID');
-  if (perTxStores.length > 0) {
-    const txStats = await prisma.pointsTransaction.groupBy({
-      by: ['storeId'],
-      where: {
-        storeId: { in: perTxStores.map((s) => s.id) },
-        status: 'APPROVED',
-        createdAt: { gte: monthStart, lte: monthEnd },
-      },
-      _sum: { purchaseAmount: true },
+    if (existingIds.has(store.id)) { skipped++; continue; }
+    const bill = await buildBillForPeriod(store, period);
+    if (!bill) { skipped++; continue; }
+    await (prisma.billingRecord as any).create({
+      data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
     });
-    const txVolumeMap = Object.fromEntries(txStats.map((r) => [r.storeId, r._sum.purchaseAmount ?? 0]));
-
-    for (const store of perTxStores) {
-      if (!existingSet.has(`${store.id}:PER_TRANSACTION`)) {
-        const volume = txVolumeMap[store.id] ?? 0;
-        const amount = parseFloat((volume * store.transactionFeeRate).toFixed(2));
-        if (amount > 0) {
-          toCreate.push({ storeId: store.id, billingType: BillingType.PER_TRANSACTION, amount, period });
-        }
-      }
-    }
+    created++;
   }
-
-  if (toCreate.length === 0) {
-    res.json({ success: true, message: `All stores already billed for ${period}`, data: { created: 0, period } });
-    return;
-  }
-
-  await prisma.billingRecord.createMany({ data: toCreate });
 
   res.json({
     success: true,
-    message: `Generated ${toCreate.length} billing record(s) for ${period}`,
-    data: { created: toCreate.length, period },
+    message: created ? `Generated ${created} compound bill(s) for ${period}` : `All stores already billed for ${period}`,
+    data: { created, skipped, period },
+  });
+}
+
+// ─── Backfill: generate all missing bills since each store's creation date ────
+
+export async function generateAllMissingBills(_req: AuthRequest, res: Response) {
+  const currentPeriod = toPeriod(new Date());
+
+  const stores = await prisma.store.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true, createdAt: true },
+  });
+
+  const existingBills = await prisma.billingRecord.findMany({ select: { storeId: true, period: true } });
+  const billedSet = new Set(existingBills.map((r) => `${r.storeId}:${r.period}`));
+
+  let created = 0; let skipped = 0;
+  const results: { store: string; period: string; amount: number }[] = [];
+
+  for (const store of stores) {
+    for (const period of allPeriodsSince(store.createdAt, currentPeriod)) {
+      if (billedSet.has(`${store.id}:${period}`)) { skipped++; continue; }
+      const bill = await buildBillForPeriod(store, period);
+      if (!bill) { skipped++; continue; }
+      await (prisma.billingRecord as any).create({
+        data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
+      });
+      results.push({ store: store.name, period, amount: bill.amount });
+      created++;
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `Created ${created} missing bill(s) (${skipped} already existed or no activity)`,
+    data: { created, skipped, bills: results },
   });
 }
 
 export async function getMonthlyRecords(req: AuthRequest, res: Response) {
-  const { period, isPaid } = req.query as { period?: string; isPaid?: string };
+  const { period, storeId, isPaid } = req.query as { period?: string; storeId?: string; isPaid?: string };
 
-  const records = await prisma.billingRecord.findMany({
+  const rawRecords = await (prisma.billingRecord as any).findMany({
     where: {
-      ...(period && { period }),
+      ...(period  && { period }),
+      ...(storeId && { storeId }),
       ...(isPaid !== undefined && { isPaid: isPaid === 'true' }),
     },
     include: { store: { select: { id: true, name: true, city: true } } },
     orderBy: [{ period: 'desc' }, { createdAt: 'desc' }],
   });
 
-  // Group by period for the UI
+  // Parse notes JSON
+  const records = rawRecords.map((r: any) => ({ ...r, notes: r.notes ? JSON.parse(r.notes) : null }));
+
   const grouped: Record<string, typeof records> = {};
   for (const r of records) {
     if (!grouped[r.period]) grouped[r.period] = [];

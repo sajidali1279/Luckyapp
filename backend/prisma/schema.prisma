@@ -269,6 +269,7 @@ model BillingRecord {
   billingType BillingType
   amount      Float
   period      String
+  notes       String?  // JSON: full compound breakdown (rates, categories, fee split)
   isPaid      Boolean  @default(false)
   paidAt      DateTime?
   createdAt   DateTime @default(now())
