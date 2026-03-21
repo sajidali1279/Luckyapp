@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { ProductCategory, TransactionStatus } from '@prisma/client';
+import { ProductCategory, Role, TransactionStatus } from '@prisma/client';
+import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
@@ -115,9 +116,17 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Transaction not found' });
     return;
   }
-  if (transaction.grantedById !== employee.id && !['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'].includes(employee.role)) {
+  const canOverride = hasMinRole(employee.role, Role.STORE_MANAGER);
+  if (transaction.grantedById !== employee.id && !canOverride) {
     res.status(403).json({ success: false, error: 'Not your transaction' });
     return;
+  }
+  // Store managers can only approve transactions belonging to their own store
+  if (canOverride && !hasMinRole(employee.role, Role.SUPER_ADMIN)) {
+    if (!employee.storeIds?.includes(transaction.storeId)) {
+      res.status(403).json({ success: false, error: 'No access to this store' });
+      return;
+    }
   }
   if (transaction.status !== TransactionStatus.PENDING) {
     res.status(400).json({ success: false, error: 'Transaction already processed' });
@@ -273,6 +282,14 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
   if (!transaction || transaction.status !== TransactionStatus.PENDING) {
     res.status(400).json({ success: false, error: 'Transaction not found or already processed' });
     return;
+  }
+
+  // Store managers can only reject transactions belonging to their own store
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    if (!req.user!.storeIds?.includes(transaction.storeId)) {
+      res.status(403).json({ success: false, error: 'No access to this store' });
+      return;
+    }
   }
 
   await prisma.pointsTransaction.update({
