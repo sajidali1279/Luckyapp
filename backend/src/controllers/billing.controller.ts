@@ -408,9 +408,84 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
   });
 }
 
-export async function clearAllBillingRecords(_req: AuthRequest, res: Response) {
-  const { count } = await prisma.billingRecord.deleteMany();
-  res.json({ success: true, message: `Deleted ${count} billing record(s)`, data: { count } });
+// ─── Seed test transactions (DevAdmin only — for demo/testing) ────────────────
+
+const WEIGHTED_CATEGORIES = [
+  ...Array(12).fill('GAS'),   ...Array(8).fill('GROCERIES'),
+  ...Array(6).fill('DIESEL'), ...Array(5).fill('HOT_FOODS'),
+  ...Array(4).fill('TOBACCO_VAPES'), ...Array(3).fill('FRESH_FOODS'),
+  ...Array(3).fill('FROZEN_FOODS'),  ...Array(2).fill('OTHER'),
+] as ProductCategory[];
+
+const AMOUNT_RANGES: Record<string, [number, number]> = {
+  GAS: [25, 110], DIESEL: [60, 200], GROCERIES: [8, 65], HOT_FOODS: [4, 18],
+  FROZEN_FOODS: [3, 22], FRESH_FOODS: [5, 30], TOBACCO_VAPES: [10, 45], OTHER: [2, 40],
+};
+
+export async function seedTestTransactions(_req: AuthRequest, res: Response) {
+  const [stores, employees, customers, config] = await Promise.all([
+    prisma.store.findMany({ where: { isActive: true } }),
+    prisma.user.findMany({ where: { role: { in: ['EMPLOYEE', 'STORE_MANAGER', 'DEV_ADMIN'] as any } } }),
+    prisma.user.findMany({ where: { role: 'CUSTOMER' as any } }),
+    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
+  ]);
+
+  if (!stores.length || !employees.length || !customers.length) {
+    res.status(400).json({ success: false, error: 'No stores/employees/customers found. Run user reset first.' });
+    return;
+  }
+
+  const devCutRate   = parseFloat(config?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  const CASHBACK_RATE = 0.05;
+
+  function rand(min: number, max: number) { return Math.random() * (max - min) + min; }
+  function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  const txRows: any[] = [];
+  const balanceMap: Record<string, number> = {};
+
+  for (let day = 90; day >= 0; day--) {
+    const txDate = new Date();
+    txDate.setDate(txDate.getDate() - day);
+    txDate.setHours(Math.floor(rand(7, 21)), Math.floor(rand(0, 59)), Math.floor(rand(0, 59)));
+    const isWeekend = txDate.getDay() === 0 || txDate.getDay() === 6;
+    const count = Math.floor(rand(isWeekend ? 12 : 8, isWeekend ? 20 : 16));
+
+    for (let i = 0; i < count; i++) {
+      const customer = pick(customers);
+      const employee = pick(employees);
+      const store    = pick(stores);
+      const category = pick(WEIGHTED_CATEGORIES);
+      const [min, max] = AMOUNT_RANGES[category as string] ?? [5, 50];
+      const purchaseAmount = parseFloat(rand(min, max).toFixed(2));
+      const cashbackIssued = parseFloat((purchaseAmount * CASHBACK_RATE).toFixed(4));
+      const devCut         = parseFloat((cashbackIssued * devCutRate).toFixed(4));
+      const pointsAwarded  = parseFloat((cashbackIssued - devCut).toFixed(2));
+      const createdAt      = new Date(txDate);
+      createdAt.setMinutes(Math.floor(rand(0, 59)));
+
+      balanceMap[customer.id] = (balanceMap[customer.id] ?? 0) + pointsAwarded;
+      txRows.push({
+        customerId: customer.id, grantedById: employee.id, storeId: store.id,
+        purchaseAmount, pointsAwarded, devCut, storeCost: cashbackIssued,
+        cashbackRate: CASHBACK_RATE, category, status: 'APPROVED',
+        receiptImageUrl: 'https://placehold.co/400x600/png?text=Receipt',
+        createdAt, updatedAt: createdAt,
+      });
+    }
+  }
+
+  await prisma.pointsTransaction.createMany({ data: txRows });
+
+  for (const [id, balance] of Object.entries(balanceMap)) {
+    await prisma.user.update({ where: { id }, data: { pointsBalance: { increment: parseFloat(balance.toFixed(2)) } } });
+  }
+
+  res.json({
+    success: true,
+    message: `Seeded ${txRows.length} transactions across ${stores.length} stores (90-day history). Now run "Backfill All Missing" to generate compound bills.`,
+    data: { txCount: txRows.length, stores: stores.length, customers: customers.length },
+  });
 }
 
 export async function getMonthlyRecords(req: AuthRequest, res: Response) {

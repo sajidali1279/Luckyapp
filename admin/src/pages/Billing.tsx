@@ -98,10 +98,10 @@ export default function Billing() {
     onError: () => toast.error('Failed to generate all bills'),
   });
 
-  const clearAllBills = useMutation({
-    mutationFn: () => billingApi.clearAllRecords(),
-    onSuccess: (res) => { toast.success(res.data?.message || 'Cleared'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
-    onError: () => toast.error('Failed to clear bills'),
+  const seedData = useMutation({
+    mutationFn: () => billingApi.seedTestData(),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Test data seeded!'); qc.invalidateQueries({ queryKey: ['billing-stores'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to seed test data'),
   });
 
   const markPaid = useMutation({
@@ -306,8 +306,8 @@ export default function Billing() {
               <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
                 {generateAllBills.isPending ? '⏳ Backfilling…' : '📅 Backfill All Missing'}
               </button>
-              <button style={s.clearBtn} onClick={() => { if (confirm('Delete ALL billing records? This cannot be undone.')) clearAllBills.mutate(); }} disabled={clearAllBills.isPending}>
-                {clearAllBills.isPending ? '⏳ Clearing…' : '🗑️ Clear All'}
+              <button style={s.clearBtn} onClick={() => { if (confirm('Seed 90 days of random test transactions? This adds data to the DB.')) seedData.mutate(); }} disabled={seedData.isPending}>
+                {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
               </button>
             </div>
           </div>
