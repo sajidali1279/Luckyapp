@@ -347,29 +347,64 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
     select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true, createdAt: true },
   });
 
-  const existingBills = await prisma.billingRecord.findMany({ select: { storeId: true, period: true } });
-  const billedSet = new Set(existingBills.map((r) => `${r.storeId}:${r.period}`));
+  // Load existing bills — separate fully-billed (has notes) from legacy (no notes, old subscription-only)
+  const existingBills = await (prisma.billingRecord as any).findMany({
+    select: { id: true, storeId: true, period: true, notes: true, isPaid: true, paidAt: true },
+  });
+  const billedSet = new Set<string>();   // storeId:period that already have compound notes — skip
+  const legacyMap = new Map<string, { id: string; isPaid: boolean; paidAt: Date | null }>();
 
-  let created = 0; let skipped = 0;
-  const results: { store: string; period: string; amount: number }[] = [];
+  for (const r of existingBills) {
+    if (r.notes) {
+      billedSet.add(`${r.storeId}:${r.period}`);
+    } else {
+      legacyMap.set(`${r.storeId}:${r.period}`, { id: r.id, isPaid: r.isPaid, paidAt: r.paidAt });
+    }
+  }
+
+  let created = 0; let replaced = 0; let skipped = 0;
+  const results: { store: string; period: string; amount: number; action: string }[] = [];
 
   for (const store of stores) {
     for (const period of allPeriodsSince(store.createdAt, currentPeriod)) {
-      if (billedSet.has(`${store.id}:${period}`)) { skipped++; continue; }
+      const key = `${store.id}:${period}`;
+
+      // Already has compound notes → skip
+      if (billedSet.has(key)) { skipped++; continue; }
+
       const bill = await buildBillForPeriod(store, period);
+
+      // Legacy record exists (no notes) → delete it and recreate with compound notes, preserving payment status
+      const legacy = legacyMap.get(key);
+      if (legacy) {
+        if (!bill) { skipped++; continue; }
+        await prisma.billingRecord.delete({ where: { id: legacy.id } });
+        await (prisma.billingRecord as any).create({
+          data: {
+            storeId: store.id, billingType: store.billingType as BillingType,
+            amount: bill.amount, period, notes: JSON.stringify(bill.notes),
+            isPaid: legacy.isPaid, paidAt: legacy.paidAt,
+          },
+        });
+        results.push({ store: store.name, period, amount: bill.amount, action: 'replaced' });
+        replaced++;
+        continue;
+      }
+
+      // No bill at all → create new
       if (!bill) { skipped++; continue; }
       await (prisma.billingRecord as any).create({
         data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
       });
-      results.push({ store: store.name, period, amount: bill.amount });
+      results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
       created++;
     }
   }
 
   res.json({
     success: true,
-    message: `Created ${created} missing bill(s) (${skipped} already existed or no activity)`,
-    data: { created, skipped, bills: results },
+    message: `Created ${created}, replaced ${replaced} legacy bill(s) (${skipped} already up-to-date or no activity)`,
+    data: { created, replaced, skipped, bills: results },
   });
 }
 
