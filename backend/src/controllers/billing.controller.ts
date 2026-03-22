@@ -595,11 +595,17 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
 export async function getSuperAdminNotifications(_req: AuthRequest, res: Response) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [unpaidBills, rejectedTx, devCutConfig] = await Promise.all([
+  const [allBills, rejectedTx, devCutConfig] = await Promise.all([
     (prisma.billingRecord as any).findMany({
-      where: { isPaid: false },
-      include: { store: { select: { name: true } } },
+      where: {
+        OR: [
+          { isPaid: false },
+          { isPaid: true, paidAt: { gte: sixMonthsAgo } },
+        ],
+      },
+      include: { store: { select: { id: true, name: true, city: true } } },
       orderBy: { period: 'desc' },
     }),
     prisma.pointsTransaction.count({
@@ -610,30 +616,58 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
 
   const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
 
-  // Group unpaid bills by period for consolidated notifications
-  const unpaidByPeriod: Record<string, { total: number; storeCount: number }> = {};
-  for (const bill of unpaidBills) {
-    if (!unpaidByPeriod[bill.period]) unpaidByPeriod[bill.period] = { total: 0, storeCount: 0 };
-    unpaidByPeriod[bill.period].total += parseFloat(String(bill.amount));
-    unpaidByPeriod[bill.period].storeCount++;
+  // Group bills by period
+  const byPeriod: Record<string, { total: number; storeCount: number; isPaid: boolean; paidAt: string | null; stores: { name: string; city: string; amount: number }[] }> = {};
+  for (const bill of allBills) {
+    const amt = parseFloat(String(bill.amount));
+    if (!byPeriod[bill.period]) {
+      byPeriod[bill.period] = { total: 0, storeCount: 0, isPaid: true, paidAt: bill.paidAt ? bill.paidAt.toISOString() : null, stores: [] };
+    }
+    byPeriod[bill.period].total += amt;
+    byPeriod[bill.period].storeCount++;
+    byPeriod[bill.period].stores.push({ name: bill.store.name, city: bill.store.city, amount: amt });
+    if (!bill.isPaid) byPeriod[bill.period].isPaid = false;
+    if (bill.isPaid && bill.paidAt) byPeriod[bill.period].paidAt = bill.paidAt.toISOString();
   }
 
-  const notifications: { id: string; type: string; title: string; message: string; createdAt: string; isRead: boolean; severity: string }[] = [];
+  const notifications: {
+    id: string; type: string; title: string; message: string;
+    createdAt: string; isRead: boolean; severity: string;
+    period?: string; totalAmount?: number; paidAt?: string | null;
+  }[] = [];
 
-  // Unpaid invoice notifications
-  for (const [period, info] of Object.entries(unpaidByPeriod)) {
+  for (const [period, info] of Object.entries(byPeriod)) {
     const [y, m] = period.split('-').map(Number);
     const monthName = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
     const total = parseFloat(info.total.toFixed(2));
-    notifications.push({
-      id: `invoice-${period}`,
-      type: 'BILLING',
-      title: `Invoice Due — ${monthName}`,
-      message: `$${total.toFixed(2)} in platform fees outstanding (${(devCutRate * 100).toFixed(0)}% dev cut across ${info.storeCount} stores).`,
-      createdAt: new Date(y, m, 1).toISOString(), // day after period ends
-      isRead: false,
-      severity: 'warning',
-    });
+
+    if (info.isPaid) {
+      notifications.push({
+        id: `invoice-paid-${period}`,
+        type: 'BILLING',
+        title: `Invoice Paid — ${monthName}`,
+        message: `$${total.toFixed(2)} platform fee has been settled. Download your invoice for records.`,
+        createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
+        isRead: true,
+        severity: 'success',
+        period,
+        totalAmount: total,
+        paidAt: info.paidAt,
+      });
+    } else {
+      notifications.push({
+        id: `invoice-due-${period}`,
+        type: 'BILLING',
+        title: `Invoice Due — ${monthName}`,
+        message: `$${total.toFixed(2)} in platform fees outstanding (${(devCutRate * 100).toFixed(0)}% dev cut across ${info.storeCount} stores).`,
+        createdAt: new Date(y, m, 1).toISOString(),
+        isRead: false,
+        severity: 'warning',
+        period,
+        totalAmount: total,
+        paidAt: null,
+      });
+    }
   }
 
   // Rejected transaction alert
@@ -649,7 +683,6 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
-  // Sort by most recent first
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   res.json({ success: true, data: notifications });

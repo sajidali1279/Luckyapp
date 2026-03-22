@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { superAdminApi } from '../services/api';
+import { downloadInvoicePdf } from '../utils/invoicePdf';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -98,14 +99,24 @@ export default function SuperAdminBilling() {
                       )}
                     </td>
                     <td style={s.td}>
-                      {inv.isPaid ? (
-                        <span style={s.badgePaid}>✓ Paid</span>
-                      ) : (
-                        <span style={s.badgeUnpaid}>Unpaid</span>
-                      )}
-                      {inv.isPaid && inv.paidAt && (
-                        <div style={s.sub}>{new Date(inv.paidAt).toLocaleDateString()}</div>
-                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                        {inv.isPaid ? (
+                          <span style={s.badgePaid}>✓ Paid</span>
+                        ) : (
+                          <span style={s.badgeUnpaid}>Unpaid</span>
+                        )}
+                        {inv.isPaid && inv.paidAt && (
+                          <div style={s.sub}>{new Date(inv.paidAt).toLocaleDateString()}</div>
+                        )}
+                        {inv.isPaid && (
+                          <button
+                            style={s.pdfBtn}
+                            onClick={(e) => { e.stopPropagation(); downloadInvoicePdf(inv); }}
+                          >
+                            📄 PDF
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
 
@@ -200,4 +211,10 @@ const s: Record<string, React.CSSProperties> = {
   infoBox: { background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: '18px 22px' },
   infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 13, marginBottom: 6 },
   infoText: { fontSize: 13, color: '#4338ca', lineHeight: 1.6 },
+
+  pdfBtn: {
+    background: '#fff', border: '1.5px solid #2DC653', color: '#155724',
+    borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700,
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  },
 };
