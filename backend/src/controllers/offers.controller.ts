@@ -11,7 +11,7 @@ import { broadcastToCustomers } from '../utils/push';
 
 const offerSchema = z.object({
   title: z.string().min(1),
-  description: z.string().min(1),
+  description: z.string().optional().default(''),
   type: z.nativeEnum(OfferType).default(OfferType.ALL_STORES),
   storeId: z.string().uuid().optional(),
   category: z.nativeEnum(ProductCategory).optional(),
