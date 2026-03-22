@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType, ProductCategory } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
+import { sendPushToUser } from '../utils/push';
 
 // SUPER_ADMIN+ — basic store list (no billing info)
 export async function getStores(_req: AuthRequest, res: Response) {
@@ -238,6 +239,7 @@ interface BillNotes {
   subscriptionFee: number;
   transactionFeeRate: number;
   transactionFee: number;
+  cashbackFee: number;      // cashback the store must fund (= cashbackIssued)
   totalAmountOwed: number;
   periodStart: string;
   periodEnd: string;
@@ -276,11 +278,16 @@ async function buildBillForPeriod(
   const needsSub        = store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID';
   const needsTx         = store.billingType === 'PER_TRANSACTION'      || store.billingType === 'HYBRID';
   const subscriptionFee = needsSub ? store.subscriptionPrice : 0;
+  // Platform fee (on top of subscription) — only for PER_TRANSACTION / HYBRID stores
   const transactionFee  = needsTx  ? parseFloat((purchaseVolume * store.transactionFeeRate).toFixed(2)) : 0;
-  const totalAmountOwed = parseFloat((subscriptionFee + transactionFee).toFixed(2));
+  // Cashback the store must fund — applies to ALL billing types (store bears the cashback program cost)
+  const cashbackFee     = cashbackIssued; // = storeCost; full 5% cashback issued to customers this period
 
-  // Don't generate a bill if there's nothing to charge and no activity
-  if (totalAmountOwed === 0 && txCount === 0) return null;
+  // Total the store owes this period: subscription + platform fee + cashback funded
+  const totalAmountOwed = parseFloat((subscriptionFee + transactionFee + cashbackFee).toFixed(2));
+
+  // Skip stores with literally nothing — subscription stores always have subscriptionFee > 0
+  if (subscriptionFee === 0 && txCount === 0) return null;
 
   const notes: BillNotes = {
     txCount, purchaseVolume,
@@ -289,7 +296,7 @@ async function buildBillForPeriod(
     effectiveDevCutRate:   cashbackIssued > 0 ? parseFloat((devCutEarned / cashbackIssued).toFixed(4)) : 0,
     categories,
     subscriptionFee, transactionFeeRate: store.transactionFeeRate,
-    transactionFee, totalAmountOwed,
+    transactionFee, cashbackFee, totalAmountOwed,
     periodStart: start.toISOString().slice(0, 10),
     periodEnd:   end.toISOString().slice(0, 10),
   };
@@ -347,20 +354,13 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
     select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true, createdAt: true },
   });
 
-  // Load existing bills — separate fully-billed (has notes) from legacy (no notes, old subscription-only)
+  // Load ALL existing bills into a map so we can preserve isPaid/paidAt when regenerating
   const existingBills = await (prisma.billingRecord as any).findMany({
-    select: { id: true, storeId: true, period: true, notes: true, isPaid: true, paidAt: true },
+    select: { id: true, storeId: true, period: true, isPaid: true, paidAt: true },
   });
-  const billedSet = new Set<string>();   // storeId:period that already have compound notes — skip
-  const legacyMap = new Map<string, { id: string; isPaid: boolean; paidAt: Date | null }>();
-
-  for (const r of existingBills) {
-    if (r.notes) {
-      billedSet.add(`${r.storeId}:${r.period}`);
-    } else {
-      legacyMap.set(`${r.storeId}:${r.period}`, { id: r.id, isPaid: r.isPaid, paidAt: r.paidAt });
-    }
-  }
+  const existingMap = new Map<string, { id: string; isPaid: boolean; paidAt: Date | null }>(
+    existingBills.map((r: any) => [`${r.storeId}:${r.period}`, { id: r.id, isPaid: r.isPaid, paidAt: r.paidAt }]),
+  );
 
   let created = 0; let replaced = 0; let skipped = 0;
   const results: { store: string; period: string; amount: number; action: string }[] = [];
@@ -368,42 +368,36 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
   for (const store of stores) {
     for (const period of allPeriodsSince(store.createdAt, currentPeriod)) {
       const key = `${store.id}:${period}`;
-
-      // Already has compound notes → skip
-      if (billedSet.has(key)) { skipped++; continue; }
-
       const bill = await buildBillForPeriod(store, period);
+      const existing = existingMap.get(key);
 
-      // Legacy record exists (no notes) → delete it and recreate with compound notes, preserving payment status
-      const legacy = legacyMap.get(key);
-      if (legacy) {
+      if (existing) {
+        // Always regenerate — delete old record and recreate with latest calculation, preserving payment status
         if (!bill) { skipped++; continue; }
-        await prisma.billingRecord.delete({ where: { id: legacy.id } });
+        await prisma.billingRecord.delete({ where: { id: existing.id } });
         await (prisma.billingRecord as any).create({
           data: {
             storeId: store.id, billingType: store.billingType as BillingType,
             amount: bill.amount, period, notes: JSON.stringify(bill.notes),
-            isPaid: legacy.isPaid, paidAt: legacy.paidAt,
+            isPaid: existing.isPaid, paidAt: existing.paidAt,
           },
         });
         results.push({ store: store.name, period, amount: bill.amount, action: 'replaced' });
         replaced++;
-        continue;
+      } else {
+        if (!bill) { skipped++; continue; }
+        await (prisma.billingRecord as any).create({
+          data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
+        });
+        results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
+        created++;
       }
-
-      // No bill at all → create new
-      if (!bill) { skipped++; continue; }
-      await (prisma.billingRecord as any).create({
-        data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
-      });
-      results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
-      created++;
     }
   }
 
   res.json({
     success: true,
-    message: `Created ${created}, replaced ${replaced} legacy bill(s) (${skipped} already up-to-date or no activity)`,
+    message: `Generated ${created + replaced} bill(s) — ${created} new, ${replaced} recalculated (${skipped} skipped — no activity)`,
     data: { created, replaced, skipped, bills: results },
   });
 }
@@ -485,6 +479,43 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
     success: true,
     message: `Seeded ${txRows.length} transactions across ${stores.length} stores (90-day history). Now run "Backfill All Missing" to generate compound bills.`,
     data: { txCount: txRows.length, stores: stores.length, customers: customers.length },
+  });
+}
+
+// ─── Send monthly billing report to all SuperAdmins via push notification ─────
+
+export async function sendBillingReport(req: AuthRequest, res: Response) {
+  const period = (req.query.period as string) || toPeriod(new Date());
+
+  const [records, superAdmins] = await Promise.all([
+    (prisma.billingRecord as any).findMany({
+      where: { period },
+      include: { store: { select: { name: true } } },
+    }),
+    prisma.user.findMany({ where: { role: 'SUPER_ADMIN' as any, isActive: true } }),
+  ]);
+
+  if (!records.length) {
+    res.status(404).json({ success: false, error: `No billing records found for ${period}. Generate bills first.` });
+    return;
+  }
+
+  const totalOwed = records.reduce((s: number, r: any) => s + r.amount, 0);
+  const totalPaid = records.filter((r: any) => r.isPaid).reduce((s: number, r: any) => s + r.amount, 0);
+  const unpaid = records.filter((r: any) => !r.isPaid).length;
+
+  const title = `📋 Billing Report — ${period}`;
+  const body  = `${records.length} stores · Total owed: $${totalOwed.toFixed(2)} · Collected: $${totalPaid.toFixed(2)} · ${unpaid} unpaid`;
+
+  let sent = 0;
+  for (const admin of superAdmins) {
+    try { await sendPushToUser(admin.id, title, body); sent++; } catch { /* skip if no push token */ }
+  }
+
+  res.json({
+    success: true,
+    message: `Report sent to ${sent} super admin(s)`,
+    data: { period, storeCount: records.length, totalOwed, totalPaid, unpaidCount: unpaid, notified: sent },
   });
 }
 

@@ -9,7 +9,7 @@ interface BillNotes {
   effectiveCashbackRate: number; effectiveDevCutRate: number;
   categories: { category: string; txCount: number; purchaseVolume: number; cashbackIssued: number; devCutEarned: number; customerCashback: number }[];
   subscriptionFee: number; transactionFeeRate: number; transactionFee: number;
-  totalAmountOwed: number; periodStart: string; periodEnd: string;
+  cashbackFee: number; totalAmountOwed: number; periodStart: string; periodEnd: string;
 }
 
 type Tab = 'stores' | 'monthly' | 'settings';
@@ -20,6 +20,27 @@ function needsSubscription(type: string) { return type === 'MONTHLY_SUBSCRIPTION
 function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' || type === 'HYBRID'; }
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
+
+function downloadBillsCSV(records: any[]) {
+  const headers = ['Store', 'City', 'Period', 'Billing Type', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Sub Fee', 'Platform Fee', 'Cashback Fee', 'Total Owed', 'Status', 'Paid At'];
+  const rows = records.map((r: any) => {
+    const n: BillNotes | null = r.notes;
+    return [
+      r.store?.name ?? '', r.store?.city ?? '', r.period, r.billingType,
+      n?.txCount ?? 0, n?.purchaseVolume ?? 0, n?.cashbackIssued ?? 0, n?.devCutEarned ?? 0,
+      n?.subscriptionFee ?? 0, n?.transactionFee ?? 0, n?.cashbackFee ?? 0,
+      r.amount, r.isPaid ? 'PAID' : 'UNPAID', r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '',
+    ];
+  });
+  const csv = [headers, ...rows].map((row) => row.map((v) => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `luckystop-bills-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 
 export default function Billing() {
@@ -97,6 +118,12 @@ export default function Billing() {
     mutationFn: () => billingApi.seedTestData(),
     onSuccess: (res) => { toast.success(res.data?.message || 'Test data seeded!'); qc.invalidateQueries({ queryKey: ['billing-stores'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to seed test data'),
+  });
+
+  const sendReport = useMutation({
+    mutationFn: () => billingApi.sendReport(selectedPeriod || undefined),
+    onSuccess: (res) => toast.success(res.data?.message || 'Report sent'),
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to send report'),
   });
 
   const markPaid = useMutation({
@@ -302,7 +329,13 @@ export default function Billing() {
                 {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || 'Current Month'}`}
               </button>
               <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
-                {generateAllBills.isPending ? '⏳ Backfilling…' : '📅 Backfill All Missing'}
+                {generateAllBills.isPending ? '⏳ Recalculating All…' : '🔄 Regenerate All'}
+              </button>
+              <button style={s.exportBtn} onClick={() => monthlyRecords.length ? downloadBillsCSV(monthlyRecords) : toast.error('No records to export')} disabled={monthlyLoading}>
+                ⬇️ Export CSV
+              </button>
+              <button style={s.sendBtn} onClick={() => sendReport.mutate()} disabled={sendReport.isPending}>
+                {sendReport.isPending ? '⏳ Sending…' : '📨 Notify Super Admin'}
               </button>
               <button style={s.clearBtn} onClick={() => { if (confirm('Seed 90 days of random test transactions? This adds data to the DB.')) seedData.mutate(); }} disabled={seedData.isPending}>
                 {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
@@ -388,8 +421,14 @@ export default function Billing() {
                                   )}
                                   {n.transactionFee > 0 && (
                                     <div style={s.feeRow}>
-                                      <span>Transaction Fee ({fmtPct(n.transactionFeeRate)} × {fmt$(n.purchaseVolume)})</span>
+                                      <span>Platform Fee ({fmtPct(n.transactionFeeRate)} × {fmt$(n.purchaseVolume)})</span>
                                       <span style={{ fontWeight: 700 }}>{fmt$(n.transactionFee)}</span>
+                                    </div>
+                                  )}
+                                  {(n.cashbackFee ?? n.cashbackIssued) > 0 && (
+                                    <div style={s.feeRow}>
+                                      <span>Cashback Funded ({fmtPct(n.effectiveCashbackRate)} of {fmt$(n.purchaseVolume)})</span>
+                                      <span style={{ fontWeight: 700 }}>{fmt$(n.cashbackFee ?? n.cashbackIssued)}</span>
                                     </div>
                                   )}
                                   <div style={{ ...s.feeRow, borderTop: '2px solid #dee2e6', marginTop: 4, paddingTop: 8, fontWeight: 800, color: '#E63946' }}>
@@ -641,6 +680,8 @@ const s: Record<string, React.CSSProperties> = {
   filterLabel: { display: 'block', fontSize: 12, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  exportBtn: { padding: '10px 20px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  sendBtn: { padding: '10px 20px', background: '#F4A261', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   monthlyHint: { fontSize: 13, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },

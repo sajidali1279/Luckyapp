@@ -35,6 +35,7 @@ export const billingApi = {
     api.post(`/billing/generate-monthly${period ? `?period=${period}` : ''}`),
   generateAllMissingBills: () => api.post('/billing/generate-all'),
   seedTestData: () => api.post('/billing/seed-test-data'),
+  sendReport: (period?: string) => api.post(`/billing/send-report${period ? `?period=${period}` : ''}`),
   getMonthlyRecords: (period?: string, storeId?: string, isPaid?: boolean) => {
     const params = new URLSearchParams();
     if (period)  params.set('period', period);
