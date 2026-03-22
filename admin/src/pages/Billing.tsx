@@ -21,11 +21,6 @@ function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' |
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
 
-// ─── Current month helper ──────────────────────────────────────────────────────
-function currentPeriod() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export default function Billing() {
   const qc = useQueryClient();
@@ -37,7 +32,7 @@ export default function Billing() {
   const [billingForm, setBillingForm] = useState({ billingType: '', subscriptionPrice: '', transactionFeeRate: '' });
 
   // ── Monthly billing state ────────────────────────────────────────────────────
-  const [selectedPeriod, setSelectedPeriod] = useState(currentPeriod());
+  const [selectedPeriod, setSelectedPeriod] = useState('');
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   // ── Settings state ───────────────────────────────────────────────────────────
@@ -288,7 +283,10 @@ export default function Billing() {
             <div style={s.monthlyFilters}>
               <div>
                 <label style={s.filterLabel}>Period</label>
-                <input type="month" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} style={s.input} />
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="month" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} style={s.input} />
+                  {selectedPeriod && <button style={s.cancelBtn} onClick={() => setSelectedPeriod('')} title="Show all periods">✕ All</button>}
+                </div>
               </div>
               <div>
                 <label style={s.filterLabel}>Status</label>
@@ -301,7 +299,7 @@ export default function Billing() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button style={s.generateBtn} onClick={() => generateBills.mutate()} disabled={generateBills.isPending}>
-                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || currentPeriod()}`}
+                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || 'Current Month'}`}
               </button>
               <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
                 {generateAllBills.isPending ? '⏳ Backfilling…' : '📅 Backfill All Missing'}
