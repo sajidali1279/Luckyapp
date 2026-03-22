@@ -14,6 +14,8 @@ import Staff from './pages/Staff';
 import Customers from './pages/Customers';
 import StoreManagerDashboard from './pages/StoreManagerDashboard';
 import ActivityLog from './pages/ActivityLog';
+import SuperAdminBilling from './pages/SuperAdminBilling';
+import Notifications from './pages/Notifications';
 
 const queryClient = new QueryClient();
 
@@ -63,6 +65,8 @@ export default function App() {
             <Route path="/banners" element={<Banners />} />
             <Route element={<SuperAdminOnly />}>
               <Route path="/customers" element={<Customers />} />
+              <Route path="/my-billing" element={<SuperAdminBilling />} />
+              <Route path="/notifications" element={<Notifications />} />
             </Route>
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />

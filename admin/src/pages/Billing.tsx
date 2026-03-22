@@ -21,17 +21,13 @@ function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' |
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
 
-function downloadBillsCSV(records: any[]) {
-  const headers = ['Store', 'City', 'Period', 'Billing Type', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Sub Fee', 'Platform Fee', 'Cashback Fee', 'Total Owed', 'Status', 'Paid At'];
-  const rows = records.map((r: any) => {
-    const n: BillNotes | null = r.notes;
-    return [
-      r.store?.name ?? '', r.store?.city ?? '', r.period, r.billingType,
-      n?.txCount ?? 0, n?.purchaseVolume ?? 0, n?.cashbackIssued ?? 0, n?.devCutEarned ?? 0,
-      n?.subscriptionFee ?? 0, n?.transactionFee ?? 0, n?.cashbackFee ?? 0,
-      r.amount, r.isPaid ? 'PAID' : 'UNPAID', r.paidAt ? new Date(r.paidAt).toLocaleDateString() : '',
-    ];
-  });
+function downloadBillsCSV(invoices: any[]) {
+  const headers = ['Period', 'Stores', 'Transactions', 'Purchase Volume', 'Dev Cut Owed', 'Status', 'Paid At'];
+  const rows = invoices.map((inv: any) => [
+    inv.period, inv.stores.length, inv.totalTxns,
+    inv.totalVolume.toFixed(2), inv.totalDevCut.toFixed(2),
+    inv.isPaid ? 'PAID' : 'UNPAID', inv.isPaid && inv.paidAt ? new Date(inv.paidAt).toLocaleDateString() : '',
+  ]);
   const csv = [headers, ...rows].map((row) => row.map((v) => `"${v}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -126,9 +122,9 @@ export default function Billing() {
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to send report'),
   });
 
-  const markPaid = useMutation({
-    mutationFn: (recordId: string) => billingApi.markPaid(recordId),
-    onSuccess: () => { toast.success('Marked as paid'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
+  const markPeriodPaid = useMutation({
+    mutationFn: (period: string) => billingApi.markPeriodPaid(period),
+    onSuccess: () => { toast.success('Invoice marked as paid'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
     onError: () => toast.error('Failed to mark paid'),
   });
 
@@ -136,6 +132,24 @@ export default function Billing() {
   const revenue = revenueData?.data?.data;
   const devCutRate = devCutData?.data?.data?.rate ?? 0.04;
   const monthlyRecords: any[] = monthlyData?.data?.data?.records || [];
+
+  // Consolidate per-store records into one invoice per period
+  const consolidatedInvoices = Object.values(
+    monthlyRecords.reduce((acc: Record<string, any>, r: any) => {
+      if (!acc[r.period]) {
+        acc[r.period] = { period: r.period, totalDevCut: 0, totalCashback: 0, totalTxns: 0, totalVolume: 0, stores: [], isPaid: true, paidAt: null };
+      }
+      const n: BillNotes | null = r.notes;
+      acc[r.period].totalDevCut    += r.amount;
+      acc[r.period].totalCashback  += n?.cashbackIssued ?? 0;
+      acc[r.period].totalTxns      += n?.txCount ?? 0;
+      acc[r.period].totalVolume    += n?.purchaseVolume ?? 0;
+      acc[r.period].stores.push(r);
+      if (!r.isPaid) acc[r.period].isPaid = false;
+      if (r.isPaid && r.paidAt && !acc[r.period].paidAt) acc[r.period].paidAt = r.paidAt;
+      return acc;
+    }, {})
+  ).sort((a: any, b: any) => b.period.localeCompare(a.period));
 
   // ── Store billing handlers ────────────────────────────────────────────────────
   function startEdit(store: any) {
@@ -177,7 +191,6 @@ export default function Billing() {
           <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#1D3557' }}>Platform Revenue Summary</h3>
           <div style={s.revenueGrid}>
             <RevenueCard label="Dev Cut Earned" value={fmt$(revenue.totalDevCut ?? 0)} highlight />
-            <RevenueCard label={`Dev Cut Rate (${fmtPct(revenue.devCutRate ?? devCutRate)})`} value={`${fmtPct(revenue.devCutRate ?? devCutRate)} of cashback`} />
             <RevenueCard label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue ?? 0)} highlight />
             <RevenueCard label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount ?? 0)} />
             <RevenueCard label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume ?? 0)} />
@@ -331,7 +344,7 @@ export default function Billing() {
               <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
                 {generateAllBills.isPending ? '⏳ Recalculating All…' : '🔄 Regenerate All'}
               </button>
-              <button style={s.exportBtn} onClick={() => monthlyRecords.length ? downloadBillsCSV(monthlyRecords) : toast.error('No records to export')} disabled={monthlyLoading}>
+              <button style={s.exportBtn} onClick={() => consolidatedInvoices.length ? downloadBillsCSV(consolidatedInvoices) : toast.error('No records to export')} disabled={monthlyLoading}>
                 ⬇️ Export CSV
               </button>
               <button style={s.sendBtn} onClick={() => sendReport.mutate()} disabled={sendReport.isPending}>
@@ -358,139 +371,91 @@ export default function Billing() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>Store</th>
-                  <th style={s.th}>Period</th>
-                  <th style={s.th}>Billing Type</th>
-                  <th style={s.th}>Txns</th>
+                  <th style={s.th}>Invoice Period</th>
+                  <th style={s.th}>Stores</th>
+                  <th style={s.th}>Transactions</th>
                   <th style={s.th}>Purchase Volume</th>
-                  <th style={s.th}>Cashback Issued</th>
-                  <th style={s.th}>Dev Cut Earned</th>
-                  <th style={s.th}>Total Owed</th>
+                  <th style={s.th}>Dev Cut</th>
                   <th style={s.th}>Status</th>
                   <th style={s.th}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {monthlyRecords.map((r: any) => {
-                  const n: BillNotes | null = r.notes;
-                  const isExp = expandedBill === r.id;
+                {consolidatedInvoices.map((inv: any) => {
+                  const isExp = expandedBill === inv.period;
                   return (
-                    <Fragment key={r.id}>
+                    <Fragment key={inv.period}>
                       <tr style={isExp ? s.rowExpanded : undefined}>
                         <td style={s.td}>
-                          <button style={s.expandBtn} onClick={() => setExpandedBill(isExp ? null : r.id)}>
-                            {isExp ? '▾' : '▸'} {r.store?.name}
+                          <button style={s.expandBtn} onClick={() => setExpandedBill(isExp ? null : inv.period)}>
+                            {isExp ? '▾' : '▸'} {inv.period}
                           </button>
-                          <div style={s.cityLabel}>{r.store?.city}</div>
                         </td>
-                        <td style={s.td}>{r.period}</td>
-                        <td style={s.td}><span style={s.badge}>{r.billingType.replace(/_/g, ' ')}</span></td>
-                        <td style={s.td}>{n?.txCount ?? '—'}</td>
-                        <td style={s.td}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
+                        <td style={s.td}>{inv.stores.length} stores</td>
+                        <td style={s.td}>{inv.totalTxns}</td>
+                        <td style={s.td}>{fmt$(inv.totalVolume)}</td>
                         <td style={s.td}>
-                          {n ? <><div>{fmt$(n.cashbackIssued)}</div><div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} rate</div></> : '—'}
-                        </td>
-                        <td style={s.td}>
-                          {n ? <><div style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(n.devCutEarned)}</div><div style={s.cityLabel}>{fmtPct(n.effectiveDevCutRate)} of cashback</div></> : '—'}
-                        </td>
-                        <td style={s.td}><strong style={{ color: '#E63946' }}>{fmt$(r.amount)}</strong></td>
-                        <td style={s.td}>
-                          <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
-                          {r.paidAt && <div style={s.cityLabel}>{new Date(r.paidAt).toLocaleDateString()}</div>}
+                          <strong style={{ color: '#E63946', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
+                          {inv.totalCashback > 0 && (
+                            <div style={s.cityLabel}>{fmtPct(devCutRate)} of {fmt$(inv.totalCashback)} cashback</div>
+                          )}
                         </td>
                         <td style={s.td}>
-                          {!r.isPaid && <button style={s.saveBtn} onClick={() => markPaid.mutate(r.id)} disabled={markPaid.isPending}>Mark Paid</button>}
+                          <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>{inv.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                          {inv.isPaid && inv.paidAt && <div style={s.cityLabel}>{new Date(inv.paidAt).toLocaleDateString()}</div>}
+                        </td>
+                        <td style={s.td}>
+                          {!inv.isPaid && (
+                            <button style={s.saveBtn} onClick={() => markPeriodPaid.mutate(inv.period)} disabled={markPeriodPaid.isPending}>
+                              Mark Paid
+                            </button>
+                          )}
                         </td>
                       </tr>
 
-                      {/* ── Expanded compound bill detail ── */}
-                      {isExp && n && (
+                      {/* ── Expanded: per-store breakdown ── */}
+                      {isExp && (
                         <tr>
-                          <td colSpan={10} style={s.expandedCell}>
-                            <div style={s.billDetail}>
-
-                              {/* Fee split summary */}
-                              <div style={s.billSection}>
-                                <div style={s.billSectionTitle}>Fee Breakdown</div>
-                                <div style={s.feeGrid}>
-                                  {n.subscriptionFee > 0 && (
-                                    <div style={s.feeRow}>
-                                      <span>Monthly Subscription</span>
-                                      <span style={{ fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</span>
-                                    </div>
-                                  )}
-                                  {n.transactionFee > 0 && (
-                                    <div style={s.feeRow}>
-                                      <span>Platform Fee ({fmtPct(n.transactionFeeRate)} × {fmt$(n.purchaseVolume)})</span>
-                                      <span style={{ fontWeight: 700 }}>{fmt$(n.transactionFee)}</span>
-                                    </div>
-                                  )}
-                                  {(n.cashbackFee ?? n.cashbackIssued) > 0 && (
-                                    <div style={s.feeRow}>
-                                      <span>Cashback Funded ({fmtPct(n.effectiveCashbackRate)} of {fmt$(n.purchaseVolume)})</span>
-                                      <span style={{ fontWeight: 700 }}>{fmt$(n.cashbackFee ?? n.cashbackIssued)}</span>
-                                    </div>
-                                  )}
-                                  <div style={{ ...s.feeRow, borderTop: '2px solid #dee2e6', marginTop: 4, paddingTop: 8, fontWeight: 800, color: '#E63946' }}>
-                                    <span>Total Owed to Platform</span>
-                                    <span>{fmt$(n.totalAmountOwed)}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Cashback split */}
-                              <div style={s.billSection}>
-                                <div style={s.billSectionTitle}>Cashback Split ({n.txCount} transactions)</div>
-                                <div style={s.feeGrid}>
-                                  <div style={s.feeRow}>
-                                    <span>Total Purchase Volume</span>
-                                    <span>{fmt$(n.purchaseVolume)}</span>
-                                  </div>
-                                  <div style={s.feeRow}>
-                                    <span>Cashback Issued ({fmtPct(n.effectiveCashbackRate)} of volume)</span>
-                                    <span>{fmt$(n.cashbackIssued)}</span>
-                                  </div>
-                                  <div style={s.feeRow}>
-                                    <span style={{ color: '#2DC653' }}>→ Dev Cut ({fmtPct(n.effectiveDevCutRate)} of cashback)</span>
-                                    <span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(n.devCutEarned)}</span>
-                                  </div>
-                                  <div style={s.feeRow}>
-                                    <span>→ Customer Cashback (net credited)</span>
-                                    <span>{fmt$(n.customerCashback)}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Category breakdown */}
-                              {n.categories.length > 0 && (
-                                <div style={{ ...s.billSection, flex: '2 1 400px' }}>
-                                  <div style={s.billSectionTitle}>By Category</div>
-                                  <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                                    <thead>
-                                      <tr>
-                                        {['Category', 'Txns', 'Volume', 'Cashback', 'Dev Cut', 'Customer'].map((h) => (
-                                          <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 11, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {n.categories.map((c) => (
-                                        <tr key={c.category}>
-                                          <td style={s.catTd}>{c.category.replace(/_/g, ' ')}</td>
-                                          <td style={s.catTd}>{c.txCount}</td>
-                                          <td style={s.catTd}>{fmt$(c.purchaseVolume)}</td>
-                                          <td style={s.catTd}>{fmt$(c.cashbackIssued)}</td>
-                                          <td style={{ ...s.catTd, color: '#2DC653', fontWeight: 600 }}>{fmt$(c.devCutEarned)}</td>
-                                          <td style={s.catTd}>{fmt$(c.customerCashback)}</td>
+                          <td colSpan={7} style={s.expandedCell}>
+                            <div style={{ padding: '16px 20px' }}>
+                              <div style={s.billSectionTitle}>Per-Store Breakdown — {inv.period}</div>
+                              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginTop: 8 }}>
+                                <thead>
+                                  <tr>
+                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut'].map((h) => (
+                                      <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 11, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {inv.stores
+                                    .sort((a: any, b: any) => b.amount - a.amount)
+                                    .map((r: any) => {
+                                      const n: BillNotes | null = r.notes;
+                                      return (
+                                        <tr key={r.id}>
+                                          <td style={s.catTd}>
+                                            <strong>{r.store?.name}</strong>
+                                            <div style={s.cityLabel}>{r.store?.city}</div>
+                                          </td>
+                                          <td style={s.catTd}>{n?.txCount ?? 0}</td>
+                                          <td style={s.catTd}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
+                                          <td style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : '—'}</td>
+                                          <td style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</td>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ padding: '6px 20px 12px', fontSize: 12, color: '#adb5bd' }}>
-                              Period: {n.periodStart} → {n.periodEnd} · Rates captured from actual transaction data
+                                      );
+                                    })}
+                                </tbody>
+                                <tfoot>
+                                  <tr>
+                                    <td style={{ ...s.catTd, fontWeight: 800 }}>Total</td>
+                                    <td style={{ ...s.catTd, fontWeight: 800 }}>{inv.totalTxns}</td>
+                                    <td style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</td>
+                                    <td style={s.catTd}></td>
+                                    <td style={{ ...s.catTd, color: '#E63946', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
                             </div>
                           </td>
                         </tr>
@@ -502,14 +467,14 @@ export default function Billing() {
             </table>
           )}
 
-          {/* Monthly totals */}
-          {monthlyRecords.length > 0 && (
+          {/* Totals footer */}
+          {consolidatedInvoices.length > 0 && (
             <div style={s.monthlyTotals}>
               <span>
-                <strong>{monthlyRecords.length}</strong> bills ·{' '}
-                Total: <strong>{fmt$(monthlyRecords.reduce((acc: number, r: any) => acc + r.amount, 0))}</strong> ·{' '}
-                Collected: <strong style={{ color: '#2DC653' }}>{fmt$(monthlyRecords.filter((r: any) => r.isPaid).reduce((acc: number, r: any) => acc + r.amount, 0))}</strong> ·{' '}
-                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$(monthlyRecords.filter((r: any) => !r.isPaid).reduce((acc: number, r: any) => acc + r.amount, 0))}</strong>
+                <strong>{consolidatedInvoices.length}</strong> invoices ·{' '}
+                Total Dev Cut: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
+                Collected: <strong style={{ color: '#2DC653' }}>{fmt$((consolidatedInvoices as any[]).filter((i) => i.isPaid).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
+                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$((consolidatedInvoices as any[]).filter((i) => !i.isPaid).reduce((s, i) => s + i.totalDevCut, 0))}</strong>
               </span>
             </div>
           )}
@@ -590,7 +555,7 @@ export default function Billing() {
             <div style={s.infoList}>
               <InfoItem icon="🏪" text="Stores pay a fixed monthly subscription fee (set per store on the Stores tab)." />
               <InfoItem icon="💵" text="When an employee grants points, the store 'owes' the cashback amount to the customer." />
-              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)}) is silently taken from the cashback pool — customer balance is credited the net amount.`} />
+              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of cashback issued — not of purchase total) is taken at grant time. Customer balance is credited the remainder.`} />
               <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken — the cut was already collected at grant time." />
               <InfoItem icon="📅" text="Use the Monthly Bills tab to generate and track subscription invoices for each store." />
             </div>

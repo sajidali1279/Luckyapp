@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
+import { superAdminApi } from '../services/api';
 
 const ALL_NAV_LINKS = [
   { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
@@ -20,9 +22,18 @@ export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
   const navLinks = ALL_NAV_LINKS.filter(l => l.roles.includes(user?.role || ''));
+
+  const { data: notifData } = useQuery({
+    queryKey: ['super-admin-notifications'],
+    queryFn: () => superAdminApi.getNotifications(),
+    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
+  });
+  const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead).length;
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -58,6 +69,20 @@ export default function Navbar() {
             </NavLink>
             <NavLink to="/activity" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🔍</span>Activity
+            </NavLink>
+          </>
+        )}
+        {isSuperAdmin && (
+          <>
+            <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>💳</span>Billing
+            </NavLink>
+            <NavLink to="/notifications" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}), position: 'relative' })}>
+              <span style={s.linkIcon}>🔔</span>
+              Notifications
+              {unreadCount > 0 && (
+                <span style={s.notifBadge}>{unreadCount}</span>
+              )}
             </NavLink>
           </>
         )}
@@ -125,5 +150,11 @@ const s: Record<string, React.CSSProperties> = {
     background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
     border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
     padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+  },
+  notifBadge: {
+    position: 'absolute', top: 2, right: 2,
+    background: '#E63946', color: '#fff',
+    borderRadius: 8, padding: '1px 5px',
+    fontSize: 9, fontWeight: 800, lineHeight: 1.4,
   },
 };

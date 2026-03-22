@@ -9,6 +9,12 @@ import 'dotenv/config';
 import { ProductCategory, TransactionStatus } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
 
+// Standalone scripts need a direct Postgres URL, not the Accelerate proxy.
+// Swap to DIRECT_URL if DATABASE_URL is a prisma:// (Accelerate) URL.
+if (process.env.DATABASE_URL?.startsWith('prisma://') && process.env.DIRECT_URL) {
+  process.env.DATABASE_URL = process.env.DIRECT_URL;
+}
+
 const prisma = new PrismaClient();
 
 const WEIGHTED_CATEGORIES: ProductCategory[] = [

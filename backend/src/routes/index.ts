@@ -33,6 +33,7 @@ import {
   getStores,
   createBillingRecord,
   markBillingPaid,
+  markPeriodPaid,
   getDevRevenue,
   getAnalytics,
   getCategoryRates,
@@ -44,6 +45,8 @@ import {
   getMonthlyRecords,
   seedTestTransactions,
   sendBillingReport,
+  getSuperAdminInvoices,
+  getSuperAdminNotifications,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -111,6 +114,7 @@ router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getA
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
+router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
 router.get('/billing/category-rates', authenticate, requireRole(Role.DEV_ADMIN), getCategoryRates);
 router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);
 router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), getDevCutRate);
@@ -122,6 +126,10 @@ router.post('/billing/seed-test-data', authenticate, requireRole(Role.DEV_ADMIN)
 router.post('/billing/send-report', authenticate, requireRole(Role.DEV_ADMIN), sendBillingReport);
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);
+
+// ─── SuperAdmin — invoices & notifications ────────────────────────────────────
+router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
+router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
 
 // ─── Audit Log (DevAdmin only) ────────────────────────────────────────────────
 router.get('/audit/logs', authenticate, requireRole(Role.DEV_ADMIN), getAuditLogs);

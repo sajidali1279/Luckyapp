@@ -123,6 +123,17 @@ export async function markBillingPaid(req: AuthRequest, res: Response) {
   res.json({ success: true, data: record });
 }
 
+// Mark all billing records for a period as paid (consolidated invoice)
+export async function markPeriodPaid(req: AuthRequest, res: Response) {
+  const { period } = req.params;
+  const now = new Date();
+  const result = await prisma.billingRecord.updateMany({
+    where: { period, isPaid: false },
+    data: { isPaid: true, paidAt: now },
+  });
+  res.json({ success: true, data: { period, updated: result.count } });
+}
+
 // ─── Category Rates ───────────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<ProductCategory, string> = {
@@ -276,17 +287,15 @@ async function buildBillForPeriod(
   })).sort((a, b) => b.purchaseVolume - a.purchaseVolume);
 
   const needsSub        = store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID';
-  const needsTx         = store.billingType === 'PER_TRANSACTION'      || store.billingType === 'HYBRID';
   const subscriptionFee = needsSub ? store.subscriptionPrice : 0;
-  // Platform fee (on top of subscription) — only for PER_TRANSACTION / HYBRID stores
-  const transactionFee  = needsTx  ? parseFloat((purchaseVolume * store.transactionFeeRate).toFixed(2)) : 0;
-  // Cashback the store must fund — applies to ALL billing types (store bears the cashback program cost)
-  const cashbackFee     = cashbackIssued; // = storeCost; full 5% cashback issued to customers this period
+  // Cashback info — informational only (shows store's loyalty program spend)
+  const cashbackFee     = cashbackIssued;
 
-  // Total the store owes this period: subscription + platform fee + cashback funded
-  const totalAmountOwed = parseFloat((subscriptionFee + transactionFee + cashbackFee).toFixed(2));
+  // Total owed to developer = subscription fee (if any) + dev cut earned from cashback pool
+  // Transaction fees are not charged — dev cut is the only per-transaction revenue
+  const totalAmountOwed = parseFloat((subscriptionFee + devCutEarned).toFixed(2));
 
-  // Skip stores with literally nothing — subscription stores always have subscriptionFee > 0
+  // Skip stores with nothing to bill
   if (subscriptionFee === 0 && txCount === 0) return null;
 
   const notes: BillNotes = {
@@ -296,7 +305,7 @@ async function buildBillForPeriod(
     effectiveDevCutRate:   cashbackIssued > 0 ? parseFloat((devCutEarned / cashbackIssued).toFixed(4)) : 0,
     categories,
     subscriptionFee, transactionFeeRate: store.transactionFeeRate,
-    transactionFee, cashbackFee, totalAmountOwed,
+    transactionFee: 0, cashbackFee, totalAmountOwed,
     periodStart: start.toISOString().slice(0, 10),
     periodEnd:   end.toISOString().slice(0, 10),
   };
@@ -542,6 +551,108 @@ export async function getMonthlyRecords(req: AuthRequest, res: Response) {
   }
 
   res.json({ success: true, data: { records, grouped } });
+}
+
+// SuperAdmin — same invoice data, read-only, no management fields
+export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
+  const rawRecords = await (prisma.billingRecord as any).findMany({
+    include: { store: { select: { id: true, name: true, city: true } } },
+    orderBy: [{ period: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  const records = rawRecords.map((r: any) => ({ ...r, notes: r.notes ? JSON.parse(r.notes) : null }));
+
+  // Consolidate by period
+  const byPeriod: Record<string, any> = {};
+  for (const r of records) {
+    if (!byPeriod[r.period]) {
+      byPeriod[r.period] = { period: r.period, totalDevCut: 0, totalCashback: 0, totalTxns: 0, totalVolume: 0, stores: [], isPaid: true, paidAt: null, createdAt: r.createdAt };
+    }
+    const n = r.notes;
+    const amt = parseFloat(String(r.amount));
+    byPeriod[r.period].totalDevCut   += amt;
+    byPeriod[r.period].totalCashback += n?.cashbackIssued ?? 0;
+    byPeriod[r.period].totalTxns     += n?.txCount ?? 0;
+    byPeriod[r.period].totalVolume   += n?.purchaseVolume ?? 0;
+    byPeriod[r.period].stores.push({ store: r.store, amount: amt, txCount: n?.txCount ?? 0, cashbackIssued: n?.cashbackIssued ?? 0 });
+    if (!r.isPaid) byPeriod[r.period].isPaid = false;
+    if (r.isPaid && r.paidAt && !byPeriod[r.period].paidAt) byPeriod[r.period].paidAt = r.paidAt;
+  }
+
+  const invoices = Object.values(byPeriod)
+    .map((inv: any) => ({
+      ...inv,
+      totalDevCut:   parseFloat(inv.totalDevCut.toFixed(2)),
+      totalCashback: parseFloat(inv.totalCashback.toFixed(2)),
+      totalVolume:   parseFloat(inv.totalVolume.toFixed(2)),
+    }))
+    .sort((a: any, b: any) => b.period.localeCompare(a.period));
+
+  res.json({ success: true, data: invoices });
+}
+
+// SuperAdmin — derived notification feed (no DB table needed)
+export async function getSuperAdminNotifications(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [unpaidBills, rejectedTx, devCutConfig] = await Promise.all([
+    (prisma.billingRecord as any).findMany({
+      where: { isPaid: false },
+      include: { store: { select: { name: true } } },
+      orderBy: { period: 'desc' },
+    }),
+    prisma.pointsTransaction.count({
+      where: { status: 'REJECTED', updatedAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
+  ]);
+
+  const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
+
+  // Group unpaid bills by period for consolidated notifications
+  const unpaidByPeriod: Record<string, { total: number; storeCount: number }> = {};
+  for (const bill of unpaidBills) {
+    if (!unpaidByPeriod[bill.period]) unpaidByPeriod[bill.period] = { total: 0, storeCount: 0 };
+    unpaidByPeriod[bill.period].total += parseFloat(String(bill.amount));
+    unpaidByPeriod[bill.period].storeCount++;
+  }
+
+  const notifications: { id: string; type: string; title: string; message: string; createdAt: string; isRead: boolean; severity: string }[] = [];
+
+  // Unpaid invoice notifications
+  for (const [period, info] of Object.entries(unpaidByPeriod)) {
+    const [y, m] = period.split('-').map(Number);
+    const monthName = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const total = parseFloat(info.total.toFixed(2));
+    notifications.push({
+      id: `invoice-${period}`,
+      type: 'BILLING',
+      title: `Invoice Due — ${monthName}`,
+      message: `$${total.toFixed(2)} in platform fees outstanding (${(devCutRate * 100).toFixed(0)}% dev cut across ${info.storeCount} stores).`,
+      createdAt: new Date(y, m, 1).toISOString(), // day after period ends
+      isRead: false,
+      severity: 'warning',
+    });
+  }
+
+  // Rejected transaction alert
+  if (rejectedTx > 0) {
+    notifications.push({
+      id: `rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      type: 'TRANSACTION',
+      title: `${rejectedTx} Transaction${rejectedTx !== 1 ? 's' : ''} Rejected`,
+      message: `${rejectedTx} point grant${rejectedTx !== 1 ? 's were' : ' was'} rejected in the last 30 days. Review your transactions page for details.`,
+      createdAt: thirtyDaysAgo.toISOString(),
+      isRead: false,
+      severity: rejectedTx >= 5 ? 'error' : 'info',
+    });
+  }
+
+  // Sort by most recent first
+  notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ success: true, data: notifications });
 }
 
 // ─── Revenue & Analytics ──────────────────────────────────────────────────────

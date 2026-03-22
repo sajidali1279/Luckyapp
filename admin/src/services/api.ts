@@ -26,6 +26,7 @@ export const billingApi = {
   updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
   markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
+  markPeriodPaid: (period: string) => api.patch(`/billing/period/${period}/paid`),
   getCategoryRates: () => api.get('/billing/category-rates'),
   updateCategoryRate: (category: string, cashbackRate: number) =>
     api.patch(`/billing/category-rates/${category}`, { cashbackRate }),
@@ -83,6 +84,11 @@ export const staffApi = {
   list: () => api.get('/staff'),
   toggleActive: (userId: string) => api.patch(`/users/${userId}/toggle-active`),
   resetPin: (userId: string, newPin: string) => api.patch(`/users/${userId}/reset-pin`, { newPin }),
+};
+
+export const superAdminApi = {
+  getInvoices: () => api.get('/my-invoices'),
+  getNotifications: () => api.get('/notifications'),
 };
 
 export const auditApi = {
