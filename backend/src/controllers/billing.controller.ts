@@ -408,6 +408,11 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
   });
 }
 
+export async function clearAllBillingRecords(_req: AuthRequest, res: Response) {
+  const { count } = await prisma.billingRecord.deleteMany();
+  res.json({ success: true, message: `Deleted ${count} billing record(s)`, data: { count } });
+}
+
 export async function getMonthlyRecords(req: AuthRequest, res: Response) {
   const { period, storeId, isPaid } = req.query as { period?: string; storeId?: string; isPaid?: string };
 

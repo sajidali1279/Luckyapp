@@ -98,6 +98,12 @@ export default function Billing() {
     onError: () => toast.error('Failed to generate all bills'),
   });
 
+  const clearAllBills = useMutation({
+    mutationFn: () => billingApi.clearAllRecords(),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Cleared'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
+    onError: () => toast.error('Failed to clear bills'),
+  });
+
   const markPaid = useMutation({
     mutationFn: (recordId: string) => billingApi.markPaid(recordId),
     onSuccess: () => { toast.success('Marked as paid'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
@@ -299,6 +305,9 @@ export default function Billing() {
               </button>
               <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
                 {generateAllBills.isPending ? '⏳ Backfilling…' : '📅 Backfill All Missing'}
+              </button>
+              <button style={s.clearBtn} onClick={() => { if (confirm('Delete ALL billing records? This cannot be undone.')) clearAllBills.mutate(); }} disabled={clearAllBills.isPending}>
+                {clearAllBills.isPending ? '⏳ Clearing…' : '🗑️ Clear All'}
               </button>
             </div>
           </div>
@@ -634,6 +643,7 @@ const s: Record<string, React.CSSProperties> = {
   filterLabel: { display: 'block', fontSize: 12, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   monthlyHint: { fontSize: 13, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
   monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#495057' },

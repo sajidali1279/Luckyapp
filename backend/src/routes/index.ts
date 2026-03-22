@@ -42,6 +42,7 @@ import {
   generateMonthlyBilling,
   generateAllMissingBills,
   getMonthlyRecords,
+  clearAllBillingRecords,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -116,6 +117,7 @@ router.put('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_AD
 router.post('/billing/generate-monthly', authenticate, requireRole(Role.DEV_ADMIN), generateMonthlyBilling);
 router.post('/billing/generate-all', authenticate, requireRole(Role.DEV_ADMIN), generateAllMissingBills);
 router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
+router.delete('/billing/records/all', authenticate, requireRole(Role.DEV_ADMIN), clearAllBillingRecords);
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);
 
