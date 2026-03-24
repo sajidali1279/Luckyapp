@@ -59,6 +59,11 @@ export default function Navbar() {
             {link.label}
           </NavLink>
         ))}
+        {(isDevAdmin || isSuperAdmin) && (
+          <NavLink to="/scheduling" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+            <span style={s.linkIcon}>📅</span>Schedule
+          </NavLink>
+        )}
         {isDevAdmin && (
           <>
             <NavLink to="/analytics" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
@@ -77,9 +82,6 @@ export default function Navbar() {
         )}
         {isSuperAdmin && (
           <>
-            <NavLink to="/scheduling" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>📅</span>Schedule
-            </NavLink>
             <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>💳</span>Billing
             </NavLink>
