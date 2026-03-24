@@ -115,12 +115,10 @@ export default function Scheduling() {
     });
   }
 
-  // Which employees are NOT yet assigned to this day+shift combo
-  function getAvailableEmployees(day: string, shiftType: string): any[] {
-    const assigned = (grouped[day] || [])
-      .filter((t: any) => t.shiftType === shiftType)
-      .map((t: any) => t.employee.id);
-    return allEmployees.filter((e: any) => !assigned.includes(e.id));
+  // Employees NOT already assigned to ANY shift that day (backend enforces one shift/day/store)
+  function getAvailableEmployees(day: string): any[] {
+    const assignedThatDay = (grouped[day] || []).map((t: any) => t.employee.id);
+    return allEmployees.filter((e: any) => !assignedThatDay.includes(e.id));
   }
 
   function fmtDate(d: string) {
@@ -242,7 +240,8 @@ export default function Scheduling() {
                                 const assignedHere = (grouped[day.key] || []).filter(
                                   (t: any) => t.shiftType === shift.key
                                 );
-                                const available = getAvailableEmployees(day.key, shift.key);
+                                const available = getAvailableEmployees(day.key);
+                                const noEmployees = allEmployees.length === 0;
                                 return (
                                   <td key={day.key} style={{ ...s.cell, ...(day.key === todayDay ? s.todayCellBg : {}) }}>
                                     <div style={s.cellContent}>
@@ -258,18 +257,19 @@ export default function Scheduling() {
                                           </button>
                                         </div>
                                       ))}
-                                      {available.length > 0 && (
-                                        <button
-                                          style={s.addChipBtn}
-                                          onClick={() => {
-                                            setAddModal({ day: day.key, shiftType: shift.key });
-                                            setSelectedEmployeeId('');
-                                          }}
-                                          title="Add employee to this shift"
-                                        >
-                                          +
-                                        </button>
-                                      )}
+                                      <button
+                                        style={{
+                                          ...s.addChipBtn,
+                                          ...(available.length === 0 ? { opacity: 0.35, cursor: 'not-allowed' } : {}),
+                                        }}
+                                        onClick={() => {
+                                          setAddModal({ day: day.key, shiftType: shift.key });
+                                          setSelectedEmployeeId('');
+                                        }}
+                                        title={noEmployees ? 'No staff assigned to this store yet — add staff first' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
+                                      >
+                                        +
+                                      </button>
                                     </div>
                                   </td>
                                 );
@@ -337,19 +337,31 @@ export default function Scheduling() {
               {SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label}{' '}
               ({SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
             </h3>
-            <label style={s.label}>Select Employee</label>
-            <select
-              style={s.select}
-              value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
-            >
-              <option value="">-- Choose an employee --</option>
-              {getAvailableEmployees(addModal.day, addModal.shiftType).map((emp: any) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name || emp.phone}
-                </option>
-              ))}
-            </select>
+            {allEmployees.length === 0 ? (
+              <div style={{ padding: '12px 16px', background: '#fff3cd', borderRadius: 8, fontSize: 13, color: '#856404' }}>
+                ⚠️ No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
+              </div>
+            ) : getAvailableEmployees(addModal.day).length === 0 ? (
+              <div style={{ padding: '12px 16px', background: '#e2e3e5', borderRadius: 8, fontSize: 13, color: '#495057' }}>
+                All employees are already scheduled on this day. Each employee can only have one shift per day.
+              </div>
+            ) : (
+              <>
+                <label style={s.label}>Select Employee</label>
+                <select
+                  style={s.select}
+                  value={selectedEmployeeId}
+                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                >
+                  <option value="">-- Choose an employee --</option>
+                  {getAvailableEmployees(addModal.day).map((emp: any) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name || emp.phone}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <div style={s.modalActions}>
               <button
                 style={s.saveBtn}
