@@ -10,10 +10,37 @@ import { sendPushToUser } from '../utils/push';
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, city: true, state: true },
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true },
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: stores });
+}
+
+// DevAdmin only — update store details (name, address, lat/lng, etc.)
+const updateStoreSchema = z.object({
+  name: z.string().min(1).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  phone: z.string().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+});
+
+export async function updateStore(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const parsed = updateStoreSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+    return;
+  }
+  const store = await prisma.store.update({
+    where: { id: storeId },
+    data: parsed.data,
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true },
+  });
+  res.json({ success: true, data: store });
 }
 
 // DevAdmin only — change billing type for a store

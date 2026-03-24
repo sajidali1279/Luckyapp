@@ -16,6 +16,8 @@ import StoreManagerDashboard from './pages/StoreManagerDashboard';
 import ActivityLog from './pages/ActivityLog';
 import SuperAdminBilling from './pages/SuperAdminBilling';
 import Notifications from './pages/Notifications';
+import Stores from './pages/Stores';
+import Scheduling from './pages/Scheduling';
 
 const queryClient = new QueryClient();
 
@@ -67,11 +69,13 @@ export default function App() {
               <Route path="/customers" element={<Customers />} />
               <Route path="/my-billing" element={<SuperAdminBilling />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/scheduling" element={<Scheduling />} />
             </Route>
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/activity" element={<ActivityLog />} />
+              <Route path="/stores" element={<Stores />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

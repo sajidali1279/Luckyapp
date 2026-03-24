@@ -2,6 +2,14 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../constants';
 
+async function fetchWithAuth(path: string, options: RequestInit = {}) {
+  const token = await SecureStore.getItemAsync('jwt_token');
+  return fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+}
+
 const api = axios.create({ baseURL: API_URL });
 
 // Attach JWT to every request automatically
@@ -46,10 +54,12 @@ export const pointsApi = {
     api.get(`/points/my-history?page=${page}`),
   initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string }) =>
     api.post('/points/grant', data),
-  uploadReceipt: (transactionId: string, receiptFile: FormData) =>
-    api.post(`/points/grant/${transactionId}/receipt`, receiptFile, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
+    const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
+    const json = await res.json();
+    if (!res.ok) throw { response: { data: json, status: res.status } };
+    return { data: json };
+  },
   redeemCredits: (data: { customerQrCode: string; storeId: string; amount: number }) =>
     api.post('/points/redeem', data),
   getStoreTransactions: (storeId: string, page = 1, status?: string) =>
@@ -68,5 +78,24 @@ export const offersApi = {
     api.get(`/offers${storeId ? `?storeId=${storeId}` : ''}`),
   getBanners: (storeId?: string) =>
     api.get(`/banners${storeId ? `?storeId=${storeId}` : ''}`),
+};
+
+export const schedulingApi = {
+  getMySchedule: () => api.get('/schedule/my'),
+  createRequest: (data: object) => api.post('/schedule/requests', data),
+};
+
+export const managerApi = {
+  createOffer: (data: object) => api.post('/offers', data),
+  deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),
+  createBanner: async (formData: FormData) => {
+    const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
+    const json = await res.json();
+    if (!res.ok) throw { response: { data: json, status: res.status } };
+    return { data: json };
+  },
+  deleteBanner: (bannerId: string) => api.delete(`/banners/${bannerId}`),
+  getStoreStats: (storeId: string) =>
+    api.get(`/points/store/${storeId}/summary`),
 };
 

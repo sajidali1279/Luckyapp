@@ -10,6 +10,11 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum DayOfWeek { MON TUE WED THU FRI SAT SUN }
+enum ShiftType { OPENING MIDDLE CLOSING }
+enum ShiftRequestType { TIME_OFF FILL_IN }
+enum RequestStatus { PENDING APPROVED DENIED }
+
 enum Role {
   DEV_ADMIN    // Developer (you) — full access + billing
   SUPER_ADMIN  // LuckyStop HQ — all stores, offers, banners
@@ -73,6 +78,8 @@ model User {
   creditRedemptions    CreditRedemption[]   @relation("CustomerRedemptions")
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
   pushTokens           PushToken[]
+  shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
+  shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
 
   @@map("users")
 }
@@ -94,6 +101,10 @@ model Store {
   subscriptionPrice Float       @default(99.00)
   transactionFeeRate Float      @default(0.02)
 
+  // Location (for customer proximity detection)
+  latitude          Float?
+  longitude         Float?
+
   // Printer agent authentication
   apiKey            String?     @unique
 
@@ -105,6 +116,8 @@ model Store {
   banners           Banner[]
   billing           BillingRecord[]
   receiptTokens     ReceiptToken[]
+  shiftTemplates    ShiftTemplate[]
+  shiftRequests     ShiftRequest[]
 
   @@map("stores")
 }
@@ -329,6 +342,49 @@ model AuditLog {
   @@index([storeId])
   @@index([action])
   @@map("audit_logs")
+}
+
+// ─── Scheduling ───────────────────────────────────────────────────────────────
+
+model ShiftTemplate {
+  id         String    @id @default(uuid())
+  employeeId String
+  storeId    String
+  dayOfWeek  DayOfWeek
+  shiftType  ShiftType
+  startTime  String    // "06:00", "10:00", or "14:00"
+  endTime    String    // "14:00", "18:00", or "22:00"
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  employee User  @relation("EmployeeShifts", fields: [employeeId], references: [id], onDelete: Cascade)
+  store    Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, storeId, dayOfWeek])
+  @@index([storeId])
+  @@index([employeeId])
+  @@map("shift_templates")
+}
+
+model ShiftRequest {
+  id          String           @id @default(uuid())
+  employeeId  String
+  storeId     String
+  requestType ShiftRequestType
+  date        DateTime
+  shiftType   ShiftType
+  status      RequestStatus    @default(PENDING)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  employee User  @relation("EmployeeRequests", fields: [employeeId], references: [id], onDelete: Cascade)
+  store    Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, date])
+  @@index([employeeId])
+  @@map("shift_requests")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

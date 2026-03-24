@@ -70,10 +70,16 @@ export default function Navbar() {
             <NavLink to="/activity" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🔍</span>Activity
             </NavLink>
+            <NavLink to="/stores" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>🏪</span>Stores
+            </NavLink>
           </>
         )}
         {isSuperAdmin && (
           <>
+            <NavLink to="/scheduling" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>📅</span>Schedule
+            </NavLink>
             <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>💳</span>Billing
             </NavLink>

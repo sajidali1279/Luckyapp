@@ -10,7 +10,7 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   );
 }
 
-export default function EmployeeLayout() {
+export default function ManagerLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -29,17 +29,17 @@ export default function EmployeeLayout() {
         }}
       />
       <Tabs.Screen
-        name="scan"
+        name="offers"
         options={{
-          title: 'Scan',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
+          title: 'Offers',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📢" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="banners"
         options={{
-          title: 'Schedule',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📅" focused={focused} />,
+          title: 'Banners',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🖼️" focused={focused} />,
         }}
       />
       <Tabs.Screen

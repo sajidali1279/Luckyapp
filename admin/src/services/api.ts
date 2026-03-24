@@ -78,6 +78,7 @@ export const customersApi = {
 
 export const storesApi = {
   getAll: () => api.get('/stores'),
+  update: (storeId: string, data: object) => api.patch(`/stores/${storeId}`, data),
 };
 
 export const staffApi = {
@@ -95,6 +96,16 @@ export const auditApi = {
   getLogs: (params?: Record<string, string>) =>
     api.get('/audit/logs', { params }),
   getStats: () => api.get('/audit/stats'),
+};
+
+export const schedulingApi = {
+  getStoreSchedule: (storeId: string) => api.get(`/schedule/store/${storeId}`),
+  getTodayRoster: (storeId: string) => api.get(`/schedule/store/${storeId}/today`),
+  assignShift: (data: object) => api.post('/schedule/shifts', data),
+  removeShift: (shiftId: string) => api.delete(`/schedule/shifts/${shiftId}`),
+  getStoreRequests: (storeId: string) => api.get(`/schedule/store/${storeId}/requests`),
+  updateRequest: (requestId: string, status: string) => api.patch(`/schedule/requests/${requestId}`, { status }),
+  getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
 };
 
 export default api;

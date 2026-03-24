@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { useAuthStore, isEmployee } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
 
 const queryClient = new QueryClient();
 
@@ -17,7 +17,9 @@ export default function RootLayout() {
     if (isLoading) return;
     if (!user) {
       router.replace('/(auth)/login');
-    } else if (isEmployee(user.role)) {
+    } else if (user.role === 'STORE_MANAGER') {
+      router.replace('/(manager)/home');
+    } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       router.replace('/(employee)/home');
     } else {
       router.replace('/(customer)/home');

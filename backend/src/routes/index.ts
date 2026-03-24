@@ -28,9 +28,21 @@ import {
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import {
+  getStoreSchedule,
+  getTodayRoster,
+  assignShift,
+  removeShift,
+  getMySchedule,
+  createShiftRequest,
+  getStoreRequests,
+  updateShiftRequest,
+  getStoreEmployees,
+} from '../controllers/schedule.controller';
+import {
   updateStoreBilling,
   getAllStoresBilling,
   getStores,
+  updateStore,
   createBillingRecord,
   markBillingPaid,
   markPeriodPaid,
@@ -106,6 +118,7 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
+router.patch('/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStore);
 
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);
@@ -134,5 +147,16 @@ router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSup
 // ─── Audit Log (DevAdmin only) ────────────────────────────────────────────────
 router.get('/audit/logs', authenticate, requireRole(Role.DEV_ADMIN), getAuditLogs);
 router.get('/audit/stats', authenticate, requireRole(Role.DEV_ADMIN), getAuditStats);
+
+// ─── Scheduling ───────────────────────────────────────────────────────────────
+router.get('/schedule/store/:storeId/employees', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreEmployees);
+router.get('/schedule/store/:storeId/today', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getTodayRoster);
+router.get('/schedule/store/:storeId/requests', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreRequests);
+router.get('/schedule/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSchedule);
+router.post('/schedule/shifts', authenticate, requireRole(Role.STORE_MANAGER), assignShift);
+router.delete('/schedule/shifts/:shiftId', authenticate, requireRole(Role.STORE_MANAGER), removeShift);
+router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
+router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
+router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
 
 export default router;
