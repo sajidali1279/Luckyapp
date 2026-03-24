@@ -13,6 +13,12 @@ function getTodayDayOfWeek(): DayOfWeek {
   return JS_DAY_TO_ENUM[new Date().getDay()];
 }
 
+const SHIFT_LABELS: Record<ShiftType, string> = {
+  OPENING: 'Opening',
+  MIDDLE:  'Middle',
+  CLOSING: 'Closing',
+};
+
 const SHIFT_TIMES: Record<ShiftType, { startTime: string; endTime: string }> = {
   OPENING: { startTime: '06:00', endTime: '14:00' },
   MIDDLE:  { startTime: '10:00', endTime: '18:00' },
@@ -120,6 +126,8 @@ export async function assignShift(req: AuthRequest, res: Response) {
 
   const { startTime, endTime } = SHIFT_TIMES[shiftType];
 
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+
   const template = await prisma.shiftTemplate.upsert({
     where: { employeeId_storeId_dayOfWeek: { employeeId, storeId, dayOfWeek } },
     create: { employeeId, storeId, dayOfWeek, shiftType, startTime, endTime },
@@ -128,6 +136,17 @@ export async function assignShift(req: AuthRequest, res: Response) {
       employee: { select: { id: true, name: true, phone: true } },
     },
   });
+
+  // Notify the employee
+  const DAY_LABELS: Record<string, string> = {
+    MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday',
+    THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday',
+  };
+  sendPushToUser(
+    employeeId,
+    'Shift Assigned 📅',
+    `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`
+  );
 
   res.status(201).json({ success: true, data: template });
 }

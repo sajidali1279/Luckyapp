@@ -81,8 +81,16 @@ export const offersApi = {
 };
 
 export const schedulingApi = {
+  // Employee
   getMySchedule: () => api.get('/schedule/my'),
   createRequest: (data: object) => api.post('/schedule/requests', data),
+  // Manager
+  getStoreSchedule: (storeId: string) => api.get(`/schedule/store/${storeId}`),
+  getTodayRoster: (storeId: string) => api.get(`/schedule/store/${storeId}/today`),
+  getStoreRequests: (storeId: string) => api.get(`/schedule/store/${storeId}/requests`),
+  updateRequest: (requestId: string, status: 'APPROVED' | 'DENIED') =>
+    api.patch(`/schedule/requests/${requestId}`, { status }),
+  getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
 };
 
 export const managerApi = {

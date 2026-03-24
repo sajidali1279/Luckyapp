@@ -73,9 +73,10 @@ export default function ScheduleScreen() {
   const todayKey = getTodayDayKey();
   const weekDates = getCurrentWeekDates();
 
-  // Request Off modal
+  // Request modal — handles both TIME_OFF and FILL_IN
   const [requestModal, setRequestModal] = useState<{
     storeId: string; storeName: string; shiftType: string; date: Date;
+    requestType: 'TIME_OFF' | 'FILL_IN';
   } | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -88,8 +89,14 @@ export default function ScheduleScreen() {
 
   const createRequestMutation = useMutation({
     mutationFn: (payload: object) => schedulingApi.createRequest(payload),
-    onSuccess: () => {
-      Alert.alert('Submitted', 'Your time-off request has been submitted.');
+    onSuccess: (_, vars: any) => {
+      const isTimeOff = (vars as any).requestType === 'TIME_OFF';
+      Alert.alert(
+        'Request Submitted',
+        isTimeOff
+          ? 'Your time-off request has been sent to your manager.'
+          : 'Your fill-in request has been submitted. Your manager will review it.'
+      );
       qc.invalidateQueries({ queryKey: ['my-schedule'] });
       setRequestModal(null);
       setNotes('');
@@ -123,15 +130,27 @@ export default function ScheduleScreen() {
       storeName: template.store?.name || 'Store',
       shiftType: template.shiftType,
       date,
+      requestType: 'TIME_OFF',
     });
     setNotes('');
   }
 
-  function submitRequestOff() {
+  function handleFillIn(storeId: string, storeName: string, shiftType: string, date: Date) {
+    setRequestModal({
+      storeId,
+      storeName,
+      shiftType,
+      date,
+      requestType: 'FILL_IN',
+    });
+    setNotes('');
+  }
+
+  function submitRequest() {
     if (!requestModal) return;
     createRequestMutation.mutate({
       storeId: requestModal.storeId,
-      requestType: 'TIME_OFF',
+      requestType: requestModal.requestType,
       date: requestModal.date.toISOString(),
       shiftType: requestModal.shiftType,
       notes: notes.trim() || undefined,
@@ -265,6 +284,34 @@ export default function ScheduleScreen() {
                   ) : (
                     <View style={s.dayOffInfo}>
                       <Text style={s.dayOffText}>Day off</Text>
+                      {(() => {
+                        const primaryTemplate = templates[0];
+                        if (!primaryTemplate) return null;
+                        const hasPendingFillIn = requests.some(
+                          (r: any) =>
+                            r.requestType === 'FILL_IN' &&
+                            r.status === 'PENDING' &&
+                            fmtDateISO(new Date(r.date)) === dayISO
+                        );
+                        return hasPendingFillIn ? (
+                          <View style={s.fillInPending}>
+                            <Text style={s.fillInPendingText}>⏳ Fill-In Requested</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={s.fillInBtn}
+                            onPress={() => handleFillIn(
+                              primaryTemplate.storeId,
+                              primaryTemplate.store?.name || 'Store',
+                              'OPENING',
+                              date
+                            )}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={s.fillInBtnText}>+ Request Extra Shift</Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
                   )}
                 </View>
@@ -323,7 +370,7 @@ export default function ScheduleScreen() {
         )}
       </ScrollView>
 
-      {/* ── Request Off Modal ── */}
+      {/* ── Request Modal (Time Off + Fill-In) ── */}
       <Modal
         visible={!!requestModal}
         transparent
@@ -332,9 +379,36 @@ export default function ScheduleScreen() {
       >
         <View style={s.modalOverlay}>
           <View style={s.modal}>
-            <Text style={s.modalTitle}>Request Time Off</Text>
+            <Text style={s.modalTitle}>
+              {requestModal?.requestType === 'FILL_IN' ? 'Request Extra Shift' : 'Request Time Off'}
+            </Text>
             {requestModal && (
               <>
+                {requestModal.requestType === 'FILL_IN' && (
+                  <View style={s.fillInShiftPicker}>
+                    <Text style={s.fillInPickerLabel}>Shift preference</Text>
+                    <View style={s.shiftPickerRow}>
+                      {(['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => (
+                        <TouchableOpacity
+                          key={st}
+                          style={[
+                            s.shiftPickerBtn,
+                            requestModal.shiftType === st && s.shiftPickerBtnActive,
+                          ]}
+                          onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[
+                            s.shiftPickerText,
+                            requestModal.shiftType === st && s.shiftPickerTextActive,
+                          ]}>
+                            {SHIFT_LABELS[st]}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
                 <View style={s.modalInfo}>
                   <Text style={s.modalInfoText}>
                     📅 {fmtMonthDay(requestModal.date)} ({DAY_SHORT[JS_DAY_TO_ENUM[requestModal.date.getDay()]]})
@@ -351,7 +425,7 @@ export default function ScheduleScreen() {
                   style={s.modalInput}
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder="Reason for time off..."
+                  placeholder={requestModal.requestType === 'FILL_IN' ? 'Any notes for your manager...' : 'Reason for time off...'}
                   placeholderTextColor={COLORS.textMuted}
                   multiline
                   numberOfLines={3}
@@ -360,7 +434,7 @@ export default function ScheduleScreen() {
                 <View style={s.modalActions}>
                   <TouchableOpacity
                     style={s.submitBtn}
-                    onPress={submitRequestOff}
+                    onPress={submitRequest}
                     activeOpacity={0.8}
                     disabled={createRequestMutation.isPending}
                   >
@@ -474,9 +548,20 @@ const s = StyleSheet.create({
   },
   timeOffApprovedText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
 
-  // Day off
-  dayOffInfo: { paddingTop: 2 },
+  // Day off + fill-in
+  dayOffInfo: { paddingTop: 2, gap: 8 },
   dayOffText: { color: COLORS.textMuted, fontSize: 14, fontStyle: 'italic' },
+  fillInBtn: {
+    backgroundColor: COLORS.success + '15',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
+    alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.success + '40',
+  },
+  fillInBtnText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
+  fillInPending: {
+    backgroundColor: COLORS.success + '12', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
+  },
+  fillInPendingText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
 
   // Pending requests
   sectionLabel: {
@@ -537,6 +622,21 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
     minHeight: 80, marginBottom: 16,
   },
+  // Shift picker (fill-in modal)
+  fillInShiftPicker: { marginBottom: 14 },
+  fillInPickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  shiftPickerRow: { flexDirection: 'row', gap: 8 },
+  shiftPickerBtn: {
+    flex: 1, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  shiftPickerBtnActive: {
+    backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary,
+  },
+  shiftPickerText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  shiftPickerTextActive: { color: COLORS.primary },
+
   modalActions: { gap: 10 },
   submitBtn: {
     backgroundColor: COLORS.primary, borderRadius: 14,
