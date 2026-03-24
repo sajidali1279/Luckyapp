@@ -10,10 +10,32 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-enum DayOfWeek { MON TUE WED THU FRI SAT SUN }
-enum ShiftType { OPENING MIDDLE CLOSING }
-enum ShiftRequestType { TIME_OFF FILL_IN }
-enum RequestStatus { PENDING APPROVED DENIED }
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ShiftType {
+  OPENING
+  MIDDLE
+  CLOSING
+}
+
+enum ShiftRequestType {
+  TIME_OFF
+  FILL_IN
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
 
 enum Role {
   DEV_ADMIN    // Developer (you) — full access + billing
