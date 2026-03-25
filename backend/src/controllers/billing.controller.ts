@@ -641,6 +641,21 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
 
+  // Fetch pending shift requests separately so a failure here never breaks billing notifications
+  let pendingShiftRequests: any[] = [];
+  try {
+    pendingShiftRequests = await prisma.shiftRequest.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        employee: { select: { name: true } },
+        store: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch {
+    // Gracefully degrade — schedule notifications simply won't appear
+  }
+
   const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
 
   // Group bills by period
@@ -661,6 +676,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     id: string; type: string; title: string; message: string;
     createdAt: string; isRead: boolean; severity: string;
     period?: string; totalAmount?: number; paidAt?: string | null;
+    requestId?: string; storeId?: string; requestType?: string;
   }[] = [];
 
   for (const [period, info] of Object.entries(byPeriod)) {
@@ -707,6 +723,30 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       createdAt: thirtyDaysAgo.toISOString(),
       isRead: false,
       severity: rejectedTx >= 5 ? 'error' : 'info',
+    });
+  }
+
+  // Schedule notifications — pending shift requests
+  const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
+  for (const req of pendingShiftRequests) {
+    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const shiftLabel = SHIFT_TYPE_LABELS[req.shiftType] ?? req.shiftType;
+    const isTimeOff = req.requestType === 'TIME_OFF';
+    notifications.push({
+      id: `shift-request-${req.id}`,
+      type: 'SCHEDULE',
+      title: isTimeOff
+        ? `Time Off Request — ${req.employee.name}`
+        : `Extra Shift Request — ${req.employee.name}`,
+      message: isTimeOff
+        ? `${req.employee.name} requested time off on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`
+        : `${req.employee.name} wants to fill in on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`,
+      createdAt: req.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      requestId: req.id,
+      storeId: req.store.id,
+      requestType: req.requestType,
     });
   }
 

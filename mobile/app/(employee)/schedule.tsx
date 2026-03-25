@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ function fmtDateFull(d: string): string {
 
 export default function ScheduleScreen() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const todayKey = getTodayDayKey();
   const weekDates = getCurrentWeekDates();
 
@@ -299,10 +301,14 @@ export default function ScheduleScreen() {
                     <View style={s.dayOffInfo}>
                       <Text style={s.dayOffText}>Day off</Text>
                       {(() => {
-                        const primaryTemplate = templates[0];
                         // Only allow fill-in requests for today or future days
                         const isPastDay = date < new Date(new Date().setHours(0, 0, 0, 0));
-                        if (!primaryTemplate || isPastDay) return null;
+                        if (isPastDay) return null;
+                        // Use any assigned template's store, or fall back to user's first store
+                        const primaryTemplate = templates[0];
+                        const storeId = primaryTemplate?.storeId || user?.storeIds?.[0];
+                        const storeName = primaryTemplate?.store?.name || 'Your Store';
+                        if (!storeId) return null;
                         const hasPendingFillIn = requests.some(
                           (r: any) =>
                             r.requestType === 'FILL_IN' &&
@@ -316,12 +322,7 @@ export default function ScheduleScreen() {
                         ) : (
                           <TouchableOpacity
                             style={s.fillInBtn}
-                            onPress={() => handleFillIn(
-                              primaryTemplate.storeId,
-                              primaryTemplate.store?.name || 'Store',
-                              'OPENING',
-                              date
-                            )}
+                            onPress={() => handleFillIn(storeId, storeName, 'OPENING', date)}
                             activeOpacity={0.8}
                           >
                             <Text style={s.fillInBtnText}>+ Request Extra Shift</Text>
