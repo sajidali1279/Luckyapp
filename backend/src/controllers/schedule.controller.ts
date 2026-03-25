@@ -350,55 +350,126 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
     },
   });
 
-  // If approving a TIME_OFF, notify other employees at that store scheduled that day
-  if (parsed.data.status === 'APPROVED' && shiftRequest.requestType === ShiftRequestType.TIME_OFF) {
-    const requestDate = new Date(shiftRequest.date);
-    const dayOfWeek = JS_DAY_TO_ENUM[requestDate.getDay()];
+  const requestDate = new Date(shiftRequest.date);
+  const dayOfWeek   = JS_DAY_TO_ENUM[requestDate.getDay()];
+  const dateStr     = fmtDate(requestDate);
+  const employeeName = shiftRequest.employee.name || 'Employee';
+  const storeName    = shiftRequest.store.name;
+  const shiftType    = shiftRequest.shiftType;
+  const times        = SHIFT_TIMES[shiftType];
 
-    // Find all employees scheduled that day at this store (excluding the one who requested off)
-    const scheduledEmployees = await prisma.shiftTemplate.findMany({
-      where: {
-        storeId: shiftRequest.storeId,
-        dayOfWeek,
-        isActive: true,
-        employeeId: { not: shiftRequest.employeeId },
-      },
-      select: { employeeId: true },
-    });
+  if (parsed.data.status === 'APPROVED') {
 
-    // Also exclude employees who already have an approved TIME_OFF for that same day
-    const dayStart = new Date(requestDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(requestDate);
-    dayEnd.setHours(23, 59, 59, 999);
+    // ── FILL_IN: create a shift template + conflict check ──────────────────────
+    if (shiftRequest.requestType === ShiftRequestType.FILL_IN) {
+      // Upsert shift template so employee is now scheduled for that day
+      await prisma.shiftTemplate.upsert({
+        where: {
+          employeeId_storeId_dayOfWeek: {
+            employeeId: shiftRequest.employeeId,
+            storeId:    shiftRequest.storeId,
+            dayOfWeek,
+          },
+        },
+        create: {
+          employeeId: shiftRequest.employeeId,
+          storeId:    shiftRequest.storeId,
+          dayOfWeek,
+          shiftType,
+          startTime:  times.startTime,
+          endTime:    times.endTime,
+        },
+        update: {
+          shiftType,
+          startTime: times.startTime,
+          endTime:   times.endTime,
+          isActive:  true,
+        },
+      });
 
-    const alreadyOff = await prisma.shiftRequest.findMany({
-      where: {
-        storeId: shiftRequest.storeId,
-        requestType: ShiftRequestType.TIME_OFF,
-        status: RequestStatus.APPROVED,
-        date: { gte: dayStart, lte: dayEnd },
-      },
-      select: { employeeId: true },
-    });
+      // Notify the employee
+      sendPushToUser(
+        shiftRequest.employeeId,
+        'Fill-In Approved ✅',
+        `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`
+      );
 
-    const alreadyOffIds = new Set(alreadyOff.map((r) => r.employeeId));
-    const targetEmployeeIds = scheduledEmployees
-      .map((t) => t.employeeId)
-      .filter((id) => !alreadyOffIds.has(id));
+      // Check if anyone else is already assigned to the same shift slot that day
+      const conflicting = await prisma.shiftTemplate.findMany({
+        where: {
+          storeId:   shiftRequest.storeId,
+          dayOfWeek,
+          shiftType,
+          isActive:  true,
+          employeeId: { not: shiftRequest.employeeId },
+        },
+        include: { employee: { select: { name: true, phone: true } } },
+      });
 
-    const employeeName = shiftRequest.employee.name || 'Someone';
-    const storeName = shiftRequest.store.name;
-    const dateStr = fmtDate(requestDate);
-    const shiftType = shiftRequest.shiftType;
-    const times = SHIFT_TIMES[shiftType];
+      if (conflicting.length > 0) {
+        const conflictNames = conflicting
+          .map((t) => t.employee.name || t.employee.phone)
+          .join(', ');
 
-    const title = 'Shift Available 📅';
-    const body = `${employeeName}'s ${shiftType} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open. Check your schedule to volunteer!`;
+        const superAdmins = await prisma.user.findMany({
+          where: { role: Role.SUPER_ADMIN, isActive: true },
+          select: { id: true },
+        });
 
-    // Fire-and-forget push notifications
-    for (const empId of targetEmployeeIds) {
-      sendPushToUser(empId, title, body);
+        const conflictTitle = '⚠️ Shift Overlap at ' + storeName;
+        const conflictBody  = `${employeeName} was approved for the ${SHIFT_LABELS[shiftType]} shift on ${dateStr}, but ${conflictNames} is already assigned to that same slot.`;
+
+        for (const a of superAdmins) {
+          sendPushToUser(a.id, conflictTitle, conflictBody);
+        }
+      }
+    }
+
+    // ── TIME_OFF: notify coworkers that the shift is open ─────────────────────
+    if (shiftRequest.requestType === ShiftRequestType.TIME_OFF) {
+      // Notify the employee their time off was approved
+      sendPushToUser(
+        shiftRequest.employeeId,
+        'Time Off Approved ✅',
+        `Your time-off request for ${dateStr} (${SHIFT_LABELS[shiftType]} shift) at ${storeName} has been approved.`
+      );
+
+      // Notify coworkers scheduled that day (excluding those already off)
+      const scheduledEmployees = await prisma.shiftTemplate.findMany({
+        where: {
+          storeId: shiftRequest.storeId,
+          dayOfWeek,
+          isActive: true,
+          employeeId: { not: shiftRequest.employeeId },
+        },
+        select: { employeeId: true },
+      });
+
+      const dayStart = new Date(requestDate); dayStart.setHours(0, 0, 0, 0);
+      const dayEnd   = new Date(requestDate); dayEnd.setHours(23, 59, 59, 999);
+
+      const alreadyOff = await prisma.shiftRequest.findMany({
+        where: {
+          storeId: shiftRequest.storeId,
+          requestType: ShiftRequestType.TIME_OFF,
+          status: RequestStatus.APPROVED,
+          date: { gte: dayStart, lte: dayEnd },
+        },
+        select: { employeeId: true },
+      });
+
+      const alreadyOffIds = new Set(alreadyOff.map((r) => r.employeeId));
+      const coworkerIds   = scheduledEmployees
+        .map((t) => t.employeeId)
+        .filter((id) => !alreadyOffIds.has(id));
+
+      for (const empId of coworkerIds) {
+        sendPushToUser(
+          empId,
+          'Shift Available 📅',
+          `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`
+        );
+      }
     }
   }
 
