@@ -1,4 +1,5 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, SafeAreaView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';

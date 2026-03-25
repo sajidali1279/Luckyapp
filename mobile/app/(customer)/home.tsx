@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
