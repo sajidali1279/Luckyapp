@@ -1,8 +1,9 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, StatusBar, SafeAreaView, Modal,
-  TextInput, RefreshControl, Alert,
+  ActivityIndicator, StatusBar, Modal,
+  TextInput, RefreshControl, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi } from '../../services/api';
@@ -136,12 +137,6 @@ export default function ScheduleScreen() {
 
   // Pending requests for quick display
   const pendingRequests = requests.filter((r: any) => r.status === 'PENDING');
-
-  // Fill-in opportunities: look at FILL_IN type requests that are PENDING from others
-  // (backend doesn't expose other people's requests here — this section uses a note to employee)
-  const fillInOpportunities = requests.filter(
-    (r: any) => r.requestType === 'FILL_IN' && r.status === 'PENDING'
-  );
 
   function handleRequestOff(template: any, date: Date) {
     setRequestModal({
@@ -305,7 +300,9 @@ export default function ScheduleScreen() {
                       <Text style={s.dayOffText}>Day off</Text>
                       {(() => {
                         const primaryTemplate = templates[0];
-                        if (!primaryTemplate) return null;
+                        // Only allow fill-in requests for today or future days
+                        const isPastDay = date < new Date(new Date().setHours(0, 0, 0, 0));
+                        if (!primaryTemplate || isPastDay) return null;
                         const hasPendingFillIn = requests.some(
                           (r: any) =>
                             r.requestType === 'FILL_IN' &&
@@ -360,28 +357,16 @@ export default function ScheduleScreen() {
               </>
             )}
 
-            {/* ── Fill-In Opportunities Note ── */}
+            {/* ── Tips ── */}
             <View style={s.infoBox}>
-              <Text style={s.infoTitle}>📣 Fill-In Opportunities</Text>
+              <Text style={s.infoTitle}>💡 How it works</Text>
               <Text style={s.infoText}>
-                When a coworker's time-off request is approved, you'll get a push notification if you're at the same store.
-                Tap it to volunteer for the open shift.
+                On your days off, tap <Text style={{ fontWeight: '700' }}>+ Request Extra Shift</Text> to volunteer for an open shift.
+                Your manager and supervisor will be notified to approve or deny.
               </Text>
-              {fillInOpportunities.length > 0 && (
-                <>
-                  <Text style={[s.infoText, { marginTop: 8, fontWeight: '700' }]}>
-                    Your fill-in requests ({fillInOpportunities.length}):
-                  </Text>
-                  {fillInOpportunities.map((r: any) => (
-                    <View key={r.id} style={s.fillInRow}>
-                      <Text style={s.fillInText}>
-                        {fmtDateFull(r.date)} · {SHIFT_LABELS[r.shiftType]}
-                        {r.store?.name ? ` · ${r.store.name}` : ''}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
+              <Text style={[s.infoText, { marginTop: 6 }]}>
+                On your scheduled days, tap <Text style={{ fontWeight: '700' }}>Request Off</Text> to submit a time-off request.
+              </Text>
             </View>
 
             <View style={{ height: 24 }} />
@@ -396,8 +381,12 @@ export default function ScheduleScreen() {
         animationType="slide"
         onRequestClose={() => setRequestModal(null)}
       >
-        <View style={s.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.modalOverlay}
+        >
           <View style={s.modal}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={s.modalTitle}>
               {requestModal?.requestType === 'FILL_IN' ? 'Request Extra Shift' : 'Request Time Off'}
             </Text>
@@ -503,8 +492,9 @@ export default function ScheduleScreen() {
                 </View>
               </>
             )}
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -654,6 +644,7 @@ const s = StyleSheet.create({
   modal: {
     backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
+    maxHeight: '90%',
   },
   modalTitle: {
     fontSize: 20, fontWeight: '800', color: COLORS.text,
