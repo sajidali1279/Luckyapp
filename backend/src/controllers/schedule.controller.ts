@@ -228,22 +228,12 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
   }
 
   if (requestType === ShiftRequestType.FILL_IN) {
-    // Check there is an open shift: someone has an approved TIME_OFF for that day
-    const dayStart = new Date(requestDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(requestDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const openShift = await prisma.shiftRequest.findFirst({
-      where: {
-        storeId,
-        requestType: ShiftRequestType.TIME_OFF,
-        status: RequestStatus.APPROVED,
-        date: { gte: dayStart, lte: dayEnd },
-      },
+    // Employee must NOT already be scheduled that day at this store
+    const alreadyScheduled = await prisma.shiftTemplate.findUnique({
+      where: { employeeId_storeId_dayOfWeek: { employeeId, storeId, dayOfWeek } },
     });
-    if (!openShift) {
-      res.status(400).json({ success: false, error: 'No open shifts available for that day at this store' });
+    if (alreadyScheduled?.isActive) {
+      res.status(400).json({ success: false, error: 'You are already scheduled for this day at this store' });
       return;
     }
   }
@@ -269,9 +259,33 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
   const request = await prisma.shiftRequest.create({
     data: { employeeId, storeId, requestType, date: requestDate, shiftType, notes, status: RequestStatus.PENDING },
     include: {
-      store: { select: { id: true, name: true } },
+      employee: { select: { id: true, name: true, phone: true } },
+      store:    { select: { id: true, name: true } },
     },
   });
+
+  // FILL_IN: notify store managers + all super admins
+  if (requestType === ShiftRequestType.FILL_IN) {
+    const empName = request.employee.name || request.employee.phone || 'An employee';
+    const storeName = request.store.name;
+    const dateStr = fmtDate(requestDate);
+    const title = '🙋 Fill-In Request';
+    const body = `${empName} is requesting to fill the ${SHIFT_LABELS[shiftType]} shift on ${dateStr} at ${storeName}.`;
+
+    // Store managers for this store
+    const storeMgrs = await prisma.userStoreRole.findMany({
+      where: { storeId, role: Role.STORE_MANAGER },
+      select: { userId: true },
+    });
+    for (const m of storeMgrs) sendPushToUser(m.userId, title, body);
+
+    // All super admins
+    const superAdmins = await prisma.user.findMany({
+      where: { role: Role.SUPER_ADMIN, isActive: true },
+      select: { id: true },
+    });
+    for (const a of superAdmins) sendPushToUser(a.id, title, body);
+  }
 
   res.status(201).json({ success: true, data: request });
 }
@@ -411,4 +425,51 @@ export async function getStoreEmployees(req: AuthRequest, res: Response) {
   const employees = storeRoles.map((sr) => sr.user);
 
   res.json({ success: true, data: employees });
+}
+
+// ─── GET /schedule/store/:storeId/day ─────────────────────────────────────────
+// Returns who is on each shift for a specific date (defaults to today).
+// Used by employees to see shift availability before requesting a fill-in.
+
+export async function getDayRoster(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const dateStr = req.query.date as string | undefined;
+  const date = dateStr ? new Date(dateStr) : new Date();
+  const dayOfWeek = JS_DAY_TO_ENUM[date.getDay()];
+
+  const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd   = new Date(date); dayEnd.setHours(23, 59, 59, 999);
+
+  // All active templates for this day
+  const templates = await prisma.shiftTemplate.findMany({
+    where: { storeId, isActive: true, dayOfWeek },
+    include: { employee: { select: { id: true, name: true, phone: true } } },
+  });
+
+  // Employees with approved TIME_OFF that day
+  const approvedTimeOff = await prisma.shiftRequest.findMany({
+    where: {
+      storeId,
+      requestType: ShiftRequestType.TIME_OFF,
+      status: RequestStatus.APPROVED,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+    select: { employeeId: true },
+  });
+  const offIds = new Set(approvedTimeOff.map((r) => r.employeeId));
+
+  // Group by shift, excluding people who are off
+  const shifts: Record<string, { employees: { id: string; name: string | null; phone: string }[]; startTime: string; endTime: string }> = {
+    OPENING: { employees: [], ...SHIFT_TIMES.OPENING },
+    MIDDLE:  { employees: [], ...SHIFT_TIMES.MIDDLE  },
+    CLOSING: { employees: [], ...SHIFT_TIMES.CLOSING },
+  };
+
+  for (const t of templates) {
+    if (!offIds.has(t.employeeId)) {
+      shifts[t.shiftType].employees.push(t.employee);
+    }
+  }
+
+  res.json({ success: true, data: { dayOfWeek, date: date.toISOString(), shifts } });
 }

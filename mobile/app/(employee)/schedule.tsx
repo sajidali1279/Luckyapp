@@ -26,6 +26,13 @@ const SHIFT_COLORS: Record<string, string> = {
   CLOSING: COLORS.secondary,
 };
 
+const SHIFT_SLOT_COLORS = SHIFT_COLORS;
+const SHIFT_SLOT_TIMES: Record<string, string> = {
+  OPENING: '6:00 am – 2:00 pm',
+  MIDDLE:  '10:00 am – 6:00 pm',
+  CLOSING: '2:00 pm – 10:00 pm',
+};
+
 const SHIFT_LABELS: Record<string, string> = {
   OPENING: 'Opening',
   MIDDLE:  'Middle',
@@ -85,6 +92,18 @@ export default function ScheduleScreen() {
   } = useQuery({
     queryKey: ['my-schedule'],
     queryFn: () => schedulingApi.getMySchedule(),
+  });
+
+  // Fetch day roster when fill-in modal is open
+  const {
+    data: dayRosterData, isLoading: dayRosterLoading,
+  } = useQuery({
+    queryKey: ['day-roster', requestModal?.storeId, requestModal?.date?.toISOString()],
+    queryFn: () => schedulingApi.getDayRoster(
+      requestModal!.storeId,
+      requestModal!.date.toISOString()
+    ),
+    enabled: !!requestModal && requestModal.requestType === 'FILL_IN',
   });
 
   const createRequestMutation = useMutation({
@@ -384,42 +403,72 @@ export default function ScheduleScreen() {
             </Text>
             {requestModal && (
               <>
+                {/* Fill-in: show shift slots with current staff */}
                 {requestModal.requestType === 'FILL_IN' && (
                   <View style={s.fillInShiftPicker}>
-                    <Text style={s.fillInPickerLabel}>Shift preference</Text>
-                    <View style={s.shiftPickerRow}>
-                      {(['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => (
-                        <TouchableOpacity
-                          key={st}
-                          style={[
-                            s.shiftPickerBtn,
-                            requestModal.shiftType === st && s.shiftPickerBtnActive,
-                          ]}
-                          onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={[
-                            s.shiftPickerText,
-                            requestModal.shiftType === st && s.shiftPickerTextActive,
-                          ]}>
-                            {SHIFT_LABELS[st]}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                    <Text style={s.fillInPickerLabel}>
+                      📅 {fmtMonthDay(requestModal.date)} — Pick a shift to request
+                    </Text>
+                    {dayRosterLoading ? (
+                      <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
+                    ) : (
+                      (['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => {
+                        const slot = dayRosterData?.data?.data?.shifts?.[st];
+                        const staff: any[] = slot?.employees || [];
+                        const isEmpty = staff.length === 0;
+                        const isSelected = requestModal.shiftType === st;
+                        const color = SHIFT_SLOT_COLORS[st];
+                        return (
+                          <TouchableOpacity
+                            key={st}
+                            style={[s.shiftSlot, isSelected && { borderColor: color, backgroundColor: color + '10' }]}
+                            onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
+                            activeOpacity={0.8}
+                          >
+                            <View style={s.shiftSlotLeft}>
+                              <View style={[s.shiftSlotDot, { backgroundColor: color }]} />
+                              <View>
+                                <Text style={[s.shiftSlotName, isSelected && { color }]}>{SHIFT_LABELS[st]}</Text>
+                                <Text style={s.shiftSlotTime}>{SHIFT_SLOT_TIMES[st]}</Text>
+                              </View>
+                            </View>
+                            <View style={s.shiftSlotRight}>
+                              {isEmpty ? (
+                                <View style={s.emptyShiftBadge}>
+                                  <Text style={s.emptyShiftText}>Empty ⚠️</Text>
+                                </View>
+                              ) : (
+                                <Text style={s.shiftStaffNames} numberOfLines={2}>
+                                  {staff.map((e: any) => e.name || e.phone).join(', ')}
+                                </Text>
+                              )}
+                              {isSelected && (
+                                <View style={[s.selectedCheck, { backgroundColor: color }]}>
+                                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>✓</Text>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
                   </View>
                 )}
-                <View style={s.modalInfo}>
-                  <Text style={s.modalInfoText}>
-                    📅 {fmtMonthDay(requestModal.date)} ({DAY_SHORT[JS_DAY_TO_ENUM[requestModal.date.getDay()]]})
-                  </Text>
-                  <Text style={s.modalInfoText}>
-                    🕐 {SHIFT_LABELS[requestModal.shiftType]}
-                  </Text>
-                  <Text style={s.modalInfoText}>
-                    📍 {requestModal.storeName}
-                  </Text>
-                </View>
+
+                {/* Time-off: show date/shift/store summary */}
+                {requestModal.requestType === 'TIME_OFF' && (
+                  <View style={s.modalInfo}>
+                    <Text style={s.modalInfoText}>
+                      📅 {fmtMonthDay(requestModal.date)} ({DAY_SHORT[JS_DAY_TO_ENUM[requestModal.date.getDay()]]})
+                    </Text>
+                    <Text style={s.modalInfoText}>
+                      🕐 {SHIFT_LABELS[requestModal.shiftType]}
+                    </Text>
+                    <Text style={s.modalInfoText}>
+                      📍 {requestModal.storeName}
+                    </Text>
+                  </View>
+                )}
                 <Text style={s.modalLabel}>Notes (optional)</Text>
                 <TextInput
                   style={s.modalInput}
@@ -622,9 +671,33 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
     minHeight: 80, marginBottom: 16,
   },
-  // Shift picker (fill-in modal)
+  // Shift slot picker (fill-in modal)
   fillInShiftPicker: { marginBottom: 14 },
-  fillInPickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  fillInPickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 10 },
+
+  shiftSlot: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.background, borderRadius: 12,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    padding: 12, marginBottom: 8,
+  },
+  shiftSlotLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  shiftSlotDot: { width: 10, height: 10, borderRadius: 5 },
+  shiftSlotName: { fontSize: 13, fontWeight: '800', color: COLORS.text },
+  shiftSlotTime: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  shiftSlotRight: { alignItems: 'flex-end', gap: 4, flex: 1, paddingLeft: 10 },
+  shiftStaffNames: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right' },
+  emptyShiftBadge: {
+    backgroundColor: '#E6394615', borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  emptyShiftText: { fontSize: 11, fontWeight: '700', color: '#E63946' },
+  selectedCheck: {
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Legacy picker styles (unused but kept to avoid errors)
   shiftPickerRow: { flexDirection: 'row', gap: 8 },
   shiftPickerBtn: {
     flex: 1, paddingVertical: 9, borderRadius: 10,

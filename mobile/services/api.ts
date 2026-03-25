@@ -91,6 +91,8 @@ export const schedulingApi = {
   updateRequest: (requestId: string, status: 'APPROVED' | 'DENIED') =>
     api.patch(`/schedule/requests/${requestId}`, { status }),
   getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
+  getDayRoster: (storeId: string, date: string) =>
+    api.get(`/schedule/store/${storeId}/day?date=${encodeURIComponent(date)}`),
 };
 
 export const managerApi = {

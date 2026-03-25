@@ -30,6 +30,7 @@ import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
+  getDayRoster,
   assignShift,
   removeShift,
   getMySchedule,
@@ -155,6 +156,7 @@ router.get('/schedule/store/:storeId/requests', authenticate, requireRole(Role.S
 router.get('/schedule/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSchedule);
 router.post('/schedule/shifts', authenticate, requireRole(Role.STORE_MANAGER), assignShift);
 router.delete('/schedule/shifts/:shiftId', authenticate, requireRole(Role.STORE_MANAGER), removeShift);
+router.get('/schedule/store/:storeId/day', authenticate, requireRole(Role.EMPLOYEE), getDayRoster);
 router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
