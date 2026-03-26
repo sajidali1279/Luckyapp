@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { DayOfWeek, ShiftType, ShiftRequestType, RequestStatus, Role } from '@prisma/client';
 import { sendPushToUser } from '../utils/push';
+import { audit } from '../utils/audit';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -161,6 +162,13 @@ export async function assignShift(req: AuthRequest, res: Response) {
     `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`
   );
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'ASSIGN_SHIFT', entity: 'shift_template', entityId: template.id,
+    details: { employeeName: template.employee.name || template.employee.phone, dayOfWeek, shiftType },
+    storeId, storeName: store?.name,
+  });
+
   res.status(201).json({ success: true, data: template });
 }
 
@@ -169,13 +177,23 @@ export async function assignShift(req: AuthRequest, res: Response) {
 export async function removeShift(req: AuthRequest, res: Response) {
   const { shiftId } = req.params;
 
-  const existing = await prisma.shiftTemplate.findUnique({ where: { id: shiftId } });
+  const existing = await prisma.shiftTemplate.findUnique({
+    where: { id: shiftId },
+    include: { employee: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
+  });
   if (!existing) {
     res.status(404).json({ success: false, error: 'Shift template not found' });
     return;
   }
 
   await prisma.shiftTemplate.delete({ where: { id: shiftId } });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'REMOVE_SHIFT', entity: 'shift_template', entityId: shiftId,
+    details: { employeeName: existing.employee.name || existing.employee.phone, dayOfWeek: existing.dayOfWeek, shiftType: existing.shiftType },
+    storeId: existing.storeId, storeName: existing.store.name,
+  });
 
   res.json({ success: true, message: 'Shift removed' });
 }
@@ -287,6 +305,13 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
     },
   });
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CREATE_SHIFT_REQUEST', entity: 'shift_request', entityId: request.id,
+    details: { requestType, shiftType, date: requestDate.toISOString() },
+    storeId, storeName: request.store.name,
+  });
+
   // FILL_IN: notify store managers + all super admins
   if (requestType === ShiftRequestType.FILL_IN) {
     const empName = request.employee.name || request.employee.phone || 'An employee';
@@ -380,6 +405,14 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
   const storeName    = shiftRequest.store.name;
   const shiftType    = shiftRequest.shiftType;
   const times        = SHIFT_TIMES[shiftType];
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: parsed.data.status === 'APPROVED' ? 'APPROVE_SHIFT_REQUEST' : 'DENY_SHIFT_REQUEST',
+    entity: 'shift_request', entityId: requestId,
+    details: { requestType: shiftRequest.requestType, employeeName, shiftType, date: shiftRequest.date },
+    storeId: shiftRequest.storeId, storeName,
+  });
 
   if (parsed.data.status === 'APPROVED') {
 
@@ -584,4 +617,61 @@ export async function getDayRoster(req: AuthRequest, res: Response) {
   }
 
   res.json({ success: true, data: { dayOfWeek, date: date.toISOString(), shifts } });
+}
+
+// ─── GET /schedule/vacancies ──────────────────────────────────────────────────
+// Returns vacant shift slots (store+day+shiftType combos with no employee assigned).
+// Platform admins see all stores; managers/employees see only their stores.
+
+const ALL_DAYS: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const ALL_SHIFTS: ShiftType[] = ['OPENING', 'MIDDLE', 'CLOSING'];
+const PLATFORM_ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN'];
+
+export async function getVacancies(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  let stores: { id: string; name: string; city: string }[];
+
+  if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
+    stores = await prisma.store.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, city: true },
+      orderBy: { name: 'asc' },
+    });
+  } else {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { userId: user.id },
+      include: { store: { select: { id: true, name: true, city: true } } },
+    });
+    stores = storeRoles.map((sr) => sr.store);
+  }
+
+  const storeIds = stores.map((s) => s.id);
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: { stores: [], totalVacancies: 0 } });
+    return;
+  }
+
+  // All active templates across these stores
+  const templates = await prisma.shiftTemplate.findMany({
+    where: { storeId: { in: storeIds }, isActive: true },
+    select: { storeId: true, dayOfWeek: true, shiftType: true },
+  });
+
+  const filled = new Set(templates.map((t) => `${t.storeId}|${t.dayOfWeek}|${t.shiftType}`));
+
+  const result = stores.map((store) => {
+    const vacancies: { dayOfWeek: DayOfWeek; shiftType: ShiftType }[] = [];
+    for (const day of ALL_DAYS) {
+      for (const shift of ALL_SHIFTS) {
+        if (!filled.has(`${store.id}|${day}|${shift}`)) {
+          vacancies.push({ dayOfWeek: day, shiftType: shift });
+        }
+      }
+    }
+    return { storeId: store.id, storeName: store.name, city: store.city, vacancies, vacantCount: vacancies.length };
+  });
+
+  const totalVacancies = result.reduce((sum, s) => sum + s.vacantCount, 0);
+  res.json({ success: true, data: { stores: result, totalVacancies } });
 }

@@ -5,17 +5,32 @@ import { auditApi, storesApi } from '../services/api';
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
 const ACTION_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  GRANT_POINTS:        { label: 'Grant Points',       color: '#2DC653', bg: '#2DC65318', icon: '💰' },
-  REDEEM_CREDITS:      { label: 'Redeem Credits',     color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
-  REJECT_TRANSACTION:  { label: 'Reject Transaction', color: '#E63946', bg: '#E6394618', icon: '❌' },
-  CREATE_OFFER:        { label: 'Create Offer',       color: '#F4A261', bg: '#F4A26118', icon: '📢' },
-  DELETE_OFFER:        { label: 'Delete Offer',       color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  CREATE_BANNER:       { label: 'Create Banner',      color: '#F4A261', bg: '#F4A26118', icon: '🖼️' },
-  DELETE_BANNER:       { label: 'Delete Banner',      color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  CREATE_STAFF:        { label: 'Create Staff',       color: '#9b5de5', bg: '#9b5de518', icon: '👤' },
-  TOGGLE_USER:         { label: 'Toggle User',        color: '#E63946', bg: '#E6394618', icon: '🔒' },
-  RESET_PIN:           { label: 'Reset PIN',          color: '#E63946', bg: '#E6394618', icon: '🔑' },
-  SELF_GRANT:          { label: 'Self Grant (QR)',    color: '#2DC653', bg: '#2DC65318', icon: '📄' },
+  // Points
+  GRANT_POINTS:              { label: 'Grant Points',           color: '#2DC653', bg: '#2DC65318', icon: '💰' },
+  REDEEM_CREDITS:            { label: 'Redeem Credits',         color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
+  REJECT_TRANSACTION:        { label: 'Reject Transaction',     color: '#E63946', bg: '#E6394618', icon: '❌' },
+  SELF_GRANT:                { label: 'Self Grant (QR)',        color: '#2DC653', bg: '#2DC65318', icon: '📄' },
+  // Offers & Banners
+  CREATE_OFFER:              { label: 'Create Offer',           color: '#F4A261', bg: '#F4A26118', icon: '📢' },
+  UPDATE_OFFER:              { label: 'Update Offer',           color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
+  DELETE_OFFER:              { label: 'Delete Offer',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  CREATE_BANNER:             { label: 'Create Banner',          color: '#F4A261', bg: '#F4A26118', icon: '🖼️' },
+  DELETE_BANNER:             { label: 'Delete Banner',          color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  // Staff & Access
+  CREATE_STAFF:              { label: 'Create Staff',           color: '#9b5de5', bg: '#9b5de518', icon: '👤' },
+  TOGGLE_USER:               { label: 'Toggle User',            color: '#E63946', bg: '#E6394618', icon: '🔒' },
+  RESET_PIN:                 { label: 'Reset PIN',              color: '#E63946', bg: '#E6394618', icon: '🔑' },
+  ADD_STORE:                 { label: 'Add Store Assignment',   color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
+  REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#E63946', bg: '#E6394618', icon: '🚫' },
+  // Scheduling
+  ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#0369a1', bg: '#0369a118', icon: '📅' },
+  REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  CREATE_SHIFT_REQUEST:      { label: 'Shift Request',          color: '#6c757d', bg: '#6c757d18', icon: '🙋' },
+  APPROVE_SHIFT_REQUEST:     { label: 'Approve Shift Req.',     color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  DENY_SHIFT_REQUEST:        { label: 'Deny Shift Req.',        color: '#E63946', bg: '#E6394618', icon: '❌' },
+  // Store Requests
+  SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#f59e0b', bg: '#f59e0b18', icon: '📋' },
+  ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#2DC653', bg: '#2DC65318', icon: '✅' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
@@ -44,16 +59,28 @@ function fmtDetails(details: string | null): string {
   try {
     const d = JSON.parse(details);
     const parts: string[] = [];
+    // Points
     if (d.purchaseAmount != null) parts.push(`Purchase $${Number(d.purchaseAmount).toFixed(2)}`);
     if (d.pointsAwarded != null)  parts.push(`+$${Number(d.pointsAwarded).toFixed(2)} cashback`);
     if (d.amount != null)         parts.push(`$${Number(d.amount).toFixed(2)}`);
+    if (d.category && d.category !== 'OTHER') parts.push(d.category.replace(/_/g, ' '));
+    // Offers / banners / staff
     if (d.title)                  parts.push(d.title);
     if (d.name)                   parts.push(d.name);
     if (d.targetName)             parts.push(d.targetName);
     if (d.targetPhone)            parts.push(d.targetPhone);
     if (d.targetRole)             parts.push(d.targetRole);
     if (d.isActive != null)       parts.push(d.isActive ? 'activated' : 'deactivated');
-    if (d.category && d.category !== 'OTHER') parts.push(d.category.replace(/_/g, ' '));
+    // Scheduling
+    if (d.employeeName)           parts.push(d.employeeName);
+    if (d.dayOfWeek)              parts.push(d.dayOfWeek);
+    if (d.shiftType)              parts.push(d.shiftType.toLowerCase());
+    if (d.requestType)            parts.push(d.requestType.replace(/_/g, ' ').toLowerCase());
+    if (d.date)                   parts.push(new Date(d.date).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+    // Store requests
+    if (d.type)                   parts.push(d.type.replace(/_/g, ' ').toLowerCase());
+    if (d.priority)               parts.push(d.priority.toLowerCase() + ' priority');
+    if (d.submitterName)          parts.push(`from ${d.submitterName}`);
     return parts.join(' · ');
   } catch {
     return '';
@@ -152,9 +179,31 @@ export default function ActivityLog() {
       <div style={s.filters}>
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
-          {Object.entries(ACTION_META).map(([k, v]) => (
-            <option key={k} value={k}>{v.icon} {v.label}</option>
-          ))}
+          <optgroup label="── Points ──">
+            {['GRANT_POINTS','REDEEM_CREDITS','REJECT_TRANSACTION','SELF_GRANT'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Offers & Banners ──">
+            {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','CREATE_BANNER','DELETE_BANNER'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Staff & Access ──">
+            {['CREATE_STAFF','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Scheduling ──">
+            {['ASSIGN_SHIFT','REMOVE_SHIFT','CREATE_SHIFT_REQUEST','APPROVE_SHIFT_REQUEST','DENY_SHIFT_REQUEST'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Store Requests ──">
+            {['SUBMIT_STORE_REQUEST','ACKNOWLEDGE_STORE_REQUEST'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
         </select>
 
         <select style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>

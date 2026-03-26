@@ -10,6 +10,24 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum StoreRequestType {
+  LOW_STOCK
+  STORE_SUPPLIES
+  CUSTOMER_REQUESTED_PRODUCT
+  WORK_ORDER
+}
+
+enum StoreRequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum StoreRequestStatus {
+  PENDING
+  ACKNOWLEDGED
+}
+
 enum DayOfWeek {
   MON
   TUE
@@ -103,6 +121,7 @@ model User {
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
+  submittedStoreRequests StoreRequest[]
 
   @@map("users")
 }
@@ -142,6 +161,7 @@ model Store {
   shiftTemplates    ShiftTemplate[]
   shiftRequests     ShiftRequest[]
   chatMessages      ChatMessage[]
+  storeRequests     StoreRequest[]
 
   @@map("stores")
 }
@@ -427,6 +447,32 @@ model ChatMessage {
 
   @@index([storeId, createdAt])
   @@map("chat_messages")
+}
+
+// ─── Store Requests ───────────────────────────────────────────────────────────
+
+model StoreRequest {
+  id               String               @id @default(uuid())
+  storeId          String
+  submittedById    String
+  submitterName    String
+  submitterRole    String
+  type             StoreRequestType
+  priority         StoreRequestPriority
+  notes            String?
+  status           StoreRequestStatus   @default(PENDING)
+  acknowledgedById String?
+  acknowledgerName String?
+  acknowledgerNote String?
+  acknowledgedAt   DateTime?
+  createdAt        DateTime             @default(now())
+
+  store       Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  submittedBy User  @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@index([submittedById])
+  @@map("store_requests")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

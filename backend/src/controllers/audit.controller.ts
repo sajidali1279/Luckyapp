@@ -55,7 +55,7 @@ export async function getAuditStats(req: AuthRequest, res: Response) {
     // High-risk: large grants or bulk deletions in last 24h
     prisma.auditLog.findMany({
       where: {
-        action: { in: ['DELETE_OFFER', 'DELETE_BANNER', 'TOGGLE_USER', 'RESET_PIN'] },
+        action: { in: ['DELETE_OFFER', 'DELETE_BANNER', 'TOGGLE_USER', 'RESET_PIN', 'REMOVE_SHIFT', 'REMOVE_STORE'] },
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
       orderBy: { createdAt: 'desc' },

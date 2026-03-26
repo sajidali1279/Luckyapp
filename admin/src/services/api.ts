@@ -108,6 +108,7 @@ export const schedulingApi = {
   getStoreRequests: (storeId: string) => api.get(`/schedule/store/${storeId}/requests`),
   updateRequest: (requestId: string, status: string) => api.patch(`/schedule/requests/${requestId}`, { status }),
   getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
+  getVacancies: () => api.get('/schedule/vacancies'),
 };
 
 export const chatApi = {
@@ -116,6 +117,15 @@ export const chatApi = {
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   sendMessage: (storeId: string, text: string) =>
     api.post(`/chat/${storeId}/messages`, { text }),
+};
+
+export const storeRequestApi = {
+  // Manager/admin
+  getStoreRequests: (storeId: string, status?: string) =>
+    api.get(`/store-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
+  getPendingCount: () => api.get('/store-requests/pending-count'),
+  acknowledge: (requestId: string, note?: string) =>
+    api.patch(`/store-requests/${requestId}/acknowledge`, { note }),
 };
 
 export default api;

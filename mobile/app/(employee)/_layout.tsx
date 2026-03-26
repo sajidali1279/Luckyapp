@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
+import { schedulingApi } from '../../services/api';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
@@ -11,6 +13,13 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 }
 
 export default function EmployeeLayout() {
+  const { data: vacData } = useQuery({
+    queryKey: ['schedule-vacancies'],
+    queryFn: () => schedulingApi.getVacancies(),
+    refetchInterval: 120000,
+  });
+  const vacancyCount: number = vacData?.data?.data?.totalVacancies || 0;
+
   return (
     <Tabs
       screenOptions={{
@@ -40,6 +49,7 @@ export default function EmployeeLayout() {
         options={{
           title: 'Schedule',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📅" focused={focused} />,
+          tabBarBadge: vacancyCount > 0 ? vacancyCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -47,6 +57,13 @@ export default function EmployeeLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="requests"
+        options={{
+          title: 'Requests',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} />,
         }}
       />
       <Tabs.Screen

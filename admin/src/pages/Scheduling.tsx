@@ -60,6 +60,12 @@ export default function Scheduling() {
     enabled: !!selectedStoreId,
   });
 
+  const { data: vacanciesData } = useQuery({
+    queryKey: ['schedule-vacancies'],
+    queryFn: () => schedulingApi.getVacancies(),
+    refetchInterval: 60000,
+  });
+
   // ── Mutations ──
   const assignMutation = useMutation({
     mutationFn: (data: object) => schedulingApi.assignShift(data),
@@ -102,6 +108,10 @@ export default function Scheduling() {
   const requests: any[] = requestsData?.data?.data?.requests || [];
   const pendingRequests = requests.filter((r: any) => r.status === 'PENDING');
   const allEmployees: any[] = employeesData?.data?.data || [];
+  const vacancyStores: any[] = vacanciesData?.data?.data?.stores || [];
+  const totalVacancies: number = vacanciesData?.data?.data?.totalVacancies || 0;
+  const vacancyByStoreId: Record<string, number> = Object.fromEntries(vacancyStores.map((v: any) => [v.storeId, v.vacantCount]));
+  const selectedStoreVacancies = vacancyStores.find((v: any) => v.storeId === selectedStoreId);
 
   const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
 
@@ -131,6 +141,9 @@ export default function Scheduling() {
       <div style={s.leftPanel}>
         <div style={s.leftHeader}>
           <span style={s.leftTitle}>📍 Stores</span>
+          {totalVacancies > 0 && (
+            <span style={s.totalVacBadge}>{totalVacancies} open</span>
+          )}
         </div>
         {storesLoading ? (
           <div style={s.loadingText}>Loading...</div>
@@ -141,7 +154,12 @@ export default function Scheduling() {
               style={{ ...s.storeItem, ...(selectedStoreId === store.id ? s.storeItemActive : {}) }}
               onClick={() => { setSelectedStoreId(store.id); setActiveTab('schedule'); }}
             >
-              <div style={s.storeItemName}>{store.name}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={s.storeItemName}>{store.name}</div>
+                {(vacancyByStoreId[store.id] || 0) > 0 && (
+                  <span style={s.vacBadge}>{vacancyByStoreId[store.id]}</span>
+                )}
+              </div>
               <div style={s.storeItemCity}>{store.city}, {store.state}</div>
             </button>
           ))
@@ -158,6 +176,18 @@ export default function Scheduling() {
           </div>
         ) : (
           <>
+            {/* Vacancy Banner */}
+            {selectedStoreVacancies && selectedStoreVacancies.vacantCount > 0 && (
+              <div style={s.vacancyBanner}>
+                <span style={s.vacancyBannerIcon}>⚠️</span>
+                <div>
+                  <strong>{selectedStoreVacancies.vacantCount} open shift slot{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> at {selectedStore?.name} —
+                  {' '}{selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
+                  {selectedStoreVacancies.vacancies.length > 4 ? ` +${selectedStoreVacancies.vacancies.length - 4} more` : ''}
+                </div>
+              </div>
+            )}
+
             {/* Store Header */}
             <div style={s.rightHeader}>
               <div>
@@ -451,8 +481,17 @@ const s: Record<string, React.CSSProperties> = {
   },
   leftHeader: {
     padding: '16px 16px 10px', borderBottom: '1px solid #e9ecef',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
   },
   leftTitle: { fontWeight: 800, fontSize: 13, color: '#1D3557', textTransform: 'uppercase', letterSpacing: 0.5 },
+  totalVacBadge: { background: '#E63946', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
+  vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '1px 6px', fontSize: 10, fontWeight: 700, flexShrink: 0 },
+  vacancyBanner: {
+    display: 'flex', alignItems: 'flex-start', gap: 10,
+    background: '#fff3cd', borderBottom: '1px solid #ffc107',
+    padding: '12px 24px', fontSize: 13, color: '#856404',
+  },
+  vacancyBannerIcon: { fontSize: 16, flexShrink: 0 },
   storeItem: {
     width: '100%', padding: '12px 16px', textAlign: 'left',
     background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0',

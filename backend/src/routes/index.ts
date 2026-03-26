@@ -28,6 +28,7 @@ import {
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
+import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -39,6 +40,7 @@ import {
   getStoreRequests,
   updateShiftRequest,
   getStoreEmployees,
+  getVacancies,
 } from '../controllers/schedule.controller';
 import {
   updateStoreBilling,
@@ -163,10 +165,18 @@ router.get('/schedule/store/:storeId/day', authenticate, requireRole(Role.EMPLOY
 router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
+router.get('/schedule/vacancies', authenticate, getVacancies);                                       // Vacant shift slots (all roles)
 
 // ─── Store Chat ───────────────────────────────────────────────────────────────
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
+
+// ─── Store Requests ───────────────────────────────────────────────────────────
+router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request
+router.get('/store-requests/mine', authenticate, requireRole(Role.EMPLOYEE), getMyRequests);         // Employee views their own requests
+router.get('/store-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingCount);  // Badge count for managers+
+router.get('/store-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreRequestsList); // Manager/admin views store requests
+router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole(Role.STORE_MANAGER), acknowledgeRequest); // Acknowledge a request
 
 export default router;

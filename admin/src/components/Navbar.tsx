@@ -9,6 +9,8 @@ const ALL_NAV_LINKS = [
   { to: '/banners', label: 'Banners', icon: '🖼️', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
   { to: '/transactions', label: 'Transactions', icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
   { to: '/chat', label: 'Chat', icon: '💬', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/store-requests', label: 'Requests', icon: '📋', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/scheduling', label: 'Scheduling', icon: '📅', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/staff', label: 'Staff', icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/customers', label: 'Customers', icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
 ];

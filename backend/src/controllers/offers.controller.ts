@@ -136,6 +136,13 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     },
   });
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'UPDATE_OFFER', entity: 'offer', entityId: offer.id,
+    details: { title: offer.title, isActive: offer.isActive },
+    storeId: offer.storeId,
+  });
+
   res.json({ success: true, data: offer });
 }
 

@@ -19,6 +19,7 @@ import Notifications from './pages/Notifications';
 import Stores from './pages/Stores';
 import Scheduling from './pages/Scheduling';
 import Chat from './pages/Chat';
+import StoreRequests from './pages/StoreRequests';
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="/scheduling" element={<Scheduling />} />
             </Route>
             <Route path="/chat" element={<Chat />} />
+            <Route path="/store-requests" element={<StoreRequests />} />
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
               <Route path="/analytics" element={<Analytics />} />
