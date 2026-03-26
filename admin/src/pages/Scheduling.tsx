@@ -121,9 +121,21 @@ export default function Scheduling() {
   // ── Shift count toggle ──
   const shiftToggleMutation = useMutation({
     mutationFn: (n: 2 | 3) => storesApi.update(selectedStoreId!, { shiftsPerDay: n }),
-    onSuccess: () => {
-      toast.success('Shift mode updated');
-      qc.invalidateQueries({ queryKey: ['stores'] });
+    onSuccess: (_data, n) => {
+      // Immediately update the cache so the grid reacts without waiting for a refetch
+      qc.setQueryData(['stores'], (old: any) => {
+        if (!old?.data?.data) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            data: old.data.data.map((st: any) =>
+              st.id === selectedStoreId ? { ...st, shiftsPerDay: n } : st
+            ),
+          },
+        };
+      });
+      toast.success(`Switched to ${n}-shift mode`);
       qc.invalidateQueries({ queryKey: ['schedule-vacancies'] });
     },
     onError: () => toast.error('Failed to update shift mode'),
@@ -523,6 +535,7 @@ const s: Record<string, React.CSSProperties> = {
   storeItem: {
     width: '100%', padding: '12px 16px', textAlign: 'left',
     background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0',
+    borderLeft: '3px solid transparent',
     cursor: 'pointer',
   },
   storeItemActive: { background: '#1D355712', borderLeft: '3px solid #1D3557' },
