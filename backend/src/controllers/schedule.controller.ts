@@ -124,6 +124,19 @@ export async function assignShift(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Block if employee already has an active shift on this day at a different store
+  const crossConflict = await prisma.shiftTemplate.findFirst({
+    where: { employeeId, dayOfWeek, isActive: true, storeId: { not: storeId } },
+    include: { store: { select: { name: true } } },
+  });
+  if (crossConflict) {
+    res.status(400).json({
+      success: false,
+      error: `Employee is already scheduled at ${crossConflict.store.name} on ${dayOfWeek}s. Remove that shift first before assigning here.`,
+    });
+    return;
+  }
+
   const { startTime, endTime } = SHIFT_TIMES[shiftType];
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
