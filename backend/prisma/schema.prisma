@@ -143,6 +143,9 @@ model Store {
   subscriptionPrice Float       @default(99.00)
   transactionFeeRate Float      @default(0.02)
 
+  // Scheduling
+  shiftsPerDay      Int         @default(3)  // 2 or 3 shifts per day
+
   // Location (for customer proximity detection)
   latitude          Float?
   longitude         Float?

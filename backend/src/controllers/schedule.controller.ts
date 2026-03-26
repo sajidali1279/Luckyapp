@@ -630,18 +630,18 @@ const PLATFORM_ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN'];
 export async function getVacancies(req: AuthRequest, res: Response) {
   const user = req.user!;
 
-  let stores: { id: string; name: string; city: string }[];
+  let stores: { id: string; name: string; city: string; shiftsPerDay: number }[];
 
   if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
     stores = await prisma.store.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, city: true },
+      select: { id: true, name: true, city: true, shiftsPerDay: true },
       orderBy: { name: 'asc' },
     });
   } else {
     const storeRoles = await prisma.userStoreRole.findMany({
       where: { userId: user.id },
-      include: { store: { select: { id: true, name: true, city: true } } },
+      include: { store: { select: { id: true, name: true, city: true, shiftsPerDay: true } } },
     });
     stores = storeRoles.map((sr) => sr.store);
   }
@@ -660,16 +660,19 @@ export async function getVacancies(req: AuthRequest, res: Response) {
 
   const filled = new Set(templates.map((t) => `${t.storeId}|${t.dayOfWeek}|${t.shiftType}`));
 
+  // 2-shift stores use OPENING + CLOSING only (no MIDDLE)
+  const shiftsFor = (n: number): ShiftType[] => n === 2 ? ['OPENING', 'CLOSING'] : ALL_SHIFTS;
+
   const result = stores.map((store) => {
     const vacancies: { dayOfWeek: DayOfWeek; shiftType: ShiftType }[] = [];
     for (const day of ALL_DAYS) {
-      for (const shift of ALL_SHIFTS) {
+      for (const shift of shiftsFor(store.shiftsPerDay)) {
         if (!filled.has(`${store.id}|${day}|${shift}`)) {
           vacancies.push({ dayOfWeek: day, shiftType: shift });
         }
       }
     }
-    return { storeId: store.id, storeName: store.name, city: store.city, vacancies, vacantCount: vacancies.length };
+    return { storeId: store.id, storeName: store.name, city: store.city, shiftsPerDay: store.shiftsPerDay, vacancies, vacantCount: vacancies.length };
   });
 
   const totalVacancies = result.reduce((sum, s) => sum + s.vacantCount, 0);

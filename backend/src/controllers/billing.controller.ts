@@ -10,7 +10,7 @@ import { sendPushToUser } from '../utils/push';
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true },
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true },
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: stores });
@@ -26,6 +26,7 @@ const updateStoreSchema = z.object({
   phone: z.string().optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
+  shiftsPerDay: z.number().int().min(2).max(3).optional(),
 });
 
 export async function updateStore(req: AuthRequest, res: Response) {
@@ -38,7 +39,7 @@ export async function updateStore(req: AuthRequest, res: Response) {
   const store = await prisma.store.update({
     where: { id: storeId },
     data: parsed.data,
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true },
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true },
   });
   res.json({ success: true, data: store });
 }

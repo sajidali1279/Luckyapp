@@ -15,7 +15,7 @@ const DAYS: { key: string; label: string }[] = [
   { key: 'SUN', label: 'Sunday' },
 ];
 
-const SHIFTS: { key: string; label: string; time: string; color: string }[] = [
+const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] = [
   { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#F4A261' },
   { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#2DC653' },
   { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: '#1D3557' },
@@ -114,6 +114,20 @@ export default function Scheduling() {
   const selectedStoreVacancies = vacancyStores.find((v: any) => v.storeId === selectedStoreId);
 
   const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
+  const SHIFTS = selectedStore?.shiftsPerDay === 2
+    ? ALL_SHIFTS.filter((sh) => sh.key !== 'MIDDLE')
+    : ALL_SHIFTS;
+
+  // ── Shift count toggle ──
+  const shiftToggleMutation = useMutation({
+    mutationFn: (n: 2 | 3) => storesApi.update(selectedStoreId!, { shiftsPerDay: n }),
+    onSuccess: () => {
+      toast.success('Shift mode updated');
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      qc.invalidateQueries({ queryKey: ['schedule-vacancies'] });
+    },
+    onError: () => toast.error('Failed to update shift mode'),
+  });
 
   function handleAddShift() {
     if (!addModal || !selectedEmployeeId || !selectedStoreId) return;
@@ -192,7 +206,21 @@ export default function Scheduling() {
             <div style={s.rightHeader}>
               <div>
                 <h1 style={s.pageTitle}>📅 {selectedStore?.name} Schedule</h1>
-                <p style={s.pageSub}>{selectedStore?.city}, {selectedStore?.state}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                  <p style={{ ...s.pageSub, margin: 0 }}>{selectedStore?.city}, {selectedStore?.state}</p>
+                  <div style={s.shiftToggle}>
+                    <button
+                      style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
+                      onClick={() => shiftToggleMutation.mutate(3)}
+                      disabled={shiftToggleMutation.isPending}
+                    >3 shifts</button>
+                    <button
+                      style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
+                      onClick={() => shiftToggleMutation.mutate(2)}
+                      disabled={shiftToggleMutation.isPending}
+                    >2 shifts</button>
+                  </div>
+                </div>
               </div>
               <div style={s.tabRow}>
                 <button
@@ -510,6 +538,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   pageTitle: { fontSize: 24, fontWeight: 800, color: '#1D3557', margin: 0 },
   pageSub: { color: '#6c757d', margin: '4px 0 0', fontSize: 14 },
+  shiftToggle: { display: 'flex', background: '#f0f0f0', borderRadius: 8, padding: 2, gap: 2 },
+  shiftToggleBtn: {
+    padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+    fontSize: 12, fontWeight: 700, background: 'transparent', color: '#6c757d',
+  },
+  shiftToggleBtnActive: { background: '#fff', color: '#1D3557', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' },
 
   // Tabs
   tabRow: { display: 'flex', gap: 4 },

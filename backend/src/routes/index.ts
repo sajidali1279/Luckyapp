@@ -124,7 +124,7 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
-router.patch('/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStore);
+router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);
