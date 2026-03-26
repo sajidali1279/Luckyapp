@@ -87,6 +87,7 @@ export default function ScheduleScreen() {
   const [requestModal, setRequestModal] = useState<{
     storeId: string; storeName: string; shiftType: string; date: Date;
     requestType: 'TIME_OFF' | 'FILL_IN';
+    availableStores?: { id: string; name: string; city?: string }[];
   } | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -130,6 +131,7 @@ export default function ScheduleScreen() {
 
   const templates: any[] = data?.data?.data?.templates || [];
   const requests: any[] = data?.data?.data?.requests || [];
+  const myStores: { id: string; name: string; city?: string }[] = data?.data?.data?.stores || [];
 
   // Build a map: dayKey → template
   const templateByDay: Record<string, any> = {};
@@ -158,6 +160,7 @@ export default function ScheduleScreen() {
       shiftType,
       date,
       requestType: 'FILL_IN',
+      availableStores: myStores.length > 1 ? myStores : undefined,
     });
     setNotes('');
   }
@@ -396,8 +399,32 @@ export default function ScheduleScreen() {
                 {/* Fill-in: show shift slots with current staff */}
                 {requestModal.requestType === 'FILL_IN' && (
                   <View style={s.fillInShiftPicker}>
+                    {/* Store picker — only shown when employee works at multiple stores */}
+                    {requestModal.availableStores && requestModal.availableStores.length > 1 && (
+                      <View style={s.storePickerWrap}>
+                        <Text style={s.storePickerLabel}>Select store</Text>
+                        <View style={s.storePickerRow}>
+                          {requestModal.availableStores.map((store) => {
+                            const isActive = requestModal.storeId === store.id;
+                            return (
+                              <TouchableOpacity
+                                key={store.id}
+                                style={[s.storeChip, isActive && s.storeChipActive]}
+                                onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name })}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={[s.storeChipText, isActive && s.storeChipTextActive]}>
+                                  {store.name}{store.city ? ` · ${store.city}` : ''}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
                     <Text style={s.fillInPickerLabel}>
-                      📅 {fmtMonthDay(requestModal.date)} — Pick a shift to request
+                      📅 {fmtMonthDay(requestModal.date)} · {requestModal.storeName} — Pick a shift
                     </Text>
                     {dayRosterLoading ? (
                       <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
@@ -663,6 +690,21 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
     minHeight: 80, marginBottom: 16,
   },
+  // Store picker (fill-in modal — multi-store employees)
+  storePickerWrap: { marginBottom: 14 },
+  storePickerLabel: {
+    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8,
+  },
+  storePickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.background,
+  },
+  storeChipActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondary + '12' },
+  storeChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+  storeChipTextActive: { color: COLORS.secondary, fontWeight: '800' },
+
   // Shift slot picker (fill-in modal)
   fillInShiftPicker: { marginBottom: 14 },
   fillInPickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 10 },

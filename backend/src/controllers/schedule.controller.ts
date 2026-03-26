@@ -172,24 +172,27 @@ export async function removeShift(req: AuthRequest, res: Response) {
 export async function getMySchedule(req: AuthRequest, res: Response) {
   const employeeId = req.user!.id;
 
-  const templates = await prisma.shiftTemplate.findMany({
-    where: { employeeId, isActive: true },
-    include: {
-      store: { select: { id: true, name: true, city: true } },
-    },
-    orderBy: { dayOfWeek: 'asc' },
-  });
+  const [templates, requests, storeRoles] = await Promise.all([
+    prisma.shiftTemplate.findMany({
+      where: { employeeId, isActive: true },
+      include: { store: { select: { id: true, name: true, city: true } } },
+      orderBy: { dayOfWeek: 'asc' },
+    }),
+    prisma.shiftRequest.findMany({
+      where: { employeeId },
+      include: { store: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
+    prisma.userStoreRole.findMany({
+      where: { userId: employeeId },
+      include: { store: { select: { id: true, name: true, city: true } } },
+    }),
+  ]);
 
-  const requests = await prisma.shiftRequest.findMany({
-    where: { employeeId },
-    include: {
-      store: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  });
+  const stores = storeRoles.map((sr) => sr.store);
 
-  res.json({ success: true, data: { templates, requests } });
+  res.json({ success: true, data: { templates, requests, stores } });
 }
 
 // ─── POST /schedule/requests ──────────────────────────────────────────────────
@@ -228,12 +231,19 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
   }
 
   if (requestType === ShiftRequestType.FILL_IN) {
-    // Employee must NOT already be scheduled that day at this store
-    const alreadyScheduled = await prisma.shiftTemplate.findUnique({
-      where: { employeeId_storeId_dayOfWeek: { employeeId, storeId, dayOfWeek } },
+    // Employee must NOT already be scheduled on that day at ANY store
+    const alreadyScheduled = await prisma.shiftTemplate.findFirst({
+      where: { employeeId, dayOfWeek, isActive: true },
+      include: { store: { select: { name: true } } },
     });
-    if (alreadyScheduled?.isActive) {
-      res.status(400).json({ success: false, error: 'You are already scheduled for this day at this store' });
+    if (alreadyScheduled) {
+      const conflictStore = alreadyScheduled.storeId === storeId
+        ? 'this store'
+        : alreadyScheduled.store.name;
+      res.status(400).json({
+        success: false,
+        error: `You're already scheduled at ${conflictStore} on this day. You can't work two stores on the same day.`,
+      });
       return;
     }
   }
@@ -362,6 +372,24 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
 
     // ── FILL_IN: create a shift template + conflict check ──────────────────────
     if (shiftRequest.requestType === ShiftRequestType.FILL_IN) {
+      // Guard: employee may have been assigned to another store since the request was submitted
+      const crossConflict = await prisma.shiftTemplate.findFirst({
+        where: {
+          employeeId: shiftRequest.employeeId,
+          dayOfWeek,
+          isActive: true,
+          storeId: { not: shiftRequest.storeId },
+        },
+        include: { store: { select: { name: true } } },
+      });
+      if (crossConflict) {
+        res.status(400).json({
+          success: false,
+          error: `Cannot approve: ${employeeName} is already scheduled at ${crossConflict.store.name} on ${dayOfWeek}s. Remove that shift first.`,
+        });
+        return;
+      }
+
       // Upsert shift template so employee is now scheduled for that day
       await prisma.shiftTemplate.upsert({
         where: {
