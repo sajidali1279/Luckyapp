@@ -110,4 +110,12 @@ export const schedulingApi = {
   getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
 };
 
+export const chatApi = {
+  getMyStores: () => api.get('/chat/my-stores'),
+  getMessages: (storeId: string, after?: string) =>
+    api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
+  sendMessage: (storeId: string, text: string) =>
+    api.post(`/chat/${storeId}/messages`, { text }),
+};
+
 export default api;

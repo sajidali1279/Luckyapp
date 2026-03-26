@@ -18,6 +18,7 @@ import SuperAdminBilling from './pages/SuperAdminBilling';
 import Notifications from './pages/Notifications';
 import Stores from './pages/Stores';
 import Scheduling from './pages/Scheduling';
+import Chat from './pages/Chat';
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ export default function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/scheduling" element={<Scheduling />} />
             </Route>
+            <Route path="/chat" element={<Chat />} />
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
               <Route path="/analytics" element={<Analytics />} />

@@ -27,6 +27,7 @@ import {
   regenerateStoreApiKey,
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
+import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -162,5 +163,10 @@ router.get('/schedule/store/:storeId/day', authenticate, requireRole(Role.EMPLOY
 router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
+
+// ─── Store Chat ───────────────────────────────────────────────────────────────
+router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
+router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
+router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
 
 export default router;

@@ -102,6 +102,7 @@ model User {
   pushTokens           PushToken[]
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
+  chatMessages         ChatMessage[]
 
   @@map("users")
 }
@@ -140,6 +141,7 @@ model Store {
   receiptTokens     ReceiptToken[]
   shiftTemplates    ShiftTemplate[]
   shiftRequests     ShiftRequest[]
+  chatMessages      ChatMessage[]
 
   @@map("stores")
 }
@@ -407,6 +409,24 @@ model ShiftRequest {
   @@index([storeId, date])
   @@index([employeeId])
   @@map("shift_requests")
+}
+
+// ─── Store Chat ───────────────────────────────────────────────────────────────
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  storeId   String
+  userId    String
+  userName  String   // denormalized for display
+  userRole  String   // denormalized for role badge
+  text      String
+  createdAt DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@map("chat_messages")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────
