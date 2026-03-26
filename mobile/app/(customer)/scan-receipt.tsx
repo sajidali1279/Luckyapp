@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, StatusBar,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';

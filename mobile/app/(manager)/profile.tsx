@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, SafeAreaView, StatusBar, ActivityIndicator, Switch,
+  ScrollView, StatusBar, ActivityIndicator, Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { authApi } from '../../services/api';

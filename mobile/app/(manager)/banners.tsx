@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, TextInput, RefreshControl, StatusBar, SafeAreaView,
+  Image, TextInput, RefreshControl, StatusBar,
   ActivityIndicator, Alert, Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';

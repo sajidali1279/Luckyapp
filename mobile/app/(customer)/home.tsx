@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
@@ -23,12 +23,16 @@ export default function CustomerHome() {
     }, [])
   );
 
-  const { data: bannersData } = useQuery({
+  const {
+    data: bannersData, isRefetching: bannersRefetching, refetch: refetchBanners,
+  } = useQuery({
     queryKey: ['banners'],
     queryFn: () => offersApi.getBanners(),
   });
 
-  const { data: offersData } = useQuery({
+  const {
+    data: offersData, isLoading: offersLoading, isRefetching: offersRefetching, refetch: refetchOffers,
+  } = useQuery({
     queryKey: ['offers'],
     queryFn: () => offersApi.getActive(),
   });
@@ -37,9 +41,26 @@ export default function CustomerHome() {
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => o.bonusRate);
   const deals = allOffers.filter((o: any) => o.dealText);
+  const isRefreshing = bannersRefetching || offersRefetching;
+
+  function onRefresh() {
+    refetchBanners();
+    refetchOffers();
+  }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          tintColor={COLORS.primary}
+          colors={[COLORS.primary]}
+        />
+      }
+    >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       {/* Header */}
       <SafeAreaView style={styles.headerBg}>
@@ -87,6 +108,14 @@ export default function CustomerHome() {
           </View>
         )}
       </View>
+
+      {/* Offers loading indicator */}
+      {offersLoading && (
+        <View style={styles.offersLoading}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.offersLoadingText}>Loading promotions…</Text>
+        </View>
+      )}
 
       {/* Banners */}
       {banners.length > 0 && (
@@ -198,6 +227,12 @@ const styles = StyleSheet.create({
 
   historyLink: { padding: 20, alignItems: 'center' },
   historyLinkText: { color: COLORS.primary, fontWeight: '600' },
+
+  offersLoading: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 16,
+  },
+  offersLoadingText: { color: COLORS.textMuted, fontSize: 13 },
 
   scanReceiptCard: {
     marginHorizontal: 16, marginBottom: 4,

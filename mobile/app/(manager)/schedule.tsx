@@ -240,7 +240,7 @@ export default function ManagerScheduleScreen() {
                       </Text>
                       {isToday && <View style={s.todayPill}><Text style={s.todayPillText}>Today</Text></View>}
                       <Text style={s.weekDayCount}>
-                        {dayTemplates.length} {dayTemplates.length === 1 ? 'staff' : 'staff'}
+                        {dayTemplates.length} {dayTemplates.length === 1 ? 'person' : 'people'}
                       </Text>
                     </View>
 
@@ -331,7 +331,12 @@ export default function ManagerScheduleScreen() {
                 </View>
                 {confirmModal.action === 'APPROVED' && confirmModal.type === 'TIME_OFF' && (
                   <Text style={s.modalNote}>
-                    Other scheduled employees will be notified of this open shift.
+                    ℹ️ Other scheduled employees will be notified of this open shift.
+                  </Text>
+                )}
+                {confirmModal.action === 'APPROVED' && confirmModal.type === 'FILL_IN' && (
+                  <Text style={s.modalNote}>
+                    ℹ️ {confirmModal.employeeName} will be added to this shift on the weekly schedule.
                   </Text>
                 )}
                 <View style={s.modalActions}>
@@ -428,10 +433,6 @@ function RequestCard({ req, onApprove, onDeny, showActions }: {
     </View>
   );
 }
-
-const SHIFT_LABELS: Record<string, string> = {
-  OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing',
-};
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
