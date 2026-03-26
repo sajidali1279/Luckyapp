@@ -85,6 +85,8 @@ export const staffApi = {
   list: () => api.get('/staff'),
   toggleActive: (userId: string) => api.patch(`/users/${userId}/toggle-active`),
   resetPin: (userId: string, newPin: string) => api.patch(`/users/${userId}/reset-pin`, { newPin }),
+  addStore: (userId: string, storeId: string) => api.post(`/users/${userId}/stores`, { storeId }),
+  removeStore: (userId: string, storeId: string) => api.delete(`/users/${userId}/stores/${storeId}`),
 };
 
 export const superAdminApi = {

@@ -385,6 +385,53 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
   res.json({ success: true, message: 'PIN reset successfully' });
 }
 
+// ─── Add / Remove Store Assignment (SuperAdmin only) ─────────────────────────
+
+export async function addUserStore(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const { storeId } = req.body as { storeId: string };
+  if (!storeId) { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (!['EMPLOYEE', 'STORE_MANAGER'].includes(user.role)) {
+    res.status(400).json({ success: false, error: 'Store assignment is only valid for EMPLOYEE or STORE_MANAGER accounts' });
+    return;
+  }
+
+  await prisma.userStoreRole.upsert({
+    where: { userId_storeId: { userId, storeId } },
+    create: { userId, storeId, role: user.role as Role },
+    update: {},
+  });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'ADD_STORE', entity: 'user', entityId: userId,
+    details: { storeId }, storeId,
+  });
+  res.json({ success: true });
+}
+
+export async function removeUserStore(req: AuthRequest, res: Response) {
+  const { userId, storeId } = req.params;
+
+  const remaining = await prisma.userStoreRole.count({ where: { userId } });
+  if (remaining <= 1) {
+    res.status(400).json({ success: false, error: 'Cannot remove the last store assignment' });
+    return;
+  }
+
+  await prisma.userStoreRole.deleteMany({ where: { userId, storeId } });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'REMOVE_STORE', entity: 'user', entityId: userId,
+    details: { storeId }, storeId,
+  });
+  res.json({ success: true });
+}
+
 // ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────
 
 const createStaffSchema = z.object({

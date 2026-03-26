@@ -31,6 +31,10 @@ export default function Staff() {
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
   const [newPin, setNewPin] = useState('');
 
+  // Manage Stores modal
+  const [storesMgmtTarget, setStoresMgmtTarget] = useState<{ id: string; name: string; assignedIds: string[] } | null>(null);
+  const [pendingStoreIds, setPendingStoreIds] = useState<string[]>([]);
+
   const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll(), enabled: isSuperAdmin });
   const { data: staffData, isLoading } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list(), enabled: isSuperAdmin });
 
@@ -65,6 +69,37 @@ export default function Staff() {
     },
     onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to reset PIN'),
   });
+
+  const manageStoresMutation = useMutation({
+    mutationFn: async ({ userId, toAdd, toRemove }: { userId: string; toAdd: string[]; toRemove: string[] }) => {
+      await Promise.all([
+        ...toAdd.map((sid) => staffApi.addStore(userId, sid)),
+        ...toRemove.map((sid) => staffApi.removeStore(userId, sid)),
+      ]);
+    },
+    onSuccess: () => {
+      toast.success('Store assignments updated');
+      setStoresMgmtTarget(null);
+      qc.invalidateQueries({ queryKey: ['staff'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to update stores'),
+  });
+
+  function openManageStores(member: any) {
+    const assignedIds = member.storeRoles.map((sr: any) => sr.store.id);
+    setStoresMgmtTarget({ id: member.id, name: member.name || member.phone, assignedIds });
+    setPendingStoreIds(assignedIds);
+  }
+
+  function handleSaveStores(e: React.FormEvent) {
+    e.preventDefault();
+    if (!storesMgmtTarget) return;
+    const toAdd = pendingStoreIds.filter((id) => !storesMgmtTarget.assignedIds.includes(id));
+    const toRemove = storesMgmtTarget.assignedIds.filter((id) => !pendingStoreIds.includes(id));
+    if (toAdd.length === 0 && toRemove.length === 0) { setStoresMgmtTarget(null); return; }
+    if (pendingStoreIds.length === 0) { toast.error('Must assign at least one store'); return; }
+    manageStoresMutation.mutate({ userId: storesMgmtTarget.id, toAdd, toRemove });
+  }
 
   function formatPhone(text: string) {
     const d = text.replace(/\D/g, '').slice(0, 10);
@@ -138,10 +173,15 @@ export default function Staff() {
                     </span>
                   </td>
                   <td style={s.td}>
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button style={s.actionBtn} onClick={() => { setResetTarget({ id: member.id, name: member.name || member.phone }); setNewPin(''); }}>
                         Reset PIN
                       </button>
+                      {['EMPLOYEE', 'STORE_MANAGER'].includes(member.role) && (
+                        <button style={s.actionBtn} onClick={() => openManageStores(member)}>
+                          Manage Stores
+                        </button>
+                      )}
                       {member.id !== user?.id && (
                         <button
                           style={{ ...s.actionBtn, color: member.isActive ? '#E63946' : '#2DC653', borderColor: member.isActive ? '#E63946' : '#2DC653' }}
@@ -200,6 +240,42 @@ export default function Staff() {
             {createMutation.isPending ? 'Creating...' : 'Create Account'}
           </button>
         </form>
+      )}
+
+      {/* ── Manage Stores Modal ── */}
+      {storesMgmtTarget && (
+        <div style={s.overlay}>
+          <form style={s.modal} onSubmit={handleSaveStores}>
+            <h3 style={{ margin: '0 0 4px' }}>Manage Stores</h3>
+            <p style={s.hint}>Assign <strong>{storesMgmtTarget.name}</strong> to one or more stores</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
+              {stores.map((store: any) => {
+                const checked = pendingStoreIds.includes(store.id);
+                return (
+                  <label key={store.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, background: checked ? '#f0f4ff' : '#f8f9fa', border: `1px solid ${checked ? '#1D3557' : '#dee2e6'}` }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setPendingStoreIds((prev) =>
+                        checked ? prev.filter((id) => id !== store.id) : [...prev, store.id]
+                      )}
+                      style={{ width: 16, height: 16, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: checked ? 700 : 400, fontSize: 14, color: checked ? '#1D3557' : '#212529' }}>
+                      {store.name}{store.city ? ` — ${store.city}` : ''}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={s.btn} type="submit" disabled={manageStoresMutation.isPending}>
+                {manageStoresMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button type="button" style={s.cancelBtn} onClick={() => setStoresMgmtTarget(null)}>Cancel</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* ── Reset PIN Modal ── */}
