@@ -8,6 +8,8 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
+  const [phoneActive, setPhoneActive] = useState(false);
+  const [pinActive, setPinActive] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
@@ -42,74 +44,113 @@ export default function Login() {
 
   return (
     <div style={s.page}>
-      {/* Left branding panel */}
+      {/* ── Left branding panel ── */}
       <div style={s.brand}>
+        <div style={s.brandNoise} />
         <div style={s.brandInner}>
-          <div style={s.logo}>⛽</div>
+          <div style={s.logoWrap}>
+            <span style={s.logoEmoji}>⛽</span>
+          </div>
           <h1 style={s.brandName}>Lucky Stop</h1>
           <p style={s.brandTag}>Admin Command Center</p>
+
+          <div style={s.divider} />
+
           <div style={s.featureList}>
             {[
-              { icon: '📢', text: 'Create offers for all 14 stores' },
-              { icon: '👥', text: 'Manage staff and customers' },
-              { icon: '🧾', text: 'Review transactions in real time' },
-              { icon: '📊', text: 'Track revenue and subscriptions' },
+              { icon: '📢', text: 'Create offers for all 14 stores', color: '#F4A261' },
+              { icon: '👥', text: 'Manage staff and customers',      color: '#2DC653' },
+              { icon: '🧾', text: 'Review transactions in real time', color: '#60a5fa' },
+              { icon: '📊', text: 'Track revenue and subscriptions',  color: '#a78bfa' },
             ].map((f) => (
               <div key={f.text} style={s.featureRow}>
-                <span style={s.featureIcon}>{f.icon}</span>
+                <div style={{ ...s.featureIconWrap, background: f.color + '22', border: `1px solid ${f.color}33` }}>
+                  <span style={s.featureIconEmoji}>{f.icon}</span>
+                </div>
                 <span style={s.featureText}>{f.text}</span>
               </div>
             ))}
           </div>
+
           <div style={s.storeCount}>
-            <span style={s.storeNum}>14</span>
-            <span style={s.storeLabel}>Lucky Stop Locations</span>
+            <div>
+              <span style={s.storeNum}>14</span>
+              <span style={s.storeNumUnit}> stores</span>
+            </div>
+            <span style={s.storeDivider} />
+            <span style={s.storeLabel}>All on one platform</span>
           </div>
         </div>
       </div>
 
-      {/* Right form panel */}
+      {/* ── Right form panel ── */}
       <div style={s.formPanel}>
         <div style={s.formCard}>
-          <h2 style={s.formTitle}>Welcome back</h2>
-          <p style={s.formSub}>Sign in with your admin credentials</p>
+          <div style={s.formTop}>
+            <div style={s.formLogo}>LS</div>
+            <div>
+              <h2 style={s.formTitle}>Welcome back</h2>
+              <p style={s.formSub}>Sign in to your admin account</p>
+            </div>
+          </div>
 
           <form style={s.form} onSubmit={handleLogin}>
             <div style={s.fieldGroup}>
               <label style={s.label}>Phone Number</label>
-              <input
-                style={s.input}
-                type="tel"
-                placeholder="(555) 000-0000"
-                value={phone}
-                onChange={(e) => setPhone(formatPhone(e.target.value))}
-                autoComplete="tel"
-              />
+              <div style={{ position: 'relative' }}>
+                <span style={s.inputIcon}>📱</span>
+                <input
+                  style={{ ...s.input, paddingLeft: 44, ...(phoneActive ? s.inputActive : {}) }}
+                  type="tel"
+                  placeholder="(555) 000-0000"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  onFocus={() => setPhoneActive(true)}
+                  onBlur={() => setPhoneActive(false)}
+                  autoComplete="tel"
+                />
+              </div>
             </div>
 
             <div style={s.fieldGroup}>
               <label style={s.label}>4-Digit PIN</label>
-              <input
-                style={{ ...s.input, ...s.pinInput }}
-                type="password"
-                placeholder="••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                maxLength={4}
-                inputMode="numeric"
-              />
+              <div style={{ position: 'relative' }}>
+                <span style={s.inputIcon}>🔒</span>
+                <input
+                  style={{ ...s.input, paddingLeft: 44, letterSpacing: 14, fontSize: 20, textAlign: 'center', ...(pinActive ? s.inputActive : {}) }}
+                  type="password"
+                  placeholder="••••"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onFocus={() => setPinActive(true)}
+                  onBlur={() => setPinActive(false)}
+                  maxLength={4}
+                  inputMode="numeric"
+                />
+              </div>
+              <div style={s.pinDots}>
+                {[0,1,2,3].map((i) => (
+                  <div key={i} style={{ ...s.pinDot, ...(i < pin.length ? s.pinDotFilled : {}) }} />
+                ))}
+              </div>
             </div>
 
-            <button style={{ ...s.button, ...(loading ? s.buttonDisabled : {}) }} type="submit" disabled={loading}>
+            <button
+              style={{ ...s.button, ...(loading ? s.buttonLoading : {}) }}
+              type="submit"
+              disabled={loading}
+            >
               {loading ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={s.spinner} /> Signing in...
+                  <span style={s.spinner} /> Signing in…
                 </span>
-              ) : 'Sign In →'}
+              ) : (
+                <span>Sign In →</span>
+              )}
             </button>
           </form>
 
-          <p style={s.hint}>For Dev Admins, Super Admins, and Store Managers.<br />Employees and customers use the mobile app.</p>
+          <p style={s.hint}>For Dev Admins, Super Admins, and Store Managers only.<br />Employees and customers use the mobile app.</p>
         </div>
       </div>
     </div>
@@ -117,63 +158,119 @@ export default function Login() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', minHeight: '100vh' },
+  page: { display: 'flex', minHeight: '100vh', fontFamily: 'inherit' },
 
+  // Brand panel
   brand: {
-    width: 420, background: 'linear-gradient(160deg, #1D3557 0%, #0d1f33 100%)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48,
-    flexShrink: 0,
+    width: 440,
+    background: 'linear-gradient(160deg, #0d1f33 0%, #1D3557 55%, #1a4a6e 100%)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 52, flexShrink: 0, position: 'relative', overflow: 'hidden',
   },
-  brandInner: { display: 'flex', flexDirection: 'column', gap: 0 },
-  logo: { fontSize: 56, marginBottom: 16 },
-  brandName: { color: '#fff', fontSize: 36, fontWeight: 900, margin: 0 },
-  brandTag: { color: 'rgba(255,255,255,0.55)', fontSize: 15, marginTop: 6, marginBottom: 40 },
+  brandNoise: {
+    position: 'absolute', inset: 0,
+    backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(244,162,97,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(69,123,157,0.12) 0%, transparent 50%)',
+    pointerEvents: 'none',
+  },
+  brandInner: { display: 'flex', flexDirection: 'column', gap: 0, zIndex: 1, width: '100%' },
 
-  featureList: { display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 48 },
-  featureRow: { display: 'flex', alignItems: 'center', gap: 14 },
-  featureIcon: { fontSize: 22, width: 36, textAlign: 'center' },
-  featureText: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
+  logoWrap: {
+    width: 70, height: 70, borderRadius: 20,
+    background: 'rgba(255,255,255,0.1)',
+    border: '1.5px solid rgba(255,255,255,0.18)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 20,
+  },
+  logoEmoji: { fontSize: 36 },
+
+  brandName: { color: '#fff', fontSize: 34, fontWeight: 900, margin: 0, letterSpacing: -0.5 },
+  brandTag: { color: 'rgba(255,255,255,0.45)', fontSize: 14, marginTop: 6, marginBottom: 0 },
+
+  divider: { height: 1, background: 'rgba(255,255,255,0.1)', margin: '28px 0' },
+
+  featureList: { display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 32 },
+  featureRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  featureIconWrap: {
+    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  featureIconEmoji: { fontSize: 18 },
+  featureText: { color: 'rgba(255,255,255,0.78)', fontSize: 13.5, lineHeight: 1.4 },
 
   storeCount: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 20px',
-    border: '1px solid rgba(255,255,255,0.12)',
+    display: 'flex', alignItems: 'center', gap: 14,
+    background: 'rgba(255,255,255,0.07)', borderRadius: 14,
+    padding: '16px 20px', border: '1px solid rgba(255,255,255,0.1)',
   },
-  storeNum: { color: '#F4A261', fontSize: 32, fontWeight: 900 },
-  storeLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 14, lineHeight: 1.3 },
+  storeNum: { color: '#F4A261', fontSize: 28, fontWeight: 900 },
+  storeNumUnit: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: 600 },
+  storeDivider: { width: 1, height: 28, background: 'rgba(255,255,255,0.12)', flexShrink: 0 },
+  storeLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
 
+  // Form panel
   formPanel: {
-    flex: 1, background: '#f8f9fa',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40,
+    flex: 1,
+    background: '#f0f2f5',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 40,
   },
   formCard: {
-    background: '#fff', borderRadius: 20, padding: 48, width: '100%', maxWidth: 420,
-    boxShadow: '0 8px 40px rgba(0,0,0,0.08)',
+    background: '#fff', borderRadius: 24, padding: '44px 44px 36px',
+    width: '100%', maxWidth: 420,
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 20px 60px -10px rgba(0,0,0,0.12)',
   },
-  formTitle: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
-  formSub: { color: '#6c757d', marginTop: 8, marginBottom: 32, fontSize: 15 },
+
+  formTop: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 32 },
+  formLogo: {
+    width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontWeight: 900, fontSize: 16, letterSpacing: 0.5,
+  },
+  formTitle: { fontSize: 24, fontWeight: 800, color: '#111827', margin: 0, letterSpacing: -0.3 },
+  formSub: { color: '#9ca3af', marginTop: 3, fontSize: 14 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 20 },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontWeight: 600, fontSize: 13, color: '#212529' },
-  input: {
-    padding: '13px 16px', borderRadius: 10, border: '1.5px solid #dee2e6',
-    fontSize: 16, outline: 'none', transition: 'border-color 0.2s',
-    width: '100%', boxSizing: 'border-box' as const,
+  label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
+  inputIcon: {
+    position: 'absolute', left: 14, top: '50%',
+    transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none',
   },
-  pinInput: { letterSpacing: 10, fontSize: 22, textAlign: 'center' },
+  input: {
+    padding: '13px 16px', borderRadius: 12,
+    border: '1.5px solid #e5e7eb',
+    fontSize: 16, outline: 'none',
+    width: '100%', boxSizing: 'border-box' as const,
+    background: '#f9fafb', color: '#111827',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+  },
+  inputActive: {
+    borderColor: '#1D3557',
+    boxShadow: '0 0 0 3px rgba(29,53,87,0.1)',
+    background: '#fff',
+  },
+
+  pinDots: { display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 },
+  pinDot: { width: 10, height: 10, borderRadius: 5, background: '#e5e7eb', transition: 'background 0.15s' },
+  pinDotFilled: { background: '#1D3557' },
 
   button: {
-    padding: '14px 16px', background: '#E63946', color: '#fff',
-    border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700,
-    cursor: 'pointer', marginTop: 8, transition: 'opacity 0.2s',
+    padding: '15px 16px',
+    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    color: '#fff', border: 'none', borderRadius: 12,
+    fontSize: 16, fontWeight: 700, cursor: 'pointer',
+    marginTop: 8, letterSpacing: 0.2,
+    boxShadow: '0 4px 14px rgba(29,53,87,0.35)',
+    transition: 'opacity 0.2s, transform 0.1s',
   },
-  buttonDisabled: { opacity: 0.7, cursor: 'not-allowed' },
+  buttonLoading: { opacity: 0.75, cursor: 'not-allowed' },
   spinner: {
-    width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
+    width: 16, height: 16,
+    border: '2px solid rgba(255,255,255,0.35)',
     borderTopColor: '#fff', borderRadius: '50%',
     animation: 'spin 0.8s linear infinite', display: 'inline-block',
   },
 
-  hint: { color: '#adb5bd', fontSize: 12, textAlign: 'center', marginTop: 24, lineHeight: 1.6 },
+  hint: { color: '#9ca3af', fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.7 },
 };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -256,19 +256,26 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ icon, label, value, valueColor = '#1D3557' }: { icon: string; label: string; value: any; valueColor?: string }) {
+const STAT_BG: Record<string, string> = {
+  '🧾': '#eff6ff', '💵': '#f0fdf4', '⭐': '#fefce8', '🎁': '#fdf4ff',
+  '💰': '#f0fdf4', '📋': '#f0f9ff', '🏪': '#eff6ff', '🙋': '#fdf4ff',
+  '👷': '#fff7ed', '📢': '#fef2f2', '🖼️': '#f5f3ff', '⏳': '#fff7ed',
+};
+
+function StatCard({ icon, label, value, valueColor = '#111827' }: { icon: string; label: string; value: any; valueColor?: string }) {
+  const bg = STAT_BG[icon] || '#f8fafc';
   return (
     <div style={s.statCard}>
-      <div style={s.statIcon}>{icon}</div>
-      <div>
-        <div style={s.statLabel}>{label}</div>
-        <div style={{ ...s.statValue, color: valueColor }}>{value}</div>
+      <div style={{ ...s.statIconWrap, background: bg }}>
+        <span style={s.statIcon}>{icon}</span>
       </div>
+      <div style={s.statLabel}>{label}</div>
+      <div style={{ ...s.statValue, color: valueColor }}>{value}</div>
     </div>
   );
 }
 
-function CategoryRateCard({ category, label, rate, icon, onSave }: {
+function CategoryRateCard({ category: _category, label, rate, icon, onSave }: {
   category: string; label: string; rate: number; icon: string; onSave: (r: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -331,16 +338,21 @@ const s: Record<string, React.CSSProperties> = {
   section: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginBottom: 6, marginTop: 0 },
   sectionSub: { fontSize: 13, color: '#6c757d', marginBottom: 16, marginTop: 0 },
 
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 14, marginBottom: 36 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 36 },
   statCard: {
-    background: '#fff', borderRadius: 14, padding: '18px 20px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    display: 'flex', alignItems: 'center', gap: 14,
+    background: '#fff', borderRadius: 16, padding: '20px 18px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)',
+    display: 'flex', flexDirection: 'column', gap: 8,
     border: '1px solid #f0f1f2',
   },
-  statIcon: { fontSize: 26, flexShrink: 0 },
-  statLabel: { color: '#6c757d', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 22, fontWeight: 800, marginTop: 2 },
+  statIconWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  statIcon: { fontSize: 22 },
+  statLabel: { color: '#6b7280', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
 
   // Store performance table
   storeTable: {

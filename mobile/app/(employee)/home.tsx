@@ -37,42 +37,39 @@ export default function EmployeeHomeScreen() {
   const banners: any[] = bannersData?.data?.data || [];
   const isRefreshing = offersRefetching || bannersRefetching;
 
-  function onRefresh() {
-    refetchOffers();
-    refetchBanners();
-  }
-
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg}>
+      <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
-          <View>
-            <Text style={s.storeLine}>⛽ Lucky Stop Staff</Text>
-            <Text style={s.greeting}>{getGreeting()}, {firstName}!</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.storeLine}>⛽ LUCKY STOP STAFF</Text>
+            <Text style={s.greeting}>{getGreeting()},</Text>
+            <Text style={s.greetingName}>{firstName}!</Text>
           </View>
-          <View style={s.avatarCircle}>
-            <Text style={s.avatarText}>{initial}</Text>
+          <View style={s.avatarRing}>
+            <View style={s.avatarCircle}>
+              <Text style={s.avatarText}>{initial}</Text>
+            </View>
           </View>
         </View>
-        <View style={s.statusRow}>
-          <View style={s.statusDot} />
-          <Text style={s.statusText}>
-            On Duty · {user?.role?.replace(/_/g, ' ')}
-          </Text>
-        </View>
-      </SafeAreaView>
 
-      {/* ── Active promotions strip ── */}
-      {promotions.length > 0 && (
-        <View style={s.promoStrip}>
-          <Text style={s.promoStripText}>
-            🔥 {promotions.length} promo{promotions.length > 1 ? 's' : ''} active today — bonus cashback applied automatically
-          </Text>
+        <View style={s.statusPill}>
+          <View style={s.statusDot} />
+          <Text style={s.statusText}>On Duty · {user?.role?.replace(/_/g, ' ')}</Text>
         </View>
-      )}
+
+        {promotions.length > 0 && (
+          <View style={s.promoStrip}>
+            <Text style={s.promoStripIcon}>🔥</Text>
+            <Text style={s.promoStripText}>
+              {promotions.length} promo{promotions.length > 1 ? 's' : ''} active — bonus cashback applied automatically
+            </Text>
+          </View>
+        )}
+      </SafeAreaView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -80,7 +77,7 @@ export default function EmployeeHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={onRefresh}
+            onRefresh={() => { refetchOffers(); refetchBanners(); }}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
@@ -88,48 +85,39 @@ export default function EmployeeHomeScreen() {
       >
         {/* ── Quick Actions ── */}
         <Text style={s.sectionLabel}>Quick Actions</Text>
-
-        <TouchableOpacity
-          style={s.actionCard}
-          onPress={() => router.push('/(employee)/scan')}
-          activeOpacity={0.86}
-        >
-          <View style={[s.actionIconBg, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={s.actionEmoji}>📱</Text>
-          </View>
-          <View style={s.actionBody}>
+        <View style={s.actionsRow}>
+          <TouchableOpacity
+            style={[s.actionCard, { backgroundColor: '#1D3557' }]}
+            onPress={() => router.push('/(employee)/scan')}
+            activeOpacity={0.82}
+          >
+            <View style={s.actionIconBg}>
+              <Text style={s.actionEmoji}>📱</Text>
+            </View>
             <Text style={s.actionTitle}>Grant Points</Text>
-            <Text style={s.actionSub}>Scan QR · Enter purchase · Upload receipt</Text>
-          </View>
-          <View style={[s.actionBadge, { backgroundColor: COLORS.primary }]}>
-            <Text style={s.actionBadgeText}>›</Text>
-          </View>
-        </TouchableOpacity>
+            <Text style={s.actionSub}>Scan QR · Enter amount · Upload receipt</Text>
+            <View style={s.actionArrow}><Text style={s.actionArrowText}>→</Text></View>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[s.actionCard, s.actionCardAlt]}
-          onPress={() => router.push('/(employee)/scan')}
-          activeOpacity={0.86}
-        >
-          <View style={[s.actionIconBg, { backgroundColor: COLORS.accent + '20' }]}>
-            <Text style={s.actionEmoji}>🎁</Text>
-          </View>
-          <View style={s.actionBody}>
-            <Text style={[s.actionTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
-            <Text style={s.actionSub}>Apply customer balance toward purchase</Text>
-          </View>
-          <View style={[s.actionBadge, { backgroundColor: COLORS.accent }]}>
-            <Text style={s.actionBadgeText}>›</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.actionCard, { backgroundColor: '#b45309' }]}
+            onPress={() => router.push('/(employee)/scan')}
+            activeOpacity={0.82}
+          >
+            <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+              <Text style={s.actionEmoji}>🎁</Text>
+            </View>
+            <Text style={s.actionTitle}>Redeem Credits</Text>
+            <Text style={s.actionSub}>Apply balance toward purchase</Text>
+            <View style={s.actionArrow}><Text style={s.actionArrowText}>→</Text></View>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Active Promotions ── */}
-        <Text style={[s.sectionLabel, { marginTop: 24 }]}>📢 Active Promotions</Text>
+        <Text style={[s.sectionLabel, { marginTop: 28 }]}>📢 Active Promotions</Text>
 
         {offersLoading ? (
-          <View style={s.loadingCard}>
-            <ActivityIndicator color={COLORS.primary} />
-          </View>
+          <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
         ) : promotions.length === 0 ? (
           <View style={s.emptyCard}>
             <Text style={s.emptyEmoji}>📭</Text>
@@ -141,9 +129,7 @@ export default function EmployeeHomeScreen() {
             <View key={p.id} style={s.promoCard}>
               <View style={s.promoInfo}>
                 <Text style={s.promoTitle}>{p.title}</Text>
-                {p.description ? (
-                  <Text style={s.promoDesc} numberOfLines={2}>{p.description}</Text>
-                ) : null}
+                {p.description ? <Text style={s.promoDesc} numberOfLines={2}>{p.description}</Text> : null}
                 {p.category ? (
                   <View style={s.promoTag}>
                     <Text style={s.promoTagText}>{p.category.replace(/_/g, ' ')}</Text>
@@ -161,7 +147,7 @@ export default function EmployeeHomeScreen() {
         {/* ── Today's Deals ── */}
         {deals.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>🏷️ Today's Deals</Text>
+            <Text style={[s.sectionLabel, { marginTop: 28 }]}>🏷️ Today's Deals</Text>
             {deals.map((d: any) => (
               <View key={d.id} style={s.dealCard}>
                 <View style={s.dealBadge}>
@@ -169,12 +155,10 @@ export default function EmployeeHomeScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.dealTitle}>{d.title}</Text>
-                  {d.description && d.description !== d.dealText ? (
-                    <Text style={s.dealSub} numberOfLines={1}>{d.description}</Text>
-                  ) : null}
-                  {d.category ? (
-                    <Text style={s.dealCat}>{d.category.replace(/_/g, ' ')}</Text>
-                  ) : null}
+                  {d.description && d.description !== d.dealText
+                    ? <Text style={s.dealSub} numberOfLines={1}>{d.description}</Text>
+                    : null}
+                  {d.category ? <Text style={s.dealCat}>{d.category.replace(/_/g, ' ')}</Text> : null}
                 </View>
               </View>
             ))}
@@ -184,10 +168,9 @@ export default function EmployeeHomeScreen() {
         {/* ── Store Banners ── */}
         {banners.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 24 }]}>🎟️ Store Banners</Text>
+            <Text style={[s.sectionLabel, { marginTop: 28 }]}>🎟️ Store Banners</Text>
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+              horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingRight: 4 }}
             >
               {banners.map((b: any) => (
@@ -199,9 +182,7 @@ export default function EmployeeHomeScreen() {
                       <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>Banner</Text>
                     </View>
                   )}
-                  {b.title ? (
-                    <Text style={s.bannerLabel} numberOfLines={1}>{b.title}</Text>
-                  ) : null}
+                  {b.title ? <Text style={s.bannerLabel} numberOfLines={1}>{b.title}</Text> : null}
                 </View>
               ))}
             </ScrollView>
@@ -210,164 +191,155 @@ export default function EmployeeHomeScreen() {
 
         {/* ── Info Footer ── */}
         <View style={s.infoFooter}>
-          <InfoRow icon="💰" text={<>Standard cashback: <Text style={s.infoBold}>5¢ per $1</Text> spent</>} />
-          <InfoRow icon="📸" text="Always upload a receipt to complete the transaction" />
-          {promotions.length > 0 && (
-            <InfoRow icon="🔥" text={<>Active promotions <Text style={s.infoBold}>apply automatically</Text></>} />
-          )}
+          {[
+            { icon: '💰', text: 'Standard cashback: 5¢ per $1 spent' },
+            { icon: '📸', text: 'Always upload a receipt to complete the transaction' },
+            ...(promotions.length > 0 ? [{ icon: '🔥', text: 'Active promotions apply automatically' }] : []),
+          ].map((row, i) => (
+            <View key={i} style={s.infoRow}>
+              <Text style={s.infoIcon}>{row.icon}</Text>
+              <Text style={s.infoText}>{row.text}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={{ height: 16 }} />
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
 }
 
-function InfoRow({ icon, text }: { icon: string; text: any }) {
-  return (
-    <View style={s.infoRow}>
-      <Text style={s.infoIcon}>{icon}</Text>
-      <Text style={s.infoText}>{text}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+  root: { flex: 1, backgroundColor: '#f8fafc' },
 
   // Header
-  headerBg: { backgroundColor: COLORS.secondary },
+  headerBg: { backgroundColor: '#1D3557' },
   headerRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4,
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10,
   },
   storeLine: {
-    color: 'rgba(255,255,255,0.55)', fontSize: 11,
-    fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.45)', fontSize: 10,
+    fontWeight: '800', letterSpacing: 1.5, marginBottom: 4,
   },
-  greeting: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 3 },
+  greeting: { color: 'rgba(255,255,255,0.75)', fontSize: 16, fontWeight: '600' },
+  greetingName: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: -2 },
+  avatarRing: {
+    width: 52, height: 52, borderRadius: 26,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center', marginTop: 4,
+  },
   avatarCircle: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: COLORS.primary,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#F4A261',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.25)',
   },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  statusRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16,
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginHorizontal: 20, marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.success },
-  statusText: {
-    color: 'rgba(255,255,255,0.6)', fontSize: 12,
-    fontWeight: '600', textTransform: 'capitalize',
-  },
-
-  // Promo strip
+  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
+  statusText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
   promoStrip: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16, paddingVertical: 11,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 20, marginBottom: 16,
+    backgroundColor: '#F4A261',
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
   },
-  promoStripText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  promoStripIcon: { fontSize: 16 },
+  promoStripText: { color: '#fff', fontSize: 12.5, fontWeight: '700', flex: 1 },
 
   // Body
   body: { padding: 16, paddingBottom: 24 },
   sectionLabel: {
-    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10,
+    fontSize: 11, fontWeight: '800', color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
 
-  // Action cards
+  // Action cards — full width tiles
+  actionsRow: { flexDirection: 'row', gap: 10 },
   actionCard: {
-    backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 10,
-    borderLeftWidth: 4, borderLeftColor: COLORS.primary,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
+    flex: 1, borderRadius: 20, padding: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14, shadowRadius: 12, elevation: 5,
   },
-  actionCardAlt: { borderLeftColor: COLORS.accent },
   actionIconBg: {
-    width: 50, height: 50, borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
   },
-  actionEmoji: { fontSize: 24 },
-  actionBody: { flex: 1 },
-  actionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-  actionSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
-  actionBadge: {
-    width: 32, height: 32, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  actionEmoji: { fontSize: 22 },
+  actionTitle: { color: '#fff', fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  actionSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11.5, lineHeight: 16 },
+  actionArrow: {
+    marginTop: 16, width: 28, height: 28, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end',
   },
-  actionBadgeText: { color: '#fff', fontSize: 22, fontWeight: '300', marginTop: -2 },
+  actionArrowText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Promotions
-  loadingCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 32,
-    alignItems: 'center',
-  },
-  emptyCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 28,
-    alignItems: 'center', gap: 6,
-  },
+  // Cards
+  loadingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center' },
+  emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 28, alignItems: 'center', gap: 6 },
   emptyEmoji: { fontSize: 38, marginBottom: 4 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  emptySub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 19 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 19 },
 
   promoCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    marginBottom: 10, borderWidth: 1, borderColor: '#f0f1f2',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
   promoInfo: { flex: 1, paddingRight: 14 },
-  promoTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  promoDesc: { color: COLORS.textMuted, fontSize: 13, marginTop: 4, lineHeight: 18 },
+  promoTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  promoDesc: { color: '#6b7280', fontSize: 13, marginTop: 4, lineHeight: 18 },
   promoTag: {
-    backgroundColor: COLORS.success + '20', borderRadius: 8,
+    backgroundColor: '#f0fdf4', borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 3, marginTop: 7, alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: '#bbf7d0',
   },
-  promoTagText: { color: COLORS.success, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  promoTagText: { color: '#16a34a', fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
   promoBadge: {
-    width: 62, height: 62, borderRadius: 31, backgroundColor: COLORS.primary,
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: '#1D3557',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  promoBadgeRate: { color: '#fff', fontSize: 24, fontWeight: '800', lineHeight: 26 },
-  promoBadgePct: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginTop: -2 },
+  promoBadgeRate: { color: '#fff', fontSize: 22, fontWeight: '800', lineHeight: 24 },
+  promoBadgePct: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
 
-  // Deals
   dealCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+    backgroundColor: '#fff', borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 10,
+    marginBottom: 10, borderWidth: 1, borderColor: '#f0f1f2',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   dealBadge: {
-    backgroundColor: COLORS.accent, borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 10, minWidth: 82, alignItems: 'center',
+    backgroundColor: '#b45309', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 8, minWidth: 76, alignItems: 'center',
   },
-  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 13, textAlign: 'center' },
-  dealTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  dealSub: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  dealCat: { color: COLORS.accent, fontSize: 11, fontWeight: '600', marginTop: 4, textTransform: 'capitalize' },
+  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 12, textAlign: 'center' },
+  dealTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  dealSub: { color: '#6b7280', fontSize: 12, marginTop: 2 },
+  dealCat: { color: '#b45309', fontSize: 11, fontWeight: '600', marginTop: 4, textTransform: 'capitalize' },
 
-  // Banners
-  bannerCard: { width: 200, borderRadius: 16, overflow: 'hidden', backgroundColor: COLORS.white },
+  bannerCard: { width: 200, borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff' },
   bannerImg: { width: 200, height: 116 },
-  bannerPlaceholder: {
-    backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center',
-  },
-  bannerLabel: { padding: 10, fontWeight: '600', fontSize: 13, color: COLORS.text },
+  bannerPlaceholder: { backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
+  bannerLabel: { padding: 10, fontWeight: '600', fontSize: 13, color: '#111827' },
 
-  // Info footer
   infoFooter: {
-    backgroundColor: COLORS.secondary + '0d', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: COLORS.secondary + '18', marginTop: 24, gap: 10,
+    backgroundColor: '#f0f9ff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#bae6fd', marginTop: 24, gap: 10,
   },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   infoIcon: { fontSize: 15, marginTop: 1 },
-  infoText: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 20 },
-  infoBold: { fontWeight: '700', color: COLORS.secondary },
+  infoText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 20 },
 });
