@@ -432,6 +432,31 @@ export async function removeUserStore(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
+// ─── Delete User (DevAdmin only) ──────────────────────────────────────────────
+
+export async function deleteUser(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  if (userId === req.user!.id) {
+    res.status(400).json({ success: false, error: 'Cannot delete your own account' });
+    return;
+  }
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, phone: true, role: true } });
+  if (!target) {
+    res.status(404).json({ success: false, error: 'User not found' });
+    return;
+  }
+  await prisma.userStoreRole.deleteMany({ where: { userId } });
+  await prisma.pushToken.deleteMany({ where: { userId } });
+  await prisma.user.delete({ where: { id: userId } });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DELETE_USER', entity: 'user', entityId: userId,
+    details: { name: target.name, phone: target.phone, role: target.role },
+  });
+  res.json({ success: true });
+}
+
 // ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────
 
 const createStaffSchema = z.object({

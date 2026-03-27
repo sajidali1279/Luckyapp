@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -83,6 +83,7 @@ router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPE
 router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 router.post('/users/:userId/stores', authenticate, requireRole(Role.SUPER_ADMIN), addUserStore);    // Add store assignment
 router.delete('/users/:userId/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), removeUserStore); // Remove store assignment
+router.delete('/users/:userId', authenticate, requireRole(Role.DEV_ADMIN), deleteUser);                       // Delete account (DevAdmin only)
 
 // ─── Receipt QR (Printer Agent → Customer Self-Serve) ────────────────────────
 router.post('/points/receipt-token', generateReceiptToken);                                             // Printer agent generates QR token (store API key auth)
