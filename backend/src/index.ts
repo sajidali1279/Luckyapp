@@ -20,16 +20,20 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim());
 
-app.use(cors({
-  origin: (origin, callback) => {
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // No origin = React Native / Postman / server-to-server — always allow
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+
+// Handle preflight for all routes (required for DELETE/PATCH with custom headers)
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Rate limiting — prevent brute force
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));  // 20 per 15min on auth
