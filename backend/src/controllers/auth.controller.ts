@@ -445,15 +445,21 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'User not found' });
     return;
   }
-  // Delete all records referencing this user (no cascade on these FKs)
-  await prisma.pointsTransaction.deleteMany({ where: { customerId: userId } });
-  await prisma.pointsTransaction.deleteMany({ where: { grantedById: userId } });
-  await prisma.creditRedemption.deleteMany({ where: { customerId: userId } });
-  await prisma.creditRedemption.deleteMany({ where: { processedBy: userId } });
-  await prisma.redemption.deleteMany({ where: { customerId: userId } });
-  await prisma.userStoreRole.deleteMany({ where: { userId } });
-  await prisma.pushToken.deleteMany({ where: { userId } });
-  await prisma.user.delete({ where: { id: userId } });
+  try {
+    // Delete all records referencing this user (no cascade on these FKs)
+    await prisma.pointsTransaction.deleteMany({ where: { customerId: userId } });
+    await prisma.pointsTransaction.deleteMany({ where: { grantedById: userId } });
+    await prisma.creditRedemption.deleteMany({ where: { customerId: userId } });
+    await prisma.creditRedemption.deleteMany({ where: { processedBy: userId } });
+    await prisma.redemption.deleteMany({ where: { customerId: userId } });
+    await prisma.userStoreRole.deleteMany({ where: { userId } });
+    await prisma.pushToken.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+  } catch (err: any) {
+    console.error('[deleteUser] Failed:', err?.message);
+    res.status(500).json({ success: false, error: `Delete failed: ${err?.message ?? 'unknown error'}` });
+    return;
+  }
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
