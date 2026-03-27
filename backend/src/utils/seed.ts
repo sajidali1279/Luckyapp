@@ -57,7 +57,7 @@ async function seed() {
   }
 
   // ── Stores ──────────────────────────────────────────────────────────────────
-  console.log('Creating 14 stores...');
+  console.log('Creating 12 stores...');
   const createdStores = [];
 
   for (const store of STORES) {

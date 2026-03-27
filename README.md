@@ -1,6 +1,6 @@
 # Lucky Stop App
 
-Loyalty rewards app for Lucky Stop gas station chain (~14 stores).
+Loyalty rewards app for Lucky Stop gas station chain (~12 stores).
 
 ## Project Structure
 
@@ -69,5 +69,5 @@ npm run dev                 # Opens on localhost:5173
 
 ## Revenue
 
-- Monthly subscription: $99-149/store × 14 stores = ~$1,400-2,100/month
+- Monthly subscription: $99-149/store × 12 stores = ~$1,200-1,800/month
 - Change billing type per store from the Billing page (DevAdmin only)

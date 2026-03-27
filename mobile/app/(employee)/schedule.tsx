@@ -17,28 +17,22 @@ const DAY_LABELS: Record<string, string> = {
   MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday',
   THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday',
 };
-const DAY_SHORT: Record<string, string> = {
-  MON: 'Mon', TUE: 'Tue', WED: 'Wed',
-  THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun',
+const DAY_LETTER: Record<string, string> = {
+  MON: 'M', TUE: 'T', WED: 'W', THU: 'T', FRI: 'F', SAT: 'S', SUN: 'S',
 };
 
 const SHIFT_COLORS: Record<string, string> = {
   OPENING: '#F4A261',
-  MIDDLE:  COLORS.success,
-  CLOSING: COLORS.secondary,
+  MIDDLE:  '#2DC653',
+  CLOSING: '#1D3557',
 };
-
-const SHIFT_SLOT_COLORS = SHIFT_COLORS;
-const SHIFT_SLOT_TIMES: Record<string, string> = {
+const SHIFT_LABELS: Record<string, string> = {
+  OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing',
+};
+const SHIFT_TIMES: Record<string, string> = {
   OPENING: '6:00 am – 2:00 pm',
   MIDDLE:  '10:00 am – 6:00 pm',
   CLOSING: '2:00 pm – 10:00 pm',
-};
-
-const SHIFT_LABELS: Record<string, string> = {
-  OPENING: 'Opening',
-  MIDDLE:  'Middle',
-  CLOSING: 'Closing',
 };
 
 const JS_DAY_TO_ENUM = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -47,15 +41,12 @@ function getTodayDayKey(): string {
   return JS_DAY_TO_ENUM[new Date().getDay()];
 }
 
-// Build the current week Mon–Sun with actual dates
 function getCurrentWeekDates(): { key: string; date: Date }[] {
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun
-  // Monday of this week
+  const dayOfWeek = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
   monday.setHours(0, 0, 0, 0);
-
   return DAY_ORDER.map((key, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
@@ -83,7 +74,8 @@ export default function ScheduleScreen() {
   const todayKey = getTodayDayKey();
   const weekDates = getCurrentWeekDates();
 
-  // Request modal — handles both TIME_OFF and FILL_IN
+  const [selectedDayKey, setSelectedDayKey] = useState(todayKey);
+
   const [requestModal, setRequestModal] = useState<{
     storeId: string; storeName: string; shiftType: string; date: Date;
     requestType: 'TIME_OFF' | 'FILL_IN';
@@ -91,22 +83,14 @@ export default function ScheduleScreen() {
   } | null>(null);
   const [notes, setNotes] = useState('');
 
-  const {
-    data, isLoading, refetch, isRefetching,
-  } = useQuery({
+  const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['my-schedule'],
     queryFn: () => schedulingApi.getMySchedule(),
   });
 
-  // Fetch day roster when fill-in modal is open
-  const {
-    data: dayRosterData, isLoading: dayRosterLoading,
-  } = useQuery({
+  const { data: dayRosterData, isLoading: dayRosterLoading } = useQuery({
     queryKey: ['day-roster', requestModal?.storeId, requestModal?.date?.toISOString()],
-    queryFn: () => schedulingApi.getDayRoster(
-      requestModal!.storeId,
-      requestModal!.date.toISOString()
-    ),
+    queryFn: () => schedulingApi.getDayRoster(requestModal!.storeId, requestModal!.date.toISOString()),
     enabled: !!requestModal && requestModal.requestType === 'FILL_IN',
   });
 
@@ -133,35 +117,32 @@ export default function ScheduleScreen() {
   const requests: any[] = data?.data?.data?.requests || [];
   const myStores: { id: string; name: string; city?: string }[] = data?.data?.data?.stores || [];
 
-  // Build a map: dayKey → template
   const templateByDay: Record<string, any> = {};
-  for (const t of templates) {
-    templateByDay[t.dayOfWeek] = t;
-  }
+  for (const t of templates) templateByDay[t.dayOfWeek] = t;
 
-  // Pending requests for quick display
   const pendingRequests = requests.filter((r: any) => r.status === 'PENDING');
 
+  const selectedDayData = weekDates.find((w) => w.key === selectedDayKey)!;
+  const selectedTemplate = templateByDay[selectedDayKey];
+  const selectedDayISO = selectedDayData ? fmtDateISO(selectedDayData.date) : '';
+
+  const hasPendingTimeOff = (dayISO: string) => requests.some(
+    (r: any) => r.requestType === 'TIME_OFF' && r.status === 'PENDING' && fmtDateISO(new Date(r.date)) === dayISO
+  );
+  const hasApprovedTimeOff = (dayISO: string) => requests.some(
+    (r: any) => r.requestType === 'TIME_OFF' && r.status === 'APPROVED' && fmtDateISO(new Date(r.date)) === dayISO
+  );
+  const hasPendingFillIn = (dayISO: string) => requests.some(
+    (r: any) => r.requestType === 'FILL_IN' && r.status === 'PENDING' && fmtDateISO(new Date(r.date)) === dayISO
+  );
+
   function handleRequestOff(template: any, date: Date) {
-    setRequestModal({
-      storeId: template.storeId,
-      storeName: template.store?.name || 'Store',
-      shiftType: template.shiftType,
-      date,
-      requestType: 'TIME_OFF',
-    });
+    setRequestModal({ storeId: template.storeId, storeName: template.store?.name || 'Store', shiftType: template.shiftType, date, requestType: 'TIME_OFF' });
     setNotes('');
   }
 
-  function handleFillIn(storeId: string, storeName: string, shiftType: string, date: Date) {
-    setRequestModal({
-      storeId,
-      storeName,
-      shiftType,
-      date,
-      requestType: 'FILL_IN',
-      availableStores: myStores.length > 1 ? myStores : undefined,
-    });
+  function handleFillIn(storeId: string, storeName: string, date: Date) {
+    setRequestModal({ storeId, storeName, shiftType: 'OPENING', date, requestType: 'FILL_IN', availableStores: myStores.length > 1 ? myStores : undefined });
     setNotes('');
   }
 
@@ -176,188 +157,234 @@ export default function ScheduleScreen() {
     });
   }
 
+  // Count scheduled days for summary
+  const scheduledDays = DAY_ORDER.filter((k) => !!templateByDay[k]).length;
+
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg}>
+      <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
-          <View>
-            <Text style={s.headerSub}>⛽ Lucky Stop Staff</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.headerEyebrow}>⛽ LUCKY STOP STAFF</Text>
             <Text style={s.headerTitle}>My Schedule</Text>
           </View>
-          <View style={s.calendarIcon}>
-            <Text style={{ fontSize: 24 }}>📅</Text>
+          <View style={s.scheduleSummary}>
+            <Text style={s.summaryNum}>{scheduledDays}</Text>
+            <Text style={s.summaryLbl}>shifts/wk</Text>
           </View>
         </View>
+
+        {/* ── Week Calendar Strip ── */}
+        {!isLoading && (
+          <View style={s.calendarStrip}>
+            {weekDates.map(({ key, date }) => {
+              const isSelected = key === selectedDayKey;
+              const isToday = key === todayKey;
+              const template = templateByDay[key];
+              const shiftColor = template ? SHIFT_COLORS[template.shiftType] : null;
+              const dayISO = fmtDateISO(date);
+              const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={s.calCell}
+                  onPress={() => setSelectedDayKey(key)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[s.calLetter, isSelected && s.calLetterSelected, isToday && !isSelected && s.calLetterToday]}>
+                    {DAY_LETTER[key]}
+                  </Text>
+                  <View style={[
+                    s.calDateCircle,
+                    isSelected && s.calDateCircleSelected,
+                    isToday && !isSelected && s.calDateCircleToday,
+                  ]}>
+                    <Text style={[
+                      s.calDate,
+                      isSelected && s.calDateSelected,
+                      isToday && !isSelected && s.calDateToday,
+                      isPast && !isSelected && s.calDatePast,
+                    ]}>
+                      {date.getDate()}
+                    </Text>
+                  </View>
+                  {/* Shift dot */}
+                  {shiftColor ? (
+                    <View style={[s.calDot, { backgroundColor: isSelected ? '#fff' : shiftColor }]} />
+                  ) : (
+                    <View style={s.calDotEmpty} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </SafeAreaView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.body}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
         }
       >
         {isLoading ? (
           <View style={s.loadingWrap}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={s.loadingText}>Loading your schedule...</Text>
+            <Text style={s.loadingText}>Loading your schedule…</Text>
           </View>
         ) : (
           <>
-            {/* ── Week Header ── */}
-            <View style={s.weekHeader}>
-              <Text style={s.weekLabel}>
-                Week of {fmtMonthDay(weekDates[0].date)} – {fmtMonthDay(weekDates[6].date)}
-              </Text>
-            </View>
+            {/* ── Selected Day Detail ── */}
+            {selectedDayData && (
+              <View style={[s.dayCard, selectedDayKey === todayKey && s.dayCardToday]}>
+                {/* Day header */}
+                <View style={s.dayCardHeader}>
+                  <View>
+                    <Text style={[s.dayName, selectedDayKey === todayKey && s.dayNameToday]}>
+                      {DAY_LABELS[selectedDayKey]}
+                    </Text>
+                    <Text style={s.dayDate}>{fmtMonthDay(selectedDayData.date)}</Text>
+                  </View>
+                  {selectedDayKey === todayKey && (
+                    <View style={s.todayBadge}><Text style={s.todayBadgeText}>Today</Text></View>
+                  )}
+                </View>
 
-            {/* ── Day Cards ── */}
-            {weekDates.map(({ key, date }) => {
-              const template = templateByDay[key];
-              const isToday = key === todayKey;
-              const shiftColor = template ? SHIFT_COLORS[template.shiftType] : COLORS.border;
-
-              // Check if there's a pending time-off request for this day
-              const dayISO = fmtDateISO(date);
-              const hasPendingTimeOff = requests.some(
-                (r: any) =>
-                  r.requestType === 'TIME_OFF' &&
-                  r.status === 'PENDING' &&
-                  fmtDateISO(new Date(r.date)) === dayISO
-              );
-              const hasApprovedTimeOff = requests.some(
-                (r: any) =>
-                  r.requestType === 'TIME_OFF' &&
-                  r.status === 'APPROVED' &&
-                  fmtDateISO(new Date(r.date)) === dayISO
-              );
-
-              return (
-                <View
-                  key={key}
-                  style={[
-                    s.dayCard,
-                    isToday && s.dayCardToday,
-                    !template && s.dayCardOff,
-                  ]}
-                >
-                  {/* Day label row */}
-                  <View style={s.dayRow}>
-                    <View>
-                      <Text style={[s.dayName, isToday && s.dayNameToday]}>
-                        {DAY_LABELS[key]}
+                {selectedTemplate ? (
+                  <View style={s.shiftDetail}>
+                    {/* Shift badge */}
+                    <View style={[s.shiftBadge, { backgroundColor: SHIFT_COLORS[selectedTemplate.shiftType] + '18', borderColor: SHIFT_COLORS[selectedTemplate.shiftType] + '50' }]}>
+                      <View style={[s.shiftDot, { backgroundColor: SHIFT_COLORS[selectedTemplate.shiftType] }]} />
+                      <Text style={[s.shiftBadgeLabel, { color: SHIFT_COLORS[selectedTemplate.shiftType] }]}>
+                        {SHIFT_LABELS[selectedTemplate.shiftType]}
                       </Text>
-                      <Text style={s.dayDate}>{fmtMonthDay(date)}</Text>
+                      <Text style={[s.shiftBadgeTime, { color: SHIFT_COLORS[selectedTemplate.shiftType] }]}>
+                        {selectedTemplate.startTime} – {selectedTemplate.endTime}
+                      </Text>
                     </View>
-                    {isToday && (
-                      <View style={s.todayBadge}>
-                        <Text style={s.todayBadgeText}>Today</Text>
+
+                    {/* Store */}
+                    <View style={s.storeRow}>
+                      <Text style={s.storePin}>📍</Text>
+                      <Text style={s.storeName}>
+                        {selectedTemplate.store?.name || 'Store'}{selectedTemplate.store?.city ? `, ${selectedTemplate.store.city}` : ''}
+                      </Text>
+                    </View>
+
+                    {/* Time off status / button */}
+                    {hasApprovedTimeOff(selectedDayISO) ? (
+                      <View style={s.statusPill}>
+                        <Text style={s.statusPillText}>✅  Time Off Approved</Text>
                       </View>
+                    ) : hasPendingTimeOff(selectedDayISO) ? (
+                      <View style={[s.statusPill, s.statusPillAmber]}>
+                        <Text style={[s.statusPillText, s.statusPillAmberText]}>⏳  Time Off Pending</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={s.actionBtn}
+                        onPress={() => handleRequestOff(selectedTemplate, selectedDayData.date)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.actionBtnText}>Request Off</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-
-                  {template ? (
-                    <View style={s.shiftInfo}>
-                      {/* Shift badge */}
-                      <View style={[s.shiftBadge, { backgroundColor: shiftColor + '18', borderColor: shiftColor + '40' }]}>
-                        <Text style={[s.shiftBadgeLabel, { color: shiftColor }]}>
-                          {SHIFT_LABELS[template.shiftType]}
-                        </Text>
-                        <Text style={[s.shiftBadgeTime, { color: shiftColor }]}>
-                          {template.startTime} – {template.endTime}
-                        </Text>
-                      </View>
-
-                      {/* Store */}
-                      <Text style={s.storeName}>
-                        📍 {template.store?.name || 'Store'}{template.store?.city ? `, ${template.store.city}` : ''}
-                      </Text>
-
-                      {/* Request off button / status */}
-                      {hasApprovedTimeOff ? (
-                        <View style={s.timeOffApproved}>
-                          <Text style={s.timeOffApprovedText}>✅ Time Off Approved</Text>
-                        </View>
-                      ) : hasPendingTimeOff ? (
-                        <View style={s.timeOffPending}>
-                          <Text style={s.timeOffPendingText}>⏳ Time Off Pending</Text>
+                ) : (
+                  <View style={s.dayOffDetail}>
+                    <View style={s.dayOffIconWrap}>
+                      <Text style={s.dayOffIcon}>😴</Text>
+                    </View>
+                    <Text style={s.dayOffLabel}>Day Off</Text>
+                    {/* Fill-in */}
+                    {(() => {
+                      const isPast = selectedDayData.date < new Date(new Date().setHours(0, 0, 0, 0));
+                      if (isPast) return <Text style={s.pastDayNote}>Past day</Text>;
+                      const storeId = templates[0]?.storeId || user?.storeIds?.[0];
+                      const storeName = templates[0]?.store?.name || 'Your Store';
+                      if (!storeId) return null;
+                      return hasPendingFillIn(selectedDayISO) ? (
+                        <View style={[s.statusPill, s.statusPillGreen]}>
+                          <Text style={[s.statusPillText, s.statusPillGreenText]}>⏳  Fill-In Requested</Text>
                         </View>
                       ) : (
                         <TouchableOpacity
-                          style={s.requestOffBtn}
-                          onPress={() => handleRequestOff(template, date)}
+                          style={[s.actionBtn, s.actionBtnGreen]}
+                          onPress={() => handleFillIn(storeId, storeName, selectedDayData.date)}
                           activeOpacity={0.8}
                         >
-                          <Text style={s.requestOffBtnText}>Request Off</Text>
+                          <Text style={[s.actionBtnText, s.actionBtnGreenText]}>+ Request Extra Shift</Text>
                         </TouchableOpacity>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={s.dayOffInfo}>
-                      <Text style={s.dayOffText}>Day off</Text>
-                      {(() => {
-                        // Only allow fill-in requests for today or future days
-                        const isPastDay = date < new Date(new Date().setHours(0, 0, 0, 0));
-                        if (isPastDay) return null;
-                        // Use any assigned template's store, or fall back to user's first store
-                        const primaryTemplate = templates[0];
-                        const storeId = primaryTemplate?.storeId || user?.storeIds?.[0];
-                        const storeName = primaryTemplate?.store?.name || 'Your Store';
-                        if (!storeId) return null;
-                        const hasPendingFillIn = requests.some(
-                          (r: any) =>
-                            r.requestType === 'FILL_IN' &&
-                            r.status === 'PENDING' &&
-                            fmtDateISO(new Date(r.date)) === dayISO
-                        );
-                        return hasPendingFillIn ? (
-                          <View style={s.fillInPending}>
-                            <Text style={s.fillInPendingText}>⏳ Fill-In Requested</Text>
-                          </View>
-                        ) : (
-                          <TouchableOpacity
-                            style={s.fillInBtn}
-                            onPress={() => handleFillIn(storeId, storeName, 'OPENING', date)}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={s.fillInBtnText}>+ Request Extra Shift</Text>
-                          </TouchableOpacity>
-                        );
-                      })()}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+                      );
+                    })()}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── Week Overview ── */}
+            <Text style={s.sectionLabel}>This Week</Text>
+            <View style={s.weekOverview}>
+              {weekDates.map(({ key, date }) => {
+                const template = templateByDay[key];
+                const isToday = key === todayKey;
+                const shiftColor = template ? SHIFT_COLORS[template.shiftType] : null;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[s.weekDot, isToday && s.weekDotToday]}
+                    onPress={() => setSelectedDayKey(key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.weekDotDay, isToday && s.weekDotDayToday]}>{key.slice(0, 2)}</Text>
+                    {shiftColor ? (
+                      <View style={[s.weekDotShift, { backgroundColor: shiftColor }]}>
+                        <Text style={s.weekDotShiftLabel}>{SHIFT_LABELS[template.shiftType][0]}</Text>
+                      </View>
+                    ) : (
+                      <View style={s.weekDotOff}><Text style={s.weekDotOffText}>–</Text></View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {/* ── Pending Requests ── */}
             {pendingRequests.length > 0 && (
               <>
-                <Text style={s.sectionLabel}>Pending Requests</Text>
-                {pendingRequests.map((r: any) => (
-                  <View key={r.id} style={s.requestCard}>
-                    <View style={s.requestRow}>
-                      <View style={[s.requestTypeDot, { backgroundColor: r.requestType === 'TIME_OFF' ? '#E63946' : COLORS.success }]} />
-                      <Text style={s.requestType}>
-                        {r.requestType === 'TIME_OFF' ? 'Time Off' : 'Fill-In'}
-                      </Text>
-                      <View style={s.pendingTag}>
-                        <Text style={s.pendingTagText}>PENDING</Text>
+                <View style={s.sectionRow}>
+                  <Text style={s.sectionLabel}>Pending Requests</Text>
+                  <View style={s.sectionBadge}><Text style={s.sectionBadgeText}>{pendingRequests.length}</Text></View>
+                </View>
+                {pendingRequests.map((r: any) => {
+                  const isTimeOff = r.requestType === 'TIME_OFF';
+                  const typeColor = isTimeOff ? '#E63946' : '#2DC653';
+                  return (
+                    <View key={r.id} style={[s.requestCard, { borderLeftColor: typeColor }]}>
+                      <View style={s.requestCardTop}>
+                        <View style={[s.requestTypePill, { backgroundColor: typeColor + '18' }]}>
+                          <Text style={[s.requestTypeText, { color: typeColor }]}>
+                            {isTimeOff ? '🏖️ Time Off' : '🙋 Fill-In'}
+                          </Text>
+                        </View>
+                        <View style={s.pendingTag}>
+                          <View style={s.pendingDot} />
+                          <Text style={s.pendingTagText}>Pending</Text>
+                        </View>
                       </View>
+                      <Text style={s.requestDate}>{fmtDateFull(r.date)}</Text>
+                      <Text style={s.requestShift}>
+                        {SHIFT_LABELS[r.shiftType]}{r.store?.name ? ` · ${r.store.name}` : ''}
+                      </Text>
+                      {r.notes ? <Text style={s.requestNotes}>"{r.notes}"</Text> : null}
                     </View>
-                    <Text style={s.requestDate}>{fmtDateFull(r.date)} · {SHIFT_LABELS[r.shiftType]}</Text>
-                    {r.store?.name && <Text style={s.requestStore}>📍 {r.store.name}</Text>}
-                    {r.notes && <Text style={s.requestNotes}>"{r.notes}"</Text>}
-                  </View>
-                ))}
+                  );
+                })}
               </>
             )}
 
@@ -365,11 +392,12 @@ export default function ScheduleScreen() {
             <View style={s.infoBox}>
               <Text style={s.infoTitle}>💡 How it works</Text>
               <Text style={s.infoText}>
-                On your days off, tap <Text style={{ fontWeight: '700' }}>+ Request Extra Shift</Text> to volunteer for an open shift.
-                Your manager and supervisor will be notified to approve or deny.
+                On your <Text style={{ fontWeight: '700' }}>days off</Text>, tap{' '}
+                <Text style={{ fontWeight: '700' }}>+ Request Extra Shift</Text> to volunteer for an open slot.
               </Text>
               <Text style={[s.infoText, { marginTop: 6 }]}>
-                On your scheduled days, tap <Text style={{ fontWeight: '700' }}>Request Off</Text> to submit a time-off request.
+                On your <Text style={{ fontWeight: '700' }}>scheduled days</Text>, tap{' '}
+                <Text style={{ fontWeight: '700' }}>Request Off</Text> to submit a time-off request.
               </Text>
             </View>
 
@@ -378,148 +406,126 @@ export default function ScheduleScreen() {
         )}
       </ScrollView>
 
-      {/* ── Request Modal (Time Off + Fill-In) ── */}
-      <Modal
-        visible={!!requestModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRequestModal(null)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={s.modalOverlay}
-        >
+      {/* ── Request Modal ── */}
+      <Modal visible={!!requestModal} transparent animationType="slide" onRequestClose={() => setRequestModal(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
           <View style={s.modal}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={s.modalDrag} />
             <Text style={s.modalTitle}>
               {requestModal?.requestType === 'FILL_IN' ? 'Request Extra Shift' : 'Request Time Off'}
             </Text>
-            {requestModal && (
-              <>
-                {/* Fill-in: show shift slots with current staff */}
-                {requestModal.requestType === 'FILL_IN' && (
-                  <View style={s.fillInShiftPicker}>
-                    {/* Store picker — only shown when employee works at multiple stores */}
-                    {requestModal.availableStores && requestModal.availableStores.length > 1 && (
-                      <View style={s.storePickerWrap}>
-                        <Text style={s.storePickerLabel}>Select store</Text>
-                        <View style={s.storePickerRow}>
-                          {requestModal.availableStores.map((store) => {
-                            const isActive = requestModal.storeId === store.id;
-                            return (
-                              <TouchableOpacity
-                                key={store.id}
-                                style={[s.storeChip, isActive && s.storeChipActive]}
-                                onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name })}
-                                activeOpacity={0.8}
-                              >
-                                <Text style={[s.storeChipText, isActive && s.storeChipTextActive]}>
-                                  {store.name}{store.city ? ` · ${store.city}` : ''}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {requestModal && (
+                <>
+                  {/* Fill-in: shift picker */}
+                  {requestModal.requestType === 'FILL_IN' && (
+                    <View style={{ marginBottom: 16 }}>
+                      {requestModal.availableStores && requestModal.availableStores.length > 1 && (
+                        <View style={{ marginBottom: 14 }}>
+                          <Text style={s.modalLabel}>Store</Text>
+                          <View style={s.chipRow}>
+                            {requestModal.availableStores.map((store) => {
+                              const isActive = requestModal.storeId === store.id;
+                              return (
+                                <TouchableOpacity
+                                  key={store.id}
+                                  style={[s.chip, isActive && s.chipActive]}
+                                  onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name })}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={[s.chipText, isActive && s.chipTextActive]}>
+                                    {store.name}{store.city ? ` · ${store.city}` : ''}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
                         </View>
-                      </View>
-                    )}
+                      )}
 
-                    <Text style={s.fillInPickerLabel}>
-                      📅 {fmtMonthDay(requestModal.date)} · {requestModal.storeName} — Pick a shift
-                    </Text>
-                    {dayRosterLoading ? (
-                      <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
-                    ) : (
-                      (['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => {
-                        const slot = dayRosterData?.data?.data?.shifts?.[st];
-                        const staff: any[] = slot?.employees || [];
-                        const isEmpty = staff.length === 0;
-                        const isSelected = requestModal.shiftType === st;
-                        const color = SHIFT_SLOT_COLORS[st];
-                        return (
-                          <TouchableOpacity
-                            key={st}
-                            style={[s.shiftSlot, isSelected && { borderColor: color, backgroundColor: color + '10' }]}
-                            onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
-                            activeOpacity={0.8}
-                          >
-                            <View style={s.shiftSlotLeft}>
-                              <View style={[s.shiftSlotDot, { backgroundColor: color }]} />
-                              <View>
-                                <Text style={[s.shiftSlotName, isSelected && { color }]}>{SHIFT_LABELS[st]}</Text>
-                                <Text style={s.shiftSlotTime}>{SHIFT_SLOT_TIMES[st]}</Text>
+                      <Text style={s.modalLabel}>
+                        {fmtMonthDay(requestModal.date)} · {requestModal.storeName} — Pick a shift
+                      </Text>
+                      {dayRosterLoading ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
+                      ) : (
+                        (['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => {
+                          const slot = dayRosterData?.data?.data?.shifts?.[st];
+                          const staff: any[] = slot?.employees || [];
+                          const isEmpty = staff.length === 0;
+                          const isSelected = requestModal.shiftType === st;
+                          const color = SHIFT_COLORS[st];
+                          return (
+                            <TouchableOpacity
+                              key={st}
+                              style={[s.shiftSlot, isSelected && { borderColor: color, backgroundColor: color + '10' }]}
+                              onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
+                              activeOpacity={0.8}
+                            >
+                              <View style={[s.shiftSlotIconWrap, { backgroundColor: color + '20' }]}>
+                                <View style={[s.shiftSlotDot, { backgroundColor: color }]} />
                               </View>
-                            </View>
-                            <View style={s.shiftSlotRight}>
-                              {isEmpty ? (
-                                <View style={s.emptyShiftBadge}>
-                                  <Text style={s.emptyShiftText}>Empty ⚠️</Text>
-                                </View>
-                              ) : (
-                                <Text style={s.shiftStaffNames} numberOfLines={2}>
-                                  {staff.map((e: any) => e.name || e.phone).join(', ')}
-                                </Text>
-                              )}
-                              {isSelected && (
-                                <View style={[s.selectedCheck, { backgroundColor: color }]}>
-                                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>✓</Text>
-                                </View>
-                              )}
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })
-                    )}
-                  </View>
-                )}
+                              <View style={{ flex: 1 }}>
+                                <Text style={[s.shiftSlotName, isSelected && { color }]}>{SHIFT_LABELS[st]}</Text>
+                                <Text style={s.shiftSlotTime}>{SHIFT_TIMES[st]}</Text>
+                              </View>
+                              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                                {isEmpty ? (
+                                  <View style={s.emptyShiftBadge}><Text style={s.emptyShiftText}>Empty ⚠️</Text></View>
+                                ) : (
+                                  <Text style={s.shiftStaffNames} numberOfLines={1}>{staff.map((e: any) => e.name || e.phone).join(', ')}</Text>
+                                )}
+                                {isSelected && (
+                                  <View style={[s.selectedCheck, { backgroundColor: color }]}>
+                                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
 
-                {/* Time-off: show date/shift/store summary */}
-                {requestModal.requestType === 'TIME_OFF' && (
-                  <View style={s.modalInfo}>
-                    <Text style={s.modalInfoText}>
-                      📅 {fmtMonthDay(requestModal.date)} ({DAY_SHORT[JS_DAY_TO_ENUM[requestModal.date.getDay()]]})
-                    </Text>
-                    <Text style={s.modalInfoText}>
-                      🕐 {SHIFT_LABELS[requestModal.shiftType]}
-                    </Text>
-                    <Text style={s.modalInfoText}>
-                      📍 {requestModal.storeName}
-                    </Text>
-                  </View>
-                )}
-                <Text style={s.modalLabel}>Notes (optional)</Text>
-                <TextInput
-                  style={s.modalInput}
-                  value={notes}
-                  onChangeText={setNotes}
-                  placeholder={requestModal.requestType === 'FILL_IN' ? 'Any notes for your manager...' : 'Reason for time off...'}
-                  placeholderTextColor={COLORS.textMuted}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-                <View style={s.modalActions}>
+                  {/* Time off: summary */}
+                  {requestModal.requestType === 'TIME_OFF' && (
+                    <View style={s.summaryCard}>
+                      <Text style={s.summaryCardRow}>📅 {fmtMonthDay(requestModal.date)} ({JS_DAY_TO_ENUM[requestModal.date.getDay()]})</Text>
+                      <Text style={s.summaryCardRow}>🕐 {SHIFT_LABELS[requestModal.shiftType]} · {SHIFT_TIMES[requestModal.shiftType]}</Text>
+                      <Text style={s.summaryCardRow}>📍 {requestModal.storeName}</Text>
+                    </View>
+                  )}
+
+                  <Text style={s.modalLabel}>Notes <Text style={s.optionalTag}>(optional)</Text></Text>
+                  <TextInput
+                    style={s.modalInput}
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder={requestModal.requestType === 'FILL_IN' ? 'Any notes for your manager…' : 'Reason for time off…'}
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+
                   <TouchableOpacity
                     style={s.submitBtn}
                     onPress={submitRequest}
                     activeOpacity={0.8}
                     disabled={createRequestMutation.isPending}
                   >
-                    {createRequestMutation.isPending ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text style={s.submitBtnText}>Submit Request</Text>
-                    )}
+                    {createRequestMutation.isPending
+                      ? <ActivityIndicator color="#fff" size="small" />
+                      : <Text style={s.submitBtnText}>Submit Request →</Text>
+                    }
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={s.cancelBtn}
-                    onPress={() => setRequestModal(null)}
-                    activeOpacity={0.8}
-                  >
+                  <TouchableOpacity style={s.cancelBtn} onPress={() => setRequestModal(null)} activeOpacity={0.8}>
                     <Text style={s.cancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
-                </View>
-              </>
-            )}
+                </>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -531,229 +537,208 @@ export default function ScheduleScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
+  root: { flex: 1, backgroundColor: '#f8fafc' },
 
   // Header
-  headerBg: { backgroundColor: COLORS.secondary },
+  headerBg: { backgroundColor: '#1D3557' },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8, gap: 12,
   },
-  headerSub: {
-    color: 'rgba(255,255,255,0.55)', fontSize: 11,
-    fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase',
+  headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
+  headerTitle: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  scheduleSummary: {
+    alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  headerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 3 },
-  calendarIcon: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  summaryNum: { color: '#fff', fontSize: 20, fontWeight: '900' },
+  summaryLbl: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
+
+  // Calendar strip
+  calendarStrip: {
+    flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 16, paddingTop: 4,
+  },
+  calCell: { flex: 1, alignItems: 'center', gap: 4 },
+  calLetter: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' },
+  calLetterSelected: { color: '#fff' },
+  calLetterToday: { color: 'rgba(255,255,255,0.75)' },
+  calDateCircle: {
+    width: 34, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
   },
+  calDateCircleSelected: { backgroundColor: '#fff' },
+  calDateCircleToday: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  calDate: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
+  calDateSelected: { color: '#1D3557', fontWeight: '900' },
+  calDateToday: { color: '#fff' },
+  calDatePast: { color: 'rgba(255,255,255,0.3)' },
+  calDot: { width: 5, height: 5, borderRadius: 3 },
+  calDotEmpty: { width: 5, height: 5 },
 
   // Body
   body: { padding: 16, paddingBottom: 32 },
   loadingWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 },
-  loadingText: { color: COLORS.textMuted, fontSize: 14 },
+  loadingText: { color: '#9ca3af', fontSize: 14 },
 
-  // Week header
-  weekHeader: { marginBottom: 12 },
-  weekLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  // Day cards
+  // Day card
   dayCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
-    marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    backgroundColor: '#fff', borderRadius: 20, padding: 18, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
+    borderWidth: 1, borderColor: '#f0f1f2',
   },
   dayCardToday: {
-    borderWidth: 2, borderColor: COLORS.primary,
-    shadowOpacity: 0.1, shadowRadius: 8, elevation: 3,
+    borderColor: '#1D3557', borderWidth: 2,
+    shadowColor: '#1D3557', shadowOpacity: 0.12,
   },
-  dayCardOff: { opacity: 0.7 },
-
-  dayRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
-  dayName: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-  dayNameToday: { color: COLORS.primary },
-  dayDate: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-
-  todayBadge: {
-    backgroundColor: COLORS.primary, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 3,
-  },
+  dayCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  dayName: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  dayNameToday: { color: '#1D3557' },
+  dayDate: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  todayBadge: { backgroundColor: '#1D3557', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   todayBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
-  // Shift info
-  shiftInfo: { gap: 8 },
+  shiftDetail: { gap: 12 },
   shiftBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: 10, borderWidth: 1,
-    paddingHorizontal: 12, paddingVertical: 8, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10,
+    alignSelf: 'flex-start',
   },
-  shiftBadgeLabel: { fontSize: 13, fontWeight: '800' },
-  shiftBadgeTime: { fontSize: 12, fontWeight: '600' },
+  shiftDot: { width: 9, height: 9, borderRadius: 5 },
+  shiftBadgeLabel: { fontSize: 14, fontWeight: '800' },
+  shiftBadgeTime: { fontSize: 13, fontWeight: '600' },
+  storeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  storePin: { fontSize: 14 },
+  storeName: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
 
-  storeName: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+  statusPill: {
+    backgroundColor: '#f0fdf4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: '#bbf7d0', alignSelf: 'flex-start',
+  },
+  statusPillText: { color: '#16a34a', fontSize: 12, fontWeight: '700' },
+  statusPillAmber: { backgroundColor: '#fffbeb', borderColor: '#fde68a' },
+  statusPillAmberText: { color: '#b45309' },
+  statusPillGreen: { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  statusPillGreenText: { color: '#16a34a' },
 
-  requestOffBtn: {
-    backgroundColor: COLORS.primary + '15',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
-    alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.primary + '30',
+  actionBtn: {
+    backgroundColor: '#E63946' + '12', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderWidth: 1, borderColor: '#E63946' + '30', alignSelf: 'flex-start',
   },
-  requestOffBtnText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  actionBtnText: { color: '#E63946', fontSize: 13, fontWeight: '700' },
+  actionBtnGreen: { backgroundColor: '#2DC653' + '12', borderColor: '#2DC653' + '30' },
+  actionBtnGreenText: { color: '#2DC653' },
 
-  timeOffPending: {
-    backgroundColor: '#F4A26120', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
+  dayOffDetail: { alignItems: 'center', paddingVertical: 10, gap: 8 },
+  dayOffIconWrap: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 2,
   },
-  timeOffPendingText: { color: '#b07720', fontSize: 12, fontWeight: '700' },
+  dayOffIcon: { fontSize: 26 },
+  dayOffLabel: { fontSize: 15, color: '#9ca3af', fontWeight: '600', marginBottom: 4 },
+  pastDayNote: { fontSize: 12, color: '#d1d5db' },
 
-  timeOffApproved: {
-    backgroundColor: COLORS.success + '15', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
+  // Week overview
+  sectionLabel: {
+    fontSize: 11, fontWeight: '800', color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
-  timeOffApprovedText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 },
+  sectionBadge: { backgroundColor: '#1D3557', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  sectionBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
-  // Day off + fill-in
-  dayOffInfo: { paddingTop: 2, gap: 8 },
-  dayOffText: { color: COLORS.textMuted, fontSize: 14, fontStyle: 'italic' },
-  fillInBtn: {
-    backgroundColor: COLORS.success + '15',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
-    alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.success + '40',
+  weekOverview: {
+    flexDirection: 'row', gap: 6, marginBottom: 24,
+    backgroundColor: '#fff', borderRadius: 16, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    borderWidth: 1, borderColor: '#f0f1f2',
   },
-  fillInBtnText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
-  fillInPending: {
-    backgroundColor: COLORS.success + '12', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start',
-  },
-  fillInPendingText: { color: COLORS.success, fontSize: 12, fontWeight: '700' },
+  weekDot: { flex: 1, alignItems: 'center', gap: 6 },
+  weekDotToday: {},
+  weekDotDay: { fontSize: 10, fontWeight: '700', color: '#9ca3af' },
+  weekDotDayToday: { color: '#1D3557' },
+  weekDotShift: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  weekDotShiftLabel: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  weekDotOff: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
+  weekDotOffText: { color: '#d1d5db', fontSize: 14, fontWeight: '700' },
 
   // Pending requests
-  sectionLabel: {
-    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.7,
-    marginTop: 20, marginBottom: 10,
-  },
   requestCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
-    marginBottom: 8, borderLeftWidth: 4, borderLeftColor: COLORS.primary,
+    backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    marginBottom: 10, borderLeftWidth: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    gap: 6,
   },
-  requestRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
-  requestTypeDot: { width: 8, height: 8, borderRadius: 4 },
-  requestType: { fontSize: 13, fontWeight: '700', color: COLORS.text, flex: 1 },
-  pendingTag: {
-    backgroundColor: '#F4A26120', borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  pendingTagText: { fontSize: 10, fontWeight: '800', color: '#b07720' },
-  requestDate: { fontSize: 13, color: COLORS.text },
-  requestStore: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
-  requestNotes: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 4 },
+  requestCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  requestTypePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  requestTypeText: { fontSize: 12, fontWeight: '700' },
+  pendingTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fffbeb', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pendingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#f59e0b' },
+  pendingTagText: { fontSize: 10, fontWeight: '800', color: '#b45309' },
+  requestDate: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  requestShift: { fontSize: 12, color: '#6b7280' },
+  requestNotes: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
 
   // Info box
   infoBox: {
-    backgroundColor: COLORS.secondary + '0d', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: COLORS.secondary + '18', marginTop: 20,
+    backgroundColor: '#eff6ff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#bfdbfe', marginTop: 8, gap: 4,
   },
-  infoTitle: { fontSize: 13, fontWeight: '800', color: COLORS.secondary, marginBottom: 6 },
-  infoText: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
-  fillInRow: { marginTop: 4 },
-  fillInText: { fontSize: 12, color: COLORS.textMuted },
+  infoTitle: { fontSize: 13, fontWeight: '800', color: '#1d4ed8', marginBottom: 4 },
+  infoText: { fontSize: 13, color: '#1e40af', lineHeight: 20 },
 
   // Modal
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: {
-    backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-    maxHeight: '90%',
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40, maxHeight: '92%',
   },
-  modalTitle: {
-    fontSize: 20, fontWeight: '800', color: COLORS.text,
-    marginBottom: 16, textAlign: 'center',
-  },
-  modalInfo: {
-    backgroundColor: COLORS.background, borderRadius: 12,
-    padding: 14, gap: 6, marginBottom: 16,
-  },
-  modalInfoText: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
-  modalLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
-  modalInput: {
-    backgroundColor: COLORS.background, borderRadius: 12,
-    padding: 14, fontSize: 15, color: COLORS.text,
-    borderWidth: 1, borderColor: COLORS.border,
-    minHeight: 80, marginBottom: 16,
-  },
-  // Store picker (fill-in modal — multi-store employees)
-  storePickerWrap: { marginBottom: 14 },
-  storePickerLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8,
-  },
-  storePickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  storeChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.background,
-  },
-  storeChipActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.secondary + '12' },
-  storeChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
-  storeChipTextActive: { color: COLORS.secondary, fontWeight: '800' },
+  modalDrag: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 18 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 18, textAlign: 'center' },
+  modalLabel: { fontSize: 11, fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  optionalTag: { fontSize: 10, fontWeight: '500', textTransform: 'none', color: '#9ca3af' },
 
-  // Shift slot picker (fill-in modal)
-  fillInShiftPicker: { marginBottom: 14 },
-  fillInPickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 10 },
+  summaryCard: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, gap: 8, marginBottom: 18, borderWidth: 1, borderColor: '#e5e7eb' },
+  summaryCardRow: { fontSize: 14, fontWeight: '600', color: '#374151' },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
+  chipActive: { backgroundColor: '#1D3557', borderColor: '#1D3557' },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  chipTextActive: { color: '#fff' },
 
   shiftSlot: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.background, borderRadius: 12,
-    borderWidth: 1.5, borderColor: COLORS.border,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#f8fafc', borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#e5e7eb',
     padding: 12, marginBottom: 8,
   },
-  shiftSlotLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  shiftSlotIconWrap: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   shiftSlotDot: { width: 10, height: 10, borderRadius: 5 },
-  shiftSlotName: { fontSize: 13, fontWeight: '800', color: COLORS.text },
-  shiftSlotTime: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
-  shiftSlotRight: { alignItems: 'flex-end', gap: 4, flex: 1, paddingLeft: 10 },
-  shiftStaffNames: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right' },
-  emptyShiftBadge: {
-    backgroundColor: '#E6394615', borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
+  shiftSlotName: { fontSize: 13, fontWeight: '800', color: '#111827' },
+  shiftSlotTime: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+  shiftStaffNames: { fontSize: 11, color: '#6b7280', textAlign: 'right', maxWidth: 120 },
+  emptyShiftBadge: { backgroundColor: '#fff1f2', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
   emptyShiftText: { fontSize: 11, fontWeight: '700', color: '#E63946' },
-  selectedCheck: {
-    width: 18, height: 18, borderRadius: 9,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  selectedCheck: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
-  // Legacy picker styles (unused but kept to avoid errors)
-  shiftPickerRow: { flexDirection: 'row', gap: 8 },
-  shiftPickerBtn: {
-    flex: 1, paddingVertical: 9, borderRadius: 10,
-    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.border,
-    alignItems: 'center',
+  modalInput: {
+    backgroundColor: '#f8fafc', borderRadius: 12, padding: 14,
+    fontSize: 14, color: '#111827', borderWidth: 1.5, borderColor: '#e5e7eb',
+    minHeight: 80, marginBottom: 16,
   },
-  shiftPickerBtnActive: {
-    backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary,
-  },
-  shiftPickerText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-  shiftPickerTextActive: { color: COLORS.primary },
-
-  modalActions: { gap: 10 },
   submitBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center',
+    backgroundColor: '#1D3557', borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginBottom: 10,
+    shadowColor: '#1D3557', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   cancelBtn: {
-    backgroundColor: COLORS.background, borderRadius: 14,
-    paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: '#f3f4f6', borderRadius: 14, paddingVertical: 14, alignItems: 'center',
   },
-  cancelBtnText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600' },
+  cancelBtnText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
 });

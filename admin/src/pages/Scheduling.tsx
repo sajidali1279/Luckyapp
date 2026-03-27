@@ -5,6 +5,8 @@ import { schedulingApi, storesApi } from '../services/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2', '#be185d'];
+
 const DAYS: { key: string; label: string }[] = [
   { key: 'MON', label: 'Monday' },
   { key: 'TUE', label: 'Tuesday' },
@@ -166,7 +168,10 @@ export default function Scheduling() {
       {/* ── Left Panel: Store List ── */}
       <div style={s.leftPanel}>
         <div style={s.leftHeader}>
-          <span style={s.leftTitle}>📍 Stores</span>
+          <div>
+            <div style={s.leftTitle}>Scheduling</div>
+            <div style={s.leftSub}>{stores.length} stores</div>
+          </div>
           {totalVacancies > 0 && (
             <span style={s.totalVacBadge}>{totalVacancies} open</span>
           )}
@@ -174,21 +179,27 @@ export default function Scheduling() {
         {storesLoading ? (
           <div style={s.loadingText}>Loading...</div>
         ) : (
-          stores.map((store: any) => (
-            <button
-              key={store.id}
-              style={{ ...s.storeItem, ...(selectedStoreId === store.id ? s.storeItemActive : {}) }}
-              onClick={() => { setSelectedStoreId(store.id); setActiveTab('schedule'); }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={s.storeItemName}>{store.name}</div>
-                {(vacancyByStoreId[store.id] || 0) > 0 && (
-                  <span style={s.vacBadge}>{vacancyByStoreId[store.id]}</span>
-                )}
-              </div>
-              <div style={s.storeItemCity}>{store.city}, {store.state}</div>
-            </button>
-          ))
+          stores.map((store: any, i: number) => {
+            const active = selectedStoreId === store.id;
+            const accentColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+            const vac = vacancyByStoreId[store.id] || 0;
+            return (
+              <button
+                key={store.id}
+                style={{ ...s.storeItem, ...(active ? { ...s.storeItemActive, borderLeftColor: accentColor } : {}) }}
+                onClick={() => { setSelectedStoreId(store.id); setActiveTab('schedule'); }}
+              >
+                <div style={{ ...s.storeAvatar, background: accentColor }}>
+                  {(store.name || '?')[0].toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={s.storeItemName}>{store.name}</div>
+                  <div style={s.storeItemCity}>{store.city}, {store.state}</div>
+                </div>
+                {vac > 0 && <span style={s.vacBadge}>{vac}</span>}
+              </button>
+            );
+          })
         )}
       </div>
 
@@ -206,9 +217,9 @@ export default function Scheduling() {
             {selectedStoreVacancies && selectedStoreVacancies.vacantCount > 0 && (
               <div style={s.vacancyBanner}>
                 <span style={s.vacancyBannerIcon}>⚠️</span>
-                <div>
-                  <strong>{selectedStoreVacancies.vacantCount} open shift slot{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> at {selectedStore?.name} —
-                  {' '}{selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
+                <div style={{ flex: 1 }}>
+                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> at {selectedStore?.name} —{' '}
+                  {selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
                   {selectedStoreVacancies.vacancies.length > 4 ? ` +${selectedStoreVacancies.vacancies.length - 4} more` : ''}
                 </div>
               </div>
@@ -216,10 +227,10 @@ export default function Scheduling() {
 
             {/* Store Header */}
             <div style={s.rightHeader}>
-              <div>
-                <h1 style={s.pageTitle}>📅 {selectedStore?.name} Schedule</h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                  <p style={{ ...s.pageSub, margin: 0 }}>{selectedStore?.city}, {selectedStore?.state}</p>
+              <div style={s.rightHeaderLeft}>
+                <div style={s.pageTitle}>{selectedStore?.name}</div>
+                <div style={s.pageSubRow}>
+                  <span style={s.pageSub}>{selectedStore?.city}, {selectedStore?.state}</span>
                   <div style={s.shiftToggle}>
                     <button
                       style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
@@ -239,13 +250,13 @@ export default function Scheduling() {
                   style={{ ...s.tab, ...(activeTab === 'schedule' ? s.tabActive : {}) }}
                   onClick={() => setActiveTab('schedule')}
                 >
-                  Weekly Schedule
+                  📅 Weekly Schedule
                 </button>
                 <button
-                  style={{ ...s.tab, ...(activeTab === 'requests' ? s.tabActive : {}), position: 'relative' }}
+                  style={{ ...s.tab, ...(activeTab === 'requests' ? s.tabActive : {}), position: 'relative' as const }}
                   onClick={() => setActiveTab('requests')}
                 >
-                  Requests
+                  🙋 Requests
                   {pendingRequests.length > 0 && (
                     <span style={s.badge}>{pendingRequests.length}</span>
                   )}
@@ -262,12 +273,19 @@ export default function Scheduling() {
                     <div style={s.emptyCard}>No staff scheduled for today.</div>
                   ) : (
                     <div style={s.rosterGrid}>
-                      {roster.map((r: any) => {
+                      {roster.map((r: any, i: number) => {
                         const shift = SHIFTS.find((sh) => sh.key === r.shiftType);
+                        const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                        const name = r.employee.name || r.employee.phone || '?';
                         return (
                           <div key={r.templateId} style={{ ...s.rosterCard, borderTopColor: shift?.color || '#ccc' }}>
-                            <div style={s.rosterName}>{r.employee.name || r.employee.phone}</div>
-                            <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#ccc') + '20', color: shift?.color || '#666' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                              <div style={{ ...s.rosterAvatar, background: avatarColor }}>
+                                {name[0].toUpperCase()}
+                              </div>
+                              <div style={s.rosterName}>{name}</div>
+                            </div>
+                            <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#ccc') + '18', color: shift?.color || '#666', borderColor: (shift?.color || '#ccc') + '40' }}>
                               {shift?.label}
                             </div>
                             <div style={s.rosterTime}>{r.startTime} – {r.endTime}</div>
@@ -462,36 +480,35 @@ function RequestCard({
 }) {
   const isTimeOff = request.requestType === 'TIME_OFF';
   const isApproved = request.status === 'APPROVED';
+  const typeColor = isTimeOff ? '#E63946' : '#2DC653';
+  const statusColor = request.status === 'PENDING' ? '#f59e0b' : isApproved ? '#2DC653' : '#E63946';
+  const name = request.employee?.name || request.employee?.phone || 'Employee';
+  const avatarColor = AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
 
   return (
-    <div style={{
-      ...s.requestCard,
-      borderLeftColor: isTimeOff ? '#E63946' : '#2DC653',
-      opacity: isPending ? 1 : 0.75,
-    }}>
+    <div style={{ ...s.requestCard, borderLeftColor: typeColor, opacity: isPending ? 1 : 0.72 }}>
       <div style={s.requestTop}>
-        <span style={{
-          ...s.requestTypeBadge,
-          background: isTimeOff ? '#E6394615' : '#2DC65315',
-          color: isTimeOff ? '#E63946' : '#2DC653',
-        }}>
+        {/* Avatar + name */}
+        <div style={{ ...s.reqAvatar, background: avatarColor }}>{name[0].toUpperCase()}</div>
+        <div style={{ flex: 1 }}>
+          <div style={s.requestEmployee}>{name}</div>
+          {request.employee?.phone && request.employee?.name && (
+            <div style={s.requestPhone}>{request.employee.phone}</div>
+          )}
+        </div>
+        {/* Type badge */}
+        <span style={{ ...s.requestTypeBadge, background: typeColor + '15', color: typeColor }}>
           {isTimeOff ? '🏖️ Time Off' : '🙋 Fill-In'}
         </span>
-        <span style={{
-          ...s.statusBadge,
-          background: request.status === 'PENDING' ? '#F4A26120' : isApproved ? '#2DC65320' : '#E6394620',
-          color: request.status === 'PENDING' ? '#b07720' : isApproved ? '#1a7a36' : '#E63946',
-        }}>
+        {/* Status chip */}
+        <span style={{ ...s.statusBadge, background: statusColor + '18', color: statusColor, borderColor: statusColor + '40' }}>
           {request.status}
         </span>
       </div>
-      <div style={s.requestEmployee}>
-        {request.employee?.name || request.employee?.phone}
-      </div>
       <div style={s.requestDetails}>
-        <span>{fmtDate(request.date)}</span>
+        <span>📅 {fmtDate(request.date)}</span>
         <span style={s.dot}>·</span>
-        <span>{request.shiftType}</span>
+        <span>🕐 {request.shiftType}</span>
         {request.notes && (
           <>
             <span style={s.dot}>·</span>
@@ -501,8 +518,8 @@ function RequestCard({
       </div>
       {isPending && (
         <div style={s.requestActions}>
-          <button style={s.approveBtn} onClick={onApprove}>Approve</button>
-          <button style={s.denyBtn} onClick={onDeny}>Deny</button>
+          <button style={s.approveBtn} onClick={onApprove}>✓  Approve</button>
+          <button style={s.denyBtn} onClick={onDeny}>✕  Deny</button>
         </div>
       )}
     </div>
@@ -512,122 +529,142 @@ function RequestCard({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f8fafc' },
 
   // Left panel
   leftPanel: {
-    width: 220, flexShrink: 0, background: '#f8f9fa',
-    borderRight: '1px solid #e9ecef', overflowY: 'auto',
+    width: 240, flexShrink: 0, background: '#fff',
+    borderRight: '1px solid #f0f1f2', overflowY: 'auto',
+    boxShadow: '2px 0 8px rgba(0,0,0,0.03)',
   },
   leftHeader: {
-    padding: '16px 16px 10px', borderBottom: '1px solid #e9ecef',
+    padding: '20px 18px 14px', borderBottom: '1px solid #f0f1f2',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
   },
-  leftTitle: { fontWeight: 800, fontSize: 13, color: '#1D3557', textTransform: 'uppercase', letterSpacing: 0.5 },
-  totalVacBadge: { background: '#E63946', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '1px 6px', fontSize: 10, fontWeight: 700, flexShrink: 0 },
+  leftTitle: { fontWeight: 800, fontSize: 16, color: '#111827' },
+  leftSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  totalVacBadge: { background: '#E63946', color: '#fff', borderRadius: 10, padding: '3px 10px', fontSize: 11, fontWeight: 700 },
+  vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 700, flexShrink: 0 },
   vacancyBanner: {
-    display: 'flex', alignItems: 'flex-start', gap: 10,
-    background: '#fff3cd', borderBottom: '1px solid #ffc107',
-    padding: '12px 24px', fontSize: 13, color: '#856404',
+    display: 'flex', alignItems: 'center', gap: 10,
+    background: '#fffbeb', borderBottom: '1px solid #fde68a',
+    padding: '12px 24px', fontSize: 13, color: '#b45309',
   },
-  vacancyBannerIcon: { fontSize: 16, flexShrink: 0 },
+  vacancyBannerIcon: { fontSize: 18, flexShrink: 0 },
+
   storeItem: {
-    width: '100%', padding: '12px 16px', textAlign: 'left',
-    background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0',
+    width: '100%', padding: '10px 14px', textAlign: 'left',
+    background: 'none', border: 'none', borderBottom: '1px solid #f9fafb',
     borderLeft: '3px solid transparent',
-    cursor: 'pointer',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+    transition: 'background 0.12s',
+    boxSizing: 'border-box' as const,
   },
-  storeItemActive: { background: '#1D355712', borderLeft: '3px solid #1D3557' },
-  storeItemName: { fontWeight: 700, fontSize: 13, color: '#1D3557' },
-  storeItemCity: { fontSize: 11, color: '#6c757d', marginTop: 2 },
+  storeItemActive: { background: '#f8fafc' },
+  storeAvatar: {
+    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontWeight: 800, fontSize: 14,
+  },
+  storeItemName: { fontWeight: 700, fontSize: 13, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  storeItemCity: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
 
   // Right panel
   rightPanel: { flex: 1, overflowY: 'auto', background: '#fff' },
   rightHeader: {
-    padding: '24px 28px 0', display: 'flex',
+    padding: '20px 28px 16px', display: 'flex',
     justifyContent: 'space-between', alignItems: 'flex-end',
-    borderBottom: '1px solid #e9ecef', paddingBottom: 16,
+    borderBottom: '1px solid #f0f1f2',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
   },
-  pageTitle: { fontSize: 24, fontWeight: 800, color: '#1D3557', margin: 0 },
-  pageSub: { color: '#6c757d', margin: '4px 0 0', fontSize: 14 },
-  shiftToggle: { display: 'flex', background: '#f0f0f0', borderRadius: 8, padding: 2, gap: 2 },
+  rightHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 6 },
+  pageTitle: { fontSize: 22, fontWeight: 800, color: '#111827', margin: 0 },
+  pageSubRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  pageSub: { color: '#9ca3af', fontSize: 13 },
+  shiftToggle: { display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, gap: 2 },
   shiftToggleBtn: {
     padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-    fontSize: 12, fontWeight: 700, background: 'transparent', color: '#6c757d',
+    fontSize: 12, fontWeight: 700, background: 'transparent', color: '#9ca3af',
   },
-  shiftToggleBtnActive: { background: '#fff', color: '#1D3557', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' },
+  shiftToggleBtnActive: { background: '#fff', color: '#1D3557', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' },
 
   // Tabs
-  tabRow: { display: 'flex', gap: 4 },
+  tabRow: { display: 'flex', gap: 6 },
   tab: {
-    padding: '8px 18px', borderRadius: '8px 8px 0 0',
-    border: '1px solid #e9ecef', borderBottom: 'none',
-    background: '#f8f9fa', cursor: 'pointer',
-    fontSize: 13, fontWeight: 700, color: '#6c757d',
+    padding: '8px 18px', borderRadius: 10,
+    border: '1.5px solid #e5e7eb',
+    background: '#f9fafb', cursor: 'pointer',
+    fontSize: 13, fontWeight: 700, color: '#6b7280',
     display: 'flex', alignItems: 'center', gap: 6,
-    marginBottom: -1,
   },
-  tabActive: { background: '#fff', color: '#1D3557', borderBottomColor: '#fff' },
+  tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
   badge: {
     background: '#E63946', color: '#fff',
-    borderRadius: 10, padding: '1px 6px',
+    borderRadius: 10, padding: '1px 7px',
     fontSize: 10, fontWeight: 800,
   },
 
   // Sections
   section: { padding: '24px 28px' },
-  sectionTitle: { fontSize: 16, fontWeight: 800, color: '#1D3557', margin: '0 0 16px' },
-  subTitle: { fontSize: 14, fontWeight: 700, color: '#495057', margin: '0 0 12px' },
+  sectionTitle: { fontSize: 15, fontWeight: 800, color: '#111827', margin: '0 0 16px' },
+  subTitle: { fontSize: 13, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
 
   // Today's roster
   rosterGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
     gap: 12,
   },
   rosterCard: {
-    background: '#f8f9fa', borderRadius: 12, padding: 14,
+    background: '#fff', borderRadius: 14, padding: 16,
     borderTop: '4px solid #ccc',
+    border: '1px solid #f0f1f2',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
   },
-  rosterName: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 6 },
+  rosterAvatar: {
+    width: 32, height: 32, borderRadius: 9,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontWeight: 800, fontSize: 13, flexShrink: 0,
+  },
+  rosterName: { fontWeight: 700, fontSize: 14, color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   rosterShiftTag: {
-    display: 'inline-block', borderRadius: 6,
-    padding: '2px 8px', fontSize: 11, fontWeight: 700, marginBottom: 4,
+    display: 'inline-block', borderRadius: 8,
+    padding: '3px 10px', fontSize: 11, fontWeight: 700,
+    border: '1px solid', marginBottom: 6,
   },
-  rosterTime: { fontSize: 12, color: '#6c757d' },
+  rosterTime: { fontSize: 12, color: '#9ca3af' },
 
   // Grid
   gridWrapper: { overflowX: 'auto' },
   grid: { width: '100%', borderCollapse: 'collapse', minWidth: 700 },
   gridHeaderCell: {
     padding: '10px 8px', textAlign: 'center',
-    fontSize: 11, fontWeight: 800, color: '#6c757d',
-    textTransform: 'uppercase', letterSpacing: 0.5,
-    background: '#f8f9fa', borderBottom: '2px solid #e9ecef',
+    fontSize: 11, fontWeight: 800, color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: '0.5px',
+    background: '#f8fafc', borderBottom: '2px solid #f0f1f2',
   },
-  todayCol: { color: '#1D3557', background: '#1D355710' },
+  todayCol: { color: '#1D3557', background: '#eff6ff' },
   todayBadge: {
     display: 'block', fontSize: 9, fontWeight: 800,
     color: '#1D3557', textTransform: 'uppercase', marginTop: 2,
   },
   shiftLabelCell: {
-    padding: '8px 12px', background: '#fafafa',
-    borderRight: '2px solid #e9ecef', borderBottom: '1px solid #f0f0f0',
+    padding: '8px 14px', background: '#fafafa',
+    borderRight: '2px solid #f0f1f2', borderBottom: '1px solid #f0f1f2',
   },
-  shiftLabel: { borderLeft: '3px solid #ccc', paddingLeft: 8 },
-  shiftLabelName: { fontWeight: 700, fontSize: 13, color: '#1D3557' },
-  shiftLabelTime: { fontSize: 11, color: '#6c757d', marginTop: 2 },
+  shiftLabel: { borderLeft: '3px solid #ccc', paddingLeft: 10 },
+  shiftLabelName: { fontWeight: 800, fontSize: 13, color: '#111827' },
+  shiftLabelTime: { fontSize: 11, color: '#9ca3af', marginTop: 3 },
   cell: {
     padding: '6px 8px', verticalAlign: 'top',
-    borderBottom: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0',
+    borderBottom: '1px solid #f0f1f2', borderRight: '1px solid #f0f1f2',
     minWidth: 90,
   },
-  todayCellBg: { background: '#1D35570A' },
+  todayCellBg: { background: '#eff6ff' },
   cellContent: { display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32 },
   chip: {
     display: 'flex', alignItems: 'center', gap: 4,
-    background: '#f0f4ff', border: '1px solid #d0d9f0',
+    background: '#f0f4ff', border: '1px solid',
     borderRadius: 8, padding: '3px 4px 3px 8px',
     fontSize: 11, fontWeight: 600, color: '#1D3557',
   },
@@ -638,71 +675,83 @@ const s: Record<string, React.CSSProperties> = {
     padding: '0 2px', lineHeight: 1,
   },
   addChipBtn: {
-    background: 'none', border: '1.5px dashed #adb5bd',
+    background: 'none', border: '1.5px dashed #d1d5db',
     borderRadius: 8, width: 26, height: 26,
-    cursor: 'pointer', color: '#6c757d', fontSize: 16, fontWeight: 700,
+    cursor: 'pointer', color: '#9ca3af', fontSize: 16, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 0,
+    padding: 0, transition: 'border-color 0.15s',
   },
 
   // Requests
   requestList: { display: 'flex', flexDirection: 'column', gap: 10 },
   requestCard: {
-    background: '#f8f9fa', borderRadius: 12, padding: 14,
+    background: '#fff', borderRadius: 14, padding: 16,
     borderLeft: '4px solid #ccc',
+    border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    display: 'flex', flexDirection: 'column', gap: 10,
   },
-  requestTop: { display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' },
+  requestTop: { display: 'flex', gap: 10, alignItems: 'center' },
+  reqAvatar: {
+    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontWeight: 800, fontSize: 14,
+  },
+  requestEmployee: { fontWeight: 700, fontSize: 14, color: '#111827' },
+  requestPhone: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
   requestTypeBadge: {
-    borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700,
+    borderRadius: 8, padding: '3px 10px', fontSize: 11, fontWeight: 700,
   },
   statusBadge: {
-    borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700,
-    textTransform: 'uppercase',
+    borderRadius: 8, padding: '3px 10px', fontSize: 10, fontWeight: 800,
+    textTransform: 'uppercase', border: '1px solid',
   },
-  requestEmployee: { fontWeight: 700, fontSize: 15, color: '#1D3557', marginBottom: 4 },
-  requestDetails: { display: 'flex', gap: 8, fontSize: 13, color: '#495057', flexWrap: 'wrap' },
-  dot: { color: '#dee2e6' },
-  requestNotes: { fontStyle: 'italic', color: '#6c757d' },
-  requestActions: { display: 'flex', gap: 8, marginTop: 10 },
+  requestDetails: { display: 'flex', gap: 10, fontSize: 13, color: '#374151', flexWrap: 'wrap', fontWeight: 600 },
+  dot: { color: '#e5e7eb' },
+  requestNotes: { fontStyle: 'italic', color: '#9ca3af', fontWeight: 400 },
+  requestActions: { display: 'flex', gap: 10, marginTop: 2 },
   approveBtn: {
-    background: '#2DC653', color: '#fff', border: 'none',
-    borderRadius: 8, padding: '7px 18px', fontWeight: 700,
+    background: '#f0fdf4', color: '#16a34a',
+    border: '1px solid #bbf7d0',
+    borderRadius: 10, padding: '8px 20px', fontWeight: 800,
     cursor: 'pointer', fontSize: 13,
   },
   denyBtn: {
-    background: 'none', color: '#E63946',
-    border: '1px solid #E63946', borderRadius: 8,
-    padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13,
+    background: '#fff1f2', color: '#E63946',
+    border: '1px solid #fecaca',
+    borderRadius: 10, padding: '8px 20px', fontWeight: 800,
+    cursor: 'pointer', fontSize: 13,
   },
 
   // Modal
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 200,
+    zIndex: 200, backdropFilter: 'blur(2px)',
   },
   modal: {
-    background: '#fff', borderRadius: 16, padding: 28,
-    width: 400, maxWidth: '90vw', boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-    display: 'flex', flexDirection: 'column', gap: 12,
+    background: '#fff', borderRadius: 20, padding: 28,
+    width: 420, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+    display: 'flex', flexDirection: 'column', gap: 14,
   },
-  modalTitle: { margin: 0, fontSize: 15, fontWeight: 800, color: '#1D3557' },
-  label: { fontWeight: 600, fontSize: 13, color: '#212529' },
+  modalTitle: { margin: 0, fontSize: 16, fontWeight: 800, color: '#111827' },
+  label: { fontWeight: 700, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' },
   select: {
-    padding: '10px 14px', borderRadius: 8,
-    border: '1px solid #dee2e6', fontSize: 14, width: '100%',
-    boxSizing: 'border-box' as const,
+    padding: '11px 14px', borderRadius: 10,
+    border: '1.5px solid #e5e7eb', fontSize: 14, width: '100%',
+    boxSizing: 'border-box' as const, background: '#f9fafb', color: '#111827',
   },
   modalActions: { display: 'flex', gap: 10, marginTop: 4 },
   saveBtn: {
-    background: '#2DC653', color: '#fff', border: 'none',
-    borderRadius: 8, padding: '10px 22px', fontWeight: 700,
+    background: '#0f5132', color: '#fff', border: 'none',
+    borderRadius: 10, padding: '11px 24px', fontWeight: 800,
     cursor: 'pointer', fontSize: 14,
+    boxShadow: '0 4px 12px rgba(15,81,50,0.3)',
   },
   cancelBtn: {
-    background: '#f8f9fa', color: '#6c757d',
-    border: '1px solid #dee2e6', borderRadius: 8,
-    padding: '10px 22px', fontWeight: 600, cursor: 'pointer', fontSize: 14,
+    background: '#f3f4f6', color: '#6b7280',
+    border: '1.5px solid #e5e7eb', borderRadius: 10,
+    padding: '11px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14,
   },
 
   // Empty / loading
