@@ -261,12 +261,12 @@ export default function Offers() {
         <button style={{ ...s.mainTab, ...(mainTab === 'promotions' ? s.mainTabActive : {}) }}
           onClick={() => { setMainTab('promotions'); setShowDealForm(false); }}>
           📢 Promotions
-          <span style={s.tabCount}>{promotionOffers.length}</span>
+          <span style={{ ...s.tabCount, background: mainTab === 'promotions' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'promotions' ? '#fff' : '#6b7280' }}>{promotionOffers.length}</span>
         </button>
         <button style={{ ...s.mainTab, ...(mainTab === 'deals' ? s.mainTabActive : {}) }}
           onClick={() => { setMainTab('deals'); setShowForm(false); setShowTemplates(false); }}>
           🏷️ Deals
-          <span style={s.tabCount}>{dealOffers.length}</span>
+          <span style={{ ...s.tabCount, background: mainTab === 'deals' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'deals' ? '#fff' : '#6b7280' }}>{dealOffers.length}</span>
         </button>
       </div>
 
@@ -568,52 +568,65 @@ function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => vo
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32, maxWidth: 1200, margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#6c757d', marginTop: 4 },
-  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
-  templateBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
-  suggestionsBox: { background: '#f8faff', border: '1px solid #d0d9f0', borderRadius: 14, padding: 24, marginBottom: 28 },
-  suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 17, fontWeight: 800 },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
+
+  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
+  templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
+
+  suggestionsBox: { background: '#f8faff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#d0d9f0', borderRadius: 16, padding: 24, marginBottom: 28 },
+  suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 16, fontWeight: 800 },
   suggestSub: { margin: '0 0 16px', color: '#6c757d', fontSize: 13 },
   groupTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-  groupTab: { padding: '6px 14px', borderRadius: 20, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#6c757d' },
+  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6b7280' },
   groupTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
-  templateGrid: { display: 'flex', flexDirection: 'column', gap: 10 },
-  templateCard: { background: '#fff', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, border: '1px solid #e9ecef' },
-  templateIcon: { fontSize: 24, flexShrink: 0, width: 32, textAlign: 'center' },
+  templateGrid: { display: 'flex', flexDirection: 'column', gap: 8 },
+  templateCard: { background: '#fff', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e9ecef' },
+  templateIcon: { fontSize: 22, flexShrink: 0, width: 32, textAlign: 'center' },
   templateTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 4 },
-  templateDesc: { fontSize: 13, color: '#6c757d', lineHeight: 1.5 },
+  templateDesc: { fontSize: 12, color: '#6b7280', lineHeight: 1.5 },
   templateMeta: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  templateBadge: { background: '#E6394620', color: '#E63946', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700 },
-  templateCat: { background: '#2DC65320', color: '#1a7a36', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 },
-  useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
-  form: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 580 },
-  label: { fontWeight: 600, fontSize: 13, color: '#212529' },
-  input: { padding: '10px 14px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, width: '100%', boxSizing: 'border-box' as const },
-  saveBtn: { background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 24px', fontWeight: 700, cursor: 'pointer' },
-  cancelFormBtn: { background: '#f8f9fa', color: '#6c757d', border: '1px solid #dee2e6', borderRadius: 8, padding: '12px 24px', fontWeight: 600, cursor: 'pointer' },
-  sectionHead: { fontSize: 16, fontWeight: 700, color: '#1D3557', marginBottom: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 },
-  card: { background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  cardPast: { opacity: 0.8, boxShadow: 'none', border: '1px solid #e9ecef' },
-  img: { width: '100%', height: 160, objectFit: 'cover' as const },
-  cardBody: { padding: 16 },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#1D3557', margin: '0 0 6px' },
-  cardDesc: { color: '#6c757d', fontSize: 14, margin: '0 0 8px' },
-  cardDate: { color: '#adb5bd', fontSize: 12, margin: '8px 0 0' },
-  badge: { display: 'inline-block', background: '#E63946', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 600 },
-  tagAll: { background: '#1D355715', color: '#1D3557', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  tagStore: { background: '#F4A26120', color: '#c07a20', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  tagCat: { background: '#2DC65320', color: '#1a7a36', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  tagPast: { background: '#6c757d20', color: '#6c757d', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  reuseBtn: { background: '#1D355715', color: '#1D3557', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700 },
-  deleteBtn: { background: 'none', border: '1px solid #dee2e6', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', color: '#6c757d', fontSize: 13 },
-  historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
-  empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
+  templateBadge: { background: '#fef2f2', color: '#E63946', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
+  templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
+  useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
 
-  mainTabs: { display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid #e9ecef', paddingBottom: 0 },
-  mainTab: { padding: '10px 20px', borderRadius: '8px 8px 0 0', border: '1px solid #e9ecef', borderBottom: 'none', background: '#f8f9fa', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#6c757d', display: 'flex', alignItems: 'center', gap: 8, marginBottom: -2 },
-  mainTabActive: { background: '#fff', color: '#1D3557', borderColor: '#e9ecef', borderBottomColor: '#fff' },
-  tabCount: { background: '#e9ecef', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 },
-  dealTextBig: { fontSize: 26, fontWeight: 800, color: '#E63946', marginBottom: 6 },
+  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 580, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
+  label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
+  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
+  cancelFormBtn: { background: '#f8fafc', color: '#6b7280', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
+
+  sectionHead: {
+    fontSize: 14, fontWeight: 800, color: '#1D3557', marginBottom: 16,
+    display: 'flex', alignItems: 'center', gap: 8,
+    borderLeft: '4px solid #1D3557', paddingLeft: 12,
+  },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 18 },
+  card: { background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
+  cardPast: { opacity: 0.75, boxShadow: 'none', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
+  img: { width: '100%', height: 160, objectFit: 'cover' as const },
+  cardBody: { padding: '16px 18px' },
+  cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' },
+  cardDesc: { color: '#6b7280', fontSize: 13, margin: '0 0 8px', lineHeight: 1.5 },
+  cardDate: { color: '#adb5bd', fontSize: 11, margin: '8px 0 0', fontWeight: 600 },
+  badge: { display: 'inline-block', background: '#fef2f2', color: '#E63946', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700 },
+  tagAll: { background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  tagPast: { background: '#f8fafc', color: '#9ca3af', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  reuseBtn: { background: '#eff6ff', color: '#1D3557', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 },
+  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
+  empty: { color: '#9ca3af', textAlign: 'center', padding: 60, fontSize: 14 },
+
+  mainTabs: { display: 'flex', gap: 8, marginBottom: 24 },
+  mainTab: {
+    padding: '9px 20px', borderRadius: 10,
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
+    background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+    color: '#6b7280', display: 'flex', alignItems: 'center', gap: 8,
+  },
+  mainTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 },
+  dealTextBig: { fontSize: 24, fontWeight: 900, color: '#E63946', marginBottom: 6, letterSpacing: -0.5 },
 };

@@ -606,7 +606,8 @@ const s: Record<string, React.CSSProperties> = {
   // Tabs
   tabRow: { display: 'flex', gap: 8 },
   tab: {
-    padding: '9px 18px', borderRadius: 10, border: '1.5px solid #e5e7eb',
+    padding: '9px 18px', borderRadius: 10,
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#6b7280',
   },
   tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
@@ -722,7 +723,7 @@ const s: Record<string, React.CSSProperties> = {
   // Role cards
   roleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 },
   roleCard: {
-    background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 14,
+    background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 14,
     padding: 16, cursor: 'pointer', textAlign: 'left',
     display: 'flex', flexDirection: 'column', gap: 6,
     position: 'relative', transition: 'border-color 0.15s',
@@ -800,7 +801,7 @@ const s: Record<string, React.CSSProperties> = {
   storeCheckRow: {
     display: 'flex', alignItems: 'center', gap: 12,
     padding: '10px 14px', borderRadius: 12,
-    border: '1.5px solid #e5e7eb', cursor: 'pointer',
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', cursor: 'pointer',
     transition: 'all 0.12s',
   },
   storeCheckRowActive: { background: '#f8fafc' },

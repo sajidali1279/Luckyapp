@@ -239,7 +239,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   input: {
     padding: '13px 16px', borderRadius: 12,
-    border: '1.5px solid #e5e7eb',
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     fontSize: 16, outline: 'none',
     width: '100%', boxSizing: 'border-box' as const,
     background: '#f9fafb', color: '#111827',

@@ -62,7 +62,7 @@ export default function Banners() {
     <div style={s.container}>
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>🖼️ Banners</h1>
+          <h1 style={s.title}>Banners</h1>
           <p style={s.sub}>Promotional images shown in the customer app — target all stores or one location</p>
         </div>
         <button style={s.addBtn} onClick={() => setShowForm(!showForm)}>
@@ -138,22 +138,31 @@ export default function Banners() {
 
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32, maxWidth: 1200, margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#6c757d', marginTop: 4 },
-  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
-  form: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560 },
-  label: { fontWeight: 600, fontSize: 13, color: '#212529' },
-  input: { padding: '10px 14px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, width: '100%', boxSizing: 'border-box' as const },
-  saveBtn: { background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 8 },
-  list: { display: 'flex', flexDirection: 'column', gap: 16 },
-  card: { background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 20, padding: 16 },
-  img: { width: 200, height: 80, objectFit: 'cover' as const, borderRadius: 8, flexShrink: 0 },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
+  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
+
+  form: {
+    background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12,
+    maxWidth: 560, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+  },
+  label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
+  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
+
+  list: { display: 'flex', flexDirection: 'column', gap: 14 },
+  card: {
+    background: '#fff', borderRadius: 16, overflow: 'hidden',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 20, padding: '14px 18px',
+  },
+  img: { width: 220, height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
   cardInfo: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#1D3557', margin: '0 0 6px' },
-  cardDate: { color: '#6c757d', fontSize: 13, margin: '6px 0 0' },
-  tagAll: { display: 'inline-block', background: '#1D355715', color: '#1D3557', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  tagStore: { display: 'inline-block', background: '#F4A26120', color: '#c07a20', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  deleteBtn: { background: 'none', border: '1px solid #dee2e6', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', color: '#6c757d', flexShrink: 0 },
-  empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
+  cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' },
+  cardDate: { color: '#9ca3af', fontSize: 12, margin: '6px 0 0', fontWeight: 600 },
+  tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
+  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 13 },
+  empty: { color: '#9ca3af', textAlign: 'center', padding: 60, fontSize: 14 },
 };

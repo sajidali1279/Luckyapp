@@ -26,6 +26,9 @@ const CAT_ICONS: Record<string, string> = {
 
 const CHART_COLORS = ['#1D3557', '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
 
+const AVATAR_PALETTE = ['#E63946','#457B9D','#2DC653','#F4A261','#7B2FBE','#0077B6','#E76F51','#2A9D8F','#E9C46A','#264653','#6A0572','#1D3557'];
+function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
+
 export default function Dashboard() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
@@ -146,10 +149,11 @@ export default function Dashboard() {
             {platform.storeRanking.map((store: any, i: number) => {
               const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
               const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
+              const color = storeColor(i);
               return (
                 <div key={store.id} style={{ ...s.storeTableRow, background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
                   <span style={s.storeColName}>
-                    <span style={s.storeRank}>#{i + 1}</span>
+                    <div style={{ ...s.storeAvatar, background: color }}>{store.name[0]?.toUpperCase()}</div>
                     <span>
                       <div style={{ fontWeight: 700, color: '#1D3557', fontSize: 14 }}>{store.name}</div>
                       <div style={{ fontSize: 11, color: '#adb5bd' }}>{store.city}</div>
@@ -330,13 +334,17 @@ const s: Record<string, React.CSSProperties> = {
   welcomeSub: { color: 'rgba(255,255,255,0.65)', marginTop: 6, fontSize: 14 },
   roleBadge: {
     background: 'rgba(244,162,97,0.2)', color: '#F4A261',
-    border: '1px solid rgba(244,162,97,0.4)',
+    borderWidth: '1px', borderStyle: 'solid', borderColor: 'rgba(244,162,97,0.4)',
     borderRadius: 20, padding: '8px 20px', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
   },
   roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#2DC653', borderColor: 'rgba(45,198,83,0.3)' },
 
-  section: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginBottom: 6, marginTop: 0 },
-  sectionSub: { fontSize: 13, color: '#6c757d', marginBottom: 16, marginTop: 0 },
+  section: {
+    fontSize: 15, fontWeight: 800, color: '#1D3557', marginBottom: 14, marginTop: 0,
+    display: 'flex', alignItems: 'center', gap: 10,
+    borderLeft: '4px solid #1D3557', paddingLeft: 12,
+  },
+  sectionSub: { fontSize: 13, color: '#6c757d', marginBottom: 16, marginTop: -10, paddingLeft: 16 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 36 },
   statCard: {
@@ -373,9 +381,10 @@ const s: Record<string, React.CSSProperties> = {
   storeColName: { display: 'flex', alignItems: 'center', gap: 10 },
   storeColNum: { fontSize: 14, color: '#495057' },
   storeColBar: { paddingRight: 12 },
-  storeRank: {
-    fontSize: 11, fontWeight: 800, color: '#adb5bd',
-    background: '#f8f9fa', borderRadius: 6, padding: '2px 7px', flexShrink: 0,
+  storeAvatar: {
+    width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: 13, fontWeight: 800,
   },
   barTrack: { height: 8, background: '#f0f1f2', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', background: 'linear-gradient(90deg, #1D3557, #457b9d)', borderRadius: 4, transition: 'width 0.4s ease' },
