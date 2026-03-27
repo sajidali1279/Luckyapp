@@ -445,11 +445,12 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'User not found' });
     return;
   }
-  // Delete records without cascade first (FK constraint)
+  // Delete all records referencing this user (no cascade on these FKs)
   await prisma.pointsTransaction.deleteMany({ where: { customerId: userId } });
+  await prisma.pointsTransaction.deleteMany({ where: { grantedById: userId } });
   await prisma.creditRedemption.deleteMany({ where: { customerId: userId } });
+  await prisma.creditRedemption.deleteMany({ where: { processedBy: userId } });
   await prisma.redemption.deleteMany({ where: { customerId: userId } });
-  // Cascaded automatically, but explicit for clarity
   await prisma.userStoreRole.deleteMany({ where: { userId } });
   await prisma.pushToken.deleteMany({ where: { userId } });
   await prisma.user.delete({ where: { id: userId } });
