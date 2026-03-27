@@ -20,8 +20,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim());
 
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
     // No origin = React Native / Postman / server-to-server — always allow
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
@@ -32,7 +32,7 @@ const corsOptions = {
 };
 
 // Handle preflight for all routes (required for DELETE/PATCH with custom headers)
-app.options('*', cors(corsOptions));
+app.options('*' as string, cors(corsOptions));
 app.use(cors(corsOptions));
 
 // Rate limiting — prevent brute force
