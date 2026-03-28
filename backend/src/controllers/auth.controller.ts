@@ -7,6 +7,7 @@ import { Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { audit } from '../utils/audit';
+import { sendOtpEmail } from '../utils/email';
 
 const SALT_ROUNDS = 12;
 
@@ -212,8 +213,17 @@ export async function changePin(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Check PIN history (last 3 PINs cannot be reused)
+  for (const oldHash of user.pinHistory) {
+    if (await bcrypt.compare(newPin, oldHash)) {
+      res.status(400).json({ success: false, error: 'Cannot reuse a recent PIN. Choose a different 4-digit PIN.' });
+      return;
+    }
+  }
+
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
-  await prisma.user.update({ where: { id: user.id }, data: { pinHash } });
+  const newHistory = [user.pinHash, ...user.pinHistory].slice(0, 3);
+  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory } });
   res.json({ success: true, message: 'PIN updated' });
 }
 
@@ -467,6 +477,150 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     details: { name: target.name, phone: target.phone, role: target.role },
   });
   res.json({ success: true });
+}
+
+// ─── Update Email (authenticated user) ───────────────────────────────────────
+
+export async function updateEmail(req: AuthRequest, res: Response) {
+  const { email } = req.body as { email: string };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ success: false, error: 'Valid email address is required' });
+    return;
+  }
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing && existing.id !== req.user!.id) {
+    res.status(409).json({ success: false, error: 'Email already in use' });
+    return;
+  }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { email, emailVerified: false } });
+  res.json({ success: true });
+}
+
+// ─── Forgot PIN — request OTP ─────────────────────────────────────────────────
+
+export async function forgotPin(req: Request, res: Response) {
+  const { phone, email } = req.body as { phone: string; email?: string };
+  if (!phone) {
+    res.status(400).json({ success: false, error: 'phone is required' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone } });
+  // Always return 200 to avoid user enumeration
+  if (!user || !user.isActive) {
+    res.json({ success: true, message: 'If that account exists, an OTP was sent.' });
+    return;
+  }
+
+  // If email provided, verify it matches their account
+  if (email && user.email && user.email.toLowerCase() !== email.toLowerCase()) {
+    res.status(400).json({ success: false, error: 'Email does not match the account' });
+    return;
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Invalidate existing OTPs for this phone
+  await prisma.otpCode.updateMany({
+    where: { phone, purpose: 'FORGOT_PIN', used: false },
+    data: { used: true },
+  });
+
+  await prisma.otpCode.create({
+    data: { phone, email: user.email, code: otp, purpose: 'FORGOT_PIN', expiresAt },
+  });
+
+  if (user.email) {
+    await sendOtpEmail(user.email, otp);
+  }
+
+  // In dev/stub mode, return OTP in response for testing
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.json({
+    success: true,
+    message: 'OTP sent.',
+    ...(isDev ? { otp, email: user.email } : {}),
+  });
+}
+
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
+
+export async function verifyOtp(req: Request, res: Response) {
+  const { phone, code } = req.body as { phone: string; code: string };
+  if (!phone || !code) {
+    res.status(400).json({ success: false, error: 'phone and code are required' });
+    return;
+  }
+
+  const record = await prisma.otpCode.findFirst({
+    where: { phone, code, purpose: 'FORGOT_PIN', used: false },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!record || record.expiresAt < new Date()) {
+    res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
+    return;
+  }
+
+  // Mark as used
+  await prisma.otpCode.update({ where: { id: record.id }, data: { used: true } });
+
+  // Issue a short-lived reset token (reuse JWT with special claim)
+  const resetToken = jwt.sign(
+    { phone, purpose: 'RESET_PIN' },
+    process.env.JWT_SECRET!,
+    { expiresIn: 600 } // 10 minutes
+  );
+
+  res.json({ success: true, resetToken });
+}
+
+// ─── Reset PIN (after OTP verified) ──────────────────────────────────────────
+
+export async function resetPin(req: Request, res: Response) {
+  const { resetToken, newPin } = req.body as { resetToken: string; newPin: string };
+  if (!resetToken || !newPin || !/^\d{4}$/.test(newPin)) {
+    res.status(400).json({ success: false, error: 'resetToken and 4-digit newPin are required' });
+    return;
+  }
+
+  let payload: { phone: string; purpose: string };
+  try {
+    payload = jwt.verify(resetToken, process.env.JWT_SECRET!) as { phone: string; purpose: string };
+  } catch {
+    res.status(400).json({ success: false, error: 'Reset token is invalid or expired' });
+    return;
+  }
+
+  if (payload.purpose !== 'RESET_PIN') {
+    res.status(400).json({ success: false, error: 'Invalid token purpose' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({ where: { phone: payload.phone } });
+  if (!user) {
+    res.status(404).json({ success: false, error: 'User not found' });
+    return;
+  }
+
+  // Check PIN history (last 3 PINs cannot be reused)
+  for (const oldHash of user.pinHistory) {
+    if (await bcrypt.compare(newPin, oldHash)) {
+      res.status(400).json({ success: false, error: 'Cannot reuse a recent PIN. Choose a different 4-digit PIN.' });
+      return;
+    }
+  }
+  if (user.pinHash && await bcrypt.compare(newPin, user.pinHash)) {
+    res.status(400).json({ success: false, error: 'Cannot reuse your current PIN.' });
+    return;
+  }
+
+  const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
+  const newHistory = user.pinHash ? [user.pinHash, ...user.pinHistory].slice(0, 3) : user.pinHistory;
+  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory } });
+
+  res.json({ success: true, message: 'PIN reset successfully. You can now log in.' });
 }
 
 // ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────

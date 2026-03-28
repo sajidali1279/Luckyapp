@@ -10,7 +10,7 @@ import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
-type Panel = null | 'name' | 'pin';
+type Panel = null | 'name' | 'pin' | 'email';
 
 export default function ProfileScreen() {
   const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled } = useAuthStore();
@@ -27,6 +27,7 @@ export default function ProfileScreen() {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [email, setEmail] = useState((user as any)?.email || '');
   const [loading, setLoading] = useState(false);
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
@@ -58,6 +59,23 @@ export default function ProfileScreen() {
       setPanel(null);
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to change PIN' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateEmail() {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Toast.show({ type: 'error', text1: 'Enter a valid email address' });
+      return;
+    }
+    setLoading(true);
+    try {
+      await authApi.updateEmail(email.trim());
+      Toast.show({ type: 'success', text1: 'Recovery email saved!' });
+      setPanel(null);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to save email' });
     } finally {
       setLoading(false);
     }
@@ -167,6 +185,42 @@ export default function ProfileScreen() {
             />
             <TouchableOpacity style={s.panelBtn} onPress={handleChangePin} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Change PIN</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Recovery Email */}
+        <TouchableOpacity
+          style={s.settingRow}
+          onPress={() => setPanel(panel === 'email' ? null : 'email')}
+          activeOpacity={0.8}
+        >
+          <View style={[s.settingIconBg, { backgroundColor: '#00B4D818' }]}>
+            <Text style={s.settingEmoji}>📧</Text>
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>Recovery Email</Text>
+            <Text style={s.settingValue}>{email || 'Not set — add for PIN recovery'}</Text>
+          </View>
+          <Text style={s.chevron}>{panel === 'email' ? '∧' : '›'}</Text>
+        </TouchableOpacity>
+
+        {panel === 'email' && (
+          <View style={s.panelCard}>
+            <Text style={s.panelLabel}>Email Address</Text>
+            <TextInput
+              style={s.panelInput}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="your@email.com"
+              placeholderTextColor={COLORS.textMuted}
+              autoFocus
+            />
+            <Text style={s.emailHint}>Used to recover your account if you forget your PIN.</Text>
+            <TouchableOpacity style={s.panelBtn} onPress={handleUpdateEmail} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Save Email</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -298,6 +352,7 @@ const s = StyleSheet.create({
     padding: 15, alignItems: 'center', marginTop: 4,
   },
   panelBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  emailHint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17 },
 
   // Info card
   infoCard: {

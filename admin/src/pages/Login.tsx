@@ -4,6 +4,8 @@ import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 
+type ForgotStep = 'request' | 'verify' | 'reset' | 'done';
+
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
@@ -12,6 +14,60 @@ export default function Login() {
   const [pinActive, setPinActive] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  // Forgot PIN modal
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState<ForgotStep>('request');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotResetToken, setForgotResetToken] = useState('');
+  const [forgotNewPin, setForgotNewPin] = useState('');
+  const [forgotConfirmPin, setForgotConfirmPin] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  function openForgot() {
+    setForgotStep('request'); setForgotPhone(''); setForgotEmail('');
+    setForgotOtp(''); setForgotResetToken(''); setForgotNewPin(''); setForgotConfirmPin('');
+    setShowForgot(true);
+  }
+
+  async function handleForgotRequest() {
+    const raw = forgotPhone.replace(/\D/g, '');
+    if (raw.length < 10) { toast.error('Enter a valid phone number'); return; }
+    setForgotLoading(true);
+    try {
+      await authApi.forgotPin(raw, forgotEmail || undefined);
+      toast.success('OTP sent — check email or server logs (dev mode)');
+      setForgotStep('verify');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to send OTP');
+    } finally { setForgotLoading(false); }
+  }
+
+  async function handleForgotVerify() {
+    if (forgotOtp.length !== 6) { toast.error('Enter the 6-digit code'); return; }
+    setForgotLoading(true);
+    try {
+      const { data } = await authApi.verifyOtp(forgotPhone.replace(/\D/g, ''), forgotOtp);
+      setForgotResetToken(data.resetToken ?? data.data?.resetToken);
+      setForgotStep('reset');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Invalid or expired code');
+    } finally { setForgotLoading(false); }
+  }
+
+  async function handleForgotReset() {
+    if (forgotNewPin.length !== 4) { toast.error('PIN must be 4 digits'); return; }
+    if (forgotNewPin !== forgotConfirmPin) { toast.error('PINs do not match'); return; }
+    setForgotLoading(true);
+    try {
+      await authApi.resetPin(forgotResetToken, forgotNewPin);
+      setForgotStep('done');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reset PIN');
+    } finally { setForgotLoading(false); }
+  }
 
   function formatPhone(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, 10);
@@ -150,9 +206,84 @@ export default function Login() {
             </button>
           </form>
 
+          <button type="button" style={s.forgotLink} onClick={openForgot}>
+            Forgot PIN?
+          </button>
+
           <p style={s.hint}>For Dev Admins, Super Admins, and Store Managers only.<br />Employees and customers use the mobile app.</p>
         </div>
       </div>
+
+      {/* ── Forgot PIN Modal ── */}
+      {showForgot && (
+        <div style={s.modalOverlay} onClick={() => setShowForgot(false)}>
+          <div style={s.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <h3 style={s.modalTitle}>
+                {forgotStep === 'request' && 'Forgot PIN'}
+                {forgotStep === 'verify' && 'Enter Code'}
+                {forgotStep === 'reset' && 'New PIN'}
+                {forgotStep === 'done' && 'PIN Reset!'}
+              </h3>
+              <button style={s.modalClose} onClick={() => setShowForgot(false)}>✕</button>
+            </div>
+
+            {forgotStep === 'request' && (
+              <div style={s.modalBody}>
+                <p style={s.modalSub}>Enter your phone number and recovery email. We'll send a 6-digit code.</p>
+                <label style={s.label}>Phone Number</label>
+                <input style={s.input} type="tel" placeholder="(555) 000-0000"
+                  value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} autoFocus />
+                <label style={{ ...s.label, marginTop: 12 }}>Recovery Email (optional)</label>
+                <input style={s.input} type="email" placeholder="your@email.com" autoCapitalize="none"
+                  value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
+                <button style={s.modalBtn} onClick={handleForgotRequest} disabled={forgotLoading}>
+                  {forgotLoading ? 'Sending…' : 'Send Code'}
+                </button>
+              </div>
+            )}
+
+            {forgotStep === 'verify' && (
+              <div style={s.modalBody}>
+                <p style={s.modalSub}>Check your email for the 6-digit OTP. It expires in 10 minutes.</p>
+                <label style={s.label}>OTP Code</label>
+                <input style={{ ...s.input, fontSize: 24, letterSpacing: 10, textAlign: 'center' }}
+                  type="text" placeholder="······" maxLength={6}
+                  value={forgotOtp} onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus />
+                <button style={s.modalBtn} onClick={handleForgotVerify} disabled={forgotLoading}>
+                  {forgotLoading ? 'Verifying…' : 'Verify Code'}
+                </button>
+                <button style={s.modalLinkBtn} onClick={() => setForgotStep('request')}>← Go back</button>
+              </div>
+            )}
+
+            {forgotStep === 'reset' && (
+              <div style={s.modalBody}>
+                <p style={s.modalSub}>Choose a new 4-digit PIN you haven't used recently.</p>
+                <label style={s.label}>New PIN</label>
+                <input style={{ ...s.input, fontSize: 24, letterSpacing: 14, textAlign: 'center' }}
+                  type="password" placeholder="••••" maxLength={4} inputMode="numeric"
+                  value={forgotNewPin} onChange={(e) => setForgotNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} autoFocus />
+                <label style={{ ...s.label, marginTop: 12 }}>Confirm PIN</label>
+                <input style={{ ...s.input, fontSize: 24, letterSpacing: 14, textAlign: 'center' }}
+                  type="password" placeholder="••••" maxLength={4} inputMode="numeric"
+                  value={forgotConfirmPin} onChange={(e) => setForgotConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))} />
+                <button style={s.modalBtn} onClick={handleForgotReset} disabled={forgotLoading}>
+                  {forgotLoading ? 'Resetting…' : 'Reset PIN'}
+                </button>
+              </div>
+            )}
+
+            {forgotStep === 'done' && (
+              <div style={{ ...s.modalBody, textAlign: 'center' }}>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
+                <p style={s.modalSub}>Your PIN has been reset. You can now sign in with your new PIN.</p>
+                <button style={s.modalBtn} onClick={() => setShowForgot(false)}>Back to Sign In</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -273,4 +404,42 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   hint: { color: '#9ca3af', fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.7 },
+
+  forgotLink: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: '#1D3557', fontSize: 13, fontWeight: 600,
+    textDecoration: 'underline', padding: '4px 0', marginTop: 4, alignSelf: 'center',
+    display: 'block', width: '100%', textAlign: 'center',
+  },
+
+  // Modal
+  modalOverlay: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, backdropFilter: 'blur(2px)',
+  },
+  modalCard: {
+    background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400,
+    boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
+  },
+  modalHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '20px 24px 16px', borderBottom: '1px solid #f3f4f6',
+  },
+  modalTitle: { fontSize: 18, fontWeight: 800, color: '#111827', margin: 0 },
+  modalClose: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    fontSize: 16, color: '#9ca3af', padding: 4, lineHeight: 1,
+  },
+  modalBody: { padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 8 },
+  modalSub: { color: '#6b7280', fontSize: 13, margin: '0 0 8px', lineHeight: 1.6 },
+  modalBtn: {
+    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    color: '#fff', border: 'none', borderRadius: 10,
+    padding: '13px 16px', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 8,
+  },
+  modalLinkBtn: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: '#6b7280', fontSize: 13, fontWeight: 600, padding: '4px 0', textAlign: 'center',
+  },
 };

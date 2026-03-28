@@ -102,9 +102,14 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Auth — phone + PIN (no OTP, no Firebase Auth)
+  // Auth — phone + PIN
   pinHash         String?
+  pinHistory      String[] // last 3 PIN hashes (prevent reuse)
   isProfileComplete Boolean @default(false)
+
+  // Account recovery
+  email           String?  @unique
+  emailVerified   Boolean  @default(false)
 
   // Customer-specific
   qrCode          String?  @unique
@@ -476,6 +481,22 @@ model StoreRequest {
   @@index([storeId, status])
   @@index([submittedById])
   @@map("store_requests")
+}
+
+// ─── OTP Codes (PIN recovery) ─────────────────────────────────────────────────
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  phone     String
+  email     String?
+  code      String
+  purpose   String   // "FORGOT_PIN"
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose])
+  @@map("otp_codes")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

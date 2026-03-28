@@ -47,6 +47,10 @@ export const authApi = {
   registerPushToken: (token: string, platform: string) =>
     api.post('/auth/push-token', { token, platform }),
   getMe: () => api.get('/auth/me'),
+  updateEmail: (email: string) => api.patch('/auth/email', { email }),
+  forgotPin: (phone: string, email?: string) => api.post('/auth/forgot-pin', { phone, email }),
+  verifyOtp: (phone: string, code: string) => api.post('/auth/verify-otp', { phone, code }),
+  resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
 };
 
 export const pointsApi = {

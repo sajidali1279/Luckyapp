@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { router } from 'expo-router';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -217,6 +218,13 @@ export default function LoginScreen() {
             >
               <Text style={styles.switchLinkText}>Use a different account</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.switchLink}
+              onPress={() => router.push('/(auth)/forgot-pin')}
+            >
+              <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>Forgot PIN?</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -313,6 +321,15 @@ export default function LoginScreen() {
               : <Text style={styles.buttonText}>{screen === 'login' ? 'Sign In' : 'Create Account'}</Text>
             }
           </TouchableOpacity>
+
+          {screen === 'login' && (
+            <TouchableOpacity
+              style={styles.switchLink}
+              onPress={() => router.push('/(auth)/forgot-pin')}
+            >
+              <Text style={styles.switchLinkText}>Forgot PIN?</Text>
+            </TouchableOpacity>
+          )}
 
           {quickLoginPhone && (
             <TouchableOpacity
