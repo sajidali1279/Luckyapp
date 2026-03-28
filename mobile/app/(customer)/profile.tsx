@@ -77,8 +77,9 @@ export default function ProfileScreen() {
             <Text style={s.headerName}>{user?.name || 'No name set'}</Text>
             <Text style={s.headerPhone}>{user?.phone}</Text>
           </View>
-          <View style={s.memberBadge}>
-            <Text style={s.memberBadgeText}>Member</Text>
+          <View style={s.balanceBadge}>
+            <Text style={s.balanceBadgeAmt}>${Number(user?.pointsBalance || 0).toFixed(2)}</Text>
+            <Text style={s.balanceBadgeLbl}>balance</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -249,8 +250,9 @@ const s = StyleSheet.create({
   headerName: { color: '#fff', fontSize: 20, fontWeight: '800' },
   headerPhone: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 3 },
   memberBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5,
   },
   memberBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
@@ -319,4 +321,12 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.error + '35',
   },
   signOutText: { color: COLORS.error, fontWeight: '800', fontSize: 16 },
+
+  balanceBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center',
+  },
+  balanceBadgeAmt: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  balanceBadgeLbl: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 },
 });
