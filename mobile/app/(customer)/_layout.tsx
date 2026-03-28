@@ -37,6 +37,8 @@ export default function CustomerLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
         }}
       />
+      {/* scan-receipt hidden until printer QR integration is ready */}
+      <Tabs.Screen name="scan-receipt" options={{ href: null }} />
       <Tabs.Screen
         name="rewards"
         options={{

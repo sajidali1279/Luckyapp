@@ -6,7 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi, authApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 export default function CustomerHome() {
@@ -36,6 +36,13 @@ export default function CustomerHome() {
     queryKey: ['offers'],
     queryFn: () => offersApi.getActive(),
   });
+
+  const { data: notifData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
@@ -69,9 +76,22 @@ export default function CustomerHome() {
             <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
             <Text style={styles.storeName}>Lucky Stop Rewards</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
-            <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/notifications')}
+              style={styles.bellBtn}
+            >
+              <Text style={styles.bellIcon}>🔔</Text>
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
+              <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -86,17 +106,7 @@ export default function CustomerHome() {
         </TouchableOpacity>
       </View>
 
-      {/* Scan Receipt */}
-      <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.85}>
-        <View style={styles.scanReceiptLeft}>
-          <Text style={styles.scanReceiptIcon}>📄</Text>
-          <View>
-            <Text style={styles.scanReceiptTitle}>Scan Receipt QR</Text>
-            <Text style={styles.scanReceiptSub}>Earn points instantly — no cashier needed</Text>
-          </View>
-        </View>
-        <Text style={styles.scanReceiptArrow}>›</Text>
-      </TouchableOpacity>
+      {/* Scan Receipt — coming soon (printer QR integration pending) */}
 
       {/* QR Code */}
       <View style={styles.qrSection}>
@@ -185,6 +195,23 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   storeName: { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
+  },
+  bellIcon: { fontSize: 18 },
+  bellBadge: {
+    position: 'absolute', top: 0, right: 0,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8, minWidth: 16, height: 16,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5, borderColor: COLORS.primary,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 13 },
   profileBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.22)',
