@@ -48,6 +48,9 @@ app.use('/api', routes);
 // Health check
 app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+// Root route — simple success response
+app.get('/', (_, res) => res.json({ success: true, message: 'Lucky Stop API' }));
+
 // 404 handler
 app.use((_, res) => {
   res.status(404).json({ success: false, error: 'Route not found' });
