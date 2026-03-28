@@ -19,6 +19,9 @@ export const authApi = {
   forgotPin: (phone: string, email?: string) => api.post('/auth/forgot-pin', { phone, email }),
   verifyOtp: (phone: string, code: string) => api.post('/auth/verify-otp', { phone, code }),
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
+  updateProfile: (name: string) => api.patch('/auth/profile', { name }),
+  changePin: (currentPin: string, newPin: string) => api.patch('/auth/pin', { currentPin, newPin }),
+  updateEmail: (email: string) => api.patch('/auth/email', { email }),
 };
 
 export const billingApi = {

@@ -20,6 +20,7 @@ import Stores from './pages/Stores';
 import Scheduling from './pages/Scheduling';
 import Chat from './pages/Chat';
 import StoreRequests from './pages/StoreRequests';
+import Profile from './pages/Profile';
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ export default function App() {
             </Route>
             <Route path="/chat" element={<Chat />} />
             <Route path="/store-requests" element={<StoreRequests />} />
+            <Route path="/profile" element={<Profile />} />
             <Route element={<DevAdminOnly />}>
               <Route path="/billing" element={<Billing />} />
               <Route path="/analytics" element={<Analytics />} />

@@ -95,15 +95,17 @@ export default function Navbar() {
       </div>
 
       <div style={s.right}>
-        <div style={s.userPill}>
-          <div style={s.avatar}>{initials}</div>
-          <div style={s.userInfo}>
-            <div style={s.userName}>{user?.name || user?.phone}</div>
-            <div style={{ ...s.roleTag, ...(isDevAdmin ? s.roleTagDev : isStoreManager ? s.roleTagMgr : {}) }}>
-              {ROLE_LABELS[user?.role || ''] || user?.role}
+        <NavLink to="/profile" style={{ textDecoration: 'none' }}>
+          <div style={s.userPill}>
+            <div style={s.avatar}>{initials}</div>
+            <div style={s.userInfo}>
+              <div style={s.userName}>{user?.name || user?.phone}</div>
+              <div style={{ ...s.roleTag, ...(isDevAdmin ? s.roleTagDev : isStoreManager ? s.roleTagMgr : {}) }}>
+                {ROLE_LABELS[user?.role || ''] || user?.role}
+              </div>
             </div>
           </div>
-        </div>
+        </NavLink>
         <button style={s.logout} onClick={handleLogout}>Sign out</button>
       </div>
     </nav>
