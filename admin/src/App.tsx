@@ -1,26 +1,32 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
+import PageLoader from './components/PageLoader';
+
+// Eagerly loaded (always needed)
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Billing from './pages/Billing';
-import Analytics from './pages/Analytics';
-import Offers from './pages/Offers';
-import Banners from './pages/Banners';
-import Transactions from './pages/Transactions';
-import Staff from './pages/Staff';
-import Customers from './pages/Customers';
-import StoreManagerDashboard from './pages/StoreManagerDashboard';
-import ActivityLog from './pages/ActivityLog';
-import SuperAdminBilling from './pages/SuperAdminBilling';
-import Notifications from './pages/Notifications';
-import Stores from './pages/Stores';
-import Scheduling from './pages/Scheduling';
-import Chat from './pages/Chat';
-import StoreRequests from './pages/StoreRequests';
-import Profile from './pages/Profile';
+
+// Lazy loaded (code-split per page)
+const Dashboard              = lazy(() => import('./pages/Dashboard'));
+const StoreManagerDashboard  = lazy(() => import('./pages/StoreManagerDashboard'));
+const Billing                = lazy(() => import('./pages/Billing'));
+const Analytics              = lazy(() => import('./pages/Analytics'));
+const Offers                 = lazy(() => import('./pages/Offers'));
+const Banners                = lazy(() => import('./pages/Banners'));
+const Transactions           = lazy(() => import('./pages/Transactions'));
+const Staff                  = lazy(() => import('./pages/Staff'));
+const Customers              = lazy(() => import('./pages/Customers'));
+const ActivityLog            = lazy(() => import('./pages/ActivityLog'));
+const SuperAdminBilling      = lazy(() => import('./pages/SuperAdminBilling'));
+const Notifications          = lazy(() => import('./pages/Notifications'));
+const Stores                 = lazy(() => import('./pages/Stores'));
+const Scheduling             = lazy(() => import('./pages/Scheduling'));
+const Chat                   = lazy(() => import('./pages/Chat'));
+const StoreRequests          = lazy(() => import('./pages/StoreRequests'));
+const Profile                = lazy(() => import('./pages/Profile'));
 
 const queryClient = new QueryClient();
 
@@ -60,32 +66,34 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<DashboardRoute />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/staff" element={<Staff />} />
-            <Route path="/offers" element={<Offers />} />
-            <Route path="/banners" element={<Banners />} />
-            <Route element={<SuperAdminOnly />}>
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/my-billing" element={<SuperAdminBilling />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/scheduling" element={<Scheduling />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<DashboardRoute />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/staff" element={<Staff />} />
+              <Route path="/offers" element={<Offers />} />
+              <Route path="/banners" element={<Banners />} />
+              <Route element={<SuperAdminOnly />}>
+                <Route path="/customers" element={<Customers />} />
+                <Route path="/my-billing" element={<SuperAdminBilling />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/scheduling" element={<Scheduling />} />
+              </Route>
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/store-requests" element={<StoreRequests />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route element={<DevAdminOnly />}>
+                <Route path="/billing" element={<Billing />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/activity" element={<ActivityLog />} />
+                <Route path="/stores" element={<Stores />} />
+              </Route>
             </Route>
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/store-requests" element={<StoreRequests />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route element={<DevAdminOnly />}>
-              <Route path="/billing" element={<Billing />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/activity" element={<ActivityLog />} />
-              <Route path="/stores" element={<Stores />} />
-            </Route>
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <Toaster position="top-right" />
       </BrowserRouter>
     </QueryClientProvider>

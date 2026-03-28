@@ -24,6 +24,7 @@
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
+    "expo-splash-screen": "^55.0.14-canary-20260328-bdc6273",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-hook-form": "^7.54.0",

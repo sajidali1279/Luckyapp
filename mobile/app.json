@@ -5,6 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#1D3557",
+      "resizeMode": "contain"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.luckystop.app"

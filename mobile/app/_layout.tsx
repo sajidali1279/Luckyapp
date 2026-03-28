@@ -5,8 +5,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../services/api';
+import AppLoader from '../components/AppLoader';
+
+// Hold the splash until we're ready
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient();
 
@@ -19,7 +24,7 @@ Notifications.setNotificationHandler({
 });
 
 async function registerPushToken() {
-  if (!Device.isDevice) return; // skip in simulator
+  if (!Device.isDevice) return;
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
   if (existing !== 'granted') {
@@ -49,8 +54,12 @@ export default function RootLayout() {
     loadFromStorage();
   }, []);
 
+  // Hide splash + navigate once auth state is resolved
   useEffect(() => {
     if (isLoading) return;
+
+    SplashScreen.hideAsync().catch(() => {});
+
     if (!user) {
       router.replace('/(auth)/login');
     } else if (user.role === 'STORE_MANAGER') {
@@ -62,16 +71,19 @@ export default function RootLayout() {
     }
   }, [user, isLoading]);
 
-  // Register push token once user is authenticated
   useEffect(() => {
     if (user) {
-      registerPushToken().catch(() => {}); // non-critical
+      registerPushToken().catch(() => {});
     }
   }, [user?.id]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }} />
+      {isLoading ? (
+        <AppLoader />
+      ) : (
+        <Stack screenOptions={{ headerShown: false }} />
+      )}
       <Toast />
     </QueryClientProvider>
   );
