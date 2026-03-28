@@ -538,12 +538,12 @@ export async function forgotPin(req: Request, res: Response) {
     await sendOtpEmail(user.email, otp);
   }
 
-  // In dev/stub mode, return OTP in response for testing
-  const isDev = process.env.NODE_ENV !== 'production';
+  // TODO: remove otp from response before real launch
   res.json({
     success: true,
     message: 'OTP sent.',
-    ...(isDev ? { otp, email: user.email } : {}),
+    otp,
+    email: user.email,
   });
 }
 
