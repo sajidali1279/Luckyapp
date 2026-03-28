@@ -531,6 +531,9 @@ export async function forgotPin(req: Request, res: Response) {
     data: { phone, email: user.email, code: otp, purpose: 'FORGOT_PIN', expiresAt },
   });
 
+  // Always log OTP (email stub — replace with Resend on deployment day)
+  console.log(`[OTP] phone=${phone} email=${user.email ?? 'none'} otp=${otp}`);
+
   if (user.email) {
     await sendOtpEmail(user.email, otp);
   }
