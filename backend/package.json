@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "prisma generate && prisma migrate deploy && tsc",
+    "build": "prisma generate && prisma migrate resolve --rolled-back 20260328000000_add_otp_and_email_recovery || true && prisma migrate deploy && tsc",
     "start": "node dist/index.js",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
