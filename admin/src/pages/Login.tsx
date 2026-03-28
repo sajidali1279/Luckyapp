@@ -37,8 +37,9 @@ export default function Login() {
     if (raw.length < 10) { toast.error('Enter a valid phone number'); return; }
     setForgotLoading(true);
     try {
-      await authApi.forgotPin(raw, forgotEmail || undefined);
-      toast.success('OTP sent — check email or server logs (dev mode)');
+      const { data } = await authApi.forgotPin(raw, forgotEmail || undefined);
+      if (data.otp) setForgotOtp(data.otp); // auto-fill OTP for testing
+      toast.success(data.otp ? `Dev mode — OTP: ${data.otp}` : 'OTP sent to your email');
       setForgotStep('verify');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to send OTP');
