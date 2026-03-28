@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
-import { schedulingApi } from '../../services/api';
+import { schedulingApi, notificationsApi } from '../../services/api';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
@@ -19,6 +19,13 @@ export default function ManagerLayout() {
     refetchInterval: 120000,
   });
   const vacancyCount: number = vacData?.data?.data?.totalVacancies || 0;
+
+  const { data: notifData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   return (
     <Tabs
@@ -71,6 +78,14 @@ export default function ManagerLayout() {
         options={{
           title: 'Requests',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Alerts',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🔔" focused={focused} />,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
       <Tabs.Screen

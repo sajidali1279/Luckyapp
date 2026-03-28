@@ -123,6 +123,7 @@ model User {
   creditRedemptions    CreditRedemption[]   @relation("CustomerRedemptions")
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
   pushTokens           PushToken[]
+  notifications        UserNotification[]
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
@@ -497,6 +498,23 @@ model OtpCode {
 
   @@index([phone, purpose])
   @@map("otp_codes")
+}
+
+// ─── In-App Notifications ─────────────────────────────────────────────────────
+
+model UserNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("user_notifications")
 }
 
 // ─── Push Notifications ───────────────────────────────────────────────────────

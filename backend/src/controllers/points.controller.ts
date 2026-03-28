@@ -168,7 +168,8 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   sendPushToUser(
     transaction.customerId,
     '💰 Points Credited!',
-    `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`
+    `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`,
+    'POINTS'
   );
 
   audit({
@@ -236,7 +237,8 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
   sendPushToUser(
     customer.id,
     '🎉 Redemption Successful!',
-    `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`
+    `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`,
+    'REDEMPTION'
   );
 
   audit({

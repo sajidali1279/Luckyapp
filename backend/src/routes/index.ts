@@ -27,6 +27,7 @@ import {
   regenerateStoreApiKey,
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
+import { getMyNotifications, markAllRead, markOneRead, getUnreadCount } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import {
@@ -154,6 +155,12 @@ router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, require
 // ─── SuperAdmin — invoices & notifications ────────────────────────────────────
 router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
 router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
+
+// ─── In-App Notifications (all authenticated users) ──────────────────────────
+router.get('/notifications/my', authenticate, getMyNotifications);
+router.get('/notifications/unread-count', authenticate, getUnreadCount);
+router.patch('/notifications/mark-all-read', authenticate, markAllRead);
+router.patch('/notifications/:id/read', authenticate, markOneRead);
 
 // ─── Audit Log (DevAdmin only) ────────────────────────────────────────────────
 router.get('/audit/logs', authenticate, requireRole(Role.DEV_ADMIN), getAuditLogs);

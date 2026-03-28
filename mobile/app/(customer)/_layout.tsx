@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
+import { notificationsApi } from '../../services/api';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
@@ -11,6 +13,13 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 }
 
 export default function CustomerLayout() {
+  const { data: notifData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = notifData?.data?.data?.count ?? 0;
+
   return (
     <Tabs
       screenOptions={{
@@ -40,6 +49,14 @@ export default function CustomerLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🔔" focused={focused} />,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
       <Tabs.Screen

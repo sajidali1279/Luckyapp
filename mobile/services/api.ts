@@ -121,6 +121,13 @@ export const storeRequestApi = {
     api.patch(`/store-requests/${requestId}/acknowledge`, { note }),
 };
 
+export const notificationsApi = {
+  getMyNotifications: (page = 1) => api.get(`/notifications/my?page=${page}`),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAllRead: () => api.patch('/notifications/mark-all-read'),
+  markOneRead: (id: string) => api.patch(`/notifications/${id}/read`),
+};
+
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),

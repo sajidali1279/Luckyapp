@@ -57,7 +57,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   });
 
   // Notify all customers about the new promotion (fire-and-forget)
-  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`);
+  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER');
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

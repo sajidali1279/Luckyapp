@@ -159,7 +159,8 @@ export async function assignShift(req: AuthRequest, res: Response) {
   sendPushToUser(
     employeeId,
     'Shift Assigned 📅',
-    `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`
+    `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`,
+    'SCHEDULE'
   );
 
   audit({
@@ -325,14 +326,14 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
       where: { storeId, role: Role.STORE_MANAGER },
       select: { userId: true },
     });
-    for (const m of storeMgrs) sendPushToUser(m.userId, title, body);
+    for (const m of storeMgrs) sendPushToUser(m.userId, title, body, 'SHIFT_REQUEST');
 
     // All super admins
     const superAdmins = await prisma.user.findMany({
       where: { role: Role.SUPER_ADMIN, isActive: true },
       select: { id: true },
     });
-    for (const a of superAdmins) sendPushToUser(a.id, title, body);
+    for (const a of superAdmins) sendPushToUser(a.id, title, body, 'SHIFT_REQUEST');
   }
 
   res.status(201).json({ success: true, data: request });
@@ -465,7 +466,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
       sendPushToUser(
         shiftRequest.employeeId,
         'Fill-In Approved ✅',
-        `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`
+        `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`,
+        'SHIFT_REQUEST'
       );
 
       // Check if anyone else is already assigned to the same shift slot that day
@@ -494,7 +496,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         const conflictBody  = `${employeeName} was approved for the ${SHIFT_LABELS[shiftType]} shift on ${dateStr}, but ${conflictNames} is already assigned to that same slot.`;
 
         for (const a of superAdmins) {
-          sendPushToUser(a.id, conflictTitle, conflictBody);
+          sendPushToUser(a.id, conflictTitle, conflictBody, 'SHIFT_REQUEST');
         }
       }
     }
@@ -505,7 +507,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
       sendPushToUser(
         shiftRequest.employeeId,
         'Time Off Approved ✅',
-        `Your time-off request for ${dateStr} (${SHIFT_LABELS[shiftType]} shift) at ${storeName} has been approved.`
+        `Your time-off request for ${dateStr} (${SHIFT_LABELS[shiftType]} shift) at ${storeName} has been approved.`,
+        'SHIFT_REQUEST'
       );
 
       // Notify coworkers scheduled that day (excluding those already off)
@@ -541,7 +544,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         sendPushToUser(
           empId,
           'Shift Available 📅',
-          `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`
+          `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`,
+          'SCHEDULE'
         );
       }
     }
