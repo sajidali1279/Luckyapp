@@ -13,7 +13,7 @@ import { COLORS } from '../../constants';
 type Screen = 'quick' | 'login' | 'register';
 
 export default function LoginScreen() {
-  const { setAuth, quickLoginPhone, biometricEnabled, setBiometricEnabled } = useAuthStore();
+  const { setAuth, quickLoginPhone, biometricEnabled, setBiometricEnabled, saveBiometricPin, getBiometricPin } = useAuthStore();
 
   // Determine initial screen
   const [screen, setScreen] = useState<Screen>(quickLoginPhone ? 'quick' : 'login');
@@ -50,13 +50,23 @@ export default function LoginScreen() {
       cancelLabel: 'Cancel',
       disableDeviceFallback: false,
     });
-    if (result.success) {
-      // Biometric passed — re-auth with stored phone via silent PIN not exposed
-      // We need user to enter PIN once (biometric just gates the PIN entry step)
-      // Show PIN input pre-confirmed
-      Toast.show({ type: 'info', text1: 'Biometric confirmed!', text2: 'Enter your PIN to complete sign in' });
+    if (!result.success) return;
+    // Biometric passed — retrieve saved PIN and auto-login
+    const savedPin = await getBiometricPin();
+    if (!savedPin) {
+      Toast.show({ type: 'error', text1: 'Biometric setup incomplete', text2: 'Please sign in with your PIN once to re-enable' });
+      return;
     }
-  }, [quickLoginPhone]);
+    setLoading(true);
+    try {
+      const { data } = await authApi.login(quickLoginPhone, savedPin);
+      await setAuth(data.data.user, data.data.token);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed', text2: 'Please sign in with your PIN' });
+    } finally {
+      setLoading(false);
+    }
+  }, [quickLoginPhone, getBiometricPin, setAuth]);
 
   function formatPhone(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, 10);
@@ -79,6 +89,7 @@ export default function LoginScreen() {
     try {
       const { data } = await authApi.login(quickLoginPhone, pin);
       await setAuth(data.data.user, data.data.token);
+      if (biometricEnabled) await saveBiometricPin(pin); // keep saved PIN in sync
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
@@ -101,6 +112,7 @@ export default function LoginScreen() {
       await setAuth(data.data.user, data.data.token);
       // Offer biometric enrollment after successful login
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
+      else if (bioAvailable && biometricEnabled) await saveBiometricPin(pin); // refresh saved PIN
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
@@ -131,6 +143,7 @@ export default function LoginScreen() {
       cancelLabel: 'Skip',
     });
     if (result.success) {
+      await saveBiometricPin(pin);
       await setBiometricEnabled(true);
       Toast.show({ type: 'success', text1: 'Biometric login enabled!' });
     }

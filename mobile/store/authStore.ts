@@ -30,6 +30,8 @@ interface AuthState {
   updateBalance: (newBalance: number) => void;
   setQuickLoginPhone: (phone: string) => Promise<void>;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
+  saveBiometricPin: (pin: string) => Promise<void>;
+  getBiometricPin: () => Promise<string | null>;
   clearQuickLogin: () => Promise<void>;
 }
 
@@ -51,6 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await SecureStore.deleteItemAsync('jwt_token');
     await SecureStore.deleteItemAsync('user_data');
+    await SecureStore.deleteItemAsync('biometric_pin');
     // Keep quick_login_phone and biometric_enabled for next time
     set({ user: null, token: null, isLoading: false });
   },
@@ -98,9 +101,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ biometricEnabled: enabled });
   },
 
+  saveBiometricPin: async (pin) => {
+    await SecureStore.setItemAsync('biometric_pin', pin);
+  },
+
+  getBiometricPin: async () => {
+    return SecureStore.getItemAsync('biometric_pin');
+  },
+
   clearQuickLogin: async () => {
     await SecureStore.deleteItemAsync('quick_login_phone');
     await SecureStore.deleteItemAsync('biometric_enabled');
+    await SecureStore.deleteItemAsync('biometric_pin');
     set({ quickLoginPhone: null, biometricEnabled: false });
   },
 }));
