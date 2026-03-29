@@ -1,13 +1,79 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi } from '../../services/api';
 import { COLORS } from '../../constants';
+
+const SCREEN_W = Dimensions.get('window').width;
+const BANNER_W = SCREEN_W - 32; // 16px margin each side
+
+function BannerCarousel({ banners }: { banners: any[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatRef = useRef<FlatList>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function startTimer(index: number) {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setActiveIndex(prev => {
+        const next = (prev + 1) % banners.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3500);
+  }
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    startTimer(0);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [banners.length]);
+
+  if (banners.length === 0) return null;
+
+  return (
+    <View style={bc.root}>
+      <FlatList
+        ref={flatRef}
+        data={banners}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={BANNER_W + 12}
+        decelerationRate="fast"
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_W + 12));
+          setActiveIndex(idx);
+          startTimer(idx);
+        }}
+        getItemLayout={(_, index) => ({ length: BANNER_W + 12, offset: (BANNER_W + 12) * index, index })}
+        renderItem={({ item }) => (
+          <View style={bc.slide}>
+            <Image source={{ uri: item.imageUrl }} style={bc.image} />
+            {item.title ? (
+              <View style={bc.titleBar}>
+                <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+      />
+      {banners.length > 1 && (
+        <View style={bc.dots}>
+          {banners.map((_, i) => (
+            <View key={i} style={[bc.dot, i === activeIndex && bc.dotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
@@ -133,18 +199,11 @@ export default function CustomerHome() {
         </View>
       )}
 
-      {/* Banners */}
+      {/* Banners — auto-advancing carousel */}
       {banners.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Promotions</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {banners.map((banner: any) => (
-              <View key={banner.id} style={styles.bannerCard}>
-                <Image source={{ uri: banner.imageUrl }} style={styles.bannerImage} />
-                <Text style={styles.bannerTitle}>{banner.title}</Text>
-              </View>
-            ))}
-          </ScrollView>
+          <BannerCarousel banners={banners} />
         </View>
       )}
 
@@ -291,6 +350,7 @@ const styles = StyleSheet.create({
   },
   offersLoadingText: { color: COLORS.textMuted, fontSize: 13 },
 
+  // old bannerCard/bannerImage/bannerTitle removed — replaced by BannerCarousel
   scanReceiptCard: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
@@ -304,4 +364,22 @@ const styles = StyleSheet.create({
   scanReceiptTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   scanReceiptSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   scanReceiptArrow: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
+});
+
+const bc = StyleSheet.create({
+  root: { gap: 10 },
+  slide: {
+    width: BANNER_W, marginRight: 12, borderRadius: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
+  },
+  image: { width: BANNER_W, height: 160, resizeMode: 'cover' },
+  titleBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 14, paddingVertical: 10,
+  },
+  titleText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.border },
+  dotActive: { width: 20, backgroundColor: COLORS.primary },
 });
