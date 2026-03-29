@@ -13,32 +13,38 @@ const SALT_ROUNDS = 12;
 
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-// ─── Per-phone login lockout (in-memory) ──────────────────────────────────────
+// ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
 const MAX_FAILURES = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
-interface FailRecord { count: number; lockedUntil: number | null }
-const loginFailures = new Map<string, FailRecord>();
-
-function checkLockout(phone: string): string | null {
-  const rec = loginFailures.get(phone);
-  if (!rec) return null;
-  if (rec.lockedUntil && Date.now() < rec.lockedUntil) {
-    const mins = Math.ceil((rec.lockedUntil - Date.now()) / 60000);
+async function checkLockout(phone: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({ where: { phone }, select: { lockedUntil: true } });
+  if (!user?.lockedUntil) return null;
+  if (user.lockedUntil > new Date()) {
+    const mins = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
     return `Too many failed attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`;
   }
   return null;
 }
 
-function recordFailure(phone: string) {
-  const rec = loginFailures.get(phone) ?? { count: 0, lockedUntil: null };
-  rec.count += 1;
-  rec.lockedUntil = rec.count >= MAX_FAILURES ? Date.now() + LOCKOUT_MS : null;
-  loginFailures.set(phone, rec);
+async function recordFailure(phone: string) {
+  const user = await prisma.user.findUnique({ where: { phone }, select: { failedLoginAttempts: true } });
+  if (!user) return;
+  const count = user.failedLoginAttempts + 1;
+  await prisma.user.update({
+    where: { phone },
+    data: {
+      failedLoginAttempts: count,
+      lockedUntil: count >= MAX_FAILURES ? new Date(Date.now() + LOCKOUT_MS) : null,
+    },
+  });
 }
 
-function clearFailures(phone: string) {
-  loginFailures.delete(phone);
+async function clearFailures(phone: string) {
+  await prisma.user.update({
+    where: { phone },
+    data: { failedLoginAttempts: 0, lockedUntil: null },
+  });
 }
 
 function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role }, storeIds: string[]) {
@@ -108,7 +114,7 @@ export async function login(req: Request, res: Response) {
   const { phone, pin, pushToken, platform } = parsed.data;
 
   // Check lockout before touching DB
-  const lockMsg = checkLockout(phone);
+  const lockMsg = await checkLockout(phone);
   if (lockMsg) {
     res.status(429).json({ success: false, error: lockMsg });
     return;
@@ -121,12 +127,12 @@ export async function login(req: Request, res: Response) {
   const pinValid = await bcrypt.compare(pin, user?.pinHash ?? dummyHash);
 
   if (!user || !pinValid) {
-    recordFailure(phone);
+    await recordFailure(phone);
     res.status(401).json({ success: false, error: 'Incorrect phone number or PIN' });
     return;
   }
 
-  clearFailures(phone);
+  await clearFailures(phone);
 
   if (!user.isActive) {
     res.status(403).json({ success: false, error: 'Account deactivated. Contact support.' });

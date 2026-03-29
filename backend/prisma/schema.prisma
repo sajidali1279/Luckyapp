@@ -124,6 +124,10 @@ model User {
   email           String?  @unique
   emailVerified   Boolean  @default(false)
 
+  // Login rate limiting
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   // Customer-specific
   qrCode          String?  @unique
   pointsBalance   Float    @default(0)
