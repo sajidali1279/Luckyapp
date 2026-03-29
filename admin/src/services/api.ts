@@ -126,6 +126,13 @@ export const chatApi = {
     api.post(`/chat/${storeId}/messages`, { text }),
 };
 
+export const catalogApi = {
+  getAll: () => api.get('/catalog/all'),
+  create: (data: object) => api.post('/catalog', data),
+  update: (id: string, data: object) => api.patch(`/catalog/${id}`, data),
+  delete: (id: string) => api.delete(`/catalog/${id}`),
+};
+
 export const storeRequestApi = {
   // Manager/admin
   getStoreRequests: (storeId: string, status?: string) =>

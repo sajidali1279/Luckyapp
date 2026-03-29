@@ -11,6 +11,9 @@ export interface AuthUser {
   qrCode?: string;
   pointsBalance?: number;
   storeIds?: string[];
+  tier?: string;
+  periodPoints?: number;
+  tierPeriod?: string;
 }
 
 interface AuthState {

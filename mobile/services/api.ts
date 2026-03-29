@@ -56,7 +56,7 @@ export const authApi = {
 export const pointsApi = {
   getMyHistory: (page = 1) =>
     api.get(`/points/my-history?page=${page}`),
-  initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string }) =>
+  initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number }) =>
     api.post('/points/grant', data),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
     const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
@@ -70,6 +70,20 @@ export const pointsApi = {
     api.get(`/points/store/${storeId}?page=${page}${status ? `&status=${status}` : ''}`),
   rejectTransaction: (transactionId: string) =>
     api.patch(`/points/${transactionId}/reject`),
+  getCustomerInfo: (qrCode: string) =>
+    api.get(`/points/customer-info/${encodeURIComponent(qrCode)}`),
+  claimTierBenefit: (customerQrCode: string, storeId: string) =>
+    api.post('/points/tier-benefit', { customerQrCode, storeId }),
+  processCatalogRedemption: (customerQrCode: string, catalogItemId: string, storeId: string) =>
+    api.post('/points/catalog-redeem', { customerQrCode, catalogItemId, storeId }),
+};
+
+export const catalogApi = {
+  getActive: () => api.get('/catalog'),
+  getAll: () => api.get('/catalog/all'),
+  create: (data: object) => api.post('/catalog', data),
+  update: (id: string, data: object) => api.patch(`/catalog/${id}`, data),
+  delete: (id: string) => api.delete(`/catalog/${id}`),
 };
 
 export const receiptApi = {

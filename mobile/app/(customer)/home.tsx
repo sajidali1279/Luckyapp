@@ -17,7 +17,13 @@ export default function CustomerHome() {
     useCallback(() => {
       authApi.getMe().then(({ data }) => {
         if (data?.data && user && token) {
-          setAuth({ ...user, pointsBalance: data.data.pointsBalance }, token);
+          setAuth({
+            ...user,
+            pointsBalance: data.data.pointsBalance,
+            tier: data.data.tier,
+            periodPoints: data.data.periodPoints,
+            tierPeriod: data.data.tierPeriod,
+          }, token);
         }
       }).catch(() => {});
     }, [])
@@ -97,9 +103,9 @@ export default function CustomerHome() {
 
       {/* Points Balance Card */}
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Your Balance</Text>
-        <Text style={styles.balanceAmount}>${Number(user?.pointsBalance || 0).toFixed(2)}</Text>
-        <Text style={styles.balanceSubtext}>Earn 5¢ for every $1 spent</Text>
+        <Text style={styles.balanceLabel}>Your Points Balance</Text>
+        <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
+        <Text style={styles.balanceSubtext}>pts · ${(Number(user?.pointsBalance || 0)).toFixed(2)} value</Text>
 
         <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
           <Text style={styles.redeemButtonText}>Redeem Rewards</Text>

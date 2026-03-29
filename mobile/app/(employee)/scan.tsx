@@ -1,17 +1,23 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Image, StatusBar,
+  ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
-import { pointsApi } from '../../services/api';
+import { pointsApi, catalogApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
-type Step = 'scan' | 'mode' | 'grant-amount' | 'receipt' | 'grant-done' | 'redeem-amount' | 'redeem-done';
+type Step =
+  | 'scan' | 'mode'
+  | 'grant-amount' | 'receipt' | 'grant-done'
+  | 'redeem-amount' | 'redeem-done'
+  | 'benefit-done'
+  | 'catalog-select' | 'catalog-done';
+
 type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
 
 const CATEGORIES: { value: Category; label: string; icon: string }[] = [
@@ -24,6 +30,14 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'TOBACCO_VAPES',label: 'Tobacco',   icon: '🚬' },
   { value: 'OTHER',        label: 'Other',     icon: '🏪' },
 ];
+
+const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string }> = {
+  BRONZE:   { label: 'Bronze',   color: '#CD7F32', emoji: '🥉' },
+  SILVER:   { label: 'Silver',   color: '#A0A0B0', emoji: '🥈' },
+  GOLD:     { label: 'Gold',     color: '#F4A226', emoji: '🥇' },
+  DIAMOND:  { label: 'Diamond',  color: '#00B4D8', emoji: '💎' },
+  PLATINUM: { label: 'Platinum', color: '#9B5DE5', emoji: '👑' },
+};
 
 // ─── Corner Bracket Camera Overlay ────────────────────────────────────────────
 
@@ -51,13 +65,9 @@ function ScanFrame() {
 
   return (
     <View style={{ width: SIZE, height: SIZE }}>
-      {/* Top-left */}
       <View style={[corner(true, false, false, false), { top: 0, left: 0 }]} />
-      {/* Top-right */}
       <View style={[corner(false, true, false, false), { top: 0, right: 0 }]} />
-      {/* Bottom-left */}
       <View style={[corner(false, false, true, false), { bottom: 0, left: 0 }]} />
-      {/* Bottom-right */}
       <View style={[corner(false, false, false, true), { bottom: 0, right: 0 }]} />
     </View>
   );
@@ -67,16 +77,21 @@ function ScanFrame() {
 
 const GRANT_STEPS  = ['Scan', 'Mode', 'Amount', 'Receipt', 'Done'];
 const REDEEM_STEPS = ['Scan', 'Mode', 'Amount', 'Done'];
+const BENEFIT_STEPS = ['Scan', 'Mode', 'Done'];
 
 const STEP_INDEX: Record<Step, number> = {
   'scan': 0, 'mode': 1,
   'grant-amount': 2, 'receipt': 3, 'grant-done': 4,
   'redeem-amount': 2, 'redeem-done': 3,
+  'benefit-done': 2,
+  'catalog-select': 2, 'catalog-done': 3,
 };
 
 function StepBar({ step }: { step: Step }) {
-  const isRedeem = step === 'redeem-amount' || step === 'redeem-done';
-  const labels = isRedeem ? REDEEM_STEPS : GRANT_STEPS;
+  const isRedeem  = step === 'redeem-amount' || step === 'redeem-done';
+  const isBenefit = step === 'benefit-done';
+  const isCatalog = step === 'catalog-select' || step === 'catalog-done';
+  const labels = isBenefit ? BENEFIT_STEPS : (isRedeem || isCatalog) ? REDEEM_STEPS : GRANT_STEPS;
   const active = STEP_INDEX[step] ?? 0;
   return (
     <View style={s.stepBar}>
@@ -92,6 +107,18 @@ function StepBar({ step }: { step: Step }) {
   );
 }
 
+// ─── Tier Badge ────────────────────────────────────────────────────────────────
+
+function TierBadge({ tier }: { tier: string }) {
+  const cfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
+  return (
+    <View style={[s.tierBadge, { backgroundColor: cfg.color + '20', borderColor: cfg.color + '60' }]}>
+      <Text style={s.tierBadgeEmoji}>{cfg.emoji}</Text>
+      <Text style={[s.tierBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function EmployeeScanScreen() {
@@ -100,39 +127,67 @@ export default function EmployeeScanScreen() {
   const [step, setStep] = useState<Step>('scan');
   const [scanned, setScanned] = useState(false);
   const [customerQr, setCustomerQr] = useState('');
-  const [customerInfo, setCustomerInfo] = useState<any>(null);
+  const [customerData, setCustomerData] = useState<any>(null); // from getCustomerInfo
+  const [customerInfo, setCustomerInfo] = useState<any>(null); // from initiateGrant / redeem
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [redeemAmount, setRedeemAmount] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [pointsAwarded, setPointsAwarded] = useState(0);
+  const [gasBonusAwarded, setGasBonusAwarded] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<Category>('OTHER');
   const [promotionApplied, setPromotionApplied] = useState<string | null>(null);
+  const [gasGallons, setGasGallons] = useState('');
+  const [gasPricePerGallon, setGasPricePerGallon] = useState('');
+  const [catalogItems, setCatalogItems] = useState<any[]>([]);
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<any>(null);
 
   const storeId = user?.storeIds?.[0];
+  const isGasCat = category === 'GAS' || category === 'DIESEL';
   const parsedAmount = parseFloat(purchaseAmount);
   const validAmount = !isNaN(parsedAmount) && parsedAmount > 0;
-  const estimatedCashback = validAmount ? (parsedAmount * 0.05).toFixed(2) : null;
+  const parsedGallons = parseFloat(gasGallons);
+  const validGallons = isGasCat ? (!isNaN(parsedGallons) && parsedGallons > 0) : true;
+  const estimatedCashback = validAmount ? Math.round(parsedAmount * 5) : null; // in pts (5% × 100)
 
   function reset() {
     setStep('scan');
     setScanned(false);
     setCustomerQr('');
+    setCustomerData(null);
     setCustomerInfo(null);
     setPurchaseAmount('');
     setRedeemAmount('');
     setTransactionId('');
     setPointsAwarded(0);
+    setGasBonusAwarded(0);
     setReceiptImage(null);
     setCategory('OTHER');
     setPromotionApplied(null);
+    setGasGallons('');
+    setGasPricePerGallon('');
+    setCatalogItems([]);
+    setSelectedCatalogItem(null);
   }
 
-  function handleQrScan({ data }: { data: string }) {
+  async function handleQrScan({ data }: { data: string }) {
     if (scanned) return;
     setScanned(true);
     setCustomerQr(data);
+    setLoading(true);
+    try {
+      const [infoRes, catalogRes] = await Promise.all([
+        pointsApi.getCustomerInfo(data),
+        catalogApi.getActive(),
+      ]);
+      setCustomerData(infoRes.data.data);
+      setCatalogItems(catalogRes.data.data || []);
+    } catch {
+      // Non-fatal — mode screen still shows without tier info
+    } finally {
+      setLoading(false);
+    }
     setStep('mode');
   }
 
@@ -150,21 +205,33 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Max 2 decimal places' });
       return;
     }
+    if (isGasCat && !validGallons) {
+      Toast.show({ type: 'error', text1: 'Enter number of gallons' });
+      return;
+    }
     if (!storeId) {
       Toast.show({ type: 'error', text1: 'No store assigned to your account' });
       return;
     }
     setLoading(true);
     try {
-      const { data } = await pointsApi.initiateGrant({
+      const payload: any = {
         customerQrCode: customerQr,
         storeId,
         purchaseAmount: parsedAmount,
         category,
-      });
+      };
+      if (isGasCat && validGallons) {
+        payload.isGas = true;
+        payload.gasGallons = parsedGallons;
+        const priceVal = parseFloat(gasPricePerGallon);
+        if (!isNaN(priceVal) && priceVal > 0) payload.gasPricePerGallon = priceVal;
+      }
+      const { data } = await pointsApi.initiateGrant(payload);
       setTransactionId(data.data.transactionId);
       setCustomerInfo(data.data.customer);
       setPointsAwarded(data.data.pointsAwarded);
+      setGasBonusAwarded(data.data.gasBonusPoints || 0);
       setPromotionApplied(data.data.promotionApplied || null);
       setStep('receipt');
     } catch (err: any) {
@@ -226,6 +293,35 @@ export default function EmployeeScanScreen() {
     }
   }
 
+  async function handleClaimBenefit() {
+    if (!storeId) {
+      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      return;
+    }
+    setLoading(true);
+    try {
+      await pointsApi.claimTierBenefit(customerQr, storeId);
+      setStep('benefit-done');
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Claim failed' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCatalogRedeem() {
+    if (!selectedCatalogItem || !storeId) return;
+    setLoading(true);
+    try {
+      await pointsApi.processCatalogRedemption(customerQr, selectedCatalogItem.id, storeId);
+      setStep('catalog-done');
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Redemption failed' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function pickReceiptImage() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -251,6 +347,13 @@ export default function EmployeeScanScreen() {
     );
   }
 
+  const cdata = customerData;
+  const tier = cdata?.tier || 'BRONZE';
+  const tierCfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
+  const benefitAvailable = cdata?.benefit?.available;
+  const benefitType = cdata?.benefit?.type;
+  const silverRemaining = cdata?.benefit?.silverRemaining ?? 0;
+
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <View style={s.fill}>
@@ -275,10 +378,16 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── SCAN ────────────────────────── */}
       {step === 'scan' && (
         <View style={s.fill}>
+          {loading && (
+            <View style={s.scanLoadingOverlay}>
+              <ActivityIndicator size="large" color={COLORS.accent} />
+              <Text style={s.scanLoadingText}>Loading customer info…</Text>
+            </View>
+          )}
           <CameraView
             style={s.fill}
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={handleQrScan}
+            onBarcodeScanned={loading ? undefined : handleQrScan}
           />
           <View style={s.scanOverlay}>
             <View style={s.scanDimTop} />
@@ -298,19 +407,42 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── MODE SELECT ────────────────────────── */}
       {step === 'mode' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body}>
-          <View style={s.successBadge}>
-            <Text style={s.successBadgeIcon}>✅</Text>
-            <View>
-              <Text style={s.successBadgeTitle}>QR Scanned Successfully</Text>
-              <Text style={s.successBadgeSub}>Select action to proceed</Text>
+          {/* Customer tier card */}
+          {cdata && (
+            <View style={[s.customerCard, { borderLeftColor: tierCfg.color, borderLeftWidth: 4 }]}>
+              <View style={s.customerCardLeft}>
+                <View style={[s.customerAvatar, { backgroundColor: tierCfg.color + '20' }]}>
+                  <Text style={[s.customerAvatarText, { color: tierCfg.color }]}>
+                    {(cdata.name || cdata.phone || '?')[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={s.customerName}>{cdata.name || cdata.phone}</Text>
+                  {cdata.name && <Text style={s.customerPhone}>{cdata.phone}</Text>}
+                </View>
+              </View>
+              <View style={s.customerCardRight}>
+                <TierBadge tier={tier} />
+                <View style={s.customerBalanceRow}>
+                  <Text style={s.customerBalancePts}>{cdata.pointsBalance?.toLocaleString() || 0}</Text>
+                  <Text style={s.customerBalancePtsLabel}> pts</Text>
+                </View>
+              </View>
             </View>
-          </View>
+          )}
 
-          <TouchableOpacity
-            style={s.modeCard}
-            onPress={() => setStep('grant-amount')}
-            activeOpacity={0.85}
-          >
+          {!cdata && (
+            <View style={s.successBadge}>
+              <Text style={s.successBadgeIcon}>✅</Text>
+              <View>
+                <Text style={s.successBadgeTitle}>QR Scanned Successfully</Text>
+                <Text style={s.successBadgeSub}>Select action to proceed</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Grant Points */}
+          <TouchableOpacity style={s.modeCard} onPress={() => setStep('grant-amount')} activeOpacity={0.85}>
             <View style={[s.modeIconBg, { backgroundColor: COLORS.primary + '15' }]}>
               <Text style={s.modeEmoji}>💵</Text>
             </View>
@@ -323,13 +455,10 @@ export default function EmployeeScanScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[s.modeCard, s.modeCardAlt]}
-            onPress={() => setStep('redeem-amount')}
-            activeOpacity={0.85}
-          >
+          {/* Redeem Credits */}
+          <TouchableOpacity style={[s.modeCard, s.modeCardAlt]} onPress={() => setStep('redeem-amount')} activeOpacity={0.85}>
             <View style={[s.modeIconBg, { backgroundColor: COLORS.accent + '15' }]}>
-              <Text style={s.modeEmoji}>🎁</Text>
+              <Text style={s.modeEmoji}>💳</Text>
             </View>
             <View style={s.modeBody}>
               <Text style={[s.modeTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
@@ -340,9 +469,56 @@ export default function EmployeeScanScreen() {
             </View>
           </TouchableOpacity>
 
-          <View style={s.modeInfo}>
-            <Text style={s.modeInfoText}>💡 Grant = customer earns rewards. Redeem = customer spends rewards.</Text>
-          </View>
+          {/* Tier Benefit — show when available */}
+          {benefitAvailable && (
+            <TouchableOpacity
+              style={[s.modeCard, { borderColor: tierCfg.color + '60' }]}
+              onPress={handleClaimBenefit}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <View style={[s.modeIconBg, { backgroundColor: tierCfg.color + '18' }]}>
+                <Text style={s.modeEmoji}>{benefitType === 'SILVER_FOUNTAIN' ? '🥤' : '☕'}</Text>
+              </View>
+              <View style={s.modeBody}>
+                <Text style={[s.modeTitle, { color: tierCfg.color }]}>
+                  {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
+                </Text>
+                <Text style={s.modeSub}>
+                  {benefitType === 'SILVER_FOUNTAIN'
+                    ? `${silverRemaining} uses left this period`
+                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier — 1 per day`}
+                </Text>
+              </View>
+              {loading ? (
+                <ActivityIndicator color={tierCfg.color} style={{ marginRight: 4 }} />
+              ) : (
+                <View style={[s.modeArrow, { backgroundColor: tierCfg.color }]}>
+                  <Text style={s.modeArrowText}>›</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Catalog Redeem — show when catalog has items and customer has balance */}
+          {catalogItems.length > 0 && (
+            <TouchableOpacity
+              style={[s.modeCard, { borderColor: '#9B5DE5' + '50' }]}
+              onPress={() => setStep('catalog-select')}
+              activeOpacity={0.85}
+            >
+              <View style={[s.modeIconBg, { backgroundColor: '#9B5DE5' + '15' }]}>
+                <Text style={s.modeEmoji}>🎁</Text>
+              </View>
+              <View style={s.modeBody}>
+                <Text style={[s.modeTitle, { color: '#9B5DE5' }]}>Catalog Reward</Text>
+                <Text style={s.modeSub}>Redeem points for a fixed reward</Text>
+              </View>
+              <View style={[s.modeArrow, { backgroundColor: '#9B5DE5' }]}>
+                <Text style={s.modeArrowText}>›</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       )}
 
@@ -350,7 +526,7 @@ export default function EmployeeScanScreen() {
       {step === 'grant-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
-          {/* Category grid — 4 columns × 2 rows */}
+          {/* Category grid */}
           <Text style={s.fieldLabel}>Category</Text>
           <View style={s.catGrid}>
             {CATEGORIES.map((c) => {
@@ -384,16 +560,57 @@ export default function EmployeeScanScreen() {
             />
           </View>
 
-          {/* Live cashback preview */}
+          {/* Gas extras */}
+          {isGasCat && (
+            <View style={s.gasBox}>
+              <View style={s.gasRow}>
+                <View style={[s.amountBox, { flex: 1 }]}>
+                  <Text style={s.gasUnit}>gal</Text>
+                  <TextInput
+                    style={[s.amountInput, { fontSize: 28 }]}
+                    placeholder="0.000"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType="decimal-pad"
+                    value={gasGallons}
+                    onChangeText={setGasGallons}
+                  />
+                </View>
+                <View style={[s.amountBox, { flex: 1 }]}>
+                  <Text style={s.amountDollar}>$</Text>
+                  <TextInput
+                    style={[s.amountInput, { fontSize: 28 }]}
+                    placeholder="0.00/gal"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType="decimal-pad"
+                    value={gasPricePerGallon}
+                    onChangeText={setGasPricePerGallon}
+                  />
+                </View>
+              </View>
+              {/* Gas bonus preview */}
+              {['GOLD','DIAMOND','PLATINUM'].includes(tier) && validGallons && (
+                <View style={[s.gasBonus, { borderColor: tierCfg.color + '50', backgroundColor: tierCfg.color + '10' }]}>
+                  <Text style={s.gasBonusEmoji}>{tierCfg.emoji}</Text>
+                  <Text style={[s.gasBonusText, { color: tierCfg.color }]}>
+                    {tier} gas bonus: +{Math.round(
+                      parsedGallons * ({ GOLD: 5, DIAMOND: 7, PLATINUM: 10 } as any)[tier]
+                    )} pts for {parsedGallons} gal
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Live pts preview */}
           {estimatedCashback && (
             <View style={s.previewCard}>
               <View style={s.previewRow}>
-                <Text style={s.previewLabel}>Est. cashback</Text>
-                <Text style={s.previewAmount}>+${estimatedCashback}</Text>
+                <Text style={s.previewLabel}>Est. points earned</Text>
+                <Text style={s.previewAmount}>+{estimatedCashback} pts</Text>
               </View>
               <View style={s.previewRow}>
                 <Text style={s.previewLabel}>Rate</Text>
-                <Text style={s.previewRate}>5¢ per $1 (promos applied at server)</Text>
+                <Text style={s.previewRate}>5 pts per $1 (promos applied at server)</Text>
               </View>
               <View style={s.previewDivider} />
               <Text style={s.previewNote}>Final amount confirmed after submission</Text>
@@ -401,9 +618,9 @@ export default function EmployeeScanScreen() {
           )}
 
           <TouchableOpacity
-            style={[s.primaryBtn, (!validAmount || loading) && s.primaryBtnOff]}
+            style={[s.primaryBtn, (!validAmount || !validGallons || loading) && s.primaryBtnOff]}
             onPress={handleGrantPoints}
-            disabled={!validAmount || loading}
+            disabled={!validAmount || !validGallons || loading}
             activeOpacity={0.85}
           >
             {loading
@@ -423,24 +640,40 @@ export default function EmployeeScanScreen() {
 
           {/* Customer summary */}
           <View style={s.customerCard}>
-            <View style={s.customerAvatar}>
-              <Text style={s.customerAvatarText}>
-                {(customerInfo?.name || customerInfo?.phone || '?')[0].toUpperCase()}
-              </Text>
-            </View>
-            <Text style={s.customerName}>{customerInfo?.name || customerInfo?.phone}</Text>
-            {customerInfo?.phone && customerInfo?.name && (
-              <Text style={s.customerPhone}>{customerInfo.phone}</Text>
-            )}
-            <View style={s.pointsPill}>
-              <Text style={s.pointsPillText}>+${pointsAwarded.toFixed(2)} cashback</Text>
-            </View>
-            {promotionApplied && (
-              <View style={s.promoBanner}>
-                <Text style={s.promoBannerText}>🎉 Promo: {promotionApplied}</Text>
+            <View style={s.customerCardLeft}>
+              <View style={s.customerAvatar}>
+                <Text style={s.customerAvatarText}>
+                  {(customerInfo?.name || customerInfo?.phone || '?')[0].toUpperCase()}
+                </Text>
               </View>
-            )}
+              <View>
+                <Text style={s.customerName}>{customerInfo?.name || customerInfo?.phone}</Text>
+                {customerInfo?.phone && customerInfo?.name && (
+                  <Text style={s.customerPhone}>{customerInfo.phone}</Text>
+                )}
+              </View>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 6 }}>
+              <View style={s.pointsPill}>
+                <Text style={s.pointsPillText}>
+                  +{Math.round(pointsAwarded * 100)} pts cashback
+                </Text>
+              </View>
+              {gasBonusAwarded > 0 && (
+                <View style={[s.pointsPill, { backgroundColor: tierCfg.color + '20' }]}>
+                  <Text style={[s.pointsPillText, { color: tierCfg.color }]}>
+                    +{Math.round(gasBonusAwarded * 100)} gas bonus
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
+
+          {promotionApplied && (
+            <View style={s.promoBanner}>
+              <Text style={s.promoBannerText}>🎉 Promo: {promotionApplied}</Text>
+            </View>
+          )}
 
           {/* Receipt photo */}
           <Text style={s.fieldLabel}>Receipt Photo <Text style={s.required}>*required</Text></Text>
@@ -489,7 +722,12 @@ export default function EmployeeScanScreen() {
             <Text style={s.doneEmoji}>✅</Text>
           </View>
           <Text style={s.doneHeading}>Points Granted!</Text>
-          <Text style={s.doneAmount}>+${pointsAwarded.toFixed(2)}</Text>
+          <Text style={s.doneAmount}>+{Math.round(pointsAwarded * 100)} pts</Text>
+          {gasBonusAwarded > 0 && (
+            <Text style={[s.doneSub, { color: tierCfg.color, fontWeight: '700' }]}>
+              +{Math.round(gasBonusAwarded * 100)} gas bonus pts ({tier})
+            </Text>
+          )}
           <Text style={s.doneName}>{customerInfo?.name || customerInfo?.phone}</Text>
           <Text style={s.doneSub}>Cashback credited to their account</Text>
           {promotionApplied && (
@@ -507,12 +745,21 @@ export default function EmployeeScanScreen() {
       {step === 'redeem-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           <View style={[s.successBadge, { backgroundColor: COLORS.accent + '15' }]}>
-            <Text style={s.successBadgeIcon}>🎁</Text>
+            <Text style={s.successBadgeIcon}>💳</Text>
             <View>
               <Text style={[s.successBadgeTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
               <Text style={s.successBadgeSub}>Enter amount to deduct from balance</Text>
             </View>
           </View>
+
+          {cdata && (
+            <View style={s.balanceHint}>
+              <Text style={s.balanceHintText}>
+                Balance: {cdata.pointsBalance?.toLocaleString() || 0} pts
+                {' '}(${(cdata.pointsBalance / 100).toFixed(2)})
+              </Text>
+            </View>
+          )}
 
           <Text style={s.fieldLabel}>Amount to Redeem</Text>
           <View style={s.amountBox}>
@@ -562,13 +809,126 @@ export default function EmployeeScanScreen() {
           <Text style={s.doneName}>{customerInfo?.name || customerInfo?.phone}</Text>
           <View style={s.newBalanceCard}>
             <Text style={s.newBalanceLabel}>Remaining balance</Text>
-            <Text style={s.newBalanceValue}>${Number(customerInfo?.pointsBalance ?? 0).toFixed(2)}</Text>
+            <Text style={s.newBalanceValue}>{Math.round(Number(customerInfo?.pointsBalance ?? 0) * 100).toLocaleString()} pts</Text>
           </View>
           <TouchableOpacity
             style={[s.primaryBtn, s.doneBtn, { backgroundColor: COLORS.accent }]}
             onPress={reset}
             activeOpacity={0.85}
           >
+            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ──────────────────────── BENEFIT: DONE ────────────────────────── */}
+      {step === 'benefit-done' && (
+        <View style={[s.fill, s.center]}>
+          <View style={[s.doneIconRing, { backgroundColor: tierCfg.color + '20' }]}>
+            <Text style={s.doneEmoji}>{benefitType === 'SILVER_FOUNTAIN' ? '🥤' : '☕'}</Text>
+          </View>
+          <Text style={s.doneHeading}>Benefit Claimed!</Text>
+          <Text style={[s.doneAmount, { color: tierCfg.color }]}>
+            {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
+          </Text>
+          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
+          <View style={[s.newBalanceCard, { borderColor: tierCfg.color + '40' }]}>
+            <Text style={s.newBalanceLabel}>{tierCfg.emoji} {tierCfg.label} Member</Text>
+            {benefitType === 'SILVER_FOUNTAIN' && (
+              <Text style={s.newBalanceValue}>{silverRemaining - 1} uses remaining</Text>
+            )}
+          </View>
+          <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={reset} activeOpacity={0.85}>
+            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ──────────────────────── CATALOG: SELECT ────────────────────────── */}
+      {step === 'catalog-select' && (
+        <View style={s.fill}>
+          <View style={s.catalogHeader}>
+            <Text style={s.catalogHeaderTitle}>🎁 Catalog Rewards</Text>
+            {cdata && (
+              <Text style={s.catalogHeaderBalance}>
+                Balance: {cdata.pointsBalance?.toLocaleString() || 0} pts
+              </Text>
+            )}
+          </View>
+          <FlatList
+            data={catalogItems}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 16, gap: 12 }}
+            renderItem={({ item }) => {
+              const canAfford = (cdata?.pointsBalance || 0) >= item.pointsCost;
+              const selected = selectedCatalogItem?.id === item.id;
+              return (
+                <TouchableOpacity
+                  style={[
+                    s.catalogItem,
+                    selected && s.catalogItemSelected,
+                    !canAfford && s.catalogItemDisabled,
+                  ]}
+                  onPress={() => canAfford && setSelectedCatalogItem(item)}
+                  activeOpacity={canAfford ? 0.8 : 1}
+                >
+                  <View style={s.catalogItemLeft}>
+                    <Text style={s.catalogItemName}>{item.name}</Text>
+                    {item.description ? (
+                      <Text style={s.catalogItemDesc}>{item.description}</Text>
+                    ) : null}
+                  </View>
+                  <View style={[s.catalogItemCost, selected && { backgroundColor: '#9B5DE5' }]}>
+                    <Text style={[s.catalogItemCostText, selected && { color: '#fff' }]}>
+                      {item.pointsCost.toLocaleString()}
+                    </Text>
+                    <Text style={[s.catalogItemCostLabel, selected && { color: 'rgba(255,255,255,0.75)' }]}>pts</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={s.emptyState}>
+                <Text style={s.emptyStateText}>No catalog items available</Text>
+              </View>
+            }
+          />
+          <View style={s.catalogFooter}>
+            <TouchableOpacity
+              style={[s.primaryBtn, { backgroundColor: '#9B5DE5', flex: 1 }, (!selectedCatalogItem || loading) && s.primaryBtnOff]}
+              onPress={handleCatalogRedeem}
+              disabled={!selectedCatalogItem || loading}
+              activeOpacity={0.85}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.primaryBtnText}>
+                    {selectedCatalogItem ? `Redeem — ${selectedCatalogItem.pointsCost.toLocaleString()} pts` : 'Select a reward'}
+                  </Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={s.ghostBtn} onPress={() => setStep('mode')}>
+              <Text style={s.ghostBtnText}>← Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ──────────────────────── CATALOG: DONE ────────────────────────── */}
+      {step === 'catalog-done' && (
+        <View style={[s.fill, s.center]}>
+          <View style={[s.doneIconRing, { backgroundColor: '#9B5DE5' + '20' }]}>
+            <Text style={s.doneEmoji}>🎁</Text>
+          </View>
+          <Text style={s.doneHeading}>Reward Redeemed!</Text>
+          <Text style={[s.doneAmount, { color: '#9B5DE5', fontSize: 22 }]}>{selectedCatalogItem?.name}</Text>
+          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
+          <View style={s.newBalanceCard}>
+            <Text style={s.newBalanceLabel}>Points deducted</Text>
+            <Text style={[s.newBalanceValue, { color: '#9B5DE5' }]}>
+              -{selectedCatalogItem?.pointsCost?.toLocaleString()} pts
+            </Text>
+          </View>
+          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#9B5DE5' }]} onPress={reset} activeOpacity={0.85}>
             <Text style={s.primaryBtnText}>Scan Next Customer</Text>
           </TouchableOpacity>
         </View>
@@ -614,6 +974,12 @@ const s = StyleSheet.create({
   stepLabelActive: { color: 'rgba(255,255,255,0.95)' },
 
   // ── Camera overlay ────────────────────────────────────────────────────────────
+  scanLoadingOverlay: {
+    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+    zIndex: 10, backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  scanLoadingText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   scanOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   scanDimTop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
   scanMiddleRow: { flexDirection: 'row', height: 230 },
@@ -624,6 +990,36 @@ const s = StyleSheet.create({
   },
   scanHint: { color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center' },
   scanHintSub: { color: 'rgba(255,255,255,0.65)', fontSize: 13, textAlign: 'center' },
+
+  // ── Customer card ─────────────────────────────────────────────────────────────
+  customerCard: {
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
+    borderLeftWidth: 4, borderLeftColor: COLORS.primary,
+  },
+  customerCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  customerCardRight: { alignItems: 'flex-end', gap: 6 },
+  customerAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.primary + '20',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  customerAvatarText: { fontSize: 18, fontWeight: '800', color: COLORS.primary },
+  customerName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  customerPhone: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  customerBalanceRow: { flexDirection: 'row', alignItems: 'baseline' },
+  customerBalancePts: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  customerBalancePtsLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+
+  tierBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  tierBadgeEmoji: { fontSize: 13 },
+  tierBadgeText: { fontSize: 12, fontWeight: '800' },
 
   // ── Mode select ───────────────────────────────────────────────────────────────
   successBadge: {
@@ -649,25 +1045,22 @@ const s = StyleSheet.create({
   modeSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 3 },
   modeArrow: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modeArrowText: { color: '#fff', fontSize: 22, fontWeight: '300', marginTop: -2 },
-  modeInfo: {
-    backgroundColor: COLORS.secondary + '0d', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: COLORS.secondary + '18',
+
+  balanceHint: {
+    backgroundColor: COLORS.accent + '12', borderRadius: 12,
+    padding: 12, borderWidth: 1, borderColor: COLORS.accent + '30',
   },
-  modeInfoText: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
+  balanceHintText: { fontSize: 14, color: COLORS.accent, fontWeight: '700', textAlign: 'center' },
 
   // ── Category grid ─────────────────────────────────────────────────────────────
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   required: { color: COLORS.error, textTransform: 'none', fontWeight: '600' },
-  catGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-  },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catCell: {
     width: '23%', aspectRatio: 1,
     backgroundColor: COLORS.white, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', gap: 4,
     borderWidth: 2, borderColor: COLORS.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   catCellActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '12' },
   catEmoji: { fontSize: 22 },
@@ -679,11 +1072,20 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.white, borderRadius: 18,
     paddingHorizontal: 20, borderWidth: 2, borderColor: COLORS.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
   amountDollar: { fontSize: 36, fontWeight: '700', color: COLORS.textMuted, marginRight: 8 },
   amountInput: { flex: 1, fontSize: 44, fontWeight: '800', color: COLORS.text, paddingVertical: 14 },
+
+  // ── Gas extras ────────────────────────────────────────────────────────────────
+  gasBox: { gap: 10 },
+  gasRow: { flexDirection: 'row', gap: 10 },
+  gasUnit: { fontSize: 18, fontWeight: '700', color: COLORS.textMuted, marginRight: 4 },
+  gasBonus: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 12, padding: 12, borderWidth: 1.5,
+  },
+  gasBonusEmoji: { fontSize: 18 },
+  gasBonusText: { fontSize: 14, fontWeight: '700' },
 
   // ── Cashback preview ──────────────────────────────────────────────────────────
   previewCard: {
@@ -697,48 +1099,72 @@ const s = StyleSheet.create({
   previewDivider: { height: 1, backgroundColor: COLORS.success + '30' },
   previewNote: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', fontStyle: 'italic' },
 
-  // ── Customer card (receipt step) ──────────────────────────────────────────────
-  customerCard: {
-    backgroundColor: COLORS.white, borderRadius: 18, padding: 24,
-    alignItems: 'center', gap: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  customerAvatar: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 6,
-  },
-  customerAvatarText: { color: '#fff', fontSize: 26, fontWeight: '800' },
-  customerName: { fontSize: 20, fontWeight: '700', color: COLORS.text },
-  customerPhone: { fontSize: 13, color: COLORS.textMuted },
+  // ── Points pill ───────────────────────────────────────────────────────────────
   pointsPill: {
-    backgroundColor: COLORS.primary, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 6, marginTop: 4,
+    backgroundColor: COLORS.success + '18', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5,
   },
-  pointsPillText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  promoBanner: {
-    backgroundColor: COLORS.accent + '20', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 8,
-  },
-  promoBannerText: { color: COLORS.accent, fontWeight: '700', fontSize: 13 },
+  pointsPillText: { color: COLORS.success, fontWeight: '800', fontSize: 14 },
 
-  // ── Receipt box ───────────────────────────────────────────────────────────────
+  // ── Promo banner ──────────────────────────────────────────────────────────────
+  promoBanner: {
+    backgroundColor: COLORS.primary + '12', borderRadius: 12,
+    padding: 12, borderWidth: 1, borderColor: COLORS.primary + '25',
+  },
+  promoBannerText: { fontSize: 14, color: COLORS.primary, fontWeight: '700', textAlign: 'center' },
+
+  // ── Receipt ───────────────────────────────────────────────────────────────────
   receiptBox: {
-    backgroundColor: COLORS.white, borderRadius: 16,
+    backgroundColor: COLORS.white, borderRadius: 18, minHeight: 150,
     borderWidth: 2, borderColor: COLORS.border, borderStyle: 'dashed',
-    padding: 36, alignItems: 'center', gap: 10,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  receiptBoxFilled: { padding: 0, borderStyle: 'solid', overflow: 'hidden' },
-  receiptIcon: { fontSize: 48 },
-  receiptTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  receiptSub: { fontSize: 13, color: COLORS.textMuted },
-  receiptImg: { width: '100%', height: 220, resizeMode: 'cover' },
-  retakeRow: {
-    padding: 12, alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.04)',
-  },
+  receiptBoxFilled: { borderStyle: 'solid', borderColor: COLORS.success },
+  receiptIcon: { fontSize: 36, marginBottom: 8 },
+  receiptTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  receiptSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  receiptImg: { width: '100%', height: 200, resizeMode: 'cover' },
+  retakeRow: { padding: 10, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.04)' },
   retakeText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+
+  // ── Buttons ───────────────────────────────────────────────────────────────────
+  primaryBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 16,
+    padding: 17, alignItems: 'center',
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
+  primaryBtnOff: { opacity: 0.45, shadowOpacity: 0 },
+  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  ghostBtn: { padding: 14, alignItems: 'center' },
+  ghostBtnText: { color: COLORS.textMuted, fontWeight: '700', fontSize: 14 },
+  dangerBtn: { padding: 14, alignItems: 'center' },
+  dangerBtnText: { color: COLORS.error, fontWeight: '700', fontSize: 14 },
+
+  // ── Permission screen ─────────────────────────────────────────────────────────
+  permIcon: { fontSize: 64, marginBottom: 16 },
+  permTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  permSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 8, marginBottom: 24, lineHeight: 20 },
+
+  // ── Done screen ───────────────────────────────────────────────────────────────
+  doneIconRing: {
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: COLORS.success + '20',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+  },
+  doneEmoji: { fontSize: 44 },
+  doneHeading: { fontSize: 28, fontWeight: '900', color: COLORS.text, marginBottom: 4 },
+  doneAmount: { fontSize: 36, fontWeight: '900', color: COLORS.success, marginBottom: 6 },
+  doneName: { fontSize: 16, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
+  doneSub: { fontSize: 14, color: COLORS.textMuted, marginBottom: 24 },
+  doneBtn: { marginTop: 12, width: 260 },
+  newBalanceCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    alignItems: 'center', marginBottom: 28, marginTop: 10,
+    borderWidth: 1.5, borderColor: COLORS.border, minWidth: 200,
+  },
+  newBalanceLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  newBalanceValue: { fontSize: 26, fontWeight: '900', color: COLORS.text, marginTop: 4 },
 
   // ── Redeem info ───────────────────────────────────────────────────────────────
   redeemInfo: {
@@ -747,46 +1173,32 @@ const s = StyleSheet.create({
   },
   redeemInfoText: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
 
-  // ── Done screens ──────────────────────────────────────────────────────────────
-  doneIconRing: {
-    width: 110, height: 110, borderRadius: 55,
-    backgroundColor: COLORS.success + '18',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  // ── Catalog ───────────────────────────────────────────────────────────────────
+  catalogHeader: {
+    paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  doneEmoji: { fontSize: 58 },
-  doneHeading: { fontSize: 30, fontWeight: '800', color: COLORS.text },
-  doneAmount: { fontSize: 52, fontWeight: '800', color: COLORS.success, marginVertical: 4 },
-  doneName: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 4 },
-  doneSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
-  newBalanceCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 20,
-    alignItems: 'center', marginTop: 16, width: '80%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  catalogHeaderTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  catalogHeaderBalance: { fontSize: 13, color: '#9B5DE5', fontWeight: '700' },
+  catalogItem: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1.5, borderColor: COLORS.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
-  newBalanceLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  newBalanceValue: { fontSize: 32, fontWeight: '800', color: COLORS.text, marginTop: 4 },
-  doneBtn: { marginTop: 32, width: '80%' },
-
-  // ── Buttons ───────────────────────────────────────────────────────────────────
-  primaryBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 16,
-    paddingVertical: 18, alignItems: 'center',
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  catalogItemSelected: { borderColor: '#9B5DE5', backgroundColor: '#9B5DE5' + '08' },
+  catalogItemDisabled: { opacity: 0.4 },
+  catalogItemLeft: { flex: 1, marginRight: 12 },
+  catalogItemName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  catalogItemDesc: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
+  catalogItemCost: {
+    alignItems: 'center', backgroundColor: COLORS.border,
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minWidth: 64,
   },
-  primaryBtnOff: { backgroundColor: COLORS.border, shadowOpacity: 0 },
-  primaryBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  ghostBtn: { paddingVertical: 14, alignItems: 'center' },
-  ghostBtnText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600' },
-  dangerBtn: {
-    paddingVertical: 14, alignItems: 'center',
-    borderRadius: 14, borderWidth: 1, borderColor: COLORS.error + '40',
-  },
-  dangerBtnText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
-
-  // ── Permission screen ─────────────────────────────────────────────────────────
-  permIcon: { fontSize: 72, marginBottom: 16 },
-  permTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-  permSub: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center', marginBottom: 36, lineHeight: 22, paddingHorizontal: 8 },
+  catalogItemCostText: { fontSize: 18, fontWeight: '900', color: COLORS.text },
+  catalogItemCostLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, marginTop: 1 },
+  catalogFooter: { padding: 16, gap: 4, borderTopWidth: 1, borderTopColor: COLORS.border },
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyStateText: { color: COLORS.textMuted, fontSize: 14 },
 });

@@ -80,6 +80,9 @@ export default function Navbar() {
         )}
         {isSuperAdmin && (
           <>
+            <NavLink to="/catalog" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>🎁</span>Catalog
+            </NavLink>
             <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>💳</span>Billing
             </NavLink>

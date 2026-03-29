@@ -152,7 +152,7 @@ export async function login(req: Request, res: Response) {
     success: true,
     data: {
       token,
-      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: Number(user.pointsBalance), storeIds },
+      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), tier: user.tier, tierPeriod: user.tierPeriod, storeIds },
     },
   });
 }
@@ -163,7 +163,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   const [user, storeRoles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true },
     }),
     prisma.userStoreRole.findMany({
       where: { userId: req.user!.id },
@@ -172,7 +172,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   ]);
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const storeIds = storeRoles.map((r) => r.storeId);
-  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance), storeIds } });
+  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), storeIds } });
 }
 
 // ─── Register Push Token ──────────────────────────────────────────────────────

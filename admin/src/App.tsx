@@ -27,6 +27,7 @@ const Scheduling             = lazy(() => import('./pages/Scheduling'));
 const Chat                   = lazy(() => import('./pages/Chat'));
 const StoreRequests          = lazy(() => import('./pages/StoreRequests'));
 const Profile                = lazy(() => import('./pages/Profile'));
+const Catalog                = lazy(() => import('./pages/Catalog'));
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,7 @@ export default function App() {
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/scheduling" element={<Scheduling />} />
+                <Route path="/catalog" element={<Catalog />} />
               </Route>
               <Route path="/chat" element={<Chat />} />
               <Route path="/store-requests" element={<StoreRequests />} />
