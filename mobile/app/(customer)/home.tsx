@@ -207,38 +207,83 @@ export default function CustomerHome() {
       )}
 
       {/* Cashback Promotions */}
+      {/* Active Promotions — show 2, slider if more */}
       {promotions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔥 Active Promotions</Text>
-          {promotions.map((offer: any) => (
-            <View key={offer.id} style={styles.offerCard}>
-              {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
-              <View style={styles.offerContent}>
-                <Text style={styles.offerTitle}>{offer.title}</Text>
-                <Text style={styles.offerDesc}>{offer.description}</Text>
-                <Text style={styles.offerBonus}>
-                  🔥 {Math.round(offer.bonusRate * 100)}% cashback — auto-applied!
-                </Text>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>🔥 Active Promotions</Text>
+            {promotions.length > 2 && (
+              <Text style={styles.sectionCount}>{promotions.length} offers</Text>
+            )}
+          </View>
+          {promotions.length <= 2 ? (
+            promotions.map((offer: any) => (
+              <View key={offer.id} style={styles.offerCard}>
+                {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
+                <View style={styles.offerContent}>
+                  <Text style={styles.offerTitle}>{offer.title}</Text>
+                  <Text style={styles.offerDesc}>{offer.description}</Text>
+                  <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback — auto-applied!</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
+              {promotions.map((offer: any) => (
+                <View key={offer.id} style={styles.offerSlideCard}>
+                  {offer.imageUrl
+                    ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
+                    : <View style={styles.offerSlideImagePlaceholder}><Text style={{ fontSize: 32 }}>🔥</Text></View>
+                  }
+                  <View style={styles.offerSlideContent}>
+                    <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+                    <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
+                    <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
 
-      {/* Price Deals */}
+      {/* Price Deals — show 2, slider if more */}
       {deals.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏷️ Today's Deals</Text>
-          {deals.map((offer: any) => (
-            <View key={offer.id} style={styles.dealCard}>
-              {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
-              <View style={styles.offerContent}>
-                <Text style={styles.dealText}>{offer.dealText}</Text>
-                <Text style={styles.offerTitle}>{offer.title}</Text>
-                {offer.description ? <Text style={styles.offerDesc}>{offer.description}</Text> : null}
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>🏷️ Today's Deals</Text>
+            {deals.length > 2 && (
+              <Text style={styles.sectionCount}>{deals.length} deals</Text>
+            )}
+          </View>
+          {deals.length <= 2 ? (
+            deals.map((offer: any) => (
+              <View key={offer.id} style={styles.dealCard}>
+                {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
+                <View style={styles.offerContent}>
+                  <Text style={styles.dealText}>{offer.dealText}</Text>
+                  <Text style={styles.offerTitle}>{offer.title}</Text>
+                  {offer.description ? <Text style={styles.offerDesc}>{offer.description}</Text> : null}
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
+              {deals.map((offer: any) => (
+                <View key={offer.id} style={[styles.offerSlideCard, styles.dealSlideCard]}>
+                  {offer.imageUrl
+                    ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
+                    : <View style={styles.offerSlideImagePlaceholder}><Text style={{ fontSize: 32 }}>🏷️</Text></View>
+                  }
+                  <View style={styles.offerSlideContent}>
+                    <Text style={styles.dealText}>{offer.dealText}</Text>
+                    <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+                    {offer.description ? <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text> : null}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
 
@@ -313,7 +358,23 @@ const styles = StyleSheet.create({
 
   bannerWrapper: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   section: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  sectionCount: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+
+  sliderRow: { gap: 10, paddingBottom: 4 },
+  offerSlideCard: {
+    width: 220, backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+  },
+  dealSlideCard: { borderLeftWidth: 4, borderLeftColor: COLORS.accent },
+  offerSlideImage: { width: 220, height: 100, resizeMode: 'cover' },
+  offerSlideImagePlaceholder: {
+    width: 220, height: 100, backgroundColor: COLORS.primary + '12',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  offerSlideContent: { padding: 12, gap: 4 },
 
   bannerCard: { marginRight: 12, borderRadius: 14, overflow: 'hidden', width: 240 },
   bannerImage: { width: 240, height: 130, resizeMode: 'cover' },
