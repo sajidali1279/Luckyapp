@@ -201,8 +201,7 @@ export default function CustomerHome() {
 
       {/* Banners — auto-advancing carousel */}
       {banners.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Promotions</Text>
+        <View style={styles.bannerWrapper}>
           <BannerCarousel banners={banners} />
         </View>
       )}
@@ -312,6 +311,7 @@ const styles = StyleSheet.create({
   },
   qrSubtext: { color: COLORS.textMuted, fontSize: 13, marginTop: 6, fontWeight: '500' },
 
+  bannerWrapper: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   section: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
 
@@ -373,7 +373,7 @@ const bc = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
   },
-  image: { width: BANNER_W, height: 160, resizeMode: 'cover' },
+  image: { width: BANNER_W, height: 110, resizeMode: 'cover' },
   titleBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 14, paddingVertical: 10,
