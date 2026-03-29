@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 interface CatalogItem {
   id: string;
   chain: string;
+  category: string;
   title: string;
   description?: string;
   emoji: string;
@@ -15,6 +16,12 @@ interface CatalogItem {
   isActive: boolean;
   createdAt: string;
 }
+
+const CATEGORY_OPTIONS = [
+  { value: 'IN_STORE',  label: '🛒 In-Store',  desc: 'General in-store items' },
+  { value: 'GAS',       label: '⛽ Gas',        desc: 'Fuel & pump rewards' },
+  { value: 'HOT_FOODS', label: '🌮 Hot Foods',  desc: 'Hot food items (select locations)' },
+];
 
 const KNOWN_CHAINS = ['Lucky Stop'];
 
@@ -31,6 +38,7 @@ function CatalogModal({
 }) {
   const [chain, setChain]           = useState(item?.chain || 'Lucky Stop');
   const [customChain, setCustomChain] = useState('');
+  const [category, setCategory]     = useState(item?.category || 'IN_STORE');
   const [title, setTitle]           = useState(item?.title || '');
   const [description, setDescription] = useState(item?.description || '');
   const [emoji, setEmoji]           = useState(item?.emoji || '🎁');
@@ -49,6 +57,7 @@ function CatalogModal({
     if (!finalChain) { toast.error('Company name is required'); return; }
     onSave({
       chain: finalChain,
+      category,
       title: title.trim(),
       description: description.trim(),
       emoji: emoji.trim() || '🎁',
@@ -96,6 +105,27 @@ function CatalogModal({
               Lucky Stop
             </div>
           )}
+
+          <label style={m.label}>Category *</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {CATEGORY_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCategory(opt.value)}
+                style={{
+                  flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer',
+                  border: `2px solid ${category === opt.value ? '#1D3557' : '#ddd'}`,
+                  background: category === opt.value ? '#1D3557' : '#fff',
+                  color: category === opt.value ? '#fff' : '#444',
+                  fontWeight: 700, fontSize: 12, textAlign: 'center' as const,
+                  lineHeight: 1.4,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -208,7 +238,7 @@ function ChainSection({
           <table style={cs.table}>
             <thead>
               <tr>
-                {['', 'Title', 'Description', 'Points Cost', 'Value', 'Order', 'Status', 'Actions'].map(h => (
+                {['', 'Title', 'Category', 'Description', 'Points Cost', 'Value', 'Status', 'Actions'].map(h => (
                   <th key={h} style={cs.th}>{h}</th>
                 ))}
               </tr>
@@ -218,15 +248,17 @@ function ChainSection({
                 <tr key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                   <td style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</td>
                   <td style={cs.td}><span style={cs.itemTitle}>{item.title}</span></td>
+                  <td style={cs.td}>
+                    <span style={cs.catBadge}>
+                      {{ IN_STORE: '🛒 In-Store', GAS: '⛽ Gas', HOT_FOODS: '🌮 Hot Foods' }[item.category as string] || item.category}
+                    </span>
+                  </td>
                   <td style={cs.td}><span style={cs.itemDesc}>{item.description || '—'}</span></td>
                   <td style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
                   </td>
                   <td style={cs.td}>
                     <span style={cs.valueBadge}>${(item.pointsCost / 100).toFixed(2)}</span>
-                  </td>
-                  <td style={cs.td}>
-                    <span style={cs.orderBadge}>{item.sortOrder}</span>
                   </td>
                   <td style={cs.td}>
                     <span style={{ ...cs.statusBadge, ...(item.isActive ? cs.statusActive : cs.statusInactive) }}>
@@ -483,6 +515,10 @@ const cs: Record<string, React.CSSProperties> = {
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
   itemTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
   itemDesc: { fontSize: 13, color: '#888' },
+  catBadge: {
+    background: '#f0f4ff', color: '#1D3557',
+    borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 600,
+  },
   ptsBadge: {
     background: '#1D3557', color: '#fff',
     borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700,

@@ -1,9 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { catalogApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string; next?: string }> = {
@@ -74,12 +72,6 @@ export default function RewardsScreen() {
   const tierCfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
   const benefits = TIER_BENEFITS[tier] || TIER_BENEFITS.BRONZE;
 
-  const { data: catalogData, isLoading: catalogLoading } = useQuery({
-    queryKey: ['catalog'],
-    queryFn: () => catalogApi.getActive(),
-  });
-  const catalogItems: any[] = catalogData?.data?.data || [];
-
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
@@ -125,49 +117,23 @@ export default function RewardsScreen() {
           </View>
         )}
 
-        {/* Catalog */}
-        <Text style={s.listTitle}>🏷️ Catalog Rewards</Text>
-        {catalogLoading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-            <Text style={s.loadingText}>Loading rewards…</Text>
-          </View>
-        ) : catalogItems.length === 0 ? (
-          <View style={s.emptyBox}>
-            <Text style={s.emptyIcon}>🏷️</Text>
-            <Text style={s.emptyText}>No catalog rewards available yet</Text>
-          </View>
-        ) : (
-          <>
-            {catalogItems.map((item: any) => {
-              const canAfford = pts >= item.pointsCost;
-              return (
-                <View key={item.id} style={[s.catalogCard, !canAfford && s.catalogCardDisabled]}>
-                  <View style={s.catalogLeft}>
-                    <Text style={s.catalogName}>{item.emoji ? `${item.emoji} ` : ''}{item.title}</Text>
-                    {item.description ? <Text style={s.catalogDesc}>{item.description}</Text> : null}
-                    {!canAfford && (
-                      <Text style={s.catalogShort}>
-                        Need {(item.pointsCost - pts).toLocaleString()} more pts
-                      </Text>
-                    )}
-                  </View>
-                  <View style={[s.catalogCost, canAfford && { backgroundColor: COLORS.primary }]}>
-                    <Text style={[s.catalogCostPts, canAfford && { color: '#fff' }]}>
-                      {item.pointsCost.toLocaleString()}
-                    </Text>
-                    <Text style={[s.catalogCostLabel, canAfford && { color: 'rgba(255,255,255,0.75)' }]}>pts</Text>
-                  </View>
-                </View>
-              );
-            })}
-            <View style={s.redeemHint}>
-              <Text style={s.redeemHintText}>
-                💡 To redeem a catalog reward, show your QR code to the cashier and ask them to process your reward.
-              </Text>
+        {/* Catalog CTA */}
+        <TouchableOpacity
+          style={s.catalogCta}
+          onPress={() => router.push('/(customer)/catalog')}
+          activeOpacity={0.85}
+        >
+          <View style={s.catalogCtaLeft}>
+            <Text style={s.catalogCtaEmoji}>🏷️</Text>
+            <View>
+              <Text style={s.catalogCtaTitle}>Browse Reward Catalog</Text>
+              <Text style={s.catalogCtaSub}>Gas, in-store, hot foods & more</Text>
             </View>
-          </>
-        )}
+          </View>
+          <View style={s.catalogCtaArrow}>
+            <Text style={s.catalogCtaArrowText}>›</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* How it works */}
         <Text style={[s.listTitle, { marginTop: 4 }]}>How points work</Text>
@@ -263,37 +229,22 @@ const s = StyleSheet.create({
 
   listTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
 
-  loadingBox: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { color: COLORS.textMuted, fontSize: 14 },
-
-  emptyBox: { alignItems: 'center', padding: 32, gap: 8 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { color: COLORS.textMuted, fontSize: 14 },
-
-  catalogCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+  catalogCta: {
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 18,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1.5, borderColor: COLORS.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    borderWidth: 1.5, borderColor: '#9B5DE5' + '35',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 6, elevation: 2,
   },
-  catalogCardDisabled: { opacity: 0.55 },
-  catalogLeft: { flex: 1, marginRight: 12 },
-  catalogName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  catalogDesc: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
-  catalogShort: { fontSize: 11, color: COLORS.error, marginTop: 4, fontWeight: '700' },
-  catalogCost: {
-    alignItems: 'center', backgroundColor: COLORS.border,
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minWidth: 64,
+  catalogCtaLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  catalogCtaEmoji: { fontSize: 30 },
+  catalogCtaTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  catalogCtaSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+  catalogCtaArrow: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: '#9B5DE5', alignItems: 'center', justifyContent: 'center',
   },
-  catalogCostPts: { fontSize: 18, fontWeight: '900', color: COLORS.text },
-  catalogCostLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, marginTop: 1 },
-
-  redeemHint: {
-    backgroundColor: COLORS.primary + '0d', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: COLORS.primary + '20',
-  },
-  redeemHintText: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
+  catalogCtaArrowText: { color: '#fff', fontSize: 22, fontWeight: '300', marginTop: -2 },
 
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
   stepRowBorder: { borderTopWidth: 1, borderTopColor: COLORS.border },
