@@ -20,11 +20,11 @@ const TIER_THRESHOLDS: Record<string, number> = {
 };
 
 const TIER_BENEFITS: Record<string, string[]> = {
-  BRONZE:   ['5 pts per $1 spent'],
-  SILVER:   ['5 pts per $1 spent', '30 free fountain drinks this period'],
-  GOLD:     ['5 pts per $1 spent', '1 free drink or coffee per day', '+5 pts per gallon on gas'],
-  DIAMOND:  ['5 pts per $1 spent', '1 free drink or coffee per day', '+7 pts per gallon on gas'],
-  PLATINUM: ['5 pts per $1 spent', '1 free drink or coffee per day', '+10 pts per gallon on gas'],
+  BRONZE:   [],
+  SILVER:   ['30 free fountain drinks this period'],
+  GOLD:     ['1 free drink or coffee per day', '+5 pts per gallon on gas'],
+  DIAMOND:  ['1 free drink or coffee per day', '+7 pts per gallon on gas'],
+  PLATINUM: ['1 free drink or coffee per day', '+10 pts per gallon on gas'],
 };
 
 function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number }) {
@@ -110,18 +110,20 @@ export default function RewardsScreen() {
           <TierProgressBar tier={tier} periodPts={periodPts} />
         </View>
 
-        {/* Tier benefits */}
-        <View style={s.sectionCard}>
-          <Text style={[s.sectionTitle, { color: tierCfg.color }]}>
-            {tierCfg.emoji} Your {tierCfg.label} Benefits
-          </Text>
-          {benefits.map((b, i) => (
-            <View key={i} style={s.benefitRow}>
-              <Text style={[s.benefitDot, { color: tierCfg.color }]}>●</Text>
-              <Text style={s.benefitText}>{b}</Text>
-            </View>
-          ))}
-        </View>
+        {/* Tier benefits — only shown for Silver and above */}
+        {benefits.length > 0 && (
+          <View style={s.sectionCard}>
+            <Text style={[s.sectionTitle, { color: tierCfg.color }]}>
+              {tierCfg.emoji} Your {tierCfg.label} Benefits
+            </Text>
+            {benefits.map((b, i) => (
+              <View key={i} style={s.benefitRow}>
+                <Text style={[s.benefitDot, { color: tierCfg.color }]}>●</Text>
+                <Text style={s.benefitText}>{b}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Catalog */}
         <Text style={s.listTitle}>🏷️ Catalog Rewards</Text>
