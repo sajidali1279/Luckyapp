@@ -142,7 +142,7 @@ export default function RewardsScreen() {
               return (
                 <View key={item.id} style={[s.catalogCard, !canAfford && s.catalogCardDisabled]}>
                   <View style={s.catalogLeft}>
-                    <Text style={s.catalogName}>{item.name}</Text>
+                    <Text style={s.catalogName}>{item.emoji ? `${item.emoji} ` : ''}{item.title}</Text>
                     {item.description ? <Text style={s.catalogDesc}>{item.description}</Text> : null}
                     {!canAfford && (
                       <Text style={s.catalogShort}>

@@ -873,7 +873,7 @@ export default function EmployeeScanScreen() {
                   activeOpacity={canAfford ? 0.8 : 1}
                 >
                   <View style={s.catalogItemLeft}>
-                    <Text style={s.catalogItemName}>{item.name}</Text>
+                    <Text style={s.catalogItemName}>{item.emoji ? `${item.emoji} ` : ''}{item.title}</Text>
                     {item.description ? (
                       <Text style={s.catalogItemDesc}>{item.description}</Text>
                     ) : null}
@@ -920,7 +920,9 @@ export default function EmployeeScanScreen() {
             <Text style={s.doneEmoji}>🎁</Text>
           </View>
           <Text style={s.doneHeading}>Reward Redeemed!</Text>
-          <Text style={[s.doneAmount, { color: '#9B5DE5', fontSize: 22 }]}>{selectedCatalogItem?.name}</Text>
+          <Text style={[s.doneAmount, { color: '#9B5DE5', fontSize: 22 }]}>
+            {selectedCatalogItem?.emoji ? `${selectedCatalogItem.emoji} ` : ''}{selectedCatalogItem?.title}
+          </Text>
           <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
           <View style={s.newBalanceCard}>
             <Text style={s.newBalanceLabel}>Points deducted</Text>

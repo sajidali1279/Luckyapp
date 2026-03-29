@@ -81,8 +81,9 @@ export default function App() {
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/scheduling" element={<Scheduling />} />
-                <Route path="/catalog" element={<Catalog />} />
               </Route>
+              {/* Catalog accessible to both SuperAdmin and DevAdmin */}
+              <Route path="/catalog" element={<Catalog />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/profile" element={<Profile />} />

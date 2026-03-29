@@ -556,6 +556,7 @@ model PushToken {
 
 model RedemptionCatalogItem {
   id          String   @id @default(uuid())
+  chain       String   @default("Lucky Stop") // company/brand this item belongs to
   title       String
   description String   @default("")
   emoji       String   @default("🎁")
