@@ -7,8 +7,8 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
     console.warn('[EMAIL] RESEND_API_KEY not set — skipping email delivery');
     return;
   }
-  await resend.emails.send({
-    from: 'Lucky Stop <noreply@luckystop.app>',
+  const { data, error } = await resend.emails.send({
+    from: 'Lucky Stop <onboarding@resend.dev>',
     to,
     subject: 'Your Lucky Stop PIN reset code',
     html: `
@@ -22,4 +22,9 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
       </div>
     `,
   });
+  if (error) {
+    console.error('[EMAIL] Resend error:', error);
+    throw new Error(error.message);
+  }
+  console.log('[EMAIL] Sent successfully, id:', data?.id);
 }
