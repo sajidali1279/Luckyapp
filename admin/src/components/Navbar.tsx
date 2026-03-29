@@ -33,7 +33,7 @@ export default function Navbar() {
   const { data: notifData } = useQuery({
     queryKey: ['super-admin-notifications'],
     queryFn: () => superAdminApi.getNotifications(),
-    enabled: isSuperAdmin,
+    enabled: isSuperAdmin || isDevAdmin,
     refetchInterval: 60_000,
   });
   const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead).length;
@@ -78,6 +78,13 @@ export default function Navbar() {
             </NavLink>
             <NavLink to="/stores" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🏪</span>Stores
+            </NavLink>
+            <NavLink to="/notifications" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}), position: 'relative' })}>
+              <span style={s.linkIcon}>🔔</span>
+              Notifications
+              {unreadCount > 0 && (
+                <span style={s.notifBadge}>{unreadCount}</span>
+              )}
             </NavLink>
           </>
         )}
