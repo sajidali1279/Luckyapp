@@ -59,10 +59,12 @@ export default function AppLoader() {
 
 const s = StyleSheet.create({
   root: {
-    flex: 1,
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: COLORS.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 999,
   },
   content: {
     alignItems: 'center',

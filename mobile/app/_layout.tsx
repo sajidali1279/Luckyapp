@@ -79,11 +79,8 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isLoading ? (
-        <AppLoader />
-      ) : (
-        <Stack screenOptions={{ headerShown: false }} />
-      )}
+      <Stack screenOptions={{ headerShown: false }} />
+      {isLoading && <AppLoader />}
       <Toast />
     </QueryClientProvider>
   );
