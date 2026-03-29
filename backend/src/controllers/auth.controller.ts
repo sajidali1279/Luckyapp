@@ -531,19 +531,14 @@ export async function forgotPin(req: Request, res: Response) {
     data: { phone, email: user.email, code: otp, purpose: 'FORGOT_PIN', expiresAt },
   });
 
-  // Always log OTP (email stub — replace with Resend on deployment day)
-  console.log(`[OTP] phone=${phone} email=${user.email ?? 'none'} otp=${otp}`);
-
   if (user.email) {
     await sendOtpEmail(user.email, otp);
   }
 
-  // TODO: remove otp from response before real launch
   res.json({
     success: true,
-    message: 'OTP sent.',
-    otp,
-    email: user.email,
+    message: user.email ? 'OTP sent to your email.' : 'OTP sent.',
+    email: user.email ? user.email.replace(/(.{2}).*(@.*)/, '$1***$2') : null,
   });
 }
 

@@ -38,8 +38,7 @@ export default function Login() {
     setForgotLoading(true);
     try {
       const { data } = await authApi.forgotPin(raw, forgotEmail || undefined);
-      if (data.otp) setForgotOtp(data.otp); // auto-fill OTP for testing
-      toast.success(data.otp ? `Dev mode — OTP: ${data.otp}` : 'OTP sent to your email');
+      toast.success(data.email ? `OTP sent to ${data.email}` : 'OTP sent');
       setForgotStep('verify');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to send OTP');
