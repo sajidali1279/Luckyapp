@@ -46,13 +46,7 @@ export default function CustomerLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="⭐" focused={focused} />,
         }}
       />
-      <Tabs.Screen
-        name="catalog"
-        options={{
-          title: 'Catalog',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏷️" focused={focused} />,
-        }}
-      />
+      <Tabs.Screen name="catalog" options={{ href: null }} />
       <Tabs.Screen
         name="history"
         options={{
