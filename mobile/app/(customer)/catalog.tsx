@@ -161,6 +161,36 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
   const { mins, secs, expired } = useCountdown(data.expiresAt);
   const urgency = mins < 5;
 
+  // ── Expired state ──
+  if (expired) {
+    return (
+      <Modal transparent animationType="fade" onRequestClose={onClose}>
+        <View style={m.overlay}>
+          <View style={[m.sheet, { paddingTop: 32 }]}>
+            <View style={[m.itemIcon, { backgroundColor: '#FFF0F0', width: 80, height: 80, borderRadius: 24 }]}>
+              <Text style={{ fontSize: 40 }}>⏰</Text>
+            </View>
+            <Text style={[m.itemTitle, { marginTop: 12, color: '#E63946' }]}>Redemption Expired</Text>
+            <Text style={m.itemDesc}>
+              The 30-minute window passed before the cashier scanned your code.
+            </Text>
+            <View style={suc.refundCard}>
+              <Text style={suc.refundIcon}>✅</Text>
+              <View>
+                <Text style={suc.refundTitle}>Points Refunded</Text>
+                <Text style={suc.refundSub}>{data.pointsSpent} pts returned to your balance</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[m.confirmBtn, { backgroundColor: COLORS.primary }]} onPress={onClose}>
+              <Text style={m.confirmBtnText}>Redeem Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // ── Active state ──
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <View style={m.overlay}>
@@ -179,13 +209,9 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 
           <View style={[suc.timerCard, urgency && { borderColor: '#E63946', backgroundColor: '#FFF0F0' }]}>
             <Text style={suc.timerLabel}>Expires in</Text>
-            {expired ? (
-              <Text style={[suc.timer, { color: '#E63946' }]}>EXPIRED</Text>
-            ) : (
-              <Text style={[suc.timer, urgency && { color: '#E63946' }]}>
-                {mins}:{secs.toString().padStart(2, '0')}
-              </Text>
-            )}
+            <Text style={[suc.timer, urgency && { color: '#E63946' }]}>
+              {mins}:{secs.toString().padStart(2, '0')}
+            </Text>
             <Text style={suc.timerSub}>Points are refunded if not scanned in time</Text>
           </View>
 
@@ -613,4 +639,13 @@ const suc = StyleSheet.create({
   timerLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   timer: { fontSize: 36, fontWeight: '900', color: COLORS.success },
   timerSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center' },
+
+  refundCard: {
+    width: '100%', flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#F0FFF4', borderRadius: 16, padding: 16,
+    borderWidth: 1.5, borderColor: COLORS.success + '50',
+  },
+  refundIcon: { fontSize: 28 },
+  refundTitle: { fontSize: 15, fontWeight: '800', color: COLORS.success },
+  refundSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
 });
