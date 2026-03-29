@@ -92,7 +92,7 @@ export default function RewardsScreen() {
             <View>
               <Text style={s.balanceLabel}>Your Points Balance</Text>
               <Text style={s.balanceAmount}>{pts.toLocaleString()}</Text>
-              <Text style={s.balanceSub}>${(pts / 100).toFixed(2)} value</Text>
+              <Text style={s.balanceSub}>points</Text>
             </View>
             <View style={s.tierBadgeLarge}>
               <Text style={s.tierBadgeLargeEmoji}>{tierCfg.emoji}</Text>

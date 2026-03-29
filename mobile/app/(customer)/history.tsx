@@ -80,8 +80,8 @@ export default function HistoryScreen() {
                   </View>
                 </View>
                 <View style={s.cardRight}>
-                  <Text style={s.points}>+${Number(item.pointsAwarded).toFixed(2)}</Text>
-                  <Text style={s.purchase}>on ${Number(item.purchaseAmount).toFixed(2)}</Text>
+                  <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
+                  <Text style={s.purchase}>{item.store?.name || 'Lucky Stop'}</Text>
                 </View>
               </View>
             );

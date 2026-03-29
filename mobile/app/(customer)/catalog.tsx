@@ -375,7 +375,7 @@ export default function CatalogScreen() {
               {/* Balance bar */}
               <View style={s.balanceBar}>
                 <Text style={s.balanceBarText}>Balance: <Text style={s.balanceBarPts}>{pts.toLocaleString()} pts</Text></Text>
-                <Text style={s.balanceBarValue}>${(pts / 100).toFixed(2)} value</Text>
+                <Text style={s.balanceBarValue}>{pts.toLocaleString()} pts available</Text>
               </View>
             </>
           }

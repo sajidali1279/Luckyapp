@@ -105,7 +105,7 @@ export default function CustomerHome() {
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Your Points Balance</Text>
         <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
-        <Text style={styles.balanceSubtext}>pts · ${(Number(user?.pointsBalance || 0)).toFixed(2)} value</Text>
+        <Text style={styles.balanceSubtext}>points balance</Text>
 
         <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
           <Text style={styles.redeemButtonText}>Redeem Rewards</Text>

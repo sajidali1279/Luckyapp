@@ -96,8 +96,8 @@ export default function ProfileScreen() {
             <Text style={s.headerPhone}>{user?.phone}</Text>
           </View>
           <View style={s.balanceBadge}>
-            <Text style={s.balanceBadgeAmt}>${Number(user?.pointsBalance || 0).toFixed(2)}</Text>
-            <Text style={s.balanceBadgeLbl}>balance</Text>
+            <Text style={s.balanceBadgeAmt}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
+            <Text style={s.balanceBadgeLbl}>pts</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -255,9 +255,7 @@ export default function ProfileScreen() {
         <Text style={[s.sectionLabel, { marginTop: 8 }]}>Rewards Info</Text>
 
         <View style={s.infoCard}>
-          <InfoRow icon="💵" label="Earn rate" value="5¢ per $1 spent" />
-          <View style={s.infoDivider} />
-          <InfoRow icon="🎁" label="Redeem" value="Use balance in-store" />
+          <InfoRow icon="🎁" label="Redeem" value="Use points at any location" />
           <View style={s.infoDivider} />
           <InfoRow icon="📍" label="Locations" value="All Lucky Stop stores" />
         </View>

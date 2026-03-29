@@ -154,7 +154,7 @@ export default function ScanReceiptScreen() {
               <Text style={s.itemCat}>{CATEGORY_LABELS[item.category] || item.category}</Text>
               <View style={s.itemRight}>
                 <Text style={s.itemAmount}>${Number(item.amount).toFixed(2)}</Text>
-                <Text style={s.itemCashback}>+${Number(item.cashback).toFixed(2)}</Text>
+                <Text style={s.itemCashback}>+{Math.round(Number(item.cashback) * 100)} pts</Text>
               </View>
             </View>
           ))}
@@ -162,14 +162,14 @@ export default function ScanReceiptScreen() {
           {/* Cashback total */}
           <View style={s.cashbackCard}>
             <Text style={s.cashbackLabel}>You earn</Text>
-            <Text style={s.cashbackAmount}>+${Number(tokenData.estimatedCashback).toFixed(2)}</Text>
+            <Text style={s.cashbackAmount}>+{Math.round(Number(tokenData.estimatedCashback) * 100).toLocaleString()} pts</Text>
             <Text style={s.cashbackNote}>Added to your Lucky Stop balance</Text>
           </View>
 
           <TouchableOpacity style={s.claimBtn} onPress={handleClaim} disabled={claiming}>
             {claiming
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.claimBtnText}>Claim ${Number(tokenData.estimatedCashback).toFixed(2)} →</Text>
+              : <Text style={s.claimBtnText}>Claim {Math.round(Number(tokenData.estimatedCashback) * 100).toLocaleString()} pts →</Text>
             }
           </TouchableOpacity>
           <TouchableOpacity style={s.cancelLink} onPress={() => router.back()}>
@@ -188,7 +188,7 @@ export default function ScanReceiptScreen() {
           <Text style={s.successIcon}>✓</Text>
         </View>
         <Text style={s.successTitle}>Points Added!</Text>
-        <Text style={s.successAmount}>+${earnedAmount.toFixed(2)}</Text>
+        <Text style={s.successAmount}>+{Math.round(earnedAmount * 100).toLocaleString()} pts</Text>
         <Text style={s.successSub}>Added to your Lucky Stop balance</Text>
         <TouchableOpacity style={s.doneBtn} onPress={() => router.replace('/(customer)/home')}>
           <Text style={s.doneBtnText}>Done</Text>
