@@ -573,20 +573,24 @@ model RedemptionCatalogItem {
 }
 
 model CatalogRedemption {
-  id            String   @id @default(uuid())
-  customerId    String
-  catalogItemId String
-  pointsSpent   Int      // points cost at time of redemption
-  storeId       String
-  processedById String
-  createdAt     DateTime @default(now())
+  id              String    @id @default(uuid())
+  customerId      String
+  catalogItemId   String
+  pointsSpent     Int       // points cost at time of redemption
+  status          String    @default("COMPLETED") // PENDING | COMPLETED | EXPIRED | CANCELLED
+  redemptionCode  String?   @unique              // 6-char code for employee to confirm
+  expiresAt       DateTime?                       // 30 min from initiation for PENDING
+  storeId         String?
+  processedById   String?
+  createdAt       DateTime  @default(now())
 
   customer    User                  @relation("CatalogCustomer", fields: [customerId], references: [id])
   catalogItem RedemptionCatalogItem @relation(fields: [catalogItemId], references: [id])
-  store       Store                 @relation(fields: [storeId], references: [id])
-  processedBy User                  @relation("CatalogProcessor", fields: [processedById], references: [id])
+  store       Store?                @relation(fields: [storeId], references: [id])
+  processedBy User?                 @relation("CatalogProcessor", fields: [processedById], references: [id])
 
   @@index([customerId])
+  @@index([status])
   @@map("catalog_redemptions")
 }
 

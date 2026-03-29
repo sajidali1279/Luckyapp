@@ -84,6 +84,13 @@ export const catalogApi = {
   create: (data: object) => api.post('/catalog', data),
   update: (id: string, data: object) => api.patch(`/catalog/${id}`, data),
   delete: (id: string) => api.delete(`/catalog/${id}`),
+  // Customer-initiated redemption
+  initiateRedemption: (catalogItemId: string) => api.post('/catalog/redeem', { catalogItemId }),
+  getMyRedemptions: () => api.get('/catalog/my-redemptions'),
+  cancelRedemption: (id: string) => api.delete(`/catalog/redeem/${id}`),
+  // Employee
+  getPendingForCustomer: (qrCode: string) => api.get(`/catalog/pending/${encodeURIComponent(qrCode)}`),
+  confirmRedemption: (id: string, storeId?: string) => api.post(`/catalog/redeem/${id}/confirm`, { storeId }),
 };
 
 export const receiptApi = {

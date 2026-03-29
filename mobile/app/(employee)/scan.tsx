@@ -16,7 +16,8 @@ type Step =
   | 'grant-amount' | 'receipt' | 'grant-done'
   | 'redeem-amount' | 'redeem-done'
   | 'benefit-done'
-  | 'catalog-select' | 'catalog-done';
+  | 'catalog-select' | 'catalog-done'
+  | 'pending-done';
 
 type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
 
@@ -85,6 +86,7 @@ const STEP_INDEX: Record<Step, number> = {
   'redeem-amount': 2, 'redeem-done': 3,
   'benefit-done': 2,
   'catalog-select': 2, 'catalog-done': 3,
+  'pending-done': 2,
 };
 
 function StepBar({ step }: { step: Step }) {
@@ -142,6 +144,8 @@ export default function EmployeeScanScreen() {
   const [gasPricePerGallon, setGasPricePerGallon] = useState('');
   const [catalogItems, setCatalogItems] = useState<any[]>([]);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<any>(null);
+  const [pendingRedemptions, setPendingRedemptions] = useState<any[]>([]);
+  const [confirmedPending, setConfirmedPending] = useState<any>(null);
 
   const storeId = user?.storeIds?.[0];
   const isGasCat = category === 'GAS' || category === 'DIESEL';
@@ -169,6 +173,8 @@ export default function EmployeeScanScreen() {
     setGasPricePerGallon('');
     setCatalogItems([]);
     setSelectedCatalogItem(null);
+    setPendingRedemptions([]);
+    setConfirmedPending(null);
   }
 
   async function handleQrScan({ data }: { data: string }) {
@@ -177,12 +183,14 @@ export default function EmployeeScanScreen() {
     setCustomerQr(data);
     setLoading(true);
     try {
-      const [infoRes, catalogRes] = await Promise.all([
+      const [infoRes, catalogRes, pendingRes] = await Promise.all([
         pointsApi.getCustomerInfo(data),
         catalogApi.getActive(),
+        catalogApi.getPendingForCustomer(data),
       ]);
       setCustomerData(infoRes.data.data);
       setCatalogItems(catalogRes.data.data || []);
+      setPendingRedemptions(pendingRes.data.data || []);
     } catch {
       // Non-fatal — mode screen still shows without tier info
     } finally {
@@ -322,6 +330,23 @@ export default function EmployeeScanScreen() {
     }
   }
 
+  async function handleConfirmPending(redemption: any) {
+    if (!storeId) {
+      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      return;
+    }
+    setLoading(true);
+    try {
+      await catalogApi.confirmRedemption(redemption.id, storeId);
+      setConfirmedPending(redemption);
+      setStep('pending-done');
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Confirmation failed' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function pickReceiptImage() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -438,6 +463,50 @@ export default function EmployeeScanScreen() {
                 <Text style={s.successBadgeTitle}>QR Scanned Successfully</Text>
                 <Text style={s.successBadgeSub}>Select action to proceed</Text>
               </View>
+            </View>
+          )}
+
+          {/* Pending Catalog Redemptions — customer-initiated holds awaiting confirmation */}
+          {pendingRedemptions.length > 0 && (
+            <View style={s.pendingSection}>
+              <Text style={s.pendingSectionTitle}>🎁 Pending Redemptions ({pendingRedemptions.length})</Text>
+              <Text style={s.pendingSectionSub}>Customer redeemed these — confirm to complete</Text>
+              {pendingRedemptions.map((r) => {
+                const expiresAt = new Date(r.expiresAt);
+                const msLeft = expiresAt.getTime() - Date.now();
+                const minLeft = Math.max(0, Math.floor(msLeft / 60000));
+                const secLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
+                const urgent = msLeft < 5 * 60 * 1000;
+                return (
+                  <View
+                    key={r.id}
+                    style={[s.pendingCard, urgent && s.pendingCardUrgent]}
+                  >
+                    <View style={s.pendingCardLeft}>
+                      <Text style={s.pendingItemName}>
+                        {r.catalogItem?.emoji ? `${r.catalogItem.emoji} ` : '🎁'}{r.catalogItem?.title}
+                      </Text>
+                      <View style={s.pendingCodeRow}>
+                        <Text style={s.pendingCodeLabel}>CODE: </Text>
+                        <Text style={s.pendingCode}>{r.redemptionCode}</Text>
+                      </View>
+                      <Text style={[s.pendingTimer, urgent && s.pendingTimerUrgent]}>
+                        ⏱ {minLeft}:{String(secLeft).padStart(2, '0')} remaining
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[s.confirmBtn, loading && s.primaryBtnOff]}
+                      onPress={() => handleConfirmPending(r)}
+                      disabled={loading}
+                      activeOpacity={0.85}
+                    >
+                      {loading
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={s.confirmBtnText}>✓ Confirm</Text>}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </View>
           )}
 
@@ -935,6 +1004,33 @@ export default function EmployeeScanScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ──────────────────────── PENDING REDEMPTION: DONE ────────────────────────── */}
+      {step === 'pending-done' && (
+        <View style={[s.fill, s.center]}>
+          <View style={[s.doneIconRing, { backgroundColor: '#22C55E20' }]}>
+            <Text style={s.doneEmoji}>✅</Text>
+          </View>
+          <Text style={s.doneHeading}>Reward Confirmed!</Text>
+          <Text style={[s.doneAmount, { color: '#22C55E', fontSize: 22 }]}>
+            {confirmedPending?.catalogItem?.emoji ? `${confirmedPending.catalogItem.emoji} ` : ''}
+            {confirmedPending?.catalogItem?.title}
+          </Text>
+          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
+          <View style={s.newBalanceCard}>
+            <Text style={s.newBalanceLabel}>Code redeemed</Text>
+            <Text style={[s.newBalanceValue, { color: '#22C55E', letterSpacing: 4, fontSize: 22 }]}>
+              {confirmedPending?.redemptionCode}
+            </Text>
+          </View>
+          <Text style={[s.doneSub, { marginTop: 8 }]}>
+            -{confirmedPending?.pointsSpent?.toLocaleString()} pts already deducted
+          </Text>
+          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#22C55E' }]} onPress={reset} activeOpacity={0.85}>
+            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -1203,4 +1299,34 @@ const s = StyleSheet.create({
   catalogFooter: { padding: 16, gap: 4, borderTopWidth: 1, borderTopColor: COLORS.border },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyStateText: { color: COLORS.textMuted, fontSize: 14 },
+
+  // ── Pending redemptions ───────────────────────────────────────────────────────
+  pendingSection: {
+    backgroundColor: '#22C55E0D', borderRadius: 18, padding: 14,
+    borderWidth: 1.5, borderColor: '#22C55E40',
+    gap: 10,
+  },
+  pendingSectionTitle: { fontSize: 15, fontWeight: '800', color: '#16A34A' },
+  pendingSectionSub: { fontSize: 12, color: COLORS.textMuted, marginTop: -6 },
+  pendingCard: {
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1.5, borderColor: '#22C55E50',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+  },
+  pendingCardUrgent: { borderColor: '#EF444480', backgroundColor: '#FEF2F2' },
+  pendingCardLeft: { flex: 1, marginRight: 10, gap: 4 },
+  pendingItemName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  pendingCodeRow: { flexDirection: 'row', alignItems: 'center' },
+  pendingCodeLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  pendingCode: { fontSize: 14, fontWeight: '900', color: '#16A34A', letterSpacing: 2 },
+  pendingTimer: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  pendingTimerUrgent: { color: '#EF4444', fontWeight: '800' },
+  confirmBtn: {
+    backgroundColor: '#22C55E', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  confirmBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 });

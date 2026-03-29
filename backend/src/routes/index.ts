@@ -18,7 +18,7 @@ import {
   claimTierBenefit,
   processCatalogRedemption,
 } from '../controllers/points.controller';
-import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem } from '../controllers/catalog.controller';
+import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory,
   createBanner, getActiveBanners, deleteBanner,
@@ -203,6 +203,13 @@ router.get('/catalog/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllCa
 router.post('/catalog', authenticate, requireRole(Role.SUPER_ADMIN), createCatalogItem);
 router.patch('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateCatalogItem);
 router.delete('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteCatalogItem);
+// Customer-initiated redemption (hold + 30-min expiry)
+router.post('/catalog/redeem', authenticate, customerInitiateRedemption);
+router.get('/catalog/my-redemptions', authenticate, getMyRedemptions);
+router.delete('/catalog/redeem/:id', authenticate, cancelRedemption);
+// Employee confirms a pending redemption
+router.get('/catalog/pending/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getPendingRedemptionsForCustomer);
+router.post('/catalog/redeem/:id/confirm', authenticate, requireRole(Role.EMPLOYEE), confirmRedemption);
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request
