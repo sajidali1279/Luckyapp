@@ -2,12 +2,13 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { ProductCategory, Role, TransactionStatus } from '@prisma/client';
+import { ProductCategory, Role, TransactionStatus, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { DEFAULT_CASHBACK_RATE, DEFAULT_DEV_CUT_RATE } from '../config/constants';
+import { calculateTier, getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress } from '../utils/tier';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -16,6 +17,10 @@ const grantSchema = z.object({
   purchaseAmount: z.number().positive(),
   category: z.nativeEnum(ProductCategory).optional().default(ProductCategory.OTHER),
   notes: z.string().optional(),
+  // Gas fields
+  isGas: z.boolean().optional().default(false),
+  gasGallons: z.number().positive().optional(),
+  gasPricePerGallon: z.number().positive().optional(),
 });
 
 export async function initiateGrant(req: AuthRequest, res: Response) {
@@ -25,7 +30,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { customerQrCode, storeId, purchaseAmount, category, notes } = parsed.data;
+  const { customerQrCode, storeId, purchaseAmount, category, notes, isGas, gasGallons, gasPricePerGallon } = parsed.data;
   const employee = req.user!;
 
   // Prevent employee from granting to themselves
@@ -72,6 +77,10 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const pointsAwarded = parseFloat((cashbackIssued - devCut).toFixed(2));
   const storeCost = cashbackIssued; // store pays the full cashback amount (dev cut is taken from that pool)
 
+  // Gas tier bonus
+  const gasBonusRate = (isGas && gasGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
+  const gasBonusPoints = parseFloat(((gasGallons ?? 0) * gasBonusRate).toFixed(2));
+
   // Create transaction in PENDING state — no points credited yet
   const transaction = await prisma.pointsTransaction.create({
     data: {
@@ -86,6 +95,10 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       category,
       notes,
       status: TransactionStatus.PENDING,
+      isGas: isGas ?? false,
+      gasGallons: gasGallons ?? null,
+      gasPricePerGallon: gasPricePerGallon ?? null,
+      gasBonusPoints,
     },
   });
 
@@ -99,6 +112,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       purchaseAmount,
       cashbackRate,
       promotionApplied, // null if regular rate; string title if a promo boosted the rate
+      gasBonusPoints,
+      tier: customer.tier,
     },
   });
 }
@@ -149,7 +164,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     stream.end(req.file!.buffer);
   });
 
-  // Approve transaction + credit points atomically
+  // Approve transaction atomically
   const [updatedTransaction] = await prisma.$transaction([
     prisma.pointsTransaction.update({
       where: { id: transactionId },
@@ -158,17 +173,27 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
         receiptImageUrl: uploadResult.secure_url,
       },
     }),
-    prisma.user.update({
-      where: { id: transaction.customerId },
-      data: { pointsBalance: { increment: transaction.pointsAwarded } },
-    }),
   ]);
+
+  // Update periodPoints + recalculate tier
+  const updatedCustomer = await prisma.user.update({
+    where: { id: transaction.customerId },
+    data: {
+      pointsBalance: { increment: transaction.pointsAwarded + transaction.gasBonusPoints },
+      periodPoints: { increment: transaction.pointsAwarded + transaction.gasBonusPoints },
+    },
+  });
+  const newTier = calculateTier(updatedCustomer.periodPoints);
+  if (newTier !== updatedCustomer.tier) {
+    await prisma.user.update({ where: { id: transaction.customerId }, data: { tier: newTier } });
+    sendPushToUser(transaction.customerId, `🎉 Tier Up! You're now ${newTier}!`, `You've reached ${newTier} tier. Check your new benefits!`, 'GENERAL');
+  }
 
   // Notify customer their points were credited
   sendPushToUser(
     transaction.customerId,
     '💰 Points Credited!',
-    `$${transaction.pointsAwarded.toFixed(2)} has been added to your Lucky Stop balance.`,
+    `${Math.round((transaction.pointsAwarded + transaction.gasBonusPoints) * 100)} pts added to your Lucky Stop balance.`,
     'POINTS'
   );
 
@@ -462,6 +487,160 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       })),
     },
   });
+}
+
+// GET /points/customer-info/:qrCode — cashier fetches customer tier + benefit status before choosing action
+export async function getCustomerInfo(req: AuthRequest, res: Response) {
+  const { qrCode } = req.params;
+  const customer = await prisma.user.findUnique({ where: { qrCode } });
+  if (!customer) {
+    res.status(404).json({ success: false, error: 'Customer QR not found' });
+    return;
+  }
+
+  const period = getCurrentPeriod();
+
+  // Ensure period is current — if not, no benefits from old period
+  const currentPeriod = customer.tierPeriod === period;
+  const tier = currentPeriod ? customer.tier : Tier.BRONZE;
+  const periodPoints = currentPeriod ? customer.periodPoints : 0;
+
+  // Check today's daily benefit (Gold+)
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+
+  let benefitAvailable = false;
+  let benefitType: string | null = null;
+  let silverRemaining = 0;
+
+  if (tier === 'SILVER') {
+    const used = await prisma.tierBenefitClaim.count({
+      where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
+    });
+    silverRemaining = Math.max(0, 30 - used);
+    benefitAvailable = silverRemaining > 0;
+    benefitType = 'SILVER_FOUNTAIN';
+  } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
+    const usedToday = await prisma.tierBenefitClaim.count({
+      where: { userId: customer.id, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+    });
+    benefitAvailable = usedToday === 0;
+    benefitType = 'DAILY_DRINK';
+  }
+
+  const progress = getNextTierProgress(periodPoints);
+
+  res.json({
+    success: true,
+    data: {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      pointsBalance: Math.round(customer.pointsBalance * 100), // in pts
+      tier,
+      periodPts: progress.pts,
+      nextTier: progress.nextTier,
+      nextPts: progress.nextPts,
+      benefit: { available: benefitAvailable, type: benefitType, silverRemaining },
+    },
+  });
+}
+
+export async function claimTierBenefit(req: AuthRequest, res: Response) {
+  const { customerQrCode, storeId } = req.body as { customerQrCode: string; storeId: string };
+  if (!customerQrCode || !storeId) {
+    res.status(400).json({ success: false, error: 'customerQrCode and storeId required' });
+    return;
+  }
+
+  const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
+  if (!customer) {
+    res.status(404).json({ success: false, error: 'Customer not found' });
+    return;
+  }
+
+  const period = getCurrentPeriod();
+  const tier = customer.tier;
+
+  if (tier === 'BRONZE') {
+    res.status(400).json({ success: false, error: 'No tier benefit available for Bronze' });
+    return;
+  }
+
+  let benefitType: string;
+  if (tier === 'SILVER') {
+    const used = await prisma.tierBenefitClaim.count({
+      where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
+    });
+    if (used >= 30) {
+      res.status(400).json({ success: false, error: 'Silver benefit limit reached (30 uses this period)' });
+      return;
+    }
+    benefitType = 'SILVER_FOUNTAIN';
+  } else {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const usedToday = await prisma.tierBenefitClaim.count({
+      where: { userId: customer.id, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+    });
+    if (usedToday > 0) {
+      res.status(400).json({ success: false, error: 'Daily benefit already claimed today' });
+      return;
+    }
+    benefitType = 'DAILY_DRINK';
+  }
+
+  await prisma.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CLAIM_TIER_BENEFIT', entity: 'tier_benefit_claim', entityId: customer.id,
+    details: { tier, benefitType, customerName: customer.name, customerPhone: customer.phone },
+    storeId,
+  });
+
+  res.json({ success: true, message: `${tier} benefit claimed`, data: { benefitType } });
+}
+
+export async function processCatalogRedemption(req: AuthRequest, res: Response) {
+  const { customerQrCode, catalogItemId, storeId } = req.body as { customerQrCode: string; catalogItemId: string; storeId: string };
+  if (!customerQrCode || !catalogItemId || !storeId) {
+    res.status(400).json({ success: false, error: 'customerQrCode, catalogItemId, storeId required' });
+    return;
+  }
+
+  const [customer, item] = await Promise.all([
+    prisma.user.findUnique({ where: { qrCode: customerQrCode } }),
+    prisma.redemptionCatalogItem.findUnique({ where: { id: catalogItemId } }),
+  ]);
+
+  if (!customer) { res.status(404).json({ success: false, error: 'Customer not found' }); return; }
+  if (!item || !item.isActive) { res.status(404).json({ success: false, error: 'Catalog item not found or inactive' }); return; }
+
+  // pointsCost is in points; convert to dollars for balance deduction
+  const costInDollars = item.pointsCost / 100;
+  if (customer.pointsBalance < costInDollars) {
+    res.status(400).json({ success: false, error: `Insufficient points. Need ${item.pointsCost} pts, have ${Math.round(customer.pointsBalance * 100)} pts` });
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } }),
+    prisma.catalogRedemption.create({
+      data: { customerId: customer.id, catalogItemId, pointsSpent: item.pointsCost, storeId, processedById: req.user!.id },
+    }),
+  ]);
+
+  sendPushToUser(customer.id, '🎁 Reward Redeemed!', `You redeemed "${item.title}" for ${item.pointsCost} pts.`, 'REDEMPTION');
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CATALOG_REDEMPTION', entity: 'catalog_redemption', entityId: customer.id,
+    details: { item: item.title, pointsCost: item.pointsCost, customerName: customer.name },
+    storeId,
+  });
+
+  res.json({ success: true, message: `${item.title} redeemed`, data: { remainingPts: Math.round((customer.pointsBalance - costInDollars) * 100) } });
 }
 
 // SuperAdmin+: all-store transactions with filters

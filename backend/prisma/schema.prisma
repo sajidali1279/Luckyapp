@@ -91,6 +91,14 @@ enum ProductCategory {
   OTHER
 }
 
+enum Tier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+  PLATINUM
+}
+
 // ─── Core Models ──────────────────────────────────────────────────────────────
 
 model User {
@@ -106,6 +114,11 @@ model User {
   pinHash         String?
   pinHistory      String[] // last 3 PIN hashes (prevent reuse)
   isProfileComplete Boolean @default(false)
+
+  // Tier system
+  tier            Tier     @default(BRONZE)
+  periodPoints    Float    @default(0)   // points earned this period (in dollars, × 100 = pts for display)
+  tierPeriod      String   @default("2026-H1")  // "YYYY-H1" or "YYYY-H2"
 
   // Account recovery
   email           String?  @unique
@@ -124,6 +137,9 @@ model User {
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
   pushTokens           PushToken[]
   notifications        UserNotification[]
+  tierBenefitClaims         TierBenefitClaim[]
+  catalogRedemptions        CatalogRedemption[]  @relation("CatalogCustomer")
+  processedCatalogRedemptions CatalogRedemption[] @relation("CatalogProcessor")
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
@@ -171,6 +187,7 @@ model Store {
   shiftRequests     ShiftRequest[]
   chatMessages      ChatMessage[]
   storeRequests     StoreRequest[]
+  catalogRedemptions CatalogRedemption[]
 
   @@map("stores")
 }
@@ -206,6 +223,10 @@ model PointsTransaction {
   status          TransactionStatus @default(PENDING)
   receiptImageUrl String?
   notes           String?
+  isGas             Boolean @default(false)
+  gasGallons        Float?
+  gasPricePerGallon Float?
+  gasBonusPoints    Float   @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -529,4 +550,55 @@ model PushToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("push_tokens")
+}
+
+// ─── Redemption Catalog ────────────────────────────────────────────────────────
+
+model RedemptionCatalogItem {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @default("")
+  emoji       String   @default("🎁")
+  pointsCost  Int      // cost in points (e.g. 400 = 400 pts = $4 redeemable value)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  redemptions CatalogRedemption[]
+
+  @@map("redemption_catalog_items")
+}
+
+model CatalogRedemption {
+  id            String   @id @default(uuid())
+  customerId    String
+  catalogItemId String
+  pointsSpent   Int      // points cost at time of redemption
+  storeId       String
+  processedById String
+  createdAt     DateTime @default(now())
+
+  customer    User                  @relation("CatalogCustomer", fields: [customerId], references: [id])
+  catalogItem RedemptionCatalogItem @relation(fields: [catalogItemId], references: [id])
+  store       Store                 @relation(fields: [storeId], references: [id])
+  processedBy User                  @relation("CatalogProcessor", fields: [processedById], references: [id])
+
+  @@index([customerId])
+  @@map("catalog_redemptions")
+}
+
+// ─── Tier Benefit Claims ──────────────────────────────────────────────────────
+
+model TierBenefitClaim {
+  id          String   @id @default(uuid())
+  userId      String
+  period      String   // "2026-H1"
+  claimedAt   DateTime @default(now())
+  benefitType String   // "SILVER_FOUNTAIN" | "DAILY_DRINK"
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, period])
+  @@map("tier_benefit_claims")
 }

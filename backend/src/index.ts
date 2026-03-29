@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import routes from './routes';
 import { startBillingCron } from './utils/billing-cron';
 import { startExpiryCron } from './utils/expiry-cron';
+import { startTierResetCron } from './utils/tier-reset-cron';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,6 +69,7 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV}`);
   startBillingCron();
   startExpiryCron();
+  startTierResetCron();
 });
 
 export default app;

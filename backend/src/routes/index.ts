@@ -14,7 +14,11 @@ import {
   redeemCredits,
   getPlatformSummary,
   getAllTransactions,
+  getCustomerInfo,
+  claimTierBenefit,
+  processCatalogRedemption,
 } from '../controllers/points.controller';
+import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem } from '../controllers/catalog.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory,
   createBanner, getActiveBanners, deleteBanner,
@@ -99,6 +103,15 @@ router.post('/points/self-grant', authenticate, requireRole(Role.CUSTOMER), self
 router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMyTransactions);
 
 // ─── Points (Employee) ────────────────────────────────────────────────────────
+// Customer info lookup (cashier use — before grant/redeem)
+router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getCustomerInfo);
+
+// Tier benefit claiming (Employee)
+router.post('/points/tier-benefit', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, claimTierBenefit);
+
+// Catalog redemption (Employee)
+router.post('/points/catalog-redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, processCatalogRedemption);
+
 router.post('/points/grant', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, initiateGrant);
 router.post('/points/redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, redeemCredits);
 router.post(
@@ -183,6 +196,13 @@ router.get('/schedule/vacancies', authenticate, getVacancies);                  
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
+
+// ─── Redemption Catalog ───────────────────────────────────────────────────────
+router.get('/catalog', authenticate, getCatalog);
+router.get('/catalog/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllCatalog);
+router.post('/catalog', authenticate, requireRole(Role.SUPER_ADMIN), createCatalogItem);
+router.patch('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateCatalogItem);
+router.delete('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteCatalogItem);
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request
