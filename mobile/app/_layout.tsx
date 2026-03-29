@@ -6,6 +6,7 @@ import Toast from 'react-native-toast-message';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../services/api';
 import AppLoader from '../components/AppLoader';
@@ -60,15 +61,35 @@ export default function RootLayout() {
 
     SplashScreen.hideAsync().catch(() => {});
 
-    if (!user) {
-      router.replace('/(auth)/login');
-    } else if (user.role === 'STORE_MANAGER') {
-      router.replace('/(manager)/home');
-    } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      router.replace('/(employee)/home');
-    } else {
-      router.replace('/(customer)/home');
+    async function navigate() {
+      if (!user) {
+        // Check if first-time user — show welcome/onboarding
+        const onboardingDone = await AsyncStorage.getItem('onboarding_complete');
+        if (!onboardingDone) {
+          router.replace('/(auth)/welcome');
+        } else {
+          router.replace('/(auth)/login');
+        }
+        return;
+      }
+
+      // Logged in — check if role tour has been shown
+      const tourSeen = await AsyncStorage.getItem(`tour_seen_${user.role}`);
+      if (!tourSeen) {
+        router.replace('/role-tour');
+        return;
+      }
+
+      if (user.role === 'STORE_MANAGER') {
+        router.replace('/(manager)/home');
+      } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+        router.replace('/(employee)/home');
+      } else {
+        router.replace('/(customer)/home');
+      }
     }
+
+    navigate();
   }, [user, isLoading]);
 
   useEffect(() => {
