@@ -101,6 +101,10 @@ export const superAdminApi = {
   getNotifications: () => api.get('/notifications'),
 };
 
+export const devAdminApi = {
+  getNotifications: () => api.get('/billing/notifications'),
+};
+
 export const auditApi = {
   getLogs: (params?: Record<string, string>) =>
     api.get('/audit/logs', { params }),

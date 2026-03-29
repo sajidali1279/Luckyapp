@@ -68,6 +68,7 @@ import {
   sendBillingReport,
   getSuperAdminInvoices,
   getSuperAdminNotifications,
+  getDevAdminNotifications,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -162,6 +163,7 @@ router.post('/billing/generate-all', authenticate, requireRole(Role.DEV_ADMIN), 
 router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
 router.post('/billing/seed-test-data', authenticate, requireRole(Role.DEV_ADMIN), seedTestTransactions);
 router.post('/billing/send-report', authenticate, requireRole(Role.DEV_ADMIN), sendBillingReport);
+router.get('/billing/notifications', authenticate, requireRole(Role.DEV_ADMIN), getDevAdminNotifications);
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);
 

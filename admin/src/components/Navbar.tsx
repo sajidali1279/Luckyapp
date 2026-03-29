@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi } from '../services/api';
+import { superAdminApi, devAdminApi } from '../services/api';
 
 const ALL_NAV_LINKS = [
   { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
@@ -31,8 +31,8 @@ export default function Navbar() {
   const navLinks = ALL_NAV_LINKS.filter(l => l.roles.includes(user?.role || ''));
 
   const { data: notifData } = useQuery({
-    queryKey: ['super-admin-notifications'],
-    queryFn: () => superAdminApi.getNotifications(),
+    queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'],
+    queryFn: () => isDevAdmin ? devAdminApi.getNotifications() : superAdminApi.getNotifications(),
     enabled: isSuperAdmin || isDevAdmin,
     refetchInterval: 60_000,
   });

@@ -756,6 +756,142 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   res.json({ success: true, data: notifications });
 }
 
+// DevAdmin — platform-owner notification feed
+export async function getDevAdminNotifications(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixMonthsAgo  = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+  const [allBills, rejectedTx, newCustomers, pendingShiftRequests] = await Promise.all([
+    (prisma.billingRecord as any).findMany({
+      where: {
+        OR: [
+          { isPaid: false },
+          { isPaid: true, paidAt: { gte: sixMonthsAgo } },
+        ],
+      },
+      include: { store: { select: { id: true, name: true, city: true } } },
+      orderBy: { period: 'desc' },
+    }),
+    prisma.pointsTransaction.count({
+      where: { status: 'REJECTED', updatedAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.user.count({
+      where: { role: 'CUSTOMER', createdAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.shiftRequest.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        employee: { select: { name: true } },
+        store: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+  ]);
+
+  const notifications: any[] = [];
+
+  // Group bills by period+chain (company)
+  const byPeriod: Record<string, { total: number; unpaidCount: number; isPaid: boolean; paidAt: string | null; storeCount: number }> = {};
+  for (const bill of allBills) {
+    if (!byPeriod[bill.period]) {
+      byPeriod[bill.period] = { total: 0, unpaidCount: 0, isPaid: true, paidAt: null, storeCount: 0 };
+    }
+    byPeriod[bill.period].total += parseFloat(String(bill.amount));
+    byPeriod[bill.period].storeCount++;
+    if (!bill.isPaid) {
+      byPeriod[bill.period].isPaid = false;
+      byPeriod[bill.period].unpaidCount++;
+    } else if (bill.paidAt) {
+      byPeriod[bill.period].paidAt = bill.paidAt.toISOString();
+    }
+  }
+
+  for (const [period, info] of Object.entries(byPeriod)) {
+    const [y, m] = period.split('-').map(Number);
+    const monthName = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const total = parseFloat(info.total.toFixed(2));
+
+    if (info.isPaid) {
+      notifications.push({
+        id: `dev-paid-${period}`,
+        type: 'REVENUE',
+        title: `Payment Received — ${monthName}`,
+        message: `$${total.toFixed(2)} subscription revenue collected across ${info.storeCount} store${info.storeCount !== 1 ? 's' : ''}.`,
+        createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
+        isRead: true,
+        severity: 'success',
+        period,
+        totalAmount: total,
+        paidAt: info.paidAt,
+      });
+    } else {
+      notifications.push({
+        id: `dev-due-${period}`,
+        type: 'REVENUE',
+        title: `Payment Pending — ${monthName}`,
+        message: `$${total.toFixed(2)} outstanding from ${info.unpaidCount} store${info.unpaidCount !== 1 ? 's' : ''}. Mark as paid once received.`,
+        createdAt: new Date(y, m, 1).toISOString(),
+        isRead: false,
+        severity: 'warning',
+        period,
+        totalAmount: total,
+        paidAt: null,
+      });
+    }
+  }
+
+  // Platform health alerts
+  if (rejectedTx > 0) {
+    notifications.push({
+      id: `dev-rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      type: 'PLATFORM',
+      title: `${rejectedTx} Rejected Transaction${rejectedTx !== 1 ? 's' : ''} (Last 30 Days)`,
+      message: `${rejectedTx} point grant${rejectedTx !== 1 ? 's were' : ' was'} rejected recently. Review the Activity Log for details.`,
+      createdAt: now.toISOString(),
+      isRead: rejectedTx < 3,
+      severity: rejectedTx >= 10 ? 'error' : rejectedTx >= 5 ? 'warning' : 'info',
+    });
+  }
+
+  if (newCustomers > 0) {
+    notifications.push({
+      id: `dev-customers-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      type: 'PLATFORM',
+      title: `${newCustomers} New Customer${newCustomers !== 1 ? 's' : ''} This Month`,
+      message: `${newCustomers} customer${newCustomers !== 1 ? 's have' : ' has'} signed up in the last 30 days across all stores.`,
+      createdAt: now.toISOString(),
+      isRead: true,
+      severity: 'info',
+    });
+  }
+
+  // Schedule requests — same as SuperAdmin sees
+  const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
+  for (const req of pendingShiftRequests) {
+    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const shiftLabel = SHIFT_TYPE_LABELS[req.shiftType] ?? req.shiftType;
+    const isTimeOff = req.requestType === 'TIME_OFF';
+    notifications.push({
+      id: `shift-request-${req.id}`,
+      type: 'SCHEDULE',
+      title: isTimeOff ? `Time Off Request — ${req.employee.name}` : `Extra Shift Request — ${req.employee.name}`,
+      message: isTimeOff
+        ? `${req.employee.name} requested time off for ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`
+        : `${req.employee.name} wants to pick up the ${shiftLabel} shift on ${dateStr} at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`,
+      createdAt: req.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      requestId: req.id,
+      storeId: req.store.id,
+      requestType: req.requestType,
+    });
+  }
+
+  notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ success: true, data: notifications });
+}
+
 // ─── Revenue & Analytics ──────────────────────────────────────────────────────
 
 // DevAdmin: total revenue summary

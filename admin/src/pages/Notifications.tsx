@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { superAdminApi } from '../services/api';
+import { superAdminApi, devAdminApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 
 interface Notification {
   id: string;
-  type: 'BILLING' | 'TRANSACTION' | 'SCHEDULE';
+  type: 'BILLING' | 'TRANSACTION' | 'SCHEDULE' | 'REVENUE' | 'PLATFORM';
   title: string;
   message: string;
   createdAt: string;
@@ -34,15 +35,17 @@ const SCHEDULE_SEVERITY: Record<string, { border: string; bg: string; icon: stri
   FILL_IN:  { border: '#3b82f6', bg: '#eff6ff', icon: '🔄', color: '#1e3a8a' },
 };
 
-type TabKey = 'all' | 'billing' | 'schedule';
+type TabKey = 'all' | 'billing' | 'schedule' | 'revenue' | 'platform';
 
 export default function Notifications() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
   const { data: notifData, isLoading, isError } = useQuery({
-    queryKey: ['super-admin-notifications'],
-    queryFn: () => superAdminApi.getNotifications(),
+    queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'],
+    queryFn: () => isDevAdmin ? devAdminApi.getNotifications() : superAdminApi.getNotifications(),
     refetchInterval: 60_000,
   });
 
@@ -50,21 +53,35 @@ export default function Notifications() {
     queryKey: ['super-admin-invoices'],
     queryFn: () => superAdminApi.getInvoices(),
     staleTime: 5 * 60_000,
+    enabled: !isDevAdmin,
   });
 
   const allNotifications: Notification[] = notifData?.data?.data ?? [];
   const invoices: any[] = invoiceData?.data?.data ?? [];
   const unreadCount = allNotifications.filter((n) => !n.isRead).length;
 
-  const billingNotifs = allNotifications.filter((n) => n.type === 'BILLING' || n.type === 'TRANSACTION');
-  const scheduleNotifs = allNotifications.filter((n) => n.type === 'SCHEDULE');
-  const scheduleUnread = scheduleNotifs.filter((n) => !n.isRead).length;
-  const billingUnread = billingNotifs.filter((n) => !n.isRead).length;
+  // DevAdmin tabs
+  const revenueNotifs  = allNotifications.filter((n) => n.type === 'REVENUE');
+  const platformNotifs = allNotifications.filter((n) => n.type === 'PLATFORM');
+  const scheduleNotifsD = allNotifications.filter((n) => n.type === 'SCHEDULE');
+  const revenueUnread  = revenueNotifs.filter((n) => !n.isRead).length;
+  const platformUnread = platformNotifs.filter((n) => !n.isRead).length;
+  const scheduleUnreadD = scheduleNotifsD.filter((n) => !n.isRead).length;
 
-  const displayed =
-    activeTab === 'billing' ? billingNotifs :
-    activeTab === 'schedule' ? scheduleNotifs :
-    allNotifications;
+  // SuperAdmin tabs
+  const billingNotifs  = allNotifications.filter((n) => n.type === 'BILLING' || n.type === 'TRANSACTION');
+  const scheduleNotifs = allNotifications.filter((n) => n.type === 'SCHEDULE');
+  const billingUnread  = billingNotifs.filter((n) => !n.isRead).length;
+  const scheduleUnread = scheduleNotifs.filter((n) => !n.isRead).length;
+
+  const displayed = isDevAdmin
+    ? (activeTab === 'revenue'   ? revenueNotifs
+     : activeTab === 'platform'  ? platformNotifs
+     : activeTab === 'schedule'  ? scheduleNotifsD
+     : allNotifications)
+    : (activeTab === 'billing'   ? billingNotifs
+     : activeTab === 'schedule'  ? scheduleNotifs
+     : allNotifications);
 
   function handleDownloadPdf(period: string) {
     const invoice = invoices.find((inv) => inv.period === period);
@@ -72,11 +89,20 @@ export default function Notifications() {
     downloadInvoicePdf(invoice);
   }
 
-  const TABS: { key: TabKey; label: string; badge?: number }[] = [
-    { key: 'all',      label: 'All',      badge: unreadCount },
-    { key: 'billing',  label: '💳 Billing',  badge: billingUnread },
-    { key: 'schedule', label: '📅 Schedule', badge: scheduleUnread },
+  const DEV_TABS: { key: TabKey; label: string; badge?: number }[] = [
+    { key: 'all',      label: 'All',          badge: unreadCount },
+    { key: 'revenue',  label: '💰 Revenue',    badge: revenueUnread },
+    { key: 'platform', label: '⚙️ Platform',   badge: platformUnread },
+    { key: 'schedule', label: '📅 Schedule',   badge: scheduleUnreadD },
   ];
+
+  const SUPER_TABS: { key: TabKey; label: string; badge?: number }[] = [
+    { key: 'all',      label: 'All',           badge: unreadCount },
+    { key: 'billing',  label: '💳 Billing',    badge: billingUnread },
+    { key: 'schedule', label: '📅 Schedule',   badge: scheduleUnread },
+  ];
+
+  const TABS = isDevAdmin ? DEV_TABS : SUPER_TABS;
 
   return (
     <div style={s.page}>
@@ -86,7 +112,7 @@ export default function Notifications() {
             Notifications
             {unreadCount > 0 && <span style={s.badge}>{unreadCount}</span>}
           </h1>
-          <p style={s.subtitle}>Billing alerts, schedule requests, and activity updates</p>
+          <p style={s.subtitle}>{isDevAdmin ? 'Revenue, platform health, and schedule alerts' : 'Billing alerts, schedule requests, and activity updates'}</p>
         </div>
       </div>
 
@@ -131,7 +157,7 @@ export default function Notifications() {
             const sv = isSchedule
               ? (SCHEDULE_SEVERITY[n.requestType ?? ''] ?? SEVERITY_STYLES.info)
               : (SEVERITY_STYLES[n.severity] ?? SEVERITY_STYLES.info);
-            const isPaidBilling = n.severity === 'success' && n.type === 'BILLING' && n.period;
+            const isPaidBilling = n.severity === 'success' && (n.type === 'BILLING' || n.type === 'REVENUE') && n.period;
 
             return (
               <div key={n.id} style={{ ...s.card, borderLeft: `4px solid ${sv.border}`, background: sv.bg }}>
@@ -143,7 +169,10 @@ export default function Notifications() {
                       <div style={{ ...s.typeTag, color: sv.color }}>
                         {isSchedule
                           ? (n.requestType === 'TIME_OFF' ? '🏖️ Time Off Request' : '🔄 Extra Shift Request')
-                          : (n.type === 'BILLING' ? '💳 Billing' : '🧾 Transaction')}
+                          : n.type === 'REVENUE'   ? '💰 Revenue'
+                          : n.type === 'PLATFORM'  ? '⚙️ Platform'
+                          : n.type === 'BILLING'   ? '💳 Billing'
+                          : '🧾 Transaction'}
                       </div>
                     </div>
                   </div>
@@ -156,9 +185,14 @@ export default function Notifications() {
                         Take Action →
                       </button>
                     )}
-                    {isPaidBilling && (
+                    {isPaidBilling && !isDevAdmin && (
                       <button style={s.pdfBtn} onClick={() => handleDownloadPdf(n.period!)}>
                         📄 Download Invoice
+                      </button>
+                    )}
+                    {n.type === 'REVENUE' && n.severity === 'warning' && (
+                      <button style={s.actionBtn} onClick={() => navigate('/billing')}>
+                        Mark Paid →
                       </button>
                     )}
                     <div style={s.time}>
