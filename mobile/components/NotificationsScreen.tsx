@@ -5,8 +5,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { notificationsApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
+
+function getNotifRoute(type: string, role?: string): string | null {
+  if (role === 'CUSTOMER') {
+    if (type === 'OFFER') return '/(customer)/home';
+    if (type === 'POINTS') return '/(customer)/history';
+    if (type === 'REDEMPTION') return '/(customer)/rewards';
+  }
+  return null;
+}
 
 const TYPE_CONFIG: Record<string, { emoji: string; color: string }> = {
   OFFER:         { emoji: '🎉', color: '#F4A261' },
@@ -41,6 +52,7 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -70,10 +82,14 @@ export default function NotificationsScreen() {
 
   function renderItem({ item }: { item: Notification }) {
     const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.GENERAL;
+    const route = getNotifRoute(item.type, user?.role);
     return (
       <TouchableOpacity
         style={[s.card, !item.isRead && s.cardUnread]}
-        onPress={() => !item.isRead && markOneMutation.mutate(item.id)}
+        onPress={() => {
+          if (!item.isRead) markOneMutation.mutate(item.id);
+          if (route) router.push(route as any);
+        }}
         activeOpacity={0.75}
       >
         <View style={[s.iconWrap, { backgroundColor: cfg.color + '18' }]}>
@@ -87,7 +103,10 @@ export default function NotificationsScreen() {
             {!item.isRead && <View style={[s.dot, { backgroundColor: cfg.color }]} />}
           </View>
           <Text style={s.cardText} numberOfLines={2}>{item.body}</Text>
-          <Text style={s.cardTime}>{timeAgo(item.createdAt)}</Text>
+          <View style={s.cardBottom}>
+            <Text style={s.cardTime}>{timeAgo(item.createdAt)}</Text>
+            {route && <Text style={[s.cardAction, { color: cfg.color }]}>View →</Text>}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -192,7 +211,9 @@ const s = StyleSheet.create({
   cardTitleUnread: { color: COLORS.text, fontWeight: '800' },
   dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   cardText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
-  cardTime: { fontSize: 11, color: COLORS.border, fontWeight: '600', marginTop: 2 },
+  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+  cardTime: { fontSize: 11, color: COLORS.border, fontWeight: '600' },
+  cardAction: { fontSize: 11, fontWeight: '800' },
 
   separator: { height: 0 },
 

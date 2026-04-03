@@ -546,6 +546,41 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
   });
 }
 
+// GET /points/my-benefit-status — customer checks their own benefit availability
+export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
+  const userId = req.user!.id;
+  const customer = await prisma.user.findUnique({ where: { id: userId } });
+  if (!customer) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+
+  const period = getCurrentPeriod();
+  const currentPeriod = customer.tierPeriod === period;
+  const tier = currentPeriod ? customer.tier : Tier.BRONZE;
+
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+
+  let available = false;
+  let benefitType: string | null = null;
+  let silverRemaining = 0;
+
+  if (tier === 'SILVER') {
+    const used = await prisma.tierBenefitClaim.count({
+      where: { userId, period, benefitType: 'SILVER_FOUNTAIN' },
+    });
+    silverRemaining = Math.max(0, 30 - used);
+    available = silverRemaining > 0;
+    benefitType = 'SILVER_FOUNTAIN';
+  } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
+    const usedToday = await prisma.tierBenefitClaim.count({
+      where: { userId, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+    });
+    available = usedToday === 0;
+    benefitType = 'DAILY_DRINK';
+  }
+
+  res.json({ success: true, data: { tier, available, benefitType, silverRemaining } });
+}
+
 export async function claimTierBenefit(req: AuthRequest, res: Response) {
   const { customerQrCode, storeId } = req.body as { customerQrCode: string; storeId: string };
   if (!customerQrCode || !storeId) {

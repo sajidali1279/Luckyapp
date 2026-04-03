@@ -15,6 +15,7 @@ import {
   getPlatformSummary,
   getAllTransactions,
   getCustomerInfo,
+  getMyBenefitStatus,
   claimTierBenefit,
   processCatalogRedemption,
 } from '../controllers/points.controller';
@@ -106,6 +107,7 @@ router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMy
 // ─── Points (Employee) ────────────────────────────────────────────────────────
 // Customer info lookup (cashier use — before grant/redeem)
 router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getCustomerInfo);
+router.get('/points/my-benefit-status', authenticate, requireRole(Role.CUSTOMER), getMyBenefitStatus);
 
 // Tier benefit claiming (Employee)
 router.post('/points/tier-benefit', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, claimTierBenefit);

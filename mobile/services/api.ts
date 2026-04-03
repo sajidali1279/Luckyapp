@@ -56,6 +56,7 @@ export const authApi = {
 export const pointsApi = {
   getMyHistory: (page = 1) =>
     api.get(`/points/my-history?page=${page}`),
+  getMyBenefitStatus: () => api.get('/points/my-benefit-status'),
   initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number }) =>
     api.post('/points/grant', data),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {

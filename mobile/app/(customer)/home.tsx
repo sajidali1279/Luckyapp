@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, FlatList, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, FlatList, Dimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
@@ -121,6 +121,7 @@ export default function CustomerHome() {
   const promotions = allOffers.filter((o: any) => o.bonusRate);
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = bannersRefetching || offersRefetching;
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
 
   function onRefresh() {
     refetchBanners();
@@ -218,19 +219,20 @@ export default function CustomerHome() {
           </View>
           {promotions.length <= 2 ? (
             promotions.map((offer: any) => (
-              <View key={offer.id} style={styles.offerCard}>
+              <TouchableOpacity key={offer.id} style={styles.offerCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
                 {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
                 <View style={styles.offerContent}>
                   <Text style={styles.offerTitle}>{offer.title}</Text>
                   <Text style={styles.offerDesc}>{offer.description}</Text>
                   <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback — auto-applied!</Text>
                 </View>
-              </View>
+                <Text style={styles.offerArrow}>›</Text>
+              </TouchableOpacity>
             ))
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
               {promotions.map((offer: any) => (
-                <View key={offer.id} style={styles.offerSlideCard}>
+                <TouchableOpacity key={offer.id} style={styles.offerSlideCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
                   {offer.imageUrl
                     ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                     : <View style={styles.offerSlideImagePlaceholder}><Text style={{ fontSize: 32 }}>🔥</Text></View>
@@ -240,7 +242,7 @@ export default function CustomerHome() {
                     <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
                     <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           )}
@@ -258,19 +260,20 @@ export default function CustomerHome() {
           </View>
           {deals.length <= 2 ? (
             deals.map((offer: any) => (
-              <View key={offer.id} style={styles.dealCard}>
+              <TouchableOpacity key={offer.id} style={styles.dealCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
                 {offer.imageUrl && <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />}
                 <View style={styles.offerContent}>
                   <Text style={styles.dealText}>{offer.dealText}</Text>
                   <Text style={styles.offerTitle}>{offer.title}</Text>
                   {offer.description ? <Text style={styles.offerDesc}>{offer.description}</Text> : null}
                 </View>
-              </View>
+                <Text style={styles.offerArrow}>›</Text>
+              </TouchableOpacity>
             ))
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
               {deals.map((offer: any) => (
-                <View key={offer.id} style={[styles.offerSlideCard, styles.dealSlideCard]}>
+                <TouchableOpacity key={offer.id} style={[styles.offerSlideCard, styles.dealSlideCard]} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
                   {offer.imageUrl
                     ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                     : <View style={styles.offerSlideImagePlaceholder}><Text style={{ fontSize: 32 }}>🏷️</Text></View>
@@ -280,7 +283,7 @@ export default function CustomerHome() {
                     <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
                     {offer.description ? <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text> : null}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           )}
@@ -291,6 +294,49 @@ export default function CustomerHome() {
       <TouchableOpacity style={styles.historyLink} onPress={() => router.push('/(customer)/history')}>
         <Text style={styles.historyLinkText}>View Points History →</Text>
       </TouchableOpacity>
+
+      {/* Offer detail modal */}
+      {selectedOffer && (
+        <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
+          <View style={om.overlay}>
+            <View style={om.sheet}>
+              {selectedOffer.imageUrl && (
+                <Image source={{ uri: selectedOffer.imageUrl }} style={om.image} />
+              )}
+              <View style={om.body}>
+                {selectedOffer.bonusRate ? (
+                  <View style={om.badgeRow}>
+                    <View style={om.badge}>
+                      <Text style={om.badgeText}>🔥 {Math.round(selectedOffer.bonusRate * 100)}% cashback — auto-applied</Text>
+                    </View>
+                  </View>
+                ) : selectedOffer.dealText ? (
+                  <Text style={om.dealText}>{selectedOffer.dealText}</Text>
+                ) : null}
+                <Text style={om.title}>{selectedOffer.title}</Text>
+                {selectedOffer.description ? <Text style={om.desc}>{selectedOffer.description}</Text> : null}
+                <View style={om.dateRow}>
+                  <Text style={om.dateText}>
+                    Valid {new Date(selectedOffer.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
+                    {new Date(selectedOffer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </View>
+                <View style={om.howBox}>
+                  <Text style={om.howTitle}>How it works</Text>
+                  <Text style={om.howText}>
+                    {selectedOffer.bonusRate
+                      ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
+                      : 'Show your QR code to the cashier and mention this deal to claim it.'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={om.closeBtn} onPress={() => setSelectedOffer(null)}>
+                  <Text style={om.closeBtnText}>Got it</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -388,6 +434,7 @@ const styles = StyleSheet.create({
   },
   offerImage: { width: 80, height: 80, resizeMode: 'cover' },
   offerContent: { flex: 1, padding: 12 },
+  offerArrow: { fontSize: 22, color: COLORS.textMuted, alignSelf: 'center', paddingRight: 12 },
   offerTitle: { fontWeight: '700', fontSize: 14, color: COLORS.text },
   offerDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
   offerBonus: {
@@ -443,4 +490,36 @@ const bc = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.border },
   dotActive: { width: 20, backgroundColor: COLORS.primary },
+});
+
+const om = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: COLORS.white, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    overflow: 'hidden',
+  },
+  image: { width: '100%', height: 180, resizeMode: 'cover' },
+  body: { padding: 24, gap: 10 },
+  badgeRow: { flexDirection: 'row' },
+  badge: {
+    backgroundColor: COLORS.primary + '15', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  badgeText: { color: COLORS.primary, fontWeight: '800', fontSize: 13 },
+  dealText: { fontSize: 28, fontWeight: '900', color: COLORS.accent, letterSpacing: -0.5 },
+  title: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  desc: { fontSize: 14, color: COLORS.textMuted, lineHeight: 21 },
+  dateRow: { backgroundColor: COLORS.background, borderRadius: 10, padding: 10 },
+  dateText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600', textAlign: 'center' },
+  howBox: {
+    backgroundColor: COLORS.secondary + '0d', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: COLORS.secondary + '18',
+  },
+  howTitle: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  howText: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  closeBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 16,
+    padding: 16, alignItems: 'center', marginTop: 4,
+  },
+  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

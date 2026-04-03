@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
-import { catalogApi } from '../../services/api';
+import { catalogApi, pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 // ─── Tier config ───────────────────────────────────────────────────────────────
@@ -285,6 +285,15 @@ export default function RewardsScreen() {
   const [activeCategory, setActiveCategory] = useState<Category>('ALL');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [successData, setSuccessData] = useState<any>(null);
+  const [benefitModal, setBenefitModal] = useState(false);
+
+  const { data: benefitData } = useQuery({
+    queryKey: ['my-benefit-status'],
+    queryFn: () => pointsApi.getMyBenefitStatus(),
+    enabled: tier !== 'BRONZE',
+    refetchInterval: 60000,
+  });
+  const benefitStatus = benefitData?.data?.data;
 
   const { data: catalogData, isLoading: catalogLoading, refetch, isRefetching } = useQuery({
     queryKey: ['catalog'],
@@ -376,15 +385,30 @@ export default function RewardsScreen() {
 
             {/* ── Tier benefits ── */}
             {benefits.length > 0 && (
-              <View style={r.sectionCard}>
-                <Text style={[r.sectionTitle, { color: tierCfg.color }]}>{tierCfg.emoji} Your {tierCfg.label} Benefits</Text>
-                {benefits.map((b, i) => (
-                  <View key={i} style={r.benefitRow}>
-                    <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
-                    <Text style={r.benefitText}>{b}</Text>
-                  </View>
-                ))}
-              </View>
+              <TouchableOpacity style={r.sectionCard} onPress={() => setBenefitModal(true)} activeOpacity={0.8}>
+                <View style={r.sectionTitleRow}>
+                  <Text style={[r.sectionTitle, { color: tierCfg.color }]}>{tierCfg.emoji} Your {tierCfg.label} Benefits</Text>
+                  <Text style={[r.howToUse, { color: tierCfg.color }]}>How to use →</Text>
+                </View>
+                {benefits.map((b, i) => {
+                  const isDaily = b.includes('free drink') || b.includes('free fountain');
+                  const available = benefitStatus?.available;
+                  const remaining = benefitStatus?.silverRemaining;
+                  return (
+                    <View key={i} style={r.benefitRow}>
+                      <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
+                      <Text style={r.benefitText}>{b}</Text>
+                      {isDaily && benefitStatus && (
+                        <View style={[r.benefitStatusPill, { backgroundColor: available ? '#E8F5E9' : '#FFF3E0' }]}>
+                          <Text style={[r.benefitStatusText, { color: available ? COLORS.success : '#F4A226' }]}>
+                            {tier === 'SILVER' ? `${remaining} left` : available ? 'Available' : 'Used today'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </TouchableOpacity>
             )}
 
             {/* ── Active redemption banners ── */}
@@ -464,6 +488,50 @@ export default function RewardsScreen() {
       {successData && (
         <SuccessModal data={successData} onClose={() => setSuccessData(null)} />
       )}
+
+      {/* ── Benefit How-to Modal ── */}
+      <Modal transparent animationType="slide" visible={benefitModal} onRequestClose={() => setBenefitModal(false)}>
+        <View style={md.overlay}>
+          <View style={[md.sheet, { paddingTop: 28 }]}>
+            <View style={[md.itemIcon, { backgroundColor: tierCfg.color + '18', width: 72, height: 72, borderRadius: 22 }]}>
+              <Text style={{ fontSize: 36 }}>{tierCfg.emoji}</Text>
+            </View>
+            <Text style={[md.itemTitle, { color: tierCfg.color }]}>{tierCfg.label} Benefits</Text>
+
+            {/* Status pill */}
+            {benefitStatus && (
+              <View style={[bm.statusPill, { backgroundColor: benefitStatus.available ? '#E8F5E9' : '#FFF3E0' }]}>
+                <Text style={[bm.statusText, { color: benefitStatus.available ? COLORS.success : '#F4A226' }]}>
+                  {tier === 'SILVER'
+                    ? `${benefitStatus.silverRemaining} fountain drinks remaining this period`
+                    : benefitStatus.available ? '✓ Benefit available today' : '✗ Already used today — resets tomorrow'}
+                </Text>
+              </View>
+            )}
+
+            {/* Steps */}
+            <View style={bm.stepsBox}>
+              <Text style={bm.stepsTitle}>How to claim at the register</Text>
+              {[
+                { n: '1', text: 'Open the app and go to your QR code on the Home tab' },
+                { n: '2', text: 'Show the cashier your QR code and ask for your ' + (tier === 'SILVER' ? 'free fountain drink' : 'free drink or coffee') },
+                { n: '3', text: 'The cashier will scan your QR and apply the benefit — nothing else needed' },
+              ].map(step => (
+                <View key={step.n} style={bm.stepRow}>
+                  <View style={[bm.stepNum, { backgroundColor: tierCfg.color }]}>
+                    <Text style={bm.stepNumText}>{step.n}</Text>
+                  </View>
+                  <Text style={bm.stepText}>{step.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={[md.confirmBtn, { backgroundColor: tierCfg.color }]} onPress={() => setBenefitModal(false)}>
+              <Text style={md.confirmBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -518,9 +586,13 @@ const r = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   sectionTitle: { fontSize: 16, fontWeight: '800' },
-  benefitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  benefitDot: { fontSize: 10, marginTop: 4, fontWeight: '800' },
+  sectionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  howToUse: { fontSize: 12, fontWeight: '700' },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  benefitDot: { fontSize: 10, fontWeight: '800' },
   benefitText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 21 },
+  benefitStatusPill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  benefitStatusText: { fontSize: 11, fontWeight: '800' },
 
   // Active redemption banner
   activeBanner: {
@@ -660,4 +732,18 @@ const suc = StyleSheet.create({
   refundIcon: { fontSize: 28 },
   refundTitle: { fontSize: 15, fontWeight: '800', color: COLORS.success },
   refundSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+});
+
+const bm = StyleSheet.create({
+  statusPill: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, width: '100%', alignItems: 'center' },
+  statusText: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  stepsBox: {
+    width: '100%', backgroundColor: COLORS.background, borderRadius: 16,
+    padding: 16, gap: 14,
+  },
+  stepsTitle: { fontSize: 13, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  stepNumText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  stepText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 20 },
 });
