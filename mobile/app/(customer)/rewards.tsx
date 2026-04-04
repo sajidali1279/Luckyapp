@@ -312,6 +312,7 @@ export default function RewardsScreen() {
       setSelectedItem(null);
       setSuccessData(res.data.data);
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
+      qc.invalidateQueries({ queryKey: ['catalog'] });
     },
     onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || 'Redemption failed' }),
   });
@@ -320,6 +321,7 @@ export default function RewardsScreen() {
     mutationFn: (id: string) => catalogApi.cancelRedemption(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
+      qc.invalidateQueries({ queryKey: ['catalog'] });
       Toast.show({ type: 'success', text1: 'Redemption cancelled', text2: 'Points refunded to your balance' });
     },
     onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || 'Cancel failed' }),

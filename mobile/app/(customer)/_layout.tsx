@@ -37,13 +37,7 @@ export default function CustomerLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
         }}
       />
-      <Tabs.Screen
-        name="scan-receipt"
-        options={{
-          title: 'Scan Receipt',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🧾" focused={focused} />,
-        }}
-      />
+      <Tabs.Screen name="scan-receipt" options={{ href: null }} />
       <Tabs.Screen
         name="rewards"
         options={{

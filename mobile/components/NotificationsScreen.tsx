@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -76,19 +76,33 @@ export default function NotificationsScreen() {
     refetchInterval: 30000,
   });
 
+  // Invalidate badge count the moment this screen comes into focus
+  useFocusEffect(useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['unread-count'] });
+  }, []));
+
   const markAllMutation = useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-notifications'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-notifications'] });
+      qc.invalidateQueries({ queryKey: ['unread-count'] });
+    },
   });
 
   const markOneMutation = useMutation({
     mutationFn: (id: string) => notificationsApi.markOneRead(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-notifications'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-notifications'] });
+      qc.invalidateQueries({ queryKey: ['unread-count'] });
+    },
   });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await qc.invalidateQueries({ queryKey: ['my-notifications'] });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['my-notifications'] }),
+      qc.invalidateQueries({ queryKey: ['unread-count'] }),
+    ]);
     setRefreshing(false);
   }, []);
 
