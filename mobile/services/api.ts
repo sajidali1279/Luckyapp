@@ -150,6 +150,10 @@ export const notificationsApi = {
   markOneRead: (id: string) => api.patch(`/notifications/${id}/read`),
 };
 
+export const storesApi = {
+  getGasPrices: () => api.get('/stores/gas-prices'),
+};
+
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),

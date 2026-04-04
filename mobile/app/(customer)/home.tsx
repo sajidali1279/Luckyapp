@@ -6,7 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi, authApi, notificationsApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -116,6 +116,15 @@ export default function CustomerHome() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
+  const { data: gasPricesData } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 5 * 60 * 1000, // 5 min
+  });
+  const gasPrices: any[] = (gasPricesData?.data?.data ?? []).filter(
+    (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
+  );
+
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => o.bonusRate);
@@ -204,6 +213,41 @@ export default function CustomerHome() {
       {banners.length > 0 && (
         <View style={styles.bannerWrapper}>
           <BannerCarousel banners={banners} />
+        </View>
+      )}
+
+      {/* Gas Prices */}
+      {gasPrices.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⛽ Today's Gas Prices</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gasPriceRow}>
+            {gasPrices.map((store: any) => (
+              <View key={store.id} style={styles.gasPriceCard}>
+                <Text style={styles.gasStoreName} numberOfLines={1}>{store.name}</Text>
+                {store.gasPricePerGallon != null && (
+                  <View style={styles.gasPriceLine}>
+                    <Text style={styles.gasPriceIcon}>⛽</Text>
+                    <Text style={styles.gasPriceLabel}>Gas</Text>
+                    <Text style={styles.gasPriceValue}>${Number(store.gasPricePerGallon).toFixed(3)}</Text>
+                    <Text style={styles.gasPriceUnit}>/gal</Text>
+                  </View>
+                )}
+                {store.dieselPricePerGallon != null && (
+                  <View style={styles.gasPriceLine}>
+                    <Text style={styles.gasPriceIcon}>🚛</Text>
+                    <Text style={styles.gasPriceLabel}>Diesel</Text>
+                    <Text style={styles.gasPriceValue}>${Number(store.dieselPricePerGallon).toFixed(3)}</Text>
+                    <Text style={styles.gasPriceUnit}>/gal</Text>
+                  </View>
+                )}
+                {store.gasPriceUpdatedAt && (
+                  <Text style={styles.gasUpdatedAt}>
+                    Updated {new Date(store.gasPriceUpdatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -448,6 +492,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   dealText: { fontSize: 22, fontWeight: '900', color: COLORS.accent, marginBottom: 4, letterSpacing: -0.5 },
+
+  gasPriceRow: { gap: 10, paddingBottom: 4, paddingTop: 8 },
+  gasPriceCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 14, minWidth: 150,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
+    borderTopWidth: 3, borderTopColor: '#f97316',
+  },
+  gasStoreName: { fontSize: 13, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  gasPriceLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  gasPriceIcon: { fontSize: 14 },
+  gasPriceLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', flex: 1 },
+  gasPriceValue: { fontSize: 16, fontWeight: '900', color: COLORS.text },
+  gasPriceUnit: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  gasUpdatedAt: { fontSize: 10, color: COLORS.border, marginTop: 6, fontWeight: '600' },
 
   historyLink: { paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center' },
   historyLinkText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },

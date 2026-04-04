@@ -8,11 +8,34 @@ async function saveNotification(userId: string, title: string, body: string, typ
   } catch { /* non-critical */ }
 }
 
-async function saveNotificationMany(userIds: string[], title: string, body: string, type: string) {
+export async function saveNotificationMany(userIds: string[], title: string, body: string, type: string) {
   if (userIds.length === 0) return;
   try {
     await prisma.userNotification.createMany({
       data: userIds.map((userId) => ({ userId, title, body, type })),
+    });
+  } catch { /* non-critical */ }
+}
+
+/** Send push + in-app notification to all staff (employees + managers) of a specific store. */
+export async function sendPushToStoreStaff(storeId: string, title: string, body: string, type = 'GENERAL'): Promise<void> {
+  try {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { storeId },
+      include: { user: { include: { pushTokens: { select: { token: true } } } } },
+    });
+    if (storeRoles.length === 0) return;
+
+    const userIds = storeRoles.map((r) => r.userId);
+    await saveNotificationMany(userIds, title, body, type);
+
+    const tokens = storeRoles.flatMap((r) => r.user.pushTokens.map((t) => t.token));
+    if (tokens.length === 0) return;
+
+    await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(tokens.map((token) => ({ to: token, title, body, sound: 'default' }))),
     });
   } catch { /* non-critical */ }
 }

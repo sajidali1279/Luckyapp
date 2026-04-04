@@ -53,6 +53,8 @@ import {
   getAllStoresBilling,
   getStores,
   updateStore,
+  updateGasPrices,
+  getAllGasPrices,
   createBillingRecord,
   markBillingPaid,
   markPeriodPaid,
@@ -147,6 +149,8 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
+router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
+router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
 
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);

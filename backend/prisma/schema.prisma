@@ -176,6 +176,11 @@ model Store {
   latitude          Float?
   longitude         Float?
 
+  // Gas prices (updated daily by admins)
+  gasPricePerGallon    Float?
+  dieselPricePerGallon Float?
+  gasPriceUpdatedAt    DateTime?
+
   // Printer agent authentication
   apiKey            String?     @unique
 

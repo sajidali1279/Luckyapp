@@ -20,6 +20,7 @@ function getNotifRoute(type: string, role?: string): string | null {
 }
 
 const TYPE_CONFIG: Record<string, { emoji: string; color: string }> = {
+  GAS_PRICE_UPDATE: { emoji: '⛽', color: '#f97316' },
   OFFER:         { emoji: '🎉', color: '#F4A261' },
   POINTS:        { emoji: '💰', color: '#2DC653' },
   REDEMPTION:    { emoji: '🎁', color: '#a78bfa' },
@@ -77,21 +78,32 @@ export default function NotificationsScreen() {
     setRefreshing(false);
   }, []);
 
-  const notifications: Notification[] = data?.data?.data?.notifications ?? [];
+  const rawNotifications: Notification[] = data?.data?.data?.notifications ?? [];
   const unreadCount: number = data?.data?.data?.unreadCount ?? 0;
+  const isStaff = user?.role === 'EMPLOYEE' || user?.role === 'STORE_MANAGER';
+  // For staff: unread gas price alerts always float to the top
+  const notifications = isStaff
+    ? [...rawNotifications].sort((a, b) => {
+        const aPin = a.type === 'GAS_PRICE_UPDATE' && !a.isRead ? -1 : 0;
+        const bPin = b.type === 'GAS_PRICE_UPDATE' && !b.isRead ? -1 : 0;
+        return aPin - bPin;
+      })
+    : rawNotifications;
 
   function renderItem({ item }: { item: Notification }) {
     const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.GENERAL;
     const route = getNotifRoute(item.type, user?.role);
+    const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isStaff && !item.isRead;
     return (
       <TouchableOpacity
-        style={[s.card, !item.isRead && s.cardUnread]}
+        style={[s.card, !item.isRead && s.cardUnread, isGasAlert && s.cardGasAlert]}
         onPress={() => {
           if (!item.isRead) markOneMutation.mutate(item.id);
           if (route) router.push(route as any);
         }}
         activeOpacity={0.75}
       >
+        {isGasAlert && <View style={s.gasAlertBar} />}
         <View style={[s.iconWrap, { backgroundColor: cfg.color + '18' }]}>
           <Text style={s.iconEmoji}>{cfg.emoji}</Text>
         </View>
@@ -100,7 +112,10 @@ export default function NotificationsScreen() {
             <Text style={[s.cardTitle, !item.isRead && s.cardTitleUnread]} numberOfLines={1}>
               {item.title}
             </Text>
-            {!item.isRead && <View style={[s.dot, { backgroundColor: cfg.color }]} />}
+            {isGasAlert
+              ? <View style={s.actionBadge}><Text style={s.actionBadgeText}>Update pumps</Text></View>
+              : !item.isRead && <View style={[s.dot, { backgroundColor: cfg.color }]} />
+            }
           </View>
           <Text style={s.cardText} numberOfLines={2}>{item.body}</Text>
           <View style={s.cardBottom}>
@@ -214,6 +229,29 @@ const s = StyleSheet.create({
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
   cardTime: { fontSize: 11, color: COLORS.border, fontWeight: '600' },
   cardAction: { fontSize: 11, fontWeight: '800' },
+
+  cardGasAlert: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#f97316',
+    paddingLeft: 11,
+  },
+  gasAlertBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#f97316',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  actionBadge: {
+    backgroundColor: '#f9731618',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  actionBadgeText: { fontSize: 10, fontWeight: '800', color: '#f97316' },
 
   separator: { height: 0 },
 

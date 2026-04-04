@@ -85,6 +85,7 @@ export const customersApi = {
 export const storesApi = {
   getAll: () => api.get('/stores'),
   update: (storeId: string, data: object) => api.patch(`/stores/${storeId}`, data),
+  updateGasPrices: (storeId: string, data: object) => api.patch(`/stores/${storeId}/gas-prices`, data),
 };
 
 export const staffApi = {

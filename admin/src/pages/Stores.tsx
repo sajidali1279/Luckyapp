@@ -14,6 +14,9 @@ interface Store {
   latitude: number | null;
   longitude: number | null;
   shiftsPerDay: number;
+  gasPricePerGallon: number | null;
+  dieselPricePerGallon: number | null;
+  gasPriceUpdatedAt: string | null;
 }
 
 interface FormState {
@@ -40,6 +43,8 @@ export default function Stores() {
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '' });
   const [geocoding, setGeocoding] = useState(false);
+  // Gas price inline editing: map of storeId → { gas, diesel }
+  const [gasForms, setGasForms] = useState<Record<string, { gas: string; diesel: string }>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['stores'],
@@ -58,6 +63,51 @@ export default function Stores() {
     },
     onError: () => toast.error('Failed to save'),
   });
+
+  const gasMutation = useMutation({
+    mutationFn: ({ storeId, payload }: { storeId: string; payload: object }) =>
+      storesApi.updateGasPrices(storeId, payload),
+    onSuccess: (_, { storeId }) => {
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      // Clear the inline form for this store
+      setGasForms((prev) => { const n = { ...prev }; delete n[storeId]; return n; });
+      toast.success('⛽ Gas prices updated — staff notified');
+    },
+    onError: () => toast.error('Failed to update gas prices'),
+  });
+
+  function getGasForm(store: Store) {
+    return gasForms[store.id] ?? {
+      gas:    store.gasPricePerGallon    != null ? store.gasPricePerGallon.toFixed(3)    : '',
+      diesel: store.dieselPricePerGallon != null ? store.dieselPricePerGallon.toFixed(3) : '',
+    };
+  }
+
+  function setGasField(storeId: string, field: 'gas' | 'diesel', value: string) {
+    setGasForms((prev) => ({ ...prev, [storeId]: { ...getGasFormById(storeId, field), [field]: value } }));
+  }
+
+  function getGasFormById(storeId: string, _field: string) {
+    return gasForms[storeId] ?? { gas: '', diesel: '' };
+  }
+
+  function saveGasPrices(store: Store) {
+    const gf = getGasForm(store);
+    const payload: Record<string, number> = {};
+    const gas    = parseFloat(gf.gas);
+    const diesel = parseFloat(gf.diesel);
+    if (gf.gas.trim()    !== '' && !isNaN(gas))    payload.gasPricePerGallon    = gas;
+    if (gf.diesel.trim() !== '' && !isNaN(diesel)) payload.dieselPricePerGallon = diesel;
+    if (Object.keys(payload).length === 0) { toast.error('Enter at least one price'); return; }
+    gasMutation.mutate({ storeId: store.id, payload });
+  }
+
+  function gasFormDirty(store: Store) {
+    const gf = getGasForm(store);
+    const origGas    = store.gasPricePerGallon    != null ? store.gasPricePerGallon.toFixed(3)    : '';
+    const origDiesel = store.dieselPricePerGallon != null ? store.dieselPricePerGallon.toFixed(3) : '';
+    return gf.gas !== origGas || gf.diesel !== origDiesel;
+  }
 
   function openEdit(store: Store) {
     setEditStore(store);
@@ -169,6 +219,55 @@ export default function Stores() {
                   </div>
                 )}
 
+                {/* ── Gas Prices inline editor ── */}
+                <div style={s.divider} />
+                <div style={s.gasSectionLabel}>
+                  ⛽ Gas Prices
+                  {store.gasPriceUpdatedAt && (
+                    <span style={s.gasUpdatedAt}>
+                      Updated {new Date(store.gasPriceUpdatedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <div style={s.gasRow}>
+                  <div style={s.gasField}>
+                    <label style={s.gasLabel}>⛽ Gas $/gal</label>
+                    <input
+                      style={s.gasInput}
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="20"
+                      placeholder="0.000"
+                      value={getGasForm(store).gas}
+                      onChange={(e) => setGasField(store.id, 'gas', e.target.value)}
+                    />
+                  </div>
+                  <div style={s.gasField}>
+                    <label style={s.gasLabel}>🚛 Diesel $/gal</label>
+                    <input
+                      style={s.gasInput}
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="20"
+                      placeholder="0.000"
+                      value={getGasForm(store).diesel}
+                      onChange={(e) => setGasField(store.id, 'diesel', e.target.value)}
+                    />
+                  </div>
+                  <button
+                    style={{
+                      ...s.gasUpdateBtn,
+                      ...(gasFormDirty(store) ? s.gasUpdateBtnActive : {}),
+                    }}
+                    onClick={() => saveGasPrices(store)}
+                    disabled={!gasFormDirty(store) || gasMutation.isPending}
+                  >
+                    {gasMutation.isPending ? '…' : 'Update'}
+                  </button>
+                </div>
+
                 <div style={s.divider} />
                 <button style={{ ...s.editBtn, borderColor: color, color }} onClick={() => openEdit(store)}>
                   ✏️ Edit Store
@@ -278,6 +377,15 @@ const s: Record<string, React.CSSProperties> = {
   detailLabel: { fontSize: 11, color: '#adb5bd', fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
   detailVal: { fontSize: 13, color: '#444' },
   coordText: { fontFamily: 'monospace', fontSize: 12, color: '#1D3557', background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
+
+  gasSectionLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  gasUpdatedAt: { fontSize: 10, fontWeight: 500, color: '#adb5bd', textTransform: 'none' as const, letterSpacing: 0 },
+  gasRow: { display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 4 },
+  gasField: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 },
+  gasLabel: { fontSize: 11, fontWeight: 600, color: '#555' },
+  gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
+  gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#adb5bd', fontWeight: 700, fontSize: 13, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
+  gasUpdateBtnActive: { background: '#e8532a', color: '#fff', cursor: 'pointer' },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' },
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
-import { pointsApi, catalogApi } from '../../services/api';
+import { pointsApi, catalogApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
@@ -20,6 +20,14 @@ type Step =
   | 'pending-done';
 
 type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
+
+type LineItem = {
+  id: string;
+  category: Category;
+  amount: string;
+  gasGallons?: string;
+  gasPricePerGallon?: string;
+};
 
 const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'GAS',          label: 'Gas',       icon: '⛽' },
@@ -133,7 +141,8 @@ export default function EmployeeScanScreen() {
   const [customerInfo, setCustomerInfo] = useState<any>(null); // from initiateGrant / redeem
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [redeemAmount, setRedeemAmount] = useState('');
-  const [transactionId, setTransactionId] = useState('');
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [transactionIds, setTransactionIds] = useState<string[]>([]);
   const [pointsAwarded, setPointsAwarded] = useState(0);
   const [gasBonusAwarded, setGasBonusAwarded] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -148,12 +157,59 @@ export default function EmployeeScanScreen() {
   const [confirmedPending, setConfirmedPending] = useState<any>(null);
 
   const storeId = user?.storeIds?.[0];
+
+  // Store gas prices (fetched once on mount for auto-fill)
+  const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number }>>({});
+
+  useEffect(() => {
+    storesApi.getGasPrices().then((res) => {
+      const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number }> = {};
+      for (const store of res.data.data ?? []) {
+        map[store.id] = { gasPricePerGallon: store.gasPricePerGallon, dieselPricePerGallon: store.dieselPricePerGallon };
+      }
+      setStoreGasPrices(map);
+    }).catch(() => {});
+  }, []);
+
+  function selectCategory(cat: Category) {
+    setCategory(cat);
+    if (!storeId) return;
+    const prices = storeGasPrices[storeId];
+    if (!prices) return;
+    if (cat === 'GAS' && prices.gasPricePerGallon) {
+      setGasPricePerGallon(String(prices.gasPricePerGallon));
+    } else if (cat === 'DIESEL' && prices.dieselPricePerGallon) {
+      setGasPricePerGallon(String(prices.dieselPricePerGallon));
+    }
+  }
+
   const isGasCat = category === 'GAS' || category === 'DIESEL';
   const parsedAmount = parseFloat(purchaseAmount);
   const validAmount = !isNaN(parsedAmount) && parsedAmount > 0;
   const parsedGallons = parseFloat(gasGallons);
   const validGallons = isGasCat ? (!isNaN(parsedGallons) && parsedGallons > 0) : true;
-  const estimatedCashback = validAmount ? Math.round(parsedAmount * 5) : null; // in pts (5% × 100)
+  const committedTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const estimatedCashback = (committedTotal + (validAmount ? parsedAmount : 0)) > 0
+    ? Math.round((committedTotal + (validAmount ? parsedAmount : 0)) * 5)
+    : null;
+
+  function addCurrentItem() {
+    if (!validAmount || (isGasCat && !validGallons)) {
+      Toast.show({ type: 'error', text1: 'Enter a valid amount first' });
+      return;
+    }
+    setLineItems(prev => [...prev, {
+      id: Date.now().toString(),
+      category,
+      amount: purchaseAmount,
+      gasGallons: isGasCat ? gasGallons : undefined,
+      gasPricePerGallon: isGasCat ? gasPricePerGallon : undefined,
+    }]);
+    setPurchaseAmount('');
+    setCategory('OTHER');
+    setGasGallons('');
+    setGasPricePerGallon('');
+  }
 
   function reset() {
     setStep('scan');
@@ -163,7 +219,8 @@ export default function EmployeeScanScreen() {
     setCustomerInfo(null);
     setPurchaseAmount('');
     setRedeemAmount('');
-    setTransactionId('');
+    setLineItems([]);
+    setTransactionIds([]);
     setPointsAwarded(0);
     setGasBonusAwarded(0);
     setReceiptImage(null);
@@ -179,6 +236,12 @@ export default function EmployeeScanScreen() {
 
   async function handleQrScan({ data }: { data: string }) {
     if (scanned) return;
+    // Validate UUID format — customer QR codes are plain UUIDs
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(data)) {
+      Toast.show({ type: 'error', text1: 'Not a Lucky Stop customer QR code' });
+      return;
+    }
     setScanned(true);
     setCustomerQr(data);
     setLoading(true);
@@ -191,26 +254,19 @@ export default function EmployeeScanScreen() {
       setCustomerData(infoRes.data.data);
       setCatalogItems(catalogRes.data.data || []);
       setPendingRedemptions(pendingRes.data.data || []);
-    } catch {
-      // Non-fatal — mode screen still shows without tier info
+      setStep('mode');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Customer not found';
+      Toast.show({ type: 'error', text1: 'Invalid QR Code', text2: msg });
+      setScanned(false);
     } finally {
       setLoading(false);
     }
-    setStep('mode');
   }
 
   async function handleGrantPoints() {
     if (!validAmount) {
       Toast.show({ type: 'error', text1: 'Enter a valid purchase amount' });
-      return;
-    }
-    if (parsedAmount > 9999) {
-      Toast.show({ type: 'error', text1: 'Amount too high', text2: 'Maximum purchase is $9,999' });
-      return;
-    }
-    const decimals = purchaseAmount.includes('.') ? purchaseAmount.split('.')[1].length : 0;
-    if (decimals > 2) {
-      Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Max 2 decimal places' });
       return;
     }
     if (isGasCat && !validGallons) {
@@ -221,26 +277,40 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: 'No store assigned to your account' });
       return;
     }
+
+    // Combine committed items + current item
+    const allItems: LineItem[] = [
+      ...lineItems,
+      { id: 'current', category, amount: purchaseAmount, gasGallons, gasPricePerGallon },
+    ];
+
     setLoading(true);
     try {
-      const payload: any = {
-        customerQrCode: customerQr,
-        storeId,
-        purchaseAmount: parsedAmount,
-        category,
-      };
-      if (isGasCat && validGallons) {
-        payload.isGas = true;
-        payload.gasGallons = parsedGallons;
-        const priceVal = parseFloat(gasPricePerGallon);
-        if (!isNaN(priceVal) && priceVal > 0) payload.gasPricePerGallon = priceVal;
-      }
-      const { data } = await pointsApi.initiateGrant(payload);
-      setTransactionId(data.data.transactionId);
-      setCustomerInfo(data.data.customer);
-      setPointsAwarded(data.data.pointsAwarded);
-      setGasBonusAwarded(data.data.gasBonusPoints || 0);
-      setPromotionApplied(data.data.promotionApplied || null);
+      const results = await Promise.all(
+        allItems.map(item => {
+          const isGas = item.category === 'GAS' || item.category === 'DIESEL';
+          const payload: any = {
+            customerQrCode: customerQr,
+            storeId,
+            purchaseAmount: parseFloat(item.amount),
+            category: item.category,
+          };
+          if (isGas && item.gasGallons) {
+            const gal = parseFloat(item.gasGallons);
+            const ppg = parseFloat(item.gasPricePerGallon || '0');
+            payload.isGas = true;
+            payload.gasGallons = gal;
+            if (!isNaN(ppg) && ppg > 0) payload.gasPricePerGallon = ppg;
+          }
+          return pointsApi.initiateGrant(payload);
+        })
+      );
+
+      setTransactionIds(results.map(r => r.data.data.transactionId));
+      setCustomerInfo(results[0].data.data.customer);
+      setPointsAwarded(results.reduce((sum, r) => sum + r.data.data.pointsAwarded, 0));
+      setGasBonusAwarded(results.reduce((sum, r) => sum + (r.data.data.gasBonusPoints || 0), 0));
+      setPromotionApplied(results.find(r => r.data.data.promotionApplied)?.data.data.promotionApplied || null);
       setStep('receipt');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create transaction' });
@@ -257,9 +327,14 @@ export default function EmployeeScanScreen() {
     }
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('receipt', { uri: receiptImage, name: 'receipt.jpg', type: 'image/jpeg' } as any);
-      await pointsApi.uploadReceipt(transactionId, formData);
+      // Upload the same receipt photo to every transaction created
+      await Promise.all(
+        transactionIds.map(id => {
+          const formData = new FormData();
+          formData.append('receipt', { uri: receiptImage, name: 'receipt.jpg', type: 'image/jpeg' } as any);
+          return pointsApi.uploadReceipt(id, formData);
+        })
+      );
       setStep('grant-done');
     } catch (err: any) {
       setReceiptImage(null);
@@ -595,8 +670,34 @@ export default function EmployeeScanScreen() {
       {step === 'grant-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
+          {/* Committed items list */}
+          {lineItems.length > 0 && (
+            <View style={s.committedBox}>
+              <Text style={s.committedBoxLabel}>Added ({lineItems.length})</Text>
+              {lineItems.map(item => {
+                const cat = CATEGORIES.find(c => c.value === item.category);
+                return (
+                  <View key={item.id} style={s.committedRow}>
+                    <Text style={s.committedRowIcon}>{cat?.icon}</Text>
+                    <Text style={s.committedRowCat}>{cat?.label}</Text>
+                    <Text style={s.committedRowAmt}>${parseFloat(item.amount).toFixed(2)}</Text>
+                    {item.gasGallons && (
+                      <Text style={s.committedRowGas}>{parseFloat(item.gasGallons).toFixed(3)} gal</Text>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => setLineItems(prev => prev.filter(i => i.id !== item.id))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={s.committedRowRemove}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           {/* Category grid */}
-          <Text style={s.fieldLabel}>Category</Text>
+          <Text style={s.fieldLabel}>{lineItems.length > 0 ? 'Next Item — Category' : 'Category'}</Text>
           <View style={s.catGrid}>
             {CATEGORIES.map((c) => {
               const active = category === c.value;
@@ -604,7 +705,7 @@ export default function EmployeeScanScreen() {
                 <TouchableOpacity
                   key={c.value}
                   style={[s.catCell, active && s.catCellActive]}
-                  onPress={() => setCategory(c.value)}
+                  onPress={() => selectCategory(c.value)}
                   activeOpacity={0.75}
                 >
                   <Text style={s.catEmoji}>{c.icon}</Text>
@@ -686,16 +787,31 @@ export default function EmployeeScanScreen() {
             </View>
           )}
 
-          <TouchableOpacity
-            style={[s.primaryBtn, (!validAmount || !validGallons || loading) && s.primaryBtnOff]}
-            onPress={handleGrantPoints}
-            disabled={!validAmount || !validGallons || loading}
-            activeOpacity={0.85}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.primaryBtnText}>Continue to Receipt →</Text>}
-          </TouchableOpacity>
+          {/* Action buttons */}
+          <View style={s.grantBtnRow}>
+            <TouchableOpacity
+              style={[s.addAnotherBtn, (!validAmount || !validGallons) && s.addAnotherBtnOff]}
+              onPress={addCurrentItem}
+              disabled={!validAmount || !validGallons}
+              activeOpacity={0.8}
+            >
+              <Text style={s.addAnotherBtnText}>+ Add{'\n'}Another</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.primaryBtn, s.grantMainBtn, (!validAmount || !validGallons || loading) && s.primaryBtnOff]}
+              onPress={handleGrantPoints}
+              disabled={!validAmount || !validGallons || loading}
+              activeOpacity={0.85}
+            >
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.primaryBtnText}>
+                    {lineItems.length > 0
+                      ? `Grant All (${lineItems.length + 1} items) →`
+                      : 'Continue to Receipt →'}
+                  </Text>}
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={s.ghostBtn} onPress={() => setStep('mode')}>
             <Text style={s.ghostBtnText}>← Back</Text>
@@ -798,7 +914,11 @@ export default function EmployeeScanScreen() {
             </Text>
           )}
           <Text style={s.doneName}>{customerInfo?.name || customerInfo?.phone}</Text>
-          <Text style={s.doneSub}>Cashback credited to their account</Text>
+          <Text style={s.doneSub}>
+            {transactionIds.length > 1
+              ? `${transactionIds.length} categories — cashback credited`
+              : 'Cashback credited to their account'}
+          </Text>
           {promotionApplied && (
             <View style={[s.promoBanner, { marginTop: 12 }]}>
               <Text style={s.promoBannerText}>🎉 Promo applied: {promotionApplied}</Text>
@@ -1224,6 +1344,37 @@ const s = StyleSheet.create({
   receiptImg: { width: '100%', height: 200, resizeMode: 'cover' },
   retakeRow: { padding: 10, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.04)' },
   retakeText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+
+  // ── Multi-item committed list ─────────────────────────────────────────────────
+  committedBox: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+    borderWidth: 1.5, borderColor: COLORS.primary + '30', gap: 8,
+  },
+  committedBoxLabel: {
+    fontSize: 11, fontWeight: '800', color: COLORS.primary,
+    textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 2,
+  },
+  committedRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.background, borderRadius: 10, padding: 10,
+  },
+  committedRowIcon: { fontSize: 18 },
+  committedRowCat: { fontSize: 13, fontWeight: '700', color: COLORS.text, flex: 1 },
+  committedRowAmt: { fontSize: 14, fontWeight: '800', color: COLORS.success },
+  committedRowGas: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  committedRowRemove: { fontSize: 20, color: COLORS.error, fontWeight: '700', paddingHorizontal: 4 },
+
+  // ── Grant buttons row ─────────────────────────────────────────────────────────
+  grantBtnRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  addAnotherBtn: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.primary,
+    minWidth: 80,
+  },
+  addAnotherBtnOff: { opacity: 0.35 },
+  addAnotherBtnText: { color: COLORS.primary, fontWeight: '800', fontSize: 13, textAlign: 'center', lineHeight: 18 },
+  grantMainBtn: { flex: 1 },
 
   // ── Buttons ───────────────────────────────────────────────────────────────────
   primaryBtn: {

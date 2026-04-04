@@ -4,13 +4,17 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType, ProductCategory } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
-import { sendPushToUser } from '../utils/push';
+import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
 
 // SUPER_ADMIN+ — basic store list (no billing info)
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true },
+    select: {
+      id: true, name: true, address: true, city: true, state: true, zipCode: true,
+      phone: true, latitude: true, longitude: true, shiftsPerDay: true,
+      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+    },
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: stores });
@@ -1032,4 +1036,79 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
       range: { from: fromDate.toISOString(), to: toDate.toISOString() },
     },
   });
+}
+
+// ─── Gas Prices ───────────────────────────────────────────────────────────────
+
+const gasPriceSchema = z.object({
+  gasPricePerGallon:    z.number().min(0).max(20).optional(),
+  dieselPricePerGallon: z.number().min(0).max(20).optional(),
+});
+
+/** PATCH /stores/:storeId/gas-prices — SuperAdmin or StoreManager */
+export async function updateGasPrices(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const parsed = gasPriceSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const { gasPricePerGallon, dieselPricePerGallon } = parsed.data;
+  if (gasPricePerGallon === undefined && dieselPricePerGallon === undefined) {
+    res.status(400).json({ success: false, error: 'Provide at least one price to update' });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = { gasPriceUpdatedAt: new Date() };
+  if (gasPricePerGallon    !== undefined) updateData.gasPricePerGallon    = gasPricePerGallon;
+  if (dieselPricePerGallon !== undefined) updateData.dieselPricePerGallon = dieselPricePerGallon;
+
+  const store = await prisma.store.update({
+    where: { id: storeId },
+    data: updateData,
+    select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true },
+  });
+
+  const parts: string[] = [];
+  if (gasPricePerGallon    !== undefined) parts.push(`Gas $${gasPricePerGallon.toFixed(3)}/gal`);
+  if (dieselPricePerGallon !== undefined) parts.push(`Diesel $${dieselPricePerGallon.toFixed(3)}/gal`);
+  const priceText = parts.join(' · ');
+
+  // Push + in-app → store staff only (they must update pump displays immediately)
+  sendPushToStoreStaff(
+    storeId,
+    `⛽ Gas Prices Updated — ${store.name}`,
+    `${priceText} — update pump display now`,
+    'GAS_PRICE_UPDATE',
+  );
+
+  // In-app only → all customers (no push — routine daily change)
+  prisma.user.findMany({ where: { role: 'CUSTOMER', isActive: true }, select: { id: true } })
+    .then((customers) => {
+      if (customers.length > 0) {
+        saveNotificationMany(
+          customers.map((c) => c.id),
+          `⛽ New Prices at ${store.name}`,
+          priceText,
+          'GAS_PRICE_UPDATE',
+        );
+      }
+    })
+    .catch(() => { /* non-critical */ });
+
+  res.json({ success: true, data: store });
+}
+
+/** GET /stores/gas-prices — all authenticated users (for home screen display) */
+export async function getAllGasPrices(_req: AuthRequest, res: Response) {
+  const stores = await prisma.store.findMany({
+    where: { isActive: true },
+    select: {
+      id: true, name: true, city: true, state: true,
+      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ success: true, data: stores });
 }
