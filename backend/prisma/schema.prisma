@@ -99,6 +99,12 @@ enum Tier {
   PLATINUM
 }
 
+enum PromoStatus {
+  PENDING    // Customer submitted, awaiting DevAdmin review
+  APPROVED   // DevAdmin published — visible to all customers
+  REJECTED   // DevAdmin rejected
+}
+
 // ─── Core Models ──────────────────────────────────────────────────────────────
 
 model User {
@@ -148,6 +154,7 @@ model User {
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
   submittedStoreRequests StoreRequest[]
+  businessPromotions     BusinessPromotion[]
 
   @@map("users")
 }
@@ -601,6 +608,35 @@ model CatalogRedemption {
   @@index([customerId])
   @@index([status])
   @@map("catalog_redemptions")
+}
+
+// ─── Business Promotions ──────────────────────────────────────────────────────
+
+model BusinessPromotion {
+  id               String      @id @default(uuid())
+  // Requester info (submitted by customer)
+  requesterId      String
+  requesterName    String
+  requesterPhone   String
+  businessName     String
+  businessDescription String
+  website          String?
+  // DevAdmin publish content
+  status           PromoStatus @default(PENDING)
+  adTitle          String?
+  adBody           String?
+  adImageUrl       String?
+  adExpiresAt      DateTime?
+  devAdminNote     String?
+  publishedAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  requester User @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([requesterId])
+  @@map("business_promotions")
 }
 
 // ─── Tier Benefit Claims ──────────────────────────────────────────────────────

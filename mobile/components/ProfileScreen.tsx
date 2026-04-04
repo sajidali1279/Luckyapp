@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch,
+  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { authApi } from '../services/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { authApi, promotionsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 
@@ -37,6 +38,38 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [confirmPin, setConfirmPin] = useState('');
   const [email, setEmail] = useState((user as any)?.email || '');
   const [loading, setLoading] = useState(false);
+
+  // Business promotion modal state
+  const [promoModalVisible, setPromoModalVisible] = useState(false);
+  const [promoName, setPromoName] = useState(user?.name || '');
+  const [promoPhone, setPromoPhone] = useState(user?.phone || '');
+  const [promoBusinessName, setPromoBusinessName] = useState('');
+  const [promoDesc, setPromoDesc] = useState('');
+  const [promoWebsite, setPromoWebsite] = useState('');
+
+  const { data: myPromoData } = useQuery({
+    queryKey: ['my-promo-request'],
+    queryFn: () => promotionsApi.getMy(),
+    enabled: isCustomer,
+  });
+  const myPromo = myPromoData?.data?.data;
+
+  const submitPromoMutation = useMutation({
+    mutationFn: () => promotionsApi.submit({
+      requesterName: promoName.trim(),
+      requesterPhone: promoPhone.trim(),
+      businessName: promoBusinessName.trim(),
+      businessDescription: promoDesc.trim(),
+      website: promoWebsite.trim() || undefined,
+    }),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Request submitted!', text2: "We'll reach out soon." });
+      setPromoModalVisible(false);
+    },
+    onError: (err: any) => {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to submit request' });
+    },
+  });
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
@@ -226,6 +259,40 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           </>
         )}
 
+        {/* Promote Your Business — customers only */}
+        {isCustomer && (
+          <>
+            <Text style={[s.sectionLabel, { marginTop: 8 }]}>Advertising</Text>
+            <TouchableOpacity
+              style={s.settingRow}
+              onPress={() => setPromoModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <View style={[s.settingIconBg, { backgroundColor: '#f9731618' }]}>
+                <Text style={s.settingEmoji}>📣</Text>
+              </View>
+              <View style={s.settingBody}>
+                <Text style={s.settingTitle}>Promote Your Business</Text>
+                <Text style={s.settingValue}>
+                  {myPromo?.status === 'PENDING'
+                    ? 'Request submitted — under review'
+                    : myPromo?.status === 'APPROVED'
+                    ? 'Your ad is live!'
+                    : myPromo?.status === 'REJECTED'
+                    ? 'Request not approved — tap to reapply'
+                    : 'Advertise to Lucky Stop customers'}
+                </Text>
+              </View>
+              {myPromo?.status === 'APPROVED'
+                ? <Text style={[s.chevron, { color: '#2DC653', fontSize: 18 }]}>✓</Text>
+                : myPromo?.status === 'PENDING'
+                ? <Text style={[s.chevron, { color: '#f97316', fontSize: 14 }]}>Pending</Text>
+                : <Text style={s.chevron}>›</Text>
+              }
+            </TouchableOpacity>
+          </>
+        )}
+
         {/* Biometric toggle */}
         {bioAvailable && (
           <View style={s.settingRow}>
@@ -270,6 +337,53 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
         <View style={{ height: 16 }} />
       </ScrollView>
+
+      {/* ── Promote Your Business Modal ── */}
+      <Modal visible={promoModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPromoModalVisible(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.modalRoot}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Promote Your Business</Text>
+              <TouchableOpacity onPress={() => setPromoModalVisible(false)} style={s.modalClose}>
+                <Text style={s.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={s.modalSubtitle}>Tell us about your business and we'll be in touch to set up your advertisement.</Text>
+            <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
+              <Text style={s.panelLabel}>Your Name</Text>
+              <TextInput style={s.panelInput} value={promoName} onChangeText={setPromoName} placeholder="Full name" placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
+              <Text style={s.panelLabel}>Contact Phone</Text>
+              <TextInput style={s.panelInput} value={promoPhone} onChangeText={setPromoPhone} placeholder="Phone number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
+              <Text style={s.panelLabel}>Business Name *</Text>
+              <TextInput style={s.panelInput} value={promoBusinessName} onChangeText={setPromoBusinessName} placeholder="Your business name" placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
+              <Text style={s.panelLabel}>Business Description *</Text>
+              <TextInput
+                style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
+                value={promoDesc}
+                onChangeText={setPromoDesc}
+                placeholder="What does your business do? Products, services, location..."
+                placeholderTextColor={COLORS.textMuted}
+                multiline
+                numberOfLines={4}
+              />
+              <Text style={s.panelLabel}>Website (optional)</Text>
+              <TextInput style={s.panelInput} value={promoWebsite} onChangeText={setPromoWebsite} placeholder="https://yourbusiness.com" placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
+              <Text style={s.emailHint}>Our team will review your request and reach out with pricing and details. You can also visit any Lucky Stop location to speak with the manager.</Text>
+              <TouchableOpacity
+                style={[s.panelBtn, { marginTop: 4, backgroundColor: '#f97316' }]}
+                onPress={() => submitPromoMutation.mutate()}
+                disabled={submitPromoMutation.isPending || !promoBusinessName.trim() || !promoDesc.trim()}
+              >
+                {submitPromoMutation.isPending
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.panelBtnText}>Submit Request</Text>
+                }
+              </TouchableOpacity>
+              <View style={{ height: 16 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -376,4 +490,17 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.error + '35',
   },
   signOutText: { color: COLORS.error, fontWeight: '800', fontSize: 16 },
+
+  // Promote Your Business modal
+  modalRoot: { flex: 1, backgroundColor: COLORS.background },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 20, paddingBottom: 12,
+    backgroundColor: '#f97316',
+  },
+  modalTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  modalClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  modalSubtitle: { fontSize: 14, color: COLORS.textMuted, paddingHorizontal: 20, paddingVertical: 12, lineHeight: 20 },
+  modalBody: { flex: 1, paddingHorizontal: 20 },
 });

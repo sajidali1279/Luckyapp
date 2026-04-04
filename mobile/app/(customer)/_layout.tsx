@@ -47,6 +47,13 @@ export default function CustomerLayout() {
       />
       <Tabs.Screen name="catalog" options={{ href: null }} />
       <Tabs.Screen
+        name="ads"
+        options={{
+          title: 'Ads',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📣" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="history"
         options={{
           title: 'History',

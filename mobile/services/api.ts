@@ -154,6 +154,18 @@ export const storesApi = {
   getGasPrices: () => api.get('/stores/gas-prices'),
 };
 
+export const promotionsApi = {
+  getPublished: () => api.get('/promotions'),
+  getMy: () => api.get('/promotions/my'),
+  submit: (data: {
+    requesterName: string;
+    requesterPhone: string;
+    businessName: string;
+    businessDescription: string;
+    website?: string;
+  }) => api.post('/promotions/request', data),
+};
+
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),

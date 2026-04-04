@@ -138,6 +138,15 @@ export const catalogApi = {
   delete: (id: string) => api.delete(`/catalog/${id}`),
 };
 
+export const promotionsApi = {
+  getRequests: (status?: string) => api.get(`/promotions/requests${status ? `?status=${status}` : ''}`),
+  publish: (id: string, data: { adTitle: string; adBody: string; adImageUrl?: string; adExpiresAt?: string; devAdminNote?: string }) =>
+    api.post(`/promotions/${id}/publish`, data),
+  reject: (id: string, devAdminNote?: string) =>
+    api.patch(`/promotions/${id}/reject`, { devAdminNote }),
+  delete: (id: string) => api.delete(`/promotions/${id}`),
+};
+
 export const storeRequestApi = {
   // Manager/admin
   getStoreRequests: (storeId: string, status?: string) =>

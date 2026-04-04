@@ -28,6 +28,7 @@ const Chat                   = lazy(() => import('./pages/Chat'));
 const StoreRequests          = lazy(() => import('./pages/StoreRequests'));
 const Profile                = lazy(() => import('./pages/Profile'));
 const Catalog                = lazy(() => import('./pages/Catalog'));
+const BusinessPromotions     = lazy(() => import('./pages/BusinessPromotions'));
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ export default function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/activity" element={<ActivityLog />} />
                 <Route path="/stores" element={<Stores />} />
+                <Route path="/promotions" element={<BusinessPromotions />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

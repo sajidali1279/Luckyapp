@@ -79,6 +79,9 @@ export default function Navbar() {
             <NavLink to="/stores" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🏪</span>Stores
             </NavLink>
+            <NavLink to="/promotions" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>📣</span>Promotions
+            </NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>
               Notifications

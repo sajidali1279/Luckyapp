@@ -49,6 +49,15 @@ import {
   getVacancies,
 } from '../controllers/schedule.controller';
 import {
+  submitPromotionRequest,
+  getPublishedPromotions,
+  getMyPromotionRequest,
+  getAllPromotionRequests,
+  publishPromotion,
+  rejectPromotion,
+  deletePromotion,
+} from '../controllers/promotions.controller';
+import {
   updateStoreBilling,
   getAllStoresBilling,
   getStores,
@@ -218,6 +227,15 @@ router.delete('/catalog/redeem/:id', authenticate, cancelRedemption);
 // Employee confirms a pending redemption
 router.get('/catalog/pending/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getPendingRedemptionsForCustomer);
 router.post('/catalog/redeem/:id/confirm', authenticate, requireRole(Role.EMPLOYEE), confirmRedemption);
+
+// ─── Business Promotions ──────────────────────────────────────────────────────
+router.post('/promotions/request', authenticate, requireRole(Role.CUSTOMER), submitPromotionRequest);    // Customer submits
+router.get('/promotions', authenticate, getPublishedPromotions);                                          // All authenticated — see published ads
+router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyPromotionRequest);            // Customer checks their own request
+router.get('/promotions/requests', authenticate, requireRole(Role.DEV_ADMIN), getAllPromotionRequests);   // DevAdmin sees all requests
+router.post('/promotions/:id/publish', authenticate, requireRole(Role.DEV_ADMIN), publishPromotion);     // DevAdmin publishes
+router.patch('/promotions/:id/reject', authenticate, requireRole(Role.DEV_ADMIN), rejectPromotion);      // DevAdmin rejects
+router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), deletePromotion);            // DevAdmin deletes
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request

@@ -195,6 +195,7 @@ export default function NotificationsScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
     backgroundColor: COLORS.secondary,
