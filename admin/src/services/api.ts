@@ -140,8 +140,8 @@ export const catalogApi = {
 
 export const promotionsApi = {
   getRequests: (status?: string) => api.get(`/promotions/requests${status ? `?status=${status}` : ''}`),
-  publish: (id: string, data: { adTitle: string; adBody: string; adImageUrl?: string; adExpiresAt?: string; devAdminNote?: string }) =>
-    api.post(`/promotions/${id}/publish`, data),
+  publish: (id: string, formData: FormData) =>
+    api.post(`/promotions/${id}/publish`, formData),
   reject: (id: string, devAdminNote?: string) =>
     api.patch(`/promotions/${id}/reject`, { devAdminNote }),
   delete: (id: string) => api.delete(`/promotions/${id}`),

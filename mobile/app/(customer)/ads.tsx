@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, StatusBar,
-  ActivityIndicator, RefreshControl, TouchableOpacity, Linking,
+  ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -64,6 +64,9 @@ export default function AdsScreen() {
           </View>
         </View>
 
+        {item.adImageUrl ? (
+          <Image source={{ uri: item.adImageUrl }} style={s.adImage} resizeMode="cover" />
+        ) : null}
         <Text style={s.adTitle}>{item.adTitle}</Text>
         <Text style={s.adBody}>{item.adBody}</Text>
 
@@ -172,6 +175,7 @@ const s = StyleSheet.create({
   },
   adBadgeText: { fontSize: 10, fontWeight: '800', color: '#f97316' },
 
+  adImage: { width: '100%', height: 180, borderRadius: 12, marginBottom: 2 },
   adTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text, lineHeight: 22 },
   adBody: { fontSize: 14, color: COLORS.textMuted, lineHeight: 21 },
 

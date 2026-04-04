@@ -1,6 +1,16 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import cloudinary from '../config/cloudinary';
+
+async function uploadToCloudinary(buffer: Buffer, folder: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'image' },
+      (err, result) => (err ? reject(err) : resolve((result as any).secure_url))
+    ).end(buffer);
+  });
+}
 
 // POST /promotions/request — customer submits a promotion request
 export async function submitPromotionRequest(req: AuthRequest, res: Response) {
@@ -21,6 +31,12 @@ export async function submitPromotionRequest(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Optional business logo upload
+  let logoUrl: string | null = null;
+  if (req.file) {
+    logoUrl = await uploadToCloudinary(req.file.buffer, 'luckystop/business-logos');
+  }
+
   const promo = await prisma.businessPromotion.create({
     data: {
       requesterId: userId,
@@ -29,6 +45,7 @@ export async function submitPromotionRequest(req: AuthRequest, res: Response) {
       businessName: businessName.trim(),
       businessDescription: businessDescription.trim(),
       website: website?.trim() || null,
+      adImageUrl: logoUrl, // store logo at submission; DevAdmin can override at publish time
     },
   });
 
@@ -87,12 +104,23 @@ export async function getAllPromotionRequests(req: AuthRequest, res: Response) {
 // POST /promotions/:id/publish — DevAdmin approves and publishes an ad
 export async function publishPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { adTitle, adBody, adImageUrl, adExpiresAt, devAdminNote } = req.body;
+  const { adTitle, adBody, adExpiresAt, devAdminNote } = req.body;
 
   if (!adTitle || !adBody) {
     res.status(400).json({ success: false, error: 'adTitle and adBody are required to publish' });
     return;
   }
+
+  // Upload new banner image if provided, otherwise keep existing
+  let adImageUrl: string | null | undefined;
+  if (req.file) {
+    adImageUrl = await uploadToCloudinary(req.file.buffer, 'luckystop/promo-banners');
+  } else if (req.body.adImageUrl !== undefined) {
+    adImageUrl = req.body.adImageUrl?.trim() || null;
+  }
+  // undefined = no change to existing image
+
+  const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { adImageUrl: true } });
 
   const promo = await prisma.businessPromotion.update({
     where: { id },
@@ -100,7 +128,7 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
       status: 'APPROVED',
       adTitle: adTitle.trim(),
       adBody: adBody.trim(),
-      adImageUrl: adImageUrl?.trim() || null,
+      adImageUrl: adImageUrl !== undefined ? adImageUrl : current?.adImageUrl,
       adExpiresAt: adExpiresAt ? new Date(adExpiresAt) : null,
       devAdminNote: devAdminNote?.trim() || null,
       publishedAt: new Date(),

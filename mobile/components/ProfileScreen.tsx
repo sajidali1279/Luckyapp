@@ -6,7 +6,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 import { authApi, promotionsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -46,6 +48,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [promoBusinessName, setPromoBusinessName] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
   const [promoWebsite, setPromoWebsite] = useState('');
+  const [promoImageUri, setPromoImageUri] = useState<string | null>(null);
 
   const { data: myPromoData } = useQuery({
     queryKey: ['my-promo-request'],
@@ -54,6 +57,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   });
   const myPromo = myPromoData?.data?.data;
 
+  const qc = useQueryClient();
+
   const submitPromoMutation = useMutation({
     mutationFn: () => promotionsApi.submit({
       requesterName: promoName.trim(),
@@ -61,15 +66,35 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       businessName: promoBusinessName.trim(),
       businessDescription: promoDesc.trim(),
       website: promoWebsite.trim() || undefined,
+      imageUri: promoImageUri || undefined,
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Request submitted!', text2: "We'll reach out soon." });
+      qc.invalidateQueries({ queryKey: ['my-promo-request'] });
       setPromoModalVisible(false);
+      setPromoImageUri(null);
     },
     onError: (err: any) => {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to submit request' });
     },
   });
+
+  async function pickPromoImage() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow photo access to upload a business image.' });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPromoImageUri(result.assets[0].uri);
+    }
+  }
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
@@ -368,6 +393,28 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               />
               <Text style={s.panelLabel}>Website (optional)</Text>
               <TextInput style={s.panelInput} value={promoWebsite} onChangeText={setPromoWebsite} placeholder="https://yourbusiness.com" placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
+
+              <Text style={s.panelLabel}>Business Image / Logo (optional)</Text>
+              {promoImageUri ? (
+                <View style={s.promoImgWrap}>
+                  <Image source={{ uri: promoImageUri }} style={s.promoImgPreview} resizeMode="cover" />
+                  <View style={s.promoImgActions}>
+                    <TouchableOpacity style={s.promoImgBtn} onPress={pickPromoImage} activeOpacity={0.8}>
+                      <Text style={s.promoImgBtnText}>🔄 Change</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[s.promoImgBtn, { borderColor: COLORS.error + '60' }]} onPress={() => setPromoImageUri(null)} activeOpacity={0.8}>
+                      <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>🗑 Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.promoImgPicker} onPress={pickPromoImage} activeOpacity={0.8}>
+                  <Text style={{ fontSize: 28 }}>🖼️</Text>
+                  <Text style={s.promoImgPickerText}>Tap to add a photo or logo</Text>
+                  <Text style={s.promoImgPickerSub}>Shown with your ad — JPG, PNG</Text>
+                </TouchableOpacity>
+              )}
+
               <Text style={s.emailHint}>Our team will review your request and reach out with pricing and details. You can also visit any Lucky Stop location to speak with the manager.</Text>
               <TouchableOpacity
                 style={[s.panelBtn, { marginTop: 4, backgroundColor: '#f97316' }]}
@@ -490,6 +537,23 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.error + '35',
   },
   signOutText: { color: COLORS.error, fontWeight: '800', fontSize: 16 },
+
+  // Image picker in promo modal
+  promoImgWrap: { gap: 8 },
+  promoImgPreview: { width: '100%', height: 160, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
+  promoImgActions: { flexDirection: 'row', gap: 8 },
+  promoImgBtn: {
+    flex: 1, borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 10, paddingVertical: 9, alignItems: 'center',
+  },
+  promoImgBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
+  promoImgPicker: {
+    borderWidth: 2, borderColor: COLORS.border, borderStyle: 'dashed',
+    borderRadius: 12, paddingVertical: 20,
+    alignItems: 'center', gap: 6, backgroundColor: COLORS.background,
+  },
+  promoImgPickerText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+  promoImgPickerSub: { fontSize: 12, color: COLORS.border },
 
   // Promote Your Business modal
   modalRoot: { flex: 1, backgroundColor: COLORS.background },

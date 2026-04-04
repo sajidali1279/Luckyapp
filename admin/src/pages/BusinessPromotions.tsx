@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
@@ -40,20 +40,42 @@ function formatDate(d: string) {
 
 function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => void }) {
   const qc = useQueryClient();
-  const [adTitle, setAdTitle]       = useState(promo.adTitle || promo.businessName);
-  const [adBody, setAdBody]         = useState(promo.adBody || promo.businessDescription);
-  const [adImageUrl, setAdImageUrl] = useState(promo.adImageUrl || '');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [adTitle, setAdTitle]         = useState(promo.adTitle || promo.businessName);
+  const [adBody, setAdBody]           = useState(promo.adBody || promo.businessDescription);
   const [adExpiresAt, setAdExpiresAt] = useState(promo.adExpiresAt ? promo.adExpiresAt.slice(0, 10) : '');
   const [devAdminNote, setDevAdminNote] = useState(promo.devAdminNote || '');
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(promo.adImageUrl || null);
+  const [removeImage, setRemoveImage] = useState(false);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+    setRemoveImage(false);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(promo.adImageUrl || null);
+    }
+  }
 
   const publishMutation = useMutation({
-    mutationFn: () => promotionsApi.publish(promo.id, {
-      adTitle: adTitle.trim(),
-      adBody: adBody.trim(),
-      adImageUrl: adImageUrl.trim() || undefined,
-      adExpiresAt: adExpiresAt || undefined,
-      devAdminNote: devAdminNote.trim() || undefined,
-    }),
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('adTitle', adTitle.trim());
+      fd.append('adBody', adBody.trim());
+      if (adExpiresAt) fd.append('adExpiresAt', adExpiresAt);
+      if (devAdminNote.trim()) fd.append('devAdminNote', devAdminNote.trim());
+      if (imageFile) {
+        fd.append('image', imageFile);
+      } else if (removeImage) {
+        fd.append('adImageUrl', ''); // signal to clear image
+      }
+      return promotionsApi.publish(promo.id, fd);
+    },
     onSuccess: () => {
       toast.success('Ad published successfully!');
       qc.invalidateQueries({ queryKey: ['promo-requests'] });
@@ -85,8 +107,39 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
             placeholder="Ad description shown to customers"
           />
 
-          <label style={m.label}>Image URL (optional)</label>
-          <input style={m.input} value={adImageUrl} onChange={e => setAdImageUrl(e.target.value)} placeholder="https://..." />
+          <label style={m.label}>Banner / Image (optional)</label>
+          <div style={m.imageArea}>
+            {imagePreview && !removeImage ? (
+              <div style={m.previewWrap}>
+                <img src={imagePreview} alt="preview" style={m.previewImg} />
+                <div style={m.previewActions}>
+                  <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
+                    🔄 Change
+                  </button>
+                  <button
+                    style={{ ...m.changeImgBtn, color: '#dc2626', borderColor: '#fca5a5' }}
+                    type="button"
+                    onClick={() => { setRemoveImage(true); setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
+                  >
+                    🗑 Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button style={m.uploadBtn} type="button" onClick={() => fileRef.current?.click()}>
+                <span style={{ fontSize: 24 }}>🖼️</span>
+                <span style={m.uploadBtnText}>Click to upload banner image</span>
+                <span style={m.uploadBtnSub}>PNG, JPG, WEBP · max 10MB</span>
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+          </div>
 
           <label style={m.label}>Expiry Date (optional)</label>
           <input style={m.input} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
@@ -440,5 +493,22 @@ const m: Record<string, React.CSSProperties> = {
   publishBtn: {
     padding: '9px 20px', borderRadius: 8, border: 'none',
     background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+  },
+
+  imageArea: { marginBottom: 4 },
+  uploadBtn: {
+    width: '100%', padding: '20px 16px', borderRadius: 10,
+    border: '2px dashed #cbd5e1', background: '#f8fafc',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    cursor: 'pointer',
+  },
+  uploadBtnText: { fontSize: 14, fontWeight: 600, color: '#475569' },
+  uploadBtnSub: { fontSize: 11, color: '#94a3b8' },
+  previewWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
+  previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e2e8f0' },
+  previewActions: { display: 'flex', gap: 8 },
+  changeImgBtn: {
+    padding: '6px 14px', borderRadius: 7, border: '1.5px solid #cbd5e1',
+    background: '#fff', fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer',
   },
 };

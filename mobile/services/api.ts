@@ -157,13 +157,39 @@ export const storesApi = {
 export const promotionsApi = {
   getPublished: () => api.get('/promotions'),
   getMy: () => api.get('/promotions/my'),
-  submit: (data: {
+  submit: async (data: {
     requesterName: string;
     requesterPhone: string;
     businessName: string;
     businessDescription: string;
     website?: string;
-  }) => api.post('/promotions/request', data),
+    imageUri?: string;
+  }) => {
+    if (data.imageUri) {
+      // Build FormData for multipart upload
+      const fd = new FormData();
+      fd.append('requesterName', data.requesterName);
+      fd.append('requesterPhone', data.requesterPhone);
+      fd.append('businessName', data.businessName);
+      fd.append('businessDescription', data.businessDescription);
+      if (data.website) fd.append('website', data.website);
+      const filename = data.imageUri.split('/').pop() ?? 'image.jpg';
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+      (fd as any).append('image', { uri: data.imageUri, name: filename, type: mimeMap[ext] ?? 'image/jpeg' });
+      const res = await fetchWithAuth('/promotions/request', { method: 'POST', body: fd as any });
+      const json = await res.json();
+      if (!res.ok) throw { response: { data: json, status: res.status } };
+      return { data: json };
+    }
+    return api.post('/promotions/request', {
+      requesterName: data.requesterName,
+      requesterPhone: data.requesterPhone,
+      businessName: data.businessName,
+      businessDescription: data.businessDescription,
+      website: data.website,
+    });
+  },
 };
 
 export const managerApi = {
