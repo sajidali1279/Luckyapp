@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
+import EmptyState from './EmptyState';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -132,7 +133,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(poll, 5000);
+    pollRef.current = setInterval(poll, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
@@ -250,13 +251,7 @@ export default function ChatScreen() {
   }
 
   if (stores.length === 0) {
-    return (
-      <View style={s.centered}>
-        <Text style={s.emptyEmoji}>💬</Text>
-        <Text style={s.emptyTitle}>No store chats yet</Text>
-        <Text style={s.emptySub}>You'll see your store team chats once you're assigned to a store.</Text>
-      </View>
-    );
+    return <EmptyState emoji="💬" title="No store chats yet" subtitle="You'll see your store team chats once you're assigned to a store." />;
   }
 
   return (
@@ -475,7 +470,4 @@ const s = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
   sendBtnIcon: { color: '#fff', fontSize: 20, fontWeight: '800' },
 
-  emptyEmoji: { fontSize: 52, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  emptySub: { fontSize: 13, color: '#9ca3af', marginTop: 6, textAlign: 'center', paddingHorizontal: 40 },
 });

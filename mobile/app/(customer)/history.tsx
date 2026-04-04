@@ -4,6 +4,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import EmptyState from '../../components/EmptyState';
 import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -54,11 +55,7 @@ export default function HistoryScreen() {
           onEndReachedThreshold={0.3}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={s.emptyCard}>
-              <Text style={s.emptyIcon}>🧾</Text>
-              <Text style={s.emptyTitle}>No transactions yet</Text>
-              <Text style={s.emptySub}>Visit a Lucky Stop and show your QR code to earn your first credits!</Text>
-            </View>
+            <EmptyState emoji="🧾" title="No transactions yet" subtitle="Visit a Lucky Stop and show your QR code to earn your first credits!" />
           }
           ListFooterComponent={
             isFetchingNextPage
@@ -191,12 +188,6 @@ const s = StyleSheet.create({
   points: { fontSize: 18, fontWeight: '800', color: COLORS.success },
   purchase: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
   tapHint: { color: COLORS.textMuted, fontSize: 10, marginTop: 4, fontWeight: '600' },
-
-  // Empty state
-  emptyCard: { alignItems: 'center', gap: 12, padding: 20 },
-  emptyIcon: { fontSize: 64 },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-  emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // Footer
   footerLoader: { paddingVertical: 20, alignItems: 'center' },

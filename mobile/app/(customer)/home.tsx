@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi } from '../../services/api';
@@ -12,12 +12,12 @@ import { COLORS } from '../../constants';
 const SCREEN_W = Dimensions.get('window').width;
 const BANNER_W = SCREEN_W - 32; // 16px margin each side
 
-function BannerCarousel({ banners }: { banners: any[] }) {
+const BannerCarousel = memo(function BannerCarousel({ banners }: { banners: any[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  function startTimer(index: number) {
+  const startTimer = useCallback((index: number) => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setActiveIndex(prev => {
@@ -26,13 +26,24 @@ function BannerCarousel({ banners }: { banners: any[] }) {
         return next;
       });
     }, 3500);
-  }
+  }, [banners.length]);
 
   useEffect(() => {
     if (banners.length <= 1) return;
     startTimer(0);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [banners.length]);
+  }, [banners.length, startTimer]);
+
+  const renderBannerItem = useCallback(({ item }: { item: any }) => (
+    <View style={bc.slide}>
+      <Image source={{ uri: item.imageUrl }} style={bc.image} />
+      {item.title ? (
+        <View style={bc.titleBar}>
+          <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
+        </View>
+      ) : null}
+    </View>
+  ), []);
 
   if (banners.length === 0) return null;
 
@@ -53,16 +64,7 @@ function BannerCarousel({ banners }: { banners: any[] }) {
           startTimer(idx);
         }}
         getItemLayout={(_, index) => ({ length: BANNER_W + 12, offset: (BANNER_W + 12) * index, index })}
-        renderItem={({ item }) => (
-          <View style={bc.slide}>
-            <Image source={{ uri: item.imageUrl }} style={bc.image} />
-            {item.title ? (
-              <View style={bc.titleBar}>
-                <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
-              </View>
-            ) : null}
-          </View>
-        )}
+        renderItem={renderBannerItem}
       />
       {banners.length > 1 && (
         <View style={bc.dots}>
@@ -73,7 +75,7 @@ function BannerCarousel({ banners }: { banners: any[] }) {
       )}
     </View>
   );
-}
+});
 
 export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
@@ -119,7 +121,7 @@ export default function CustomerHome() {
   const { data: gasPricesData } = useQuery({
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
-    staleTime: 5 * 60 * 1000, // 5 min
+    staleTime: 30 * 60 * 1000, // 30 min — prices change once daily
   });
   const gasPrices: any[] = (gasPricesData?.data?.data ?? []).filter(
     (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null

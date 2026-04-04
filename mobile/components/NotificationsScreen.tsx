@@ -9,12 +9,26 @@ import { router } from 'expo-router';
 import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
+import EmptyState from './EmptyState';
 
 function getNotifRoute(type: string, role?: string): string | null {
   if (role === 'CUSTOMER') {
     if (type === 'OFFER') return '/(customer)/home';
     if (type === 'POINTS') return '/(customer)/history';
     if (type === 'REDEMPTION') return '/(customer)/rewards';
+    if (type === 'GAS_PRICE_UPDATE') return '/(customer)/home';
+  }
+  if (role === 'EMPLOYEE') {
+    if (type === 'SHIFT_REQUEST') return '/(employee)/requests';
+    if (type === 'SCHEDULE') return '/(employee)/schedule';
+    if (type === 'GAS_PRICE_UPDATE') return '/(employee)/scan';
+    if (type === 'STORE_REQUEST') return '/(employee)/requests';
+  }
+  if (role === 'STORE_MANAGER') {
+    if (type === 'STORE_REQUEST') return '/(manager)/requests';
+    if (type === 'SCHEDULE') return '/(manager)/schedule';
+    if (type === 'SHIFT_REQUEST') return '/(manager)/requests';
+    if (type === 'GAS_PRICE_UPDATE') return '/(manager)/home';
   }
   return null;
 }
@@ -148,11 +162,7 @@ export default function NotificationsScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : notifications.length === 0 ? (
-        <View style={s.center}>
-          <Text style={s.emptyEmoji}>🔔</Text>
-          <Text style={s.emptyTitle}>All caught up!</Text>
-          <Text style={s.emptySub}>No notifications yet. We'll let you know when something happens.</Text>
-        </View>
+        <EmptyState emoji="🔔" title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
       ) : (
         <FlatList
           data={notifications}
@@ -255,8 +265,4 @@ const s = StyleSheet.create({
 
   separator: { height: 0 },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-  emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
 });
