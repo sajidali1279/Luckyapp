@@ -101,7 +101,7 @@ export default function Login() {
   return (
     <div style={s.page}>
       {/* ── Left branding panel ── */}
-      <div style={s.brand}>
+      <div style={s.brand} className="login-brand-panel">
         <div style={s.brandNoise} />
         <div style={s.brandInner}>
           <div style={s.logoWrap}>

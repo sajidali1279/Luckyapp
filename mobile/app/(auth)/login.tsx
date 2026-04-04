@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { router } from 'expo-router';
@@ -155,6 +156,7 @@ export default function LoginScreen() {
     const bioType = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Fingerprint / Face unlock';
     return (
       <View style={styles.bioOfferRoot}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
         <View style={styles.bioOfferCard}>
           <Text style={styles.bioOfferIcon}>🔐</Text>
           <Text style={styles.bioOfferTitle}>Enable {bioType}?</Text>
@@ -179,7 +181,9 @@ export default function LoginScreen() {
       : '';
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <SafeAreaView style={styles.safeTop} />
+        <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={styles.logo}>⛽ Lucky Stop</Text>
             <Text style={styles.tagline}>Welcome back</Text>
@@ -187,9 +191,7 @@ export default function LoginScreen() {
 
           <View style={styles.quickCard}>
             <View style={styles.quickAvatar}>
-              <Text style={styles.quickAvatarText}>
-                {quickLoginPhone?.[0] || '?'}
-              </Text>
+              <Text style={styles.quickAvatarIcon}>👤</Text>
             </View>
             <Text style={styles.quickPhone}>{displayPhone}</Text>
 
@@ -201,7 +203,11 @@ export default function LoginScreen() {
                     {Platform.OS === 'ios' ? 'Use Face ID / Touch ID' : 'Use Fingerprint'}
                   </Text>
                 </TouchableOpacity>
-                <Text style={styles.orDivider}>— or enter PIN —</Text>
+                <View style={styles.orDivider}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>or enter PIN</Text>
+                  <View style={styles.orLine} />
+                </View>
               </>
             ) : null}
 
@@ -247,6 +253,8 @@ export default function LoginScreen() {
   // ── Full login / register ──
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>⛽ Lucky Stop</Text>
@@ -360,7 +368,9 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  safeTop: { backgroundColor: COLORS.background },
+  scroll: { padding: 24, paddingTop: 16, paddingBottom: 40 },
+  scrollQuick: { padding: 24, paddingTop: 16, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' },
   header: { alignItems: 'center', marginBottom: 32 },
   logo: { fontSize: 36, fontWeight: '800', color: COLORS.primary },
   tagline: { fontSize: 16, color: COLORS.textMuted, marginTop: 8 },
@@ -377,10 +387,10 @@ const styles = StyleSheet.create({
   form: { gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginTop: 8 },
   input: {
-    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.border,
     borderRadius: 12, padding: 16, fontSize: 16, color: COLORS.text,
   },
-  pinInput: { fontSize: 24, letterSpacing: 8, textAlign: 'center' },
+  pinInput: { fontSize: 28, letterSpacing: 12, textAlign: 'center' },
   pinHint: { color: COLORS.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   button: {
     backgroundColor: COLORS.primary, borderRadius: 12,
@@ -398,12 +408,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
   },
   quickAvatar: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: COLORS.primary + '18',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.primary + '15',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2.5, borderColor: COLORS.primary + '30',
   },
-  quickAvatarText: { fontSize: 32, fontWeight: '800', color: COLORS.primary },
+  quickAvatarIcon: { fontSize: 36 },
   quickPhone: { fontSize: 18, fontWeight: '700', color: COLORS.text },
 
   // Biometric button
@@ -416,7 +426,9 @@ const styles = StyleSheet.create({
   },
   bioBtnIcon: { fontSize: 22 },
   bioBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.secondary },
-  orDivider: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
+  orLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  orText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
 
   // Biometric offer screen
   bioOfferRoot: {
