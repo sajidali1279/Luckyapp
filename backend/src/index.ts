@@ -28,6 +28,8 @@ const corsOptions: cors.CorsOptions = {
     // No origin = React Native / Postman / server-to-server — always allow
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // Allow any Vercel preview/production deployment for this project
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
