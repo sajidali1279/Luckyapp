@@ -32,7 +32,20 @@
           "sounds": []
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Lucky Stop needs access to your photo library so you can upload a business logo or image for your promotion.",
+          "cameraPermission": "Lucky Stop needs access to your camera to take a photo for your promotion."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Lucky Stop uses Face ID to let you sign in quickly without typing your PIN."
+        }
+      ]
     ],
     "scheme": "luckystop",
     "extra": {

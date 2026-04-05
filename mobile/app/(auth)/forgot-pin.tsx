@@ -30,7 +30,7 @@ export default function ForgotPinScreen() {
     setLoading(true);
     try {
       await authApi.forgotPin(phone.trim(), email.trim() || undefined);
-      Toast.show({ type: 'success', text1: 'OTP sent!', text2: 'Check your email or the console (dev mode)' });
+      Toast.show({ type: 'success', text1: 'OTP sent!', text2: 'Check your email for the 6-digit code.' });
       setStep('verify');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to send OTP' });
