@@ -5,7 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#1D3557",
       "resizeMode": "contain"
     },
@@ -15,7 +17,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E63946"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1D3557"
       },
       "package": "com.luckystop.app",
       "permissions": [
