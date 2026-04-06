@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { Role, Tier } from '@prisma/client';
 import { Request } from 'express';
 
 export interface AuthUser {
@@ -6,6 +6,7 @@ export interface AuthUser {
   phone: string;
   name?: string;
   role: Role;
+  tier: Tier;           // Customer's cashback tier (BRONZE→PLATINUM)
   storeIds?: string[];  // Stores this employee/manager belongs to
 }
 

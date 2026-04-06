@@ -73,6 +73,8 @@ import {
   updateCategoryRate,
   getDevCutRate,
   updateDevCutRate,
+  getTierRates,
+  updateTierRate,
   generateMonthlyBilling,
   generateAllMissingBills,
   getMonthlyRecords,
@@ -169,6 +171,8 @@ router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMI
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
+router.get('/billing/tier-rates', authenticate, requireRole(Role.SUPER_ADMIN), getTierRates);
+router.put('/billing/tier-rates/:tier', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRate);
 router.get('/billing/category-rates', authenticate, requireRole(Role.DEV_ADMIN), getCategoryRates);
 router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);
 router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), getDevCutRate);

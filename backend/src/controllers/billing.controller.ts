@@ -2,8 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { BillingType, ProductCategory } from '@prisma/client';
-import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
+import { BillingType, ProductCategory, Tier } from '@prisma/client';
+import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
 
 // SUPER_ADMIN+ — basic store list (no billing info)
@@ -208,6 +208,47 @@ export async function updateCategoryRate(req: AuthRequest, res: Response) {
     where: { category: category as ProductCategory },
     update: { cashbackRate: parsed.data.cashbackRate },
     create: { category: category as ProductCategory, cashbackRate: parsed.data.cashbackRate },
+  });
+  res.json({ success: true, data: rate });
+}
+
+// ─── Tier Cashback Rates (DevAdmin configurable) ─────────────────────────────
+
+const TIER_ORDER: Tier[] = [Tier.BRONZE, Tier.SILVER, Tier.GOLD, Tier.DIAMOND, Tier.PLATINUM];
+
+export async function getTierRates(_req: AuthRequest, res: Response) {
+  const stored = await prisma.tierCashbackRate.findMany();
+  const fullMap = Object.fromEntries(stored.map((r) => [r.tier, r]));
+  const rates = TIER_ORDER.map((tier) => ({
+    tier,
+    cashbackRate:      fullMap[tier]?.cashbackRate      ?? DEFAULT_TIER_RATES[tier],
+    gasCentsPerGallon: fullMap[tier]?.gasCentsPerGallon ?? null,
+  }));
+
+  res.json({ success: true, data: rates });
+}
+
+export async function updateTierRate(req: AuthRequest, res: Response) {
+  const { tier } = req.params;
+  if (!Object.values(Tier).includes(tier as Tier)) {
+    res.status(400).json({ success: false, error: 'Invalid tier' });
+    return;
+  }
+  const parsed = z.object({
+    cashbackRate:      z.number().min(0).max(1).optional(),
+    gasCentsPerGallon: z.number().min(0).nullable().optional(), // null = disable per-gallon, use % instead
+  }).refine(d => d.cashbackRate !== undefined || d.gasCentsPerGallon !== undefined, {
+    message: 'Provide cashbackRate and/or gasCentsPerGallon',
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+  const defaultRate = DEFAULT_TIER_RATES[tier] ?? 0.01;
+  const rate = await prisma.tierCashbackRate.upsert({
+    where:  { tier: tier as Tier },
+    update: parsed.data,
+    create: { tier: tier as Tier, cashbackRate: parsed.data.cashbackRate ?? defaultRate, gasCentsPerGallon: parsed.data.gasCentsPerGallon ?? null },
   });
   res.json({ success: true, data: rate });
 }
@@ -458,20 +499,16 @@ const AMOUNT_RANGES: Record<string, [number, number]> = {
 };
 
 export async function seedTestTransactions(_req: AuthRequest, res: Response) {
-  const [stores, employees, customers, config] = await Promise.all([
-    prisma.store.findMany({ where: { isActive: true } }),
+  const [stores, employees, customers] = await Promise.all([
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, transactionFeeRate: true } }),
     prisma.user.findMany({ where: { role: { in: ['EMPLOYEE', 'STORE_MANAGER', 'DEV_ADMIN'] as any } } }),
     prisma.user.findMany({ where: { role: 'CUSTOMER' as any } }),
-    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
 
   if (!stores.length || !employees.length || !customers.length) {
     res.status(400).json({ success: false, error: 'No stores/employees/customers found. Run user reset first.' });
     return;
   }
-
-  const devCutRate   = parseFloat(config?.value ?? String(DEFAULT_DEV_CUT_RATE));
-  const CASHBACK_RATE = 0.05;
 
   function rand(min: number, max: number) { return Math.random() * (max - min) + min; }
   function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -493,17 +530,19 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
       const category = pick(WEIGHTED_CATEGORIES);
       const [min, max] = AMOUNT_RANGES[category as string] ?? [5, 50];
       const purchaseAmount = parseFloat(rand(min, max).toFixed(2));
-      const cashbackIssued = parseFloat((purchaseAmount * CASHBACK_RATE).toFixed(4));
-      const devCut         = parseFloat((cashbackIssued * devCutRate).toFixed(4));
-      const pointsAwarded  = parseFloat((cashbackIssued - devCut).toFixed(2));
+      const cashbackRate   = DEFAULT_TIER_RATES[customer.tier as string] ?? 0.01;
+      const cashbackIssued = parseFloat((purchaseAmount * cashbackRate).toFixed(4));
+      const devCutRate     = store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
+      const devCut         = parseFloat((purchaseAmount * devCutRate).toFixed(4));
+      const pointsAwarded  = cashbackIssued; // customer gets full cashback
       const createdAt      = new Date(txDate);
       createdAt.setMinutes(Math.floor(rand(0, 59)));
 
       balanceMap[customer.id] = (balanceMap[customer.id] ?? 0) + pointsAwarded;
       txRows.push({
         customerId: customer.id, grantedById: employee.id, storeId: store.id,
-        purchaseAmount, pointsAwarded, devCut, storeCost: cashbackIssued,
-        cashbackRate: CASHBACK_RATE, category, status: 'APPROVED',
+        purchaseAmount, pointsAwarded, devCut, storeCost: parseFloat((cashbackIssued + devCut).toFixed(2)),
+        cashbackRate, category, status: 'APPROVED',
         receiptImageUrl: 'https://placehold.co/400x600/png?text=Receipt',
         createdAt, updatedAt: createdAt,
       });

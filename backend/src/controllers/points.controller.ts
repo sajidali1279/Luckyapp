@@ -7,8 +7,8 @@ import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
-import { DEFAULT_CASHBACK_RATE, DEFAULT_DEV_CUT_RATE } from '../config/constants';
-import { calculateTier, getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress } from '../utils/tier';
+import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
+import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -44,40 +44,61 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Look up per-category rate, active promotional offer, and dev cut rate simultaneously
+  // Look up tier base rate, active promo offer, and store dev-cut rate simultaneously
   const now = new Date();
-  const [categoryRate, activeOffer, devCutConfig] = await Promise.all([
-    prisma.categoryRate.findUnique({ where: { category } }),
+  const customerTier = customer.tier;
+
+  const [tierRate, activeOffer, store] = await Promise.all([
+    prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
     prisma.offer.findFirst({
       where: {
         isActive: true,
-        bonusRate: { not: null },
         startDate: { lte: now },
         endDate: { gte: now },
+        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
         AND: [
           { OR: [{ type: 'ALL_STORES' }, { storeId }] },
           { OR: [{ category: null }, { category }] },
         ],
       },
-      orderBy: { bonusRate: 'desc' }, // highest promo wins if multiple active
-      select: { bonusRate: true, title: true },
+      orderBy: { bonusRate: 'desc' }, // highest flat bonus first; per-tier offers should also set bonusRate = max tier bonus
+      select: { bonusRate: true, tierBonusRates: true, title: true },
     }),
-    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true } }),
   ]);
 
-  const baseCashbackRate = categoryRate?.cashbackRate ?? DEFAULT_CASHBACK_RATE;
-  // Promotion wins if its rate is higher than the default — reverts automatically when offer expires
-  const cashbackRate = Math.max(baseCashbackRate, activeOffer?.bonusRate ?? 0);
-  const promotionApplied = (activeOffer?.bonusRate ?? 0) > baseCashbackRate ? activeOffer!.title : null;
+  // Tier base rate: configured per tier, falls back to DEFAULT_TIER_RATES constant
+  const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
 
-  // Dev cut is taken from cashback issued — customer receives the remainder, store pays the full amount
-  const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
-  const cashbackIssued = parseFloat((purchaseAmount * cashbackRate).toFixed(4));
-  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(2));
-  const pointsAwarded = parseFloat((cashbackIssued - devCut).toFixed(2));
-  const storeCost = cashbackIssued; // store pays the full cashback amount (dev cut is taken from that pool)
+  // Gas per-gallon mode: if gasCentsPerGallon is configured for this tier AND this is a gas/diesel transaction
+  const isGasCategory = category === ProductCategory.GAS || category === ProductCategory.DIESEL;
+  const gasPerGallonRate = tierRate?.gasCentsPerGallon ?? null;
+  const usePerGallonMode = isGasCategory && isGas && gasGallons != null && gasPerGallonRate != null;
 
-  // Gas tier bonus
+  let cashbackIssued: number;
+  let effectiveCashbackRate: number;
+  let promotionApplied: string | null = null;
+  let promoBonus = 0;
+
+  if (usePerGallonMode) {
+    // Flat cents-per-gallon mode — promo % doesn't apply (rate is already fixed per gallon)
+    cashbackIssued = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
+    effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
+  } else {
+    // Percentage mode — tier base + any active promo bonus
+    promoBonus = getTierBonusRate(activeOffer, customerTier);
+    promotionApplied = promoBonus > 0 ? activeOffer!.title : null;
+    effectiveCashbackRate = parseFloat((tierBaseRate + promoBonus).toFixed(4));
+    cashbackIssued = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
+  }
+
+  // Customer always receives the full effective cashback — dev cut is billed separately to the store
+  const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
+  const devCut = parseFloat((purchaseAmount * devCutRate).toFixed(2));  // % of purchase, billed to store
+  const pointsAwarded = cashbackIssued;                                 // customer gets full cashback
+  const storeCost = parseFloat((cashbackIssued + devCut).toFixed(2));   // store owes: cashback + dev cut
+
+  // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode)
   const gasBonusRate = (isGas && gasGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
   const gasBonusPoints = parseFloat(((gasGallons ?? 0) * gasBonusRate).toFixed(2));
 
@@ -91,7 +112,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       pointsAwarded,
       devCut,
       storeCost,
-      cashbackRate,
+      cashbackRate: effectiveCashbackRate,
       category,
       notes,
       status: TransactionStatus.PENDING,
@@ -110,10 +131,14 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       customer: { id: customer.id, name: customer.name, phone: customer.phone },
       pointsAwarded,
       purchaseAmount,
-      cashbackRate,
-      promotionApplied, // null if regular rate; string title if a promo boosted the rate
-      gasBonusPoints,
       tier: customer.tier,
+      gasMode: usePerGallonMode ? 'PER_GALLON' : 'PERCENTAGE',
+      gasCentsPerGallon: usePerGallonMode ? gasPerGallonRate : null,
+      tierBaseRate,
+      promoBonus,
+      cashbackRate: effectiveCashbackRate,
+      promotionApplied,
+      gasBonusPoints,
     },
   });
 }
@@ -176,24 +201,20 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   ]);
 
   // Update periodPoints + recalculate tier
+  const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
   const updatedCustomer = await prisma.user.update({
     where: { id: transaction.customerId },
     data: {
-      pointsBalance: { increment: transaction.pointsAwarded + transaction.gasBonusPoints },
-      periodPoints: { increment: transaction.pointsAwarded + transaction.gasBonusPoints },
+      pointsBalance: { increment: totalPoints },
+      periodPoints:  { increment: totalPoints },
     },
   });
-  const newTier = calculateTier(updatedCustomer.periodPoints);
-  if (newTier !== updatedCustomer.tier) {
-    await prisma.user.update({ where: { id: transaction.customerId }, data: { tier: newTier } });
-    sendPushToUser(transaction.customerId, `🎉 Tier Up! You're now ${newTier}!`, `You've reached ${newTier} tier. Check your new benefits!`, 'GENERAL');
-  }
+  await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
 
-  // Notify customer their points were credited
   sendPushToUser(
     transaction.customerId,
     '💰 Points Credited!',
-    `${Math.round((transaction.pointsAwarded + transaction.gasBonusPoints) * 100)} pts added to your Lucky Stop balance.`,
+    `${Math.round(totalPoints * 100)} pts added to your Lucky Stop balance.`,
     'POINTS'
   );
 

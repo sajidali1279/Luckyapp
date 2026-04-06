@@ -258,7 +258,20 @@ model PointsTransaction {
   @@map("points_transactions")
 }
 
-// ─── Category Cashback Rates (DevAdmin configurable) ─────────────────────────
+// ─── Tier Cashback Rates (DevAdmin configurable) ─────────────────────────────
+// Primary rate driver: customer's tier determines base cashback %
+// Bronze=1%, Silver=2%, Gold=3%, Diamond=4%, Platinum=5% (all configurable)
+
+model TierCashbackRate {
+  tier              Tier     @id
+  cashbackRate      Float    // percentage cashback for all categories (e.g. 0.01 = 1%)
+  gasCentsPerGallon Float?   // if set: flat ¢/gallon for GAS/DIESEL instead of percentage (e.g. 3.0 = 3¢/gal)
+  updatedAt         DateTime @updatedAt
+
+  @@map("tier_cashback_rates")
+}
+
+// ─── Category Cashback Rates (legacy — kept for reference, not used in grant) ─
 
 model CategoryRate {
   category     ProductCategory @id
@@ -297,8 +310,9 @@ model Offer {
   type        OfferType   @default(ALL_STORES)
   storeId     String?
   category    ProductCategory?
-  bonusRate   Float?      // cashback promotion rate (auto-applied at grant time)
-  dealText    String?     // price deal label e.g. "2 for $5" (display only)
+  bonusRate      Float?  // bonus for ALL tiers equally — OR max value when tierBonusRates is set (used for ordering)
+  tierBonusRates Json?   // per-tier bonus override: {"BRONZE": 0.03, "GOLD": 0.01, ...} — wins over bonusRate per tier
+  dealText       String? // price deal label e.g. "2 for $5" (display only)
   startDate   DateTime
   endDate     DateTime
   isActive    Boolean     @default(true)

@@ -87,6 +87,10 @@ function todayStr() { return new Date().toISOString().slice(0, 10); }
 function endOfMonthStr() { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
+const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
+type TierKey = typeof TIERS[number];
+const TIER_EMOJI: Record<TierKey, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Offers() {
@@ -111,6 +115,8 @@ export default function Offers() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
+  const [useTierBonuses, setUseTierBonuses] = useState(false);
+  const [tierBonuses, setTierBonuses] = useState({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
   const [type, setType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
   const [storeId, setStoreId] = useState('');
   const [category, setCategory] = useState('');
@@ -149,6 +155,7 @@ export default function Offers() {
   function resetForm() {
     setShowForm(false);
     setTitle(''); setDescription(''); setBonusRate('');
+    setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory('');
     setStartDate(todayStr()); setEndDate(endOfMonthStr()); setImageFile(null);
     if (fileRef.current) fileRef.current.value = '';
@@ -190,7 +197,19 @@ export default function Offers() {
     fd.append('type', type);
     fd.append('startDate', new Date(startDate).toISOString());
     fd.append('endDate', new Date(endDate + 'T23:59:59').toISOString());
-    if (bonusRate) fd.append('bonusRate', (parseFloat(bonusRate) / 100).toString());
+    if (useTierBonuses) {
+      const tierMap: Record<string, number> = {};
+      for (const t of TIERS) {
+        const v = parseFloat(tierBonuses[t]);
+        if (!isNaN(v) && v > 0) tierMap[t] = v / 100;
+      }
+      if (Object.keys(tierMap).length === 0) { toast.error('Enter at least one tier bonus rate'); return; }
+      fd.append('tierBonusRates', JSON.stringify(tierMap));
+      // bonusRate = max tier bonus (for server ordering)
+      fd.append('bonusRate', String(Math.max(...Object.values(tierMap))));
+    } else if (bonusRate) {
+      fd.append('bonusRate', (parseFloat(bonusRate) / 100).toString());
+    }
     if (type === 'SPECIFIC_STORE' && storeId) fd.append('storeId', storeId);
     if (category) fd.append('category', category);
     if (imageFile) fd.append('image', imageFile);
@@ -321,8 +340,32 @@ export default function Offers() {
               <input style={s.input} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
-          <label style={s.label}>Bonus Cashback % (optional — adds on top of standard rate)</label>
-          <input style={s.input} type="number" min="0" max="100" value={bonusRate} onChange={(e) => setBonusRate(e.target.value)} placeholder="e.g. 5 = customers earn 10% total" />
+          {/* Bonus rate — flat or per-tier */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <label style={{ ...s.label, margin: 0 }}>Bonus Cashback % (adds on top of tier base rate)</label>
+            <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
+              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#495057', cursor: 'pointer' }}>
+              {useTierBonuses ? '🏆 Per-tier' : '= Same for all'}
+            </button>
+          </div>
+          {useTierBonuses ? (
+            <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
+              {TIERS.map((tier) => {
+                return (
+                  <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, minWidth: 90, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
+                    <input type="number" min="0" max="100" step="0.5" value={tierBonuses[tier]}
+                      onChange={(e) => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
+                      style={{ ...s.input, width: 70, margin: 0 }} placeholder="+%" />
+                    <span style={{ fontSize: 12, color: '#6c757d' }}>%</span>
+                  </div>
+                );
+              })}
+              <div style={{ gridColumn: '1/-1', fontSize: 11, color: '#6c757d', marginTop: 4 }}>Leave blank = no bonus for that tier. Values in % (e.g. 3 = +3%).</div>
+            </div>
+          ) : (
+            <input style={s.input} type="number" min="0" max="100" value={bonusRate} onChange={(e) => setBonusRate(e.target.value)} placeholder="e.g. 3 = +3% for all tiers" />
+          )}
           {isStoreManager ? (
             <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
               📍 This promotion will apply to your store only
@@ -520,9 +563,15 @@ function OfferCard({ offer, onDelete, onReuse, isPast }: {
         </div>
         <h3 style={s.cardTitle}>{offer.title}</h3>
         {offer.description && <p style={s.cardDesc}>{offer.description}</p>}
-        {offer.bonusRate && (
-          <span style={s.badge}>🔥 +{Math.round(offer.bonusRate * 100)}% bonus</span>
-        )}
+        {offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+            {Object.entries(offer.tierBonusRates as Record<string, number>).map(([tier, rate]) => (
+              <span key={tier} style={s.badge}>{TIER_EMOJI[tier as TierKey]} +{Math.round(rate * 100)}%</span>
+            ))}
+          </div>
+        ) : offer.bonusRate ? (
+          <span style={s.badge}>🔥 +{Math.round(offer.bonusRate * 100)}% all tiers</span>
+        ) : null}
         <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button style={s.reuseBtn} onClick={onReuse}>♻️ Reuse</button>

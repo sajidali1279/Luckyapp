@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { ProductCategory } from '@prisma/client';
-import { DEFAULT_DEV_CUT_RATE, DEFAULT_CASHBACK_RATE } from '../config/constants';
+import { ProductCategory, Tier } from '@prisma/client';
+import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
+import { getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
+import { sendPushToUser } from '../utils/push';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,12 +67,13 @@ export async function generateReceiptToken(req: Request, res: Response) {
 
 // ─── GET /points/receipt-token/:tokenId  (customer preview before claiming) ──
 
-export async function getReceiptToken(req: Request, res: Response) {
+export async function getReceiptToken(req: AuthRequest, res: Response) {
   const { tokenId } = req.params;
+  const customerTier: Tier = (req.user?.tier as Tier) ?? Tier.BRONZE;
 
   const token = await prisma.receiptToken.findUnique({
     where: { id: tokenId },
-    include: { store: { select: { id: true, name: true, city: true } } },
+    include: { store: { select: { id: true, name: true, city: true, transactionFeeRate: true } } },
   });
 
   if (!token) {
@@ -87,33 +90,44 @@ export async function getReceiptToken(req: Request, res: Response) {
   }
 
   const items: { category: ProductCategory; amount: number }[] = JSON.parse(token.items);
+  const now = new Date();
 
-  // Fetch per-category cashback rates
-  const categoryRates = await prisma.categoryRate.findMany();
-  const rateMap: Record<string, number> = {};
-  categoryRates.forEach((r) => { rateMap[r.category] = r.cashbackRate; });
+  // Fetch tier rate + active offers for this store
+  const [tierRate, activeOffers] = await Promise.all([
+    prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
+    prisma.offer.findMany({
+      where: {
+        isActive: true, startDate: { lte: now }, endDate: { gte: now },
+        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
+        AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
+      },
+      select: { bonusRate: true, tierBonusRates: true, category: true, title: true },
+    }),
+  ]);
 
-  const DEFAULT_RATE = DEFAULT_CASHBACK_RATE;
-  const devCutConfig = await prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } });
-  const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
+  const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
 
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
-    const rate = rateMap[item.category] ?? DEFAULT_RATE;
-    const cashback = parseFloat((item.amount * rate).toFixed(2));
-    const customerCashback = parseFloat((cashback * (1 - devCutRate)).toFixed(2));
-    estimatedCashback += customerCashback;
-    return { category: item.category, amount: item.amount, cashback: customerCashback };
+    const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
+    const promoBonus = getTierBonusRate(offer ?? null, customerTier);
+    const effectiveRate = tierBaseRate + promoBonus;
+    const cashback = parseFloat((item.amount * effectiveRate).toFixed(2));
+    estimatedCashback += cashback;
+    return { category: item.category, amount: item.amount, cashback, effectiveRate };
   });
 
   res.json({
     success: true,
     data: {
       tokenId: token.id,
-      store: token.store,
+      store: { id: token.store.id, name: token.store.name, city: token.store.city },
       total: token.total,
       items: breakdown,
       estimatedCashback: parseFloat(estimatedCashback.toFixed(2)),
+      tier: customerTier,
+      tierBaseRate,
       expiresAt: token.expiresAt.toISOString(),
     },
   });
@@ -154,36 +168,42 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   }
 
   const items: { category: ProductCategory; amount: number }[] = JSON.parse(token.items);
+  const customerTier: Tier = (customer.tier as Tier) ?? Tier.BRONZE;
+  const now = new Date();
 
-  // Fetch rates
-  const [categoryRatesRows, devCutConfig] = await Promise.all([
-    prisma.categoryRate.findMany(),
-    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
+  // Fetch tier rate, active offers for this store, and store's dev cut rate
+  const [tierRate, activeOffers] = await Promise.all([
+    prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
+    prisma.offer.findMany({
+      where: {
+        isActive: true, startDate: { lte: now }, endDate: { gte: now },
+        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
+        AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
+      },
+      select: { bonusRate: true, tierBonusRates: true, category: true },
+    }),
   ]);
 
-  const rateMap: Record<string, number> = {};
-  categoryRatesRows.forEach((r) => { rateMap[r.category] = r.cashbackRate; });
-  const DEFAULT_RATE = DEFAULT_CASHBACK_RATE;
-  const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
+  const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
 
-  // Create one transaction per category line item (for accurate category tracking)
-  // Use a DevAdmin-like system user as the granter — find or use null system ID
-  // Actually use the store's first employee, or create a system-level approach:
-  // We'll use the customer's own ID as grantedBy (self-grant, no employee involved)
   let totalPointsAwarded = 0;
   let totalDevCut = 0;
   let totalStoreCost = 0;
 
   const transactions = await Promise.all(
     items.map(async (item) => {
-      const cashbackRate = rateMap[item.category] ?? DEFAULT_RATE;
+      // Find best matching offer for this category
+      const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
+      const promoBonus = getTierBonusRate(offer ?? null, customerTier);
+      const cashbackRate = parseFloat((tierBaseRate + promoBonus).toFixed(4));
       const cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
-      const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(2));
-      const pointsAwarded = parseFloat((cashbackIssued - devCut).toFixed(2));
+      const devCut = parseFloat((item.amount * devCutRate).toFixed(2));
+      const pointsAwarded = cashbackIssued; // customer gets full cashback
 
       totalPointsAwarded += pointsAwarded;
       totalDevCut += devCut;
-      totalStoreCost += cashbackIssued;
+      totalStoreCost += cashbackIssued + devCut;
 
       return prisma.pointsTransaction.create({
         data: {
@@ -193,7 +213,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           purchaseAmount: item.amount,
           pointsAwarded,
           devCut,
-          storeCost: cashbackIssued,
+          storeCost: parseFloat((cashbackIssued + devCut).toFixed(2)),
           cashbackRate,
           category: item.category,
           status: 'APPROVED',    // Auto-approved — QR token is the receipt proof
@@ -208,17 +228,30 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   totalPointsAwarded = parseFloat(totalPointsAwarded.toFixed(2));
   totalDevCut = parseFloat(totalDevCut.toFixed(2));
 
-  // Update customer balance + mark token used
-  await prisma.$transaction([
+  // Update customer balance + periodPoints + mark token used
+  const [updatedCustomer] = await prisma.$transaction([
     prisma.user.update({
       where: { id: customer.id },
-      data: { pointsBalance: { increment: totalPointsAwarded } },
+      data: {
+        pointsBalance: { increment: totalPointsAwarded },
+        periodPoints:  { increment: totalPointsAwarded }, // counts toward tier progression
+      },
     }),
     prisma.receiptToken.update({
       where: { id: tokenId },
       data: { usedBy: customer.id, usedAt: new Date() },
     }),
   ]);
+
+  // Recalculate tier after balance update
+  await updateCustomerTierIfNeeded(customer.id, updatedCustomer.periodPoints, updatedCustomer.tier);
+
+  sendPushToUser(
+    customer.id,
+    '💰 Points Credited!',
+    `${Math.round(totalPointsAwarded * 100)} pts added to your Lucky Stop balance.`,
+    'POINTS'
+  );
 
   res.json({
     success: true,

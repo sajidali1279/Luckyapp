@@ -33,6 +33,9 @@ export const billingApi = {
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
   markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
   markPeriodPaid: (period: string) => api.patch(`/billing/period/${period}/paid`),
+  getTierRates: () => api.get('/billing/tier-rates'),
+  updateTierRate: (tier: string, data: { cashbackRate?: number; gasCentsPerGallon?: number | null }) =>
+    api.put(`/billing/tier-rates/${tier}`, data),
   getCategoryRates: () => api.get('/billing/category-rates'),
   updateCategoryRate: (category: string, cashbackRate: number) =>
     api.patch(`/billing/category-rates/${category}`, { cashbackRate }),

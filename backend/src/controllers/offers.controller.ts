@@ -9,6 +9,8 @@ import { broadcastToCustomers } from '../utils/push';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
+// tierBonusRates: per-tier bonus map e.g. {"BRONZE": 0.03, "GOLD": 0.01}
+// When set, bonusRate should be the max of tierBonusRates values (for offer ordering)
 const offerSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional().default(''),
@@ -16,9 +18,16 @@ const offerSchema = z.object({
   storeId: z.string().uuid().optional(),
   category: z.nativeEnum(ProductCategory).optional(),
   bonusRate: z.coerce.number().min(0).max(1).optional(),
+  tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).optional().nullable(),
   dealText: z.string().min(1).max(40).optional(), // e.g. "2 for $5"
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
+}).transform((data) => {
+  // Auto-compute bonusRate as max of tierBonusRates values when per-tier bonuses are set
+  if (data.tierBonusRates && Object.keys(data.tierBonusRates).length > 0 && !data.bonusRate) {
+    data.bonusRate = Math.max(...Object.values(data.tierBonusRates));
+  }
+  return data;
 });
 
 export async function createOffer(req: AuthRequest, res: Response) {
@@ -96,6 +105,7 @@ const updateOfferSchema = z.object({
   storeId: z.string().uuid().nullable().optional(),
   category: z.nativeEnum(ProductCategory).nullable().optional(),
   bonusRate: z.coerce.number().min(0).max(1).nullable().optional(),
+  tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).nullable().optional(),
   dealText: z.string().min(1).max(40).nullable().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),

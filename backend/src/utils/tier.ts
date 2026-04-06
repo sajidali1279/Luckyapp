@@ -1,4 +1,6 @@
 import { Tier } from '@prisma/client';
+import prisma from '../config/prisma';
+import { sendPushToUser } from './push';
 
 // Tier thresholds in dollars (internally). Display: × 100 = pts
 export const TIER_THRESHOLDS = {
@@ -37,6 +39,31 @@ export const TIER_LABELS: Record<string, string> = {
   DIAMOND:  '💎 Diamond',
   PLATINUM: '👑 Platinum',
 };
+
+// Extracts the promo bonus rate for a given tier from an offer's tierBonusRates map,
+// falling back to the offer's flat bonusRate.
+export function getTierBonusRate(
+  offer: { bonusRate: number | null; tierBonusRates: unknown } | null,
+  tier: string,
+): number {
+  if (!offer) return 0;
+  const map = offer.tierBonusRates as Record<string, number> | null;
+  return map?.[tier] ?? offer.bonusRate ?? 0;
+}
+
+// Updates a customer's tier after points are credited, sending a push if they tier up.
+// Call this after the user's periodPoints have already been incremented in the DB.
+export async function updateCustomerTierIfNeeded(
+  customerId: string,
+  updatedPeriodPoints: number,
+  currentTier: Tier,
+): Promise<void> {
+  const newTier = calculateTier(updatedPeriodPoints);
+  if (newTier !== currentTier) {
+    await prisma.user.update({ where: { id: customerId }, data: { tier: newTier } });
+    sendPushToUser(customerId, '🎉 Tier Up!', `You're now ${newTier} tier. Check your new benefits!`, 'GENERAL');
+  }
+}
 
 // Returns the next tier threshold in pts for display
 export function getNextTierProgress(periodPointsDollars: number): { pts: number; nextPts: number | null; tier: Tier; nextTier: string | null } {

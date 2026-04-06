@@ -40,6 +40,9 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'OTHER',        label: 'Other',     icon: '🏪' },
 ];
 
+// Tier-based pts multiplier: rate% × 100 (e.g. Bronze 1% → ×1, Gold 3% → ×3)
+const TIER_PTS_MULT: Record<string, number> = { BRONZE: 1, SILVER: 2, GOLD: 3, DIAMOND: 4, PLATINUM: 5 };
+
 const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string }> = {
   BRONZE:   { label: 'Bronze',   color: '#CD7F32', emoji: '🥉' },
   SILVER:   { label: 'Silver',   color: '#A0A0B0', emoji: '🥈' },
@@ -189,9 +192,9 @@ export default function EmployeeScanScreen() {
   const parsedGallons = parseFloat(gasGallons);
   const validGallons = isGasCat ? (!isNaN(parsedGallons) && parsedGallons > 0) : true;
   const committedTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-  const estimatedCashback = (committedTotal + (validAmount ? parsedAmount : 0)) > 0
-    ? Math.round((committedTotal + (validAmount ? parsedAmount : 0)) * 5)
-    : null;
+  const tierMult = TIER_PTS_MULT[customerData?.tier ?? 'BRONZE'] ?? 1;
+  const runningTotal = committedTotal + (validAmount ? parsedAmount : 0);
+  const estimatedCashback = runningTotal > 0 ? Math.round(runningTotal * tierMult) : null;
 
   function addCurrentItem() {
     if (!validAmount || (isGasCat && !validGallons)) {
@@ -780,7 +783,7 @@ export default function EmployeeScanScreen() {
               </View>
               <View style={s.previewRow}>
                 <Text style={s.previewLabel}>Rate</Text>
-                <Text style={s.previewRate}>5 pts per $1 (promos applied at server)</Text>
+                <Text style={s.previewRate}>{tierMult} pts per $1 ({customerData?.tier ?? 'BRONZE'} tier · promos applied at grant)</Text>
               </View>
               <View style={s.previewDivider} />
               <Text style={s.previewNote}>Final amount confirmed after submission</Text>

@@ -47,9 +47,9 @@ async function clearFailures(phone: string) {
   });
 }
 
-function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role }, storeIds: string[]) {
+function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role; tier?: string | null }, storeIds: string[]) {
   return jwt.sign(
-    { id: user.id, phone: user.phone, name: user.name || null, role: user.role, storeIds },
+    { id: user.id, phone: user.phone, name: user.name || null, role: user.role, tier: user.tier ?? 'BRONZE', storeIds },
     process.env.JWT_SECRET!,
     { expiresIn: JWT_EXPIRES_IN_SECONDS }
   );

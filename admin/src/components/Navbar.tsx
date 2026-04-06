@@ -67,6 +67,9 @@ export default function Navbar() {
             <NavLink to="/catalog" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🎁</span>Catalog
             </NavLink>
+            <NavLink to="/rates" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>🏆</span>Rates
+            </NavLink>
             <NavLink to="/analytics" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>📈</span>Analytics
             </NavLink>
@@ -95,6 +98,9 @@ export default function Navbar() {
           <>
             <NavLink to="/catalog" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>🎁</span>Catalog
+            </NavLink>
+            <NavLink to="/rates" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
+              <span style={s.linkIcon}>🏆</span>Rates
             </NavLink>
             <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
               <span style={s.linkIcon}>💳</span>Billing

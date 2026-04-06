@@ -15,6 +15,7 @@ interface BillNotes {
 type Tab = 'stores' | 'monthly' | 'settings';
 
 const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as const;
+const TIER_EMOJI: Record<string, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
 
 function needsSubscription(type: string) { return type === 'MONTHLY_SUBSCRIPTION' || type === 'HYBRID'; }
 function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' || type === 'HYBRID'; }
@@ -55,6 +56,8 @@ export default function Billing() {
   // ── Settings state ───────────────────────────────────────────────────────────
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState('');
+  // Tier rates inline editing: { tier → { cashbackRate: string, gasCentsPerGallon: string } }
+  const [tierEdits, setTierEdits] = useState<Record<string, { cashbackRate: string; gasCentsPerGallon: string }>>({});
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data, isLoading: storesLoading } = useQuery({
@@ -70,6 +73,12 @@ export default function Billing() {
   const { data: devCutData, isLoading: rateLoading } = useQuery({
     queryKey: ['dev-cut-rate'],
     queryFn: () => billingApi.getDevCutRate(),
+  });
+
+  const { data: tierRatesData, isLoading: tierRatesLoading } = useQuery({
+    queryKey: ['tier-rates'],
+    queryFn: () => billingApi.getTierRates(),
+    enabled: tab === 'settings',
   });
 
   const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
@@ -94,6 +103,17 @@ export default function Billing() {
     mutationFn: (rate: number) => billingApi.updateDevCutRate(rate),
     onSuccess: () => { toast.success('Dev cut rate updated'); setEditingRate(false); qc.invalidateQueries({ queryKey: ['dev-cut-rate'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
     onError: () => toast.error('Failed to update rate'),
+  });
+
+  const updateTierRate = useMutation({
+    mutationFn: ({ tier, data }: { tier: string; data: { cashbackRate?: number; gasCentsPerGallon?: number | null } }) =>
+      billingApi.updateTierRate(tier, data),
+    onSuccess: (_res, vars) => {
+      toast.success(`${vars.tier} tier updated`);
+      setTierEdits(prev => { const n = { ...prev }; delete n[vars.tier]; return n; });
+      qc.invalidateQueries({ queryKey: ['tier-rates'] });
+    },
+    onError: () => toast.error('Failed to update tier rate'),
   });
 
   const [expandedBill, setExpandedBill] = useState<string | null>(null);
@@ -130,7 +150,8 @@ export default function Billing() {
 
   const stores = data?.data?.data || [];
   const revenue = revenueData?.data?.data;
-  const devCutRate = devCutData?.data?.data?.rate ?? 0.04;
+  const devCutRate = devCutData?.data?.data?.rate ?? 0.02;
+  const tierRates: { tier: string; cashbackRate: number; gasCentsPerGallon: number | null }[] = tierRatesData?.data?.data || [];
   const monthlyRecords: any[] = monthlyData?.data?.data?.records || [];
 
   // Consolidate per-store records into one invoice per period
@@ -485,31 +506,98 @@ export default function Billing() {
       {tab === 'settings' && (
         <div style={s.settingsGrid}>
 
+          {/* Tier Cashback Rates card */}
+          <div style={{ ...s.settingsCard, gridColumn: '1 / -1' }}>
+            <h3 style={s.settingsCardTitle}>🏆 Tier Cashback Rates</h3>
+            <p style={s.settingsCardDesc}>
+              Base cashback rate per customer tier. Promotions add on top of these rates.
+              For GAS/DIESEL, you can optionally set a flat <strong>¢ per gallon</strong> rate instead of a percentage.
+              Leave blank to use the percentage rate for gas too.
+            </p>
+            {tierRatesLoading ? <div style={s.loading}>Loading…</div> : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                    <th style={s.th}>Tier</th>
+                    <th style={s.th}>Cashback %</th>
+                    <th style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 11 }}>(optional — overrides % for gas)</span></th>
+                    <th style={s.th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tierRates.map((r) => {
+                    const edit = tierEdits[r.tier];
+                    const isEditing = !!edit;
+                    return (
+                      <tr key={r.tier} style={{ borderBottom: '1px solid #dee2e6' }}>
+                        <td style={s.td}><strong>{TIER_EMOJI[r.tier]} {r.tier[0] + r.tier.slice(1).toLowerCase()}</strong></td>
+                        <td style={s.td}>
+                          {isEditing ? (
+                            <input type="number" min="0" max="1" step="0.01" value={edit.cashbackRate}
+                              onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], cashbackRate: e.target.value } }))}
+                              style={{ ...s.input, width: 80 }} placeholder="e.g. 0.03" />
+                          ) : (
+                            <span style={{ fontWeight: 600, color: '#2DC653' }}>{fmtPct(r.cashbackRate)}</span>
+                          )}
+                        </td>
+                        <td style={s.td}>
+                          {isEditing ? (
+                            <input type="number" min="0" step="0.5" value={edit.gasCentsPerGallon}
+                              onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], gasCentsPerGallon: e.target.value } }))}
+                              style={{ ...s.input, width: 80 }} placeholder="e.g. 3" />
+                          ) : (
+                            r.gasCentsPerGallon != null
+                              ? <span style={{ fontWeight: 600, color: '#F4A261' }}>{r.gasCentsPerGallon}¢/gal</span>
+                              : <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>use %</span>
+                          )}
+                        </td>
+                        <td style={{ ...s.td, textAlign: 'right' }}>
+                          {isEditing ? (
+                            <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                              <button style={s.saveBtn} disabled={updateTierRate.isPending} onClick={() => {
+                                const cr = parseFloat(edit.cashbackRate);
+                                const cpg = edit.gasCentsPerGallon === '' ? null : parseFloat(edit.gasCentsPerGallon);
+                                if (isNaN(cr) || cr < 0 || cr > 1) { toast.error('Rate must be 0–1 (e.g. 0.03 for 3%)'); return; }
+                                if (cpg !== null && isNaN(cpg)) { toast.error('Enter a valid ¢/gallon or leave blank'); return; }
+                                updateTierRate.mutate({ tier: r.tier, data: { cashbackRate: cr, gasCentsPerGallon: cpg } });
+                              }}>{updateTierRate.isPending ? '…' : 'Save'}</button>
+                              <button style={s.cancelBtn} onClick={() => setTierEdits(p => { const n = { ...p }; delete n[r.tier]; return n; })}>Cancel</button>
+                            </span>
+                          ) : (
+                            <button style={s.editBtn} onClick={() => setTierEdits(p => ({
+                              ...p, [r.tier]: { cashbackRate: String(r.cashbackRate), gasCentsPerGallon: r.gasCentsPerGallon != null ? String(r.gasCentsPerGallon) : '' }
+                            }))}>Edit</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           {/* Dev Cut Rate card */}
           <div style={s.settingsCard}>
-            <h3 style={s.settingsCardTitle}>💰 Dev Cut Rate</h3>
+            <h3 style={s.settingsCardTitle}>💰 Dev Cut Rate (Global Default)</h3>
             <p style={s.settingsCardDesc}>
-              Percentage taken from every cashback issued at grant time.
-              Customer receives the remainder — the store is <strong>not charged extra</strong>.
+              Your cut billed to each store — a % of <strong>total purchase amount</strong> per transaction.
+              Each store can have its own rate (set in the Stores tab). This is the fallback default.
             </p>
 
             <div style={s.rateExampleBox}>
-              <div style={s.rateExampleTitle}>How it works</div>
+              <div style={s.rateExampleTitle}>How it works on a $20 purchase</div>
               <div style={s.rateExampleRow}>
-                <span>$20 purchase × 5% cashback</span>
-                <span>= <strong>$1.00</strong> cashback issued</span>
+                <span>Customer (Gold tier, 3%) gets</span>
+                <span style={{ color: '#2DC653' }}>= <strong>$0.60</strong> cashback</span>
               </div>
               <div style={s.rateExampleRow}>
-                <span>Customer receives ({fmtPct(1 - (rateLoading ? 0.04 : devCutRate))} of $1.00)</span>
-                <span style={{ color: '#2DC653' }}>= <strong>{fmt$(1 * (1 - (rateLoading ? 0.04 : devCutRate)))}</strong></span>
+                <span>Dev cut ({fmtPct(rateLoading ? 0.02 : devCutRate)} × $20 purchase)</span>
+                <span style={{ color: '#E63946' }}>= <strong>{fmt$(20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
               </div>
               <div style={s.rateExampleRow}>
-                <span>Dev cut ({fmtPct(rateLoading ? 0.04 : devCutRate)} of $1.00)</span>
-                <span style={{ color: '#E63946' }}>= <strong>{fmt$(1 * (rateLoading ? 0.04 : devCutRate))}</strong></span>
-              </div>
-              <div style={s.rateExampleRow}>
-                <span>Store pays (same as before)</span>
-                <span>= <strong>$1.00</strong></span>
+                <span>Store owes total (cashback + dev cut)</span>
+                <span>= <strong>{fmt$(0.60 + 20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
               </div>
             </div>
 
@@ -555,7 +643,7 @@ export default function Billing() {
             <div style={s.infoList}>
               <InfoItem icon="🏪" text="Stores pay a fixed monthly subscription fee (set per store on the Stores tab)." />
               <InfoItem icon="💵" text="When an employee grants points, the store 'owes' the cashback amount to the customer." />
-              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of cashback issued — not of purchase total) is taken at grant time. Customer balance is credited the remainder.`} />
+              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of purchase total) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback.`} />
               <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken — the cut was already collected at grant time." />
               <InfoItem icon="📅" text="Use the Monthly Bills tab to generate and track subscription invoices for each store." />
             </div>
@@ -676,4 +764,6 @@ const s: Record<string, React.CSSProperties> = {
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
   infoList: { marginTop: 8 },
+  th: { padding: '8px 12px', textAlign: 'left' as const, fontSize: 12, fontWeight: 700, color: '#495057', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  td: { padding: '10px 12px', fontSize: 14, color: '#212529', verticalAlign: 'middle' as const },
 };
