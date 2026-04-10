@@ -4,23 +4,28 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { superAdminApi, devAdminApi } from '../services/api';
 
-const CONTENT_ROUTES = ['/offers', '/banners', '/catalog'];
-
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
   SUPER_ADMIN: 'Super Admin',
   STORE_MANAGER: 'Store Manager',
 };
 
-// ─── Content dropdown ─────────────────────────────────────────────────────────
+// ─── Generic Dropdown ─────────────────────────────────────────────────────────
 
-function ContentDropdown({ showCatalog }: { showCatalog: boolean }) {
+type DropdownItem = { to: string; icon: string; label: string; badge?: number };
+
+function NavDropdown({ label, icon, items, activeRoutes }: {
+  label: string;
+  icon: string;
+  items: DropdownItem[];
+  activeRoutes: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const isActive = CONTENT_ROUTES.some(r => location.pathname.startsWith(r));
+  const isActive = activeRoutes.some(r => r === '/' ? location.pathname === '/' : location.pathname.startsWith(r));
 
   function handleOpen() {
     if (!open && btnRef.current) {
@@ -32,44 +37,38 @@ function ContentDropdown({ showCatalog }: { showCatalog: boolean }) {
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        menuRef.current && !menuRef.current.contains(target) &&
-        btnRef.current  && !btnRef.current.contains(target)
-      ) setOpen(false);
+      const t = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(t) && btnRef.current && !btnRef.current.contains(t))
+        setOpen(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close on navigation
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
   return (
     <>
-      <button
-        ref={btnRef}
-        onClick={handleOpen}
-        style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : {}) }}
-      >
-        <span style={ds.icon}>📣</span>
-        Content
+      <button ref={btnRef} onClick={handleOpen}
+        style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : {}) }}>
+        <span style={ds.icon}>{icon}</span>
+        {label}
         <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
         <div ref={menuRef} style={{ ...ds.menu, top: menuPos.top, left: menuPos.left }}>
-          <NavLink to="/offers"  style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
-            <span>📢</span> Offers
-          </NavLink>
-          <NavLink to="/banners" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
-            <span>🖼️</span> Banners
-          </NavLink>
-          {showCatalog && (
-            <NavLink to="/catalog" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
-              <span>🎁</span> Catalog
+          {items.map(item => (
+            <NavLink key={item.to} to={item.to}
+              end={item.to === '/'}
+              style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
+              <span>{item.icon}</span>
+              {item.label}
+              {item.badge != null && item.badge > 0 && (
+                <span style={ds.badge}>{item.badge}</span>
+              )}
             </NavLink>
-          )}
+          ))}
         </div>
       )}
     </>
@@ -89,7 +88,7 @@ const ds: Record<string, React.CSSProperties> = {
     position: 'fixed',
     background: '#fff', borderRadius: 10,
     boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-    minWidth: 160, zIndex: 200,
+    minWidth: 170, zIndex: 200,
     overflow: 'hidden',
     border: '1px solid rgba(0,0,0,0.08)',
   },
@@ -97,31 +96,24 @@ const ds: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 16px', textDecoration: 'none',
     color: '#1D3557', fontSize: 13, fontWeight: 500,
-    transition: 'background 0.12s',
   },
   itemActive: { background: '#EFF6FF', color: '#1D3557', fontWeight: 700 },
+  badge: {
+    marginLeft: 'auto', background: '#E63946', color: '#fff',
+    borderRadius: 8, padding: '1px 6px',
+    fontSize: 9, fontWeight: 800, lineHeight: 1.4,
+  },
 };
 
 // ─── Main Navbar ──────────────────────────────────────────────────────────────
 
-const ALL_NAV_LINKS = [
-  { to: '/',              label: 'Dashboard',   icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/transactions',  label: 'Transactions',icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/chat',          label: 'Chat',        icon: '💬', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/store-requests',label: 'Requests',    icon: '📋', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/scheduling',    label: 'Scheduling',  icon: '📅', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-  { to: '/staff',         label: 'Staff',       icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-  { to: '/customers',     label: 'Customers',   icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-];
-
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const isDevAdmin    = user?.role === 'DEV_ADMIN';
-  const isSuperAdmin  = user?.role === 'SUPER_ADMIN';
+  const isDevAdmin     = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
-  const navLinks = ALL_NAV_LINKS.filter(l => l.roles.includes(user?.role || ''));
 
   const { data: notifData } = useQuery({
     queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'],
@@ -132,8 +124,54 @@ export default function Navbar() {
   const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead).length;
 
   function handleLogout() { logout(); navigate('/login'); }
-
   const lnk = (isActive: boolean) => ({ ...s.link, ...(isActive ? s.linkActive : {}) });
+
+  // ── Dropdown item lists ────────────────────────────────────────────────────
+
+  const overviewItems: DropdownItem[] = [
+    { to: '/',          icon: '📊', label: 'Dashboard'  },
+    { to: '/analytics', icon: '📈', label: 'Analytics'  },
+  ];
+
+  const overviewItemsBasic: DropdownItem[] = [
+    { to: '/', icon: '📊', label: 'Dashboard' },
+  ];
+
+  const peopleItemsDevAdmin: DropdownItem[] = [
+    { to: '/chat',           icon: '💬', label: 'Chat'       },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
+    { to: '/staff',          icon: '👥', label: 'Staff'      },
+    { to: '/customers',      icon: '🙋', label: 'Customers'  },
+    { to: '/store-requests', icon: '📋', label: 'Requests'   },
+  ];
+
+  const peopleItemsSuperAdmin: DropdownItem[] = [
+    { to: '/chat',           icon: '💬', label: 'Chat'       },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
+    { to: '/staff',          icon: '👥', label: 'Staff'      },
+    { to: '/customers',      icon: '🙋', label: 'Customers'  },
+    { to: '/store-requests', icon: '📋', label: 'Requests'   },
+  ];
+
+  const peopleItemsManager: DropdownItem[] = [
+    { to: '/chat',           icon: '💬', label: 'Chat'     },
+    { to: '/store-requests', icon: '📋', label: 'Requests' },
+  ];
+
+  const contentItemsAll: DropdownItem[] = [
+    { to: '/offers',  icon: '📢', label: 'Offers'  },
+    { to: '/banners', icon: '🖼️', label: 'Banners' },
+    { to: '/catalog', icon: '🎁', label: 'Catalog' },
+  ];
+
+  const contentItemsManager: DropdownItem[] = [
+    { to: '/offers',  icon: '📢', label: 'Offers'  },
+    { to: '/banners', icon: '🖼️', label: 'Banners' },
+  ];
+
+  const overviewRoutes = ['/', '/analytics'];
+  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests'];
+  const contentRoutes  = ['/offers', '/banners', '/catalog'];
 
   return (
     <nav style={s.nav}>
@@ -146,26 +184,43 @@ export default function Navbar() {
       </div>
 
       <div style={s.links}>
-        {/* Common links */}
-        {navLinks.map((link) => (
-          <NavLink key={link.to} to={link.to} end={link.end}
-            style={({ isActive }) => lnk(isActive)}>
-            <span style={s.linkIcon}>{link.icon}</span>{link.label}
-          </NavLink>
-        ))}
 
-        {/* Content dropdown — Offers + Banners + Catalog */}
-        <ContentDropdown showCatalog={!isStoreManager} />
+        {/* Overview — Dashboard + Analytics (DevAdmin/SuperAdmin) */}
+        {(isDevAdmin || isSuperAdmin) && (
+          <NavDropdown label="Overview" icon="📊"
+            items={isDevAdmin ? overviewItems : overviewItemsBasic}
+            activeRoutes={overviewRoutes} />
+        )}
+        {/* Store managers get a plain Dashboard link */}
+        {isStoreManager && (
+          <NavLink to="/" end style={({ isActive }) => lnk(isActive)}>
+            <span style={s.linkIcon}>📊</span>Dashboard
+          </NavLink>
+        )}
+
+        {/* Transactions — all roles */}
+        <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}>
+          <span style={s.linkIcon}>🧾</span>Transactions
+        </NavLink>
+
+        {/* Content — Offers + Banners + Catalog */}
+        <NavDropdown label="Content" icon="📣"
+          items={isStoreManager ? contentItemsManager : contentItemsAll}
+          activeRoutes={contentRoutes} />
+
+        {/* People — Chat + Scheduling + Staff + Customers + Requests */}
+        <NavDropdown label="People" icon="👥"
+          items={isDevAdmin ? peopleItemsDevAdmin : isSuperAdmin ? peopleItemsSuperAdmin : peopleItemsManager}
+          activeRoutes={peopleRoutes} />
 
         {/* DevAdmin-only links */}
         {isDevAdmin && (
           <>
-            <NavLink to="/rates"       style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
-            <NavLink to="/analytics"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📈</span>Analytics</NavLink>
-            <NavLink to="/billing"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
-            <NavLink to="/activity"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
-            <NavLink to="/stores"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
-            <NavLink to="/promotions"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
+            <NavLink to="/rates"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
+            <NavLink to="/billing"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/activity"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
+            <NavLink to="/stores"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
+            <NavLink to="/promotions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
               {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
@@ -176,7 +231,7 @@ export default function Navbar() {
         {/* SuperAdmin-only links */}
         {isSuperAdmin && (
           <>
-            <NavLink to="/rates"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
+            <NavLink to="/rates"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
             <NavLink to="/my-billing" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
