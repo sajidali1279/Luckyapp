@@ -1,19 +1,10 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { superAdminApi, devAdminApi } from '../services/api';
 
-const ALL_NAV_LINKS = [
-  { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/offers', label: 'Offers', icon: '📢', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/banners', label: 'Banners', icon: '🖼️', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/transactions', label: 'Transactions', icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/chat', label: 'Chat', icon: '💬', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/store-requests', label: 'Requests', icon: '📋', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
-  { to: '/scheduling', label: 'Scheduling', icon: '📅', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-  { to: '/staff', label: 'Staff', icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-  { to: '/customers', label: 'Customers', icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
-];
+const CONTENT_ROUTES = ['/offers', '/banners', '/catalog'];
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
@@ -21,11 +12,95 @@ const ROLE_LABELS: Record<string, string> = {
   STORE_MANAGER: 'Store Manager',
 };
 
+// ─── Content dropdown ─────────────────────────────────────────────────────────
+
+function ContentDropdown({ showCatalog }: { showCatalog: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const isActive = CONTENT_ROUTES.some(r => location.pathname.startsWith(r));
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : {}) }}
+      >
+        <span style={ds.icon}>📣</span>
+        Content
+        <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={ds.menu}>
+          <NavLink to="/offers"  style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+            <span>📢</span> Offers
+          </NavLink>
+          <NavLink to="/banners" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+            <span>🖼️</span> Banners
+          </NavLink>
+          {showCatalog && (
+            <NavLink to="/catalog" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+              <span>🎁</span> Catalog
+            </NavLink>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ds: Record<string, React.CSSProperties> = {
+  btn: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: 'rgba(255,255,255,0.6)', padding: '6px 12px', borderRadius: 8,
+    fontSize: 13, fontWeight: 500,
+    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+  },
+  btnActive: { color: '#fff', background: 'rgba(255,255,255,0.15)', fontWeight: 700 },
+  icon: { fontSize: 14 },
+  menu: {
+    position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+    background: '#fff', borderRadius: 10,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+    minWidth: 160, zIndex: 200,
+    overflow: 'hidden',
+    border: '1px solid rgba(0,0,0,0.08)',
+  },
+  item: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 16px', textDecoration: 'none',
+    color: '#1D3557', fontSize: 13, fontWeight: 500,
+    transition: 'background 0.12s',
+  },
+  itemActive: { background: '#EFF6FF', color: '#1D3557', fontWeight: 700 },
+};
+
+// ─── Main Navbar ──────────────────────────────────────────────────────────────
+
+const ALL_NAV_LINKS = [
+  { to: '/',              label: 'Dashboard',   icon: '📊', end: true, roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/transactions',  label: 'Transactions',icon: '🧾', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/chat',          label: 'Chat',        icon: '💬', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/store-requests',label: 'Requests',    icon: '📋', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'] },
+  { to: '/scheduling',    label: 'Scheduling',  icon: '📅', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/staff',         label: 'Staff',       icon: '👥', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+  { to: '/customers',     label: 'Customers',   icon: '🙋', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
+];
+
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const isDevAdmin = user?.role === 'DEV_ADMIN';
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const isDevAdmin    = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin  = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
   const navLinks = ALL_NAV_LINKS.filter(l => l.roles.includes(user?.role || ''));
@@ -40,6 +115,8 @@ export default function Navbar() {
 
   function handleLogout() { logout(); navigate('/login'); }
 
+  const lnk = (isActive: boolean) => ({ ...s.link, ...(isActive ? s.linkActive : {}) });
+
   return (
     <nav style={s.nav}>
       <div style={s.brand}>
@@ -51,66 +128,41 @@ export default function Navbar() {
       </div>
 
       <div style={s.links}>
+        {/* Common links */}
         {navLinks.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            end={link.end}
-            style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}
-          >
-            <span style={s.linkIcon}>{link.icon}</span>
-            {link.label}
+          <NavLink key={link.to} to={link.to} end={link.end}
+            style={({ isActive }) => lnk(isActive)}>
+            <span style={s.linkIcon}>{link.icon}</span>{link.label}
           </NavLink>
         ))}
+
+        {/* Content dropdown — Offers + Banners + Catalog */}
+        <ContentDropdown showCatalog={!isStoreManager} />
+
+        {/* DevAdmin-only links */}
         {isDevAdmin && (
           <>
-            <NavLink to="/catalog" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🎁</span>Catalog
-            </NavLink>
-            <NavLink to="/rates" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🏆</span>Rates
-            </NavLink>
-            <NavLink to="/analytics" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>📈</span>Analytics
-            </NavLink>
-            <NavLink to="/billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>💳</span>Billing
-            </NavLink>
-            <NavLink to="/activity" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🔍</span>Activity
-            </NavLink>
-            <NavLink to="/stores" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🏪</span>Stores
-            </NavLink>
-            <NavLink to="/promotions" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>📣</span>Promotions
-            </NavLink>
-            <NavLink to="/notifications" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}), position: 'relative' })}>
-              <span style={s.linkIcon}>🔔</span>
-              Notifications
-              {unreadCount > 0 && (
-                <span style={s.notifBadge}>{unreadCount}</span>
-              )}
+            <NavLink to="/rates"       style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
+            <NavLink to="/analytics"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📈</span>Analytics</NavLink>
+            <NavLink to="/billing"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/activity"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
+            <NavLink to="/stores"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
+            <NavLink to="/promotions"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
+            <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
+              <span style={s.linkIcon}>🔔</span>Notifications
+              {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
             </NavLink>
           </>
         )}
+
+        {/* SuperAdmin-only links */}
         {isSuperAdmin && (
           <>
-            <NavLink to="/catalog" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🎁</span>Catalog
-            </NavLink>
-            <NavLink to="/rates" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>🏆</span>Rates
-            </NavLink>
-            <NavLink to="/my-billing" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}) })}>
-              <span style={s.linkIcon}>💳</span>Billing
-            </NavLink>
-            <NavLink to="/notifications" style={({ isActive }) => ({ ...s.link, ...(isActive ? s.linkActive : {}), position: 'relative' })}>
-              <span style={s.linkIcon}>🔔</span>
-              Notifications
-              {unreadCount > 0 && (
-                <span style={s.notifBadge}>{unreadCount}</span>
-              )}
+            <NavLink to="/rates"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
+            <NavLink to="/my-billing" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
+              <span style={s.linkIcon}>🔔</span>Notifications
+              {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
             </NavLink>
           </>
         )}
@@ -150,7 +202,7 @@ const s: Record<string, React.CSSProperties> = {
   brandName: { color: '#fff', fontWeight: 900, fontSize: 16, lineHeight: 1 },
   brandSub: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' },
 
-  links: { display: 'flex', gap: 2, flex: 1, flexWrap: 'nowrap', overflow: 'auto' },
+  links: { display: 'flex', gap: 2, flex: 1, flexWrap: 'nowrap', overflow: 'auto', alignItems: 'center' },
   link: {
     color: 'rgba(255,255,255,0.6)', textDecoration: 'none',
     padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500,
