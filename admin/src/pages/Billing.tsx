@@ -764,6 +764,4 @@ const s: Record<string, React.CSSProperties> = {
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
   infoList: { marginTop: 8 },
-  th: { padding: '8px 12px', textAlign: 'left' as const, fontSize: 12, fontWeight: 700, color: '#495057', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  td: { padding: '10px 12px', fontSize: 14, color: '#212529', verticalAlign: 'middle' as const },
 };
