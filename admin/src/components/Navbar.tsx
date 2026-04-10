@@ -16,22 +16,40 @@ const ROLE_LABELS: Record<string, string> = {
 
 function ContentDropdown({ showCatalog }: { showCatalog: boolean }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const isActive = CONTENT_ROUTES.some(r => location.pathname.startsWith(r));
 
+  function handleOpen() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 6, left: rect.left });
+    }
+    setOpen(o => !o);
+  }
+
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        btnRef.current  && !btnRef.current.contains(target)
+      ) setOpen(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close on navigation
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={handleOpen}
         style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : {}) }}
       >
         <span style={ds.icon}>📣</span>
@@ -40,21 +58,21 @@ function ContentDropdown({ showCatalog }: { showCatalog: boolean }) {
       </button>
 
       {open && (
-        <div style={ds.menu}>
-          <NavLink to="/offers"  style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+        <div ref={menuRef} style={{ ...ds.menu, top: menuPos.top, left: menuPos.left }}>
+          <NavLink to="/offers"  style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
             <span>📢</span> Offers
           </NavLink>
-          <NavLink to="/banners" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+          <NavLink to="/banners" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
             <span>🖼️</span> Banners
           </NavLink>
           {showCatalog && (
-            <NavLink to="/catalog" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })} onClick={() => setOpen(false)}>
+            <NavLink to="/catalog" style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
               <span>🎁</span> Catalog
             </NavLink>
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -68,7 +86,7 @@ const ds: Record<string, React.CSSProperties> = {
   btnActive: { color: '#fff', background: 'rgba(255,255,255,0.15)', fontWeight: 700 },
   icon: { fontSize: 14 },
   menu: {
-    position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+    position: 'fixed',
     background: '#fff', borderRadius: 10,
     boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
     minWidth: 160, zIndex: 200,
