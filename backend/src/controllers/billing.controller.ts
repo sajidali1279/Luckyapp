@@ -346,15 +346,16 @@ async function buildBillForPeriod(
 
   const txCount          = txRows.reduce((s, r) => s + (r._count.id         ?? 0), 0);
   const purchaseVolume   = parseFloat(txRows.reduce((s, r) => s + (r._sum?.purchaseAmount ?? 0), 0).toFixed(2));
-  const cashbackIssued   = parseFloat(txRows.reduce((s, r) => s + (r._sum?.storeCost      ?? 0), 0).toFixed(2));
+  // cashbackIssued = actual credits given to customers (pointsAwarded); storeCost = devCut only now
+  const cashbackIssued   = parseFloat(txRows.reduce((s, r) => s + (r._sum?.pointsAwarded  ?? 0), 0).toFixed(2));
   const devCutEarned     = parseFloat(txRows.reduce((s, r) => s + (r._sum?.devCut         ?? 0), 0).toFixed(2));
-  const customerCashback = parseFloat(txRows.reduce((s, r) => s + (r._sum?.pointsAwarded  ?? 0), 0).toFixed(2));
+  const customerCashback = cashbackIssued;
 
   const categories: CategoryRow[] = txRows.map((r) => ({
     category:        String(r.category),
     txCount:         r._count.id ?? 0,
     purchaseVolume:  parseFloat((r._sum?.purchaseAmount ?? 0).toFixed(2)),
-    cashbackIssued:  parseFloat((r._sum?.storeCost      ?? 0).toFixed(2)),
+    cashbackIssued:  parseFloat((r._sum?.pointsAwarded  ?? 0).toFixed(2)),  // actual cashback to customers
     devCutEarned:    parseFloat((r._sum?.devCut         ?? 0).toFixed(2)),
     customerCashback:parseFloat((r._sum?.pointsAwarded  ?? 0).toFixed(2)),
   })).sort((a, b) => b.purchaseVolume - a.purchaseVolume);
@@ -375,7 +376,7 @@ async function buildBillForPeriod(
     txCount, purchaseVolume,
     cashbackIssued, devCutEarned, customerCashback,
     effectiveCashbackRate: purchaseVolume > 0 ? parseFloat((cashbackIssued / purchaseVolume).toFixed(4)) : 0,
-    effectiveDevCutRate:   cashbackIssued > 0 ? parseFloat((devCutEarned / cashbackIssued).toFixed(4)) : 0,
+    effectiveDevCutRate:   cashbackIssued > 0 ? parseFloat((devCutEarned / cashbackIssued).toFixed(4)) : 0, // devCut / cashback = configured devCutRate
     categories,
     subscriptionFee, transactionFeeRate: store.transactionFeeRate,
     transactionFee: 0, cashbackFee, totalAmountOwed,

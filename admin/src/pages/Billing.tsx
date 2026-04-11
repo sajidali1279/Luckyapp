@@ -616,18 +616,18 @@ export default function Billing() {
             </p>
 
             <div style={s.rateExampleBox}>
-              <div style={s.rateExampleTitle}>How it works on a $20 purchase</div>
+              <div style={s.rateExampleTitle}>How it works on a $20 purchase (Bronze tier, 1% cashback)</div>
               <div style={s.rateExampleRow}>
-                <span>Customer (Gold tier, 3%) gets</span>
-                <span style={{ color: '#2DC653' }}>= <strong>$0.60</strong> cashback</span>
+                <span>Customer (Bronze tier, 1%) gets</span>
+                <span style={{ color: '#2DC653' }}>= <strong>$0.20</strong> cashback credits</span>
               </div>
               <div style={s.rateExampleRow}>
-                <span>Dev cut ({fmtPct(rateLoading ? 0.02 : devCutRate)} × $20 purchase)</span>
-                <span style={{ color: '#E63946' }}>= <strong>{fmt$(20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
+                <span>Your dev cut ({fmtPct(rateLoading ? 0.02 : devCutRate)} × $0.20 cashback)</span>
+                <span style={{ color: '#E63946' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
               </div>
-              <div style={s.rateExampleRow}>
-                <span>Store owes total (cashback + dev cut)</span>
-                <span>= <strong>{fmt$(0.60 + 20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
+              <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #dee2e6' }}>
+                <span style={{ color: '#6c757d', fontSize: 12 }}>Store pays you monthly: sum of dev cut per transaction</span>
+                <span style={{ color: '#6c757d', fontSize: 12 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
               </div>
             </div>
 
@@ -673,7 +673,7 @@ export default function Billing() {
             <div style={s.infoList}>
               <InfoItem icon="🏪" text="Stores pay a fixed monthly subscription fee (set per store on the Stores tab)." />
               <InfoItem icon="💵" text="When an employee grants points, the store 'owes' the cashback amount to the customer." />
-              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of purchase total) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback.`} />
+              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of the cashback issued) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback. You earn a slice of the cashback pool — not the full purchase amount.`} />
               <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken — the cut was already collected at grant time." />
               <InfoItem icon="📅" text="Use the Monthly Bills tab to generate and track subscription invoices for each store." />
             </div>

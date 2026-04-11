@@ -92,11 +92,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     cashbackIssued = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
   }
 
-  // Customer always receives the full effective cashback — dev cut is billed separately to the store
+  // Dev cut = % of cashback issued (not % of purchase). Store only pays dev their cut of the cashback pool.
   const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
-  const devCut = parseFloat((purchaseAmount * devCutRate).toFixed(2));  // % of purchase, billed to store
+  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4));  // % of cashback, billed to store
   const pointsAwarded = cashbackIssued;                                 // customer gets full cashback
-  const storeCost = parseFloat((cashbackIssued + devCut).toFixed(2));   // store owes: cashback + dev cut
+  const storeCost = devCut;                                             // store owes developer: dev cut only
 
   // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode)
   const gasBonusRate = (isGas && gasGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;

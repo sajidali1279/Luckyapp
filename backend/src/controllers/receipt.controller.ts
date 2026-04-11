@@ -198,12 +198,12 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       const promoBonus = getTierBonusRate(offer ?? null, customerTier);
       const cashbackRate = parseFloat((tierBaseRate + promoBonus).toFixed(4));
       const cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
-      const devCut = parseFloat((item.amount * devCutRate).toFixed(2));
+      const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 
       totalPointsAwarded += pointsAwarded;
       totalDevCut += devCut;
-      totalStoreCost += cashbackIssued + devCut;
+      totalStoreCost += devCut; // store owes developer: dev cut only
 
       return prisma.pointsTransaction.create({
         data: {
@@ -213,7 +213,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           purchaseAmount: item.amount,
           pointsAwarded,
           devCut,
-          storeCost: parseFloat((cashbackIssued + devCut).toFixed(2)),
+          storeCost: devCut, // store owes: dev cut only (cashback is store's loyalty cost via product redemptions)
           cashbackRate,
           category: item.category,
           status: 'APPROVED',    // Auto-approved — QR token is the receipt proof
