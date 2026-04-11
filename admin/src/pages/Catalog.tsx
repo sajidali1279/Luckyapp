@@ -448,7 +448,7 @@ export default function CatalogPage() {
 
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
-  inner: { maxWidth: 1000, margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', margin: 0 },
@@ -502,7 +502,7 @@ const cs: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #eee', borderLeft: '1px solid #eee', borderRight: '1px solid #eee',
   },
   tableWrap: {
-    background: '#fff', borderRadius: '0 0 14px 14px', overflow: 'hidden',
+    background: '#fff', borderRadius: '0 0 14px 14px', overflowX: 'auto',
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     border: '1px solid #eee', borderTop: 'none',
   },
@@ -513,8 +513,8 @@ const cs: Record<string, React.CSSProperties> = {
     color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
-  itemTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
-  itemDesc: { fontSize: 13, color: '#888' },
+  itemTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
+  itemDesc: { fontSize: 13, color: '#888', display: 'block', minWidth: 180 },
   catBadge: {
     background: '#f0f4ff', color: '#1D3557',
     borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 600,
