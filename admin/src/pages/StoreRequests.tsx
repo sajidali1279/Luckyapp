@@ -35,6 +35,17 @@ const PRIORITY_BG: Record<string, string> = {
 
 const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2'];
 
+const STORE_GRADIENTS = [
+  ['#1D3557', '#457B9D'],
+  ['#0369a1', '#0ea5e9'],
+  ['#166534', '#2DC653'],
+  ['#7c3aed', '#a78bfa'],
+  ['#b45309', '#f59e0b'],
+  ['#be123c', '#f43f5e'],
+  ['#0f766e', '#14b8a6'],
+  ['#1e40af', '#3b82f6'],
+];
+
 interface StoreRequest {
   id: string;
   storeId: string;
@@ -111,33 +122,36 @@ export default function StoreRequests() {
   const acknowledged = requests.filter((r) => r.status === 'ACKNOWLEDGED');
   const displayed = statusFilter === 'PENDING' ? pending : statusFilter === 'ACKNOWLEDGED' ? acknowledged : requests;
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
+  const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
+  const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
 
   return (
     <div style={s.page}>
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (Chat style) ── */}
       {!isStoreManager && (
         <div style={s.sidebar}>
-          <div style={s.sidebarHead}>
-            <div style={s.sidebarTitle}>Store Requests</div>
-            <div style={s.sidebarSub}>{stores.length} stores</div>
+          <div style={s.sidebarTop}>
+            <div style={s.sidebarTitle}>Requests</div>
+            <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
           <div style={s.storeList}>
             {stores.map((store, i) => {
               const active = store.id === selectedStoreId;
-              const accentColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+              const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
               return (
                 <button
                   key={store.id}
-                  style={{ ...s.storeBtn, ...(active ? { ...s.storeBtnActive, borderLeftColor: accentColor } : {}) }}
+                  style={{ ...s.storeBtn, ...(active ? s.storeBtnActive : {}) }}
                   onClick={() => setSelectedStoreId(store.id)}
                 >
-                  <div style={{ ...s.storeAvatar, background: accentColor }}>
-                    <span style={s.storeAvatarText}>{getInitial(store.name)}</span>
+                  <div style={{ ...s.storeAvatar, background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }}>
+                    {getInitial(store.name)}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={s.storeName}>{store.name}</div>
-                    {store.city && <div style={s.storeCity}>{store.city}</div>}
+                  <div style={s.storeBtnInfo}>
+                    <div style={{ ...s.storeBtnName, color: active ? '#1D3557' : '#212529' }}>{store.name}</div>
+                    {store.city && <div style={s.storeBtnCity}>{store.city}</div>}
                   </div>
+                  {active && <div style={s.activeIndicator} />}
                 </button>
               );
             })}
@@ -146,7 +160,7 @@ export default function StoreRequests() {
       )}
 
       {/* ── Main Panel ── */}
-      <div style={s.main}>
+      <div style={s.chatPanel}>
         {!effectiveStoreId ? (
           <div style={s.emptyState}>
             <div style={s.emptyIcon}>📋</div>
@@ -155,22 +169,21 @@ export default function StoreRequests() {
           </div>
         ) : (
           <>
-            {/* ── Page Header ── */}
-            <div style={s.pageHeader}>
-              <div style={s.pageHeaderLeft}>
-                <div style={s.pageHeaderTitle}>
-                  {selectedStore?.name ?? 'Store'} — Requests
-                </div>
-                <div style={s.pageHeaderMeta}>
-                  <span style={{ ...s.metaPill, background: '#fff1f2', color: '#E63946', border: '1px solid #fecaca' }}>
+            {/* ── Gradient Header ── */}
+            <div style={{ ...s.chatHeader, background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}>
+              <div style={s.chatHeaderAvatar}>{getInitial(selectedStore?.name || '?')}</div>
+              <div style={s.chatHeaderInfo}>
+                <div style={s.chatHeaderName}>{selectedStore?.name ?? 'Store'} — Requests</div>
+                <div style={s.chatHeaderSub}>
+                  <span style={s.onlineDot} />
+                  <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
                     {pending.length} pending
                   </span>
-                  <span style={{ ...s.metaPill, background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
+                  <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
                     {acknowledged.length} handled
                   </span>
                 </div>
               </div>
-
               {/* Filter tabs */}
               <div style={s.filterRow}>
                 {[
@@ -355,38 +368,53 @@ export default function StoreRequests() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f8fafc', overflow: 'hidden' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f0f2f5', overflow: 'hidden' },
 
-  // Sidebar
+  // ── Sidebar (Chat style) ──
   sidebar: {
-    width: 248, background: '#fff', borderRight: '1px solid #f0f1f2',
+    width: 272, background: '#fff', borderRight: '1px solid #e5e7eb',
     display: 'flex', flexDirection: 'column', flexShrink: 0,
-    boxShadow: '2px 0 8px rgba(0,0,0,0.03)',
   },
-  sidebarHead: {
-    padding: '20px 18px 16px',
-    borderBottom: '1px solid #f0f1f2',
-  },
-  sidebarTitle: { fontWeight: 800, fontSize: 16, color: '#111827' },
-  sidebarSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  storeList: { flex: 1, overflowY: 'auto', padding: '8px 0' },
+  sidebarTop: { padding: '20px 18px 8px' },
+  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
+  sidebarSubtitle: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-    padding: '10px 14px', background: 'none', border: 'none',
-    borderLeft: '3px solid transparent',
-    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s',
+    padding: '9px 10px', background: 'none', border: 'none', cursor: 'pointer',
+    borderRadius: 10, textAlign: 'left', position: 'relative',
+    transition: 'background 0.15s',
   },
-  storeBtnActive: { background: '#f8fafc' },
+  storeBtnActive: { background: '#eff6ff' },
   storeAvatar: {
-    width: 34, height: 34, borderRadius: 10,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: 16, fontWeight: 800,
   },
-  storeAvatarText: { color: '#fff', fontWeight: 800, fontSize: 14 },
-  storeName: { fontWeight: 700, fontSize: 13, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeCity: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+  storeBtnInfo: { flex: 1, minWidth: 0 },
+  storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  storeBtnCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
 
-  // Main
-  main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  // ── Chat Panel ──
+  chatPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  chatHeader: {
+    display: 'flex', alignItems: 'center', gap: 14,
+    padding: '14px 22px', flexShrink: 0,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+    flexWrap: 'wrap' as const,
+  },
+  chatHeaderAvatar: {
+    width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+    background: 'rgba(255,255,255,0.2)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 18, fontWeight: 800, color: '#fff',
+    border: '2px solid rgba(255,255,255,0.35)',
+  },
+  chatHeaderInfo: { flex: 1, minWidth: 0 },
+  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 800, letterSpacing: -0.2 },
+  chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' as const },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#4ade80', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
 
   emptyState: {
     flex: 1, display: 'flex', flexDirection: 'column',
@@ -396,40 +424,30 @@ const s: Record<string, React.CSSProperties> = {
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
   emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
 
-  // Page header
-  pageHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '18px 24px', background: '#fff',
-    borderBottom: '1px solid #f0f1f2', flexShrink: 0,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-  },
-  pageHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 8 },
-  pageHeaderTitle: { fontWeight: 800, fontSize: 17, color: '#111827' },
-  pageHeaderMeta: { display: 'flex', gap: 8 },
   metaPill: {
     display: 'inline-flex', alignItems: 'center',
     padding: '3px 10px', borderRadius: 10,
     fontSize: 12, fontWeight: 700,
   },
 
-  filterRow: { display: 'flex', gap: 8 },
+  filterRow: { display: 'flex', gap: 6 },
   filterTab: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: '7px 14px', borderRadius: 20,
-    border: '1.5px solid #e5e7eb', background: '#fff',
-    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#6b7280',
+    padding: '6px 12px', borderRadius: 20,
+    border: '1.5px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)',
+    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
     transition: 'all 0.15s',
   },
-  filterTabActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  filterTabActive: { background: 'rgba(255,255,255,0.25)', borderColor: 'rgba(255,255,255,0.5)', color: '#fff' },
   filterCount: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    minWidth: 20, height: 20, borderRadius: 10,
-    background: '#f3f4f6', color: '#374151',
-    fontSize: 11, fontWeight: 800, padding: '0 4px',
+    minWidth: 18, height: 18, borderRadius: 9,
+    background: 'rgba(255,255,255,0.2)', color: '#fff',
+    fontSize: 10, fontWeight: 800, padding: '0 4px',
   },
-  filterCountActive: { background: 'rgba(255,255,255,0.2)', color: '#fff' },
+  filterCountActive: { background: 'rgba(255,255,255,0.3)', color: '#fff' },
 
-  list: { flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 },
+  list: { flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc' },
 
   // Cards
   card: {

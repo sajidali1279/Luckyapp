@@ -7,6 +7,17 @@ import { schedulingApi, storesApi } from '../services/api';
 
 const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2', '#be185d'];
 
+const STORE_GRADIENTS = [
+  ['#1D3557', '#457B9D'],
+  ['#0369a1', '#0ea5e9'],
+  ['#166534', '#2DC653'],
+  ['#7c3aed', '#a78bfa'],
+  ['#b45309', '#f59e0b'],
+  ['#be123c', '#f43f5e'],
+  ['#0f766e', '#14b8a6'],
+  ['#1e40af', '#3b82f6'],
+];
+
 const DAYS: { key: string; label: string }[] = [
   { key: 'MON', label: 'Monday' },
   { key: 'TUE', label: 'Tuesday' },
@@ -163,106 +174,109 @@ export default function Scheduling() {
     return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
+  const storeIdx = stores.findIndex((st: any) => st.id === selectedStoreId);
+  const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
+
   return (
     <div style={s.page}>
-      {/* ── Left Panel: Store List ── */}
-      <div style={s.leftPanel}>
-        <div style={s.leftHeader}>
-          <div>
-            <div style={s.leftTitle}>Scheduling</div>
-            <div style={s.leftSub}>{stores.length} stores</div>
+      {/* ── Sidebar ── */}
+      <div style={s.sidebar}>
+        <div style={s.sidebarTop}>
+          <div style={s.sidebarTitle}>Scheduling</div>
+          <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
+        </div>
+        {totalVacancies > 0 && (
+          <div style={s.vacSummary}>
+            <span style={s.vacSummaryDot} />
+            {totalVacancies} open shift{totalVacancies !== 1 ? 's' : ''} across stores
           </div>
-          {totalVacancies > 0 && (
-            <span style={s.totalVacBadge}>{totalVacancies} open</span>
+        )}
+        <div style={s.storeList}>
+          {storesLoading ? (
+            <div style={s.loadingText}>Loading...</div>
+          ) : (
+            stores.map((store: any, i: number) => {
+              const active = selectedStoreId === store.id;
+              const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
+              const vac = vacancyByStoreId[store.id] || 0;
+              return (
+                <button
+                  key={store.id}
+                  style={{ ...s.storeBtn, ...(active ? s.storeBtnActive : {}) }}
+                  onClick={() => { setSelectedStoreId(store.id); setActiveTab('schedule'); }}
+                >
+                  <div style={{ ...s.storeAvatar, background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }}>
+                    {(store.name || '?')[0].toUpperCase()}
+                  </div>
+                  <div style={s.storeBtnInfo}>
+                    <div style={{ ...s.storeBtnName, color: active ? '#1D3557' : '#212529' }}>{store.name}</div>
+                    <div style={s.storeBtnCity}>{store.city}</div>
+                  </div>
+                  {vac > 0 && <span style={s.vacBadge}>{vac}</span>}
+                  {active && <div style={s.activeIndicator} />}
+                </button>
+              );
+            })
           )}
         </div>
-        {storesLoading ? (
-          <div style={s.loadingText}>Loading...</div>
-        ) : (
-          stores.map((store: any, i: number) => {
-            const active = selectedStoreId === store.id;
-            const accentColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
-            const vac = vacancyByStoreId[store.id] || 0;
-            return (
-              <button
-                key={store.id}
-                style={{ ...s.storeItem, ...(active ? { ...s.storeItemActive, borderLeftColor: accentColor } : {}) }}
-                onClick={() => { setSelectedStoreId(store.id); setActiveTab('schedule'); }}
-              >
-                <div style={{ ...s.storeAvatar, background: accentColor }}>
-                  {(store.name || '?')[0].toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={s.storeItemName}>{store.name}</div>
-                  <div style={s.storeItemCity}>{store.city}, {store.state}</div>
-                </div>
-                {vac > 0 && <span style={s.vacBadge}>{vac}</span>}
-              </button>
-            );
-          })
-        )}
       </div>
 
-      {/* ── Right Panel ── */}
-      <div style={s.rightPanel}>
+      {/* ── Main Panel ── */}
+      <div style={s.chatPanel}>
         {!selectedStoreId ? (
           <div style={s.emptyState}>
             <div style={s.emptyEmoji}>📅</div>
             <div style={s.emptyTitle}>Select a Store</div>
-            <div style={s.emptyDesc}>Choose a store from the left to manage its employee schedule.</div>
+            <div style={s.emptyDesc}>Choose a store from the sidebar to manage its schedule.</div>
           </div>
         ) : (
           <>
+            {/* Gradient Header */}
+            <div style={{ ...s.chatHeader, background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}>
+              <div style={s.chatHeaderAvatar}>{(selectedStore?.name || '?')[0].toUpperCase()}</div>
+              <div style={s.chatHeaderInfo}>
+                <div style={s.chatHeaderName}>{selectedStore?.name}</div>
+                <div style={s.chatHeaderSub}>
+                  <span style={s.onlineDot} />
+                  {selectedStore?.city}, {selectedStore?.state}
+                </div>
+              </div>
+              {/* Shift toggle */}
+              <div style={s.shiftToggle}>
+                <button
+                  style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
+                  onClick={() => shiftToggleMutation.mutate(3)}
+                  disabled={shiftToggleMutation.isPending}
+                >3 shifts</button>
+                <button
+                  style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
+                  onClick={() => shiftToggleMutation.mutate(2)}
+                  disabled={shiftToggleMutation.isPending}
+                >2 shifts</button>
+              </div>
+              {/* Tabs */}
+              <div style={s.tabRow}>
+                <button style={{ ...s.tab, ...(activeTab === 'schedule' ? s.tabActive : {}) }} onClick={() => setActiveTab('schedule')}>
+                  📅 Schedule
+                </button>
+                <button style={{ ...s.tab, ...(activeTab === 'requests' ? s.tabActive : {}), position: 'relative' as const }} onClick={() => setActiveTab('requests')}>
+                  🙋 Requests
+                  {pendingRequests.length > 0 && <span style={s.badge}>{pendingRequests.length}</span>}
+                </button>
+              </div>
+            </div>
+
             {/* Vacancy Banner */}
             {selectedStoreVacancies && selectedStoreVacancies.vacantCount > 0 && (
               <div style={s.vacancyBanner}>
                 <span style={s.vacancyBannerIcon}>⚠️</span>
                 <div style={{ flex: 1 }}>
-                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> at {selectedStore?.name} —{' '}
+                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> —{' '}
                   {selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
                   {selectedStoreVacancies.vacancies.length > 4 ? ` +${selectedStoreVacancies.vacancies.length - 4} more` : ''}
                 </div>
               </div>
             )}
-
-            {/* Store Header */}
-            <div style={s.rightHeader}>
-              <div style={s.rightHeaderLeft}>
-                <div style={s.pageTitle}>{selectedStore?.name}</div>
-                <div style={s.pageSubRow}>
-                  <span style={s.pageSub}>{selectedStore?.city}, {selectedStore?.state}</span>
-                  <div style={s.shiftToggle}>
-                    <button
-                      style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
-                      onClick={() => shiftToggleMutation.mutate(3)}
-                      disabled={shiftToggleMutation.isPending}
-                    >3 shifts</button>
-                    <button
-                      style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
-                      onClick={() => shiftToggleMutation.mutate(2)}
-                      disabled={shiftToggleMutation.isPending}
-                    >2 shifts</button>
-                  </div>
-                </div>
-              </div>
-              <div style={s.tabRow}>
-                <button
-                  style={{ ...s.tab, ...(activeTab === 'schedule' ? s.tabActive : {}) }}
-                  onClick={() => setActiveTab('schedule')}
-                >
-                  📅 Weekly Schedule
-                </button>
-                <button
-                  style={{ ...s.tab, ...(activeTab === 'requests' ? s.tabActive : {}), position: 'relative' as const }}
-                  onClick={() => setActiveTab('requests')}
-                >
-                  🙋 Requests
-                  {pendingRequests.length > 0 && (
-                    <span style={s.badge}>{pendingRequests.length}</span>
-                  )}
-                </button>
-              </div>
-            </div>
 
             {activeTab === 'schedule' && (
               <>
@@ -417,6 +431,7 @@ export default function Scheduling() {
       </div>
 
       {/* ── Add Shift Modal ── */}
+
       {addModal && (
         <div style={s.modalOverlay} onClick={() => setAddModal(null)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
@@ -529,75 +544,87 @@ function RequestCard({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f8fafc' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f0f2f5' },
 
-  // Left panel
-  leftPanel: {
-    width: 240, flexShrink: 0, background: '#fff',
-    borderRight: '1px solid #f0f1f2', overflowY: 'auto',
-    boxShadow: '2px 0 8px rgba(0,0,0,0.03)',
+  // ── Sidebar (Chat style) ──
+  sidebar: {
+    width: 272, flexShrink: 0, background: '#fff',
+    borderRight: '1px solid #e5e7eb',
+    display: 'flex', flexDirection: 'column',
   },
-  leftHeader: {
-    padding: '20px 18px 14px', borderBottom: '1px solid #f0f1f2',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  sidebarTop: { padding: '20px 18px 8px' },
+  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
+  sidebarSubtitle: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  vacSummary: {
+    margin: '6px 14px 4px',
+    padding: '7px 12px',
+    background: '#fffbeb', borderRadius: 10,
+    border: '1px solid #fde68a',
+    fontSize: 12, color: '#b45309', fontWeight: 600,
+    display: 'flex', alignItems: 'center', gap: 7,
   },
-  leftTitle: { fontWeight: 800, fontSize: 16, color: '#111827' },
-  leftSub: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  totalVacBadge: { background: '#E63946', color: '#fff', borderRadius: 10, padding: '3px 10px', fontSize: 11, fontWeight: 700 },
+  vacSummaryDot: { width: 7, height: 7, borderRadius: 4, background: '#f59e0b', display: 'inline-block', flexShrink: 0 },
+  storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
+  storeBtn: {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+    padding: '9px 10px', background: 'none', border: 'none', cursor: 'pointer',
+    borderRadius: 10, textAlign: 'left', position: 'relative',
+    transition: 'background 0.15s',
+  },
+  storeBtnActive: { background: '#eff6ff' },
+  storeAvatar: {
+    width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: 16, fontWeight: 800,
+  },
+  storeBtnInfo: { flex: 1, minWidth: 0 },
+  storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  storeBtnCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
   vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 700, flexShrink: 0 },
+
+  // ── Chat Panel ──
+  chatPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  chatHeader: {
+    display: 'flex', alignItems: 'center', gap: 14,
+    padding: '14px 22px', flexShrink: 0,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+  },
+  chatHeaderAvatar: {
+    width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+    background: 'rgba(255,255,255,0.2)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 18, fontWeight: 800, color: '#fff',
+    border: '2px solid rgba(255,255,255,0.35)',
+  },
+  chatHeaderInfo: { flex: 1 },
+  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 800, letterSpacing: -0.2 },
+  chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#4ade80', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
+
   vacancyBanner: {
     display: 'flex', alignItems: 'center', gap: 10,
     background: '#fffbeb', borderBottom: '1px solid #fde68a',
-    padding: '12px 24px', fontSize: 13, color: '#b45309',
+    padding: '12px 24px', fontSize: 13, color: '#b45309', flexShrink: 0,
   },
   vacancyBannerIcon: { fontSize: 18, flexShrink: 0 },
 
-  storeItem: {
-    width: '100%', padding: '10px 14px', textAlign: 'left',
-    background: 'none', border: 'none', borderBottom: '1px solid #f9fafb',
-    borderLeft: '3px solid transparent',
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-    transition: 'background 0.12s',
-    boxSizing: 'border-box' as const,
-  },
-  storeItemActive: { background: '#f8fafc' },
-  storeAvatar: {
-    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 14,
-  },
-  storeItemName: { fontWeight: 700, fontSize: 13, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeItemCity: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
-
-  // Right panel
-  rightPanel: { flex: 1, overflowY: 'auto', background: '#fff' },
-  rightHeader: {
-    padding: '20px 28px 16px', display: 'flex',
-    justifyContent: 'space-between', alignItems: 'flex-end',
-    borderBottom: '1px solid #f0f1f2',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-  },
-  rightHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 6 },
-  pageTitle: { fontSize: 22, fontWeight: 800, color: '#111827', margin: 0 },
-  pageSubRow: { display: 'flex', alignItems: 'center', gap: 12 },
-  pageSub: { color: '#9ca3af', fontSize: 13 },
-  shiftToggle: { display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3, gap: 2 },
+  shiftToggle: { display: 'flex', background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: 3, gap: 2 },
   shiftToggleBtn: {
     padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-    fontSize: 12, fontWeight: 700, background: 'transparent', color: '#9ca3af',
+    fontSize: 12, fontWeight: 700, background: 'transparent', color: 'rgba(255,255,255,0.7)',
   },
-  shiftToggleBtnActive: { background: '#fff', color: '#1D3557', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' },
+  shiftToggleBtnActive: { background: 'rgba(255,255,255,0.25)', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' },
 
-  // Tabs
   tabRow: { display: 'flex', gap: 6 },
   tab: {
-    padding: '8px 18px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb',
-    background: '#f9fafb', cursor: 'pointer',
-    fontSize: 13, fontWeight: 700, color: '#6b7280',
+    padding: '7px 14px', borderRadius: 10,
+    border: '1.5px solid rgba(255,255,255,0.3)',
+    background: 'rgba(255,255,255,0.1)', cursor: 'pointer',
+    fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
     display: 'flex', alignItems: 'center', gap: 6,
   },
-  tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  tabActive: { background: 'rgba(255,255,255,0.25)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
   badge: {
     background: '#E63946', color: '#fff',
     borderRadius: 10, padding: '1px 7px',
@@ -605,7 +632,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   // Sections
-  section: { padding: '24px 28px' },
+  section: { flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8fafc' },
   sectionTitle: { fontSize: 15, fontWeight: 800, color: '#111827', margin: '0 0 16px' },
   subTitle: { fontSize: 13, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
 

@@ -185,42 +185,41 @@ export default function Navbar() {
 
       <div style={s.links}>
 
-        {/* Overview — Dashboard + Analytics (DevAdmin/SuperAdmin) */}
+        {/* 1. Overview */}
         {(isDevAdmin || isSuperAdmin) && (
           <NavDropdown label="Overview" icon="📊"
             items={isDevAdmin ? overviewItems : overviewItemsBasic}
             activeRoutes={overviewRoutes} />
         )}
-        {/* Store managers get a plain Dashboard link */}
         {isStoreManager && (
           <NavLink to="/" end style={({ isActive }) => lnk(isActive)}>
             <span style={s.linkIcon}>📊</span>Dashboard
           </NavLink>
         )}
 
-        {/* Transactions — all roles */}
-        <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}>
-          <span style={s.linkIcon}>🧾</span>Transactions
-        </NavLink>
-
-        {/* Content — Offers + Banners + Catalog */}
+        {/* 2. Content */}
         <NavDropdown label="Content" icon="📣"
           items={isStoreManager ? contentItemsManager : contentItemsAll}
           activeRoutes={contentRoutes} />
 
-        {/* People — Chat + Scheduling + Staff + Customers + Requests */}
+        {/* 3. People */}
         <NavDropdown label="People" icon="👥"
           items={isDevAdmin ? peopleItemsDevAdmin : isSuperAdmin ? peopleItemsSuperAdmin : peopleItemsManager}
           activeRoutes={peopleRoutes} />
 
-        {/* DevAdmin-only links */}
+        {/* 4. Tier Rates */}
+        {(isDevAdmin || isSuperAdmin) && (
+          <NavLink to="/rates" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Tier Rates</NavLink>
+        )}
+
+        {/* DevAdmin: 5-10 */}
         {isDevAdmin && (
           <>
-            <NavLink to="/rates"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
-            <NavLink to="/billing"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
-            <NavLink to="/activity"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
-            <NavLink to="/stores"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
-            <NavLink to="/promotions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
+            <NavLink to="/promotions"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
+            <NavLink to="/stores"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
+            <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
+            <NavLink to="/activity"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
+            <NavLink to="/billing"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
               {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
@@ -228,16 +227,23 @@ export default function Navbar() {
           </>
         )}
 
-        {/* SuperAdmin-only links */}
+        {/* SuperAdmin: 5-7 */}
         {isSuperAdmin && (
           <>
-            <NavLink to="/rates"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Rates</NavLink>
-            <NavLink to="/my-billing" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
+            <NavLink to="/my-billing"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
               {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
             </NavLink>
           </>
+        )}
+
+        {/* StoreManager: Transactions */}
+        {isStoreManager && (
+          <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}>
+            <span style={s.linkIcon}>🧾</span>Transactions
+          </NavLink>
         )}
       </div>
 
