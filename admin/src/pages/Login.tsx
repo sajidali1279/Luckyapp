@@ -114,7 +114,7 @@ export default function Login() {
 
           <div style={s.featureList}>
             {[
-              { icon: '📢', text: 'Create offers for all 14 stores', color: '#F4A261' },
+              { icon: '📢', text: 'Create offers for all 12 stores', color: '#F4A261' },
               { icon: '👥', text: 'Manage staff and customers',      color: '#2DC653' },
               { icon: '🧾', text: 'Review transactions in real time', color: '#60a5fa' },
               { icon: '📊', text: 'Track revenue and subscriptions',  color: '#a78bfa' },
@@ -130,7 +130,7 @@ export default function Login() {
 
           <div style={s.storeCount}>
             <div>
-              <span style={s.storeNum}>14</span>
+              <span style={s.storeNum}>12</span>
               <span style={s.storeNumUnit}> stores</span>
             </div>
             <span style={s.storeDivider} />
@@ -408,7 +408,7 @@ const s: Record<string, React.CSSProperties> = {
   forgotLink: {
     background: 'none', border: 'none', cursor: 'pointer',
     color: '#1D3557', fontSize: 13, fontWeight: 600,
-    textDecoration: 'underline', padding: '4px 0', marginTop: 4, alignSelf: 'center',
+    textDecoration: 'underline', padding: '4px 0', marginTop: 4,
     display: 'block', width: '100%', textAlign: 'center',
   },
 
@@ -420,7 +420,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   modalCard: {
     background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400,
-    boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+    maxHeight: '90vh', overflowY: 'auto', margin: '0 16px',
   },
   modalHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
