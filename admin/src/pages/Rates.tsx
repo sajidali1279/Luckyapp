@@ -107,6 +107,9 @@ export default function Rates() {
 
   const tiers: RateRow[] = data?.data?.data || [];
 
+  // ── Gas & Diesel mode ─────────────────────────────────────────────────────
+  const [showPerGallon, setShowPerGallon] = useState(false);
+
   // Populate form once data loads
   useEffect(() => {
     if (tiers.length === 0) return;
@@ -119,7 +122,19 @@ export default function Rates() {
     }
     setForm(initial);
     setDirty(new Set());
+    setShowPerGallon(tiers.some(t => t.gasCentsPerGallon != null));
   }, [tiers.length]);
+
+  function switchToPercent() {
+    // Clear gasCentsPerGallon for every tier and save
+    TIERS.forEach(tierKey => {
+      const row = form[tierKey];
+      if (!row) return;
+      const rate = parseFloat(row.cashbackRate) / 100;
+      if (!isNaN(rate)) updateMut.mutate({ tier: tierKey, payload: { cashbackRate: rate, gasCentsPerGallon: null } });
+    });
+    setShowPerGallon(false);
+  }
 
   const updateMut = useMutation({
     mutationFn: ({ tier, payload }: { tier: string; payload: object }) =>
@@ -334,11 +349,32 @@ export default function Rates() {
             <tbody>
               {CATEGORIES.map((cat) => {
                 const meta = CAT_META[cat];
+                const isGasDiesel = cat === 'GAS' || cat === 'DIESEL';
                 const isDirty = catDirty.has(cat);
                 const isSaving = catSaving === cat;
                 const rawVal = catForm[cat] ?? '0';
                 const numVal = parseFloat(rawVal);
-                const effective = !isNaN(numVal) ? 1 + numVal : 1; // 1% bronze base
+                const effective = !isNaN(numVal) ? 1 + numVal : 1;
+
+                // GAS/DIESEL in ¢/gallon mode — show redirect badge, no editable %
+                if (isGasDiesel && showPerGallon) {
+                  return (
+                    <tr key={cat} style={s.tr}>
+                      <td style={s.td}>
+                        <div style={s.tierCell}>
+                          <span style={s.catEmoji}>{meta.emoji}</span>
+                          <div>
+                            <div style={s.tierName}>{meta.label}</div>
+                            <div style={s.tierSub}>{meta.desc}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={s.td} colSpan={3}>
+                        <span style={s.perGallonBadge}>⛽ ¢/gallon mode — configure per-tier rates below</span>
+                      </td>
+                    </tr>
+                  );
+                }
 
                 return (
                   <tr key={cat} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
@@ -372,9 +408,7 @@ export default function Rates() {
                     </td>
                     <td style={s.td}>
                       {!isNaN(numVal) ? (
-                        <span style={s.effectiveTag}>
-                          {effective.toFixed(1)}% effective
-                        </span>
+                        <span style={s.effectiveTag}>{effective.toFixed(1)}% effective</span>
                       ) : null}
                     </td>
                     <td style={{ ...s.td, textAlign: 'right' }}>
@@ -396,6 +430,117 @@ export default function Rates() {
           </table>
         </div>
       )}
+
+      {/* ── Gas & Diesel Mode ────────────────────────────────────────────── */}
+      <div style={s.sectionHeader}>
+        <div>
+          <h2 style={s.sectionTitle}>⛽ Gas & Diesel Mode</h2>
+          <p style={s.sectionSubtitle}>
+            Choose how cashback is calculated for gas and diesel. In ¢/gallon mode each tier earns a flat
+            rate per gallon pumped — active promotions still stack on top as a % of the purchase amount.
+          </p>
+        </div>
+      </div>
+
+      <div style={s.gasModeCard}>
+        {/* Mode toggle */}
+        <div style={s.gasModeToggleRow}>
+          <button
+            style={{ ...s.modeBtn, ...(showPerGallon ? {} : s.modeBtnActive) }}
+            onClick={switchToPercent}
+          >
+            💲 % of amount
+          </button>
+          <button
+            style={{ ...s.modeBtn, ...(showPerGallon ? s.modeBtnActive : {}) }}
+            onClick={() => setShowPerGallon(true)}
+          >
+            ⛽ ¢ / gallon
+          </button>
+          <span style={s.gasModeHint}>
+            {showPerGallon
+              ? 'Base = ¢/gallon × gallons pumped · promos still add on top as % of purchase'
+              : 'Base = tier % × purchase amount · set bonus % for Gas/Diesel in the table above'}
+          </span>
+        </div>
+
+        {/* Per-tier ¢/gallon table */}
+        {showPerGallon && tiers.length > 0 && (
+          <table style={{ ...s.table, marginTop: 16 }}>
+            <thead>
+              <tr style={s.thead}>
+                <th style={{ ...s.th, width: 200 }}>Tier</th>
+                <th style={s.th}>
+                  ¢ / gallon
+                  <div style={s.thSub}>applies to GAS & DIESEL</div>
+                </th>
+                <th style={s.th}>
+                  Example (10 gal)
+                  <div style={s.thSub}>cashback earned</div>
+                </th>
+                <th style={{ ...s.th, width: 100 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {TIERS.map((tierKey) => {
+                const r = tiers.find(x => x.tier === tierKey);
+                if (!r) return null;
+                const row = form[tierKey];
+                const meta = TIER_META[tierKey];
+                const isDirty = dirty.has(tierKey);
+                const isSaving = saving === tierKey;
+                const cpgVal = row?.gasCentsPerGallon ?? '';
+                const cpgNum = parseFloat(cpgVal);
+
+                return (
+                  <tr key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                    <td style={s.td}>
+                      <div style={s.tierCell}>
+                        <span style={{ ...s.dot, background: meta.color }} />
+                        <div>
+                          <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
+                          <div style={s.tierSub}>{meta.spend}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={s.td}>
+                      <div style={s.inputGroup}>
+                        <input
+                          type="number" min="0" step="0.5"
+                          value={cpgVal}
+                          onChange={e => handleChange(tierKey, 'gasCentsPerGallon', e.target.value)}
+                          style={{ ...s.input, ...(isDirty ? s.inputDirty : {}) }}
+                          placeholder="e.g. 3"
+                        />
+                        {cpgVal !== '' && <span style={s.suffix}>¢</span>}
+                      </div>
+                    </td>
+                    <td style={s.td}>
+                      {!isNaN(cpgNum) && cpgNum > 0 ? (
+                        <span style={s.effectiveTag}>${(10 * cpgNum / 100).toFixed(2)} cashback</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#adb5bd' }}>enter rate above</span>
+                      )}
+                    </td>
+                    <td style={{ ...s.td, textAlign: 'right' }}>
+                      {isDirty ? (
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button style={s.saveBtn} disabled={isSaving} onClick={() => handleSave(tierKey)}>
+                            {isSaving ? '…' : 'Save'}
+                          </button>
+                          <button style={s.undoBtn} onClick={() => handleReset(tierKey)}>↩</button>
+                        </div>
+                      ) : (
+                        <span style={s.savedTag}>✓</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* How it works */}
       <div style={s.infoGrid}>
@@ -503,6 +648,27 @@ const s: Record<string, React.CSSProperties> = {
   sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#1D3557' },
   sectionSubtitle: { margin: 0, color: '#6c757d', fontSize: 13 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
+  perGallonBadge: {
+    display: 'inline-block', padding: '4px 12px',
+    background: '#fff3e0', color: '#e65100',
+    borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: '1px solid #ffcc80',
+  },
+  gasModeCard: {
+    background: '#fff', borderRadius: 12,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+    padding: '20px 24px', marginBottom: 28,
+  },
+  gasModeToggleRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
+  modeBtn: {
+    padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
+    border: '1.5px solid #dee2e6', background: '#f8f9fa',
+    fontSize: 13, fontWeight: 600, color: '#6c757d', transition: 'all 0.15s',
+  },
+  modeBtnActive: {
+    background: '#1D3557', color: '#fff', borderColor: '#1D3557',
+  },
+  gasModeHint: { fontSize: 12, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
   effectiveTag: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f8ed', color: '#1a7a3a',

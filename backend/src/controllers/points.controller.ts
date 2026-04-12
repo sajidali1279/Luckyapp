@@ -82,16 +82,20 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   let promotionApplied: string | null = null;
   let promoBonus = 0;
 
+  // Promos always stack regardless of gas mode
+  promoBonus = getTierBonusRate(activeOffer, customerTier);
+  promotionApplied = promoBonus > 0 ? activeOffer!.title : null;
+
   if (usePerGallonMode) {
-    // Flat cents-per-gallon mode — promo % doesn't apply (rate is already fixed per gallon)
-    cashbackIssued = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
-    effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
+    // ¢/gallon base + promo stacks on top as % of purchase amount
+    const perGallonCashback = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
+    const promoCashback     = parseFloat((purchaseAmount * promoBonus).toFixed(4));
+    cashbackIssued          = parseFloat((perGallonCashback + promoCashback).toFixed(4));
+    effectiveCashbackRate   = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   } else {
-    // Percentage mode — tier base + category bonus + any active promo bonus
-    promoBonus = getTierBonusRate(activeOffer, customerTier);
-    promotionApplied = promoBonus > 0 ? activeOffer!.title : null;
+    // Percentage mode — tier base + category bonus + promo
     effectiveCashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
-    cashbackIssued = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
+    cashbackIssued        = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
   }
 
   // Dev cut = % of cashback issued (not % of purchase). Store only pays dev their cut of the cashback pool.
