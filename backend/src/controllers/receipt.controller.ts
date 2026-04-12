@@ -171,9 +171,10 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   const customerTier: Tier = (customer.tier as Tier) ?? Tier.BRONZE;
   const now = new Date();
 
-  // Fetch tier rate, active offers for this store, and store's dev cut rate
-  const [tierRate, activeOffers] = await Promise.all([
+  // Fetch tier rate, category rates, active offers for this store, and store's dev cut rate
+  const [tierRate, allCategoryRates, activeOffers] = await Promise.all([
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
+    prisma.categoryRate.findMany(),
     prisma.offer.findMany({
       where: {
         isActive: true, startDate: { lte: now }, endDate: { gte: now },
@@ -186,6 +187,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
   const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
+  const categoryRateMap = Object.fromEntries(allCategoryRates.map((r) => [r.category, r.cashbackRate]));
 
   let totalPointsAwarded = 0;
   let totalDevCut = 0;
@@ -196,7 +198,8 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       // Find best matching offer for this category
       const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
       const promoBonus = getTierBonusRate(offer ?? null, customerTier);
-      const cashbackRate = parseFloat((tierBaseRate + promoBonus).toFixed(4));
+      const categoryBonus = categoryRateMap[item.category] ?? 0;
+      const cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
       const cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback

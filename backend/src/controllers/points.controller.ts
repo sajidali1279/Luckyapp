@@ -48,27 +48,29 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const now = new Date();
   const customerTier = customer.tier;
 
-  const [tierRate, activeOffer, store] = await Promise.all([
+  const [tierRate, categoryRate, activeOffer, store] = await Promise.all([
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
+    prisma.categoryRate.findUnique({ where: { category: category as any } }),
     prisma.offer.findFirst({
       where: {
         isActive: true,
         startDate: { lte: now },
         endDate: { gte: now },
-        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
+        bonusRate: { not: null },
         AND: [
           { OR: [{ type: 'ALL_STORES' }, { storeId }] },
           { OR: [{ category: null }, { category }] },
         ],
       },
-      orderBy: { bonusRate: 'desc' }, // highest flat bonus first; per-tier offers should also set bonusRate = max tier bonus
+      orderBy: { bonusRate: 'desc' },
       select: { bonusRate: true, tierBonusRates: true, title: true },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true } }),
   ]);
 
-  // Tier base rate: configured per tier, falls back to DEFAULT_TIER_RATES constant
+  // Tier base rate + optional per-category bonus (additive)
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
+  const categoryBonus = categoryRate?.cashbackRate ?? 0;
 
   // Gas per-gallon mode: if gasCentsPerGallon is configured for this tier AND this is a gas/diesel transaction
   const isGasCategory = category === ProductCategory.GAS || category === ProductCategory.DIESEL;
@@ -85,10 +87,10 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     cashbackIssued = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
     effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   } else {
-    // Percentage mode — tier base + any active promo bonus
+    // Percentage mode — tier base + category bonus + any active promo bonus
     promoBonus = getTierBonusRate(activeOffer, customerTier);
     promotionApplied = promoBonus > 0 ? activeOffer!.title : null;
-    effectiveCashbackRate = parseFloat((tierBaseRate + promoBonus).toFixed(4));
+    effectiveCashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
     cashbackIssued = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
   }
 

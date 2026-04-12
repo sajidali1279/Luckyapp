@@ -60,8 +60,11 @@ export default function Dashboard() {
   const { data: ratesData } = useQuery({
     queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled: isDevAdmin,
   });
+  const { data: tierRatesData } = useQuery({
+    queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates(), enabled: isDevAdmin,
+  });
 
-  const activeOffers = (offersData?.data?.data || []).length;
+  const activeOffersCount = (offersData?.data?.data || []).length;
   const activeBanners = (bannersData?.data?.data || []).length;
   const totalCustomers = customersData?.data?.data?.total || 0;
   const totalStaff = (staffData?.data?.data || []).length;
@@ -69,7 +72,23 @@ export default function Dashboard() {
   const revenue = revenueData?.data?.data;
   const analytics = analyticsData?.data?.data;
   const categoryRates: { category: string; label: string; cashbackRate: number }[] = ratesData?.data?.data || [];
+  const tierRatesList: { tier: string; cashbackRate: number }[] = tierRatesData?.data?.data || [];
+  const activeOffersList: any[] = offersData?.data?.data || [];
   const platform = platformData?.data?.data;
+
+  // Build live effective rate per category = Bronze tier base + category bonus + best active promo for that category
+  const bronzeBase = tierRatesList.find(r => r.tier === 'BRONZE')?.cashbackRate ?? 0.01;
+  const now = new Date();
+  const liveRates = categoryRates.map(r => {
+    const catBonus = r.cashbackRate ?? 0;
+    const promo = activeOffersList.find((o: any) => {
+      const notExpired = new Date(o.startDate) <= now && new Date(o.endDate) >= now;
+      const matchesCat = o.category === null || o.category === r.category;
+      return notExpired && o.isActive && o.bonusRate != null && matchesCat;
+    });
+    const promoBonus = promo?.bonusRate ?? 0;
+    return { ...r, catBonus, promoBonus, promoTitle: promo?.title ?? null, effectiveRate: bronzeBase + catBonus + promoBonus };
+  });
 
   return (
     <div style={s.container}>
@@ -130,7 +149,7 @@ export default function Dashboard() {
         <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} />
         <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} />
         <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} />
-        <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffers} />
+        <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} />
         <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} />
       </div>
 
@@ -228,30 +247,28 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* ── Category Cashback Rates (DevAdmin only) ── */}
-      {isDevAdmin && categoryRates.length > 0 && (
+      {/* ── Live Cashback Rates by Category (DevAdmin only, read-only) ── */}
+      {isDevAdmin && liveRates.length > 0 && (
         <>
-          <h2 style={s.section}>Cashback Rates by Category</h2>
+          <h2 style={s.section}>Live Cashback Rates Today</h2>
           <p style={s.sectionSub}>
-            Set how much credit customers earn per purchase category. Dev cut is always 5% of redeemed credits.
+            Effective rate each Bronze customer earns per category right now — tier base + category bonus + active promotions.
+            Edit rates on the <strong>Tier Rates</strong> page.
           </p>
           <div style={s.ratesGrid}>
-            {categoryRates.map((r) => (
-              <CategoryRateCard
-                key={r.category}
-                category={r.category}
-                label={r.label}
-                rate={r.cashbackRate}
-                icon={CAT_ICONS[r.category] || '🏪'}
-                onSave={(rate) => {
-                  billingApi.updateCategoryRate(r.category, rate)
-                    .then(() => {
-                      qc.invalidateQueries({ queryKey: ['category-rates'] });
-                      toast.success(`${r.label} rate updated`);
-                    })
-                    .catch(() => toast.error('Failed to update rate'));
-                }}
-              />
+            {liveRates.map((r) => (
+              <div key={r.category} style={s.liveRateCard}>
+                <div style={s.liveRateTop}>
+                  <span style={s.liveRateIcon}>{CAT_ICONS[r.category] || '🏪'}</span>
+                  <span style={s.liveRateLabel}>{r.label}</span>
+                </div>
+                <div style={s.liveRateValue}>{(r.effectiveRate * 100).toFixed(1)}%</div>
+                <div style={s.liveRateBreakdown}>
+                  <span style={s.liveRateRow}>Base (Bronze): {(bronzeBase * 100).toFixed(1)}%</span>
+                  {r.catBonus > 0 && <span style={{ ...s.liveRateRow, color: '#457B9D' }}>Category bonus: +{(r.catBonus * 100).toFixed(1)}%</span>}
+                  {r.promoBonus > 0 && <span style={{ ...s.liveRateRow, color: '#2DC653' }}>🎉 {r.promoTitle}: +{(r.promoBonus * 100).toFixed(1)}%</span>}
+                </div>
+              </div>
             ))}
           </div>
         </>
@@ -410,4 +427,12 @@ const s: Record<string, React.CSSProperties> = {
   ratePercent: { fontSize: 18, color: '#6c757d', fontWeight: 700 },
   rateSaveBtn: { background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700 },
   rateCancelBtn: { background: '#f8f9fa', color: '#6c757d', border: '1px solid #dee2e6', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' },
+
+  liveRateCard: { background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
+  liveRateTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
+  liveRateIcon: { fontSize: 20 },
+  liveRateLabel: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  liveRateValue: { fontSize: 28, fontWeight: 900, color: '#1D3557', marginBottom: 8 },
+  liveRateBreakdown: { display: 'flex', flexDirection: 'column' as const, gap: 2 },
+  liveRateRow: { fontSize: 11, color: '#6c757d' },
 };

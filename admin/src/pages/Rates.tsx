@@ -6,6 +6,20 @@ import { billingApi } from '../services/api';
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
 
+const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'TOBACCO_VAPES', 'HOT_FOODS', 'OTHER'] as const;
+type CatKey = typeof CATEGORIES[number];
+
+const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> = {
+  GROCERIES:    { emoji: '🛒', label: 'Groceries',     desc: 'General grocery items'     },
+  FROZEN_FOODS: { emoji: '🧊', label: 'Frozen Foods',  desc: 'Frozen & refrigerated'     },
+  FRESH_FOODS:  { emoji: '🥗', label: 'Fresh Foods',   desc: 'Deli, produce, fresh prep'  },
+  GAS:          { emoji: '⛽', label: 'Gas',           desc: 'Gasoline purchases'         },
+  DIESEL:       { emoji: '🚛', label: 'Diesel',        desc: 'Diesel fuel purchases'      },
+  TOBACCO_VAPES:{ emoji: '🚬', label: 'Tobacco/Vapes', desc: 'Tobacco & vape products'   },
+  HOT_FOODS:    { emoji: '🌭', label: 'Hot Foods',     desc: 'Hot deli & prepared foods'  },
+  OTHER:        { emoji: '🏪', label: 'Other',         desc: 'All other in-store items'   },
+};
+
 const TIER_META: Record<TierKey, { emoji: string; color: string; spend: string }> = {
   BRONZE:   { emoji: '🥉', color: '#CD7F32', spend: 'New customers'     },
   SILVER:   { emoji: '🥈', color: '#A0A0B0', spend: '$50+ per period'   },
@@ -16,6 +30,8 @@ const TIER_META: Record<TierKey, { emoji: string; color: string; spend: string }
 
 type RateRow = { tier: string; cashbackRate: number; gasCentsPerGallon: number | null };
 type EditState = Record<string, { cashbackRate: string; gasCentsPerGallon: string }>;
+type CatRateRow = { category: string; cashbackRate: number };
+type CatEditState = Record<string, string>;
 
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
 
@@ -29,6 +45,65 @@ export default function Rates() {
     queryKey: ['tier-rates'],
     queryFn: () => billingApi.getTierRates(),
   });
+
+  // ── Category bonus rates ──────────────────────────────────────────────────
+  const [catForm, setCatForm] = useState<CatEditState>({});
+  const [catDirty, setCatDirty] = useState<Set<string>>(new Set());
+  const [catSaving, setCatSaving] = useState<string | null>(null);
+
+  const { data: catData, isLoading: catLoading } = useQuery({
+    queryKey: ['category-rates'],
+    queryFn: () => billingApi.getCategoryRates(),
+  });
+
+  const catRates: CatRateRow[] = catData?.data?.data || [];
+
+  useEffect(() => {
+    if (catRates.length === 0) return;
+    const initial: CatEditState = {};
+    for (const r of catRates) {
+      initial[r.category] = String((r.cashbackRate * 100).toFixed(1));
+    }
+    // Ensure all 8 categories are present (default 0)
+    for (const cat of CATEGORIES) {
+      if (!(cat in initial)) initial[cat] = '0.0';
+    }
+    setCatForm(initial);
+    setCatDirty(new Set());
+  }, [catRates.length]);
+
+  const catUpdateMut = useMutation({
+    mutationFn: ({ category, rate }: { category: string; rate: number }) =>
+      billingApi.updateCategoryRate(category, rate),
+    onSuccess: (_res, { category }) => {
+      toast.success(`${CAT_META[category as CatKey]?.label ?? category} bonus saved`);
+      setCatSaving(null);
+      setCatDirty(p => { const n = new Set(p); n.delete(category); return n; });
+      qc.invalidateQueries({ queryKey: ['category-rates'] });
+    },
+    onError: () => { toast.error('Failed to save'); setCatSaving(null); },
+  });
+
+  function handleCatChange(cat: string, value: string) {
+    setCatForm(p => ({ ...p, [cat]: value }));
+    setCatDirty(p => new Set(p).add(cat));
+  }
+
+  function handleCatSave(cat: string) {
+    const val = parseFloat(catForm[cat] ?? '0');
+    if (isNaN(val) || val < 0 || val > 100) {
+      toast.error('Bonus must be 0 – 100%');
+      return;
+    }
+    setCatSaving(cat);
+    catUpdateMut.mutate({ category: cat, rate: val / 100 });
+  }
+
+  function handleCatReset(cat: string) {
+    const original = catRates.find(r => r.category === cat);
+    setCatForm(p => ({ ...p, [cat]: String(((original?.cashbackRate ?? 0) * 100).toFixed(1)) }));
+    setCatDirty(p => { const n = new Set(p); n.delete(cat); return n; });
+  }
 
   const tiers: RateRow[] = data?.data?.data || [];
 
@@ -218,6 +293,110 @@ export default function Rates() {
         </div>
       )}
 
+      {/* ── Category Bonus Rates ─────────────────────────────────────────── */}
+      <div style={s.sectionHeader}>
+        <div>
+          <h2 style={s.sectionTitle}>📦 Category Bonus Rates</h2>
+          <p style={s.sectionSubtitle}>
+            Add an extra cashback % on top of the tier base rate for specific product categories.
+            Set to 0% to use only the tier rate for that category.
+          </p>
+        </div>
+        {catDirty.size > 0 && (
+          <button
+            style={s.saveAllBtn}
+            onClick={() => [...catDirty].forEach(cat => handleCatSave(cat))}
+          >
+            💾 Save {catDirty.size} change{catDirty.size > 1 ? 's' : ''}
+          </button>
+        )}
+      </div>
+
+      {catLoading && <div style={s.loading}>Loading category rates…</div>}
+
+      {!catLoading && (
+        <div style={s.tableWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr style={s.thead}>
+                <th style={{ ...s.th, width: 200 }}>Category</th>
+                <th style={s.th}>
+                  Bonus %
+                  <div style={s.thSub}>added on top of tier base rate</div>
+                </th>
+                <th style={s.th}>
+                  Example (Bronze 1% base)
+                  <div style={s.thSub}>effective rate for a Bronze customer</div>
+                </th>
+                <th style={{ ...s.th, width: 100 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {CATEGORIES.map((cat) => {
+                const meta = CAT_META[cat];
+                const isDirty = catDirty.has(cat);
+                const isSaving = catSaving === cat;
+                const rawVal = catForm[cat] ?? '0';
+                const numVal = parseFloat(rawVal);
+                const effective = !isNaN(numVal) ? 1 + numVal : 1; // 1% bronze base
+
+                return (
+                  <tr key={cat} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                    <td style={s.td}>
+                      <div style={s.tierCell}>
+                        <span style={s.catEmoji}>{meta.emoji}</span>
+                        <div>
+                          <div style={s.tierName}>{meta.label}</div>
+                          <div style={s.tierSub}>{meta.desc}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={s.td}>
+                      <div style={s.inputGroup}>
+                        <input
+                          type="number"
+                          min="0" max="20" step="0.5"
+                          value={rawVal}
+                          onChange={e => handleCatChange(cat, e.target.value)}
+                          style={{ ...s.input, ...(isDirty ? s.inputDirty : {}) }}
+                          placeholder="0"
+                        />
+                        <span style={s.suffix}>%</span>
+                        {!isNaN(numVal) && numVal > 0 && (
+                          <span style={s.preview}>+{numVal.toFixed(1)}% bonus</span>
+                        )}
+                        {!isNaN(numVal) && numVal === 0 && (
+                          <span style={{ ...s.preview, color: '#adb5bd' }}>no bonus</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={s.td}>
+                      {!isNaN(numVal) ? (
+                        <span style={s.effectiveTag}>
+                          {effective.toFixed(1)}% effective
+                        </span>
+                      ) : null}
+                    </td>
+                    <td style={{ ...s.td, textAlign: 'right' }}>
+                      {isDirty ? (
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button style={s.saveBtn} disabled={isSaving} onClick={() => handleCatSave(cat)}>
+                            {isSaving ? '…' : 'Save'}
+                          </button>
+                          <button style={s.undoBtn} onClick={() => handleCatReset(cat)}>↩</button>
+                        </div>
+                      ) : (
+                        <span style={s.savedTag}>✓</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* How it works */}
       <div style={s.infoGrid}>
         <div style={s.infoCard}>
@@ -316,6 +495,19 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', fontSize: 13, color: '#6c757d',
   },
   savedTag: { fontSize: 12, color: '#2DC653', fontWeight: 600 },
+
+  sectionHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+    margin: '36px 0 16px', gap: 16,
+  },
+  sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  sectionSubtitle: { margin: 0, color: '#6c757d', fontSize: 13 },
+  catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
+  effectiveTag: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#e8f8ed', color: '#1a7a3a',
+    borderRadius: 20, fontSize: 12, fontWeight: 700,
+  },
 
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   infoCard: {
