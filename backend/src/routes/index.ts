@@ -171,7 +171,7 @@ router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMI
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
-router.get('/billing/tier-rates', authenticate, requireRole(Role.SUPER_ADMIN), getTierRates);
+router.get('/billing/tier-rates', authenticate, requireRole(Role.EMPLOYEE), getTierRates);
 router.put('/billing/tier-rates/:tier', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRate);
 router.get('/billing/category-rates', authenticate, requireRole(Role.DEV_ADMIN), getCategoryRates);
 router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);

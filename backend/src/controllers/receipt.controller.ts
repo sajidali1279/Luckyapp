@@ -92,13 +92,14 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
   const items: { category: ProductCategory; amount: number }[] = JSON.parse(token.items);
   const now = new Date();
 
-  // Fetch tier rate + active offers for this store
-  const [tierRate, activeOffers] = await Promise.all([
+  // Fetch tier rate, category bonus rates, and active offers for this store
+  const [tierRate, allCategoryRates, activeOffers] = await Promise.all([
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
+    prisma.categoryRate.findMany(),
     prisma.offer.findMany({
       where: {
         isActive: true, startDate: { lte: now }, endDate: { gte: now },
-        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
+        bonusRate: { not: null },
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       select: { bonusRate: true, tierBonusRates: true, category: true, title: true },
@@ -107,12 +108,14 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
   const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
+  const categoryRateMap = Object.fromEntries(allCategoryRates.map(r => [r.category, r.cashbackRate]));
 
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
     const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
     const promoBonus = getTierBonusRate(offer ?? null, customerTier);
-    const effectiveRate = tierBaseRate + promoBonus;
+    const categoryBonus = categoryRateMap[item.category] ?? 0;
+    const effectiveRate = tierBaseRate + categoryBonus + promoBonus;
     const cashback = parseFloat((item.amount * effectiveRate).toFixed(2));
     estimatedCashback += cashback;
     return { category: item.category, amount: item.amount, cashback, effectiveRate };
@@ -231,20 +234,33 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   totalPointsAwarded = parseFloat(totalPointsAwarded.toFixed(2));
   totalDevCut = parseFloat(totalDevCut.toFixed(2));
 
-  // Update customer balance + periodPoints + mark token used
-  const [updatedCustomer] = await prisma.$transaction([
-    prisma.user.update({
-      where: { id: customer.id },
-      data: {
-        pointsBalance: { increment: totalPointsAwarded },
-        periodPoints:  { increment: totalPointsAwarded }, // counts toward tier progression
-      },
-    }),
-    prisma.receiptToken.update({
-      where: { id: tokenId },
-      data: { usedBy: customer.id, usedAt: new Date() },
-    }),
-  ]);
+  // Update customer balance + atomically claim the token — prevents double-claim race condition
+  let updatedCustomer: Awaited<ReturnType<typeof prisma.user.update>>;
+  try {
+    updatedCustomer = await prisma.$transaction(async (tx) => {
+      // Atomic claim: only succeeds if usedBy is still null at this moment
+      const claimed = await tx.receiptToken.updateMany({
+        where: { id: tokenId, usedBy: null },
+        data: { usedBy: customer.id, usedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        throw Object.assign(new Error('ALREADY_CLAIMED'), { code: 'ALREADY_CLAIMED' });
+      }
+      return tx.user.update({
+        where: { id: customer.id },
+        data: {
+          pointsBalance: { increment: totalPointsAwarded },
+          periodPoints:  { increment: totalPointsAwarded },
+        },
+      });
+    });
+  } catch (err: any) {
+    if (err.code === 'ALREADY_CLAIMED') {
+      res.status(409).json({ success: false, error: 'These points have already been claimed' });
+      return;
+    }
+    throw err;
+  }
 
   // Recalculate tier after balance update
   await updateCustomerTierIfNeeded(customer.id, updatedCustomer.periodPoints, updatedCustomer.tier);

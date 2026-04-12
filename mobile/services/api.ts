@@ -152,6 +152,7 @@ export const notificationsApi = {
 
 export const storesApi = {
   getGasPrices: () => api.get('/stores/gas-prices'),
+  getTierRates: () => api.get('/billing/tier-rates'),
 };
 
 export const promotionsApi = {

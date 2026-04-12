@@ -41,7 +41,8 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
 ];
 
 // Tier-based pts multiplier: rate% × 100 (e.g. Bronze 1% → ×1, Gold 3% → ×3)
-const TIER_PTS_MULT: Record<string, number> = { BRONZE: 1, SILVER: 2, GOLD: 3, DIAMOND: 4, PLATINUM: 5 };
+// Fallback multiplier — overridden by live tier rates fetched on mount
+const TIER_PTS_MULT_FALLBACK: Record<string, number> = { BRONZE: 1, SILVER: 2, GOLD: 3, DIAMOND: 4, PLATINUM: 5 };
 
 const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string }> = {
   BRONZE:   { label: 'Bronze',   color: '#CD7F32', emoji: '🥉' },
@@ -163,6 +164,8 @@ export default function EmployeeScanScreen() {
 
   // Store gas prices (fetched once on mount for auto-fill)
   const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number }>>({});
+  // Tier rates: cashbackRate (%) and gasCentsPerGallon per tier
+  const [tierRates, setTierRates] = useState<Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }>>({});
 
   useEffect(() => {
     storesApi.getGasPrices().then((res) => {
@@ -171,6 +174,14 @@ export default function EmployeeScanScreen() {
         map[store.id] = { gasPricePerGallon: store.gasPricePerGallon, dieselPricePerGallon: store.dieselPricePerGallon };
       }
       setStoreGasPrices(map);
+    }).catch(() => {});
+
+    storesApi.getTierRates().then((res) => {
+      const map: Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }> = {};
+      for (const r of res.data.data ?? []) {
+        map[r.tier] = { cashbackRate: r.cashbackRate, gasCentsPerGallon: r.gasCentsPerGallon ?? null };
+      }
+      setTierRates(map);
     }).catch(() => {});
   }, []);
 
@@ -204,9 +215,19 @@ export default function EmployeeScanScreen() {
   const parsedGallons = parseFloat(gasGallons);
   const validGallons = isGasCat ? (!isNaN(parsedGallons) && parsedGallons > 0) : true;
   const committedTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-  const tierMult = TIER_PTS_MULT[customerData?.tier ?? 'BRONZE'] ?? 1;
-  const runningTotal = committedTotal + (validAmount ? parsedAmount : 0);
-  const estimatedCashback = runningTotal > 0 ? Math.round(runningTotal * tierMult) : null;
+  const customerTier = customerData?.tier ?? 'BRONZE';
+  const liveTierRate = tierRates[customerTier];
+  // pts-per-dollar from live rate (fallback to hardcoded until rates load)
+  const tierMult = liveTierRate
+    ? Math.round(liveTierRate.cashbackRate * 100)
+    : (TIER_PTS_MULT_FALLBACK[customerTier] ?? 1);
+  const gasCentsPerGallon = liveTierRate?.gasCentsPerGallon ?? null;
+  // For gas in ¢/gallon mode, estimate from gallons; otherwise use dollar × rate
+  const currentItemPts = isGasCat && validGallons && gasCentsPerGallon != null
+    ? Math.round(parsedGallons * gasCentsPerGallon)
+    : validAmount ? Math.round(parsedAmount * tierMult) : 0;
+  const committedPts = lineItems.reduce((sum, item) => sum + Math.round((parseFloat(item.amount) || 0) * tierMult), 0);
+  const estimatedCashback = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
 
   function addCurrentItem() {
     if (!validAmount || (isGasCat && !validGallons)) {
@@ -797,7 +818,11 @@ export default function EmployeeScanScreen() {
               </View>
               <View style={s.previewRow}>
                 <Text style={s.previewLabel}>Rate</Text>
-                <Text style={s.previewRate}>{tierMult} pts per $1 ({customerData?.tier ?? 'BRONZE'} tier · promos applied at grant)</Text>
+                <Text style={s.previewRate}>
+                  {isGasCat && gasCentsPerGallon != null
+                    ? `${gasCentsPerGallon}¢/gal (${customerTier} · promos add on top)`
+                    : `${tierMult} pts per $1 (${customerTier} · promos applied at grant)`}
+                </Text>
               </View>
               <View style={s.previewDivider} />
               <Text style={s.previewNote}>Final amount confirmed after submission</Text>
