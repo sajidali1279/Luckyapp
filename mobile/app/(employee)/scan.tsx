@@ -176,6 +176,9 @@ export default function EmployeeScanScreen() {
 
   function selectCategory(cat: Category) {
     setCategory(cat);
+    setGasGallons('');
+    const isGas = cat === 'GAS' || cat === 'DIESEL';
+    if (!isGas) { setGasPricePerGallon(''); return; }
     if (!storeId) return;
     const prices = storeGasPrices[storeId];
     if (!prices) return;
@@ -189,6 +192,15 @@ export default function EmployeeScanScreen() {
   const isGasCat = category === 'GAS' || category === 'DIESEL';
   const parsedAmount = parseFloat(purchaseAmount);
   const validAmount = !isNaN(parsedAmount) && parsedAmount > 0;
+  const parsedPPG = parseFloat(gasPricePerGallon);
+
+  // Auto-calculate gallons from amount ÷ price-per-gallon whenever both are known
+  useEffect(() => {
+    if (isGasCat && validAmount && !isNaN(parsedPPG) && parsedPPG > 0) {
+      setGasGallons((parsedAmount / parsedPPG).toFixed(3));
+    }
+  }, [purchaseAmount, gasPricePerGallon, isGasCat]);
+
   const parsedGallons = parseFloat(gasGallons);
   const validGallons = isGasCat ? (!isNaN(parsedGallons) && parsedGallons > 0) : true;
   const committedTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -737,17 +749,7 @@ export default function EmployeeScanScreen() {
           {isGasCat && (
             <View style={s.gasBox}>
               <View style={s.gasRow}>
-                <View style={[s.amountBox, { flex: 1 }]}>
-                  <Text style={s.gasUnit}>gal</Text>
-                  <TextInput
-                    style={[s.amountInput, { fontSize: 28 }]}
-                    placeholder="0.000"
-                    placeholderTextColor={COLORS.textMuted}
-                    keyboardType="decimal-pad"
-                    value={gasGallons}
-                    onChangeText={setGasGallons}
-                  />
-                </View>
+                {/* Price per gallon — editable, auto-filled from store */}
                 <View style={[s.amountBox, { flex: 1 }]}>
                   <Text style={s.amountDollar}>$</Text>
                   <TextInput
@@ -759,7 +761,19 @@ export default function EmployeeScanScreen() {
                     onChangeText={setGasPricePerGallon}
                   />
                 </View>
+                {/* Gallons — auto-calculated, read-only display */}
+                <View style={[s.amountBox, { flex: 1, backgroundColor: '#f0f8f0', borderColor: '#2DC653' }]}>
+                  <Text style={[s.gasUnit, { color: '#2DC653' }]}>gal</Text>
+                  <Text style={[s.amountInput, { fontSize: 28, color: validGallons ? '#1a7a1a' : COLORS.textMuted, textAlignVertical: 'center' }]}>
+                    {validGallons ? parsedGallons.toFixed(3) : '—'}
+                  </Text>
+                </View>
               </View>
+              {validGallons && (
+                <Text style={{ fontSize: 11, color: '#6b7280', textAlign: 'center', marginTop: 4 }}>
+                  Gallons auto-calculated from ${parsedPPG.toFixed(2)}/gal
+                </Text>
+              )}
               {/* Gas bonus preview */}
               {['GOLD','DIAMOND','PLATINUM'].includes(tier) && validGallons && (
                 <View style={[s.gasBonus, { borderColor: tierCfg.color + '50', backgroundColor: tierCfg.color + '10' }]}>
