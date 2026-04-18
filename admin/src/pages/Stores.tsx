@@ -3,6 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi } from '../services/api';
 import toast from 'react-hot-toast';
 
+const ALL_CATEGORIES = [
+  { value: 'GAS',           label: 'Gas',          icon: '⛽' },
+  { value: 'DIESEL',        label: 'Diesel',        icon: '🚛' },
+  { value: 'HOT_FOODS',     label: 'Hot Foods',     icon: '🌮' },
+  { value: 'GROCERIES',     label: 'Groceries',     icon: '🛒' },
+  { value: 'FROZEN_FOODS',  label: 'Frozen Foods',  icon: '🧊' },
+  { value: 'FRESH_FOODS',   label: 'Fresh Foods',   icon: '🥗' },
+  { value: 'TOBACCO_VAPES', label: 'Tobacco/Vapes', icon: '🚬' },
+  { value: 'OTHER',         label: 'Other',         icon: '🏪' },
+] as const;
+
 interface Store {
   id: string;
   name: string;
@@ -17,6 +28,7 @@ interface Store {
   gasPricePerGallon: number | null;
   dieselPricePerGallon: number | null;
   gasPriceUpdatedAt: string | null;
+  enabledCategories: string[];
 }
 
 interface FormState {
@@ -42,6 +54,7 @@ export default function Stores() {
   const qc = useQueryClient();
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '' });
+  const [enabledCats, setEnabledCats] = useState<string[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   // Gas price inline editing: map of storeId → { gas, diesel }
   const [gasForms, setGasForms] = useState<Record<string, { gas: string; diesel: string }>>({});
@@ -121,6 +134,13 @@ export default function Stores() {
       latitude: store.latitude != null ? String(store.latitude) : '',
       longitude: store.longitude != null ? String(store.longitude) : '',
     });
+    setEnabledCats(store.enabledCategories ?? []);
+  }
+
+  function toggleCat(cat: string) {
+    setEnabledCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
   }
 
   async function geocodeAddress() {
@@ -159,6 +179,7 @@ export default function Stores() {
       phone: form.phone.trim() || undefined,
       latitude: lat,
       longitude: lng,
+      enabledCategories: enabledCats,
     };
     mutation.mutate({ storeId: editStore.id, payload });
   }
@@ -218,6 +239,20 @@ export default function Stores() {
                     <span style={s.coordText}>{store.latitude!.toFixed(5)}, {store.longitude!.toFixed(5)}</span>
                   </div>
                 )}
+
+                {/* ── Category pills ── */}
+                <div style={s.divider} />
+                <div style={s.catSectionLabel}>Available Categories</div>
+                <div style={s.catPillRow}>
+                  {ALL_CATEGORIES.map(cat => {
+                    const enabled = store.enabledCategories.length === 0 || store.enabledCategories.includes(cat.value);
+                    return (
+                      <span key={cat.value} style={{ ...s.catPill, ...(enabled ? s.catPillOn : s.catPillOff) }}>
+                        {cat.icon} {cat.label}
+                      </span>
+                    );
+                  })}
+                </div>
 
                 {/* ── Gas Prices inline editor ── */}
                 <div style={s.divider} />
@@ -341,6 +376,39 @@ export default function Stores() {
               </div>
             </div>
 
+            {/* Categories */}
+            <div style={s.sectionLabel}>Available Categories</div>
+            <div style={s.catHint}>
+              Toggle which product categories are available at this store. Empty = all categories enabled.
+            </div>
+            <div style={s.catToggleGrid}>
+              {ALL_CATEGORIES.map(cat => {
+                const on = enabledCats.length === 0 || enabledCats.includes(cat.value);
+                return (
+                  <button key={cat.value}
+                    type="button"
+                    style={{ ...s.catToggleBtn, ...(on ? s.catToggleBtnOn : s.catToggleBtnOff) }}
+                    onClick={() => {
+                      if (enabledCats.length === 0) {
+                        // Currently "all" — clicking one turns on explicit list of all EXCEPT this
+                        setEnabledCats(ALL_CATEGORIES.map(c => c.value).filter(v => v !== cat.value));
+                      } else {
+                        toggleCat(cat.value);
+                      }
+                    }}>
+                    <span>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                    <span style={s.catToggleCheck}>{on ? '✓' : '✕'}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {enabledCats.length > 0 && enabledCats.length < ALL_CATEGORIES.length && (
+              <button style={s.resetCatBtn} onClick={() => setEnabledCats([])}>
+                Reset to all enabled
+              </button>
+            )}
+
             <div style={s.modalActions}>
               <button style={s.cancelBtn} onClick={() => setEditStore(null)}>Cancel</button>
               <button style={s.saveBtn} onClick={save} disabled={mutation.isPending}>
@@ -404,6 +472,20 @@ const s: Record<string, React.CSSProperties> = {
   field: { flex: 1, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 5 },
   label: { fontSize: 12, fontWeight: 600, color: '#555' },
   input: { border: '1.5px solid #e2e8f0', borderRadius: 9, padding: '9px 12px', fontSize: 13, color: '#1a1a2e', outline: 'none', transition: 'border-color 0.15s' },
+
+  catSectionLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
+  catPillRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 4 },
+  catPill: { fontSize: 11, fontWeight: 600, borderRadius: 20, padding: '3px 9px', border: '1px solid' },
+  catPillOn: { background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' },
+  catPillOff: { background: '#f9f9f9', borderColor: '#e5e7eb', color: '#aaa', textDecoration: 'line-through' },
+
+  catHint: { fontSize: 12, color: '#6c757d', background: '#f8f9fb', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
+  catToggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 },
+  catToggleBtn: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 6px', borderRadius: 10, border: '1.5px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  catToggleBtnOn: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
+  catToggleBtnOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
+  catToggleCheck: { fontSize: 11, fontWeight: 800 },
+  resetCatBtn: { fontSize: 12, color: '#1D3557', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
 
   geocodeHint: { fontSize: 12, color: '#6c757d', background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
   geocodeBtn: { width: '100%', padding: '10px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },

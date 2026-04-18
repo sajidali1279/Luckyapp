@@ -63,7 +63,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
         ],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { bonusRate: true, tierBonusRates: true, title: true },
+      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true } }),
   ]);
@@ -84,12 +84,18 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
 
   // Promos always stack regardless of gas mode
   promoBonus = getTierBonusRate(activeOffer, customerTier);
-  promotionApplied = promoBonus > 0 ? activeOffer!.title : null;
+  const hasGasPromo = promoBonus > 0 || (activeOffer?.gasBonusCentsPerGallon != null);
+  promotionApplied = hasGasPromo ? activeOffer!.title : null;
 
   if (usePerGallonMode) {
-    // ¢/gallon base + promo stacks on top as % of purchase amount
+    // ¢/gallon base + promo: use offer's ¢/gallon bonus if set, otherwise fall back to % of amount
     const perGallonCashback = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
-    const promoCashback     = parseFloat((purchaseAmount * promoBonus).toFixed(4));
+    let promoCashback: number;
+    if (activeOffer?.gasBonusCentsPerGallon != null) {
+      promoCashback = parseFloat((gasGallons! * activeOffer.gasBonusCentsPerGallon / 100).toFixed(4));
+    } else {
+      promoCashback = parseFloat((purchaseAmount * promoBonus).toFixed(4));
+    }
     cashbackIssued          = parseFloat((perGallonCashback + promoCashback).toFixed(4));
     effectiveCashbackRate   = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   } else {
@@ -195,8 +201,9 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     stream.end(req.file!.buffer);
   });
 
-  // Approve transaction atomically
-  const [updatedTransaction] = await prisma.$transaction([
+  // Approve transaction and credit balance atomically
+  const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
+  const [updatedTransaction, updatedCustomer] = await prisma.$transaction([
     prisma.pointsTransaction.update({
       where: { id: transactionId },
       data: {
@@ -204,17 +211,14 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
         receiptImageUrl: uploadResult.secure_url,
       },
     }),
+    prisma.user.update({
+      where: { id: transaction.customerId },
+      data: {
+        pointsBalance: { increment: totalPoints },
+        periodPoints:  { increment: totalPoints },
+      },
+    }),
   ]);
-
-  // Update periodPoints + recalculate tier
-  const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
-  const updatedCustomer = await prisma.user.update({
-    where: { id: transaction.customerId },
-    data: {
-      pointsBalance: { increment: totalPoints },
-      periodPoints:  { increment: totalPoints },
-    },
-  });
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
 
   sendPushToUser(
@@ -314,14 +318,14 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
 
   const [transactions, total] = await prisma.$transaction([
     prisma.pointsTransaction.findMany({
-      where: { customerId: req.user!.id, status: TransactionStatus.APPROVED },
+      where: { customerId: req.user!.id },
       orderBy: { createdAt: 'desc' },
       skip,
       take: parseInt(limit),
       include: { store: { select: { name: true } } },
     }),
     prisma.pointsTransaction.count({
-      where: { customerId: req.user!.id, status: TransactionStatus.APPROVED },
+      where: { customerId: req.user!.id },
     }),
   ]);
 
@@ -350,6 +354,13 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
     where: { id: transactionId },
     data: { status: TransactionStatus.REJECTED },
   });
+
+  sendPushToUser(
+    transaction.customerId,
+    '❌ Transaction Rejected',
+    `Your $${transaction.purchaseAmount.toFixed(2)} ${transaction.category.replace(/_/g, ' ').toLowerCase()} transaction could not be verified. Visit the store if you have questions.`,
+    'POINTS'
+  );
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

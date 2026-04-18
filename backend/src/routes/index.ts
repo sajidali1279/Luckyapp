@@ -49,6 +49,9 @@ import {
   getVacancies,
 } from '../controllers/schedule.controller';
 import {
+  createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread, getUnreadCount as getSupportUnreadCount,
+} from '../controllers/support.controller';
+import {
   submitPromotionRequest,
   getPublishedPromotions,
   getMyPromotionRequest,
@@ -57,6 +60,13 @@ import {
   rejectPromotion,
   deletePromotion,
 } from '../controllers/promotions.controller';
+import {
+  getCustomerLeaderboard,
+  getEmployeeLeaderboard,
+  submitRating,
+  getPendingRatings,
+  getMyRatingSummary,
+} from '../controllers/leaderboard.controller';
 import {
   updateStoreBilling,
   getAllStoresBilling,
@@ -196,9 +206,9 @@ router.get('/notifications/unread-count', authenticate, getUnreadCount);
 router.patch('/notifications/mark-all-read', authenticate, markAllRead);
 router.patch('/notifications/:id/read', authenticate, markOneRead);
 
-// ─── Audit Log (DevAdmin only) ────────────────────────────────────────────────
-router.get('/audit/logs', authenticate, requireRole(Role.DEV_ADMIN), getAuditLogs);
-router.get('/audit/stats', authenticate, requireRole(Role.DEV_ADMIN), getAuditStats);
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+router.get('/audit/logs', authenticate, requireRole(Role.SUPER_ADMIN), getAuditLogs);
+router.get('/audit/stats', authenticate, requireRole(Role.SUPER_ADMIN), getAuditStats);
 
 // ─── Scheduling ───────────────────────────────────────────────────────────────
 router.get('/schedule/store/:storeId/employees', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreEmployees);
@@ -240,6 +250,25 @@ router.get('/promotions/requests', authenticate, requireRole(Role.DEV_ADMIN), ge
 router.post('/promotions/:id/publish', authenticate, requireRole(Role.DEV_ADMIN), upload.single('image'), publishPromotion);     // DevAdmin publishes (optional banner image)
 router.patch('/promotions/:id/reject', authenticate, requireRole(Role.DEV_ADMIN), rejectPromotion);                              // DevAdmin rejects
 router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), deletePromotion);                                    // DevAdmin deletes
+
+// ─── Support (SuperAdmin → DevAdmin) ─────────────────────────────────────────
+router.post('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), createThread);
+router.get('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), getThreads);
+router.get('/support/unread-count', authenticate, requireRole(Role.DEV_ADMIN), getSupportUnreadCount);
+router.get('/support/threads/:threadId', authenticate, requireRole(Role.SUPER_ADMIN), getThread);
+router.post('/support/threads/:threadId/messages', authenticate, requireRole(Role.SUPER_ADMIN), sendSupportMessage);
+router.patch('/support/threads/:threadId/resolve', authenticate, requireRole(Role.DEV_ADMIN), resolveThread);
+// DevAdmin also needs to read threads and send messages
+router.get('/support/inbox', authenticate, requireRole(Role.DEV_ADMIN), getThreads);
+router.get('/support/inbox/:threadId', authenticate, requireRole(Role.DEV_ADMIN), getThread);
+router.post('/support/inbox/:threadId/messages', authenticate, requireRole(Role.DEV_ADMIN), sendSupportMessage);
+
+// ─── Leaderboard & Ratings ────────────────────────────────────────────────────
+router.get('/leaderboard/customers', authenticate, getCustomerLeaderboard);                                           // Chain or store customer leaderboard
+router.get('/leaderboard/employees/:storeId', authenticate, requireRole(Role.EMPLOYEE), getEmployeeLeaderboard);     // Employee leaderboard for a store
+router.post('/ratings', authenticate, requireRole(Role.CUSTOMER), submitRating);                                      // Customer rates employee after transaction
+router.get('/ratings/pending', authenticate, requireRole(Role.CUSTOMER), getPendingRatings);                          // Customer: unrated approved transactions
+router.get('/ratings/my/:storeId', authenticate, requireRole(Role.EMPLOYEE), getMyRatingSummary);                     // Employee: own rating summary
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request

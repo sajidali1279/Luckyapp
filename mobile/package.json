@@ -10,6 +10,7 @@
     "build:ios": "eas build --platform ios"
   },
   "dependencies": {
+    "@expo/ngrok": "^4.1.0",
     "@hookform/resolvers": "^3.9.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.0.0",
@@ -22,6 +23,7 @@
     "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.11",
     "expo-local-authentication": "~17.0.8",
+    "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",

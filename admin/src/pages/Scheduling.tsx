@@ -364,6 +364,7 @@ export default function Scheduling() {
                                           ...s.addChipBtn,
                                           ...(available.length === 0 ? { opacity: 0.35, cursor: 'not-allowed' } : {}),
                                         }}
+                                        disabled={available.length === 0}
                                         onClick={() => {
                                           setAddModal({ day: day.key, shiftType: shift.key });
                                           setSelectedEmployeeId('');

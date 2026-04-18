@@ -80,7 +80,13 @@ export default function HistoryScreen() {
                   </View>
                 </View>
                 <View style={s.cardRight}>
-                  <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
+                  {item.status === 'APPROVED' ? (
+                    <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
+                  ) : item.status === 'PENDING' ? (
+                    <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>⏳ Pending</Text>
+                  ) : (
+                    <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>✕ Rejected</Text>
+                  )}
                   <Text style={s.tapHint}>tap for details</Text>
                 </View>
               </TouchableOpacity>

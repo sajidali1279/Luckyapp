@@ -99,9 +99,15 @@ export default function Offers() {
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const [mainTab, setMainTab] = useState<'promotions' | 'deals'>('promotions');
   const [showForm, setShowForm] = useState(false);
+  const [showQuick, setShowQuick] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeGroup, setActiveGroup] = useState(TEMPLATE_GROUPS[0]);
+
+  // Quick post state
+  const [quickCategory, setQuickCategory] = useState('');
+  const [quickBonus, setQuickBonus] = useState('');
+  const [quickDuration, setQuickDuration] = useState<'today' | '3d' | '1w' | '2w' | '1m'>('1w');
   // Deal form state
   const [showDealForm, setShowDealForm] = useState(false);
   const [dealTitle, setDealTitle] = useState('');
@@ -119,7 +125,9 @@ export default function Offers() {
   const [tierBonuses, setTierBonuses] = useState({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
   const [type, setType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
   const [storeId, setStoreId] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState<string | null>(null); // null = not yet chosen
+  const [gasBonusCpg, setGasBonusCpg] = useState(''); // ¢/gallon bonus for GAS/DIESEL offers
+  const [gasBonusType, setGasBonusType] = useState<'cpg' | 'pct'>('cpg'); // gas offer bonus mode
   const [startDate, setStartDate] = useState(todayStr());
   const [endDate, setEndDate] = useState(endOfMonthStr());
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -156,7 +164,7 @@ export default function Offers() {
     setShowForm(false);
     setTitle(''); setDescription(''); setBonusRate('');
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
-    setType('ALL_STORES'); setStoreId(''); setCategory('');
+    setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
     setStartDate(todayStr()); setEndDate(endOfMonthStr()); setImageFile(null);
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -165,7 +173,8 @@ export default function Offers() {
     setTitle(t.title);
     setDescription(t.description);
     setBonusRate(t.bonusRate);
-    setCategory(t.category);
+    setCategory(t.category || '');
+    setGasBonusType('pct');
     setShowForm(true);
     setShowTemplates(false);
     setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -176,6 +185,8 @@ export default function Offers() {
     setDescription(offer.description || '');
     setBonusRate(offer.bonusRate ? String(Math.round(offer.bonusRate * 100)) : '');
     setCategory(offer.category || '');
+    setGasBonusCpg(offer.gasBonusCentsPerGallon != null ? String(offer.gasBonusCentsPerGallon) : '');
+    setGasBonusType(offer.gasBonusCentsPerGallon != null ? 'cpg' : 'pct');
     setType(offer.type || 'ALL_STORES');
     setStoreId(offer.storeId || '');
     setStartDate(todayStr());
@@ -187,13 +198,27 @@ export default function Offers() {
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) { toast.error('Title is required'); return; }
-    if (!description.trim()) { toast.error('Description is required'); return; }
+    if (category === null) { toast.error('Select a category'); return; }
     if (!startDate || !endDate) { toast.error('Start and end dates are required'); return; }
     if (type === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
+
+    const isGasDiesel = category === 'GAS' || category === 'DIESEL';
+    const catLabel = category === '' ? 'Store-wide'
+      : [{ value: 'GAS', label: 'Gas' }, { value: 'DIESEL', label: 'Diesel' },
+         { value: 'HOT_FOODS', label: 'Hot Foods' }, { value: 'GROCERIES', label: 'Groceries' },
+         { value: 'FROZEN_FOODS', label: 'Frozen Foods' }, { value: 'FRESH_FOODS', label: 'Fresh Foods' },
+         { value: 'TOBACCO_VAPES', label: 'Tobacco & Vapes' }, { value: 'OTHER', label: 'Other' },
+        ].find(c => c.value === category)?.label ?? category;
+
+    const bonusDisplay = isGasDiesel && gasBonusType === 'cpg' && gasBonusCpg
+      ? `+${gasBonusCpg}¢/gal`
+      : bonusRate ? `+${bonusRate}%` : '';
+    const autoTitle = title.trim() || `${bonusDisplay} ${catLabel} Promotion`;
+    const autoDesc = description.trim() || `${bonusDisplay} bonus on ${catLabel.toLowerCase()} purchases. Valid ${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`;
+
     const fd = new FormData();
-    fd.append('title', title.trim());
-    fd.append('description', description.trim());
+    fd.append('title', autoTitle);
+    fd.append('description', autoDesc);
     fd.append('type', type);
     fd.append('startDate', new Date(startDate).toISOString());
     fd.append('endDate', new Date(endDate + 'T23:59:59').toISOString());
@@ -212,8 +237,44 @@ export default function Offers() {
     }
     if (type === 'SPECIFIC_STORE' && storeId) fd.append('storeId', storeId);
     if (category) fd.append('category', category);
+    if (isGasDiesel && gasBonusType === 'cpg' && gasBonusCpg.trim() !== '') {
+      fd.append('gasBonusCentsPerGallon', gasBonusCpg.trim());
+    }
     if (imageFile) fd.append('image', imageFile);
     createMutation.mutate(fd);
+  }
+
+  function handleQuickPost() {
+    const bonus = parseFloat(quickBonus);
+    if (isNaN(bonus) || bonus <= 0) { toast.error('Enter a bonus %'); return; }
+
+    const catLabel = quickCategory
+      ? CATEGORIES.find(c => c.value === quickCategory)?.label ?? quickCategory
+      : 'All Categories';
+    const durationLabel = { today: 'Today', '3d': '3 Days', '1w': 'This Week', '2w': '2 Weeks', '1m': 'This Month' }[quickDuration];
+    const autoTitle = `+${bonus}% ${catLabel} Bonus — ${durationLabel}`;
+
+    const now = new Date();
+    const end = new Date(now);
+    if (quickDuration === 'today') { end.setHours(23, 59, 59); }
+    else if (quickDuration === '3d') { end.setDate(end.getDate() + 3); }
+    else if (quickDuration === '1w') { end.setDate(end.getDate() + 7); }
+    else if (quickDuration === '2w') { end.setDate(end.getDate() + 14); }
+    else { end.setMonth(end.getMonth() + 1); }
+
+    const fd = new FormData();
+    fd.append('title', autoTitle);
+    fd.append('description', `${bonus}% bonus cashback on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`);
+    fd.append('bonusRate', String(bonus / 100));
+    fd.append('type', 'ALL_STORES');
+    fd.append('startDate', now.toISOString());
+    fd.append('endDate', end.toISOString());
+    if (quickCategory) fd.append('category', quickCategory);
+    createMutation.mutate(fd);
+    setShowQuick(false);
+    setQuickBonus('');
+    setQuickCategory('');
+    setQuickDuration('1w');
   }
 
   const groupedTemplates = TEMPLATES.filter((t) => t.group === activeGroup);
@@ -259,11 +320,15 @@ export default function Offers() {
         <div style={{ display: 'flex', gap: 10 }}>
           {mainTab === 'promotions' && (
             <>
-              <button style={s.templateBtn} onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); }}>
-                💡 {showTemplates ? 'Hide' : 'Suggestions'} ({TEMPLATES.length})
+              <button style={s.templateBtn} onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
+                💡 {showTemplates ? 'Hide' : 'Templates'}
               </button>
-              <button style={s.addBtn} onClick={() => { setShowForm(!showForm); setShowTemplates(false); }}>
-                {showForm ? 'Cancel' : '+ New Promotion'}
+              <button style={{ ...s.templateBtn, background: showQuick ? '#e8f8ed' : undefined, borderColor: showQuick ? '#2DC653' : undefined, color: showQuick ? '#1a7a3a' : undefined }}
+                onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); }}>
+                ⚡ Quick Post
+              </button>
+              <button style={s.addBtn} onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); }}>
+                {showForm ? 'Cancel' : '+ Full Form'}
               </button>
             </>
           )}
@@ -288,6 +353,88 @@ export default function Offers() {
           <span style={{ ...s.tabCount, background: mainTab === 'deals' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'deals' ? '#fff' : '#6b7280' }}>{dealOffers.length}</span>
         </button>
       </div>
+
+      {/* ⚡ Quick Post Panel */}
+      {showQuick && (
+        <div style={s.quickPanel}>
+          <div style={s.quickTitle}>⚡ Quick Post</div>
+          <div style={s.quickRow}>
+            {/* Category chips */}
+            <div style={s.quickGroup}>
+              <div style={s.quickLabel}>Category</div>
+              <div style={s.quickChips}>
+                {[
+                  { value: '', label: '🌐 All' },
+                  { value: 'GAS', label: '⛽ Gas' },
+                  { value: 'DIESEL', label: '🚛 Diesel' },
+                  { value: 'HOT_FOODS', label: '🌭 Hot Foods' },
+                  { value: 'GROCERIES', label: '🛒 Groceries' },
+                  { value: 'FROZEN_FOODS', label: '🧊 Frozen' },
+                  { value: 'FRESH_FOODS', label: '🥗 Fresh' },
+                  { value: 'TOBACCO_VAPES', label: '🚬 Tobacco' },
+                ].map(c => (
+                  <button key={c.value} type="button"
+                    style={{ ...s.chip, ...(quickCategory === c.value ? s.chipActive : {}) }}
+                    onClick={() => setQuickCategory(c.value)}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bonus % */}
+            <div style={s.quickGroup}>
+              <div style={s.quickLabel}>Bonus %</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={s.quickBonusRow}>
+                  {['1', '2', '3', '5', '10'].map(v => (
+                    <button key={v} type="button"
+                      style={{ ...s.chip, ...(quickBonus === v ? s.chipActive : {}) }}
+                      onClick={() => setQuickBonus(v)}>
+                      +{v}%
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number" min="0" max="100" step="0.5"
+                  value={quickBonus}
+                  onChange={e => setQuickBonus(e.target.value)}
+                  style={s.quickInput}
+                  placeholder="custom"
+                />
+                <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>%</span>
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div style={s.quickGroup}>
+              <div style={s.quickLabel}>Duration</div>
+              <div style={s.quickChips}>
+                {([['today', 'Today'], ['3d', '3 Days'], ['1w', '1 Week'], ['2w', '2 Weeks'], ['1m', '1 Month']] as const).map(([val, label]) => (
+                  <button key={val} type="button"
+                    style={{ ...s.chip, ...(quickDuration === val ? s.chipActive : {}) }}
+                    onClick={() => setQuickDuration(val)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Preview + Post */}
+          {quickBonus && parseFloat(quickBonus) > 0 && (
+            <div style={s.quickPreview}>
+              <span style={s.quickPreviewText}>
+                📢 Will post: <strong>+{quickBonus}% {quickCategory ? CATEGORIES.find(c => c.value === quickCategory)?.label : 'All Categories'} Bonus</strong>
+                {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
+              </span>
+              <button style={s.quickPostBtn} onClick={handleQuickPost} disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Posting…' : '⚡ Post Now'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Suggestion Templates */}
       {showTemplates && (
@@ -323,81 +470,185 @@ export default function Offers() {
       {/* Create / Edit Form */}
       {showForm && (
         <form id="offer-form" style={s.form} onSubmit={handleCreate}>
-          <h3 style={{ margin: '0 0 16px', color: '#1D3557' }}>
-            {title ? `✏️ ${title}` : 'New Promotion'}
+          <h3 style={{ margin: '0 0 4px', color: '#1D3557', fontSize: 17, fontWeight: 800 }}>
+            {title || 'New Promotion'}
           </h3>
-          <label style={s.label}>Title *</label>
-          <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Double Gas Points Weekend" />
-          <label style={s.label}>Description *</label>
-          <textarea style={{ ...s.input, height: 80, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the promotion details..." />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={s.label}>Start Date *</label>
-              <input style={s.input} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div>
-              <label style={s.label}>End Date *</label>
-              <input style={s.input} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+
+          {/* ── Step 1: Category ─────────────────────────────────────────── */}
+          <div style={s.formSection}>
+            <div style={s.formSectionLabel}>1 · Category <span style={s.required}>required</span></div>
+            <div style={s.catGrid}>
+              {[
+                { value: '',              emoji: '🌐', label: 'Store-wide' },
+                { value: 'GAS',           emoji: '⛽', label: 'Gas'        },
+                { value: 'DIESEL',        emoji: '🚛', label: 'Diesel'     },
+                { value: 'HOT_FOODS',     emoji: '🌭', label: 'Hot Foods'  },
+                { value: 'GROCERIES',     emoji: '🛒', label: 'Groceries'  },
+                { value: 'FROZEN_FOODS',  emoji: '🧊', label: 'Frozen'     },
+                { value: 'FRESH_FOODS',   emoji: '🥗', label: 'Fresh'      },
+                { value: 'TOBACCO_VAPES', emoji: '🚬', label: 'Tobacco'    },
+                { value: 'OTHER',         emoji: '🏪', label: 'Other'      },
+              ].map(c => (
+                <button key={c.value} type="button"
+                  style={{ ...s.catCard, ...(category === c.value ? s.catCardActive : {}) }}
+                  onClick={() => { setCategory(c.value); setGasBonusCpg(''); setGasBonusType('cpg'); setBonusRate(''); }}>
+                  <span style={{ fontSize: 20 }}>{c.emoji}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, marginTop: 3 }}>{c.label}</span>
+                </button>
+              ))}
             </div>
           </div>
-          {/* Bonus rate — flat or per-tier */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <label style={{ ...s.label, margin: 0 }}>Bonus Cashback % (adds on top of tier base rate)</label>
-            <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
-              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#495057', cursor: 'pointer' }}>
-              {useTierBonuses ? '🏆 Per-tier' : '= Same for all'}
-            </button>
-          </div>
-          {useTierBonuses ? (
-            <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
-              {TIERS.map((tier) => {
-                return (
-                  <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, minWidth: 90, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
-                    <input type="number" min="0" max="100" step="0.5" value={tierBonuses[tier]}
-                      onChange={(e) => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
-                      style={{ ...s.input, width: 70, margin: 0 }} placeholder="+%" />
-                    <span style={{ fontSize: 12, color: '#6c757d' }}>%</span>
+
+          {/* ── Step 2: Bonus (only shown after category chosen) ──────────── */}
+          {category !== null && (
+            <div style={s.formSection}>
+              <div style={s.formSectionLabel}>2 · Bonus</div>
+
+              {(category === 'GAS' || category === 'DIESEL') ? (
+                /* Gas/Diesel: toggle between ¢/gal and % */
+                <div>
+                  <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #dee2e6', width: 'fit-content' }}>
+                    <button type="button"
+                      style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : '#6c757d' }}
+                      onClick={() => setGasBonusType('cpg')}>
+                      ⛽ ¢ / gallon
+                    </button>
+                    <button type="button"
+                      style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : '#6c757d' }}
+                      onClick={() => setGasBonusType('pct')}>
+                      💲 % of amount
+                    </button>
                   </div>
-                );
-              })}
-              <div style={{ gridColumn: '1/-1', fontSize: 11, color: '#6c757d', marginTop: 4 }}>Leave blank = no bonus for that tier. Values in % (e.g. 3 = +3%).</div>
-            </div>
-          ) : (
-            <input style={s.input} type="number" min="0" max="100" value={bonusRate} onChange={(e) => setBonusRate(e.target.value)} placeholder="e.g. 3 = +3% for all tiers" />
-          )}
-          {isStoreManager ? (
-            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
-              📍 This promotion will apply to your store only
-            </div>
-          ) : (
-            <>
-              <label style={s.label}>Apply To</label>
-              <select style={s.input} value={type} onChange={(e) => { setType(e.target.value as any); setStoreId(''); }}>
-                <option value="ALL_STORES">🌐 All 14 Stores</option>
-                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-              </select>
-              {type === 'SPECIFIC_STORE' && (
-                <>
-                  <label style={s.label}>Select Store *</label>
-                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                    <option value="">-- Choose a store --</option>
-                    {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
-                    ))}
-                  </select>
-                </>
+                  {gasBonusType === 'cpg' ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="number" min="0" max="100" step="0.5"
+                          style={{ ...s.input, width: 120 }}
+                          value={gasBonusCpg} onChange={e => setGasBonusCpg(e.target.value)}
+                          placeholder="e.g. 2" />
+                        <span style={s.unit}>¢ / gallon bonus</span>
+                      </div>
+                      {gasBonusCpg && !isNaN(parseFloat(gasBonusCpg)) && parseFloat(gasBonusCpg) > 0 && (
+                        <div style={s.calcHint}>10 gal fill → +${(10 * parseFloat(gasBonusCpg) / 100).toFixed(2)} cashback on top of base rate</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="number" min="0" max="100" step="0.5"
+                          style={{ ...s.input, width: 120 }}
+                          value={bonusRate} onChange={e => setBonusRate(e.target.value)}
+                          placeholder="e.g. 2" />
+                        <span style={s.unit}>% of purchase amount</span>
+                      </div>
+                      {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
+                        <div style={s.calcHint}>$40 fill-up → +${(40 * parseFloat(bonusRate) / 100).toFixed(2)} cashback on top of base rate</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* All other categories: % only, optional per-tier */
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="number" min="0" max="100" step="0.5"
+                        style={{ ...s.input, width: 120 }}
+                        value={bonusRate} onChange={e => setBonusRate(e.target.value)}
+                        placeholder="e.g. 3" />
+                      <span style={s.unit}>% bonus — same for all tiers</span>
+                    </div>
+                    <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
+                      style={{ fontSize: 11, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
+                      {useTierBonuses ? '🏆 Per-tier on' : '🏆 Per-tier?'}
+                    </button>
+                  </div>
+                  {useTierBonuses && (
+                    <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {TIERS.map(tier => (
+                        <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, minWidth: 80, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
+                          <input type="number" min="0" max="100" step="0.5" value={tierBonuses[tier]}
+                            onChange={e => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
+                            style={{ ...s.input, width: 70, margin: 0 }} placeholder="%" />
+                          <span style={{ fontSize: 12, color: '#6c757d' }}>%</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
+                    <div style={s.calcHint}>$20 purchase → +${(20 * parseFloat(bonusRate) / 100).toFixed(2)} bonus cashback on top of base rate</div>
+                  )}
+                </div>
               )}
-            </>
+            </div>
           )}
-          <label style={s.label}>Product Category (optional)</label>
-          <select style={s.input} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-          <label style={s.label}>Promo Image (optional)</label>
-          <input ref={fileRef} type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} style={s.input} />
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
+
+          {/* ── Step 3: Dates + Scope ─────────────────────────────────────── */}
+          {category !== null && (
+            <div style={s.formSection}>
+              <div style={s.formSectionLabel}>3 · Duration & Scope</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={s.label}>Start Date *</label>
+                  <input style={s.input} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                </div>
+                <div>
+                  <label style={s.label}>End Date *</label>
+                  <input style={s.input} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                </div>
+              </div>
+              {isStoreManager ? (
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600, marginTop: 8 }}>
+                  📍 This promotion will apply to your store only
+                </div>
+              ) : (
+                <div style={{ marginTop: 8 }}>
+                  <label style={s.label}>Apply To</label>
+                  <select style={s.input} value={type} onChange={e => { setType(e.target.value as any); setStoreId(''); }}>
+                    <option value="ALL_STORES">🌐 All Stores</option>
+                    <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
+                  </select>
+                  {type === 'SPECIFIC_STORE' && (
+                    <>
+                      <select style={{ ...s.input, marginTop: 8 }} value={storeId} onChange={e => setStoreId(e.target.value)}>
+                        <option value="">-- Choose a store --</option>
+                        {stores.map((store: any) => (
+                          <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                        ))}
+                      </select>
+                      {/* Warning: category not enabled at selected store */}
+                      {storeId && category && category !== '' && (() => {
+                        const selectedStore = stores.find((s: any) => s.id === storeId);
+                        const enabled: string[] = selectedStore?.enabledCategories ?? [];
+                        if (enabled.length > 0 && !enabled.includes(category)) {
+                          return (
+                            <div style={{ marginTop: 8, padding: '10px 14px', background: '#fff8e1', borderRadius: 8, border: '1px solid #ffe082', color: '#b45309', fontSize: 13, fontWeight: 600 }}>
+                              ⚠️ {selectedStore?.name} does not have <strong>{category.replace(/_/g, ' ')}</strong> enabled. This offer will still be created but won't apply to any transactions at this store.
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Step 4: Title + optional image ───────────────────────────── */}
+          {category !== null && (
+            <div style={s.formSection}>
+              <div style={s.formSectionLabel}>4 · Title & Image</div>
+              <input style={s.input} value={title} onChange={e => setTitle(e.target.value)} placeholder="Leave blank to auto-generate" />
+              <textarea style={{ ...s.input, height: 70, resize: 'vertical', marginTop: 8 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional — auto-generated if blank)" />
+              <input ref={fileRef} type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={{ ...s.input, marginTop: 8 }} />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button style={s.saveBtn} type="submit" disabled={createMutation.isPending || category === null}>
               {createMutation.isPending ? 'Creating...' : 'Create Offer'}
             </button>
             <button style={s.cancelFormBtn} type="button" onClick={resetForm}>Cancel</button>
@@ -479,7 +730,7 @@ export default function Offers() {
                 <>
                   <label style={s.label}>Apply To</label>
                   <select style={s.input} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
-                    <option value="ALL_STORES">🌐 All 14 Stores</option>
+                    <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
                     <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
                   </select>
                   {dealType === 'SPECIFIC_STORE' && (
@@ -563,15 +814,21 @@ function OfferCard({ offer, onDelete, onReuse, isPast }: {
         </div>
         <h3 style={s.cardTitle}>{offer.title}</h3>
         {offer.description && <p style={s.cardDesc}>{offer.description}</p>}
-        {offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-            {Object.entries(offer.tierBonusRates as Record<string, number>).map(([tier, rate]) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+          {offer.gasBonusCentsPerGallon != null ? (
+            <span style={{ ...s.badge, background: '#fff3e0', color: '#c04000', border: '1px solid #ffcc80' }}>
+              ⛽ +{offer.gasBonusCentsPerGallon}¢ / gallon
+            </span>
+          ) : offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? (
+            Object.entries(offer.tierBonusRates as Record<string, number>).map(([tier, rate]) => (
               <span key={tier} style={s.badge}>{TIER_EMOJI[tier as TierKey]} +{Math.round(rate * 100)}%</span>
-            ))}
-          </div>
-        ) : offer.bonusRate ? (
-          <span style={s.badge}>🔥 +{Math.round(offer.bonusRate * 100)}% all tiers</span>
-        ) : null}
+            ))
+          ) : offer.bonusRate ? (
+            <span style={{ ...s.badge, background: offer.category ? '#fff0f0' : '#fff5e0', color: offer.category ? '#c0392b' : '#b7700a' }}>
+              {offer.category ? '🎯' : '🔥'} +{Math.round(offer.bonusRate * 100)}%{offer.category ? ` ${offer.category.replace(/_/g, ' ').toLowerCase()}` : ' store-wide'}
+            </span>
+          ) : null}
+        </div>
         <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button style={s.reuseBtn} onClick={onReuse}>♻️ Reuse</button>
@@ -623,6 +880,23 @@ const s: Record<string, React.CSSProperties> = {
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
   templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
 
+  quickPanel: {
+    background: '#f0fdf4', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac',
+    borderRadius: 16, padding: '20px 24px', marginBottom: 24,
+  },
+  quickTitle: { fontWeight: 800, fontSize: 15, color: '#14532d', marginBottom: 16 },
+  quickRow: { display: 'flex', flexDirection: 'column' as const, gap: 16 },
+  quickGroup: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
+  quickLabel: { fontWeight: 700, fontSize: 11, color: '#166534', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  quickChips: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
+  quickBonusRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
+  quickInput: { padding: '8px 12px', borderRadius: 8, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac', fontSize: 14, width: 90, outline: 'none', background: '#fff' },
+  chip: { padding: '6px 14px', borderRadius: 20, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#d1fae5', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  chipActive: { background: '#16a34a', color: '#fff', borderColor: '#16a34a' },
+  quickPreview: { marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', borderWidth: '1px', borderStyle: 'solid', borderColor: '#86efac', flexWrap: 'wrap' as const },
+  quickPreviewText: { fontSize: 14, color: '#166534' },
+  quickPostBtn: { background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 800, cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' as const },
+
   suggestionsBox: { background: '#f8faff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#d0d9f0', borderRadius: 16, padding: 24, marginBottom: 28 },
   suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 16, fontWeight: 800 },
   suggestSub: { margin: '0 0 16px', color: '#6c757d', fontSize: 13 },
@@ -639,7 +913,15 @@ const s: Record<string, React.CSSProperties> = {
   templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
   useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
 
-  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 580, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
+  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, maxWidth: 620, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
+  formSection: { padding: '16px 0', borderBottom: '1px solid #f1f3f5', display: 'flex', flexDirection: 'column' as const, gap: 10 },
+  formSectionLabel: { fontWeight: 800, fontSize: 13, color: '#1D3557', marginBottom: 2 },
+  required: { fontWeight: 600, fontSize: 11, color: '#E63946', marginLeft: 4 },
+  catGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 8 },
+  catCard: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '10px 6px', borderRadius: 10, border: '1.5px solid #e9ecef', background: '#fafafa', cursor: 'pointer', gap: 2, transition: 'all 0.15s' },
+  catCardActive: { border: '2px solid #1D3557', background: '#e8f0fb', color: '#1D3557' },
+  unit: { fontSize: 13, color: '#6c757d', fontWeight: 600, whiteSpace: 'nowrap' as const },
+  calcHint: { fontSize: 11, color: '#2DC653', fontStyle: 'italic', marginTop: 4 },
   label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },

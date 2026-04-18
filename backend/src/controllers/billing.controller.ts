@@ -14,6 +14,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+      enabledCategories: true,
     },
     orderBy: { name: 'asc' },
   });
@@ -31,6 +32,7 @@ const updateStoreSchema = z.object({
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   shiftsPerDay: z.number().int().min(2).max(3).optional(),
+  enabledCategories: z.array(z.nativeEnum(ProductCategory)).optional(),
 });
 
 export async function updateStore(req: AuthRequest, res: Response) {
@@ -43,7 +45,7 @@ export async function updateStore(req: AuthRequest, res: Response) {
   const store = await prisma.store.update({
     where: { id: storeId },
     data: parsed.data,
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true },
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true },
   });
   res.json({ success: true, data: store });
 }
@@ -545,6 +547,7 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
         purchaseAmount, pointsAwarded, devCut, storeCost: parseFloat((cashbackIssued + devCut).toFixed(2)),
         cashbackRate, category, status: 'APPROVED',
         receiptImageUrl: 'https://placehold.co/400x600/png?text=Receipt',
+        isTestData: true,
         createdAt, updatedAt: createdAt,
       });
     }
@@ -1147,6 +1150,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
     select: {
       id: true, name: true, city: true, state: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+      enabledCategories: true,
     },
     orderBy: { name: 'asc' },
   });

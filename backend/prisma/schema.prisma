@@ -155,6 +155,10 @@ model User {
   chatMessages         ChatMessage[]
   submittedStoreRequests StoreRequest[]
   businessPromotions     BusinessPromotion[]
+  supportThreads       SupportThread[]
+  supportMessages      SupportMessage[]
+  ratingsGiven         EmployeeRating[] @relation("RatingsGiven")
+  ratingsReceived      EmployeeRating[] @relation("RatingsReceived")
 
   @@map("users")
 }
@@ -188,6 +192,9 @@ model Store {
   dieselPricePerGallon Float?
   gasPriceUpdatedAt    DateTime?
 
+  // Per-store category availability (empty = all categories enabled)
+  enabledCategories ProductCategory[]
+
   // Printer agent authentication
   apiKey            String?     @unique
 
@@ -204,6 +211,7 @@ model Store {
   chatMessages      ChatMessage[]
   storeRequests     StoreRequest[]
   catalogRedemptions CatalogRedemption[]
+  employeeRatings    EmployeeRating[]
 
   @@map("stores")
 }
@@ -243,12 +251,14 @@ model PointsTransaction {
   gasGallons        Float?
   gasPricePerGallon Float?
   gasBonusPoints    Float   @default(0)
+  isTestData        Boolean @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   customer    User  @relation("PointsEarner", fields: [customerId], references: [id])
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
+  rating      EmployeeRating?
 
   @@index([customerId])
   @@index([storeId])
@@ -310,9 +320,10 @@ model Offer {
   type        OfferType   @default(ALL_STORES)
   storeId     String?
   category    ProductCategory?
-  bonusRate      Float?  // bonus for ALL tiers equally — OR max value when tierBonusRates is set (used for ordering)
-  tierBonusRates Json?   // per-tier bonus override: {"BRONZE": 0.03, "GOLD": 0.01, ...} — wins over bonusRate per tier
-  dealText       String? // price deal label e.g. "2 for $5" (display only)
+  bonusRate              Float?  // bonus for ALL tiers equally — OR max value when tierBonusRates is set (used for ordering)
+  tierBonusRates         Json?   // per-tier bonus override: {"BRONZE": 0.03, "GOLD": 0.01, ...} — wins over bonusRate per tier
+  gasBonusCentsPerGallon Float?  // ¢/gallon bonus for GAS/DIESEL offers (used instead of bonusRate when in per-gallon mode)
+  dealText               String? // price deal label e.g. "2 for $5" (display only)
   startDate   DateTime
   endDate     DateTime
   isActive    Boolean     @default(true)
@@ -651,6 +662,64 @@ model BusinessPromotion {
   @@index([status])
   @@index([requesterId])
   @@map("business_promotions")
+}
+
+// ─── Support Threads (SuperAdmin → DevAdmin) ─────────────────────────────────
+
+model SupportThread {
+  id         String   @id @default(uuid())
+  fromUserId String
+  fromName   String
+  subject    String
+  status     String   @default("OPEN")  // OPEN | RESOLVED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages SupportMessage[]
+  fromUser User             @relation(fields: [fromUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId])
+  @@index([status])
+  @@map("support_threads")
+}
+
+model SupportMessage {
+  id         String   @id @default(uuid())
+  threadId   String
+  senderId   String
+  senderName String
+  senderRole String
+  body       String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  thread SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("support_messages")
+}
+
+// ─── Employee Ratings ─────────────────────────────────────────────────────────
+
+model EmployeeRating {
+  id            String   @id @default(uuid())
+  transactionId String   @unique
+  customerId    String
+  employeeId    String
+  storeId       String
+  rating        Int      // 1–5
+  createdAt     DateTime @default(now())
+
+  transaction PointsTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  customer    User  @relation("RatingsGiven",    fields: [customerId],  references: [id])
+  employee    User  @relation("RatingsReceived", fields: [employeeId],  references: [id])
+  store       Store @relation(fields: [storeId], references: [id])
+
+  @@index([employeeId, storeId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("employee_ratings")
 }
 
 // ─── Tier Benefit Claims ──────────────────────────────────────────────────────

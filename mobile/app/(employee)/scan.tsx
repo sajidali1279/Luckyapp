@@ -162,16 +162,20 @@ export default function EmployeeScanScreen() {
 
   const storeId = user?.storeIds?.[0];
 
-  // Store gas prices (fetched once on mount for auto-fill)
-  const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number }>>({});
+  // Store gas prices + enabled categories (fetched once on mount)
+  const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }>>({});
   // Tier rates: cashbackRate (%) and gasCentsPerGallon per tier
   const [tierRates, setTierRates] = useState<Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }>>({});
 
   useEffect(() => {
     storesApi.getGasPrices().then((res) => {
-      const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number }> = {};
+      const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }> = {};
       for (const store of res.data.data ?? []) {
-        map[store.id] = { gasPricePerGallon: store.gasPricePerGallon, dieselPricePerGallon: store.dieselPricePerGallon };
+        map[store.id] = {
+          gasPricePerGallon: store.gasPricePerGallon,
+          dieselPricePerGallon: store.dieselPricePerGallon,
+          enabledCategories: store.enabledCategories ?? [],
+        };
       }
       setStoreGasPrices(map);
     }).catch(() => {});
@@ -735,7 +739,10 @@ export default function EmployeeScanScreen() {
           {/* Category grid */}
           <Text style={s.fieldLabel}>{lineItems.length > 0 ? 'Next Item — Category' : 'Category'}</Text>
           <View style={s.catGrid}>
-            {CATEGORIES.map((c) => {
+            {CATEGORIES.filter(c => {
+              const enabled = storeId ? (storeGasPrices[storeId]?.enabledCategories ?? []) : [];
+              return enabled.length === 0 || enabled.includes(c.value);
+            }).map((c) => {
               const active = category === c.value;
               return (
                 <TouchableOpacity

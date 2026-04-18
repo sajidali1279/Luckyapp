@@ -46,7 +46,9 @@ export default function Notifications() {
   const { data: notifData, isLoading, isError } = useQuery({
     queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'],
     queryFn: () => isDevAdmin ? devAdminApi.getNotifications() : superAdminApi.getNotifications(),
+    enabled: !!user && (isDevAdmin || user?.role === 'SUPER_ADMIN'),
     refetchInterval: 60_000,
+    retry: false,
   });
 
   const { data: invoiceData } = useQuery({

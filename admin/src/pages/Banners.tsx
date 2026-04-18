@@ -85,7 +85,7 @@ export default function Banners() {
             <>
               <label style={s.label}>Apply To</label>
               <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-                <option value="ALL_STORES">🌐 All 14 Stores</option>
+                <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
                 <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
               </select>
               {storeTarget === 'SPECIFIC_STORE' && (

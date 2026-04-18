@@ -296,47 +296,6 @@ function StatCard({ icon, label, value, valueColor = '#111827' }: { icon: string
   );
 }
 
-function CategoryRateCard({ category: _category, label, rate, icon, onSave }: {
-  category: string; label: string; rate: number; icon: string; onSave: (r: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [input, setInput] = useState(String((rate * 100).toFixed(1)));
-
-  function save() {
-    const parsed = parseFloat(input);
-    if (isNaN(parsed) || parsed < 0 || parsed > 100) { toast.error('Enter a value between 0 and 100'); return; }
-    onSave(parsed / 100);
-    setEditing(false);
-  }
-
-  return (
-    <div style={s.rateCard}>
-      <div style={s.rateHeader}>
-        <span style={s.rateIcon}>{icon}</span>
-        <span style={s.rateLabel}>{label}</span>
-      </div>
-      {editing ? (
-        <div style={s.rateEditRow}>
-          <input
-            style={s.rateInput}
-            type="number" min="0" max="100" step="0.5"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            autoFocus
-          />
-          <span style={s.ratePercent}>%</span>
-          <button style={s.rateSaveBtn} onClick={save}>✓</button>
-          <button style={s.rateCancelBtn} onClick={() => { setEditing(false); setInput(String((rate * 100).toFixed(1))); }}>✕</button>
-        </div>
-      ) : (
-        <div style={s.rateDisplay} onClick={() => setEditing(true)}>
-          <span style={s.rateValue}>{(rate * 100).toFixed(1)}%</span>
-          <span style={s.rateEditHint}>cashback · click to edit</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32, maxWidth: 1200, margin: '0 auto' },

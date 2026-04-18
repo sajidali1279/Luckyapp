@@ -23,7 +23,9 @@
       "package": "com.luckystop.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "plugins": [
@@ -36,6 +38,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lucky Stop uses your location to show you offers and promotions from your nearest store."
+        }
+      ],
       [
         "expo-image-picker",
         {

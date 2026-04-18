@@ -193,6 +193,22 @@ export const promotionsApi = {
   },
 };
 
+export const leaderboardApi = {
+  getCustomers: (storeId?: string) =>
+    api.get(`/leaderboard/customers${storeId ? `?storeId=${storeId}` : ''}`),
+  getEmployees: (storeId: string) =>
+    api.get(`/leaderboard/employees/${storeId}`),
+  getMyRatingSummary: (storeId: string) =>
+    api.get(`/ratings/my/${storeId}`),
+};
+
+export const ratingsApi = {
+  submit: (transactionId: string, rating: number) =>
+    api.post('/ratings', { transactionId, rating }),
+  getPending: () =>
+    api.get('/ratings/pending'),
+};
+
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),

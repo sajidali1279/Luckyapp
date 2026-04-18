@@ -1,0 +1,1 @@
+ALTER TABLE "points_transactions" ADD COLUMN IF NOT EXISTS "isTestData" BOOLEAN NOT NULL DEFAULT false;

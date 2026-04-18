@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform,
@@ -9,7 +10,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
-import { authApi, promotionsApi } from '../services/api';
+import { authApi, promotionsApi, leaderboardApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 
@@ -56,6 +57,15 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     enabled: isCustomer,
   });
   const myPromo = myPromoData?.data?.data;
+
+  // Employee: show rating summary for first assigned store
+  const primaryStoreId = !isCustomer ? (user?.storeIds?.[0] ?? null) : null;
+  const { data: ratingData } = useQuery({
+    queryKey: ['my-rating-summary', primaryStoreId],
+    queryFn: () => leaderboardApi.getMyRatingSummary(primaryStoreId!),
+    enabled: !isCustomer && !!primaryStoreId,
+  });
+  const myRating = ratingData?.data?.data;
 
   const qc = useQueryClient();
 
@@ -343,6 +353,29 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             />
           </View>
         )}
+
+        {/* ── Leaderboard ── */}
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Community</Text>
+        <TouchableOpacity
+          style={s.settingRow}
+          onPress={() => router.push(isCustomer ? '/(customer)/leaderboard' : '/(employee)/leaderboard')}
+          activeOpacity={0.8}
+        >
+          <View style={[s.settingIconBg, { backgroundColor: '#FFD70020' }]}>
+            <Text style={s.settingEmoji}>🏆</Text>
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>{isCustomer ? 'Customer Leaderboard' : 'Staff Rankings'}</Text>
+            <Text style={s.settingValue}>
+              {isCustomer
+                ? 'See how you rank among all Lucky Stop customers'
+                : myRating?.allTime?.count
+                  ? `${myRating.allTime.avg.toFixed(1)} ★ avg · ${myRating.allTime.count} review${myRating.allTime.count !== 1 ? 's' : ''}`
+                  : 'See employee rankings at your store'}
+            </Text>
+          </View>
+          <Text style={s.chevron}>›</Text>
+        </TouchableOpacity>
 
         {/* ── Info Card ── */}
         <Text style={[s.sectionLabel, { marginTop: 8 }]}>{isCustomer ? 'Rewards Info' : 'App Info'}</Text>

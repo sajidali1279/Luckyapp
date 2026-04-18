@@ -273,7 +273,7 @@ function ChainSection({
                         onClick={() => onDelete(item)}
                         disabled={deletingId === item.id}
                       >
-                        {deletingId === item.id ? '…' : 'Delete'}
+                        {deletingId === item.id ? '…' : 'Deactivate'}
                       </button>
                     </div>
                   </td>
@@ -391,7 +391,7 @@ export default function CatalogPage() {
         <div style={s.infoBanner}>
           <span>ℹ️</span>
           <span style={s.infoText}>
-            100 pts = $1.00 value · customers earn 5 pts per $1 spent · cashiers process redemptions by scanning the customer's QR code
+            100 pts = $1.00 value · cashback rate is tier-based (Bronze 1% → Platinum 5%) · cashiers process redemptions by scanning the customer's QR code
           </span>
         </div>
 

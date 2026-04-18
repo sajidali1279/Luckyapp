@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import toast from 'react-hot-toast';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -133,7 +134,10 @@ export default function Chat() {
       const newMsg: Message = res.data.data;
       setMessages((prev) => [...prev, newMsg]);
       setLastTimestamp(newMsg.createdAt);
-    } catch {}
+    } catch {
+      setInputText(text);
+      toast.error('Failed to send message');
+    }
     setSending(false);
     inputRef.current?.focus();
   }
@@ -160,11 +164,6 @@ export default function Chat() {
           <div style={s.sidebarTop}>
             <div style={s.sidebarTitle}>Messages</div>
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
-          </div>
-
-          <div style={s.storeSearch}>
-            <span style={s.searchIcon}>🔍</span>
-            <span style={s.searchPlaceholder}>Find a store…</span>
           </div>
 
           <div style={s.storeList}>

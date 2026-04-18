@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi, devAdminApi } from '../services/api';
+import { superAdminApi, devAdminApi, supportApi } from '../services/api';
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
@@ -120,8 +120,18 @@ export default function Navbar() {
     queryFn: () => isDevAdmin ? devAdminApi.getNotifications() : superAdminApi.getNotifications(),
     enabled: isSuperAdmin || isDevAdmin,
     refetchInterval: 60_000,
+    retry: false,
   });
   const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead).length;
+
+  const { data: supportUnreadData } = useQuery({
+    queryKey: ['support-unread'],
+    queryFn: supportApi.getUnreadCount,
+    enabled: isDevAdmin,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
 
   function handleLogout() { logout(); navigate('/login'); }
   const lnk = (isActive: boolean) => ({ ...s.link, ...(isActive ? s.linkActive : {}) });
@@ -137,15 +147,7 @@ export default function Navbar() {
     { to: '/', icon: '📊', label: 'Dashboard' },
   ];
 
-  const peopleItemsDevAdmin: DropdownItem[] = [
-    { to: '/chat',           icon: '💬', label: 'Chat'       },
-    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
-    { to: '/staff',          icon: '👥', label: 'Staff'      },
-    { to: '/customers',      icon: '🙋', label: 'Customers'  },
-    { to: '/store-requests', icon: '📋', label: 'Requests'   },
-  ];
-
-  const peopleItemsSuperAdmin: DropdownItem[] = [
+  const peopleItemsAdminFull: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'       },
     { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
     { to: '/staff',          icon: '👥', label: 'Staff'      },
@@ -204,7 +206,7 @@ export default function Navbar() {
 
         {/* 3. People */}
         <NavDropdown label="People" icon="👥"
-          items={isDevAdmin ? peopleItemsDevAdmin : isSuperAdmin ? peopleItemsSuperAdmin : peopleItemsManager}
+          items={isStoreManager ? peopleItemsManager : peopleItemsAdminFull}
           activeRoutes={peopleRoutes} />
 
         {/* 4. Tier Rates */}
@@ -219,7 +221,12 @@ export default function Navbar() {
             <NavLink to="/stores"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
             <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
             <NavLink to="/activity"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
+            <NavLink to="/leaderboard" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Leaderboard</NavLink>
             <NavLink to="/billing"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/support" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
+              <span style={s.linkIcon}>🎧</span>Support
+              {supportUnread > 0 && <span style={s.notifBadge}>{supportUnread}</span>}
+            </NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
               {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
@@ -227,11 +234,15 @@ export default function Navbar() {
           </>
         )}
 
-        {/* SuperAdmin: 5-7 */}
+        {/* SuperAdmin: 5-9 */}
         {isSuperAdmin && (
           <>
+            <NavLink to="/stores"       style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
             <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
+            <NavLink to="/activity"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
+            <NavLink to="/leaderboard"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Leaderboard</NavLink>
             <NavLink to="/my-billing"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
+            <NavLink to="/support" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🎧</span>Support</NavLink>
             <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
               <span style={s.linkIcon}>🔔</span>Notifications
               {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}

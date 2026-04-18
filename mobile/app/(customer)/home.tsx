@@ -5,9 +5,23 @@ import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import { router } from 'expo-router';
+import * as Location from 'expo-location';
+import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
+
+const MAX_NEARBY_MILES = 20;
+
+function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const SCREEN_W = Dimensions.get('window').width;
 const BANNER_W = SCREEN_W - 32; // 16px margin each side
@@ -97,20 +111,6 @@ export default function CustomerHome() {
     }, [])
   );
 
-  const {
-    data: bannersData, isRefetching: bannersRefetching, refetch: refetchBanners,
-  } = useQuery({
-    queryKey: ['banners'],
-    queryFn: () => offersApi.getBanners(),
-  });
-
-  const {
-    data: offersData, isLoading: offersLoading, isRefetching: offersRefetching, refetch: refetchOffers,
-  } = useQuery({
-    queryKey: ['offers'],
-    queryFn: () => offersApi.getActive(),
-  });
-
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
@@ -121,18 +121,89 @@ export default function CustomerHome() {
   const { data: gasPricesData } = useQuery({
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
-    staleTime: 30 * 60 * 1000, // 30 min — prices change once daily
+    staleTime: 30 * 60 * 1000,
   });
-  const gasPrices: any[] = (gasPricesData?.data?.data ?? []).filter(
+  const allStores: any[] = gasPricesData?.data?.data ?? [];
+  const gasPrices: any[] = allStores.filter(
     (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
   );
 
+  const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function detect() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude: uLat, longitude: uLon } = pos.coords;
+        const storesWithCoords = allStores.filter((s: any) => s.latitude != null && s.longitude != null);
+        if (storesWithCoords.length === 0 || cancelled) return;
+        let closest: any = null;
+        let closestDist = Infinity;
+        for (const s of storesWithCoords) {
+          const d = haversineMiles(uLat, uLon, s.latitude, s.longitude);
+          if (d < closestDist) { closestDist = d; closest = s; }
+        }
+        if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
+          setNearestStore({ id: closest.id, name: closest.name });
+        }
+      } catch {
+        // permission denied or GPS unavailable — fall through silently
+      }
+    }
+    if (allStores.length > 0) detect();
+    return () => { cancelled = true; };
+  }, [allStores.length]);
+
+  const {
+    data: bannersData, isRefetching: bannersRefetching, refetch: refetchBanners,
+  } = useQuery({
+    queryKey: ['banners', nearestStore?.id],
+    queryFn: () => offersApi.getBanners(nearestStore?.id),
+  });
+
+  const {
+    data: offersData, isLoading: offersLoading, isRefetching: offersRefetching, refetch: refetchOffers,
+  } = useQuery({
+    queryKey: ['offers', nearestStore?.id],
+    queryFn: () => offersApi.getActive(nearestStore?.id),
+  });
+
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
-  const promotions = allOffers.filter((o: any) => o.bonusRate);
+  const promotions = allOffers.filter((o: any) => o.bonusRate || o.gasBonusCentsPerGallon != null);
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = bannersRefetching || offersRefetching;
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [pendingRating, setPendingRating] = useState<any>(null);
+  const [hoveredStar, setHoveredStar] = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  // Check for unrated transactions on every focus
+  useFocusEffect(
+    useCallback(() => {
+      ratingsApi.getPending().then(({ data }) => {
+        const items = data?.data;
+        if (items && items.length > 0) setPendingRating(items[0]);
+      }).catch(() => {});
+    }, [])
+  );
+
+  async function submitRating(rating: number) {
+    if (!pendingRating || submittingRating) return;
+    setSubmittingRating(true);
+    try {
+      await ratingsApi.submit(pendingRating.id, rating);
+    } catch {
+      // silent — don't punish the customer for a failed rating
+    } finally {
+      setSubmittingRating(false);
+      setPendingRating(null);
+      setHoveredStar(0);
+    }
+  }
 
   function onRefresh() {
     refetchBanners();
@@ -159,6 +230,11 @@ export default function CustomerHome() {
           <View>
             <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
             <Text style={styles.storeName}>Lucky Stop Rewards</Text>
+            {nearestStore && (
+              <View style={styles.nearbyPill}>
+                <Text style={styles.nearbyPillText}>📍 Near {nearestStore.name}</Text>
+              </View>
+            )}
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -270,7 +346,11 @@ export default function CustomerHome() {
                 <View style={styles.offerContent}>
                   <Text style={styles.offerTitle}>{offer.title}</Text>
                   <Text style={styles.offerDesc}>{offer.description}</Text>
-                  <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback — auto-applied!</Text>
+                  <Text style={styles.offerBonus}>
+                    {offer.gasBonusCentsPerGallon != null
+                      ? `⛽ +${offer.gasBonusCentsPerGallon}¢/gal bonus`
+                      : `🔥 +${Math.round(offer.bonusRate * 100)}% cashback`} — auto-applied!
+                  </Text>
                 </View>
                 <Text style={styles.offerArrow}>›</Text>
               </TouchableOpacity>
@@ -286,7 +366,11 @@ export default function CustomerHome() {
                   <View style={styles.offerSlideContent}>
                     <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
                     <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
-                    <Text style={styles.offerBonus}>🔥 {Math.round(offer.bonusRate * 100)}% cashback</Text>
+                    <Text style={styles.offerBonus}>
+                      {offer.gasBonusCentsPerGallon != null
+                        ? `⛽ +${offer.gasBonusCentsPerGallon}¢/gal`
+                        : `🔥 +${Math.round(offer.bonusRate * 100)}%`}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -341,6 +425,38 @@ export default function CustomerHome() {
         <Text style={styles.historyLinkText}>View Points History →</Text>
       </TouchableOpacity>
 
+      {/* Rating prompt */}
+      {pendingRating && (
+        <Modal transparent animationType="slide" onRequestClose={() => setPendingRating(null)}>
+          <View style={rm.overlay}>
+            <View style={rm.sheet}>
+              <Text style={rm.emoji}>⭐</Text>
+              <Text style={rm.title}>How was your experience?</Text>
+              <Text style={rm.sub}>
+                At {pendingRating.store?.name || 'Lucky Stop'}
+                {pendingRating.grantedBy?.name ? ` · served by ${pendingRating.grantedBy.name.split(' ')[0]}` : ''}
+              </Text>
+              <View style={rm.stars}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => { setHoveredStar(s); submitRating(s); }}
+                    activeOpacity={0.7}
+                    style={rm.starBtn}
+                  >
+                    <Text style={[rm.star, s <= hoveredStar && rm.starActive]}>★</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {submittingRating && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 8 }} />}
+              <TouchableOpacity onPress={() => setPendingRating(null)} style={rm.skipBtn}>
+                <Text style={rm.skipText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* Offer detail modal */}
       {selectedOffer && (
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
@@ -350,10 +466,16 @@ export default function CustomerHome() {
                 <Image source={{ uri: selectedOffer.imageUrl }} style={om.image} />
               )}
               <View style={om.body}>
-                {selectedOffer.bonusRate ? (
+                {selectedOffer.gasBonusCentsPerGallon != null ? (
+                  <View style={om.badgeRow}>
+                    <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
+                      <Text style={[om.badgeText, { color: '#c04000' }]}>⛽ +{selectedOffer.gasBonusCentsPerGallon}¢ per gallon — auto-applied</Text>
+                    </View>
+                  </View>
+                ) : selectedOffer.bonusRate ? (
                   <View style={om.badgeRow}>
                     <View style={om.badge}>
-                      <Text style={om.badgeText}>🔥 {Math.round(selectedOffer.bonusRate * 100)}% cashback — auto-applied</Text>
+                      <Text style={om.badgeText}>🔥 +{Math.round(selectedOffer.bonusRate * 100)}% cashback — auto-applied</Text>
                     </View>
                   </View>
                 ) : selectedOffer.dealText ? (
@@ -370,9 +492,11 @@ export default function CustomerHome() {
                 <View style={om.howBox}>
                   <Text style={om.howTitle}>How it works</Text>
                   <Text style={om.howText}>
-                    {selectedOffer.bonusRate
-                      ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
-                      : 'Show your QR code to the cashier and mention this deal to claim it.'}
+                    {selectedOffer.gasBonusCentsPerGallon != null
+                      ? `You earn an extra ${selectedOffer.gasBonusCentsPerGallon}¢ per gallon on gas purchases. Automatically applied when the cashier scans your QR code.`
+                      : selectedOffer.bonusRate
+                        ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
+                        : 'Show your QR code to the cashier and mention this deal to claim it.'}
                   </Text>
                 </View>
                 <TouchableOpacity style={om.closeBtn} onPress={() => setSelectedOffer(null)}>
@@ -396,6 +520,12 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   storeName: { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
+  nearbyPill: {
+    marginTop: 6, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  nearbyPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bellBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -406,11 +536,11 @@ const styles = StyleSheet.create({
   bellIcon: { fontSize: 18 },
   bellBadge: {
     position: 'absolute', top: 0, right: 0,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#E63946',
     borderRadius: 8, minWidth: 16, height: 16,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 3,
-    borderWidth: 1.5, borderColor: COLORS.primary,
+    borderWidth: 1.5, borderColor: '#fff',
   },
   bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 13 },
   profileBtn: {
@@ -551,6 +681,23 @@ const bc = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.border },
   dotActive: { width: 20, backgroundColor: COLORS.primary },
+});
+
+const rm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 28, paddingBottom: 44, alignItems: 'center', gap: 8,
+  },
+  emoji: { fontSize: 40, marginBottom: 4 },
+  title: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  sub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center' },
+  stars: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 4 },
+  starBtn: { padding: 4 },
+  star: { fontSize: 44, color: '#E5E7EB' },
+  starActive: { color: '#F59E0B' },
+  skipBtn: { marginTop: 12, padding: 8 },
+  skipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 });
 
 const om = StyleSheet.create({

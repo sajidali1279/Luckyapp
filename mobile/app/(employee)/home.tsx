@@ -108,7 +108,7 @@ export default function EmployeeHomeScreen() {
               <Text style={s.actionEmoji}>🎁</Text>
             </View>
             <Text style={s.actionTitle}>Redeem Credits</Text>
-            <Text style={s.actionSub}>Apply balance toward purchase</Text>
+            <Text style={s.actionSub}>Scan customer QR to apply credits</Text>
             <View style={s.actionArrow}><Text style={s.actionArrowText}>→</Text></View>
           </TouchableOpacity>
         </View>

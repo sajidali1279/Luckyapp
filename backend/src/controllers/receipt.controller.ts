@@ -102,7 +102,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
         bonusRate: { not: null },
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
-      select: { bonusRate: true, tierBonusRates: true, category: true, title: true },
+      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true },
     }),
   ]);
 
@@ -184,7 +184,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
-      select: { bonusRate: true, tierBonusRates: true, category: true },
+      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true },
     }),
   ]);
 

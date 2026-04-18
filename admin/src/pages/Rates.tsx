@@ -457,12 +457,27 @@ export default function Rates() {
           >
             ⛽ ¢ / gallon
           </button>
+
+          {/* Live status — based on DB state, not local toggle */}
+          {tiers.some(t => t.gasCentsPerGallon != null) ? (
+            <span style={s.liveBadge}>● LIVE: ¢/gallon</span>
+          ) : (
+            <span style={s.liveInactiveBadge}>● LIVE: % of amount</span>
+          )}
+
           <span style={s.gasModeHint}>
             {showPerGallon
               ? 'Base = ¢/gallon × gallons pumped · promos still add on top as % of purchase'
               : 'Base = tier % × purchase amount · set bonus % for Gas/Diesel in the table above'}
           </span>
         </div>
+
+        {/* Unsaved reminder when ¢/gallon is selected but nothing is saved yet */}
+        {showPerGallon && !tiers.some(t => t.gasCentsPerGallon != null) && (
+          <div style={s.gasModeWarning}>
+            ⚠️ ¢/gallon mode is not active yet — enter a rate for each tier below and click <strong>Save</strong> to switch.
+          </div>
+        )}
 
         {/* Per-tier ¢/gallon table */}
         {showPerGallon && tiers.length > 0 && (
@@ -669,6 +684,24 @@ const s: Record<string, React.CSSProperties> = {
     background: '#1D3557', color: '#fff', borderColor: '#1D3557',
   },
   gasModeHint: { fontSize: 12, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
+  liveBadge: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#e8f8ed', color: '#1a7a3a',
+    borderRadius: 20, fontSize: 12, fontWeight: 700,
+    border: '1px solid #a3d9b1',
+  },
+  liveInactiveBadge: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#e8f0fb', color: '#1D3557',
+    borderRadius: 20, fontSize: 12, fontWeight: 700,
+    border: '1px solid #b3c8e8',
+  },
+  gasModeWarning: {
+    marginTop: 12, padding: '10px 14px',
+    background: '#fff8e1', color: '#7a5c00',
+    borderRadius: 8, fontSize: 13,
+    border: '1px solid #ffe082',
+  },
   effectiveTag: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f8ed', color: '#1a7a3a',

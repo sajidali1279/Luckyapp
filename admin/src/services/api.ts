@@ -10,6 +10,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auto-logout on 401 — clears auth state and redirects to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('luckystop-admin-auth');
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   login: (phone: string, pin: string) => api.post('/auth/login', { phone, pin }),
   createSuperAdmin: (phone: string, name: string, pin: string) =>
@@ -148,6 +163,31 @@ export const promotionsApi = {
   reject: (id: string, devAdminNote?: string) =>
     api.patch(`/promotions/${id}/reject`, { devAdminNote }),
   delete: (id: string) => api.delete(`/promotions/${id}`),
+};
+
+export const supportApi = {
+  // SuperAdmin
+  createThread: (subject: string, message: string) =>
+    api.post('/support/threads', { subject, message }),
+  getMyThreads: () => api.get('/support/threads'),
+  getThread: (threadId: string) => api.get(`/support/threads/${threadId}`),
+  sendMessage: (threadId: string, body: string) =>
+    api.post(`/support/threads/${threadId}/messages`, { body }),
+  // DevAdmin
+  getInbox: () => api.get('/support/inbox'),
+  getInboxThread: (threadId: string) => api.get(`/support/inbox/${threadId}`),
+  replyInbox: (threadId: string, body: string) =>
+    api.post(`/support/inbox/${threadId}/messages`, { body }),
+  resolveThread: (threadId: string, status: 'OPEN' | 'RESOLVED') =>
+    api.patch(`/support/threads/${threadId}/resolve`, { status }),
+  getUnreadCount: () => api.get('/support/unread-count'),
+};
+
+export const leaderboardApi = {
+  getCustomers: (storeId?: string) =>
+    api.get(`/leaderboard/customers${storeId ? `?storeId=${storeId}` : ''}`),
+  getEmployees: (storeId: string) =>
+    api.get(`/leaderboard/employees/${storeId}`),
 };
 
 export const storeRequestApi = {
