@@ -99,7 +99,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
     prisma.offer.findMany({
       where: {
         isActive: true, startDate: { lte: now }, endDate: { gte: now },
-        bonusRate: { not: null },
+        OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
@@ -127,7 +127,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
       ? (item.category === ProductCategory.GAS ? token.store.gasPricePerGallon : token.store.dieselPricePerGallon)
       : null;
     const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
-    const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null;
+    const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null && tierGasCpg > 0;
 
     let cashback: number;
     let effectiveRate: number;
@@ -207,7 +207,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     prisma.offer.findMany({
       where: {
         isActive: true, startDate: { lte: now }, endDate: { gte: now },
-        bonusRate: { not: null },
+        OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
@@ -238,7 +238,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         ? (item.category === ProductCategory.GAS ? token.store.gasPricePerGallon : token.store.dieselPricePerGallon)
         : null;
       const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
-      const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null;
+      const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null && tierGasCpg > 0;
 
       let cashbackRate: number;
       let cashbackIssued: number;

@@ -56,7 +56,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
         isActive: true,
         startDate: { lte: now },
         endDate: { gte: now },
-        bonusRate: { not: null },
+        OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
         AND: [
           { OR: [{ type: 'ALL_STORES' }, { storeId }] },
           { OR: [{ category: null }, { category }] },
@@ -65,54 +65,64 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       orderBy: { bonusRate: 'desc' },
       select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true },
     }),
-    prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
 
   // Tier base rate + optional per-category bonus (additive)
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
   const categoryBonus = categoryRate?.cashbackRate ?? 0;
 
-  // Gas per-gallon mode: if gasCentsPerGallon is configured for this tier AND this is a gas/diesel transaction
+  // Gas ¢/gallon mode — category is authoritative; gallons come from mobile or are estimated from store price
   const isGasCategory = category === ProductCategory.GAS || category === ProductCategory.DIESEL;
   const gasPerGallonRate = tierRate?.gasCentsPerGallon ?? null;
-  const usePerGallonMode = isGasCategory && isGas && gasGallons != null && gasPerGallonRate != null;
+
+  // If gallons weren't sent by mobile, estimate from the store's posted price
+  let effectiveGallons = (gasGallons != null && gasGallons > 0) ? gasGallons : null;
+  if (isGasCategory && effectiveGallons == null && store) {
+    const storeGasPrice = category === ProductCategory.GAS ? store.gasPricePerGallon : store.dieselPricePerGallon;
+    if (storeGasPrice && storeGasPrice > 0) effectiveGallons = purchaseAmount / storeGasPrice;
+  }
+
+  const usePerGallonMode = isGasCategory && effectiveGallons != null && gasPerGallonRate != null && gasPerGallonRate > 0;
 
   let cashbackIssued: number;
   let effectiveCashbackRate: number;
   let promotionApplied: string | null = null;
   let promoBonus = 0;
 
-  // Promos always stack regardless of gas mode
   promoBonus = getTierBonusRate(activeOffer, customerTier);
   const hasGasPromo = promoBonus > 0 || (activeOffer?.gasBonusCentsPerGallon != null);
   promotionApplied = hasGasPromo ? activeOffer!.title : null;
 
   if (usePerGallonMode) {
-    // ¢/gallon base + promo: use offer's ¢/gallon bonus if set, otherwise fall back to % of amount
-    const perGallonCashback = parseFloat((gasGallons! * gasPerGallonRate / 100).toFixed(4));
+    const perGallonCashback = parseFloat((effectiveGallons! * gasPerGallonRate / 100).toFixed(4));
     let promoCashback: number;
     if (activeOffer?.gasBonusCentsPerGallon != null) {
-      promoCashback = parseFloat((gasGallons! * activeOffer.gasBonusCentsPerGallon / 100).toFixed(4));
+      promoCashback = parseFloat((effectiveGallons! * activeOffer.gasBonusCentsPerGallon / 100).toFixed(4));
     } else {
       promoCashback = parseFloat((purchaseAmount * promoBonus).toFixed(4));
     }
-    cashbackIssued          = parseFloat((perGallonCashback + promoCashback).toFixed(4));
-    effectiveCashbackRate   = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
+    cashbackIssued        = parseFloat((perGallonCashback + promoCashback).toFixed(4));
+    effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   } else {
-    // Percentage mode — tier base + category bonus + promo
-    effectiveCashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
-    cashbackIssued        = parseFloat((purchaseAmount * effectiveCashbackRate).toFixed(4));
+    // % mode — for gas with ¢/gal offer and known gallons, apply the ¢/gal offer bonus additively
+    const gasCpgBonus = isGasCategory && effectiveGallons != null && activeOffer?.gasBonusCentsPerGallon != null
+      ? parseFloat((effectiveGallons * activeOffer.gasBonusCentsPerGallon / 100).toFixed(4))
+      : 0;
+    const pctRate = parseFloat((tierBaseRate + categoryBonus + (gasCpgBonus > 0 ? 0 : promoBonus)).toFixed(4));
+    const pctCashback = parseFloat((purchaseAmount * pctRate).toFixed(4));
+    cashbackIssued        = parseFloat((pctCashback + gasCpgBonus).toFixed(4));
+    effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   }
 
-  // Dev cut = % of cashback issued (not % of purchase). Store only pays dev their cut of the cashback pool.
   const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
-  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4));  // % of cashback, billed to store
-  const pointsAwarded = cashbackIssued;                                 // customer gets full cashback
-  const storeCost = devCut;                                             // store owes developer: dev cut only
+  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4));
+  const pointsAwarded = cashbackIssued;
+  const storeCost = devCut;
 
   // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode)
-  const gasBonusRate = (isGas && gasGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
-  const gasBonusPoints = parseFloat(((gasGallons ?? 0) * gasBonusRate).toFixed(2));
+  const gasBonusRate = (isGasCategory && effectiveGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
+  const gasBonusPoints = parseFloat(((effectiveGallons ?? 0) * gasBonusRate).toFixed(2));
 
   // Create transaction in PENDING state — no points credited yet
   const transaction = await prisma.pointsTransaction.create({
@@ -128,8 +138,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       category,
       notes,
       status: TransactionStatus.PENDING,
-      isGas: isGas ?? false,
-      gasGallons: gasGallons ?? null,
+      isGas: isGasCategory,
+      gasGallons: effectiveGallons ?? null,
       gasPricePerGallon: gasPricePerGallon ?? null,
       gasBonusPoints,
     },

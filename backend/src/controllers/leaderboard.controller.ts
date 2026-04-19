@@ -1,11 +1,12 @@
-import { Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
-import { TransactionStatus, Role } from '@prisma/client';
+import { Response } from 'express';
+import prisma from '../config/prisma';
+import { TransactionStatus } from '@prisma/client';
 import { z } from 'zod';
+import { AuthRequest } from '../types';
 
 // ─── Customer Leaderboard ─────────────────────────────────────────────────────
 
-export async function getCustomerLeaderboard(req: Request, res: Response) {
+export async function getCustomerLeaderboard(req: AuthRequest, res: Response) {
   const { storeId } = req.query as { storeId?: string };
 
   // Sum approved points (pointsAwarded + gasBonusPoints) per customer
@@ -25,15 +26,15 @@ export async function getCustomerLeaderboard(req: Request, res: Response) {
     return res.json({ success: true, data: [] });
   }
 
-  const customerIds = grouped.map((g) => g.customerId);
+  const customerIds = grouped.map((g: { customerId: string }) => g.customerId);
   const users = await prisma.user.findMany({
     where: { id: { in: customerIds } },
     select: { id: true, name: true },
   });
-  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+  const userMap = Object.fromEntries(users.map((u: { id: string; name: string | null }) => [u.id, u]));
 
   const leaderboard = grouped
-    .map((g, i) => {
+    .map((g: typeof grouped[number], i: number) => {
       const totalPts = Math.round(
         ((g._sum.pointsAwarded ?? 0) + (g._sum.gasBonusPoints ?? 0)) * 100
       );
@@ -47,16 +48,15 @@ export async function getCustomerLeaderboard(req: Request, res: Response) {
         isCurrentUser: g.customerId === req.user!.id,
       };
     })
-    // Re-sort by total (including gas bonus) — groupBy ordered by pointsAwarded only
-    .sort((a, b) => b.totalPoints - a.totalPoints)
-    .map((entry, i) => ({ ...entry, rank: i + 1 }));
+    .sort((a: { totalPoints: number }, b: { totalPoints: number }) => b.totalPoints - a.totalPoints)
+    .map((entry: { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }, i: number) => ({ ...entry, rank: i + 1 }));
 
   res.json({ success: true, data: leaderboard });
 }
 
 // ─── Employee Leaderboard ─────────────────────────────────────────────────────
 
-export async function getEmployeeLeaderboard(req: Request, res: Response) {
+export async function getEmployeeLeaderboard(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
   // Verify store exists
@@ -90,14 +90,14 @@ export async function getEmployeeLeaderboard(req: Request, res: Response) {
     return res.json({ success: true, data: { storeName: store.name, leaderboard: [], employeeOfMonthId: null } });
   }
 
-  const employeeIds = allTime.map((e) => e.employeeId);
+  const employeeIds = allTime.map((e: { employeeId: string }) => e.employeeId);
   const users = await prisma.user.findMany({
     where: { id: { in: employeeIds } },
     select: { id: true, name: true },
   });
-  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+  const userMap = Object.fromEntries(users.map((u: { id: string; name: string | null }) => [u.id, u]));
 
-  const leaderboard = allTime.map((e, i) => ({
+  const leaderboard = allTime.map((e: typeof allTime[number], i: number) => ({
     rank: i + 1,
     employeeId: e.employeeId,
     firstName: (userMap[e.employeeId]?.name || 'Employee').split(' ')[0],
@@ -117,7 +117,7 @@ const submitRatingSchema = z.object({
   rating: z.number().int().min(1).max(5),
 });
 
-export async function submitRating(req: Request, res: Response) {
+export async function submitRating(req: AuthRequest, res: Response) {
   const parsed = submitRatingSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.flatten() });
 
@@ -143,7 +143,7 @@ export async function submitRating(req: Request, res: Response) {
 
 // ─── Pending Ratings (customer: unrated approved transactions, last 7 days) ──
 
-export async function getPendingRatings(req: Request, res: Response) {
+export async function getPendingRatings(req: AuthRequest, res: Response) {
   const customerId = req.user!.id;
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -171,7 +171,7 @@ export async function getPendingRatings(req: Request, res: Response) {
 
 // ─── Employee's own rating summary ───────────────────────────────────────────
 
-export async function getMyRatingSummary(req: Request, res: Response) {
+export async function getMyRatingSummary(req: AuthRequest, res: Response) {
   const employeeId = req.user!.id;
   const { storeId } = req.params;
 
