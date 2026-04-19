@@ -230,7 +230,14 @@ export default function EmployeeScanScreen() {
   const currentItemPts = isGasCat && validGallons && gasCentsPerGallon != null
     ? Math.round(parsedGallons * gasCentsPerGallon)
     : validAmount ? Math.round(parsedAmount * tierMult) : 0;
-  const committedPts = lineItems.reduce((sum, item) => sum + Math.round((parseFloat(item.amount) || 0) * tierMult), 0);
+  const committedPts = lineItems.reduce((sum, item) => {
+    const itemIsGas = item.category === 'GAS' || item.category === 'DIESEL';
+    const gallons = parseFloat(item.gasGallons || '');
+    if (itemIsGas && !isNaN(gallons) && gallons > 0 && gasCentsPerGallon != null) {
+      return sum + Math.round(gallons * gasCentsPerGallon);
+    }
+    return sum + Math.round((parseFloat(item.amount) || 0) * tierMult);
+  }, 0);
   const estimatedCashback = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
 
   function addCurrentItem() {

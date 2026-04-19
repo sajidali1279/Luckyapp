@@ -73,7 +73,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
 
   const token = await prisma.receiptToken.findUnique({
     where: { id: tokenId },
-    include: { store: { select: { id: true, name: true, city: true, transactionFeeRate: true } } },
+    include: { store: { select: { id: true, name: true, city: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } } },
   });
 
   if (!token) {
@@ -111,6 +111,8 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
   const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
   const categoryRateMap = Object.fromEntries(allCategoryRates.map(r => [r.category, r.cashbackRate]));
 
+  const tierGasCpg = tierRate?.gasCentsPerGallon ?? null;
+
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
     // Pick best offer: category-specific match first, then null-category — both sorted by bonusRate desc
@@ -118,8 +120,29 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
       ?? activeOffers.find((o) => o.category === null);
     const promoBonus = getTierBonusRate(offer ?? null, customerTier);
     const categoryBonus = categoryRateMap[item.category] ?? 0;
-    const effectiveRate = tierBaseRate + categoryBonus + promoBonus;
-    const cashback = parseFloat((item.amount * effectiveRate).toFixed(2));
+
+    // Per-gallon mode: estimate gallons from store's posted gas price
+    const isGasItem = item.category === ProductCategory.GAS || item.category === ProductCategory.DIESEL;
+    const storeGasPrice = isGasItem
+      ? (item.category === ProductCategory.GAS ? token.store.gasPricePerGallon : token.store.dieselPricePerGallon)
+      : null;
+    const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
+    const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null;
+
+    let cashback: number;
+    let effectiveRate: number;
+    if (usePerGallon) {
+      const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
+      const promoCashback = offer?.gasBonusCentsPerGallon != null
+        ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
+        : parseFloat((item.amount * promoBonus).toFixed(4));
+      cashback = parseFloat((baseCashback + promoCashback).toFixed(2));
+      effectiveRate = item.amount > 0 ? parseFloat((cashback / item.amount).toFixed(4)) : 0;
+    } else {
+      effectiveRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
+      cashback = parseFloat((item.amount * effectiveRate).toFixed(2));
+    }
+
     estimatedCashback += cashback;
     return { category: item.category, amount: item.amount, cashback, effectiveRate };
   });
@@ -193,6 +216,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   ]);
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
+  const tierGasCpg = tierRate?.gasCentsPerGallon ?? null;
   const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
   const categoryRateMap = Object.fromEntries(allCategoryRates.map((r) => [r.category, r.cashbackRate]));
 
@@ -207,8 +231,28 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         ?? activeOffers.find((o) => o.category === null);
       const promoBonus = getTierBonusRate(offer ?? null, customerTier);
       const categoryBonus = categoryRateMap[item.category] ?? 0;
-      const cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
-      const cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
+
+      // Per-gallon mode: estimate gallons from store's posted gas price
+      const isGasItem = item.category === ProductCategory.GAS || item.category === ProductCategory.DIESEL;
+      const storeGasPrice = isGasItem
+        ? (item.category === ProductCategory.GAS ? token.store.gasPricePerGallon : token.store.dieselPricePerGallon)
+        : null;
+      const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
+      const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null;
+
+      let cashbackRate: number;
+      let cashbackIssued: number;
+      if (usePerGallon) {
+        const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
+        const promoCashback = offer?.gasBonusCentsPerGallon != null
+          ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
+          : parseFloat((item.amount * promoBonus).toFixed(4));
+        cashbackIssued = parseFloat((baseCashback + promoCashback).toFixed(4));
+        cashbackRate = item.amount > 0 ? parseFloat((cashbackIssued / item.amount).toFixed(4)) : 0;
+      } else {
+        cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
+        cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
+      }
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 

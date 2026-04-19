@@ -107,6 +107,8 @@ export default function Offers() {
   // Quick post state
   const [quickCategory, setQuickCategory] = useState('');
   const [quickBonus, setQuickBonus] = useState('');
+  const [quickCpg, setQuickCpg] = useState('');
+  const [quickBonusMode, setQuickBonusMode] = useState<'pct' | 'cpg'>('pct');
   const [quickDuration, setQuickDuration] = useState<'today' | '3d' | '1w' | '2w' | '1m'>('1w');
   // Deal form state
   const [showDealForm, setShowDealForm] = useState(false);
@@ -245,14 +247,23 @@ export default function Offers() {
   }
 
   function handleQuickPost() {
+    const isGasDiesel = quickCategory === 'GAS' || quickCategory === 'DIESEL';
+    const useCpg = isGasDiesel && quickBonusMode === 'cpg';
+    const cpg = parseFloat(quickCpg);
     const bonus = parseFloat(quickBonus);
-    if (isNaN(bonus) || bonus <= 0) { toast.error('Enter a bonus %'); return; }
+
+    if (useCpg) {
+      if (isNaN(cpg) || cpg <= 0) { toast.error('Enter a ¢/gallon bonus'); return; }
+    } else {
+      if (isNaN(bonus) || bonus <= 0) { toast.error('Enter a bonus %'); return; }
+    }
 
     const catLabel = quickCategory
       ? CATEGORIES.find(c => c.value === quickCategory)?.label ?? quickCategory
       : 'All Categories';
     const durationLabel = { today: 'Today', '3d': '3 Days', '1w': 'This Week', '2w': '2 Weeks', '1m': 'This Month' }[quickDuration];
-    const autoTitle = `+${bonus}% ${catLabel} Bonus — ${durationLabel}`;
+    const bonusDisplay = useCpg ? `+${cpg}¢/gal` : `+${bonus}%`;
+    const autoTitle = `${bonusDisplay} ${catLabel} Bonus — ${durationLabel}`;
 
     const now = new Date();
     const end = new Date(now);
@@ -264,17 +275,24 @@ export default function Offers() {
 
     const fd = new FormData();
     fd.append('title', autoTitle);
-    fd.append('description', `${bonus}% bonus cashback on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`);
-    fd.append('bonusRate', String(bonus / 100));
+    fd.append('description', useCpg
+      ? `${cpg}¢ per gallon bonus on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`
+      : `${bonus}% bonus cashback on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`);
     fd.append('type', 'ALL_STORES');
     fd.append('startDate', now.toISOString());
     fd.append('endDate', end.toISOString());
     if (quickCategory) fd.append('category', quickCategory);
+    if (useCpg) {
+      fd.append('gasBonusCentsPerGallon', String(cpg));
+      // bonusRate = cpg / 100 so it satisfies the "not null" filter for display ordering
+      fd.append('bonusRate', String(cpg / 100));
+    } else {
+      fd.append('bonusRate', String(bonus / 100));
+    }
     createMutation.mutate(fd);
     setShowQuick(false);
-    setQuickBonus('');
-    setQuickCategory('');
-    setQuickDuration('1w');
+    setQuickBonus(''); setQuickCpg(''); setQuickBonusMode('pct');
+    setQuickCategory(''); setQuickDuration('1w');
   }
 
   const groupedTemplates = TEMPLATES.filter((t) => t.group === activeGroup);
@@ -375,35 +393,75 @@ export default function Offers() {
                 ].map(c => (
                   <button key={c.value} type="button"
                     style={{ ...s.chip, ...(quickCategory === c.value ? s.chipActive : {}) }}
-                    onClick={() => setQuickCategory(c.value)}>
+                    onClick={() => {
+                      setQuickCategory(c.value);
+                      if (c.value !== 'GAS' && c.value !== 'DIESEL') setQuickBonusMode('pct');
+                    }}>
                     {c.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Bonus % */}
+            {/* Bonus — mode toggle for GAS/DIESEL */}
             <div style={s.quickGroup}>
-              <div style={s.quickLabel}>Bonus %</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={s.quickBonusRow}>
-                  {['1', '2', '3', '5', '10'].map(v => (
-                    <button key={v} type="button"
-                      style={{ ...s.chip, ...(quickBonus === v ? s.chipActive : {}) }}
-                      onClick={() => setQuickBonus(v)}>
-                      +{v}%
-                    </button>
-                  ))}
+              {(quickCategory === 'GAS' || quickCategory === 'DIESEL') && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button type="button"
+                    style={{ ...s.chip, ...(quickBonusMode === 'pct' ? s.chipActive : {}), fontSize: 12 }}
+                    onClick={() => setQuickBonusMode('pct')}>% Cashback</button>
+                  <button type="button"
+                    style={{ ...s.chip, ...(quickBonusMode === 'cpg' ? s.chipActive : {}), fontSize: 12 }}
+                    onClick={() => setQuickBonusMode('cpg')}>⛽ ¢/Gallon</button>
                 </div>
-                <input
-                  type="number" min="0" max="100" step="0.5"
-                  value={quickBonus}
-                  onChange={e => setQuickBonus(e.target.value)}
-                  style={s.quickInput}
-                  placeholder="custom"
-                />
-                <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>%</span>
-              </div>
+              )}
+              {quickBonusMode === 'cpg' && (quickCategory === 'GAS' || quickCategory === 'DIESEL') ? (
+                <>
+                  <div style={s.quickLabel}>¢ per Gallon Bonus</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={s.quickBonusRow}>
+                      {['1', '2', '3', '5', '10'].map(v => (
+                        <button key={v} type="button"
+                          style={{ ...s.chip, ...(quickCpg === v ? s.chipActive : {}) }}
+                          onClick={() => setQuickCpg(v)}>
+                          +{v}¢
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number" min="0" max="100" step="0.5"
+                      value={quickCpg}
+                      onChange={e => setQuickCpg(e.target.value)}
+                      style={s.quickInput}
+                      placeholder="custom"
+                    />
+                    <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>¢/gal</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={s.quickLabel}>Bonus %</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={s.quickBonusRow}>
+                      {['1', '2', '3', '5', '10'].map(v => (
+                        <button key={v} type="button"
+                          style={{ ...s.chip, ...(quickBonus === v ? s.chipActive : {}) }}
+                          onClick={() => setQuickBonus(v)}>
+                          +{v}%
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number" min="0" max="100" step="0.5"
+                      value={quickBonus}
+                      onChange={e => setQuickBonus(e.target.value)}
+                      style={s.quickInput}
+                      placeholder="custom"
+                    />
+                    <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>%</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Duration */}
@@ -422,17 +480,25 @@ export default function Offers() {
           </div>
 
           {/* Preview + Post */}
-          {quickBonus && parseFloat(quickBonus) > 0 && (
-            <div style={s.quickPreview}>
-              <span style={s.quickPreviewText}>
-                📢 Will post: <strong>+{quickBonus}% {quickCategory ? CATEGORIES.find(c => c.value === quickCategory)?.label : 'All Categories'} Bonus</strong>
-                {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
-              </span>
-              <button style={s.quickPostBtn} onClick={handleQuickPost} disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Posting…' : '⚡ Post Now'}
-              </button>
-            </div>
-          )}
+          {(() => {
+            const isGasDiesel = quickCategory === 'GAS' || quickCategory === 'DIESEL';
+            const useCpg = isGasDiesel && quickBonusMode === 'cpg';
+            const hasValue = useCpg ? (parseFloat(quickCpg) > 0) : (parseFloat(quickBonus) > 0);
+            if (!hasValue) return null;
+            const bonusDisplay = useCpg ? `+${quickCpg}¢/gal` : `+${quickBonus}%`;
+            const catLabel = quickCategory ? CATEGORIES.find(c => c.value === quickCategory)?.label : 'All Categories';
+            return (
+              <div style={s.quickPreview}>
+                <span style={s.quickPreviewText}>
+                  📢 Will post: <strong>{bonusDisplay} {catLabel} Bonus</strong>
+                  {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
+                </span>
+                <button style={s.quickPostBtn} onClick={handleQuickPost} disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Posting…' : '⚡ Post Now'}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
