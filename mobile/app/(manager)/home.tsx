@@ -61,11 +61,11 @@ export default function ManagerHomeScreen() {
             <Text style={s.greeting}>{getGreeting()},</Text>
             <Text style={s.greetingName}>{firstName}!</Text>
           </View>
-          <View style={s.avatarRing}>
+          <TouchableOpacity style={s.avatarRing} onPress={() => router.push('/(manager)/profile')} activeOpacity={0.75}>
             <View style={s.avatarCircle}>
               <Text style={s.avatarText}>{initial}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
