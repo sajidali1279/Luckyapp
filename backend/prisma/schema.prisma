@@ -212,8 +212,24 @@ model Store {
   storeRequests     StoreRequest[]
   catalogRedemptions CatalogRedemption[]
   employeeRatings    EmployeeRating[]
+  keywordMappings    StoreKeywordMapping[]
 
   @@map("stores")
+}
+
+// Per-store POS keyword → Lucky Stop category mappings
+// Printer-agent fetches these so store-specific labels are classified correctly
+model StoreKeywordMapping {
+  id        String          @id @default(uuid())
+  storeId   String
+  keyword   String
+  category  ProductCategory
+  createdAt DateTime        @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, keyword])
+  @@map("store_keyword_mappings")
 }
 
 // Links employees/managers to their specific stores

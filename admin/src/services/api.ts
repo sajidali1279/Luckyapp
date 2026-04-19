@@ -106,6 +106,11 @@ export const storesApi = {
   updateGasPrices: (storeId: string, data: object) => api.patch(`/stores/${storeId}/gas-prices`, data),
   getApiKey: (storeId: string) => api.get(`/billing/stores/${storeId}/api-key`),
   regenerateApiKey: (storeId: string) => api.post(`/billing/stores/${storeId}/api-key/regenerate`),
+  getKeywordMappings: (storeId: string) => api.get(`/stores/${storeId}/keyword-mappings`),
+  addKeywordMapping: (storeId: string, keyword: string, category: string) =>
+    api.post(`/stores/${storeId}/keyword-mappings`, { keyword, category }),
+  deleteKeywordMapping: (storeId: string, id: string) =>
+    api.delete(`/stores/${storeId}/keyword-mappings/${id}`),
 };
 
 export const staffApi = {

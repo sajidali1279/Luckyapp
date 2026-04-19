@@ -32,6 +32,7 @@ import {
   regenerateStoreApiKey,
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
+import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
@@ -172,6 +173,12 @@ router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
+
+// ─── Store Keyword Mappings (POS → Category classification) ──────────────────
+router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)
+router.get('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), getMappings);
+router.post('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), addMapping);
+router.delete('/stores/:storeId/keyword-mappings/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteMapping);
 
 // ─── Billing (DevAdmin only) ──────────────────────────────────────────────────
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);

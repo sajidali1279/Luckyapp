@@ -64,6 +64,11 @@ export default function Stores() {
   const [apiKeyStoreId, setApiKeyStoreId] = useState<string | null>(null);
   const [apiKeyVisible, setApiKeyVisible] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [kwStoreId, setKwStoreId] = useState<string | null>(null);
+  const [kwMappings, setKwMappings] = useState<{ id: string; keyword: string; category: string }[]>([]);
+  const [kwLoading, setKwLoading] = useState(false);
+  const [kwForm, setKwForm] = useState({ keyword: '', category: 'GROCERIES' });
+  const [kwSaving, setKwSaving] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['stores'],
@@ -153,6 +158,38 @@ export default function Stores() {
 
   function copyApiKey(key: string) {
     navigator.clipboard.writeText(key).then(() => toast.success('Copied to clipboard'));
+  }
+
+  async function openKwModal(storeId: string) {
+    setKwStoreId(storeId);
+    setKwForm({ keyword: '', category: 'GROCERIES' });
+    setKwLoading(true);
+    try {
+      const res = await storesApi.getKeywordMappings(storeId);
+      setKwMappings(res.data.data ?? []);
+    } catch { toast.error('Failed to load mappings'); }
+    setKwLoading(false);
+  }
+
+  async function addKwMapping() {
+    if (!kwStoreId || !kwForm.keyword.trim()) { toast.error('Enter a keyword'); return; }
+    setKwSaving(true);
+    try {
+      await storesApi.addKeywordMapping(kwStoreId, kwForm.keyword.trim(), kwForm.category);
+      const res = await storesApi.getKeywordMappings(kwStoreId);
+      setKwMappings(res.data.data ?? []);
+      setKwForm((f) => ({ ...f, keyword: '' }));
+      toast.success('Mapping added');
+    } catch { toast.error('Failed to add mapping'); }
+    setKwSaving(false);
+  }
+
+  async function deleteKwMapping(id: string) {
+    if (!kwStoreId) return;
+    try {
+      await storesApi.deleteKeywordMapping(kwStoreId, id);
+      setKwMappings((prev) => prev.filter((m) => m.id !== id));
+    } catch { toast.error('Failed to delete mapping'); }
   }
 
   function openEdit(store: Store) {
@@ -364,12 +401,91 @@ export default function Stores() {
                 )}
 
                 <div style={s.divider} />
-                <button style={{ ...s.editBtn, borderColor: color, color }} onClick={() => openEdit(store)}>
-                  ✏️ Edit Store
-                </button>
+                <div style={s.cardBtns}>
+                  <button style={s.kwBtn} onClick={() => openKwModal(store.id)}>
+                    🗂️ POS Mappings
+                  </button>
+                  <button style={{ ...s.editBtn, flex: 2, borderColor: color, color }} onClick={() => openEdit(store)}>
+                    ✏️ Edit Store
+                  </button>
+                </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* POS Keyword Mappings Modal */}
+      {kwStoreId && (
+        <div style={s.backdrop} onClick={() => setKwStoreId(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.dragHandle} />
+            <div style={s.modalHeader}>
+              <div style={s.modalTitle}>🗂️ POS Keyword Mappings</div>
+              <div style={s.modalSub}>
+                {stores.find((st) => st.id === kwStoreId)?.name} — Map POS receipt labels to Lucky Stop categories
+              </div>
+            </div>
+            <div style={s.kwHint}>
+              When the printer-agent parses a receipt, it checks these keywords first (case-insensitive, partial match).
+              If a line contains the keyword, it's classified into the chosen category — overriding the built-in patterns.
+              <br /><br />
+              <strong>Example:</strong> your POS prints "FUEL GRD 1" → add keyword <code>fuel grd</code> → GAS
+            </div>
+
+            {/* Existing mappings */}
+            {kwLoading ? (
+              <div style={{ padding: '20px 0', color: '#6c757d', textAlign: 'center' }}>Loading…</div>
+            ) : kwMappings.length === 0 ? (
+              <div style={s.kwEmpty}>No custom mappings yet — built-in keyword patterns will be used.</div>
+            ) : (
+              <div style={s.kwList}>
+                {kwMappings.map((m) => {
+                  const catMeta = ALL_CATEGORIES.find((c) => c.value === m.category);
+                  return (
+                    <div key={m.id} style={s.kwRow}>
+                      <code style={s.kwKeyword}>{m.keyword}</code>
+                      <span style={s.kwArrow}>→</span>
+                      <span style={s.kwCat}>{catMeta?.icon} {catMeta?.label ?? m.category}</span>
+                      <button style={s.kwDeleteBtn} onClick={() => deleteKwMapping(m.id)}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add new mapping */}
+            <div style={s.sectionLabel}>Add Mapping</div>
+            <div style={s.kwAddRow}>
+              <input
+                style={{ ...s.input, flex: 2 }}
+                placeholder="e.g. fuel grd 1"
+                value={kwForm.keyword}
+                onChange={(e) => setKwForm((f) => ({ ...f, keyword: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && addKwMapping()}
+              />
+              <select
+                style={{ ...s.input, flex: 1, cursor: 'pointer' }}
+                value={kwForm.category}
+                onChange={(e) => setKwForm((f) => ({ ...f, category: e.target.value }))}
+              >
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                ))}
+              </select>
+              <button
+                style={s.kwAddBtn}
+                onClick={addKwMapping}
+                disabled={kwSaving || !kwForm.keyword.trim()}
+              >
+                {kwSaving ? '…' : '+ Add'}
+              </button>
+            </div>
+
+            <div style={s.modalActions}>
+              <button style={s.saveBtn} onClick={() => setKwStoreId(null)}>Done</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -524,6 +640,20 @@ const s: Record<string, React.CSSProperties> = {
   apiKeyCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1D3557', wordBreak: 'break-all' as const, marginBottom: 8 },
   apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   apiKeyBtn: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: '#1D3557' },
+
+  cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
+  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 12, cursor: 'pointer', color: '#1D3557' },
+
+  kwHint: { fontSize: 12, color: '#6c757d', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
+  kwEmpty: { fontSize: 13, color: '#adb5bd', padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
+  kwList: { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 },
+  kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f8f9fb', borderRadius: 9, padding: '8px 11px', border: '1px solid #e9ecef' },
+  kwKeyword: { fontFamily: 'monospace', fontSize: 13, color: '#1D3557', fontWeight: 700, flex: 1 },
+  kwArrow: { color: '#adb5bd', fontSize: 14 },
+  kwCat: { fontSize: 12, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderRadius: 20, padding: '2px 9px', border: '1px solid #bbf7d0' },
+  kwDeleteBtn: { background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontWeight: 800, fontSize: 14, padding: '0 4px', lineHeight: 1 },
+  kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
+  kwAddBtn: { padding: '9px 16px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
   empty: { textAlign: 'center', padding: '60px 0', color: '#6c757d', fontSize: 15 },
 

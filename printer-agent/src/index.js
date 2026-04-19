@@ -21,6 +21,7 @@ const path      = require('path');
 const axios     = require('axios');
 const { parseReceiptBuffer } = require('./receipt-parser');
 const { buildQrFooter }      = require('./escpos');
+const startWebServer         = require('./web-server');
 
 // ─── Load config ──────────────────────────────────────────────────────────────
 
@@ -50,6 +51,32 @@ if (mode === 'tcp') {
   console.log(`   Proxy port : ${proxyPort}`);
   console.log(`   Real printer: ${realPrinterIp}:${realPrinterPort}`);
 }
+if (mode === 'manual') {
+  console.log(`   Web UI port: ${cfg.manual?.port ?? 7771}`);
+  console.log(`   USB printer: ${cfg.manual?.printerName ?? '(not set)'}`);
+}
+
+// ─── Store keyword mappings (fetched once on start, refreshed every 4h) ───────
+
+let customPatterns = []; // [{ keyword, category }]
+
+async function loadKeywordMappings() {
+  try {
+    const response = await axios.get(
+      `${luckyStopApiUrl}/stores/my-keyword-mappings`,
+      { headers: { 'X-Store-API-Key': storeApiKey }, timeout: 5000 }
+    );
+    customPatterns = response.data?.data ?? [];
+    if (customPatterns.length > 0) {
+      console.log(`🗂️  Loaded ${customPatterns.length} custom keyword mapping(s) from server`);
+    }
+  } catch (err) {
+    console.warn(`⚠️  Could not load keyword mappings: ${err.response?.data?.error || err.message}`);
+  }
+}
+
+// Refresh every 4 hours so new mappings added in admin take effect without restart
+setInterval(loadKeywordMappings, 4 * 60 * 60 * 1000);
 
 // ─── API call: get receipt QR token from Lucky Stop backend ──────────────────
 
@@ -80,7 +107,7 @@ async function getReceiptToken(parsed) {
 
 async function processJob(rawBuffer) {
   try {
-    const parsed = parseReceiptBuffer(rawBuffer);
+    const parsed = parseReceiptBuffer(rawBuffer, customPatterns);
     console.log(`\n📋  Receipt parsed:`);
     console.log(`    txRef : ${parsed.txRef}`);
     console.log(`    total : $${parsed.total.toFixed(2)}`);
@@ -188,30 +215,70 @@ function startTcpProxy() {
   });
 }
 
-// ─── USB/Serial Mode ──────────────────────────────────────────────────────────
+// ─── Serial Proxy Mode ────────────────────────────────────────────────────────
+// Two USB-to-serial adapters on the Windows laptop:
+//   comPortIn  → receives ESC/POS data from the Verifone Commander
+//   comPortOut → sends modified data (+ QR footer) to the Epson TM-T88 printer
+//
+// Hardware setup:
+//   Commander serial cable → USB-RS232 adapter A (comPortIn, e.g. COM3)
+//   USB-RS232 adapter B (comPortOut, e.g. COM4) → serial cable → TM-T88
+//
+// Baud rate for Epson TM-T88: 38400 (match the printer self-test sheet)
 
 function startSerialProxy() {
+  const {
+    printer: {
+      comPortIn,
+      comPortOut,
+      comPort,           // legacy single-port field (fallback)
+      baudRate = 38400,
+    },
+  } = cfg;
+
+  const inPort  = comPortIn  || comPort;
+  const outPort = comPortOut || comPort;
+
+  if (!inPort) {
+    console.error('❌  printer.comPortIn not set in config.json');
+    process.exit(1);
+  }
+
   try {
     const { SerialPort } = require('serialport');
-    const port = new SerialPort({ path: comPort, baudRate, autoOpen: true });
-    let buffer = Buffer.alloc(0);
+
+    const portIn  = new SerialPort({ path: inPort,  baudRate, autoOpen: true });
+    const portOut = new SerialPort({ path: outPort, baudRate, autoOpen: true });
+
+    let buffer    = Buffer.alloc(0);
     let flushTimer = null;
 
-    port.on('open', () => console.log(`✅  Serial port ${comPort} opened at ${baudRate} baud`));
-    port.on('data', (chunk) => {
+    portIn.on('open',  () => console.log(`✅  IN  serial port ${inPort}  opened at ${baudRate} baud (from Commander)`));
+    portOut.on('open', () => console.log(`✅  OUT serial port ${outPort} opened at ${baudRate} baud (to TM-T88 printer)`));
+
+    portIn.on('data', (chunk) => {
       buffer = Buffer.concat([buffer, chunk]);
+      // Wait 300ms of silence — TM-T88 serial is slower than TCP, give it more time
       clearTimeout(flushTimer);
       flushTimer = setTimeout(async () => {
         if (buffer.length === 0) return;
         const job = buffer;
         buffer = Buffer.alloc(0);
+
         const modified = await processJob(job);
-        port.write(modified, (err) => {
+
+        portOut.write(modified, (err) => {
           if (err) console.error(`Serial write error: ${err.message}`);
         });
-      }, 200);
+      }, 300);
     });
-    port.on('error', (err) => console.error(`Serial error: ${err.message}`));
+
+    // Pass any printer status bytes back to the Commander (paper-low signals etc.)
+    portOut.on('data', (d) => portIn.write(d));
+
+    portIn.on('error',  (err) => console.error(`Serial IN error: ${err.message}`));
+    portOut.on('error', (err) => console.error(`Serial OUT error: ${err.message}`));
+
   } catch {
     console.error('❌  serialport package not installed. Run: npm install serialport');
     process.exit(1);
@@ -230,11 +297,16 @@ function getLocalIps() {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-if (mode === 'usb' || mode === 'serial') {
-  startSerialProxy();
-} else {
-  startTcpProxy();
-}
+// Load keyword mappings first, then start the proxy
+loadKeywordMappings().finally(() => {
+  if (mode === 'manual') {
+    startWebServer(cfg);
+  } else if (mode === 'usb' || mode === 'serial') {
+    startSerialProxy();
+  } else {
+    startTcpProxy();
+  }
+});
 
 process.on('uncaughtException', (err) => {
   console.error(`Uncaught exception: ${err.message}`);

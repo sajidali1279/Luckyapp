@@ -70,8 +70,12 @@ function parseAmount(line) {
 
 /**
  * Classify a receipt line into a ProductCategory.
+ * customPatterns (from store keyword mappings) take priority over defaults.
  */
-function classifyLine(line) {
+function classifyLine(line, customPatterns = []) {
+  for (const { keyword, category } of customPatterns) {
+    if (line.toLowerCase().includes(keyword)) return category;
+  }
   for (const { category, regex } of PATTERNS) {
     if (regex.test(line)) return category;
   }
@@ -81,8 +85,9 @@ function classifyLine(line) {
 /**
  * Parse ESC/POS buffer into { txRef, total, items }
  * where items = [{category, amount}]
+ * customPatterns: [{ keyword, category }] from store keyword mappings (checked first)
  */
-function parseReceiptBuffer(buffer) {
+function parseReceiptBuffer(buffer, customPatterns = []) {
   const text = extractText(buffer);
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
@@ -111,7 +116,7 @@ function parseReceiptBuffer(buffer) {
     const amount = parseAmount(line);
     if (!amount || amount <= 0) continue;
 
-    const category = classifyLine(line);
+    const category = classifyLine(line, customPatterns);
     if (!category) continue;
 
     // Merge consecutive same-category items (e.g. multi-line gas entries)
@@ -139,4 +144,4 @@ function parseReceiptBuffer(buffer) {
   return { txRef, total, items };
 }
 
-module.exports = { parseReceiptBuffer, extractText };
+module.exports = { parseReceiptBuffer, extractText, classifyLine };
