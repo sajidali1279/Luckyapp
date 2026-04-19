@@ -266,7 +266,17 @@ export default function CustomerHome() {
         </TouchableOpacity>
       </View>
 
-      {/* Scan Receipt — coming soon (printer QR integration pending) */}
+      {/* Scan Receipt QR */}
+      <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.85}>
+        <View style={styles.scanReceiptLeft}>
+          <Text style={styles.scanReceiptIcon}>📷</Text>
+          <View>
+            <Text style={styles.scanReceiptTitle}>Scan Receipt QR</Text>
+            <Text style={styles.scanReceiptSub}>Scan the QR on your receipt to earn points</Text>
+          </View>
+        </View>
+        <Text style={styles.scanReceiptArrow}>›</Text>
+      </TouchableOpacity>
 
       {/* QR Code */}
       <View style={styles.qrSection}>

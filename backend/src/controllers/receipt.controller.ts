@@ -102,6 +102,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
         bonusRate: { not: null },
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
+      orderBy: { bonusRate: 'desc' },
       select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true },
     }),
   ]);
@@ -112,7 +113,9 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
 
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
-    const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
+    // Pick best offer: category-specific match first, then null-category — both sorted by bonusRate desc
+    const offer = activeOffers.find((o) => o.category === item.category)
+      ?? activeOffers.find((o) => o.category === null);
     const promoBonus = getTierBonusRate(offer ?? null, customerTier);
     const categoryBonus = categoryRateMap[item.category] ?? 0;
     const effectiveRate = tierBaseRate + categoryBonus + promoBonus;
@@ -181,9 +184,10 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     prisma.offer.findMany({
       where: {
         isActive: true, startDate: { lte: now }, endDate: { gte: now },
-        bonusRate: { not: null }, // per-tier offers always have bonusRate auto-set to their max value
+        bonusRate: { not: null },
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
+      orderBy: { bonusRate: 'desc' },
       select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true },
     }),
   ]);
@@ -198,8 +202,9 @@ export async function selfGrant(req: AuthRequest, res: Response) {
 
   const transactions = await Promise.all(
     items.map(async (item) => {
-      // Find best matching offer for this category
-      const offer = activeOffers.find((o) => o.category === null || o.category === item.category);
+      // Pick best offer: category-specific first, then null-category — both sorted by bonusRate desc
+      const offer = activeOffers.find((o) => o.category === item.category)
+        ?? activeOffers.find((o) => o.category === null);
       const promoBonus = getTierBonusRate(offer ?? null, customerTier);
       const categoryBonus = categoryRateMap[item.category] ?? 0;
       const cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
