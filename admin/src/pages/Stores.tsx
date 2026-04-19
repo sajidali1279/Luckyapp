@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
 const ALL_CATEGORIES = [
@@ -52,12 +53,17 @@ function storeAvatar(idx: number) { return AVATAR_PALETTE[idx % AVATAR_PALETTE.l
 
 export default function Stores() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [editStore, setEditStore] = useState<Store | null>(null);
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '' });
   const [enabledCats, setEnabledCats] = useState<string[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   // Gas price inline editing: map of storeId → { gas, diesel }
   const [gasForms, setGasForms] = useState<Record<string, { gas: string; diesel: string }>>({});
+  const [apiKeyStoreId, setApiKeyStoreId] = useState<string | null>(null);
+  const [apiKeyVisible, setApiKeyVisible] = useState<Record<string, boolean>>({});
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['stores'],
@@ -120,6 +126,33 @@ export default function Stores() {
     const origGas    = store.gasPricePerGallon    != null ? store.gasPricePerGallon.toFixed(3)    : '';
     const origDiesel = store.dieselPricePerGallon != null ? store.dieselPricePerGallon.toFixed(3) : '';
     return gf.gas !== origGas || gf.diesel !== origDiesel;
+  }
+
+  async function loadApiKey(storeId: string) {
+    setApiKeyStoreId(storeId);
+    if (apiKeys[storeId]) { setApiKeyVisible((p) => ({ ...p, [storeId]: true })); return; }
+    try {
+      const res = await storesApi.getApiKey(storeId);
+      const key = res.data.data.apiKey;
+      setApiKeys((p) => ({ ...p, [storeId]: key }));
+      setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
+    } catch { toast.error('Failed to load API key'); }
+    setApiKeyStoreId(null);
+  }
+
+  async function regenApiKey(storeId: string) {
+    if (!confirm('Regenerate API key? The old key will stop working immediately — update config.json on that store\'s PC.')) return;
+    try {
+      const res = await storesApi.regenerateApiKey(storeId);
+      const key = res.data.data.apiKey;
+      setApiKeys((p) => ({ ...p, [storeId]: key }));
+      setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
+      toast.success('API key regenerated — update config.json on the store PC');
+    } catch { toast.error('Failed to regenerate API key'); }
+  }
+
+  function copyApiKey(key: string) {
+    navigator.clipboard.writeText(key).then(() => toast.success('Copied to clipboard'));
   }
 
   function openEdit(store: Store) {
@@ -303,6 +336,33 @@ export default function Stores() {
                   </button>
                 </div>
 
+                {isDevAdmin && (
+                  <>
+                    <div style={s.divider} />
+                    <div style={s.apiKeySection}>
+                      <div style={s.apiKeyLabel}>🔑 Printer Agent API Key</div>
+                      {apiKeyVisible[store.id] && apiKeys[store.id] ? (
+                        <div style={s.apiKeyBox}>
+                          <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
+                          <div style={s.apiKeyBtns}>
+                            <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
+                            <button style={{ ...s.apiKeyBtn, color: '#E63946', borderColor: '#fca5a5' }} onClick={() => regenApiKey(store.id)}>🔄 Regenerate</button>
+                            <button style={{ ...s.apiKeyBtn, color: '#6c757d' }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          style={s.apiKeyRevealBtn}
+                          onClick={() => loadApiKey(store.id)}
+                          disabled={apiKeyStoreId === store.id}
+                        >
+                          {apiKeyStoreId === store.id ? 'Loading…' : '🔓 Reveal API Key'}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 <div style={s.divider} />
                 <button style={{ ...s.editBtn, borderColor: color, color }} onClick={() => openEdit(store)}>
                   ✏️ Edit Store
@@ -456,6 +516,14 @@ const s: Record<string, React.CSSProperties> = {
   gasUpdateBtnActive: { background: '#e8532a', color: '#fff', cursor: 'pointer' },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' },
+
+  apiKeySection: { paddingTop: 4 },
+  apiKeyLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
+  apiKeyRevealBtn: { fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: '#1D3557' },
+  apiKeyBox: { background: '#f8f9fb', borderRadius: 10, padding: '10px 12px', border: '1px solid #e9ecef' },
+  apiKeyCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1D3557', wordBreak: 'break-all' as const, marginBottom: 8 },
+  apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
+  apiKeyBtn: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: '#1D3557' },
 
   empty: { textAlign: 'center', padding: '60px 0', color: '#6c757d', fontSize: 15 },
 
