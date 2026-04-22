@@ -156,6 +156,7 @@ model User {
   pushTokens           PushToken[]
   notifications        UserNotification[]
   tierBenefitClaims         TierBenefitClaim[]
+  welcomeBonusClaims        WelcomeBonusClaim[]
   catalogRedemptions        CatalogRedemption[]  @relation("CatalogCustomer")
   processedCatalogRedemptions CatalogRedemption[] @relation("CatalogProcessor")
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
@@ -771,6 +772,27 @@ model JobApplication {
   @@index([phone])
   @@index([createdAt])
   @@map("job_applications")
+}
+
+// ─── Welcome / Joining Bonus Claims ──────────────────────────────────────────
+
+model WelcomeBonusClaim {
+  id            String    @id @default(uuid())
+  customerId    String
+  day           Int       // 1–7 (calendar day offset from account creation)
+  rewardType    String    // FOUNTAIN_DRINK | COFFEE | SODA_12OZ | HOT_SNACK
+  claimCode     String    @unique
+  claimedAt     DateTime  @default(now())
+  confirmedAt   DateTime?
+  confirmedById String?
+  storeId       String?
+
+  customer User @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, day])
+  @@index([customerId])
+  @@index([claimCode])
+  @@map("welcome_bonus_claims")
 }
 
 // ─── Tier Benefit Claims ──────────────────────────────────────────────────────

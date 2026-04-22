@@ -9,6 +9,7 @@ import * as Location from 'expo-location';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi } from '../../services/api';
+import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import { COLORS } from '../../constants';
 
 const MAX_NEARBY_MILES = 20;
@@ -265,6 +266,9 @@ export default function CustomerHome() {
           <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Welcome / Joining Bonus */}
+      <WelcomeBonusCard />
 
       {/* Scan Receipt QR */}
       <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.85}>

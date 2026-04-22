@@ -155,6 +155,13 @@ export const storesApi = {
   getTierRates: () => api.get('/billing/tier-rates'),
 };
 
+export const welcomeBonusApi = {
+  getStatus: () => api.get('/welcome-bonus'),
+  claim: () => api.post('/welcome-bonus/claim'),
+  getForCustomer: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`),
+  confirm: (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
+};
+
 export const careersApi = {
   apply: (data: {
     name: string; phone: string; email?: string; position: string;

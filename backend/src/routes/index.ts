@@ -62,6 +62,12 @@ import {
   deletePromotion,
 } from '../controllers/promotions.controller';
 import {
+  getWelcomeBonusStatus,
+  claimWelcomeBonus,
+  getCustomerWelcomeBonus,
+  confirmWelcomeBonus,
+} from '../controllers/welcome-bonus.controller';
+import {
   submitApplication,
   getApplications,
   getNewApplicationCount,
@@ -293,6 +299,12 @@ router.get('/careers/applications', authenticate, requireRole(Role.SUPER_ADMIN),
 router.get('/careers/applications/new-count', authenticate, requireRole(Role.SUPER_ADMIN), getNewApplicationCount); // Badge count
 router.patch('/careers/applications/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateApplication);          // Update status / notes
 router.delete('/careers/applications/:id', authenticate, requireRole(Role.DEV_ADMIN), deleteApplication);            // Delete application
+
+// ─── Welcome / Joining Bonus ─────────────────────────────────────────────────
+router.get('/welcome-bonus',                    authenticate, requireRole(Role.CUSTOMER),  getWelcomeBonusStatus);
+router.post('/welcome-bonus/claim',             authenticate, requireRole(Role.CUSTOMER),  claimWelcomeBonus);
+router.get('/welcome-bonus/customer/:qrCode',   authenticate, requireRole(Role.EMPLOYEE),  getCustomerWelcomeBonus);
+router.post('/welcome-bonus/confirm',           authenticate, requireRole(Role.EMPLOYEE),  confirmWelcomeBonus);
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request

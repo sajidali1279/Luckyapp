@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
-import { pointsApi, catalogApi, storesApi } from '../../services/api';
+import { pointsApi, catalogApi, storesApi, welcomeBonusApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 
@@ -17,7 +17,8 @@ type Step =
   | 'redeem-amount' | 'redeem-done'
   | 'benefit-done'
   | 'catalog-select' | 'catalog-done'
-  | 'pending-done';
+  | 'pending-done'
+  | 'welcome-bonus-done';
 
 type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
 
@@ -99,6 +100,7 @@ const STEP_INDEX: Record<Step, number> = {
   'benefit-done': 2,
   'catalog-select': 2, 'catalog-done': 3,
   'pending-done': 2,
+  'welcome-bonus-done': 2,
 };
 
 function StepBar({ step }: { step: Step }) {
@@ -159,6 +161,8 @@ export default function EmployeeScanScreen() {
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<any>(null);
   const [pendingRedemptions, setPendingRedemptions] = useState<any[]>([]);
   const [confirmedPending, setConfirmedPending] = useState<any>(null);
+  const [welcomeBonus, setWelcomeBonus] = useState<any>(null);
+  const [confirmedWelcomeBonus, setConfirmedWelcomeBonus] = useState<any>(null);
 
   const storeId = user?.storeIds?.[0];
 
@@ -279,6 +283,8 @@ export default function EmployeeScanScreen() {
     setSelectedCatalogItem(null);
     setPendingRedemptions([]);
     setConfirmedPending(null);
+    setWelcomeBonus(null);
+    setConfirmedWelcomeBonus(null);
   }
 
   async function handleQrScan({ data }: { data: string }) {
@@ -293,14 +299,16 @@ export default function EmployeeScanScreen() {
     setCustomerQr(data);
     setLoading(true);
     try {
-      const [infoRes, catalogRes, pendingRes] = await Promise.all([
+      const [infoRes, catalogRes, pendingRes, wbRes] = await Promise.all([
         pointsApi.getCustomerInfo(data),
         catalogApi.getActive(),
         catalogApi.getPendingForCustomer(data),
+        welcomeBonusApi.getForCustomer(data).catch(() => null),
       ]);
       setCustomerData(infoRes.data.data);
       setCatalogItems(catalogRes.data.data || []);
       setPendingRedemptions(pendingRes.data.data || []);
+      setWelcomeBonus(wbRes?.data?.data ?? null);
       setStep('mode');
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Customer not found';
@@ -462,6 +470,20 @@ export default function EmployeeScanScreen() {
       await catalogApi.confirmRedemption(redemption.id, storeId);
       setConfirmedPending(redemption);
       setStep('pending-done');
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Confirmation failed' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleConfirmWelcomeBonus() {
+    if (!welcomeBonus) return;
+    setLoading(true);
+    try {
+      const res = await welcomeBonusApi.confirm(welcomeBonus.claimCode, storeId);
+      setConfirmedWelcomeBonus(res.data.data);
+      setStep('welcome-bonus-done');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Confirmation failed' });
     } finally {
@@ -708,6 +730,29 @@ export default function EmployeeScanScreen() {
               <View style={[s.modeArrow, { backgroundColor: '#9B5DE5' }]}>
                 <Text style={s.modeArrowText}>›</Text>
               </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Welcome Bonus — show when customer has an unconfirmed claim for today */}
+          {welcomeBonus && (
+            <TouchableOpacity
+              style={[s.modeCard, { borderColor: '#F59E0B60' }]}
+              onPress={handleConfirmWelcomeBonus}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <View style={[s.modeIconBg, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={s.modeEmoji}>{welcomeBonus.rewardEmoji || '🎁'}</Text>
+              </View>
+              <View style={s.modeBody}>
+                <Text style={[s.modeTitle, { color: '#D97706' }]}>Welcome Bonus · Day {welcomeBonus.day}</Text>
+                <Text style={s.modeSub}>{welcomeBonus.rewardLabel} — CODE: {welcomeBonus.claimCode}</Text>
+              </View>
+              {loading
+                ? <ActivityIndicator color="#F59E0B" style={{ marginRight: 4 }} />
+                : <View style={[s.modeArrow, { backgroundColor: '#F59E0B' }]}>
+                    <Text style={s.modeArrowText}>✓</Text>
+                  </View>}
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -1176,6 +1221,26 @@ export default function EmployeeScanScreen() {
             </Text>
           </View>
           <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#9B5DE5' }]} onPress={reset} activeOpacity={0.85}>
+            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ──────────────────────── WELCOME BONUS: DONE ────────────────────────── */}
+      {step === 'welcome-bonus-done' && (
+        <View style={[s.fill, s.center]}>
+          <View style={[s.doneIconRing, { backgroundColor: '#FEF3C720' }]}>
+            <Text style={s.doneEmoji}>{confirmedWelcomeBonus?.rewardEmoji || '🎁'}</Text>
+          </View>
+          <Text style={s.doneHeading}>Welcome Bonus Confirmed!</Text>
+          <Text style={[s.doneAmount, { color: '#D97706', fontSize: 22 }]}>
+            {confirmedWelcomeBonus?.rewardLabel}
+          </Text>
+          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
+          <View style={s.newBalanceCard}>
+            <Text style={s.newBalanceLabel}>Day {confirmedWelcomeBonus?.day} of 7 redeemed</Text>
+          </View>
+          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#F59E0B' }]} onPress={reset} activeOpacity={0.85}>
             <Text style={s.primaryBtnText}>Scan Next Customer</Text>
           </TouchableOpacity>
         </View>
