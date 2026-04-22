@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi, devAdminApi, supportApi } from '../services/api';
+import { superAdminApi, devAdminApi, supportApi, careersApi } from '../services/api';
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
@@ -133,6 +133,15 @@ export default function Navbar() {
   });
   const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
 
+  const { data: careersCountData } = useQuery({
+    queryKey: ['careers-new-count'],
+    queryFn: careersApi.getNewCount,
+    enabled: isSuperAdmin || isDevAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const careersNewCount: number = careersCountData?.data?.data?.count ?? 0;
+
   function handleLogout() { logout(); navigate('/login'); }
   const lnk = (isActive: boolean) => ({ ...s.link, ...(isActive ? s.linkActive : {}) });
 
@@ -148,11 +157,12 @@ export default function Navbar() {
   ];
 
   const peopleItemsAdminFull: DropdownItem[] = [
-    { to: '/chat',           icon: '💬', label: 'Chat'       },
-    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
-    { to: '/staff',          icon: '👥', label: 'Staff'      },
-    { to: '/customers',      icon: '🙋', label: 'Customers'  },
-    { to: '/store-requests', icon: '📋', label: 'Requests'   },
+    { to: '/chat',           icon: '💬', label: 'Chat'         },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling'   },
+    { to: '/staff',          icon: '👥', label: 'Staff'        },
+    { to: '/customers',      icon: '🙋', label: 'Customers'    },
+    { to: '/store-requests', icon: '📋', label: 'Requests'     },
+    { to: '/careers',        icon: '💼', label: 'Careers', badge: careersNewCount },
   ];
 
   const peopleItemsManager: DropdownItem[] = [
@@ -172,7 +182,7 @@ export default function Navbar() {
   ];
 
   const overviewRoutes = ['/', '/analytics'];
-  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests'];
+  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests', '/careers'];
   const contentRoutes  = ['/offers', '/banners', '/catalog'];
 
   return (

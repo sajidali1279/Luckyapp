@@ -31,6 +31,7 @@ export default function CustomerLayout() {
       items: [
         { route: '/(customer)/ads',         emoji: '📣', label: 'Ads & Promotions' },
         { route: '/(customer)/leaderboard', emoji: '🏆', label: 'Leaderboard' },
+        { route: '/(customer)/careers',     emoji: '💼', label: 'Careers' },
       ],
     },
     {
@@ -52,6 +53,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="history" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
+        <Tabs.Screen name="careers" />
         <Tabs.Screen name="profile" />
       </Tabs>
     </DrawerShell>

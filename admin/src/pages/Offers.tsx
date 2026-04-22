@@ -395,7 +395,8 @@ export default function Offers() {
                     style={{ ...s.chip, ...(quickCategory === c.value ? s.chipActive : {}) }}
                     onClick={() => {
                       setQuickCategory(c.value);
-                      if (c.value !== 'GAS' && c.value !== 'DIESEL') setQuickBonusMode('pct');
+                      if (c.value === 'GAS' || c.value === 'DIESEL') setQuickBonusMode('cpg');
+                      else setQuickBonusMode('pct');
                     }}>
                     {c.label}
                   </button>

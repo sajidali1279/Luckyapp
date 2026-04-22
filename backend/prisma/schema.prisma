@@ -91,6 +91,14 @@ enum ProductCategory {
   OTHER
 }
 
+enum ApplicationStatus {
+  NEW
+  REVIEWED
+  INTERVIEW
+  HIRED
+  REJECTED
+}
+
 enum Tier {
   BRONZE
   SILVER
@@ -213,6 +221,7 @@ model Store {
   catalogRedemptions CatalogRedemption[]
   employeeRatings    EmployeeRating[]
   keywordMappings    StoreKeywordMapping[]
+  jobApplications    JobApplication[]
 
   @@map("stores")
 }
@@ -736,6 +745,32 @@ model EmployeeRating {
   @@index([customerId])
   @@index([createdAt])
   @@map("employee_ratings")
+}
+
+// ─── Job Applications ─────────────────────────────────────────────────────────
+
+model JobApplication {
+  id           String            @id @default(uuid())
+  name         String
+  phone        String
+  email        String?
+  position     String            // CASHIER | ASSISTANT_MANAGER | STORE_MANAGER | FOOD_PREP | NIGHT_SHIFT | FUEL_ATTENDANT
+  storeId      String?
+  availability Json              // { type: "FULL_TIME"|"PART_TIME", shifts: string[] }
+  experience   String?
+  message      String?
+  status       ApplicationStatus @default(NEW)
+  reviewNotes  String?
+  customerId   String?           // logged-in customer who submitted
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  store Store? @relation(fields: [storeId], references: [id])
+
+  @@index([status])
+  @@index([phone])
+  @@index([createdAt])
+  @@map("job_applications")
 }
 
 // ─── Tier Benefit Claims ──────────────────────────────────────────────────────

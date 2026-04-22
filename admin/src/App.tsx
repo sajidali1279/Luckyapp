@@ -32,6 +32,7 @@ const BusinessPromotions     = lazy(() => import('./pages/BusinessPromotions'));
 const Rates                  = lazy(() => import('./pages/Rates'));
 const Support                = lazy(() => import('./pages/Support'));
 const Leaderboard            = lazy(() => import('./pages/Leaderboard'));
+const Careers                = lazy(() => import('./pages/Careers'));
 
 const queryClient = new QueryClient();
 
@@ -93,6 +94,7 @@ export default function App() {
               </Route>
               {/* Catalog accessible to both SuperAdmin and DevAdmin */}
               <Route path="/catalog" element={<Catalog />} />
+              <Route path="/careers" element={<Careers />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/profile" element={<Profile />} />

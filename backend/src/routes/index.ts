@@ -62,6 +62,13 @@ import {
   deletePromotion,
 } from '../controllers/promotions.controller';
 import {
+  submitApplication,
+  getApplications,
+  getNewApplicationCount,
+  updateApplication,
+  deleteApplication,
+} from '../controllers/careers.controller';
+import {
   getCustomerLeaderboard,
   getEmployeeLeaderboard,
   submitRating,
@@ -279,6 +286,13 @@ router.get('/leaderboard/employees/:storeId', authenticate, requireRole(Role.EMP
 router.post('/ratings', authenticate, requireRole(Role.CUSTOMER), submitRating);                                      // Customer rates employee after transaction
 router.get('/ratings/pending', authenticate, requireRole(Role.CUSTOMER), getPendingRatings);                          // Customer: unrated approved transactions
 router.get('/ratings/my/:storeId', authenticate, requireRole(Role.EMPLOYEE), getMyRatingSummary);                     // Employee: own rating summary
+
+// ─── Careers ─────────────────────────────────────────────────────────────────
+router.post('/careers/apply', authenticate, requireRole(Role.CUSTOMER), submitApplication);              // Customer submits job application
+router.get('/careers/applications', authenticate, requireRole(Role.SUPER_ADMIN), getApplications);       // Admin views all applications
+router.get('/careers/applications/new-count', authenticate, requireRole(Role.SUPER_ADMIN), getNewApplicationCount); // Badge count
+router.patch('/careers/applications/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateApplication);          // Update status / notes
+router.delete('/careers/applications/:id', authenticate, requireRole(Role.DEV_ADMIN), deleteApplication);            // Delete application
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request

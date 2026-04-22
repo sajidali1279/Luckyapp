@@ -155,6 +155,15 @@ export const storesApi = {
   getTierRates: () => api.get('/billing/tier-rates'),
 };
 
+export const careersApi = {
+  apply: (data: {
+    name: string; phone: string; email?: string; position: string;
+    storeId?: string;
+    availability: { type: 'FULL_TIME' | 'PART_TIME'; shifts: string[] };
+    experience?: string; message?: string;
+  }) => api.post('/careers/apply', data),
+};
+
 export const promotionsApi = {
   getPublished: () => api.get('/promotions'),
   getMy: () => api.get('/promotions/my'),

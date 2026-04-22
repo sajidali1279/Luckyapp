@@ -133,9 +133,10 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
     let effectiveRate: number;
     if (usePerGallon) {
       const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
+      // Only apply promo in per-gallon mode if it's also a cpg offer; ignore % offers to avoid mode mixing
       const promoCashback = offer?.gasBonusCentsPerGallon != null
         ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
-        : parseFloat((item.amount * promoBonus).toFixed(4));
+        : 0;
       cashback = parseFloat((baseCashback + promoCashback).toFixed(2));
       effectiveRate = item.amount > 0 ? parseFloat((cashback / item.amount).toFixed(4)) : 0;
     } else {
@@ -244,9 +245,10 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       let cashbackIssued: number;
       if (usePerGallon) {
         const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
+        // Only apply promo in per-gallon mode if it's also a cpg offer; ignore % offers to avoid mode mixing
         const promoCashback = offer?.gasBonusCentsPerGallon != null
           ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
-          : parseFloat((item.amount * promoBonus).toFixed(4));
+          : 0;
         cashbackIssued = parseFloat((baseCashback + promoCashback).toFixed(4));
         cashbackRate = item.amount > 0 ? parseFloat((cashbackIssued / item.amount).toFixed(4)) : 0;
       } else {

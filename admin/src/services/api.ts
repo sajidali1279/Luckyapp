@@ -199,6 +199,15 @@ export const leaderboardApi = {
     api.get(`/leaderboard/employees/${storeId}`),
 };
 
+export const careersApi = {
+  getApplications: (params?: Record<string, string>) =>
+    api.get('/careers/applications', { params }),
+  getNewCount: () => api.get('/careers/applications/new-count'),
+  update: (id: string, data: { status?: string; reviewNotes?: string }) =>
+    api.patch(`/careers/applications/${id}`, data),
+  delete: (id: string) => api.delete(`/careers/applications/${id}`),
+};
+
 export const storeRequestApi = {
   // Manager/admin
   getStoreRequests: (storeId: string, status?: string) =>
