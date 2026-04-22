@@ -1,16 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 
-// Day → reward assignment (1-indexed, cycles over 4 items for 7 days)
-const DAY_REWARDS: Record<number, string> = {
-  1: 'FOUNTAIN_DRINK',
-  2: 'COFFEE',
-  3: 'SODA_12OZ',
-  4: 'HOT_SNACK',
-  5: 'FOUNTAIN_DRINK',
-  6: 'COFFEE',
-  7: 'SODA_12OZ',
-};
+const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
 
 const REWARD_LABELS: Record<string, { label: string; emoji: string }> = {
   FOUNTAIN_DRINK: { label: 'Free Fountain Drink', emoji: '🥤' },
@@ -23,7 +14,6 @@ function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Returns midnight UTC of a given date
 function toDateOnly(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
@@ -48,14 +38,11 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
       return res.json({ success: true, data: { active: false } });
     }
 
-    const rewardType = DAY_REWARDS[dayNumber];
-    const reward = REWARD_LABELS[rewardType];
+    const todayClaim = await prisma.welcomeBonusClaim.findUnique({
+      where: { customerId_day: { customerId, day: dayNumber } },
+    });
 
-    // Fetch all claims for this customer
-    const claims = await prisma.welcomeBonusClaim.findMany({ where: { customerId } });
-    const claimsMap = Object.fromEntries(claims.map(c => [c.day, c]));
-
-    const todayClaim = claimsMap[dayNumber] ?? null;
+    const claimedReward = todayClaim ? REWARD_LABELS[todayClaim.rewardType] : null;
 
     return res.json({
       success: true,
@@ -63,13 +50,15 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
         active: true,
         dayNumber,
         totalDays: 7,
-        rewardType,
-        rewardLabel: reward.label,
-        rewardEmoji: reward.emoji,
+        // Available choices (only sent when not yet claimed today)
+        rewards: !todayClaim ? VALID_REWARD_TYPES.map(rt => ({ rewardType: rt, ...REWARD_LABELS[rt] })) : undefined,
+        // Claimed info
         claimed: !!todayClaim,
         confirmed: todayClaim?.confirmedAt != null,
         claimCode: todayClaim?.claimCode ?? null,
-        claimedAt: todayClaim?.claimedAt ?? null,
+        rewardType: todayClaim?.rewardType ?? null,
+        rewardLabel: claimedReward?.label ?? null,
+        rewardEmoji: claimedReward?.emoji ?? null,
       },
     });
   } catch (err) {
@@ -78,10 +67,16 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
   }
 }
 
-// POST /welcome-bonus/claim — customer claims today's reward
+// POST /welcome-bonus/claim — customer claims today's reward (body: { rewardType })
 export async function claimWelcomeBonus(req: Request, res: Response) {
   try {
     const customerId = req.user!.id;
+    const { rewardType } = req.body as { rewardType?: string };
+
+    if (!rewardType || !VALID_REWARD_TYPES.includes(rewardType)) {
+      return res.status(400).json({ success: false, error: 'Invalid rewardType. Choose FOUNTAIN_DRINK, COFFEE, SODA_12OZ, or HOT_SNACK.' });
+    }
+
     const user = await prisma.user.findUnique({ where: { id: customerId }, select: { createdAt: true } });
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
@@ -91,46 +86,44 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       return res.status(400).json({ success: false, error: 'Welcome bonus has expired' });
     }
 
-    // Check if already claimed today
+    // Already claimed today — return existing
     const existing = await prisma.welcomeBonusClaim.findUnique({
       where: { customerId_day: { customerId, day: dayNumber } },
     });
     if (existing) {
+      const reward = REWARD_LABELS[existing.rewardType];
       return res.json({
         success: true,
         data: {
           claimCode: existing.claimCode,
           rewardType: existing.rewardType,
-          rewardLabel: REWARD_LABELS[existing.rewardType]?.label,
-          rewardEmoji: REWARD_LABELS[existing.rewardType]?.emoji,
+          rewardLabel: reward?.label,
+          rewardEmoji: reward?.emoji,
           confirmed: existing.confirmedAt != null,
         },
       });
     }
 
-    const rewardType = DAY_REWARDS[dayNumber];
-
     // Generate unique 6-char code
     let claimCode = generateCode();
-    let attempts = 0;
-    while (attempts < 10) {
+    for (let i = 0; i < 10; i++) {
       const conflict = await prisma.welcomeBonusClaim.findUnique({ where: { claimCode } });
       if (!conflict) break;
       claimCode = generateCode();
-      attempts++;
     }
 
     const claim = await prisma.welcomeBonusClaim.create({
       data: { customerId, day: dayNumber, rewardType, claimCode },
     });
 
+    const reward = REWARD_LABELS[claim.rewardType];
     return res.json({
       success: true,
       data: {
         claimCode: claim.claimCode,
         rewardType: claim.rewardType,
-        rewardLabel: REWARD_LABELS[claim.rewardType]?.label,
-        rewardEmoji: REWARD_LABELS[claim.rewardType]?.emoji,
+        rewardLabel: reward?.label,
+        rewardEmoji: reward?.emoji,
         confirmed: false,
       },
     });
@@ -164,7 +157,6 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     }
 
     const reward = REWARD_LABELS[claim.rewardType];
-
     return res.json({
       success: true,
       data: {
@@ -195,21 +187,13 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
 
     const confirmed = await prisma.welcomeBonusClaim.update({
       where: { claimCode },
-      data: {
-        confirmedAt: new Date(),
-        confirmedById: req.user!.id,
-        storeId: storeId ?? null,
-      },
+      data: { confirmedAt: new Date(), confirmedById: req.user!.id, storeId: storeId ?? null },
     });
 
     const reward = REWARD_LABELS[confirmed.rewardType];
     return res.json({
       success: true,
-      data: {
-        rewardLabel: reward?.label,
-        rewardEmoji: reward?.emoji,
-        day: confirmed.day,
-      },
+      data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day: confirmed.day },
     });
   } catch (err) {
     console.error(err);

@@ -157,7 +157,7 @@ export const storesApi = {
 
 export const welcomeBonusApi = {
   getStatus: () => api.get('/welcome-bonus'),
-  claim: () => api.post('/welcome-bonus/claim'),
+  claim: (rewardType: string) => api.post('/welcome-bonus/claim', { rewardType }),
   getForCustomer: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`),
   confirm: (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
