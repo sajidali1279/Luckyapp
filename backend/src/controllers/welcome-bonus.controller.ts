@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import prisma from '../config/prisma';
 
 const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
 
