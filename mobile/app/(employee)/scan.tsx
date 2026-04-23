@@ -105,7 +105,7 @@ const STEP_INDEX: Record<Step, number> = {
 
 function StepBar({ step }: { step: Step }) {
   const isRedeem  = step === 'redeem-amount' || step === 'redeem-done';
-  const isBenefit = step === 'benefit-done';
+  const isBenefit = step === 'benefit-done' || step === 'welcome-bonus-done' || step === 'pending-done';
   const isCatalog = step === 'catalog-select' || step === 'catalog-done';
   const labels = isBenefit ? BENEFIT_STEPS : (isRedeem || isCatalog) ? REDEEM_STEPS : GRANT_STEPS;
   const active = STEP_INDEX[step] ?? 0;
