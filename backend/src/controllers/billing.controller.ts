@@ -144,8 +144,9 @@ export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
 
 export async function createBillingRecord(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const { amount, period, billingType } = req.body as { amount: number; period: string; billingType: BillingType };
-  const record = await prisma.billingRecord.create({ data: { storeId, amount, period, billingType } });
+  const { amount, period, billingType, description } = req.body as { amount: number; period: string; billingType: BillingType; description?: string };
+  const notes = billingType === 'CUSTOM' && description ? JSON.stringify({ description }) : undefined;
+  const record = await prisma.billingRecord.create({ data: { storeId, amount, period, billingType, ...(notes ? { notes } : {}) } });
   res.status(201).json({ success: true, data: record });
 }
 
@@ -649,7 +650,7 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
     byPeriod[r.period].totalCashback += n?.cashbackIssued ?? 0;
     byPeriod[r.period].totalTxns     += n?.txCount ?? 0;
     byPeriod[r.period].totalVolume   += n?.purchaseVolume ?? 0;
-    byPeriod[r.period].stores.push({ store: r.store, amount: amt, txCount: n?.txCount ?? 0, cashbackIssued: n?.cashbackIssued ?? 0 });
+    byPeriod[r.period].stores.push({ store: r.store, amount: amt, billingType: r.billingType, txCount: n?.txCount ?? 0, cashbackIssued: n?.cashbackIssued ?? 0, description: n?.description ?? null });
     if (!r.isPaid) byPeriod[r.period].isPaid = false;
     if (r.isPaid && r.paidAt && !byPeriod[r.period].paidAt) byPeriod[r.period].paidAt = r.paidAt;
   }

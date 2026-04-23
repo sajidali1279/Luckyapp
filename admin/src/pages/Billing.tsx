@@ -12,7 +12,7 @@ interface BillNotes {
   cashbackFee: number; totalAmountOwed: number; periodStart: string; periodEnd: string;
 }
 
-type Tab = 'stores' | 'monthly' | 'settings';
+type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
 
 const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as const;
 const TIER_EMOJI: Record<string, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
@@ -152,6 +152,27 @@ export default function Billing() {
     onError: () => toast.error('Failed to mark paid'),
   });
 
+  // ── Manual charge state ───────────────────────────────────────────────────────
+  const [manualForm, setManualForm] = useState({ storeId: '', amount: '', description: '', period: new Date().toISOString().slice(0, 7) });
+  const [manualDone, setManualDone] = useState<any>(null);
+
+  const addManualCharge = useMutation({
+    mutationFn: () => billingApi.createRecord(manualForm.storeId, {
+      amount: parseFloat(manualForm.amount),
+      billingType: 'CUSTOM',
+      period: manualForm.period,
+      description: manualForm.description.trim(),
+    }),
+    onSuccess: (res) => {
+      toast.success('Manual charge added');
+      setManualDone(res.data?.data);
+      setManualForm(f => ({ ...f, storeId: '', amount: '', description: '' }));
+      qc.invalidateQueries({ queryKey: ['monthly-records'] });
+      qc.invalidateQueries({ queryKey: ['revenue'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to add charge'),
+  });
+
   const stores = data?.data?.data || [];
   const revenue = revenueData?.data?.data;
   const devCutRate = devCutData?.data?.data?.rate ?? 0.02;
@@ -228,6 +249,7 @@ export default function Billing() {
       <div style={s.tabs}>
         <button style={tab === 'stores' ? s.tabActive : s.tab} onClick={() => setTab('stores')}>🏪 Stores</button>
         <button style={tab === 'monthly' ? s.tabActive : s.tab} onClick={() => setTab('monthly')}>🗓️ Monthly Bills</button>
+        <button style={tab === 'manual' ? s.tabActive : s.tab} onClick={() => setTab('manual')}>🧾 Manual Charges</button>
         <button style={tab === 'settings' ? s.tabActive : s.tab} onClick={() => setTab('settings')}>⚙️ Platform Settings</button>
       </div>
 
@@ -533,6 +555,91 @@ export default function Billing() {
           onClose={() => setCombinedInvoiceView(null)}
         />
       )}
+
+      {/* ══════════════════ MANUAL CHARGES TAB ══════════════════ */}
+      {tab === 'manual' && (() => {
+        const stores: any[] = data?.data?.data ?? [];
+        const canSubmit = manualForm.storeId && manualForm.amount && parseFloat(manualForm.amount) > 0 && manualForm.description.trim() && manualForm.period;
+        return (
+          <div style={{ maxWidth: 560, margin: '0 auto', padding: '24px 0' }}>
+            <div style={{ background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' }}>Add Manual Charge</h2>
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 24px' }}>
+                Add a one-time custom charge to a store's billing — for setup fees, custom work, or any extra services.
+              </p>
+
+              {/* Store */}
+              <label style={s.fieldLabel}>Store *</label>
+              <select
+                style={s.input}
+                value={manualForm.storeId}
+                onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}
+              >
+                <option value="">— Select a store —</option>
+                {stores.map((st: any) => (
+                  <option key={st.id} value={st.id}>{st.name} — {st.city}</option>
+                ))}
+              </select>
+
+              {/* Description */}
+              <label style={s.fieldLabel}>Description *</label>
+              <input
+                style={s.input}
+                placeholder="e.g. Custom feature development, Printer setup fee…"
+                value={manualForm.description}
+                onChange={e => { setManualForm(f => ({ ...f, description: e.target.value })); setManualDone(null); }}
+              />
+
+              {/* Amount */}
+              <label style={s.fieldLabel}>Amount (USD) *</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontWeight: 700 }}>$</span>
+                <input
+                  style={{ ...s.input, paddingLeft: 26 }}
+                  placeholder="0.00"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={manualForm.amount}
+                  onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }}
+                />
+              </div>
+
+              {/* Period */}
+              <label style={s.fieldLabel}>Billing Period *</label>
+              <input
+                style={s.input}
+                type="month"
+                value={manualForm.period}
+                onChange={e => { setManualForm(f => ({ ...f, period: e.target.value })); setManualDone(null); }}
+              />
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '-8px 0 16px' }}>This determines which invoice the charge appears on.</p>
+
+              <button
+                style={{ ...s.btn, width: '100%', opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? 'pointer' : 'not-allowed' }}
+                disabled={!canSubmit || addManualCharge.isPending}
+                onClick={() => addManualCharge.mutate()}
+              >
+                {addManualCharge.isPending ? 'Adding…' : '+ Add Charge'}
+              </button>
+
+              {/* Success confirmation */}
+              {manualDone && (
+                <div style={{ marginTop: 20, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 16 }}>
+                  <div style={{ fontWeight: 800, color: '#166534', marginBottom: 4 }}>✅ Charge added successfully</div>
+                  <div style={{ fontSize: 13, color: '#374151' }}>
+                    <strong>{stores.find((st: any) => st.id === manualDone.storeId)?.name}</strong> —{' '}
+                    ${parseFloat(manualDone.amount).toFixed(2)} for period <strong>{manualDone.period}</strong>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                    It will appear on the store's next invoice under Monthly Bills.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ══════════════════ SETTINGS TAB ══════════════════ */}
       {tab === 'settings' && (
@@ -1196,6 +1303,8 @@ const s: Record<string, React.CSSProperties> = {
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
   infoList: { marginTop: 8 },
+  fieldLabel: { display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 16 },
+  btn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 },
 };
 
 // ─── Invoice styles ───────────────────────────────────────────────────────────

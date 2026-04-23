@@ -67,6 +67,7 @@ enum BillingType {
   MONTHLY_SUBSCRIPTION
   PER_TRANSACTION
   HYBRID
+  CUSTOM
 }
 
 enum TransactionStatus {
