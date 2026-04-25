@@ -162,6 +162,12 @@ export const welcomeBonusApi = {
   confirm: (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
 
+export const productRequestApi = {
+  submit: (data: { storeId: string; productName: string; description?: string }) =>
+    api.post('/product-requests', data),
+  getMine: () => api.get('/product-requests/mine'),
+};
+
 export const careersApi = {
   apply: (data: {
     name: string; phone: string; email?: string; position: string;

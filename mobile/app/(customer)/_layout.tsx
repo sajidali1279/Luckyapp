@@ -29,9 +29,10 @@ export default function CustomerLayout() {
     {
       title: 'Discover',
       items: [
-        { route: '/(customer)/ads',         emoji: '📣', label: 'Ads & Promotions' },
-        { route: '/(customer)/leaderboard', emoji: '🏆', label: 'Leaderboard' },
-        { route: '/(customer)/careers',     emoji: '💼', label: 'Careers' },
+        { route: '/(customer)/ads',             emoji: '📣', label: 'Ads & Promotions' },
+        { route: '/(customer)/leaderboard',     emoji: '🏆', label: 'Leaderboard' },
+        { route: '/(customer)/careers',         emoji: '💼', label: 'Careers' },
+        { route: '/(customer)/request-product', emoji: '🛍️', label: 'Request a Product' },
       ],
     },
     {
@@ -54,6 +55,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="careers" />
+        <Tabs.Screen name="request-product" />
         <Tabs.Screen name="profile" />
       </Tabs>
     </DrawerShell>

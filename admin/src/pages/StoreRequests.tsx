@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { storeRequestApi, chatApi } from '../services/api';
+import { storeRequestApi, productRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -64,6 +64,28 @@ interface StoreRequest {
   store: { name: string };
 }
 
+interface ProductRequest {
+  id: string;
+  productName: string;
+  description: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  responseNote: string | null;
+  respondedAt: string | null;
+  expiresAt: string;
+  createdAt: string;
+  customer: { id: string; name: string | null; phone: string };
+}
+
+const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#b45309', ACCEPTED: '#065f46', DECLINED: '#9f1239' };
+const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fffbeb', ACCEPTED: '#f0fdf4', DECLINED: '#fff1f2' };
+const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#fde68a', ACCEPTED: '#86efac', DECLINED: '#fecaca' };
+const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#f59e0b', ACCEPTED: '#22c55e', DECLINED: '#ef4444' };
+
+function daysLeft(iso: string) {
+  const diff = new Date(iso).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+
 function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -82,10 +104,14 @@ export default function StoreRequests() {
   const isReadOnly = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const isStoreManager = user?.role === 'STORE_MANAGER';
 
+  const [activeTab, setActiveTab] = useState<'employee' | 'product'>('employee');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [ackTarget, setAckTarget] = useState<StoreRequest | null>(null);
   const [ackNote, setAckNote] = useState('');
+  const [prStatusFilter, setPrStatusFilter] = useState<string>('');
+  const [respondTarget, setRespondTarget] = useState<ProductRequest | null>(null);
+  const [respondNote, setRespondNote] = useState('');
 
   const { data: storesData } = useQuery({
     queryKey: ['chat-stores'],
@@ -105,6 +131,26 @@ export default function StoreRequests() {
   });
   const requests: StoreRequest[] = requestsData?.data?.data || [];
 
+  const { data: prData, isLoading: prLoading } = useQuery({
+    queryKey: ['product-requests', effectiveStoreId, prStatusFilter],
+    queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!, prStatusFilter || undefined),
+    enabled: !!effectiveStoreId && activeTab === 'product',
+    refetchInterval: 15000,
+  });
+  const productRequests: ProductRequest[] = prData?.data?.data || [];
+
+  const respondMutation = useMutation({
+    mutationFn: ({ id, status, note }: { id: string; status: 'ACCEPTED' | 'DECLINED'; note: string }) =>
+      productRequestApi.respond(id, status, note || undefined),
+    onSuccess: () => {
+      toast.success('Response sent');
+      qc.invalidateQueries({ queryKey: ['product-requests'] });
+      setRespondTarget(null);
+      setRespondNote('');
+    },
+    onError: () => toast.error('Failed to respond'),
+  });
+
   const acknowledgeMutation = useMutation({
     mutationFn: ({ id, note }: { id: string; note: string }) =>
       storeRequestApi.acknowledge(id, note || undefined),
@@ -121,6 +167,11 @@ export default function StoreRequests() {
   const pending = requests.filter((r) => r.status === 'PENDING');
   const acknowledged = requests.filter((r) => r.status === 'ACKNOWLEDGED');
   const displayed = statusFilter === 'PENDING' ? pending : statusFilter === 'ACKNOWLEDGED' ? acknowledged : requests;
+
+  const prPending  = productRequests.filter((r) => r.status === 'PENDING');
+  const prResolved = productRequests.filter((r) => r.status !== 'PENDING');
+  const prDisplayed = prStatusFilter === 'PENDING' ? prPending : prStatusFilter === 'ACCEPTED' ? productRequests.filter(r => r.status === 'ACCEPTED') : prStatusFilter === 'DECLINED' ? productRequests.filter(r => r.status === 'DECLINED') : productRequests;
+
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
   const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
   const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
@@ -173,138 +224,278 @@ export default function StoreRequests() {
             <div style={{ ...s.chatHeader, background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}>
               <div style={s.chatHeaderAvatar}>{getInitial(selectedStore?.name || '?')}</div>
               <div style={s.chatHeaderInfo}>
-                <div style={s.chatHeaderName}>{selectedStore?.name ?? 'Store'} — Requests</div>
+                <div style={s.chatHeaderName}>{selectedStore?.name ?? 'Store'}</div>
                 <div style={s.chatHeaderSub}>
                   <span style={s.onlineDot} />
-                  <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
-                    {pending.length} pending
-                  </span>
-                  <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>
-                    {acknowledged.length} handled
-                  </span>
+                  {activeTab === 'employee' ? (
+                    <>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>{pending.length} pending</span>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>{acknowledged.length} handled</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>{prPending.length} awaiting</span>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>{prResolved.length} resolved</span>
+                    </>
+                  )}
                 </div>
               </div>
-              {/* Filter tabs */}
-              <div style={s.filterRow}>
-                {[
-                  { key: '',             label: 'All',     count: requests.length },
-                  { key: 'PENDING',      label: 'Pending', count: pending.length },
-                  { key: 'ACKNOWLEDGED', label: 'Done',    count: acknowledged.length },
-                ].map((f) => (
-                  <button
-                    key={f.key}
-                    style={{ ...s.filterTab, ...(statusFilter === f.key ? s.filterTabActive : {}) }}
-                    onClick={() => setStatusFilter(f.key)}
-                  >
-                    {f.label}
-                    {f.count > 0 && (
-                      <span style={{ ...s.filterCount, ...(statusFilter === f.key ? s.filterCountActive : {}) }}>
-                        {f.count}
-                      </span>
-                    )}
-                  </button>
-                ))}
+              {/* Tab switcher */}
+              <div style={s.tabRow}>
+                <button style={{ ...s.tabBtn, ...(activeTab === 'employee' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('employee')}>
+                  👷 Employee
+                </button>
+                <button style={{ ...s.tabBtn, ...(activeTab === 'product' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('product')}>
+                  🛍️ Products
+                  {prPending.length > 0 && <span style={s.tabBadge}>{prPending.length}</span>}
+                </button>
               </div>
             </div>
 
-            {/* ── List ── */}
-            {isLoading ? (
-              <div style={s.emptyState}>
-                <div style={{ fontSize: 32 }}>⏳</div>
-                <div style={s.emptySub}>Loading requests…</div>
-              </div>
-            ) : displayed.length === 0 ? (
-              <div style={s.emptyState}>
-                <div style={s.emptyIcon}>{statusFilter === 'PENDING' ? '✅' : '📭'}</div>
-                <div style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</div>
-                <div style={s.emptySub}>No requests in this category</div>
-              </div>
-            ) : (
-              <div style={s.list}>
-                {displayed.map((req, i) => {
-                  const pColor = PRIORITY_COLOR[req.priority] || '#adb5bd';
-                  const pBg = PRIORITY_BG[req.priority] || '#f3f4f6';
-                  const typeBg = TYPE_BG[req.type] || '#f3f4f6';
-                  const isDone = req.status === 'ACKNOWLEDGED';
-                  const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+            {activeTab === 'employee' ? (
+              <>
+                {/* ── Employee filter tabs ── */}
+                <div style={s.subFilterRow}>
+                  {[
+                    { key: '',             label: 'All',     count: requests.length },
+                    { key: 'PENDING',      label: 'Pending', count: pending.length },
+                    { key: 'ACKNOWLEDGED', label: 'Done',    count: acknowledged.length },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      style={{ ...s.subFilterTab, ...(statusFilter === f.key ? s.subFilterTabActive : {}) }}
+                      onClick={() => setStatusFilter(f.key)}
+                    >
+                      {f.label}
+                      {f.count > 0 && <span style={{ ...s.subFilterCount, ...(statusFilter === f.key ? s.subFilterCountActive : {}) }}>{f.count}</span>}
+                    </button>
+                  ))}
+                </div>
 
-                  return (
-                    <div key={req.id} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
-                      <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : pColor }} />
-
-                      <div style={s.cardBody}>
-                        {/* Top row */}
-                        <div style={s.cardTop}>
-                          {/* Type icon */}
-                          <div style={{ ...s.typeIconWrap, background: typeBg }}>
-                            <span style={s.typeIconEmoji}>{TYPE_ICONS[req.type] || '📋'}</span>
-                          </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={s.typeLabel}>{TYPE_LABELS[req.type] || req.type}</div>
-                            <div style={s.storeMeta}>{req.store?.name}</div>
-                          </div>
-
-                          {/* Badges */}
-                          <div style={s.badgeRow}>
+                {/* ── Employee List ── */}
+                {isLoading ? (
+                  <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptySub}>Loading…</div></div>
+                ) : displayed.length === 0 ? (
+                  <div style={s.emptyState}>
+                    <div style={s.emptyIcon}>{statusFilter === 'PENDING' ? '✅' : '📭'}</div>
+                    <div style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</div>
+                    <div style={s.emptySub}>No employee requests in this category</div>
+                  </div>
+                ) : (
+                  <div style={s.list}>
+                    {displayed.map((req, i) => {
+                      const pColor = PRIORITY_COLOR[req.priority] || '#adb5bd';
+                      const pBg = PRIORITY_BG[req.priority] || '#f3f4f6';
+                      const typeBg = TYPE_BG[req.type] || '#f3f4f6';
+                      const isDone = req.status === 'ACKNOWLEDGED';
+                      const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                      return (
+                        <div key={req.id} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
+                          <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : pColor }} />
+                          <div style={s.cardBody}>
+                            <div style={s.cardTop}>
+                              <div style={{ ...s.typeIconWrap, background: typeBg }}>
+                                <span style={s.typeIconEmoji}>{TYPE_ICONS[req.type] || '📋'}</span>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={s.typeLabel}>{TYPE_LABELS[req.type] || req.type}</div>
+                                <div style={s.storeMeta}>{req.store?.name}</div>
+                              </div>
+                              <div style={s.badgeRow}>
+                                {isDone ? (
+                                  <span style={s.doneBadge}>✓ Done</span>
+                                ) : (
+                                  <span style={{ ...s.prioBadge, background: pBg, color: pColor, borderColor: pColor + '55' }}>
+                                    <span style={{ ...s.prioBadgeDot, background: pColor }} />{req.priority}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={s.submitterRow}>
+                              <div style={{ ...s.avatar, background: avatarColor }}>{getInitial(req.submitterName)}</div>
+                              <span style={s.submitterText}><strong>{req.submitterName}</strong>{'  ·  '}{formatTime(req.createdAt)}</span>
+                            </div>
+                            {req.notes && <div style={s.notesBox}>"{req.notes}"</div>}
                             {isDone ? (
-                              <span style={s.doneBadge}>✓ Done</span>
+                              <div style={s.ackBox}>
+                                <span style={s.ackIcon}>✅</span>
+                                <div>
+                                  <div style={s.ackBy}>Handled by {req.acknowledgerName}
+                                    {req.acknowledgedAt && <span style={s.ackTime}> · {formatTime(req.acknowledgedAt)}</span>}
+                                  </div>
+                                  {req.acknowledgerNote && <div style={s.ackNote}>"{req.acknowledgerNote}"</div>}
+                                </div>
+                              </div>
+                            ) : !isReadOnly ? (
+                              <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}>✅  Mark as Handled</button>
                             ) : (
-                              <span style={{ ...s.prioBadge, background: pBg, color: pColor, borderColor: pColor + '55' }}>
-                                <span style={{ ...s.prioBadgeDot, background: pColor }} />
-                                {req.priority}
-                              </span>
+                              <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* ── Product Requests filter tabs ── */}
+                <div style={s.subFilterRow}>
+                  {[
+                    { key: '',         label: 'All',      count: productRequests.length },
+                    { key: 'PENDING',  label: 'Awaiting', count: prPending.length },
+                    { key: 'ACCEPTED', label: 'Accepted', count: productRequests.filter(r => r.status === 'ACCEPTED').length },
+                    { key: 'DECLINED', label: 'Declined', count: productRequests.filter(r => r.status === 'DECLINED').length },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      style={{ ...s.subFilterTab, ...(prStatusFilter === f.key ? s.subFilterTabActive : {}) }}
+                      onClick={() => setPrStatusFilter(f.key)}
+                    >
+                      {f.label}
+                      {f.count > 0 && <span style={{ ...s.subFilterCount, ...(prStatusFilter === f.key ? s.subFilterCountActive : {}) }}>{f.count}</span>}
+                    </button>
+                  ))}
+                </div>
 
-                        {/* Submitter row */}
-                        <div style={s.submitterRow}>
-                          <div style={{ ...s.avatar, background: avatarColor }}>
-                            {getInitial(req.submitterName)}
-                          </div>
-                          <span style={s.submitterText}>
-                            <strong>{req.submitterName}</strong>{'  ·  '}{formatTime(req.createdAt)}
-                          </span>
-                        </div>
+                {/* ── Product Requests List ── */}
+                {prLoading ? (
+                  <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptySub}>Loading…</div></div>
+                ) : prDisplayed.length === 0 ? (
+                  <div style={s.emptyState}>
+                    <div style={s.emptyIcon}>🛍️</div>
+                    <div style={s.emptyTitle}>{prStatusFilter === 'PENDING' ? 'No pending requests!' : 'Nothing here'}</div>
+                    <div style={s.emptySub}>Customer product requests will appear here</div>
+                  </div>
+                ) : (
+                  <div style={s.list}>
+                    {prDisplayed.map((pr, i) => {
+                      const statusColor  = PR_STATUS_COLOR[pr.status] || '#6b7280';
+                      const statusBg     = PR_STATUS_BG[pr.status]    || '#f3f4f6';
+                      const statusBorder = PR_STATUS_BORDER[pr.status] || '#e5e7eb';
+                      const statusDot    = PR_STATUS_DOT[pr.status]    || '#aaa';
+                      const avatarColor  = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                      const days         = daysLeft(pr.expiresAt);
+                      const isPending    = pr.status === 'PENDING';
 
-                        {/* Notes */}
-                        {req.notes && (
-                          <div style={s.notesBox}>
-                            "{req.notes}"
-                          </div>
-                        )}
-
-                        {/* Ack info / button */}
-                        {isDone ? (
-                          <div style={s.ackBox}>
-                            <span style={s.ackIcon}>✅</span>
-                            <div>
-                              <div style={s.ackBy}>Handled by {req.acknowledgerName}
-                                {req.acknowledgedAt && <span style={s.ackTime}> · {formatTime(req.acknowledgedAt)}</span>}
+                      return (
+                        <div key={pr.id} style={{ ...s.prCard, ...(isPending ? {} : s.cardDone) }}>
+                          <div style={{ ...s.prStripe, background: statusDot }} />
+                          <div style={s.prBody}>
+                            {/* Top row */}
+                            <div style={s.prTop}>
+                              <div style={s.prIconWrap}>
+                                <span style={{ fontSize: 22 }}>🛍️</span>
                               </div>
-                              {req.acknowledgerNote && <div style={s.ackNote}>"{req.acknowledgerNote}"</div>}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={s.prProductName}>{pr.productName}</div>
+                                {pr.description && <div style={s.prDescription}>"{pr.description}"</div>}
+                              </div>
+                              <div style={{ ...s.prStatusBadge, background: statusBg, color: statusColor, borderColor: statusBorder }}>
+                                <span style={{ ...s.prStatusDot, background: statusDot }} />
+                                {pr.status}
+                              </div>
                             </div>
+
+                            {/* Customer row */}
+                            <div style={s.prCustomerRow}>
+                              <div style={{ ...s.avatar, background: avatarColor }}>
+                                {getInitial(pr.customer.name || pr.customer.phone)}
+                              </div>
+                              <div>
+                                <span style={s.prCustomerName}>{pr.customer.name || 'Customer'}</span>
+                                <span style={s.prCustomerPhone}>  ·  {pr.customer.phone}</span>
+                                <span style={s.prTime}>  ·  {formatTime(pr.createdAt)}</span>
+                              </div>
+                              {isPending && days > 0 && (
+                                <div style={s.prExpiryPill}>
+                                  <span style={s.prExpiryText}>⏱ {days}d left</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Response note */}
+                            {pr.responseNote && (
+                              <div style={{ ...s.prResponseBox, background: statusBg, borderColor: statusBorder }}>
+                                <span style={{ color: statusColor, fontSize: 13 }}>{pr.responseNote}</span>
+                              </div>
+                            )}
+
+                            {/* Action buttons */}
+                            {isPending && !isReadOnly && (
+                              <div style={s.prActionRow}>
+                                <button
+                                  style={s.prAcceptBtn}
+                                  onClick={() => { if (window.confirm(`Accept request for "${pr.productName}"?`)) respondMutation.mutate({ id: pr.id, status: 'ACCEPTED', note: '' }); }}
+                                  disabled={respondMutation.isPending}
+                                >
+                                  ✅ Accept
+                                </button>
+                                <button
+                                  style={s.prDeclineBtn}
+                                  onClick={() => { setRespondTarget(pr); setRespondNote(''); /* opens decline modal */ }}
+                                  disabled={respondMutation.isPending}
+                                >
+                                  ✕ Decline
+                                </button>
+                              </div>
+                            )}
+                            {isPending && isReadOnly && (
+                              <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
+                            )}
                           </div>
-                        ) : !isReadOnly ? (
-                          <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}>
-                            ✅  Mark as Handled
-                          </button>
-                        ) : (
-                          <div style={s.pendingPill}>
-                            <span style={s.pendingDot} />
-                            Awaiting manager review
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
       </div>
+
+      {/* ── Decline Product Request Modal ── */}
+      {respondTarget && (
+        <div style={s.overlay} onClick={() => setRespondTarget(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <div style={s.modalTitle}>Decline Request</div>
+              <button style={s.modalClose} onClick={() => setRespondTarget(null)}>✕</button>
+            </div>
+            <div style={{ ...s.previewCard, background: '#fff1f2', borderColor: '#fecaca' }}>
+              <div style={{ ...s.previewIconWrap, background: '#fee2e2' }}>
+                <span style={s.previewIconEmoji}>🛍️</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={s.previewType}>{respondTarget.productName}</div>
+                <div style={s.previewMeta}>from {respondTarget.customer.name || 'Customer'} · {respondTarget.customer.phone}</div>
+                {respondTarget.description && <div style={s.previewNotes}>"{respondTarget.description}"</div>}
+              </div>
+            </div>
+            <div style={s.modalLabel}>Custom decline note <span style={s.optionalTag}>(optional — default message sent if blank)</span></div>
+            <textarea
+              style={s.noteInput}
+              placeholder="Product supply unavailable with current set of vendors but request is identified, validated, stored for future references."
+              value={respondNote}
+              onChange={(e) => setRespondNote(e.target.value)}
+              rows={3}
+              maxLength={400}
+            />
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setRespondTarget(null)}>Cancel</button>
+              <button
+                style={{ ...s.prDeclineMdBtn, ...(respondMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
+                disabled={respondMutation.isPending}
+                onClick={() => respondMutation.mutate({ id: respondTarget.id, status: 'DECLINED', note: respondNote })}
+              >
+                {respondMutation.isPending ? 'Sending…' : '✕  Confirm Decline'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Acknowledge Modal ── */}
       {ackTarget && (
@@ -429,6 +620,40 @@ const s: Record<string, React.CSSProperties> = {
     padding: '3px 10px', borderRadius: 10,
     fontSize: 12, fontWeight: 700,
   },
+
+  // Tab switcher (in gradient header)
+  tabRow: { display: 'flex', gap: 6, flexShrink: 0 },
+  tabBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '7px 14px', borderRadius: 20,
+    border: '1.5px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)',
+    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
+  },
+  tabBtnActive: { background: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.6)', color: '#fff' },
+  tabBadge: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px',
+    background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800,
+  },
+
+  // Sub-filter row (below header, on white bg)
+  subFilterRow: {
+    display: 'flex', gap: 6, padding: '10px 18px',
+    borderBottom: '1px solid #f0f1f2', background: '#fff', flexShrink: 0,
+  },
+  subFilterTab: {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    padding: '5px 12px', borderRadius: 20,
+    border: '1.5px solid #e5e7eb', background: '#f9fafb',
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6b7280',
+  },
+  subFilterTabActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  subFilterCount: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
+    background: '#e5e7eb', color: '#6b7280', fontSize: 10, fontWeight: 800,
+  },
+  subFilterCountActive: { background: 'rgba(255,255,255,0.2)', color: '#fff' },
 
   filterRow: { display: 'flex', gap: 6 },
   filterTab: {
@@ -590,5 +815,65 @@ const s: Record<string, React.CSSProperties> = {
     background: '#0f5132', color: '#fff',
     cursor: 'pointer', fontSize: 14, fontWeight: 800,
     boxShadow: '0 4px 14px rgba(15,81,50,0.35)',
+  },
+  prDeclineMdBtn: {
+    flex: 2, padding: '12px 16px',
+    borderRadius: 12, border: 'none',
+    background: '#dc2626', color: '#fff',
+    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    boxShadow: '0 4px 14px rgba(220,38,38,0.35)',
+  },
+
+  // Product Request cards
+  prCard: {
+    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    display: 'flex', overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  },
+  prStripe: { width: 5, flexShrink: 0 },
+  prBody: { flex: 1, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
+  prTop: { display: 'flex', alignItems: 'flex-start', gap: 12 },
+  prIconWrap: {
+    width: 46, height: 46, borderRadius: 13,
+    background: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  prProductName: { fontWeight: 800, fontSize: 16, color: '#111827', lineHeight: 1.3 },
+  prDescription: { fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
+  prStatusBadge: {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    padding: '4px 10px', borderRadius: 10, border: '1px solid',
+    fontSize: 11, fontWeight: 800, flexShrink: 0,
+  },
+  prStatusDot: { width: 7, height: 7, borderRadius: 4, display: 'inline-block' },
+
+  prCustomerRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
+  prCustomerName: { fontWeight: 700, fontSize: 13, color: '#374151' },
+  prCustomerPhone: { fontSize: 12, color: '#9ca3af' },
+  prTime: { fontSize: 12, color: '#9ca3af' },
+  prExpiryPill: {
+    marginLeft: 'auto', background: '#fffbeb', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, border: '1px solid #fde68a',
+    padding: '3px 8px',
+  },
+  prExpiryText: { fontSize: 11, fontWeight: 700, color: '#b45309' },
+
+  prResponseBox: {
+    borderRadius: 10, padding: '10px 12px', border: '1px solid',
+    fontSize: 13, lineHeight: 1.5,
+  },
+
+  prActionRow: { display: 'flex', gap: 8 },
+  prAcceptBtn: {
+    flex: 1, padding: '9px 0',
+    borderRadius: 10, border: 'none',
+    background: '#0f5132', color: '#fff',
+    cursor: 'pointer', fontSize: 13, fontWeight: 800,
+    boxShadow: '0 3px 8px rgba(15,81,50,0.25)',
+  },
+  prDeclineBtn: {
+    flex: 1, padding: '9px 0',
+    borderRadius: 10, border: '1.5px solid #fca5a5',
+    background: '#fff', color: '#dc2626',
+    cursor: 'pointer', fontSize: 13, fontWeight: 700,
   },
 };

@@ -100,6 +100,12 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum ProductRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum Tier {
   BRONZE
   SILVER
@@ -164,6 +170,8 @@ model User {
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
   submittedStoreRequests StoreRequest[]
+  productRequests        ProductRequest[] @relation("CustomerProductRequests")
+  respondedProductRequests ProductRequest[] @relation("ProductRequestResponder")
   businessPromotions     BusinessPromotion[]
   supportThreads       SupportThread[]
   supportMessages      SupportMessage[]
@@ -224,6 +232,7 @@ model Store {
   employeeRatings    EmployeeRating[]
   keywordMappings    StoreKeywordMapping[]
   jobApplications    JobApplication[]
+  productRequests    ProductRequest[]
 
   @@map("stores")
 }
@@ -794,6 +803,32 @@ model WelcomeBonusClaim {
   @@index([customerId])
   @@index([claimCode])
   @@map("welcome_bonus_claims")
+}
+
+// ─── Customer Product Requests ───────────────────────────────────────────────
+
+model ProductRequest {
+  id            String               @id @default(uuid())
+  customerId    String
+  storeId       String
+  productName   String
+  description   String?
+  status        ProductRequestStatus @default(PENDING)
+  responseNote  String?
+  respondedById String?
+  respondedAt   DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  customer    User  @relation("CustomerProductRequests", fields: [customerId], references: [id], onDelete: Cascade)
+  store       Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  respondedBy User? @relation("ProductRequestResponder", fields: [respondedById], references: [id])
+
+  @@index([customerId])
+  @@index([storeId])
+  @@index([status])
+  @@map("product_requests")
 }
 
 // ─── Tier Benefit Claims ──────────────────────────────────────────────────────

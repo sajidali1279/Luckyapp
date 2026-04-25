@@ -208,6 +208,13 @@ export const careersApi = {
   delete: (id: string) => api.delete(`/careers/applications/${id}`),
 };
 
+export const productRequestApi = {
+  getStoreRequests: (storeId: string, status?: string) =>
+    api.get(`/product-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
+  respond: (id: string, status: 'ACCEPTED' | 'DECLINED', responseNote?: string) =>
+    api.patch(`/product-requests/${id}/respond`, { status, responseNote }),
+};
+
 export const storeRequestApi = {
   // Manager/admin
   getStoreRequests: (storeId: string, status?: string) =>

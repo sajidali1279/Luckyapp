@@ -36,6 +36,7 @@ import { getMappings, addMapping, deleteMapping, getMyMappings } from '../contro
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
+import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest } from '../controllers/productRequest.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -312,5 +313,11 @@ router.get('/store-requests/mine', authenticate, requireRole(Role.EMPLOYEE), get
 router.get('/store-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingCount);  // Badge count for managers+
 router.get('/store-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreRequestsList); // Manager/admin views store requests
 router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole(Role.STORE_MANAGER), acknowledgeRequest); // Acknowledge a request
+
+// ─── Product Requests (Customer) ─────────────────────────────────────────────
+router.post('/product-requests', authenticate, requireRole(Role.CUSTOMER), submitProductRequest);
+router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), getMyProductRequests);
+router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);
+router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 
 export default router;
