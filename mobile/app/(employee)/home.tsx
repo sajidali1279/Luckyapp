@@ -20,19 +20,20 @@ export default function EmployeeHomeScreen() {
   const { user } = useAuthStore();
   const firstName = user?.name?.split(' ')[0] || 'there';
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
+  const storeId = user?.storeIds?.[0];
 
   const {
     data: offersData, isLoading: offersLoading,
     refetch: refetchOffers, isRefetching: offersRefetching,
-  } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
+  } = useQuery({ queryKey: ['offers', storeId], queryFn: () => offersApi.getActive(storeId) });
 
   const {
     data: bannersData,
     refetch: refetchBanners, isRefetching: bannersRefetching,
-  } = useQuery({ queryKey: ['banners'], queryFn: () => offersApi.getBanners() });
+  } = useQuery({ queryKey: ['banners', storeId], queryFn: () => offersApi.getBanners(storeId) });
 
   const allOffers: any[] = offersData?.data?.data || [];
-  const promotions = allOffers.filter((o: any) => o.bonusRate);
+  const promotions = allOffers.filter((o: any) => !o.dealText);
   const deals = allOffers.filter((o: any) => o.dealText);
   const banners: any[] = bannersData?.data?.data || [];
   const isRefreshing = offersRefetching || bannersRefetching;
@@ -137,8 +138,17 @@ export default function EmployeeHomeScreen() {
                 ) : null}
               </View>
               <View style={s.promoBadge}>
-                <Text style={s.promoBadgeRate}>{Math.round(p.bonusRate * 100)}</Text>
-                <Text style={s.promoBadgePct}>%</Text>
+                {p.gasBonusCentsPerGallon != null && p.bonusRate == null ? (
+                  <>
+                    <Text style={[s.promoBadgeRate, { fontSize: 16 }]}>+{p.gasBonusCentsPerGallon}¢</Text>
+                    <Text style={s.promoBadgePct}>/gal</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={s.promoBadgeRate}>{Math.round((p.bonusRate ?? 0) * 100)}</Text>
+                    <Text style={s.promoBadgePct}>%</Text>
+                  </>
+                )}
               </View>
             </View>
           ))

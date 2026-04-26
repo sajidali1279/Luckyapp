@@ -6,7 +6,7 @@ import { billingApi } from '../services/api';
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
 
-const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'TOBACCO_VAPES', 'HOT_FOODS', 'OTHER'] as const;
+const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'TOBACCO_VAPES', 'HOT_FOODS', 'ALCOHOL', 'OTHER'] as const;
 type CatKey = typeof CATEGORIES[number];
 
 const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> = {
@@ -17,19 +17,20 @@ const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> =
   DIESEL:       { emoji: '🚛', label: 'Diesel',        desc: 'Diesel fuel purchases'      },
   TOBACCO_VAPES:{ emoji: '🚬', label: 'Tobacco/Vapes', desc: 'Tobacco & vape products'   },
   HOT_FOODS:    { emoji: '🌭', label: 'Hot Foods',     desc: 'Hot deli & prepared foods'  },
+  ALCOHOL:      { emoji: '🍺', label: 'Alcohol',       desc: 'Beer, wine & spirits'       },
   OTHER:        { emoji: '🏪', label: 'Other',         desc: 'All other in-store items'   },
 };
 
-const TIER_META: Record<TierKey, { emoji: string; color: string; spend: string }> = {
-  BRONZE:   { emoji: '🥉', color: '#CD7F32', spend: 'New customers'     },
-  SILVER:   { emoji: '🥈', color: '#A0A0B0', spend: '$50+ per period'   },
-  GOLD:     { emoji: '🥇', color: '#F4A226', spend: '$150+ per period'  },
-  DIAMOND:  { emoji: '💎', color: '#00B4D8', spend: '$300+ per period'  },
-  PLATINUM: { emoji: '👑', color: '#9B5DE5', spend: '$450+ per period'  },
+const TIER_META: Record<TierKey, { emoji: string; color: string }> = {
+  BRONZE:   { emoji: '🥉', color: '#CD7F32' },
+  SILVER:   { emoji: '🥈', color: '#A0A0B0' },
+  GOLD:     { emoji: '🥇', color: '#F4A226' },
+  DIAMOND:  { emoji: '💎', color: '#00B4D8' },
+  PLATINUM: { emoji: '👑', color: '#9B5DE5' },
 };
 
-type RateRow = { tier: string; cashbackRate: number; gasCentsPerGallon: number | null };
-type EditState = Record<string, { cashbackRate: string; gasCentsPerGallon: string }>;
+type RateRow = { tier: string; cashbackRate: number; gasCentsPerGallon: number | null; pointsThreshold: number };
+type EditState = Record<string, { cashbackRate: string; gasCentsPerGallon: string; pointsThreshold: string }>;
 type CatRateRow = { category: string; cashbackRate: number };
 type CatEditState = Record<string, string>;
 
@@ -118,6 +119,7 @@ export default function Rates() {
       initial[r.tier] = {
         cashbackRate: String((r.cashbackRate * 100).toFixed(1)),
         gasCentsPerGallon: r.gasCentsPerGallon != null ? String(r.gasCentsPerGallon) : '',
+        pointsThreshold: String(r.pointsThreshold ?? 0),
       };
     }
     setForm(initial);
@@ -148,7 +150,7 @@ export default function Rates() {
     onError: () => { toast.error('Failed to save'); setSaving(null); },
   });
 
-  function handleChange(tier: string, field: 'cashbackRate' | 'gasCentsPerGallon', value: string) {
+  function handleChange(tier: string, field: 'cashbackRate' | 'gasCentsPerGallon' | 'pointsThreshold', value: string) {
     setForm(p => ({ ...p, [tier]: { ...p[tier], [field]: value } }));
     setDirty(p => new Set(p).add(tier));
   }
@@ -158,6 +160,7 @@ export default function Rates() {
     if (!row) return;
     const rate = parseFloat(row.cashbackRate) / 100;
     const cpg = row.gasCentsPerGallon.trim() === '' ? null : parseFloat(row.gasCentsPerGallon);
+    const threshold = parseInt(row.pointsThreshold ?? '0', 10);
     if (isNaN(rate) || rate < 0 || rate > 1) {
       toast.error('Cashback must be 0 – 100%');
       return;
@@ -166,8 +169,12 @@ export default function Rates() {
       toast.error('Enter a valid ¢/gallon or leave blank');
       return;
     }
+    if (tier !== 'BRONZE' && (isNaN(threshold) || threshold < 0)) {
+      toast.error('Threshold must be a positive number of points');
+      return;
+    }
     setSaving(tier);
-    updateMut.mutate({ tier, payload: { cashbackRate: rate, gasCentsPerGallon: cpg } });
+    updateMut.mutate({ tier, payload: { cashbackRate: rate, gasCentsPerGallon: cpg, ...(tier !== 'BRONZE' && { pointsThreshold: threshold }) } });
   }
 
   function handleSaveAll() {
@@ -184,6 +191,7 @@ export default function Rates() {
       [tier]: {
         cashbackRate: String((original.cashbackRate * 100).toFixed(1)),
         gasCentsPerGallon: original.gasCentsPerGallon != null ? String(original.gasCentsPerGallon) : '',
+        pointsThreshold: String(original.pointsThreshold ?? 0),
       },
     }));
     setDirty(p => { const n = new Set(p); n.delete(tier); return n; });
@@ -226,6 +234,10 @@ export default function Rates() {
                   Gas ¢ / gallon
                   <div style={s.thSub}>optional — overrides % for gas & diesel</div>
                 </th>
+                <th style={s.th}>
+                  Min pts to reach tier
+                  <div style={s.thSub}>period earnings threshold</div>
+                </th>
                 <th style={{ ...s.th, width: 80 }}></th>
               </tr>
             </thead>
@@ -246,7 +258,9 @@ export default function Rates() {
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
-                          <div style={s.tierSub}>{meta.spend}</div>
+                          <div style={s.tierSub}>
+                            {tierKey === 'BRONZE' ? 'New customers' : `${r.pointsThreshold?.toLocaleString() ?? '—'} pts+`}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -284,6 +298,28 @@ export default function Rates() {
                       </div>
                       {r.gasCentsPerGallon != null && !isDirty && (
                         <div style={s.gasActive}>Active: {r.gasCentsPerGallon}¢/gal for GAS & DIESEL</div>
+                      )}
+                    </td>
+
+                    {/* Tier threshold */}
+                    <td style={s.td}>
+                      {tierKey === 'BRONZE' ? (
+                        <span style={{ fontSize: 12, color: '#adb5bd' }}>Starting tier</span>
+                      ) : (
+                        <div style={s.inputGroup}>
+                          <input
+                            type="number"
+                            min="0" step="100"
+                            value={row?.pointsThreshold ?? ''}
+                            onChange={e => handleChange(tierKey, 'pointsThreshold', e.target.value)}
+                            style={{ ...s.input, width: 100, ...(isDirty ? s.inputDirty : {}) }}
+                            placeholder="e.g. 5000"
+                          />
+                          <span style={s.suffix}>pts</span>
+                          {row?.pointsThreshold && !isNaN(parseInt(row.pointsThreshold)) && (
+                            <span style={s.preview}>${(parseInt(row.pointsThreshold) / 100).toFixed(0)} earned</span>
+                          )}
+                        </div>
                       )}
                     </td>
 
@@ -514,7 +550,9 @@ export default function Rates() {
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
-                          <div style={s.tierSub}>{meta.spend}</div>
+                          <div style={s.tierSub}>
+                            {tierKey === 'BRONZE' ? 'New customers' : `${r.pointsThreshold?.toLocaleString() ?? '—'} pts+`}
+                          </div>
                         </div>
                       </div>
                     </td>

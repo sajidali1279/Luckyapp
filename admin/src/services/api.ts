@@ -49,7 +49,7 @@ export const billingApi = {
   markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
   markPeriodPaid: (period: string) => api.patch(`/billing/period/${period}/paid`),
   getTierRates: () => api.get('/billing/tier-rates'),
-  updateTierRate: (tier: string, data: { cashbackRate?: number; gasCentsPerGallon?: number | null }) =>
+  updateTierRate: (tier: string, data: { cashbackRate?: number; gasCentsPerGallon?: number | null; pointsThreshold?: number }) =>
     api.put(`/billing/tier-rates/${tier}`, data),
   getCategoryRates: () => api.get('/billing/category-rates'),
   updateCategoryRate: (category: string, cashbackRate: number) =>

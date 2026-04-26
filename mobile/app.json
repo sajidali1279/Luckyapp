@@ -58,6 +58,16 @@
         }
       ]
     ],
+    "web": {
+      "output": "single",
+      "bundler": "metro",
+      "favicon": "./assets/icon.png",
+      "name": "Lucky Stop",
+      "shortName": "Lucky Stop",
+      "description": "Earn cashback rewards every visit at Lucky Stop",
+      "backgroundColor": "#f0f4f8",
+      "themeColor": "#1D3557"
+    },
     "scheme": "luckystop",
     "extra": {
       "router": {},

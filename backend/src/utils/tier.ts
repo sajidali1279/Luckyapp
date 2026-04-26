@@ -2,19 +2,36 @@ import { Tier } from '@prisma/client';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 
-// Tier thresholds in dollars (internally). Display: × 100 = pts
-export const TIER_THRESHOLDS = {
+// Default tier thresholds in dollars (internally). Display: × 100 = pts
+export const TIER_THRESHOLDS: Record<string, number> = {
   SILVER:   50,   // 5,000 pts
   GOLD:     150,  // 15,000 pts
   DIAMOND:  300,  // 30,000 pts
   PLATINUM: 450,  // 45,000 pts
 };
 
-export function calculateTier(periodPointsDollars: number): Tier {
-  if (periodPointsDollars >= TIER_THRESHOLDS.PLATINUM) return Tier.PLATINUM;
-  if (periodPointsDollars >= TIER_THRESHOLDS.DIAMOND)  return Tier.DIAMOND;
-  if (periodPointsDollars >= TIER_THRESHOLDS.GOLD)     return Tier.GOLD;
-  if (periodPointsDollars >= TIER_THRESHOLDS.SILVER)   return Tier.SILVER;
+// Load stored thresholds from DB, falling back to defaults for any missing tier
+export async function getStoredThresholds(): Promise<Record<string, number>> {
+  const stored = await prisma.tierCashbackRate.findMany({
+    select: { tier: true, pointsThreshold: true },
+  });
+  const thresholds = { ...TIER_THRESHOLDS };
+  for (const r of stored) {
+    if (r.tier !== Tier.BRONZE && r.pointsThreshold != null) {
+      thresholds[r.tier] = r.pointsThreshold;
+    }
+  }
+  return thresholds;
+}
+
+export function calculateTier(
+  periodPointsDollars: number,
+  thresholds: Record<string, number> = TIER_THRESHOLDS,
+): Tier {
+  if (periodPointsDollars >= thresholds.PLATINUM) return Tier.PLATINUM;
+  if (periodPointsDollars >= thresholds.DIAMOND)  return Tier.DIAMOND;
+  if (periodPointsDollars >= thresholds.GOLD)     return Tier.GOLD;
+  if (periodPointsDollars >= thresholds.SILVER)   return Tier.SILVER;
   return Tier.BRONZE;
 }
 
@@ -52,13 +69,13 @@ export function getTierBonusRate(
 }
 
 // Updates a customer's tier after points are credited, sending a push if they tier up.
-// Call this after the user's periodPoints have already been incremented in the DB.
 export async function updateCustomerTierIfNeeded(
   customerId: string,
   updatedPeriodPoints: number,
   currentTier: Tier,
 ): Promise<void> {
-  const newTier = calculateTier(updatedPeriodPoints);
+  const thresholds = await getStoredThresholds();
+  const newTier = calculateTier(updatedPeriodPoints, thresholds);
   if (newTier !== currentTier) {
     await prisma.user.update({ where: { id: customerId }, data: { tier: newTier } });
     sendPushToUser(customerId, '🎉 Tier Up!', `You're now ${newTier} tier. Check your new benefits!`, 'GENERAL');
@@ -66,15 +83,18 @@ export async function updateCustomerTierIfNeeded(
 }
 
 // Returns the next tier threshold in pts for display
-export function getNextTierProgress(periodPointsDollars: number): { pts: number; nextPts: number | null; tier: Tier; nextTier: string | null } {
+export function getNextTierProgress(
+  periodPointsDollars: number,
+  thresholds: Record<string, number> = TIER_THRESHOLDS,
+): { pts: number; nextPts: number | null; tier: Tier; nextTier: string | null } {
   const pts = Math.round(periodPointsDollars * 100);
-  const tier = calculateTier(periodPointsDollars);
+  const tier = calculateTier(periodPointsDollars, thresholds);
 
   const map: Record<string, { next: string; threshold: number } | null> = {
-    BRONZE:   { next: 'Silver',   threshold: TIER_THRESHOLDS.SILVER   * 100 },
-    SILVER:   { next: 'Gold',     threshold: TIER_THRESHOLDS.GOLD     * 100 },
-    GOLD:     { next: 'Diamond',  threshold: TIER_THRESHOLDS.DIAMOND  * 100 },
-    DIAMOND:  { next: 'Platinum', threshold: TIER_THRESHOLDS.PLATINUM * 100 },
+    BRONZE:   { next: 'Silver',   threshold: Math.round(thresholds.SILVER   * 100) },
+    SILVER:   { next: 'Gold',     threshold: Math.round(thresholds.GOLD     * 100) },
+    GOLD:     { next: 'Diamond',  threshold: Math.round(thresholds.DIAMOND  * 100) },
+    DIAMOND:  { next: 'Platinum', threshold: Math.round(thresholds.PLATINUM * 100) },
     PLATINUM: null,
   };
 

@@ -89,6 +89,7 @@ enum ProductCategory {
   DIESEL
   TOBACCO_VAPES
   HOT_FOODS
+  ALCOHOL
   OTHER
 }
 
@@ -312,12 +313,13 @@ model TierCashbackRate {
   tier              Tier     @id
   cashbackRate      Float    // percentage cashback for all categories (e.g. 0.01 = 1%)
   gasCentsPerGallon Float?   // if set: flat ¢/gallon for GAS/DIESEL instead of percentage (e.g. 3.0 = 3¢/gal)
+  pointsThreshold   Float?   // minimum period earnings in dollars to reach this tier (null = use hardcoded default)
   updatedAt         DateTime @updatedAt
 
   @@map("tier_cashback_rates")
 }
 
-// ─── Category Cashback Rates (legacy — kept for reference, not used in grant) ─
+// ─── Category Cashback Rates (additive bonus on top of tier base rate per category) ─
 
 model CategoryRate {
   category     ProductCategory @id

@@ -153,6 +153,7 @@ export const notificationsApi = {
 export const storesApi = {
   getGasPrices: () => api.get('/stores/gas-prices'),
   getTierRates: () => api.get('/billing/tier-rates'),
+  getCategoryRates: () => api.get('/billing/category-rates'),
 };
 
 export const welcomeBonusApi = {

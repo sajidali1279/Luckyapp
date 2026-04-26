@@ -21,7 +21,7 @@ function fmt$(n: number) {
 
 const CAT_ICONS: Record<string, string> = {
   GROCERIES: '🛒', FROZEN_FOODS: '🧊', FRESH_FOODS: '🥗',
-  GAS: '⛽', DIESEL: '🚛', TOBACCO_VAPES: '🚬', HOT_FOODS: '🌮', OTHER: '🏪',
+  GAS: '⛽', DIESEL: '🚛', TOBACCO_VAPES: '🚬', HOT_FOODS: '🌮', ALCOHOL: '🍺', OTHER: '🏪',
 };
 
 const CHART_COLORS = ['#1D3557', '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];

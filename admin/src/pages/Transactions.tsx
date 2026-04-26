@@ -13,6 +13,7 @@ const CATEGORIES = [
   { value: 'FROZEN_FOODS', label: '🧊 Frozen Foods' },
   { value: 'FRESH_FOODS', label: '🥗 Fresh Foods' },
   { value: 'TOBACCO_VAPES', label: '🚬 Tobacco/Vapes' },
+  { value: 'ALCOHOL', label: '🍺 Alcohol' },
   { value: 'OTHER', label: '🏪 Other' },
 ];
 

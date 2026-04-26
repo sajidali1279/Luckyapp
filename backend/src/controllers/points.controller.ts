@@ -2,13 +2,13 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { ProductCategory, Role, TransactionStatus, Tier } from '@prisma/client';
+import { OfferType, ProductCategory, Role, TransactionStatus, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
+import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -48,25 +48,26 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const now = new Date();
   const customerTier = customer.tier;
 
-  const [tierRate, categoryRate, activeOffer, store] = await Promise.all([
+  const [tierRate, categoryRate, allActiveOffers, store] = await Promise.all([
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
     prisma.categoryRate.findUnique({ where: { category: category as any } }),
-    prisma.offer.findFirst({
-      where: {
-        isActive: true,
-        startDate: { lte: now },
-        endDate: { gte: now },
-        OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
-        AND: [
-          { OR: [{ type: 'ALL_STORES' }, { storeId }] },
-          { OR: [{ category: null }, { category }] },
-        ],
-      },
-      orderBy: { bonusRate: 'desc' },
-      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true },
+    prisma.offer.findMany({
+      where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
+      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
+
+  // Filter to relevant offers for this store (JS filter — avoids Prisma AND/OR nesting bugs)
+  const allStoreOffers = allActiveOffers.filter((o) =>
+    (o.bonusRate !== null || o.gasBonusCentsPerGallon !== null) &&
+    (o.type === OfferType.ALL_STORES || o.storeId === storeId)
+  );
+
+  // Pick best offer: category-specific match first, then null-category (all-category offer)
+  const activeOffer = allStoreOffers.find((o) => o.category === category)
+    ?? allStoreOffers.find((o) => o.category === null)
+    ?? null;
 
   // Tier base rate + optional per-category bonus (additive)
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
@@ -161,6 +162,17 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       cashbackRate: effectiveCashbackRate,
       promotionApplied,
       gasBonusPoints,
+      _debug: {
+        allActiveOffersCount: allActiveOffers.length,
+        allStoreOffersCount: allStoreOffers.length,
+        activeOfferFound: !!activeOffer,
+        activeOfferTitle: activeOffer?.title ?? null,
+        activeOfferCpg: activeOffer?.gasBonusCentsPerGallon ?? null,
+        category,
+        effectiveGallons,
+        gasPerGallonRate,
+        usePerGallonMode,
+      },
     },
   });
 }
@@ -576,7 +588,8 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
     benefitType = 'DAILY_DRINK';
   }
 
-  const progress = getNextTierProgress(periodPoints);
+  const thresholds = await getStoredThresholds();
+  const progress = getNextTierProgress(periodPoints, thresholds);
 
   res.json({
     success: true,

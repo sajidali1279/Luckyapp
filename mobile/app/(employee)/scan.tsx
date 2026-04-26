@@ -20,7 +20,7 @@ type Step =
   | 'pending-done'
   | 'welcome-bonus-done';
 
-type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'OTHER';
+type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'ALCOHOL' | 'OTHER';
 
 type LineItem = {
   id: string;
@@ -38,6 +38,7 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'FROZEN_FOODS', label: 'Frozen',    icon: '🧊' },
   { value: 'FRESH_FOODS',  label: 'Fresh',     icon: '🥗' },
   { value: 'TOBACCO_VAPES',label: 'Tobacco',   icon: '🚬' },
+  { value: 'ALCOHOL',      label: 'Alcohol',   icon: '🍺' },
   { value: 'OTHER',        label: 'Other',     icon: '🏪' },
 ];
 
@@ -170,6 +171,8 @@ export default function EmployeeScanScreen() {
   const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }>>({});
   // Tier rates: cashbackRate (%) and gasCentsPerGallon per tier
   const [tierRates, setTierRates] = useState<Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }>>({});
+  // Category bonus rates: additive on top of tier base rate
+  const [categoryRates, setCategoryRates] = useState<Record<string, number>>({});
 
   useEffect(() => {
     storesApi.getGasPrices().then((res) => {
@@ -190,6 +193,14 @@ export default function EmployeeScanScreen() {
         map[r.tier] = { cashbackRate: r.cashbackRate, gasCentsPerGallon: r.gasCentsPerGallon ?? null };
       }
       setTierRates(map);
+    }).catch(() => {});
+
+    storesApi.getCategoryRates().then((res) => {
+      const map: Record<string, number> = {};
+      for (const r of res.data.data ?? []) {
+        map[r.category] = r.cashbackRate;
+      }
+      setCategoryRates(map);
     }).catch(() => {});
   }, []);
 
@@ -230,17 +241,20 @@ export default function EmployeeScanScreen() {
     ? Math.round(liveTierRate.cashbackRate * 100)
     : (TIER_PTS_MULT_FALLBACK[customerTier] ?? 1);
   const gasCentsPerGallon = liveTierRate?.gasCentsPerGallon ?? null;
-  // For gas in ¢/gallon mode, estimate from gallons; otherwise use dollar × rate
+  // Category bonus on top of tier base (only when live rates loaded)
+  const currentCategoryBonusPts = liveTierRate ? (categoryRates[category] ?? 0) * 100 : 0;
+  // For gas in ¢/gallon mode, estimate from gallons; otherwise use dollar × effective rate
   const currentItemPts = isGasCat && validGallons && gasCentsPerGallon != null
     ? Math.round(parsedGallons * gasCentsPerGallon)
-    : validAmount ? Math.round(parsedAmount * tierMult) : 0;
+    : validAmount ? Math.round(parsedAmount * (tierMult + currentCategoryBonusPts)) : 0;
   const committedPts = lineItems.reduce((sum, item) => {
     const itemIsGas = item.category === 'GAS' || item.category === 'DIESEL';
     const gallons = parseFloat(item.gasGallons || '');
     if (itemIsGas && !isNaN(gallons) && gallons > 0 && gasCentsPerGallon != null) {
       return sum + Math.round(gallons * gasCentsPerGallon);
     }
-    return sum + Math.round((parseFloat(item.amount) || 0) * tierMult);
+    const itemCategoryBonusPts = liveTierRate ? (categoryRates[item.category] ?? 0) * 100 : 0;
+    return sum + Math.round((parseFloat(item.amount) || 0) * (tierMult + itemCategoryBonusPts));
   }, 0);
   const estimatedCashback = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
 

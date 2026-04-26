@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', GROCERIES: '🛒',
-  FROZEN_FOODS: '🧊', FRESH_FOODS: '🥗', TOBACCO_VAPES: '🚬', OTHER: '🏪',
+  FROZEN_FOODS: '🧊', FRESH_FOODS: '🥗', TOBACCO_VAPES: '🚬', ALCOHOL: '🍺', OTHER: '🏪',
 };
 
 export default function HistoryScreen() {

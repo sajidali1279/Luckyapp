@@ -1,15 +1,21 @@
 {
   "name": "luckystop-printer-agent",
   "version": "1.0.0",
-  "description": "Lucky Stop receipt QR printer agent — intercepts Verifone C-store printer traffic and appends reward QR codes",
+  "description": "Lucky Stop receipt QR printer agent — appends reward QR codes to Verifone/Epson receipt printer jobs",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "install-service": "node src/install-service.js"
+    "install-service": "node src/install-service.js",
+    "uninstall-service": "node src/uninstall-service.js",
+    "list-ports": "node src/list-ports.js",
+    "list-printers": "node src/list-printers.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
+    "express": "^4.19.2",
+    "node-thermal-printer": "^4.4.1",
     "node-windows": "^1.0.0-beta.8",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "serialport": "^12.0.0"
   }
 }

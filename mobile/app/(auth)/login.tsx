@@ -38,13 +38,14 @@ export default function LoginScreen() {
   }, [screen, biometricEnabled, bioAvailable]);
 
   async function checkBiometrics() {
+    if (Platform.OS === 'web') return;
     const compatible = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
     setBioAvailable(compatible && enrolled);
   }
 
   const triggerBiometric = useCallback(async () => {
-    if (!quickLoginPhone) return;
+    if (Platform.OS === 'web' || !quickLoginPhone) return;
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Unlock Lucky Stop',
       fallbackLabel: 'Use PIN instead',
@@ -139,6 +140,7 @@ export default function LoginScreen() {
   }
 
   async function enableBiometric() {
+    if (Platform.OS === 'web') { setShowBioOffer(false); return; }
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Confirm your identity to enable biometric login',
       cancelLabel: 'Skip',

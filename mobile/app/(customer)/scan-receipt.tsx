@@ -15,7 +15,8 @@ type Step = 'scan' | 'loading' | 'confirm' | 'success' | 'error';
 const CATEGORY_LABELS: Record<string, string> = {
   GAS: '⛽ Gas', DIESEL: '🚛 Diesel', HOT_FOODS: '🌮 Hot Foods',
   GROCERIES: '🛒 Groceries', FROZEN_FOODS: '🧊 Frozen Foods',
-  FRESH_FOODS: '🥗 Fresh Foods', TOBACCO_VAPES: '🚬 Tobacco/Vapes', OTHER: '🏪 Other',
+  FRESH_FOODS: '🥗 Fresh Foods', TOBACCO_VAPES: '🚬 Tobacco/Vapes',
+  ALCOHOL: '🍺 Alcohol', OTHER: '🏪 Other',
 };
 
 export default function ScanReceiptScreen() {

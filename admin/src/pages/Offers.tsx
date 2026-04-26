@@ -80,6 +80,7 @@ const CATEGORIES = [
   { value: 'DIESEL', label: 'Diesel' },
   { value: 'TOBACCO_VAPES', label: 'Tobacco & Vapes' },
   { value: 'HOT_FOODS', label: 'Hot Foods' },
+  { value: 'ALCOHOL', label: 'Alcohol' },
   { value: 'OTHER', label: 'Other' },
 ];
 

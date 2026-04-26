@@ -6,26 +6,33 @@
   "luckyStopApiUrl": "https://luckystop-api.onrender.com/api",
 
   "printer": {
-    "mode": "tcp",
-    "_modeOptions": "tcp | usb",
+    "mode": "serial",
+    "_modeOptions": "serial | manual | tcp",
 
-    "_tcpComment": "Used when mode is 'tcp'. Point the Verifone POS to THIS machine's IP on proxyPort.",
+    "_serialComment": "Two USB-to-RS232 adapters on the Windows laptop. comPortIn receives from Commander, comPortOut sends to the Epson TM-T88. Run: node src/list-ports.js to find your COM port numbers.",
+    "comPortIn": "COM3",
+    "comPortOut": "COM4",
+    "baudRate": 38400,
+
+    "_manualComment": "mode=manual: cashier opens http://localhost:7771 and clicks Print after each transaction.",
+
+    "_tcpComment": "mode=tcp: for network printers only.",
     "proxyPort": 9100,
     "realPrinterIp": "192.168.1.50",
-    "realPrinterPort": 9100,
+    "realPrinterPort": 9100
+  },
 
-    "_usbComment": "Used when mode is 'usb'. The real printer COM port (e.g. COM3).",
-    "comPort": "COM3",
-    "baudRate": 19200
+  "manual": {
+    "port": 7771,
+    "printerName": "REPLACE_WITH_PRINTER_NAME",
+    "_printerNameComment": "Run: node src/list-printers.js to find the exact Windows printer name.",
+    "printerType": "EPSON"
   },
 
   "qr": {
     "size": 5,
-    "_sizeComment": "QR module size for thermal printer: 1–16. 5 prints ~2cm square.",
+    "_sizeComment": "QR module size: 1-16. 5 = ~2cm. Increase to 6 or 7 if customers have trouble scanning.",
     "printStoreName": true,
     "printMessage": "Scan with Lucky Stop app to earn cashback!"
-  },
-
-  "tokenExpiry": 15,
-  "_tokenExpiryComment": "Minutes before the receipt QR code expires."
+  }
 }

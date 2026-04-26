@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType, ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
+import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
 
 // SUPER_ADMIN+ — basic store list (no billing info)
@@ -179,6 +180,7 @@ const CATEGORY_LABELS: Record<ProductCategory, string> = {
   DIESEL: 'Diesel',
   TOBACCO_VAPES: 'Tobacco / Vapes',
   HOT_FOODS: 'Hot Foods',
+  ALCOHOL: 'Alcohol',
   OTHER: 'Other',
 };
 
@@ -226,6 +228,10 @@ export async function getTierRates(_req: AuthRequest, res: Response) {
     tier,
     cashbackRate:      fullMap[tier]?.cashbackRate      ?? DEFAULT_TIER_RATES[tier],
     gasCentsPerGallon: fullMap[tier]?.gasCentsPerGallon ?? null,
+    // pointsThreshold stored in dollars internally; return as pts (× 100) for display
+    pointsThreshold:   fullMap[tier]?.pointsThreshold != null
+      ? Math.round(fullMap[tier].pointsThreshold * 100)
+      : (TIER_THRESHOLDS[tier] != null ? Math.round(TIER_THRESHOLDS[tier] * 100) : 0),
   }));
 
   res.json({ success: true, data: rates });
@@ -239,21 +245,31 @@ export async function updateTierRate(req: AuthRequest, res: Response) {
   }
   const parsed = z.object({
     cashbackRate:      z.number().min(0).max(1).optional(),
-    gasCentsPerGallon: z.number().min(0).nullable().optional(), // null = disable per-gallon, use % instead
-  }).refine(d => d.cashbackRate !== undefined || d.gasCentsPerGallon !== undefined, {
-    message: 'Provide cashbackRate and/or gasCentsPerGallon',
+    gasCentsPerGallon: z.number().min(0).nullable().optional(),
+    pointsThreshold:   z.number().int().min(0).optional(), // in pts; stored as dollars (÷ 100) internally
+  }).refine(d => d.cashbackRate !== undefined || d.gasCentsPerGallon !== undefined || d.pointsThreshold !== undefined, {
+    message: 'Provide at least one field to update',
   }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ success: false, error: parsed.error.flatten() });
     return;
   }
   const defaultRate = DEFAULT_TIER_RATES[tier] ?? 0.01;
+  const updateData: Record<string, unknown> = {};
+  if (parsed.data.cashbackRate !== undefined)      updateData.cashbackRate      = parsed.data.cashbackRate;
+  if (parsed.data.gasCentsPerGallon !== undefined) updateData.gasCentsPerGallon = parsed.data.gasCentsPerGallon;
+  if (parsed.data.pointsThreshold !== undefined)   updateData.pointsThreshold   = parsed.data.pointsThreshold / 100;
   const rate = await prisma.tierCashbackRate.upsert({
     where:  { tier: tier as Tier },
-    update: parsed.data,
-    create: { tier: tier as Tier, cashbackRate: parsed.data.cashbackRate ?? defaultRate, gasCentsPerGallon: parsed.data.gasCentsPerGallon ?? null },
+    update: updateData,
+    create: {
+      tier: tier as Tier,
+      cashbackRate:      (updateData.cashbackRate      as number) ?? defaultRate,
+      gasCentsPerGallon: (updateData.gasCentsPerGallon as number | null) ?? null,
+      pointsThreshold:   (updateData.pointsThreshold   as number) ?? null,
+    },
   });
-  res.json({ success: true, data: rate });
+  res.json({ success: true, data: { ...rate, pointsThreshold: rate.pointsThreshold != null ? Math.round(rate.pointsThreshold * 100) : null } });
 }
 
 // ─── Dev Cut Rate Config ──────────────────────────────────────────────────────

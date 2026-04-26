@@ -4,7 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
+import { getTierBonusRate, updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
 import { sendPushToUser } from '../utils/push';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -258,7 +258,13 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 
-      totalPointsAwarded += pointsAwarded;
+      // Gas tier bonus — extra per-gallon bonus for Gold+ (stacks on top)
+      const gasBonusRate = isGasItem ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
+      const gasBonusPoints = isGasItem && estimatedGallons != null
+        ? parseFloat((estimatedGallons * gasBonusRate).toFixed(4))
+        : 0;
+
+      totalPointsAwarded += pointsAwarded + gasBonusPoints;
       totalDevCut += devCut;
       totalStoreCost += devCut; // store owes developer: dev cut only
 
@@ -273,6 +279,9 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           storeCost: devCut, // store owes: dev cut only (cashback is store's loyalty cost via product redemptions)
           cashbackRate,
           category: item.category,
+          isGas: isGasItem,
+          gasGallons: isGasItem ? estimatedGallons : null,
+          gasBonusPoints,
           status: 'APPROVED',    // Auto-approved — QR token is the receipt proof
           receiptImageUrl: null, // No photo needed; QR token IS the proof
           notes: `Self-grant via receipt QR (txRef: ${token.txRef})`,
