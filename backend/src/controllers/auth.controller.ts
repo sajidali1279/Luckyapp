@@ -8,6 +8,7 @@ import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { audit } from '../utils/audit';
 import { sendOtpEmail } from '../utils/email';
+import admin from '../config/firebase';
 
 const SALT_ROUNDS = 12;
 
@@ -61,6 +62,7 @@ const registerSchema = z.object({
   phone: z.string().min(10).max(15),
   pin: z.string().length(4).regex(/^\d{4}$/, 'PIN must be 4 digits'),
   name: z.string().min(1).max(80),
+  firebaseToken: z.string().min(1),
 });
 
 export async function register(req: Request, res: Response) {
@@ -70,9 +72,29 @@ export async function register(req: Request, res: Response) {
     return;
   }
 
-  const { phone, pin, name } = parsed.data;
+  const { phone, pin, name, firebaseToken } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  // Verify the Firebase ID token (proves they own the phone number)
+  let decodedToken: admin.auth.DecodedIdToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+  } catch {
+    res.status(401).json({ success: false, error: 'Phone verification failed. Please try again.' });
+    return;
+  }
+
+  // Firebase gives E.164 format (+12345678900); we store last 10 digits
+  const firebaseDigits = (decodedToken.phone_number ?? '').replace(/\D/g, '');
+  const submittedDigits = phone.replace(/\D/g, '');
+  if (!firebaseDigits.endsWith(submittedDigits)) {
+    res.status(400).json({ success: false, error: 'Phone number does not match the verified number.' });
+    return;
+  }
+
+  // Clean up the Firebase Auth user — we manage sessions ourselves
+  admin.auth().deleteUser(decodedToken.uid).catch(() => {});
+
+  const existing = await prisma.user.findUnique({ where: { phone: submittedDigits } });
   if (existing) {
     res.status(409).json({ success: false, error: 'Phone number already registered' });
     return;
@@ -82,7 +104,7 @@ export async function register(req: Request, res: Response) {
   const qrCode = uuidv4();
 
   const user = await prisma.user.create({
-    data: { phone, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true },
+    data: { phone: submittedDigits, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true },
   });
 
   const token = issueJwt(user, []);

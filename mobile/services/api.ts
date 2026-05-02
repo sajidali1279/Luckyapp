@@ -36,8 +36,8 @@ export default api;
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
 export const authApi = {
-  register: (phone: string, pin: string, name: string) =>
-    api.post('/auth/register', { phone, pin, name }),
+  register: (phone: string, pin: string, name: string, firebaseToken: string) =>
+    api.post('/auth/register', { phone, pin, name, firebaseToken }),
   login: (phone: string, pin: string, pushToken?: string, platform?: string) =>
     api.post('/auth/login', { phone, pin, pushToken, platform }),
   updateProfile: (name: string) =>

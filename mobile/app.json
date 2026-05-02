@@ -23,12 +23,13 @@
       "package": "com.luckystop.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
-      ]
+      ],
+      "googleServicesFile": "$GOOGLE_SERVICES_JSON"
     },
     "plugins": [
+      "@react-native-firebase/app",
       "expo-router",
       "expo-camera",
       [
@@ -58,16 +59,6 @@
         }
       ]
     ],
-    "web": {
-      "output": "single",
-      "bundler": "metro",
-      "favicon": "./assets/icon.png",
-      "name": "Lucky Stop",
-      "shortName": "Lucky Stop",
-      "description": "Earn cashback rewards every visit at Lucky Stop",
-      "backgroundColor": "#f0f4f8",
-      "themeColor": "#1D3557"
-    },
     "scheme": "luckystop",
     "extra": {
       "router": {},
