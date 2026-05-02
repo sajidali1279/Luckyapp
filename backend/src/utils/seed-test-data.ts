@@ -60,6 +60,7 @@ const AMOUNT_RANGES: Record<ProductCategory, [number, number]> = {
   FROZEN_FOODS: [3, 22],
   FRESH_FOODS:  [5, 30],
   TOBACCO_VAPES:[10, 45],
+  ALCOHOL:      [8, 60],
   OTHER:        [2, 40],
 };
 

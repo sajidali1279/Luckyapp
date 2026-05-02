@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated,
 } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -145,7 +145,7 @@ export default function LoginScreen() {
     if (pin !== confirmPin) { Toast.show({ type: 'error', text1: 'PINs do not match' }); return; }
     setSendingOtp(true);
     try {
-      const result = await auth().signInWithPhoneNumber(`+1${rawPhone()}`);
+      const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
       setConfirmation(result);
       setOtp('');
       setResendCooldown(60);
@@ -165,7 +165,7 @@ export default function LoginScreen() {
       const credential = await confirmation.confirm(otp);
       const firebaseToken = await credential.user.getIdToken();
       const { data } = await authApi.register(rawPhone(), pin, name.trim(), firebaseToken);
-      auth().signOut().catch(() => {});
+      signOut(getAuth()).catch(() => {});
       await setAuth(data.data.user, data.data.token);
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
     } catch (err: any) {
@@ -185,7 +185,7 @@ export default function LoginScreen() {
   async function handleResendOtp() {
     setResending(true);
     try {
-      const result = await auth().signInWithPhoneNumber(`+1${rawPhone()}`);
+      const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
       setConfirmation(result);
       setOtp('');
       setResendCooldown(60);
