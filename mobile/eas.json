@@ -10,6 +10,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "environment": "production",
       "android": {
         "buildType": "apk"
       }
@@ -20,6 +21,10 @@
   },
   "submit": {
     "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
+      },
       "ios": {
         "appleId": "YOUR_APPLE_ID",
         "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID"
