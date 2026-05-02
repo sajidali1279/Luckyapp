@@ -1,4 +1,4 @@
-export const API_URL = 'https://luckystop-api.onrender.com/api';
+export const API_URL = 'https://api.luckystop.cliffindus.com/api';
 
 export const COLORS = {
   primary: '#E63946',      // Lucky Stop red
