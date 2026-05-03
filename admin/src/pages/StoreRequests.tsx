@@ -852,7 +852,7 @@ const s: Record<string, React.CSSProperties> = {
   prTime: { fontSize: 12, color: '#9ca3af' },
   prExpiryPill: {
     marginLeft: 'auto', background: '#fffbeb', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3, border: '1px solid #fde68a',
+    border: '1px solid #fde68a',
     padding: '3px 8px',
   },
   prExpiryText: { fontSize: 11, fontWeight: 700, color: '#b45309' },
