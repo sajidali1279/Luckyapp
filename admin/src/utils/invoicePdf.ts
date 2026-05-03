@@ -106,7 +106,7 @@ export function downloadInvoicePdf(invoice: {
       <label>From</label>
       <div class="name">Lucky Stop Platform</div>
       <div class="detail">Platform Developer</div>
-      <div class="detail">luckystop-api.onrender.com</div>
+      <div class="detail">api.luckystop.cliffindus.com</div>
     </div>
     <div class="party" style="text-align:right">
       <label>Bill To</label>
