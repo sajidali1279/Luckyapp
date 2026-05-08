@@ -89,12 +89,17 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
       isActive: true,
       startDate: { lte: now },
       endDate: { gte: now },
-      OR: [
-        { type: OfferType.ALL_STORES },
-        ...(storeId ? [{ storeId }] : []),
-      ],
+      // With storeId (mobile): show ALL_STORES + that store's specific offers
+      // Without storeId (admin): show everything — store managers need to see their specific offers
+      ...(storeId ? {
+        OR: [
+          { type: OfferType.ALL_STORES },
+          { storeId },
+        ],
+      } : {}),
     },
     orderBy: { startDate: 'desc' },
+    include: { store: { select: { name: true } } },
   });
 
   res.json({ success: true, data: offers });
@@ -190,6 +195,7 @@ export async function getOffersHistory(req: AuthRequest, res: Response) {
     where: { ...storeFilter, OR: [{ isActive: false }, { endDate: { lt: now } }] },
     orderBy: { createdAt: 'desc' },
     take: 60,
+    include: { store: { select: { name: true } } },
   });
   res.json({ success: true, data: offers });
 }

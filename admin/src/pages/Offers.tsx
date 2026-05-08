@@ -875,7 +875,7 @@ function OfferCard({ offer, onDelete, onReuse, isPast }: {
       <div style={s.cardBody}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           <span style={offer.type === 'ALL_STORES' ? s.tagAll : s.tagStore}>
-            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : '📍 Store'}
+            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
           </span>
           {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
           {isPast && <span style={s.tagPast}>Expired</span>}
@@ -916,7 +916,7 @@ function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => vo
       <div style={s.cardBody}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           <span style={offer.type === 'ALL_STORES' ? s.tagAll : s.tagStore}>
-            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : '📍 Store'}
+            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
           </span>
           {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
           {isPast && <span style={s.tagPast}>Expired</span>}
