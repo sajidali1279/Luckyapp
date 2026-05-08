@@ -1,9 +1,9 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, FlatList, Dimensions, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image, StatusBar, RefreshControl, ActivityIndicator, FlatList, Dimensions, Modal, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState, useEffect, memo } from 'react';
+import { useCallback, useRef, useState, useEffect, memo, useMemo } from 'react';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { ratingsApi } from '../../services/api';
@@ -12,7 +12,7 @@ import { offersApi, authApi, notificationsApi, storesApi } from '../../services/
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import { COLORS } from '../../constants';
 
-const MAX_NEARBY_MILES = 20;
+const MAX_NEARBY_MILES = 2;
 
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
@@ -23,6 +23,14 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+const TIER_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
+  BRONZE:   { icon: '🥉', color: '#CD7F32', label: 'Bronze'   },
+  SILVER:   { icon: '🥈', color: '#A8A9AD', label: 'Silver'   },
+  GOLD:     { icon: '🥇', color: '#FFD700', label: 'Gold'     },
+  DIAMOND:  { icon: '💎', color: '#7dd8f8', label: 'Diamond'  },
+  PLATINUM: { icon: '✨', color: '#E5E4E2', label: 'Platinum' },
+};
 
 const SCREEN_W = Dimensions.get('window').width;
 const BANNER_W = SCREEN_W - 32; // 16px margin each side
@@ -95,6 +103,18 @@ const BannerCarousel = memo(function BannerCarousel({ banners }: { banners: any[
 export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
 
+  // Staggered entrance animation — 7 sections fade + slide up on mount
+  const fadeAnims = useRef([...Array(7)].map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef([...Array(7)].map(() => new Animated.Value(14))).current;
+  useEffect(() => {
+    Animated.stagger(65, fadeAnims.map((anim, i) =>
+      Animated.parallel([
+        Animated.timing(anim, { toValue: 1, duration: 360, useNativeDriver: true }),
+        Animated.timing(slideAnims[i], { toValue: 0, duration: 360, useNativeDriver: true }),
+      ])
+    )).start();
+  }, []);
+
   // Refresh balance every time this screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -130,17 +150,18 @@ export default function CustomerHome() {
   );
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
 
   useEffect(() => {
     let cancelled = false;
     async function detect() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted' || cancelled) return;
+        if (status !== 'granted' || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const { latitude: uLat, longitude: uLon } = pos.coords;
         const storesWithCoords = allStores.filter((s: any) => s.latitude != null && s.longitude != null);
-        if (storesWithCoords.length === 0 || cancelled) return;
+        if (storesWithCoords.length === 0 || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
         let closest: any = null;
         let closestDist = Infinity;
         for (const s of storesWithCoords) {
@@ -149,9 +170,12 @@ export default function CustomerHome() {
         }
         if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
           setNearestStore({ id: closest.id, name: closest.name });
+          setLocationStatus('found');
+        } else if (!cancelled) {
+          setLocationStatus('none');
         }
       } catch {
-        // permission denied or GPS unavailable — fall through silently
+        if (!cancelled) setLocationStatus('none');
       }
     }
     if (allStores.length > 0) detect();
@@ -226,14 +250,18 @@ export default function CustomerHome() {
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       {/* Header */}
+      <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
       <SafeAreaView style={styles.headerBg}>
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hey {user?.name || 'there'}! 👋</Text>
             <Text style={styles.storeName}>Lucky Stop Rewards</Text>
-            {nearestStore && (
-              <View style={styles.nearbyPill}>
-                <Text style={styles.nearbyPillText}>📍 Near {nearestStore.name}</Text>
+            {locationStatus !== 'detecting' && (
+              <View style={[styles.nearbyPill, locationStatus === 'found' && styles.nearbyPillFound]}>
+                <View style={[styles.nearbyDot, locationStatus === 'found' && styles.nearbyDotFound]} />
+                <Text style={styles.nearbyPillText}>
+                  {locationStatus === 'found' ? `📍 ${nearestStore!.name}` : '🌐 All Stores'}
+                </Text>
               </View>
             )}
           </View>
@@ -255,9 +283,19 @@ export default function CustomerHome() {
           </View>
         </View>
       </SafeAreaView>
+      </Animated.View>
 
       {/* Points Balance Card */}
+      <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
       <View style={styles.balanceCard}>
+        <View style={styles.tierRow}>
+          <View style={[styles.tierBadge, { backgroundColor: (TIER_CONFIG[user?.tier || 'BRONZE']?.color ?? '#CD7F32') + '28' }]}>
+            <Text style={styles.tierBadgeText}>
+              {TIER_CONFIG[user?.tier || 'BRONZE']?.icon} {TIER_CONFIG[user?.tier || 'BRONZE']?.label} Member
+            </Text>
+          </View>
+          {user?.tierPeriod && <Text style={styles.tierPeriod}>{user.tierPeriod}</Text>}
+        </View>
         <Text style={styles.balanceLabel}>Your Points Balance</Text>
         <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
         <Text style={styles.balanceSubtext}>points balance</Text>
@@ -265,6 +303,19 @@ export default function CustomerHome() {
         <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
           <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
         </TouchableOpacity>
+      </View>
+      </Animated.View>
+
+      {/* QR Code */}
+      <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+      <View style={styles.qrSection}>
+        <Text style={styles.sectionTitle}>Your QR Code</Text>
+        <Text style={styles.qrSubtext}>Show this to the cashier to earn points</Text>
+        {user?.qrCode && (
+          <View style={styles.qrContainer}>
+            <QRCode value={user.qrCode} size={180} color={COLORS.secondary} />
+          </View>
+        )}
       </View>
 
       {/* Welcome / Joining Bonus */}
@@ -281,17 +332,7 @@ export default function CustomerHome() {
         </View>
         <Text style={styles.scanReceiptArrow}>›</Text>
       </TouchableOpacity>
-
-      {/* QR Code */}
-      <View style={styles.qrSection}>
-        <Text style={styles.sectionTitle}>Your QR Code</Text>
-        <Text style={styles.qrSubtext}>Show this to the cashier to earn points</Text>
-        {user?.qrCode && (
-          <View style={styles.qrContainer}>
-            <QRCode value={user.qrCode} size={180} color={COLORS.secondary} />
-          </View>
-        )}
-      </View>
+      </Animated.View>
 
       {/* Offers loading indicator */}
       {offersLoading && (
@@ -302,13 +343,16 @@ export default function CustomerHome() {
       )}
 
       {/* Banners — auto-advancing carousel */}
+      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
       {banners.length > 0 && (
         <View style={styles.bannerWrapper}>
           <BannerCarousel banners={banners} />
         </View>
       )}
+      </Animated.View>
 
       {/* Gas Prices */}
+      <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
       {gasPrices.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⛽ Today's Gas Prices</Text>
@@ -343,8 +387,10 @@ export default function CustomerHome() {
         </View>
       )}
 
-      {/* Cashback Promotions */}
+      </Animated.View>
+
       {/* Active Promotions — show 2, slider if more */}
+      <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
       {promotions.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
@@ -393,7 +439,10 @@ export default function CustomerHome() {
         </View>
       )}
 
-      {/* Price Deals — show 2, slider if more */}
+      </Animated.View>
+
+      {/* Price Deals + History */}
+      <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
       {deals.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
@@ -438,6 +487,7 @@ export default function CustomerHome() {
       <TouchableOpacity style={styles.historyLink} onPress={() => router.push('/(customer)/history')}>
         <Text style={styles.historyLinkText}>View Points History →</Text>
       </TouchableOpacity>
+      </Animated.View>
 
       {/* Rating prompt */}
       {pendingRating && (
@@ -535,9 +585,18 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 12, color: 'rgba(255,255,255,0.65)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   storeName: { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
   nearbyPill: {
-    marginTop: 6, alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
-    paddingHorizontal: 10, paddingVertical: 3,
+    marginTop: 6, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  nearbyPillFound: {
+    backgroundColor: 'rgba(52,211,153,0.25)',
+  },
+  nearbyDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  nearbyDotFound: {
+    backgroundColor: '#34d399',
   },
   nearbyPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -571,6 +630,10 @@ const styles = StyleSheet.create({
     shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
   },
+  tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 14 },
+  tierBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  tierBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  tierPeriod: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '600' },
   balanceLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
   balanceAmount: { fontSize: 52, fontWeight: '900', color: '#fff', marginVertical: 6, letterSpacing: -1 },
   balanceSubtext: { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: '600' },

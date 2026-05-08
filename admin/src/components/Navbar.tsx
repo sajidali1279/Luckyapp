@@ -10,17 +10,16 @@ const ROLE_LABELS: Record<string, string> = {
   STORE_MANAGER: 'Store Manager',
 };
 
-// ─── Generic Dropdown ─────────────────────────────────────────────────────────
+// ─── Dropdown ─────────────────────────────────────────────────────────────────
 
 type DropdownItem = { to: string; icon: string; label: string; badge?: number };
 
 function NavDropdown({ label, icon, items, activeRoutes }: {
-  label: string;
-  icon: string;
-  items: DropdownItem[];
-  activeRoutes: string[];
+  label: string; icon: string; items: DropdownItem[]; activeRoutes: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const [btnHov, setBtnHov] = useState(false);
+  const [hovItem, setHovItem] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -49,20 +48,33 @@ function NavDropdown({ label, icon, items, activeRoutes }: {
 
   return (
     <>
-      <button ref={btnRef} onClick={handleOpen}
-        style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : {}) }}>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        onMouseEnter={() => setBtnHov(true)}
+        onMouseLeave={() => setBtnHov(false)}
+        style={{ ...ds.btn, ...(isActive || open ? ds.btnActive : (btnHov ? ds.btnHov : {})) }}
+      >
         <span style={ds.icon}>{icon}</span>
         {label}
-        <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.7, transition: 'transform 0.15s ease', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
       </button>
 
       {open && (
         <div ref={menuRef} style={{ ...ds.menu, top: menuPos.top, left: menuPos.left }}>
           {items.map(item => (
-            <NavLink key={item.to} to={item.to}
+            <NavLink
+              key={item.to}
+              to={item.to}
               end={item.to === '/'}
-              style={({ isActive }) => ({ ...ds.item, ...(isActive ? ds.itemActive : {}) })}>
-              <span>{item.icon}</span>
+              style={({ isActive }) => ({
+                ...ds.item,
+                ...(isActive ? ds.itemActive : (hovItem === item.to ? ds.itemHov : {})),
+              })}
+              onMouseEnter={() => setHovItem(item.to)}
+              onMouseLeave={() => setHovItem(null)}
+            >
+              <span style={{ fontSize: 15 }}>{item.icon}</span>
               {item.label}
               {item.badge != null && item.badge > 0 && (
                 <span style={ds.badge}>{item.badge}</span>
@@ -81,35 +93,64 @@ const ds: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.6)', padding: '6px 12px', borderRadius: 8,
     fontSize: 13, fontWeight: 500,
     display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+    transition: 'color 0.15s ease, background 0.15s ease',
   },
   btnActive: { color: '#fff', background: 'rgba(255,255,255,0.15)', fontWeight: 700 },
+  btnHov: { color: 'rgba(255,255,255,0.92)', background: 'rgba(255,255,255,0.08)' },
   icon: { fontSize: 14 },
   menu: {
     position: 'fixed',
-    background: '#fff', borderRadius: 10,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-    minWidth: 170, zIndex: 200,
+    background: '#fff', borderRadius: 12,
+    boxShadow: '0 12px 36px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)',
+    minWidth: 180, zIndex: 200,
     overflow: 'hidden',
-    border: '1px solid rgba(0,0,0,0.08)',
+    border: '1px solid rgba(0,0,0,0.06)',
   },
   item: {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 16px', textDecoration: 'none',
     color: '#1D3557', fontSize: 13, fontWeight: 500,
+    transition: 'background 0.1s ease',
   },
   itemActive: { background: '#EFF6FF', color: '#1D3557', fontWeight: 700 },
+  itemHov: { background: '#f1f5f9', color: '#1D3557' },
   badge: {
     marginLeft: 'auto', background: '#E63946', color: '#fff',
-    borderRadius: 8, padding: '1px 6px',
-    fontSize: 9, fontWeight: 800, lineHeight: 1.4,
+    borderRadius: 8, padding: '1px 6px', fontSize: 9, fontWeight: 800, lineHeight: 1.4,
   },
 };
+
+// ─── HoverLink ─────────────────────────────────────────────────────────────────
+
+function HoverLink({ to, icon, label, badge, end: isEnd }: {
+  to: string; icon: string; label: string; badge?: number; end?: boolean;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <NavLink
+      to={to}
+      end={isEnd}
+      style={({ isActive }) => ({
+        ...s.link,
+        ...(isActive ? s.linkActive : (hov ? s.linkHov : {})),
+        ...(badge != null && badge > 0 ? { position: 'relative' as const } : {}),
+      })}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+    >
+      <span style={s.linkIcon}>{icon}</span>
+      {label}
+      {badge != null && badge > 0 && <span style={s.notifBadge}>{badge}</span>}
+    </NavLink>
+  );
+}
 
 // ─── Main Navbar ──────────────────────────────────────────────────────────────
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [logoutHov, setLogoutHov] = useState(false);
   const isDevAdmin     = user?.role === 'DEV_ADMIN';
   const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
@@ -143,39 +184,32 @@ export default function Navbar() {
   const careersNewCount: number = careersCountData?.data?.data?.count ?? 0;
 
   function handleLogout() { logout(); navigate('/login'); }
-  const lnk = (isActive: boolean) => ({ ...s.link, ...(isActive ? s.linkActive : {}) });
 
-  // ── Dropdown item lists ────────────────────────────────────────────────────
+  // ── Dropdown item lists ───────────────────────────────────────────────────
 
   const overviewItems: DropdownItem[] = [
-    { to: '/',          icon: '📊', label: 'Dashboard'  },
-    { to: '/analytics', icon: '📈', label: 'Analytics'  },
+    { to: '/',          icon: '📊', label: 'Dashboard' },
+    { to: '/analytics', icon: '📈', label: 'Analytics' },
   ];
-
-  const overviewItemsBasic: DropdownItem[] = [
-    { to: '/', icon: '📊', label: 'Dashboard' },
-  ];
+  const overviewItemsBasic: DropdownItem[] = [{ to: '/', icon: '📊', label: 'Dashboard' }];
 
   const peopleItemsAdminFull: DropdownItem[] = [
-    { to: '/chat',           icon: '💬', label: 'Chat'         },
-    { to: '/scheduling',     icon: '📅', label: 'Scheduling'   },
-    { to: '/staff',          icon: '👥', label: 'Staff'        },
-    { to: '/customers',      icon: '🙋', label: 'Customers'    },
-    { to: '/store-requests', icon: '📋', label: 'Requests'     },
+    { to: '/chat',           icon: '💬', label: 'Chat'      },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
+    { to: '/staff',          icon: '👥', label: 'Staff'     },
+    { to: '/customers',      icon: '🙋', label: 'Customers' },
+    { to: '/store-requests', icon: '📋', label: 'Requests'  },
     { to: '/careers',        icon: '💼', label: 'Careers', badge: careersNewCount },
   ];
-
   const peopleItemsManager: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'     },
     { to: '/store-requests', icon: '📋', label: 'Requests' },
   ];
-
   const contentItemsAll: DropdownItem[] = [
     { to: '/offers',  icon: '📢', label: 'Offers'  },
     { to: '/banners', icon: '🖼️', label: 'Banners' },
     { to: '/catalog', icon: '🎁', label: 'Catalog' },
   ];
-
   const contentItemsManager: DropdownItem[] = [
     { to: '/offers',  icon: '📢', label: 'Offers'  },
     { to: '/banners', icon: '🖼️', label: 'Banners' },
@@ -187,7 +221,7 @@ export default function Navbar() {
 
   return (
     <nav style={s.nav}>
-      <div style={s.brand}>
+      <div style={s.brand} onClick={() => navigate('/')} title="Dashboard">
         <span style={s.brandIcon}>⛽</span>
         <div>
           <div style={s.brandName}>Lucky Stop</div>
@@ -197,74 +231,59 @@ export default function Navbar() {
 
       <div style={s.links}>
 
-        {/* 1. Overview */}
+        {/* Overview */}
         {(isDevAdmin || isSuperAdmin) && (
           <NavDropdown label="Overview" icon="📊"
             items={isDevAdmin ? overviewItems : overviewItemsBasic}
             activeRoutes={overviewRoutes} />
         )}
-        {isStoreManager && (
-          <NavLink to="/" end style={({ isActive }) => lnk(isActive)}>
-            <span style={s.linkIcon}>📊</span>Dashboard
-          </NavLink>
-        )}
+        {isStoreManager && <HoverLink to="/" icon="📊" label="Dashboard" end />}
 
-        {/* 2. Content */}
+        {/* Content */}
         <NavDropdown label="Content" icon="📣"
           items={isStoreManager ? contentItemsManager : contentItemsAll}
           activeRoutes={contentRoutes} />
 
-        {/* 3. People */}
+        {/* People */}
         <NavDropdown label="People" icon="👥"
           items={isStoreManager ? peopleItemsManager : peopleItemsAdminFull}
           activeRoutes={peopleRoutes} />
 
-        {/* 4. Tier Rates */}
+        {/* Tier Rates */}
         {(isDevAdmin || isSuperAdmin) && (
-          <NavLink to="/rates" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Tier Rates</NavLink>
+          <HoverLink to="/rates" icon="🏆" label="Tier Rates" />
         )}
 
-        {/* DevAdmin: 5-10 */}
+        {/* DevAdmin extras */}
         {isDevAdmin && (
           <>
-            <NavLink to="/promotions"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>📣</span>Promotions</NavLink>
-            <NavLink to="/stores"      style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
-            <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
-            <NavLink to="/activity"    style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
-            <NavLink to="/leaderboard" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Leaderboard</NavLink>
-            <NavLink to="/billing"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
-            <NavLink to="/support" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
-              <span style={s.linkIcon}>🎧</span>Support
-              {supportUnread > 0 && <span style={s.notifBadge}>{supportUnread}</span>}
-            </NavLink>
-            <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
-              <span style={s.linkIcon}>🔔</span>Notifications
-              {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
-            </NavLink>
+            <HoverLink to="/promotions"   icon="📣" label="Promotions" />
+            <HoverLink to="/stores"       icon="🏪" label="Stores" />
+            <HoverLink to="/transactions" icon="🧾" label="Transactions" />
+            <HoverLink to="/activity"     icon="🔍" label="Activity" />
+            <HoverLink to="/leaderboard"  icon="🏆" label="Leaderboard" />
+            <HoverLink to="/billing"      icon="💳" label="Billing" />
+            <HoverLink to="/support"      icon="🎧" label="Support" badge={supportUnread} />
+            <HoverLink to="/notifications" icon="🔔" label="Notifications" badge={unreadCount} />
           </>
         )}
 
-        {/* SuperAdmin: 5-9 */}
+        {/* SuperAdmin extras */}
         {isSuperAdmin && (
           <>
-            <NavLink to="/stores"       style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏪</span>Stores</NavLink>
-            <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🧾</span>Transactions</NavLink>
-            <NavLink to="/activity"     style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🔍</span>Activity</NavLink>
-            <NavLink to="/leaderboard"  style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🏆</span>Leaderboard</NavLink>
-            <NavLink to="/my-billing"   style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>💳</span>Billing</NavLink>
-            <NavLink to="/support" style={({ isActive }) => lnk(isActive)}><span style={s.linkIcon}>🎧</span>Support</NavLink>
-            <NavLink to="/notifications" style={({ isActive }) => ({ ...lnk(isActive), position: 'relative' })}>
-              <span style={s.linkIcon}>🔔</span>Notifications
-              {unreadCount > 0 && <span style={s.notifBadge}>{unreadCount}</span>}
-            </NavLink>
+            <HoverLink to="/stores"       icon="🏪" label="Stores" />
+            <HoverLink to="/transactions" icon="🧾" label="Transactions" />
+            <HoverLink to="/activity"     icon="🔍" label="Activity" />
+            <HoverLink to="/leaderboard"  icon="🏆" label="Leaderboard" />
+            <HoverLink to="/my-billing"   icon="💳" label="Billing" />
+            <HoverLink to="/support"      icon="🎧" label="Support" />
+            <HoverLink to="/notifications" icon="🔔" label="Notifications" badge={unreadCount} />
           </>
         )}
 
-        {/* StoreManager: Transactions */}
+        {/* StoreManager extras */}
         {isStoreManager && (
-          <NavLink to="/transactions" style={({ isActive }) => lnk(isActive)}>
-            <span style={s.linkIcon}>🧾</span>Transactions
-          </NavLink>
+          <HoverLink to="/transactions" icon="🧾" label="Transactions" />
         )}
       </div>
 
@@ -280,39 +299,52 @@ export default function Navbar() {
             </div>
           </div>
         </NavLink>
-        <button style={s.logout} onClick={handleLogout}>Sign out</button>
+        <button
+          style={{ ...s.logout, ...(logoutHov ? s.logoutHov : {}) }}
+          onMouseEnter={() => setLogoutHov(true)}
+          onMouseLeave={() => setLogoutHov(false)}
+          onClick={handleLogout}
+        >
+          Sign out
+        </button>
       </div>
     </nav>
   );
 }
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
   nav: {
     display: 'flex', alignItems: 'center', padding: '0 24px',
     height: 64, background: '#1D3557',
     position: 'sticky', top: 0, zIndex: 100,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.2)', gap: 8,
+    boxShadow: '0 2px 16px rgba(0,0,0,0.22)', gap: 8,
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
   },
   brand: {
     display: 'flex', alignItems: 'center', gap: 10,
     marginRight: 24, paddingRight: 24,
     borderRight: '1px solid rgba(255,255,255,0.12)', flexShrink: 0,
+    cursor: 'pointer',
   },
   brandIcon: { fontSize: 26 },
   brandName: { color: '#fff', fontWeight: 900, fontSize: 16, lineHeight: 1 },
-  brandSub: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' },
+  brandSub: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' },
 
   links: { display: 'flex', gap: 2, flex: 1, flexWrap: 'nowrap', overflow: 'auto', alignItems: 'center' },
   link: {
     color: 'rgba(255,255,255,0.6)', textDecoration: 'none',
     padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500,
     display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+    transition: 'color 0.15s ease, background 0.15s ease',
   },
   linkActive: { color: '#fff', background: 'rgba(255,255,255,0.15)', fontWeight: 700 },
+  linkHov: { color: 'rgba(255,255,255,0.92)', background: 'rgba(255,255,255,0.08)' },
   linkIcon: { fontSize: 14 },
 
   right: { display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, marginLeft: 16 },
-  userPill: { display: 'flex', alignItems: 'center', gap: 10 },
+  userPill: { display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' },
   avatar: {
     width: 34, height: 34, borderRadius: 17,
     background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.25)',
@@ -332,11 +364,15 @@ const s: Record<string, React.CSSProperties> = {
     background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
     border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
     padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    transition: 'all 0.15s ease',
+  },
+  logoutHov: {
+    background: 'rgba(230,57,70,0.18)', color: '#E63946',
+    borderColor: 'rgba(230,57,70,0.4)',
   },
   notifBadge: {
     position: 'absolute', top: 2, right: 2,
     background: '#E63946', color: '#fff',
-    borderRadius: 8, padding: '1px 5px',
-    fontSize: 9, fontWeight: 800, lineHeight: 1.4,
+    borderRadius: 8, padding: '1px 5px', fontSize: 9, fontWeight: 800, lineHeight: 1.4,
   },
 };

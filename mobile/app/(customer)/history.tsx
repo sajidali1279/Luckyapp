@@ -87,7 +87,7 @@ export default function HistoryScreen() {
                   ) : (
                     <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>✕ Rejected</Text>
                   )}
-                  <Text style={s.tapHint}>tap for details</Text>
+                  <Text style={s.chevron}>›</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -193,7 +193,7 @@ const s = StyleSheet.create({
   cardRight: { alignItems: 'flex-end', flexShrink: 0 },
   points: { fontSize: 18, fontWeight: '800', color: COLORS.success },
   purchase: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
-  tapHint: { color: COLORS.textMuted, fontSize: 10, marginTop: 4, fontWeight: '600' },
+  chevron: { color: COLORS.border, fontSize: 24, fontWeight: '400', marginTop: 2, lineHeight: 28 },
 
   // Footer
   footerLoader: { paddingVertical: 20, alignItems: 'center' },

@@ -256,7 +256,7 @@ const s = StyleSheet.create({
   },
   drawerCloseText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
-  drawerBody: { flex: 1, paddingTop: 8, overflowY: 'scroll' as any },
+  drawerBody: { flex: 1, paddingTop: 8 },
 
   navGroup: { marginBottom: 4 },
   navGroupTitle: {

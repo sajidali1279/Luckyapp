@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';
@@ -28,10 +29,17 @@ export default function ScanReceiptScreen() {
   const [claiming, setClaiming] = useState(false);
   const [earnedAmount, setEarnedAmount] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!permission?.granted) requestPermission();
   }, []);
+
+  useEffect(() => {
+    if (step === 'scan') return;
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  }, [step]);
 
   async function handleBarCode({ data }: { data: string }) {
     if (scanned) return;
@@ -94,6 +102,11 @@ export default function ScanReceiptScreen() {
         />
         {/* Dark overlay with cutout */}
         <View style={s.overlay}>
+          <SafeAreaView style={s.scanHeader}>
+            <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
+              <Text style={s.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
           <View style={s.overlayTop} />
           <View style={s.overlayMiddle}>
             <View style={s.overlaySide} />
@@ -120,10 +133,10 @@ export default function ScanReceiptScreen() {
   // ── Loading step ──
   if (step === 'loading') {
     return (
-      <View style={s.center}>
+      <Animated.View style={[s.center, { opacity: fadeAnim }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={s.loadingText}>Reading receipt…</Text>
-      </View>
+      </Animated.View>
     );
   }
 
@@ -131,7 +144,7 @@ export default function ScanReceiptScreen() {
   if (step === 'confirm' && tokenData) {
     const minsLeft = Math.ceil((new Date(tokenData.expiresAt).getTime() - Date.now()) / 60000);
     return (
-      <View style={s.root}>
+      <Animated.View style={[s.root, { opacity: fadeAnim }]}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
         <SafeAreaView style={s.confirmHeader}>
           <View style={s.confirmHeaderInner}>
@@ -177,14 +190,14 @@ export default function ScanReceiptScreen() {
             <Text style={s.cancelLinkText}>Cancel</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
     );
   }
 
   // ── Success step ──
   if (step === 'success') {
     return (
-      <View style={s.center}>
+      <Animated.View style={[s.center, { opacity: fadeAnim }]}>
         <View style={s.successRing}>
           <Text style={s.successIcon}>✓</Text>
         </View>
@@ -194,23 +207,23 @@ export default function ScanReceiptScreen() {
         <TouchableOpacity style={s.doneBtn} onPress={() => router.replace('/(customer)/home')}>
           <Text style={s.doneBtnText}>Done</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     );
   }
 
   // ── Error step ──
   return (
-    <View style={s.center}>
+    <Animated.View style={[s.center, { opacity: fadeAnim }]}>
       <Text style={s.errorIcon}>⚠️</Text>
       <Text style={s.errorTitle}>Couldn't Claim Points</Text>
       <Text style={s.errorMsg}>{errorMsg}</Text>
       <TouchableOpacity style={s.retryBtn} onPress={() => { setScanned(false); setStep('scan'); }}>
         <Text style={s.retryBtnText}>Scan Again</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={s.cancelLink} onPress={() => router.back()}>
+      <TouchableOpacity style={s.cancelLink} onPress={() => router.replace('/(customer)/home')}>
         <Text style={s.cancelLinkText}>Go Back</Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -238,6 +251,10 @@ const s = StyleSheet.create({
   cornerTR: { top: 0, right: 0, borderTopWidth: BORDER, borderRightWidth: BORDER },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: BORDER, borderLeftWidth: BORDER },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: BORDER, borderRightWidth: BORDER },
+
+  scanHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  closeBtn: { margin: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
 
   cancelBtn: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 },
   cancelBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
