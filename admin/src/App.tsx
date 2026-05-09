@@ -8,6 +8,7 @@ import PageLoader from './components/PageLoader';
 
 // Eagerly loaded (always needed)
 import Login from './pages/Login';
+import Privacy from './pages/Privacy';
 
 // Lazy loaded (code-split per page)
 const Dashboard              = lazy(() => import('./pages/Dashboard'));
@@ -75,6 +76,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<DashboardRoute />} />
               <Route path="/transactions" element={<Transactions />} />
