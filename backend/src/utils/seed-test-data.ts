@@ -16,7 +16,6 @@ const CATEGORY_RATES: { category: ProductCategory; cashbackRate: number }[] = [
   { category: ProductCategory.FRESH_FOODS,  cashbackRate: 0.05 },
   { category: ProductCategory.GAS,          cashbackRate: 0.03 }, // Gas = 3%
   { category: ProductCategory.DIESEL,       cashbackRate: 0.03 },
-  { category: ProductCategory.TOBACCO_VAPES,cashbackRate: 0.04 },
   { category: ProductCategory.HOT_FOODS,    cashbackRate: 0.07 }, // Hot foods = 7%
   { category: ProductCategory.OTHER,        cashbackRate: 0.05 },
 ];
@@ -44,7 +43,6 @@ const WEIGHTED_CATEGORIES: ProductCategory[] = [
   ...Array(12).fill(ProductCategory.GAS),
   ...Array(10).fill(ProductCategory.GROCERIES),
   ...Array(5).fill(ProductCategory.HOT_FOODS),
-  ...Array(4).fill(ProductCategory.TOBACCO_VAPES),
   ...Array(3).fill(ProductCategory.FRESH_FOODS),
   ...Array(3).fill(ProductCategory.FROZEN_FOODS),
   ...Array(3).fill(ProductCategory.DIESEL),
@@ -59,8 +57,6 @@ const AMOUNT_RANGES: Record<ProductCategory, [number, number]> = {
   HOT_FOODS:    [4, 18],
   FROZEN_FOODS: [3, 22],
   FRESH_FOODS:  [5, 30],
-  TOBACCO_VAPES:[10, 45],
-  ALCOHOL:      [8, 60],
   OTHER:        [2, 40],
 };
 

@@ -6,7 +6,7 @@ import { billingApi } from '../services/api';
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
 
-const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'TOBACCO_VAPES', 'HOT_FOODS', 'ALCOHOL', 'OTHER'] as const;
+const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'HOT_FOODS', 'OTHER'] as const;
 type CatKey = typeof CATEGORIES[number];
 
 const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> = {
@@ -15,9 +15,7 @@ const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> =
   FRESH_FOODS:  { emoji: '🥗', label: 'Fresh Foods',   desc: 'Deli, produce, fresh prep'  },
   GAS:          { emoji: '⛽', label: 'Gas',           desc: 'Gasoline purchases'         },
   DIESEL:       { emoji: '🚛', label: 'Diesel',        desc: 'Diesel fuel purchases'      },
-  TOBACCO_VAPES:{ emoji: '🚬', label: 'Tobacco/Vapes', desc: 'Tobacco & vape products'   },
   HOT_FOODS:    { emoji: '🌭', label: 'Hot Foods',     desc: 'Hot deli & prepared foods'  },
-  ALCOHOL:      { emoji: '🍺', label: 'Alcohol',       desc: 'Beer, wine & spirits'       },
   OTHER:        { emoji: '🏪', label: 'Other',         desc: 'All other in-store items'   },
 };
 

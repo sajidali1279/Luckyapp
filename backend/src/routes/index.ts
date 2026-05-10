@@ -7,6 +7,7 @@ import { register, login, changePin, updateProfile, createStaffAccount, createSu
 import {
   initiateGrant,
   uploadReceiptAndApprove,
+  reviewFlaggedTransaction,
   getMyTransactions,
   rejectTransaction,
   getStoreTransactions,
@@ -167,6 +168,7 @@ router.post(
 router.get('/points/store/:storeId/summary', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSummary);
 router.get('/points/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreTransactions);
 router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STORE_MANAGER), rejectTransaction);
+router.patch('/points/:transactionId/review', authenticate, requireRole(Role.STORE_MANAGER), reviewFlaggedTransaction);
 router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformSummary);
 router.get('/points/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllTransactions);
 

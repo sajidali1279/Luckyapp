@@ -178,9 +178,7 @@ const CATEGORY_LABELS: Record<ProductCategory, string> = {
   FRESH_FOODS: 'Fresh Foods',
   GAS: 'Gas',
   DIESEL: 'Diesel',
-  TOBACCO_VAPES: 'Tobacco / Vapes',
   HOT_FOODS: 'Hot Foods',
-  ALCOHOL: 'Alcohol',
   OTHER: 'Other',
 };
 
@@ -509,13 +507,13 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
 const WEIGHTED_CATEGORIES = [
   ...Array(12).fill('GAS'),   ...Array(8).fill('GROCERIES'),
   ...Array(6).fill('DIESEL'), ...Array(5).fill('HOT_FOODS'),
-  ...Array(4).fill('TOBACCO_VAPES'), ...Array(3).fill('FRESH_FOODS'),
+  ...Array(3).fill('FRESH_FOODS'),
   ...Array(3).fill('FROZEN_FOODS'),  ...Array(2).fill('OTHER'),
 ] as ProductCategory[];
 
 const AMOUNT_RANGES: Record<string, [number, number]> = {
   GAS: [25, 110], DIESEL: [60, 200], GROCERIES: [8, 65], HOT_FOODS: [4, 18],
-  FROZEN_FOODS: [3, 22], FRESH_FOODS: [5, 30], TOBACCO_VAPES: [10, 45], OTHER: [2, 40],
+  FROZEN_FOODS: [3, 22], FRESH_FOODS: [5, 30], OTHER: [2, 40],
 };
 
 export async function seedTestTransactions(_req: AuthRequest, res: Response) {

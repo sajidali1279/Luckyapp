@@ -72,6 +72,7 @@ enum BillingType {
 
 enum TransactionStatus {
   PENDING    // Waiting for receipt upload
+  FLAGGED    // Suspicious — receipt uploaded but points held for manager review
   APPROVED   // Points granted
   REJECTED   // Rejected by admin/auto
 }
@@ -87,9 +88,7 @@ enum ProductCategory {
   FRESH_FOODS
   GAS
   DIESEL
-  TOBACCO_VAPES
   HOT_FOODS
-  ALCOHOL
   OTHER
 }
 
@@ -288,6 +287,7 @@ model PointsTransaction {
   gasGallons        Float?
   gasPricePerGallon Float?
   gasBonusPoints    Float   @default(0)
+  fraudFlags        String?           // JSON array of fraud flag reasons
   isTestData        Boolean @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt

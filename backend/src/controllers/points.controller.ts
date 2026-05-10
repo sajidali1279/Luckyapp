@@ -125,7 +125,47 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const gasBonusRate = (isGasCategory && effectiveGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
   const gasBonusPoints = parseFloat(((effectiveGallons ?? 0) * gasBonusRate).toFixed(2));
 
-  // Create transaction in PENDING state — no points credited yet
+  // ── Fraud detection ──────────────────────────────────────────────────────
+  const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+  const oneHourAgo    = new Date(Date.now() - 60 * 60 * 1000);
+  const startOfToday  = new Date(); startOfToday.setHours(0, 0, 0, 0);
+
+  const [recentDuplicate, customerTodayCount, employeeHourCount, pairTodayCount] = await Promise.all([
+    prisma.pointsTransaction.findFirst({
+      where: { customerId: customer.id, grantedById: employee.id, createdAt: { gte: twoMinutesAgo }, status: { not: TransactionStatus.REJECTED } },
+    }),
+    prisma.pointsTransaction.count({
+      where: { customerId: customer.id, storeId, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+    }),
+    prisma.pointsTransaction.count({
+      where: { grantedById: employee.id, createdAt: { gte: oneHourAgo }, status: { not: TransactionStatus.REJECTED } },
+    }),
+    prisma.pointsTransaction.count({
+      where: { customerId: customer.id, grantedById: employee.id, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+    }),
+  ]);
+
+  // Hard auto-reject
+  if (recentDuplicate) {
+    res.status(409).json({ success: false, error: 'Duplicate transaction detected. This customer was just served by you within the last 2 minutes.' });
+    return;
+  }
+  if (purchaseAmount > 2000) {
+    res.status(400).json({ success: false, error: 'Transaction amount exceeds the maximum allowed ($2,000). Contact your manager.' });
+    return;
+  }
+
+  // Soft flags — create as FLAGGED, hold points for manager review
+  const fraudFlags: string[] = [];
+  if (purchaseAmount > 500 && !isGasCategory) fraudFlags.push('HIGH_AMOUNT');
+  if (purchaseAmount > 800)                   fraudFlags.push('LARGE_PURCHASE');
+  if (customerTodayCount >= 4)                fraudFlags.push('CUSTOMER_VELOCITY');
+  if (employeeHourCount >= 15)                fraudFlags.push('EMPLOYEE_VELOCITY');
+  if (pairTodayCount >= 2)                    fraudFlags.push('REPEAT_PAIR');
+
+  const isFlagged = fraudFlags.length > 0;
+
+  // Create transaction in PENDING (or FLAGGED) state — no points credited yet
   const transaction = await prisma.pointsTransaction.create({
     data: {
       customerId: customer.id,
@@ -138,7 +178,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       cashbackRate: effectiveCashbackRate,
       category,
       notes,
-      status: TransactionStatus.PENDING,
+      status: isFlagged ? TransactionStatus.FLAGGED : TransactionStatus.PENDING,
+      fraudFlags: isFlagged ? JSON.stringify(fraudFlags) : null,
       isGas: isGasCategory,
       gasGallons: effectiveGallons ?? null,
       gasPricePerGallon: gasPricePerGallon ?? null,
@@ -146,9 +187,21 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     },
   });
 
+  // Notify store manager if flagged
+  if (isFlagged) {
+    const managers = await prisma.user.findMany({
+      where: { role: { in: [Role.STORE_MANAGER, Role.SUPER_ADMIN] as any } },
+    });
+    for (const mgr of managers) {
+      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT');
+    }
+  }
+
   res.status(201).json({
     success: true,
-    message: 'Transaction created. Upload receipt to complete.',
+    message: isFlagged ? 'Transaction flagged for manager review. Upload receipt to continue.' : 'Transaction created. Upload receipt to complete.',
+    flagged: isFlagged,
+    fraudFlags,
     data: {
       transactionId: transaction.id,
       customer: { id: customer.id, name: customer.name, phone: customer.phone },
@@ -202,7 +255,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       return;
     }
   }
-  if (transaction.status !== TransactionStatus.PENDING) {
+  if (transaction.status !== TransactionStatus.PENDING && transaction.status !== TransactionStatus.FLAGGED) {
     res.status(400).json({ success: false, error: 'Transaction already processed' });
     return;
   }
@@ -223,7 +276,24 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     stream.end(req.file!.buffer);
   });
 
-  // Approve transaction and credit balance atomically
+  const wasFlagged = transaction.status === TransactionStatus.FLAGGED;
+
+  if (wasFlagged) {
+    // Flagged: save receipt but hold points — manager must review
+    const updatedTransaction = await prisma.pointsTransaction.update({
+      where: { id: transactionId },
+      data: { receiptImageUrl: uploadResult.secure_url },
+    });
+    res.json({
+      success: true,
+      message: 'Receipt uploaded. This transaction is flagged — a manager must approve it before points are credited.',
+      flagged: true,
+      data: updatedTransaction,
+    });
+    return;
+  }
+
+  // Normal path: approve and credit balance atomically
   const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
   const [updatedTransaction, updatedCustomer] = await prisma.$transaction([
     prisma.pointsTransaction.update({
@@ -397,6 +467,49 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
   });
 
   res.json({ success: true, message: 'Transaction rejected' });
+}
+
+// Manager: approve or reject a flagged transaction
+export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) {
+  const { transactionId } = req.params;
+  const { action } = req.body as { action: 'APPROVE' | 'REJECT' };
+
+  if (!['APPROVE', 'REJECT'].includes(action)) {
+    res.status(400).json({ success: false, error: 'action must be APPROVE or REJECT' });
+    return;
+  }
+
+  const transaction = await prisma.pointsTransaction.findUnique({ where: { id: transactionId } });
+  if (!transaction || transaction.status !== TransactionStatus.FLAGGED) {
+    res.status(400).json({ success: false, error: 'Transaction not found or not flagged' });
+    return;
+  }
+
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    if (!req.user!.storeIds?.includes(transaction.storeId)) {
+      res.status(403).json({ success: false, error: 'No access to this store' });
+      return;
+    }
+  }
+
+  if (action === 'REJECT') {
+    await prisma.pointsTransaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.REJECTED } });
+    sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.`, 'POINTS');
+    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'REJECT_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
+    res.json({ success: true, message: 'Flagged transaction rejected' });
+    return;
+  }
+
+  // APPROVE — credit points now
+  const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
+  const [, updatedCustomer] = await prisma.$transaction([
+    prisma.pointsTransaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.APPROVED } }),
+    prisma.user.update({ where: { id: transaction.customerId }, data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } } }),
+  ]);
+  await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
+  sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS');
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
+  res.json({ success: true, message: 'Flagged transaction approved and points credited' });
 }
 
 // Manager: store dashboard summary stats

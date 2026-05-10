@@ -34,9 +34,6 @@ const TEMPLATES: Template[] = [
   { icon: '🥗', group: 'Groceries', title: 'Fresh Food Friday', description: 'Double cashback on all fresh produce and fresh foods every Friday.', bonusRate: '5', category: 'FRESH_FOODS' },
   { icon: '🧊', group: 'Groceries', title: 'Frozen Food Frenzy', description: 'Earn 10% on all frozen food items this week. Great deals on freezer favorites.', bonusRate: '5', category: 'FROZEN_FOODS' },
   { icon: '🥗', group: 'Groceries', title: 'Healthy Choice Week', description: 'Earn bonus credits on all fresh and frozen foods. Eating well pays off at Lucky Stop.', bonusRate: '5', category: 'FRESH_FOODS' },
-  // 🚬 Tobacco & Vapes
-  { icon: '🚬', group: 'Tobacco & Vapes', title: 'Loyalty Vape Deal', description: 'Earn 6% cashback on all vape products this week. Exclusive for our loyal customers.', bonusRate: '2', category: 'TOBACCO_VAPES' },
-  { icon: '🚬', group: 'Tobacco & Vapes', title: 'Tobacco Thursday', description: 'Double points on all tobacco and vape products every Thursday. Make it your lucky day.', bonusRate: '4', category: 'TOBACCO_VAPES' },
   // 🎉 Seasonal
   { icon: '☀️', group: 'Seasonal', title: 'Summer Road Trip Bonus', description: 'All summer long — earn double points on gas. Hit the road and rack up rewards at Lucky Stop.', bonusRate: '3', category: 'GAS' },
   { icon: '🎄', group: 'Seasonal', title: 'Holiday Bonus Weekend', description: 'Earn 2x on all purchases during the holiday weekend. Happy holidays from Lucky Stop!', bonusRate: '5', category: '' },
@@ -78,9 +75,7 @@ const CATEGORIES = [
   { value: 'FRESH_FOODS', label: 'Fresh Foods' },
   { value: 'GAS', label: 'Gas' },
   { value: 'DIESEL', label: 'Diesel' },
-  { value: 'TOBACCO_VAPES', label: 'Tobacco & Vapes' },
   { value: 'HOT_FOODS', label: 'Hot Foods' },
-  { value: 'ALCOHOL', label: 'Alcohol' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -210,7 +205,7 @@ export default function Offers() {
       : [{ value: 'GAS', label: 'Gas' }, { value: 'DIESEL', label: 'Diesel' },
          { value: 'HOT_FOODS', label: 'Hot Foods' }, { value: 'GROCERIES', label: 'Groceries' },
          { value: 'FROZEN_FOODS', label: 'Frozen Foods' }, { value: 'FRESH_FOODS', label: 'Fresh Foods' },
-         { value: 'TOBACCO_VAPES', label: 'Tobacco & Vapes' }, { value: 'OTHER', label: 'Other' },
+         { value: 'OTHER', label: 'Other' },
         ].find(c => c.value === category)?.label ?? category;
 
     const bonusDisplay = isGasDiesel && gasBonusType === 'cpg' && gasBonusCpg
@@ -390,7 +385,6 @@ export default function Offers() {
                   { value: 'GROCERIES', label: '🛒 Groceries' },
                   { value: 'FROZEN_FOODS', label: '🧊 Frozen' },
                   { value: 'FRESH_FOODS', label: '🥗 Fresh' },
-                  { value: 'TOBACCO_VAPES', label: '🚬 Tobacco' },
                 ].map(c => (
                   <button key={c.value} type="button"
                     style={{ ...s.chip, ...(quickCategory === c.value ? s.chipActive : {}) }}
@@ -554,7 +548,6 @@ export default function Offers() {
                 { value: 'GROCERIES',     emoji: '🛒', label: 'Groceries'  },
                 { value: 'FROZEN_FOODS',  emoji: '🧊', label: 'Frozen'     },
                 { value: 'FRESH_FOODS',   emoji: '🥗', label: 'Fresh'      },
-                { value: 'TOBACCO_VAPES', emoji: '🚬', label: 'Tobacco'    },
                 { value: 'OTHER',         emoji: '🏪', label: 'Other'      },
               ].map(c => (
                 <button key={c.value} type="button"

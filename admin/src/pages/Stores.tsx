@@ -11,8 +11,6 @@ const ALL_CATEGORIES = [
   { value: 'GROCERIES',     label: 'Groceries',     icon: '🛒' },
   { value: 'FROZEN_FOODS',  label: 'Frozen Foods',  icon: '🧊' },
   { value: 'FRESH_FOODS',   label: 'Fresh Foods',   icon: '🥗' },
-  { value: 'TOBACCO_VAPES', label: 'Tobacco/Vapes', icon: '🚬' },
-  { value: 'ALCOHOL',       label: 'Alcohol',       icon: '🍺' },
   { value: 'OTHER',         label: 'Other',         icon: '🏪' },
 ] as const;
 

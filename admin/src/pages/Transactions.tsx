@@ -12,15 +12,22 @@ const CATEGORIES = [
   { value: 'HOT_FOODS', label: '🌮 Hot Foods' },
   { value: 'FROZEN_FOODS', label: '🧊 Frozen Foods' },
   { value: 'FRESH_FOODS', label: '🥗 Fresh Foods' },
-  { value: 'TOBACCO_VAPES', label: '🚬 Tobacco/Vapes' },
-  { value: 'ALCOHOL', label: '🍺 Alcohol' },
   { value: 'OTHER', label: '🏪 Other' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#F4A261',
+  PENDING:  '#F4A261',
+  FLAGGED:  '#9B2335',
   APPROVED: '#2DC653',
   REJECTED: '#E63946',
+};
+
+const FRAUD_FLAG_LABELS: Record<string, string> = {
+  HIGH_AMOUNT:       'High amount (non-gas)',
+  LARGE_PURCHASE:    'Very large purchase (>$800)',
+  CUSTOMER_VELOCITY: 'Customer has 4+ transactions today',
+  EMPLOYEE_VELOCITY: 'Cashier granted 15+ times this hour',
+  REPEAT_PAIR:       'Same cashier → same customer 2×+ today',
 };
 
 function fmt$(n: number) {
@@ -98,6 +105,17 @@ export default function Transactions() {
     onError: () => toast.error('Failed to reject'),
   });
 
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'APPROVE' | 'REJECT' }) =>
+      pointsApi.reviewFlagged(id, action),
+    onSuccess: (_res, { action }) => {
+      toast.success(action === 'APPROVE' ? 'Transaction approved — points credited' : 'Flagged transaction rejected');
+      qc.invalidateQueries({ queryKey: ['all-transactions'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+    },
+    onError: () => toast.error('Failed to review transaction'),
+  });
+
   const stores = storesData?.data?.data || [];
 
   // Unified data
@@ -141,6 +159,7 @@ export default function Transactions() {
         <select style={s.select} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="PENDING">⏳ Pending</option>
+          <option value="FLAGGED">🚨 Flagged</option>
           <option value="APPROVED">✓ Approved</option>
           <option value="REJECTED">✕ Rejected</option>
         </select>
@@ -209,8 +228,10 @@ export default function Transactions() {
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx: any) => (
-                <tr key={tx.id} style={tx.status === 'REJECTED' ? { opacity: 0.55 } : {}}>
+              {transactions.map((tx: any) => {
+                const flags: string[] = tx.fraudFlags ? JSON.parse(tx.fraudFlags) : [];
+                return (
+                <tr key={tx.id} style={{ opacity: tx.status === 'REJECTED' ? 0.55 : 1, background: tx.status === 'FLAGGED' ? '#fff5f5' : undefined }}>
                   <td style={s.td}>
                     <div>{format(new Date(tx.createdAt), 'MMM d')}</div>
                     <div style={{ fontSize: 11, color: '#adb5bd' }}>{format(new Date(tx.createdAt), 'h:mm a')}</div>
@@ -220,7 +241,7 @@ export default function Transactions() {
                     <div style={{ fontSize: 11, color: '#adb5bd' }}>{tx.customer?.phone}</div>
                   </td>
                   <td style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></td>
-                  <td style={s.td} ><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></td>
+                  <td style={s.td}><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></td>
                   {isSuperAdmin && (
                     <td style={s.td}><span style={{ fontSize: 13, color: '#1D3557', fontWeight: 600 }}>{tx.store?.name || '—'}</span></td>
                   )}
@@ -229,9 +250,18 @@ export default function Transactions() {
                   </td>
                   <td style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || '—'}</td>
                   <td style={s.td}>
-                    <span style={{ ...s.badge, background: STATUS_COLORS[tx.status] || '#dee2e6' }}>
-                      {tx.status}
-                    </span>
+                    <div>
+                      <span style={{ ...s.badge, background: STATUS_COLORS[tx.status] || '#dee2e6' }}>
+                        {tx.status === 'FLAGGED' ? '🚨 FLAGGED' : tx.status}
+                      </span>
+                    </div>
+                    {flags.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        {flags.map((f: string) => (
+                          <div key={f} style={{ fontSize: 10, color: '#9B2335', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td style={s.td}>
                     {tx.receiptImageUrl ? (
@@ -242,9 +272,16 @@ export default function Transactions() {
                     {tx.status === 'PENDING' && (
                       <button style={s.rejectBtn} onClick={() => rejectMutation.mutate(tx.id)}>Reject</button>
                     )}
+                    {tx.status === 'FLAGGED' && (
+                      <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+                        <button style={{ ...s.rejectBtn, background: '#2DC653', color: '#fff' }} onClick={() => reviewMutation.mutate({ id: tx.id, action: 'APPROVE' })}>✓ Approve</button>
+                        <button style={s.rejectBtn} onClick={() => reviewMutation.mutate({ id: tx.id, action: 'REJECT' })}>✕ Reject</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
 
