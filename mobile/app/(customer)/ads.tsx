@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
+import { MegaphoneIcon } from '../../components/Icons';
 
 interface Ad {
   id: string;
@@ -103,7 +104,7 @@ export default function AdsScreen() {
         </View>
       ) : ads.length === 0 ? (
         <EmptyState
-          emoji="📣"
+          icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
           title="No ads yet"
           subtitle="Local business advertisements will appear here. Check back soon!"
         />

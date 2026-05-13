@@ -10,6 +10,7 @@ import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
+import { BellIcon } from './Icons';
 
 function getNotifRoute(type: string, role?: string): string | null {
   if (role === 'CUSTOMER') {
@@ -176,7 +177,7 @@ export default function NotificationsScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : notifications.length === 0 ? (
-        <EmptyState emoji="🔔" title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
+        <EmptyState icon={<BellIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
       ) : (
         <FlatList
           data={notifications}

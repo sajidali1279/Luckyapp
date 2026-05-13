@@ -10,6 +10,7 @@ import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
+import { MessageCircleIcon } from './Icons';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -251,7 +252,7 @@ export default function ChatScreen() {
   }
 
   if (stores.length === 0) {
-    return <EmptyState emoji="💬" title="No store chats yet" subtitle="You'll see your store team chats once you're assigned to a store." />;
+    return <EmptyState icon={<MessageCircleIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="No store chats yet" subtitle="You'll see your store team chats once you're assigned to a store." />;
   }
 
   return (

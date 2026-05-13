@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
 import { schedulingApi, notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
+import {
+  HomeIcon, CameraIcon, CalendarIcon, MessageCircleIcon,
+  ClipboardIcon, BellIcon, TrophyIcon,
+} from '../../components/Icons';
 
 export default function EmployeeLayout() {
   const { data: vacData } = useQuery({
@@ -20,31 +24,31 @@ export default function EmployeeLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
-    { route: '/(employee)/home', emoji: '🏠', label: 'Home' },
-    { route: '/(employee)/scan', emoji: '📷', label: 'Scan' },
+    { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} strokeWidth={2} />,   label: 'Home' },
+    { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} strokeWidth={2} />, label: 'Scan' },
   ];
 
   const groups: NavGroup[] = [
     {
       title: 'Main',
       items: [
-        { route: '/(employee)/home', emoji: '🏠', label: 'Home' },
-        { route: '/(employee)/scan', emoji: '📷', label: 'Scan & Grant' },
+        { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} />,   label: 'Home' },
+        { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} />, label: 'Scan & Grant' },
       ],
     },
     {
       title: 'Work',
       items: [
-        { route: '/(employee)/schedule',  emoji: '📅', label: 'My Schedule', badge: vacancyCount },
-        { route: '/(employee)/chat',      emoji: '💬', label: 'Store Chat' },
-        { route: '/(employee)/requests',  emoji: '📋', label: 'Requests' },
+        { route: '/(employee)/schedule',  icon: (p) => <CalendarIcon {...p} />,      label: 'My Schedule', badge: vacancyCount },
+        { route: '/(employee)/chat',      icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
+        { route: '/(employee)/requests',  icon: (p) => <ClipboardIcon {...p} />,     label: 'Requests' },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(employee)/notifications', emoji: '🔔', label: 'Alerts', badge: unreadCount },
-        { route: '/(employee)/leaderboard',   emoji: '⭐', label: 'Staff Rankings' },
+        { route: '/(employee)/notifications', icon: (p) => <BellIcon {...p} />,   label: 'Alerts', badge: unreadCount },
+        { route: '/(employee)/leaderboard',   icon: (p) => <TrophyIcon {...p} />, label: 'Staff Rankings' },
       ],
     },
   ];

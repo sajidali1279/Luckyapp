@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
+import { ReceiptIcon } from '../../components/Icons';
 import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -55,7 +56,7 @@ export default function HistoryScreen() {
           onEndReachedThreshold={0.3}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <EmptyState emoji="🧾" title="No transactions yet" subtitle="Visit a Lucky Stop and show your QR code to earn your first credits!" />
+            <EmptyState icon={<ReceiptIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="No transactions yet" subtitle="Visit a Lucky Stop and show your QR code to earn your first credits!" />
           }
           ListFooterComponent={
             isFetchingNextPage

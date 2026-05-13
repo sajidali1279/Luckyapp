@@ -1,19 +1,20 @@
 import {
   View, Text, TouchableOpacity, Animated, StyleSheet,
-  Dimensions, Platform, Pressable,
+  Dimensions, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
 import { useRef, useState, ReactNode, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
+import { MenuIcon, XIcon, LogOutIcon } from './Icons';
 
 const SCREEN_W = Dimensions.get('window').width;
 const DRAWER_W = Math.min(SCREEN_W * 0.78, 300);
 
 export interface NavItem {
   route: string;
-  emoji: string;
+  icon: (props: { color: string; size: number }) => ReactNode;
   label: string;
   badge?: number;
 }
@@ -25,9 +26,7 @@ export interface NavGroup {
 
 interface Props {
   children: ReactNode;
-  /** Two items shown permanently in the bottom bar */
   bottomItems: [NavItem, NavItem];
-  /** All nav groups shown inside the drawer */
   groups: NavGroup[];
   headerColor?: string;
 }
@@ -63,16 +62,12 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
   const bgColor = headerColor || COLORS.secondary;
 
   function isActive(route: string) {
-    // Match exact or prefix (e.g. /home matches /(customer)/home)
     return pathname.endsWith(route.replace(/^\//, '')) || pathname === route;
   }
 
   return (
     <View style={s.root}>
-      {/* Main content */}
-      <View style={s.content}>
-        {children}
-      </View>
+      <View style={s.content}>{children}</View>
 
       {/* Bottom mini bar */}
       <View style={[s.bottomBar, { paddingBottom: insets.bottom + 6 }]}>
@@ -86,9 +81,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               activeOpacity={0.7}
             >
               <View style={[s.bottomIconWrap, active && { backgroundColor: bgColor + '20' }]}>
-                <Text style={[s.bottomEmoji, { opacity: active ? 1 : 0.45, fontSize: active ? 22 : 20 }]}>
-                  {item.emoji}
-                </Text>
+                {item.icon({ color: active ? bgColor : COLORS.textMuted, size: 22 })}
                 {item.badge != null && item.badge > 0 && (
                   <View style={s.badge}><Text style={s.badgeText}>{item.badge > 99 ? '99+' : item.badge}</Text></View>
                 )}
@@ -103,7 +96,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
         {/* Menu button */}
         <TouchableOpacity style={s.bottomBtn} onPress={openDrawer} activeOpacity={0.7}>
           <View style={s.bottomIconWrap}>
-            <Text style={[s.bottomEmoji, { opacity: 0.6, fontSize: 20 }]}>☰</Text>
+            <MenuIcon size={22} color={COLORS.textMuted} strokeWidth={2} />
           </View>
           <Text style={s.bottomLabel}>Menu</Text>
         </TouchableOpacity>
@@ -129,7 +122,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                 </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => closeDrawer()} style={s.drawerClose}>
-                <Text style={s.drawerCloseText}>✕</Text>
+                <XIcon size={18} color="#fff" strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
 
@@ -143,12 +136,12 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                     return (
                       <TouchableOpacity
                         key={item.route}
-                        style={[s.navItem, active && { backgroundColor: bgColor + '14' }]}
+                        style={[s.navItem, active && { backgroundColor: bgColor + '12' }]}
                         onPress={() => navigate(item.route)}
                         activeOpacity={0.75}
                       >
-                        <View style={[s.navItemIconWrap, active && { backgroundColor: bgColor + '20' }]}>
-                          <Text style={s.navItemEmoji}>{item.emoji}</Text>
+                        <View style={[s.navItemIconWrap, active && { backgroundColor: bgColor + '22' }]}>
+                          {item.icon({ color: active ? bgColor : COLORS.textMuted, size: 20 })}
                         </View>
                         <Text style={[s.navItemLabel, active && { color: bgColor, fontWeight: '800' }]}>
                           {item.label}
@@ -172,7 +165,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               onPress={() => closeDrawer(() => logout())}
               activeOpacity={0.8}
             >
-              <Text style={s.signOutEmoji}>🚪</Text>
+              <LogOutIcon size={20} color="#E63946" strokeWidth={2} />
               <Text style={s.signOutText}>Sign Out</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -186,7 +179,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1 },
 
-  // Bottom bar
   bottomBar: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -202,10 +194,9 @@ const s = StyleSheet.create({
   },
   bottomBtn: { flex: 1, alignItems: 'center', gap: 3 },
   bottomIconWrap: {
-    width: 44, height: 34, borderRadius: 12,
+    width: 44, height: 36, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  bottomEmoji: { fontSize: 20 },
   bottomLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
   badge: {
     position: 'absolute', top: -2, right: -2,
@@ -215,14 +206,12 @@ const s = StyleSheet.create({
   },
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 13 },
 
-  // Overlay
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
     zIndex: 10,
   },
 
-  // Drawer panel
   drawer: {
     position: 'absolute', top: 0, left: 0, bottom: 0,
     width: DRAWER_W,
@@ -236,7 +225,7 @@ const s = StyleSheet.create({
   },
   drawerHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingBottom: 20,
+    paddingHorizontal: 20, paddingBottom: 22,
   },
   drawerHeaderLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   drawerAvatar: {
@@ -254,7 +243,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', justifyContent: 'center',
   },
-  drawerCloseText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   drawerBody: { flex: 1, paddingTop: 8 },
 
@@ -275,7 +263,6 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.background,
     alignItems: 'center', justifyContent: 'center',
   },
-  navItemEmoji: { fontSize: 19 },
   navItemLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.text },
   navBadge: {
     backgroundColor: '#E63946', borderRadius: 10,
@@ -293,6 +280,5 @@ const s = StyleSheet.create({
     marginHorizontal: 24, paddingVertical: 14,
     borderTopWidth: 1, borderTopColor: COLORS.border,
   },
-  signOutEmoji: { fontSize: 18 },
   signOutText: { fontSize: 15, fontWeight: '700', color: '#E63946' },
 });

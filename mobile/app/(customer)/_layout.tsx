@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
 import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
+import {
+  HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
+  BriefcaseIcon, ShoppingBagIcon, BellIcon,
+} from '../../components/Icons';
 
 export default function CustomerLayout() {
   const { data: notifData } = useQuery({
@@ -13,32 +17,32 @@ export default function CustomerLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
-    { route: '/(customer)/home',    emoji: '🏠', label: 'Home' },
-    { route: '/(customer)/rewards', emoji: '⭐', label: 'Rewards' },
+    { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} strokeWidth={2} />, label: 'Home' },
+    { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} strokeWidth={2} />, label: 'Rewards' },
   ];
 
   const groups: NavGroup[] = [
     {
       title: 'Main',
       items: [
-        { route: '/(customer)/home',    emoji: '🏠', label: 'Home' },
-        { route: '/(customer)/rewards', emoji: '⭐', label: 'Rewards' },
-        { route: '/(customer)/history', emoji: '📋', label: 'History' },
+        { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} />,      label: 'Home' },
+        { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} />,      label: 'Rewards' },
+        { route: '/(customer)/history', icon: (p) => <ClockIcon {...p} />,     label: 'History' },
       ],
     },
     {
       title: 'Discover',
       items: [
-        { route: '/(customer)/ads',             emoji: '📣', label: 'Ads & Promotions' },
-        { route: '/(customer)/leaderboard',     emoji: '🏆', label: 'Leaderboard' },
-        { route: '/(customer)/careers',         emoji: '💼', label: 'Careers' },
-        { route: '/(customer)/request-product', emoji: '🛍️', label: 'Request a Product' },
+        { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,  label: 'Ads & Promotions' },
+        { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,     label: 'Leaderboard' },
+        { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,  label: 'Careers' },
+        { route: '/(customer)/request-product', icon: (p) => <ShoppingBagIcon {...p} />, label: 'Request a Product' },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(customer)/notifications', emoji: '🔔', label: 'Notifications', badge: unreadCount },
+        { route: '/(customer)/notifications', icon: (p) => <BellIcon {...p} />, label: 'Notifications', badge: unreadCount },
       ],
     },
   ];

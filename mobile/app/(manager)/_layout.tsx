@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
 import { schedulingApi, notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
+import {
+  HomeIcon, CalendarIcon, MegaphoneIcon, ImageIcon,
+  MessageCircleIcon, ClipboardIcon, BellIcon,
+} from '../../components/Icons';
 
 export default function ManagerLayout() {
   const { data: vacData } = useQuery({
@@ -20,36 +24,36 @@ export default function ManagerLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
-    { route: '/(manager)/home',     emoji: '🏠', label: 'Home' },
-    { route: '/(manager)/schedule', emoji: '📅', label: 'Schedule' },
+    { route: '/(manager)/home',     icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: 'Home' },
+    { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} strokeWidth={2} />, label: 'Schedule' },
   ];
 
   const groups: NavGroup[] = [
     {
       title: 'Main',
       items: [
-        { route: '/(manager)/home',     emoji: '🏠', label: 'Home' },
-        { route: '/(manager)/schedule', emoji: '📅', label: 'Schedule', badge: vacancyCount },
+        { route: '/(manager)/home',     icon: (p) => <HomeIcon {...p} />,     label: 'Home' },
+        { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} />, label: 'Schedule', badge: vacancyCount },
       ],
     },
     {
       title: 'Content',
       items: [
-        { route: '/(manager)/offers',  emoji: '📢', label: 'Offers' },
-        { route: '/(manager)/banners', emoji: '🖼️', label: 'Banners' },
-        { route: '/(manager)/chat',    emoji: '💬', label: 'Store Chat' },
+        { route: '/(manager)/offers',  icon: (p) => <MegaphoneIcon {...p} />,    label: 'Offers' },
+        { route: '/(manager)/banners', icon: (p) => <ImageIcon {...p} />,         label: 'Banners' },
+        { route: '/(manager)/chat',    icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
       ],
     },
     {
       title: 'Team',
       items: [
-        { route: '/(manager)/requests', emoji: '📋', label: 'Requests' },
+        { route: '/(manager)/requests', icon: (p) => <ClipboardIcon {...p} />, label: 'Requests' },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(manager)/notifications', emoji: '🔔', label: 'Alerts', badge: unreadCount },
+        { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />, label: 'Alerts', badge: unreadCount },
       ],
     },
   ];
