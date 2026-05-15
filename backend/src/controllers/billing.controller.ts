@@ -1163,9 +1163,9 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     where: { isActive: true },
     select: {
-      id: true, name: true, city: true, state: true,
+      id: true, name: true, address: true, city: true, state: true, phone: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      enabledCategories: true,
+      latitude: true, longitude: true, enabledCategories: true,
     },
     orderBy: { name: 'asc' },
   });

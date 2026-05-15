@@ -99,7 +99,7 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
       } : {}),
     },
     orderBy: { startDate: 'desc' },
-    include: { store: { select: { name: true } } },
+    include: { store: { select: { name: true, address: true, city: true, state: true, phone: true } } },
   });
 
   res.json({ success: true, data: offers });

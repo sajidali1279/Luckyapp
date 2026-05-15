@@ -194,12 +194,17 @@ export default function CustomerHome() {
     staleTime: 30 * 60 * 1000,
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
-  const gasPrices: any[] = allStores.filter(
-    (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
-  );
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
+
+  const storesWithPrices = allStores.filter(
+    (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
+  );
+  // When near a store — show only that store's prices. Otherwise show all.
+  const gasPrices: any[] = nearestStore
+    ? storesWithPrices.filter((s: any) => s.id === nearestStore.id)
+    : storesWithPrices;
 
   useEffect(() => {
     let cancelled = false;
@@ -231,11 +236,14 @@ export default function CustomerHome() {
     return () => { cancelled = true; };
   }, [allStores.length]);
 
+  const locationReady = locationStatus !== 'detecting';
+
   const {
     data: bannersData, isRefetching: bannersRefetching, refetch: refetchBanners,
   } = useQuery({
     queryKey: ['banners', nearestStore?.id],
     queryFn: () => offersApi.getBanners(nearestStore?.id),
+    enabled: locationReady,
   });
 
   const {
@@ -243,6 +251,7 @@ export default function CustomerHome() {
   } = useQuery({
     queryKey: ['offers', nearestStore?.id],
     queryFn: () => offersApi.getActive(nearestStore?.id),
+    enabled: locationReady,
   });
 
   const banners = bannersData?.data?.data || [];
@@ -250,6 +259,7 @@ export default function CustomerHome() {
   const promotions = allOffers.filter((o: any) => o.bonusRate || o.gasBonusCentsPerGallon != null);
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = bannersRefetching || offersRefetching;
+  const contentLoading = !locationReady || offersLoading;
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [pendingRating, setPendingRating] = useState<any>(null);
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -389,7 +399,7 @@ export default function CustomerHome() {
 
       {/* ── Banners ── */}
       <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-        {offersLoading
+        {contentLoading
           ? (
             <View style={styles.bannerWrapper}>
               <SkeletonBannerCard />
@@ -405,7 +415,7 @@ export default function CustomerHome() {
 
       {/* ── Gas Prices ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
-        {offersLoading
+        {contentLoading
           ? (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
@@ -426,6 +436,12 @@ export default function CustomerHome() {
                 {gasPrices.map((store: any) => (
                   <View key={store.id} style={styles.gasPriceCard}>
                     <Text style={styles.gasStoreName} numberOfLines={1}>{store.name}</Text>
+                    {!nearestStore && store.address && (
+                      <Text style={styles.gasStoreAddress} numberOfLines={1}>{store.address}, {store.city}</Text>
+                    )}
+                    {!nearestStore && store.phone && (
+                      <Text style={styles.gasStorePhone}>{store.phone}</Text>
+                    )}
                     {store.gasPricePerGallon != null && (
                       <View style={styles.gasPriceLine}>
                         <GasPumpIcon size={14} color={COLORS.accent} strokeWidth={2} />
@@ -457,7 +473,7 @@ export default function CustomerHome() {
 
       {/* ── Active Promotions ── */}
       <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
-        {offersLoading
+        {contentLoading
           ? (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
@@ -484,6 +500,17 @@ export default function CustomerHome() {
                     }
                     <View style={styles.offerContent}>
                       <Text style={styles.offerTitle}>{offer.title}</Text>
+                      {!nearestStore && (
+                        <View style={styles.offerStoreBadge}>
+                          {offer.store
+                            ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                            : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                          }
+                          <Text style={styles.offerStoreText}>
+                            {offer.store ? `${offer.store.name}` : 'All Lucky Stop Stores'}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={styles.offerDesc}>{offer.description}</Text>
                       <View style={styles.offerBonusPill}>
                         {offer.gasBonusCentsPerGallon != null
@@ -517,6 +544,17 @@ export default function CustomerHome() {
                       }
                       <View style={styles.offerSlideContent}>
                         <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+                        {!nearestStore && (
+                          <View style={styles.offerStoreBadge}>
+                            {offer.store
+                              ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                              : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                            }
+                            <Text style={styles.offerStoreText} numberOfLines={1}>
+                              {offer.store ? offer.store.name : 'All Stores'}
+                            </Text>
+                          </View>
+                        )}
                         <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
                         <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
                           {offer.gasBonusCentsPerGallon != null
@@ -541,7 +579,7 @@ export default function CustomerHome() {
 
       {/* ── Today's Deals + History ── */}
       <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
-        {!offersLoading && deals.length > 0 && (
+        {!contentLoading && deals.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
               <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label="Today's Deals" />
@@ -823,6 +861,11 @@ const styles = StyleSheet.create({
   gasPriceValue: { fontSize: 16, fontWeight: '900', color: COLORS.text },
   gasPriceUnit: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
   gasUpdatedAt: { fontSize: 10, color: COLORS.border, marginTop: 6, fontWeight: '600' },
+  gasStoreAddress: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500', marginBottom: 6 },
+  gasStorePhone: { fontSize: 11, color: COLORS.primary, fontWeight: '600', marginBottom: 6 },
+
+  offerStoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, marginTop: 1 },
+  offerStoreText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
 
   historyLink: { paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 },
   historyLinkText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },
