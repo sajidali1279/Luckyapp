@@ -27,33 +27,32 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Debug - list mobile directory
-        run: |
-          echo "=== GITHUB_WORKSPACE: $GITHUB_WORKSPACE ==="
-          echo "=== Files in mobile/ ==="
-          ls -la "$GITHUB_WORKSPACE/mobile/"
-          echo "=== google-services.json status ==="
-          if [ -f "$GITHUB_WORKSPACE/mobile/google-services.json" ]; then
-            echo "✅ EXISTS - $(wc -c < "$GITHUB_WORKSPACE/mobile/google-services.json") bytes"
-          else
-            echo "❌ NOT FOUND"
-          fi
-
       - name: Install dependencies
         working-directory: ./mobile
         run: npm ci
 
-      - name: Debug - list mobile directory after npm ci
-        run: |
-          echo "=== After npm ci ==="
-          ls -la "$GITHUB_WORKSPACE/mobile/" | grep -E "google|json"
-
-      - name: Generate native Android project
+      - name: Prebuild + APK (single step)
         working-directory: ./mobile
-        run: npx expo prebuild --platform android --clean
+        run: |
+          echo "=== Step start: $(pwd) ==="
+          echo "=== Files here ==="
+          ls -la
+
+          # Write google-services.json from secret (most reliable method)
+          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json
+            echo "✅ Wrote google-services.json from secret ($(wc -c < google-services.json) bytes)"
+          elif [ -f "google-services.json" ]; then
+            echo "✅ google-services.json already present ($(wc -c < google-services.json) bytes)"
+          else
+            echo "❌ google-services.json not found and no secret set — build will fail"
+            exit 1
+          fi
+
+          npx expo prebuild --platform android --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          GOOGLE_SERVICES_JSON: ${{ github.workspace }}/mobile/google-services.json
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
 
       - name: Make gradlew executable
         working-directory: ./mobile/android
