@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # suppress Node 20 warning
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -29,7 +29,23 @@ jobs:
 
       - name: Write google-services.json
         working-directory: ./mobile
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > google-services.json
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "❌ ERROR: GOOGLE_SERVICES_JSON_B64 secret is not set!"
+            echo "Go to repo Settings → Secrets → New repository secret"
+            echo "Name: GOOGLE_SERVICES_JSON_B64"
+            echo "Value: base64-encoded contents of mobile/google-services.json"
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json
+          BYTES=$(wc -c < google-services.json)
+          echo "✅ google-services.json written ($BYTES bytes)"
+          if [ "$BYTES" -lt 100 ]; then
+            echo "❌ ERROR: File too small — base64 decoding probably failed"
+            exit 1
+          fi
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
 
       - name: Install dependencies
         working-directory: ./mobile
