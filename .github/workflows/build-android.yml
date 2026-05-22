@@ -58,6 +58,10 @@ jobs:
         working-directory: ./mobile/android
         run: chmod +x gradlew
 
+      - name: Enable JS bundling in APK
+        working-directory: ./mobile/android
+        run: echo -e "\nbundleInDebug=true" >> gradle.properties
+
       - name: Build Debug APK
         working-directory: ./mobile/android
         run: ./gradlew assembleDebug --no-daemon
