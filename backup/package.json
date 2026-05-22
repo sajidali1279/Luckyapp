@@ -1,0 +1,12 @@
+{
+  "name": "luckystop-backup",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "db": "powershell -NonInteractive -ExecutionPolicy Bypass -File backup-db.ps1",
+    "images": "node backup-images.js"
+  },
+  "dependencies": {
+    "cloudinary": "^2.5.1"
+  }
+}

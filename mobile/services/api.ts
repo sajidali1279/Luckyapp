@@ -232,6 +232,32 @@ export const ratingsApi = {
     api.get('/ratings/pending'),
 };
 
+export const orderListApi = {
+  // Manager+
+  getSummary: () => api.get('/order-list/summary'),
+  printItems: (storeId: string, notes?: string) =>
+    api.post(`/order-list/store/${storeId}/print`, { notes }),
+  markOrdered: (itemIds: string[]) =>
+    api.post('/order-list/items/mark-ordered', { itemIds }),
+  markReceived: (itemIds: string[]) =>
+    api.post('/order-list/items/mark-received', { itemIds }),
+  reorderItems: (storeId: string, items: { id: string; sortOrder: number }[]) =>
+    api.patch(`/order-list/store/${storeId}/reorder`, { items }),
+  // Employee+
+  getStoreItems: (storeId: string, status?: string) =>
+    api.get(`/order-list/store/${storeId}${status ? `?status=${status}` : ''}`),
+  getPrintHistory: (storeId: string) =>
+    api.get(`/order-list/store/${storeId}/print-history`),
+  getPrintJob: (jobId: string) =>
+    api.get(`/order-list/print-jobs/${jobId}`),
+  addItem: (storeId: string, data: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
+    api.post(`/order-list/store/${storeId}`, data),
+  updateItem: (itemId: string, data: { name?: string; quantity?: string | null; category?: string | null; notes?: string | null; priority?: string }) =>
+    api.patch(`/order-list/items/${itemId}`, data),
+  removeItem: (itemId: string) =>
+    api.delete(`/order-list/items/${itemId}`),
+};
+
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),

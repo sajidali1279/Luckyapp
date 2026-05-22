@@ -39,6 +39,10 @@ import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.c
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest } from '../controllers/productRequest.controller';
 import {
+  getOrderSummary, getStoreItems, addItem, updateItem, removeItem,
+  reorderItems, printItems, markOrdered, markReceived, getPrintHistory, getPrintJob,
+} from '../controllers/orderList.controller';
+import {
   getStoreSchedule,
   getTodayRoster,
   getDayRoster,
@@ -321,5 +325,18 @@ router.post('/product-requests', authenticate, requireRole(Role.CUSTOMER), submi
 router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), getMyProductRequests);
 router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
+
+// ─── Order List ───────────────────────────────────────────────────────────────
+router.get('/order-list/summary',                       authenticate, requireRole(Role.STORE_MANAGER), getOrderSummary);      // Manager+: all stores summary
+router.get('/order-list/store/:storeId/print-history',  authenticate, requireRole(Role.EMPLOYEE),      getPrintHistory);      // Employee+: last 30 print jobs
+router.get('/order-list/store/:storeId',                authenticate, requireRole(Role.EMPLOYEE),      getStoreItems);        // Employee+: items for a store
+router.get('/order-list/print-jobs/:jobId',             authenticate, requireRole(Role.EMPLOYEE),      getPrintJob);          // Employee+: single job detail
+router.post('/order-list/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE),      addItem);              // Employee+: add item to list
+router.post('/order-list/store/:storeId/print',         authenticate, requireRole(Role.STORE_MANAGER), printItems);           // Manager+: print pending items
+router.post('/order-list/items/mark-ordered',           authenticate, requireRole(Role.STORE_MANAGER), markOrdered);          // Manager+: mark PRINTED → ORDERED
+router.post('/order-list/items/mark-received',          authenticate, requireRole(Role.STORE_MANAGER), markReceived);         // Manager+: mark ORDERED → RECEIVED
+router.patch('/order-list/store/:storeId/reorder',      authenticate, requireRole(Role.STORE_MANAGER), reorderItems);         // Manager+: drag reorder
+router.patch('/order-list/items/:itemId',               authenticate, requireRole(Role.EMPLOYEE),      updateItem);           // Employee+ (own PENDING only for non-manager)
+router.delete('/order-list/items/:itemId',              authenticate, requireRole(Role.EMPLOYEE),      removeItem);           // Employee+ (own PENDING only for non-manager)
 
 export default router;

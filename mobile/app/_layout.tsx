@@ -82,9 +82,9 @@ export default function RootLayout() {
         return;
       }
 
-      if (user.role === 'STORE_MANAGER') {
+      if (['STORE_MANAGER', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
         router.replace('/(manager)/home');
-      } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      } else if (user.role === 'EMPLOYEE') {
         router.replace('/(employee)/home');
       } else {
         router.replace('/(customer)/home');

@@ -5,7 +5,7 @@ import { schedulingApi, notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, CalendarIcon, MegaphoneIcon, ImageIcon,
-  MessageCircleIcon, ClipboardIcon, BellIcon,
+  MessageCircleIcon, ClipboardIcon, BellIcon, PackageIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -47,7 +47,8 @@ export default function ManagerLayout() {
     {
       title: 'Team',
       items: [
-        { route: '/(manager)/requests', icon: (p) => <ClipboardIcon {...p} />, label: 'Requests' },
+        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Requests' },
+        { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: 'Order List' },
       ],
     },
     {
@@ -67,6 +68,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="schedule" />
         <Tabs.Screen name="chat" />
         <Tabs.Screen name="requests" />
+        <Tabs.Screen name="order-list" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="profile" />
       </Tabs>

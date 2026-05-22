@@ -34,6 +34,7 @@ const Rates                  = lazy(() => import('./pages/Rates'));
 const Support                = lazy(() => import('./pages/Support'));
 const Leaderboard            = lazy(() => import('./pages/Leaderboard'));
 const Careers                = lazy(() => import('./pages/Careers'));
+const OrderList              = lazy(() => import('./pages/OrderList'));
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="/careers" element={<Careers />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/store-requests" element={<StoreRequests />} />
+              <Route path="/order-list" element={<OrderList />} />
               <Route path="/profile" element={<Profile />} />
               <Route element={<DevAdminOnly />}>
                 <Route path="/billing" element={<Billing />} />

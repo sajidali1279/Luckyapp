@@ -225,4 +225,26 @@ export const storeRequestApi = {
     api.patch(`/store-requests/${requestId}/acknowledge`, { note }),
 };
 
+export const orderListApi = {
+  getSummary: () => api.get('/order-list/summary'),
+  getStoreItems: (storeId: string, status?: string) =>
+    api.get(`/order-list/store/${storeId}${status ? `?status=${status}` : ''}`),
+  getPrintHistory: (storeId: string) =>
+    api.get(`/order-list/store/${storeId}/print-history`),
+  addItem: (storeId: string, data: object) =>
+    api.post(`/order-list/store/${storeId}`, data),
+  updateItem: (itemId: string, data: object) =>
+    api.patch(`/order-list/items/${itemId}`, data),
+  removeItem: (itemId: string) =>
+    api.delete(`/order-list/items/${itemId}`),
+  reorderItems: (storeId: string, items: { id: string; sortOrder: number }[]) =>
+    api.patch(`/order-list/store/${storeId}/reorder`, { items }),
+  printItems: (storeId: string, notes?: string) =>
+    api.post(`/order-list/store/${storeId}/print`, { notes }),
+  markOrdered: (itemIds: string[]) =>
+    api.post('/order-list/items/mark-ordered', { itemIds }),
+  markReceived: (itemIds: string[]) =>
+    api.post('/order-list/items/mark-received', { itemIds }),
+};
+
 export default api;

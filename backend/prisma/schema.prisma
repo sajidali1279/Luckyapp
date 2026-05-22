@@ -106,6 +106,20 @@ enum ProductRequestStatus {
   DECLINED
 }
 
+enum OrderItemStatus {
+  PENDING   // Added, not yet printed
+  PRINTED   // Included in a print job — manager has the list
+  ORDERED   // Manager confirmed ordered from supplier
+  RECEIVED  // Arrived at store
+  REMOVED   // Removed without ordering
+}
+
+enum OrderItemPriority {
+  URGENT
+  NORMAL
+  LOW
+}
+
 enum Tier {
   BRONZE
   SILVER
@@ -177,6 +191,8 @@ model User {
   supportMessages      SupportMessage[]
   ratingsGiven         EmployeeRating[] @relation("RatingsGiven")
   ratingsReceived      EmployeeRating[] @relation("RatingsReceived")
+  addedOrderItems      OrderItem[]      @relation("OrderItemsAdded")
+  managedPrintJobs     PrintJob[]       @relation("PrintJobsPrinted")
 
   @@map("users")
 }
@@ -233,6 +249,8 @@ model Store {
   keywordMappings    StoreKeywordMapping[]
   jobApplications    JobApplication[]
   productRequests    ProductRequest[]
+  orderItems         OrderItem[]
+  printJobs          PrintJob[]
 
   @@map("stores")
 }
@@ -846,4 +864,61 @@ model TierBenefitClaim {
 
   @@index([userId, period])
   @@map("tier_benefit_claims")
+}
+
+// ─── Order List (Store Inventory Request System) ──────────────────────────────
+
+model OrderItem {
+  id          String            @id @default(uuid())
+  storeId     String
+  name        String
+  quantity    String?           // "5 cases", "2 boxes", "3 units"
+  category    String?           // Free text: "Beverages", "Cleaning", "Snacks"
+  notes       String?
+  priority    OrderItemPriority @default(NORMAL)
+  sortOrder   Int               @default(0)
+  status      OrderItemStatus   @default(PENDING)
+  addedById   String
+  printedAt   DateTime?
+  orderedAt   DateTime?
+  receivedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  addedBy    User           @relation("OrderItemsAdded", fields: [addedById], references: [id])
+  printItems PrintJobItem[]
+
+  @@index([storeId, status])
+  @@index([storeId, sortOrder])
+  @@index([addedById])
+  @@map("order_items")
+}
+
+model PrintJob {
+  id          String         @id @default(uuid())
+  storeId     String
+  printedById String
+  notes       String?
+  itemCount   Int
+  printedAt   DateTime       @default(now())
+
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printedBy User           @relation("PrintJobsPrinted", fields: [printedById], references: [id])
+  items     PrintJobItem[]
+
+  @@index([storeId, printedAt])
+  @@map("print_jobs")
+}
+
+model PrintJobItem {
+  id          String    @id @default(uuid())
+  printJobId  String
+  orderItemId String
+  snapshot    Json      // {name, quantity, category, notes, priority} captured at print time
+
+  printJob  PrintJob  @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@map("print_job_items")
 }

@@ -18,5 +18,10 @@ mobile/ios/
 
 # Firebase credentials — NEVER commit
 *.json.key
+*firebase-adminsdk*.json
 google-services.json
 GoogleService-Info.plist
+
+# Android signing keystore — NEVER commit
+*.jks
+*.keystore

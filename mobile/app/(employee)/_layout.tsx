@@ -5,7 +5,7 @@ import { schedulingApi, notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, CameraIcon, CalendarIcon, MessageCircleIcon,
-  ClipboardIcon, BellIcon, TrophyIcon,
+  ClipboardIcon, BellIcon, TrophyIcon, PackageIcon,
 } from '../../components/Icons';
 
 export default function EmployeeLayout() {
@@ -39,9 +39,10 @@ export default function EmployeeLayout() {
     {
       title: 'Work',
       items: [
-        { route: '/(employee)/schedule',  icon: (p) => <CalendarIcon {...p} />,      label: 'My Schedule', badge: vacancyCount },
-        { route: '/(employee)/chat',      icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
-        { route: '/(employee)/requests',  icon: (p) => <ClipboardIcon {...p} />,     label: 'Requests' },
+        { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: 'My Schedule', badge: vacancyCount },
+        { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
+        { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: 'Requests' },
+        { route: '/(employee)/order-list', icon: (p) => <PackageIcon {...p} />,       label: 'Order List' },
       ],
     },
     {
@@ -61,6 +62,7 @@ export default function EmployeeLayout() {
         <Tabs.Screen name="schedule" />
         <Tabs.Screen name="chat" />
         <Tabs.Screen name="requests" />
+        <Tabs.Screen name="order-list" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="profile" />
