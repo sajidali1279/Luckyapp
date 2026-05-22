@@ -27,23 +27,33 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Verify google-services.json exists
+      - name: Debug - list mobile directory
         run: |
-          if [ ! -f "$GITHUB_WORKSPACE/mobile/google-services.json" ]; then
-            echo "❌ google-services.json not found in repo"
-            exit 1
+          echo "=== GITHUB_WORKSPACE: $GITHUB_WORKSPACE ==="
+          echo "=== Files in mobile/ ==="
+          ls -la "$GITHUB_WORKSPACE/mobile/"
+          echo "=== google-services.json status ==="
+          if [ -f "$GITHUB_WORKSPACE/mobile/google-services.json" ]; then
+            echo "✅ EXISTS - $(wc -c < "$GITHUB_WORKSPACE/mobile/google-services.json") bytes"
+          else
+            echo "❌ NOT FOUND"
           fi
-          echo "✅ google-services.json found ($(wc -c < "$GITHUB_WORKSPACE/mobile/google-services.json") bytes)"
 
       - name: Install dependencies
         working-directory: ./mobile
         run: npm ci
+
+      - name: Debug - list mobile directory after npm ci
+        run: |
+          echo "=== After npm ci ==="
+          ls -la "$GITHUB_WORKSPACE/mobile/" | grep -E "google|json"
 
       - name: Generate native Android project
         working-directory: ./mobile
         run: npx expo prebuild --platform android --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GOOGLE_SERVICES_JSON: ${{ github.workspace }}/mobile/google-services.json
 
       - name: Make gradlew executable
         working-directory: ./mobile/android
