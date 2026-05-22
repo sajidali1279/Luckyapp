@@ -19,7 +19,7 @@ mobile/ios/
 # Firebase credentials — NEVER commit
 *.json.key
 *firebase-adminsdk*.json
-google-services.json
+# google-services.json is committed (private repo, file is embedded in APK anyway)
 GoogleService-Info.plist
 
 # Android signing keystore — NEVER commit

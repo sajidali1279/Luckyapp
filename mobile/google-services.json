@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "135459400009",
+    "project_id": "luckystop-7b792",
+    "storage_bucket": "luckystop-7b792.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135459400009:android:5b07ed0bce7efa53cf1298",
+        "android_client_info": {
+          "package_name": "com.luckystop.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8u2wBj9m-Mm890EHMWS9DejH_kUcZXGk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -27,25 +27,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Write google-services.json
-        working-directory: ./mobile
+      - name: Verify google-services.json exists
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_B64" ]; then
-            echo "❌ ERROR: GOOGLE_SERVICES_JSON_B64 secret is not set!"
-            echo "Go to repo Settings → Secrets → New repository secret"
-            echo "Name: GOOGLE_SERVICES_JSON_B64"
-            echo "Value: base64-encoded contents of mobile/google-services.json"
+          if [ ! -f "$GITHUB_WORKSPACE/mobile/google-services.json" ]; then
+            echo "❌ google-services.json not found in repo"
             exit 1
           fi
-          echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json
-          BYTES=$(wc -c < google-services.json)
-          echo "✅ google-services.json written ($BYTES bytes)"
-          if [ "$BYTES" -lt 100 ]; then
-            echo "❌ ERROR: File too small — base64 decoding probably failed"
-            exit 1
-          fi
-        env:
-          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+          echo "✅ google-services.json found ($(wc -c < "$GITHUB_WORKSPACE/mobile/google-services.json") bytes)"
 
       - name: Install dependencies
         working-directory: ./mobile
