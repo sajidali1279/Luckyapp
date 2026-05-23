@@ -250,8 +250,8 @@ export const orderListApi = {
     api.patch(`/order-lists/${listId}/reorder`, { items }),
   printList:      (listId: string, notes?: string) => api.post(`/order-lists/${listId}/print`, { notes }),
   getPrintHistory:(storeId: string, listId: string) => api.get(`/order-lists/store/${storeId}/print-history/${listId}`),
-  restoreItems:   (storeId: string, sourceListId: string, itemIds: string[]) =>
-    api.post(`/order-lists/store/${storeId}/restore-items`, { sourceListId, itemIds }),
+  restoreItems:   (storeId: string, closedListId: string, itemIds: string[]) =>
+    api.post(`/order-lists/store/${storeId}/restore-items`, { closedListId, itemIds }),
   adminGetAll:    (params?: { storeId?: string; status?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/order-lists/admin/all${q ? `?${q}` : ''}`);

@@ -231,6 +231,7 @@ export const orderListApi = {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/order-lists/admin/all${q ? `?${q}` : ''}`);
   },
+  getById:          (listId: string) => api.get(`/order-lists/${listId}`),
   getActive:        (storeId: string) => api.get(`/order-lists/store/${storeId}/active`),
   getHistory:       (storeId: string, page = 1) => api.get(`/order-lists/store/${storeId}/history?page=${page}`),
   openList:         (storeId: string) => api.post(`/order-lists/store/${storeId}`, {}),

@@ -272,20 +272,30 @@ function OrderListsTab({ canEdit }: { canEdit: boolean }) {
     }),
     refetchInterval: 30000,
   });
-  const lists: OrderList[] = data?.data?.data || [];
+  const lists: OrderList[] = data?.data?.data?.lists || [];
+
+  // Full list (with items) fetched on demand when a card is clicked
+  const { data: fullListData, isLoading: fullListLoading, refetch: refetchFull } = useQuery({
+    queryKey: ['admin-order-list-detail', selectedList?.id],
+    queryFn: () => orderListApi.getById(selectedList!.id),
+    enabled: !!selectedList,
+  });
+  const fullList: OrderList | null = fullListData?.data?.data || null;
 
   const refresh = () => { refetch(); setSelectedList(null); };
 
   if (selectedList) {
-    const fresh = lists.find(l => l.id === selectedList.id);
-    const displayed = fresh || selectedList;
-    return (
+    return fullListLoading ? (
+      <div style={s.loading}>Loading list…</div>
+    ) : fullList ? (
       <OrderListDetail
-        list={displayed}
+        list={fullList}
         canEdit={canEdit}
         onBack={() => setSelectedList(null)}
-        onListChanged={() => refetch()}
+        onListChanged={() => { refetch(); refetchFull(); }}
       />
+    ) : (
+      <div style={s.empty}>Failed to load list.</div>
     );
   }
 

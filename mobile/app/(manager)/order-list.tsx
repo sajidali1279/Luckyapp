@@ -524,11 +524,11 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
     enabled: visible && !!storeId,
   });
 
-  const lists: OrderList[] = data?.data?.data || [];
+  const lists: OrderList[] = data?.data?.data?.lists || [];
 
   const restoreMutation = useMutation({
-    mutationFn: ({ sourceListId, itemIds }: { sourceListId: string; itemIds: string[] }) =>
-      orderListApi.restoreItems(storeId, sourceListId, itemIds),
+    mutationFn: ({ closedListId, itemIds }: { closedListId: string; itemIds: string[] }) =>
+      orderListApi.restoreItems(storeId, closedListId, itemIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
       Toast.show({ type: 'success', text1: 'Items added to current list' });
@@ -542,7 +542,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
     const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
     if (ids.length === 0) { Toast.show({ type: 'info', text1: 'Select items to restore' }); return; }
     if (!activeListId) { Toast.show({ type: 'error', text1: 'Open a list first' }); return; }
-    restoreMutation.mutate({ sourceListId, itemIds: ids });
+    restoreMutation.mutate({ closedListId: sourceListId, itemIds: ids });
   };
 
   return (
