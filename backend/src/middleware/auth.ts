@@ -74,6 +74,17 @@ export async function requireStoreAccess(req: AuthRequest, res: Response, next: 
     return;
   }
 
+  // Check allStoresAccess flag — grants a STORE_MANAGER chain-wide access
+  // (used for the single manager who oversees all stores)
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { allStoresAccess: true },
+  });
+  if (dbUser?.allStoresAccess) {
+    next();
+    return;
+  }
+
   const access = await prisma.userStoreRole.findUnique({
     where: { userId_storeId: { userId: user.id, storeId } },
   });

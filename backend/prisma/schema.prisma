@@ -106,18 +106,52 @@ enum ProductRequestStatus {
   DECLINED
 }
 
-enum OrderItemStatus {
-  PENDING   // Added, not yet printed
-  PRINTED   // Included in a print job — manager has the list
-  ORDERED   // Manager confirmed ordered from supplier
-  RECEIVED  // Arrived at store
-  REMOVED   // Removed without ordering
-}
-
 enum OrderItemPriority {
   URGENT
   NORMAL
   LOW
+}
+
+enum OrderListStatus {
+  OPEN    // Active — manager is building this list
+  CLOSED  // Order placed / delivered
+}
+
+enum OrderListItemStatus {
+  PENDING   // On the list, not yet ordered
+  ORDERED   // Manager confirmed ordered from supplier
+  RECEIVED  // Arrived at store
+  REMOVED   // Removed from list (soft delete)
+}
+
+enum OrderItemSource {
+  MANAGER           // Added directly by manager
+  EMPLOYEE_REQUEST  // Accepted from an employee request
+}
+
+enum EmployeeRequestStatus {
+  PENDING   // Not yet reviewed by manager
+  REVIEWED  // Manager has processed all lines
+}
+
+enum RequestLineStatus {
+  PENDING   // Not yet reviewed
+  ACCEPTED  // Added to active order list
+  REJECTED  // Rejected with reason
+}
+
+enum RejectionReason {
+  NO_SUPPLIER   // No supplier available
+  OUT_OF_BUDGET // Out of budget
+  IN_STOCK      // Already in stock
+  DUPLICATE     // Already on the list
+  OTHER         // See rejectionNote
+}
+
+enum CategoryStatus {
+  PENDING   // Awaiting DevAdmin review
+  APPROVED  // Shown in category dropdowns
+  REJECTED  // Hidden / removed
 }
 
 enum Tier {
@@ -167,6 +201,9 @@ model User {
   qrCode          String?  @unique
   pointsBalance   Float    @default(0)
 
+  // Multi-store manager flag — when true, STORE_MANAGER bypasses per-store access check
+  allStoresAccess      Boolean  @default(false)
+
   // Relations
   storeRoles           UserStoreRole[]
   pointsEarned         PointsTransaction[]  @relation("PointsEarner")
@@ -191,8 +228,14 @@ model User {
   supportMessages      SupportMessage[]
   ratingsGiven         EmployeeRating[] @relation("RatingsGiven")
   ratingsReceived      EmployeeRating[] @relation("RatingsReceived")
-  addedOrderItems      OrderItem[]      @relation("OrderItemsAdded")
+  // Order list system
+  openedOrderLists     OrderList[]      @relation("OrderListsOpened")
+  closedOrderLists     OrderList[]      @relation("OrderListsClosed")
+  addedOrderListItems  OrderListItem[]  @relation("OrderListItemsAdded")
   managedPrintJobs     PrintJob[]       @relation("PrintJobsPrinted")
+  approvedCategories   OrderCategory[]  @relation("CategoryApprovals")
+  submittedItemRequests EmployeeItemRequest[] @relation("EmployeeRequestsSubmitted")
+  reviewedItemRequests  EmployeeItemRequest[] @relation("EmployeeRequestsReviewed")
 
   @@map("users")
 }
@@ -249,8 +292,9 @@ model Store {
   keywordMappings    StoreKeywordMapping[]
   jobApplications    JobApplication[]
   productRequests    ProductRequest[]
-  orderItems         OrderItem[]
+  orderLists         OrderList[]
   printJobs          PrintJob[]
+  employeeItemRequests EmployeeItemRequest[]
 
   @@map("stores")
 }
@@ -866,59 +910,150 @@ model TierBenefitClaim {
   @@map("tier_benefit_claims")
 }
 
-// ─── Order List (Store Inventory Request System) ──────────────────────────────
+// ─── Order List — Procurement Ticketing System ───────────────────────────────
+//
+//  OrderList       = one purchase-order session per store (OPEN until closed)
+//  OrderListItem   = line items inside a list
+//  PrintJob        = snapshot taken when manager prints the list
+//  PrintJobItem    = individual item snapshot within a print job
+//  EmployeeItemRequest = employee submits a form of needed items
+//  EmployeeRequestLine = individual item lines inside a request
+//  OrderCategory   = tracked category strings (usage-based, DevAdmin-curated)
 
-model OrderItem {
-  id          String            @id @default(uuid())
+model OrderList {
+  id          String          @id @default(uuid())
   storeId     String
+  // Auto-generated readable name: "Lucky Stop 9 — May 23, 2026"
   name        String
-  quantity    String?           // "5 cases", "2 boxes", "3 units"
-  category    String?           // Free text: "Beverages", "Cleaning", "Snacks"
-  notes       String?
-  priority    OrderItemPriority @default(NORMAL)
-  sortOrder   Int               @default(0)
-  status      OrderItemStatus   @default(PENDING)
-  addedById   String
-  printedAt   DateTime?
-  orderedAt   DateTime?
-  receivedAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  status      OrderListStatus @default(OPEN)
+  openedById  String
+  closedById  String?
+  openedAt    DateTime        @default(now())
+  closedAt    DateTime?
+  notes       String?         // Optional note when closing (e.g. "Delivery expected Friday")
 
-  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  addedBy    User           @relation("OrderItemsAdded", fields: [addedById], references: [id])
-  printItems PrintJobItem[]
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  openedBy User           @relation("OrderListsOpened", fields: [openedById], references: [id])
+  closedBy User?          @relation("OrderListsClosed", fields: [closedById], references: [id])
+  items    OrderListItem[]
+  printJobs PrintJob[]
 
   @@index([storeId, status])
-  @@index([storeId, sortOrder])
-  @@index([addedById])
-  @@map("order_items")
+  @@index([storeId, openedAt])
+  @@map("order_lists")
+}
+
+model OrderListItem {
+  id            String              @id @default(uuid())
+  listId        String
+  name          String
+  quantity      String?             // "4 gallons", "2 cases", "3 boxes"
+  category      String?             // Free text, curated via OrderCategory
+  notes         String?
+  priority      OrderItemPriority   @default(NORMAL)
+  sortOrder     Int                 @default(0)
+  status        OrderListItemStatus @default(PENDING)
+  source        OrderItemSource     @default(MANAGER)
+  requestLineId String?             @unique  // set when accepted from employee request
+  addedById     String
+  orderedAt     DateTime?
+  receivedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  list        OrderList            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  addedBy     User                 @relation("OrderListItemsAdded", fields: [addedById], references: [id])
+  requestLine EmployeeRequestLine? @relation(fields: [requestLineId], references: [id])
+  printItems  PrintJobItem[]
+
+  @@index([listId, status])
+  @@index([listId, category])
+  @@index([listId, sortOrder])
+  @@map("order_list_items")
 }
 
 model PrintJob {
-  id          String         @id @default(uuid())
-  storeId     String
+  id          String    @id @default(uuid())
+  listId      String
+  storeId     String    // denormalized for easy queries
   printedById String
   notes       String?
   itemCount   Int
-  printedAt   DateTime       @default(now())
+  printedAt   DateTime  @default(now())
 
-  store     Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  printedBy User           @relation("PrintJobsPrinted", fields: [printedById], references: [id])
+  list      OrderList    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  store     Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printedBy User         @relation("PrintJobsPrinted", fields: [printedById], references: [id])
   items     PrintJobItem[]
 
+  @@index([listId, printedAt])
   @@index([storeId, printedAt])
   @@map("print_jobs")
 }
 
 model PrintJobItem {
-  id          String    @id @default(uuid())
-  printJobId  String
-  orderItemId String
-  snapshot    Json      // {name, quantity, category, notes, priority} captured at print time
+  id         String        @id @default(uuid())
+  printJobId String
+  listItemId String
+  snapshot   Json          // {name, quantity, category, notes, priority} at print time
 
-  printJob  PrintJob  @relation(fields: [printJobId], references: [id], onDelete: Cascade)
-  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+  printJob PrintJob      @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+  listItem OrderListItem @relation(fields: [listItemId], references: [id])
 
   @@map("print_job_items")
+}
+
+model EmployeeItemRequest {
+  id            String                @id @default(uuid())
+  storeId       String
+  submittedById String
+  status        EmployeeRequestStatus @default(PENDING)
+  note          String?               // Employee's optional message
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime              @default(now())
+
+  store       Store                  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  submittedBy User                   @relation("EmployeeRequestsSubmitted", fields: [submittedById], references: [id])
+  reviewedBy  User?                  @relation("EmployeeRequestsReviewed", fields: [reviewedById], references: [id])
+  lines       EmployeeRequestLine[]
+
+  @@index([storeId, status])
+  @@index([submittedById])
+  @@map("employee_item_requests")
+}
+
+model EmployeeRequestLine {
+  id              String           @id @default(uuid())
+  requestId       String
+  name            String
+  quantity        String?
+  category        String?
+  notes           String?
+  status          RequestLineStatus @default(PENDING)
+  rejectionReason RejectionReason?  // predefined reason
+  rejectionNote   String?           // free-text explanation
+  reviewedAt      DateTime?
+
+  request  EmployeeItemRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  listItem OrderListItem?      // populated via OrderListItem.requestLineId when accepted
+
+  @@map("employee_request_lines")
+}
+
+model OrderCategory {
+  id           String         @id @default(uuid())
+  name         String
+  storeId      String?        // null = global / chain-wide
+  usageCount   Int            @default(1)
+  status       CategoryStatus @default(PENDING)
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+
+  approvedBy User? @relation("CategoryApprovals", fields: [approvedById], references: [id])
+
+  @@unique([name, storeId])
+  @@index([status, usageCount])
+  @@map("order_categories")
 }

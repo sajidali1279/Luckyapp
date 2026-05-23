@@ -39,9 +39,23 @@ import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.c
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest } from '../controllers/productRequest.controller';
 import {
-  getOrderSummary, getStoreItems, addItem, updateItem, removeItem,
-  reorderItems, printItems, markOrdered, markReceived, getPrintHistory, getPrintJob,
+  getActiveList, getListHistory, getListById, openList, closeList,
+  addItem, updateItem, removeItem, updateItemStatus, reorderItems,
+  printList, getPrintHistory, restoreItems, getItemSuggestions, adminGetAllLists,
 } from '../controllers/orderList.controller';
+import {
+  submitRequest as submitItemRequest,
+  getStoreRequests as getStoreItemRequests,
+  getMyRequests as getMyItemRequests,
+  getRejectedLines,
+  reviewRequest,
+} from '../controllers/employeeRequest.controller';
+import {
+  getCategories as getOrderCategories,
+  adminGetCategories,
+  adminUpdateCategory,
+  adminDeleteCategory,
+} from '../controllers/orderCategory.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -92,6 +106,7 @@ import {
   getAllStoresBilling,
   getStoreById,
   getStores,
+  getAccessibleStores,
   updateStore,
   updateGasPrices,
   getAllGasPrices,
@@ -191,6 +206,7 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
+router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
 router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
@@ -328,17 +344,34 @@ router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), g
 router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 
-// ─── Order List ───────────────────────────────────────────────────────────────
-router.get('/order-list/summary',                       authenticate, requireRole(Role.STORE_MANAGER), getOrderSummary);      // Manager+: all stores summary
-router.get('/order-list/store/:storeId/print-history',  authenticate, requireRole(Role.EMPLOYEE),      getPrintHistory);      // Employee+: last 30 print jobs
-router.get('/order-list/store/:storeId',                authenticate, requireRole(Role.EMPLOYEE),      getStoreItems);        // Employee+: items for a store
-router.get('/order-list/print-jobs/:jobId',             authenticate, requireRole(Role.EMPLOYEE),      getPrintJob);          // Employee+: single job detail
-router.post('/order-list/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE),      addItem);              // Employee+: add item to list
-router.post('/order-list/store/:storeId/print',         authenticate, requireRole(Role.STORE_MANAGER), printItems);           // Manager+: print pending items
-router.post('/order-list/items/mark-ordered',           authenticate, requireRole(Role.STORE_MANAGER), markOrdered);          // Manager+: mark PRINTED → ORDERED
-router.post('/order-list/items/mark-received',          authenticate, requireRole(Role.STORE_MANAGER), markReceived);         // Manager+: mark ORDERED → RECEIVED
-router.patch('/order-list/store/:storeId/reorder',      authenticate, requireRole(Role.STORE_MANAGER), reorderItems);         // Manager+: drag reorder
-router.patch('/order-list/items/:itemId',               authenticate, requireRole(Role.EMPLOYEE),      updateItem);           // Employee+ (own PENDING only for non-manager)
-router.delete('/order-list/items/:itemId',              authenticate, requireRole(Role.EMPLOYEE),      removeItem);           // Employee+ (own PENDING only for non-manager)
+// ─── Order Lists (Procurement Ticketing) ─────────────────────────────────────
+router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getItemSuggestions);   // Autocomplete from history
+router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllLists);                          // All lists across stores
+router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
+router.get('/order-lists/store/:storeId/history',               authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getListHistory);         // Closed lists (paginated)
+router.get('/order-lists/store/:storeId/print-history/:listId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getPrintHistory);        // Print jobs for a list
+router.get('/order-lists/:listId',                              authenticate, requireRole(Role.STORE_MANAGER), getListById);                                // Single list detail
+router.post('/order-lists/store/:storeId',                      authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, openList);               // Open a new list for store
+router.post('/order-lists/store/:storeId/restore-items',        authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, restoreItems);            // Add undelivered items to active list
+router.post('/order-lists/:listId/items',                       authenticate, requireRole(Role.STORE_MANAGER), addItem);                                    // Add item to a list
+router.post('/order-lists/:listId/print',                       authenticate, requireRole(Role.STORE_MANAGER), printList);                                  // Print/snapshot current list
+router.patch('/order-lists/:listId/close',                      authenticate, requireRole(Role.STORE_MANAGER), closeList);                                  // Close list (order placed/delivered)
+router.patch('/order-lists/:listId/reorder',                    authenticate, requireRole(Role.STORE_MANAGER), reorderItems);                               // Drag reorder items
+router.patch('/order-lists/items/:itemId',                      authenticate, requireRole(Role.STORE_MANAGER), updateItem);                                 // Edit item (name/qty/category/notes)
+router.patch('/order-lists/items/:itemId/status',               authenticate, requireRole(Role.STORE_MANAGER), updateItemStatus);                           // Mark ORDERED / RECEIVED
+router.delete('/order-lists/items/:itemId',                     authenticate, requireRole(Role.STORE_MANAGER), removeItem);                                 // Soft-delete item (status → REMOVED)
+
+// ─── Employee Item Requests ───────────────────────────────────────────────────
+router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);       // Employee submits multi-item form
+router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);        // Employee views own requests
+router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);  // Manager views store requests
+router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);       // Rejection log for a store
+router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);            // Accept/reject each line → adds to list
+
+// ─── Order Categories ─────────────────────────────────────────────────────────
+router.get('/order-categories',         authenticate, requireRole(Role.EMPLOYEE),  getOrderCategories);    // Approved categories for dropdown
+router.get('/order-categories/admin',   authenticate, requireRole(Role.DEV_ADMIN), adminGetCategories);    // All categories with status filter
+router.patch('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN), adminUpdateCategory);   // Approve / modify / reject
+router.delete('/order-categories/:id',  authenticate, requireRole(Role.DEV_ADMIN), adminDeleteCategory);   // Hard delete
 
 export default router;

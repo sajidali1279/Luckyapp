@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { BillingType, ProductCategory, Tier } from '@prisma/client';
+import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
+import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
@@ -36,6 +37,35 @@ export async function getStores(_req: AuthRequest, res: Response) {
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: stores });
+}
+
+// STORE_MANAGER+ — returns stores accessible to the caller
+// SuperAdmin/DevAdmin → all stores; allStoresAccess manager → all stores; regular manager → their stores
+export async function getAccessibleStores(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  const storeSelect = {
+    id: true, name: true, address: true, city: true, isActive: true,
+    gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+  } as const;
+
+  if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: storeSelect, orderBy: { name: 'asc' } });
+    res.json({ success: true, data: stores });
+    return;
+  }
+
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } });
+  if (dbUser?.allStoresAccess) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: storeSelect, orderBy: { name: 'asc' } });
+    res.json({ success: true, data: stores });
+    return;
+  }
+
+  const assignments = await prisma.userStoreRole.findMany({
+    where: { userId: user.id },
+    include: { store: { select: storeSelect } },
+  });
+  res.json({ success: true, data: assignments.map(a => a.store) });
 }
 
 // DevAdmin only — update store details (name, address, lat/lng, etc.)

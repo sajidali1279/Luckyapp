@@ -151,9 +151,10 @@ export const notificationsApi = {
 };
 
 export const storesApi = {
-  getGasPrices: () => api.get('/stores/gas-prices'),
-  getTierRates: () => api.get('/billing/tier-rates'),
+  getGasPrices:   () => api.get('/stores/gas-prices'),
+  getTierRates:   () => api.get('/billing/tier-rates'),
   getCategoryRates: () => api.get('/billing/category-rates'),
+  accessible:     () => api.get('/stores/accessible'),  // STORE_MANAGER+: own stores or all if allStoresAccess
 };
 
 export const welcomeBonusApi = {
@@ -233,29 +234,46 @@ export const ratingsApi = {
 };
 
 export const orderListApi = {
-  // Manager+
-  getSummary: () => api.get('/order-list/summary'),
-  printItems: (storeId: string, notes?: string) =>
-    api.post(`/order-list/store/${storeId}/print`, { notes }),
-  markOrdered: (itemIds: string[]) =>
-    api.post('/order-list/items/mark-ordered', { itemIds }),
-  markReceived: (itemIds: string[]) =>
-    api.post('/order-list/items/mark-received', { itemIds }),
-  reorderItems: (storeId: string, items: { id: string; sortOrder: number }[]) =>
-    api.patch(`/order-list/store/${storeId}/reorder`, { items }),
-  // Employee+
-  getStoreItems: (storeId: string, status?: string) =>
-    api.get(`/order-list/store/${storeId}${status ? `?status=${status}` : ''}`),
-  getPrintHistory: (storeId: string) =>
-    api.get(`/order-list/store/${storeId}/print-history`),
-  getPrintJob: (jobId: string) =>
-    api.get(`/order-list/print-jobs/${jobId}`),
-  addItem: (storeId: string, data: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
-    api.post(`/order-list/store/${storeId}`, data),
-  updateItem: (itemId: string, data: { name?: string; quantity?: string | null; category?: string | null; notes?: string | null; priority?: string }) =>
-    api.patch(`/order-list/items/${itemId}`, data),
-  removeItem: (itemId: string) =>
-    api.delete(`/order-list/items/${itemId}`),
+  getSuggestions: (q: string) => api.get(`/order-lists/suggestions?q=${encodeURIComponent(q)}`),
+  getActive:      (storeId: string) => api.get(`/order-lists/store/${storeId}/active`),
+  getHistory:     (storeId: string, page = 1) => api.get(`/order-lists/store/${storeId}/history?page=${page}`),
+  getById:        (listId: string) => api.get(`/order-lists/${listId}`),
+  openList:       (storeId: string) => api.post(`/order-lists/store/${storeId}`, {}),
+  closeList:      (listId: string, notes?: string) => api.patch(`/order-lists/${listId}/close`, { notes }),
+  addItem:        (listId: string, data: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
+    api.post(`/order-lists/${listId}/items`, data),
+  updateItem:     (itemId: string, data: { name?: string; quantity?: string | null; category?: string | null; notes?: string | null; priority?: string }) =>
+    api.patch(`/order-lists/items/${itemId}`, data),
+  removeItem:     (itemId: string) => api.delete(`/order-lists/items/${itemId}`),
+  updateItemStatus: (itemId: string, status: string) => api.patch(`/order-lists/items/${itemId}/status`, { status }),
+  reorderItems:   (listId: string, items: { id: string; sortOrder: number }[]) =>
+    api.patch(`/order-lists/${listId}/reorder`, { items }),
+  printList:      (listId: string, notes?: string) => api.post(`/order-lists/${listId}/print`, { notes }),
+  getPrintHistory:(storeId: string, listId: string) => api.get(`/order-lists/store/${storeId}/print-history/${listId}`),
+  restoreItems:   (storeId: string, sourceListId: string, itemIds: string[]) =>
+    api.post(`/order-lists/store/${storeId}/restore-items`, { sourceListId, itemIds }),
+  adminGetAll:    (params?: { storeId?: string; status?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+    return api.get(`/order-lists/admin/all${q ? `?${q}` : ''}`);
+  },
+};
+
+export const employeeRequestApi = {
+  submit: (data: { note?: string; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
+    api.post('/employee-requests', data),
+  mine: () => api.get('/employee-requests/mine'),
+  forStore: (storeId: string, status?: string) =>
+    api.get(`/employee-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
+  rejectedLines: (storeId: string) => api.get(`/employee-requests/store/${storeId}/rejected`),
+  review: (requestId: string, data: { listId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
+    api.patch(`/employee-requests/${requestId}/review`, data),
+};
+
+export const orderCategoriesApi = {
+  getApproved: () => api.get('/order-categories'),
+  adminGetAll: (status?: string) => api.get(`/order-categories/admin${status ? `?status=${status}` : ''}`),
+  adminUpdate: (id: string, data: { name?: string; status?: 'APPROVED' | 'REJECTED' }) => api.patch(`/order-categories/${id}`, data),
+  adminDelete: (id: string) => api.delete(`/order-categories/${id}`),
 };
 
 export const managerApi = {

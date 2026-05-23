@@ -227,25 +227,24 @@ export const storeRequestApi = {
 };
 
 export const orderListApi = {
-  getSummary: () => api.get('/order-list/summary'),
-  getStoreItems: (storeId: string, status?: string) =>
-    api.get(`/order-list/store/${storeId}${status ? `?status=${status}` : ''}`),
-  getPrintHistory: (storeId: string) =>
-    api.get(`/order-list/store/${storeId}/print-history`),
-  addItem: (storeId: string, data: object) =>
-    api.post(`/order-list/store/${storeId}`, data),
-  updateItem: (itemId: string, data: object) =>
-    api.patch(`/order-list/items/${itemId}`, data),
-  removeItem: (itemId: string) =>
-    api.delete(`/order-list/items/${itemId}`),
-  reorderItems: (storeId: string, items: { id: string; sortOrder: number }[]) =>
-    api.patch(`/order-list/store/${storeId}/reorder`, { items }),
-  printItems: (storeId: string, notes?: string) =>
-    api.post(`/order-list/store/${storeId}/print`, { notes }),
-  markOrdered: (itemIds: string[]) =>
-    api.post('/order-list/items/mark-ordered', { itemIds }),
-  markReceived: (itemIds: string[]) =>
-    api.post('/order-list/items/mark-received', { itemIds }),
+  adminGetAll:      (params?: { storeId?: string; status?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+    return api.get(`/order-lists/admin/all${q ? `?${q}` : ''}`);
+  },
+  getActive:        (storeId: string) => api.get(`/order-lists/store/${storeId}/active`),
+  getHistory:       (storeId: string, page = 1) => api.get(`/order-lists/store/${storeId}/history?page=${page}`),
+  openList:         (storeId: string) => api.post(`/order-lists/store/${storeId}`, {}),
+  closeList:        (listId: string, notes?: string) => api.patch(`/order-lists/${listId}/close`, { notes }),
+  addItem:          (listId: string, data: object) => api.post(`/order-lists/${listId}/items`, data),
+  updateItem:       (itemId: string, data: object) => api.patch(`/order-lists/items/${itemId}`, data),
+  removeItem:       (itemId: string) => api.delete(`/order-lists/items/${itemId}`),
+  updateItemStatus: (itemId: string, status: string) => api.patch(`/order-lists/items/${itemId}/status`, { status }),
+};
+
+export const orderCategoriesApi = {
+  adminGetAll:    (status?: string) => api.get(`/order-categories/admin${status ? `?status=${status}` : ''}`),
+  adminUpdate:    (id: string, data: { name?: string; status?: string }) => api.patch(`/order-categories/${id}`, data),
+  adminDelete:    (id: string) => api.delete(`/order-categories/${id}`),
 };
 
 export default api;

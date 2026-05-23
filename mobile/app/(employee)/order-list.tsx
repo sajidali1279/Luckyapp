@@ -1,630 +1,488 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, RefreshControl, StatusBar, Modal, Alert,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
+  RefreshControl, StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { orderListApi } from '../../services/api';
+import { employeeRequestApi, orderCategoriesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  PackageIcon, PlusIcon, EditIcon, Trash2Icon, XIcon,
-  AlertTriangleIcon, CheckCircleIcon, ClipboardIcon,
+  ClipboardIcon, PlusIcon, Trash2Icon, CheckCircleIcon,
+  XIcon, AlertTriangleIcon, PackageIcon,
 } from '../../components/Icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type Priority = 'URGENT' | 'NORMAL' | 'LOW';
-type Status   = 'PENDING' | 'PRINTED' | 'ORDERED' | 'RECEIVED' | 'REMOVED';
 
-interface OrderItem {
+interface RequestLine {
   id: string;
   name: string;
   quantity?: string;
   category?: string;
   notes?: string;
-  priority: Priority;
-  status: Status;
-  sortOrder: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  rejectionReason?: string;
+  rejectionNote?: string;
+}
+
+interface MyRequest {
+  id: string;
+  status: 'PENDING' | 'REVIEWED';
+  note?: string;
   createdAt: string;
-  addedById: string;
-  addedBy: { id: string; name: string; role: string };
+  lines: RequestLine[];
+  reviewedBy?: { id: string; name: string };
+  reviewedAt?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const PRIORITY_CONFIG: Record<Priority, { label: string; bg: string; text: string; border: string }> = {
-  URGENT: { label: 'Urgent',  bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
-  NORMAL: { label: 'Normal',  bg: '#F3F4F6', text: '#4B5563', border: '#E5E7EB' },
-  LOW:    { label: 'Low',     bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
+
+const REJECTION_LABELS: Record<string, string> = {
+  NO_SUPPLIER:   'No supplier available',
+  OUT_OF_BUDGET: 'Out of budget',
+  IN_STOCK:      'Already in stock',
+  DUPLICATE:     'Duplicate item',
+  OTHER:         'Other reason',
 };
 
-const STATUS_CONFIG: Record<Status, { label: string; bg: string; text: string }> = {
-  PENDING:  { label: 'Pending',  bg: '#FEF3C7', text: '#D97706' },
-  PRINTED:  { label: 'Printed',  bg: '#EEF2FF', text: '#6366F1' },
-  ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669' },
-  RECEIVED: { label: 'Received', bg: '#D1FAE5', text: '#047857' },
-  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#9CA3AF' },
-};
-
-const CATEGORIES = [
-  '', 'Groceries', 'Frozen Foods', 'Fresh Foods', 'Hot Foods',
-  'Gas', 'Diesel', 'Tobacco/Vapes', 'Supplies', 'Other',
-];
-
-const PRIORITIES: Priority[] = ['URGENT', 'NORMAL', 'LOW'];
-const VISIBLE_STATUSES: Status[] = ['PENDING', 'PRINTED', 'ORDERED', 'RECEIVED'];
-
-// ─── Item Form Modal ──────────────────────────────────────────────────────────
-interface ItemFormProps {
-  visible: boolean;
-  title: string;
-  initialValues?: { name: string; quantity: string; category: string; notes: string; priority: Priority };
-  loading: boolean;
-  onSubmit: (data: { name: string; quantity: string; category: string; notes: string; priority: Priority }) => void;
-  onClose: () => void;
+function createBlankLine() {
+  return { key: String(Date.now() + Math.random()), name: '', quantity: '', category: '', notes: '' };
 }
 
-function ItemFormModal({ visible, title, initialValues, loading, onSubmit, onClose }: ItemFormProps) {
-  const [name,     setName]     = useState(initialValues?.name     || '');
-  const [quantity, setQuantity] = useState(initialValues?.quantity || '');
-  const [category, setCategory] = useState(initialValues?.category || '');
-  const [notes,    setNotes]    = useState(initialValues?.notes    || '');
-  const [priority, setPriority] = useState<Priority>(initialValues?.priority || 'NORMAL');
+type FormLine = ReturnType<typeof createBlankLine>;
 
-  // Reset when modal opens with new data
-  React.useEffect(() => {
-    if (visible) {
-      setName(initialValues?.name || '');
-      setQuantity(initialValues?.quantity || '');
-      setCategory(initialValues?.category || '');
-      setNotes(initialValues?.notes || '');
-      setPriority(initialValues?.priority || 'NORMAL');
+// ─── Request Form ─────────────────────────────────────────────────────────────
+
+interface RequestFormProps {
+  categories: string[];
+  onSubmitted: () => void;
+}
+
+function RequestForm({ categories, onSubmitted }: RequestFormProps) {
+  const [lines, setLines] = useState<FormLine[]>([createBlankLine()]);
+  const [note, setNote]   = useState('');
+
+  const submitMutation = useMutation({
+    mutationFn: () => employeeRequestApi.submit({
+      note: note.trim() || undefined,
+      lines: lines
+        .filter(l => l.name.trim())
+        .map(l => ({
+          name: l.name.trim(),
+          quantity: l.quantity.trim() || undefined,
+          category: l.category.trim() || undefined,
+          notes: l.notes.trim() || undefined,
+        })),
+    }),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Request submitted', text2: 'Your manager will review it soon' });
+      setLines([createBlankLine()]);
+      setNote('');
+      onSubmitted();
+    },
+    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit request' }),
+  });
+
+  const setLine = (key: string, field: keyof FormLine, value: string) => {
+    setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
+  };
+
+  const removeLine = (key: string) => {
+    if (lines.length === 1) {
+      setLines([createBlankLine()]);
+    } else {
+      setLines(prev => prev.filter(l => l.key !== key));
     }
-  }, [visible, initialValues?.name]);
+  };
 
   const handleSubmit = () => {
-    if (!name.trim()) {
-      Toast.show({ type: 'error', text1: 'Item name is required' });
+    const valid = lines.filter(l => l.name.trim());
+    if (valid.length === 0) {
+      Toast.show({ type: 'error', text1: 'Add at least one item name' });
       return;
     }
-    onSubmit({ name: name.trim(), quantity: quantity.trim(), category: category.trim(), notes: notes.trim(), priority });
+    submitMutation.mutate();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.modalSheet}>
-          {/* Handle */}
-          <View style={styles.sheetHandle} />
+        {/* Header info */}
+        <View style={s.formInfo}>
+          <PackageIcon size={20} color={COLORS.secondary} strokeWidth={2} />
+          <Text style={s.formInfoText}>
+            List what the store needs. Your manager will review and add approved items to the order.
+          </Text>
+        </View>
 
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <XIcon size={20} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Priority */}
-            <Text style={styles.fieldLabel}>Priority</Text>
-            <View style={styles.priorityRow}>
-              {PRIORITIES.map(p => {
-                const cfg = PRIORITY_CONFIG[p];
-                const selected = priority === p;
-                return (
-                  <TouchableOpacity
-                    key={p}
-                    onPress={() => setPriority(p)}
-                    style={[
-                      styles.priorityChip,
-                      { borderColor: cfg.border },
-                      selected && { backgroundColor: cfg.bg, borderColor: cfg.text },
-                    ]}
-                  >
-                    {p === 'URGENT' && <AlertTriangleIcon size={13} color={selected ? cfg.text : '#9CA3AF'} strokeWidth={2} />}
-                    <Text style={[styles.priorityChipText, { color: selected ? cfg.text : '#9CA3AF' }]}>
-                      {cfg.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+        {/* Item lines */}
+        {lines.map((line, idx) => (
+          <View key={line.key} style={s.lineCard}>
+            <View style={s.lineHeader}>
+              <View style={s.lineNum}>
+                <Text style={s.lineNumText}>{idx + 1}</Text>
+              </View>
+              <Text style={s.lineTitle}>Item {idx + 1}</Text>
+              <TouchableOpacity style={s.removeLineBtn} onPress={() => removeLine(line.key)}>
+                <XIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+              </TouchableOpacity>
             </View>
 
-            {/* Name */}
-            <Text style={styles.fieldLabel}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <Text style={s.fieldLabel}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
             <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
+              style={s.input}
+              value={line.name}
+              onChangeText={v => setLine(line.key, 'name', v)}
               placeholder="e.g. Whole Milk 2%"
               placeholderTextColor={COLORS.textMuted}
               maxLength={120}
-              returnKeyType="next"
             />
 
-            {/* Quantity */}
-            <Text style={styles.fieldLabel}>Quantity / Amount</Text>
+            <Text style={s.fieldLabel}>Quantity / Amount</Text>
             <TextInput
-              style={styles.input}
-              value={quantity}
-              onChangeText={setQuantity}
-              placeholder="e.g. 4 gallons, 2 cases"
+              style={s.input}
+              value={line.quantity}
+              onChangeText={v => setLine(line.key, 'quantity', v)}
+              placeholder="e.g. 2 cases, 4 gallons"
               placeholderTextColor={COLORS.textMuted}
               maxLength={60}
-              returnKeyType="next"
             />
 
-            {/* Category */}
-            <Text style={styles.fieldLabel}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              {CATEGORIES.map(c => (
-                <TouchableOpacity
-                  key={c || '__none__'}
-                  onPress={() => setCategory(c)}
-                  style={[
-                    styles.categoryChip,
-                    category === c && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-                  ]}
-                >
-                  <Text style={[styles.categoryChipText, category === c && { color: '#fff' }]}>
-                    {c || 'None'}
-                  </Text>
+            <Text style={s.fieldLabel}>Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              {['', ...categories].map(c => (
+                <TouchableOpacity key={c || '__none__'} onPress={() => setLine(line.key, 'category', c)}
+                  style={[s.catChip, line.category === c && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
+                  <Text style={[s.catChipText, line.category === c && { color: '#fff' }]}>{c || 'None'}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {/* Notes */}
-            <Text style={styles.fieldLabel}>Notes</Text>
+            <Text style={s.fieldLabel}>Notes</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
-              value={notes}
-              onChangeText={setNotes}
+              style={[s.input, s.textArea]}
+              value={line.notes}
+              onChangeText={v => setLine(line.key, 'notes', v)}
               placeholder="Any specific details..."
               placeholderTextColor={COLORS.textMuted}
               maxLength={300}
               multiline
-              numberOfLines={3}
+              numberOfLines={2}
             />
+          </View>
+        ))}
 
-            {/* Submit */}
-            <TouchableOpacity
-              style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.submitBtnText}>{title}</Text>
-              }
-            </TouchableOpacity>
-            <View style={{ height: 24 }} />
-          </ScrollView>
+        {/* Add line button */}
+        {lines.length < 30 && (
+          <TouchableOpacity style={s.addLineBtn} onPress={() => setLines(prev => [...prev, createBlankLine()])}>
+            <PlusIcon size={18} color={COLORS.secondary} strokeWidth={2.5} />
+            <Text style={s.addLineBtnText}>Add Another Item</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Overall note */}
+        <View style={s.lineCard}>
+          <Text style={[s.fieldLabel, { marginTop: 0 }]}>Overall Note (optional)</Text>
+          <TextInput
+            style={[s.input, s.textArea]}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Any context for the manager..."
+            placeholderTextColor={COLORS.textMuted}
+            maxLength={300}
+            multiline
+            numberOfLines={3}
+          />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={[s.submitBtn, submitMutation.isPending && { opacity: 0.6 }]}
+          onPress={handleSubmit}
+          disabled={submitMutation.isPending}
+        >
+          {submitMutation.isPending
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={s.submitBtnText}>Submit Request ({lines.filter(l => l.name.trim()).length} item{lines.filter(l => l.name.trim()).length !== 1 ? 's' : ''})</Text>
+          }
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-// ─── Item Card ────────────────────────────────────────────────────────────────
-interface ItemCardProps {
-  item: OrderItem;
-  isOwn: boolean;
-  onEdit: (item: OrderItem) => void;
-  onDelete: (item: OrderItem) => void;
-}
+// ─── My Requests ──────────────────────────────────────────────────────────────
 
-function ItemCard({ item, isOwn, onEdit, onDelete }: ItemCardProps) {
-  const pc = PRIORITY_CONFIG[item.priority];
-  const sc = STATUS_CONFIG[item.status];
-  const canEdit = isOwn && item.status === 'PENDING';
+function MyRequests() {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['my-item-requests'],
+    queryFn: employeeRequestApi.mine,
+    refetchInterval: 60000,
+  });
+
+  const requests: MyRequest[] = data?.data?.data || [];
+
+  if (isLoading) {
+    return <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>;
+  }
+
+  if (requests.length === 0) {
+    return (
+      <View style={s.center}>
+        <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
+        <Text style={s.emptyTitle}>No requests yet</Text>
+        <Text style={s.emptyText}>Submit your first request using the "New Request" tab.</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.itemCard, item.priority === 'URGENT' && styles.urgentCard]}>
-      {/* Priority indicator line */}
-      <View style={[styles.priorityBar, { backgroundColor: pc.text }]} />
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
+    >
+      {requests.map(req => {
+        const isExpanded  = expandedId === req.id;
+        const isPending   = req.status === 'PENDING';
+        const accepted    = req.lines.filter(l => l.status === 'ACCEPTED').length;
+        const rejected    = req.lines.filter(l => l.status === 'REJECTED').length;
+        const stillPending = req.lines.filter(l => l.status === 'PENDING').length;
 
-      <View style={styles.itemBody}>
-        {/* Top row: priority + status badges */}
-        <View style={styles.itemBadgeRow}>
-          <View style={[styles.badge, { backgroundColor: pc.bg, borderColor: pc.border }]}>
-            {item.priority === 'URGENT' && (
-              <AlertTriangleIcon size={11} color={pc.text} strokeWidth={2.5} />
+        return (
+          <View key={req.id} style={s.reqCard}>
+            <TouchableOpacity style={s.reqCardHeader} onPress={() => setExpandedId(isExpanded ? null : req.id)}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={[s.statusDot, { backgroundColor: isPending ? '#F59E0B' : '#22C55E' }]} />
+                  <Text style={s.reqCardDate}>
+                    {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                  <View style={[s.statusBadge, isPending ? s.statusBadgePending : s.statusBadgeDone]}>
+                    <Text style={[s.statusBadgeText, isPending ? { color: '#D97706' } : { color: '#16A34A' }]}>
+                      {isPending ? 'Pending' : 'Reviewed'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={s.reqCardMeta}>
+                  {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
+                  {!isPending && ` · ${accepted} accepted, ${rejected} rejected`}
+                  {isPending && stillPending > 0 && ` · Waiting for review`}
+                </Text>
+                {req.reviewedBy && <Text style={s.reqCardMeta}>Reviewed by {req.reviewedBy.name}</Text>}
+              </View>
+              <Text style={{ fontSize: 18, color: COLORS.textMuted }}>{isExpanded ? '−' : '+'}</Text>
+            </TouchableOpacity>
+
+            {isExpanded && (
+              <View style={s.reqLines}>
+                {req.note && (
+                  <View style={s.reqNoteBox}>
+                    <Text style={s.reqNoteLabel}>Your note</Text>
+                    <Text style={s.reqNoteText}>{req.note}</Text>
+                  </View>
+                )}
+                {req.lines.map(line => (
+                  <View key={line.id} style={[s.lineItem, line.status === 'ACCEPTED' && s.lineItemAccepted, line.status === 'REJECTED' && s.lineItemRejected]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.lineItemName}>{line.name}</Text>
+                      {line.quantity && <Text style={s.lineItemMeta}>Qty: {line.quantity}</Text>}
+                      {line.category && <Text style={s.lineItemMeta}>Cat: {line.category}</Text>}
+                      {line.notes && <Text style={s.lineItemNote}>{line.notes}</Text>}
+                      {line.status === 'REJECTED' && line.rejectionReason && (
+                        <Text style={s.rejectionText}>
+                          Reason: {REJECTION_LABELS[line.rejectionReason] || line.rejectionReason}
+                          {line.rejectionNote ? ` — ${line.rejectionNote}` : ''}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[s.lineStatus,
+                      line.status === 'ACCEPTED' && { backgroundColor: '#DCFCE7' },
+                      line.status === 'REJECTED' && { backgroundColor: '#FEE2E2' },
+                      line.status === 'PENDING'  && { backgroundColor: '#FEF3C7' },
+                    ]}>
+                      {line.status === 'ACCEPTED' && <CheckCircleIcon size={14} color="#16A34A" strokeWidth={2.5} />}
+                      {line.status === 'REJECTED' && <XIcon size={14} color="#DC2626" strokeWidth={2.5} />}
+                      {line.status === 'PENDING'  && <AlertTriangleIcon size={14} color="#D97706" strokeWidth={2.5} />}
+                      <Text style={[s.lineStatusText,
+                        line.status === 'ACCEPTED' && { color: '#16A34A' },
+                        line.status === 'REJECTED' && { color: '#DC2626' },
+                        line.status === 'PENDING'  && { color: '#D97706' },
+                      ]}>
+                        {line.status === 'ACCEPTED' ? 'Added' : line.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             )}
-            <Text style={[styles.badgeText, { color: pc.text }]}>{pc.label}</Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: sc.bg }]}>
-            {item.status === 'RECEIVED' && <CheckCircleIcon size={11} color={sc.text} strokeWidth={2.5} />}
-            <Text style={[styles.badgeText, { color: sc.text }]}>{sc.label}</Text>
-          </View>
-          <View style={{ flex: 1 }} />
-          {/* Actions for own PENDING items */}
-          {canEdit && (
-            <View style={styles.itemActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-                <EditIcon size={15} color={COLORS.secondary} strokeWidth={2} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => onDelete(item)}>
-                <Trash2Icon size={15} color={COLORS.primary} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Name */}
-        <Text style={styles.itemName}>{item.name}</Text>
-
-        {/* Meta row */}
-        <View style={styles.itemMeta}>
-          {item.quantity  && <Text style={styles.metaChip}>📦 {item.quantity}</Text>}
-          {item.category  && <Text style={styles.metaChip}>🏷 {item.category}</Text>}
-        </View>
-
-        {/* Notes */}
-        {item.notes && <Text style={styles.itemNotes}>{item.notes}</Text>}
-
-        {/* Footer */}
-        <Text style={styles.itemFooter}>
-          Added by {isOwn ? 'you' : item.addedBy?.name}
-          {item.status === 'RECEIVED' ? ' · ✓ Received' : ''}
-        </Text>
-      </View>
-    </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function EmployeeOrderListScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const storeId = user?.storeIds?.[0];
-  const userId  = user?.id;
+  const [activeTab, setActiveTab] = useState<'new' | 'mine'>('new');
 
-  const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
-  const [showAdd,   setShowAdd]   = useState(false);
-  const [editItem,  setEditItem]  = useState<OrderItem | null>(null);
-
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['order-list', storeId],
-    queryFn: () => orderListApi.getStoreItems(storeId!),
-    enabled: !!storeId,
-    refetchInterval: 30000,
+  const { data: catData } = useQuery({
+    queryKey: ['order-categories'],
+    queryFn: orderCategoriesApi.getApproved,
+    staleTime: 10 * 60 * 1000,
   });
+  const categories: string[] = catData?.data?.data || [];
 
-  const allItems: OrderItem[] = useMemo(() => {
-    const raw: OrderItem[] = data?.data?.data || [];
-    return raw.filter(i => VISIBLE_STATUSES.includes(i.status));
-  }, [data]);
-
-  const myItems   = useMemo(() => allItems.filter(i => i.addedById === userId), [allItems, userId]);
-  const displayed = activeTab === 'mine' ? myItems : allItems;
-
-  // Sort: URGENT first → NORMAL → LOW, then by sortOrder/createdAt
-  const sorted = useMemo(() => {
-    const order = { URGENT: 0, NORMAL: 1, LOW: 2 };
-    return [...displayed].sort((a, b) => {
-      if (order[a.priority] !== order[b.priority]) return order[a.priority] - order[b.priority];
-      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
-  }, [displayed]);
-
-  // ── Mutations ─────────────────────────────────────────────────────────────
-  const addMutation = useMutation({
-    mutationFn: (d: Parameters<typeof orderListApi.addItem>[1]) =>
-      orderListApi.addItem(storeId!, d),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['order-list', storeId] });
-      Toast.show({ type: 'success', text1: 'Item added to order list' });
-      setShowAdd(false);
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof orderListApi.updateItem>[1] }) =>
-      orderListApi.updateItem(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['order-list', storeId] });
-      Toast.show({ type: 'success', text1: 'Item updated' });
-      setEditItem(null);
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (itemId: string) => orderListApi.removeItem(itemId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['order-list', storeId] });
-      Toast.show({ type: 'success', text1: 'Item removed' });
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to remove item' }),
-  });
-
-  const handleDelete = (item: OrderItem) => {
-    Alert.alert(
-      'Remove Item',
-      `Remove "${item.name}" from the order list?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => removeMutation.mutate(item.id) },
-      ]
-    );
-  };
-
-  if (!storeId) {
+  if (!user?.storeIds?.[0]) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
+      <SafeAreaView style={s.container}>
+        <View style={s.center}>
           <ClipboardIcon size={48} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={styles.emptyTitle}>No Store Assigned</Text>
-          <Text style={styles.emptyText}>Contact your manager to be assigned to a store.</Text>
+          <Text style={s.emptyTitle}>No Store Assigned</Text>
+          <Text style={s.emptyText}>Contact your manager to be assigned to a store.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+      <View style={s.header}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PackageIcon size={20} color="#fff" strokeWidth={2} />
-          <Text style={styles.headerTitle}>Order List</Text>
+          <Text style={s.headerTitle}>Request Items</Text>
         </View>
-        <Text style={styles.headerSub}>Your store's needs</Text>
+        <Text style={s.headerSub}>Ask your manager to order something</Text>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
-        {(['mine', 'all'] as const).map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'mine' ? `My Items (${myItems.length})` : `All Items (${allItems.length})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={s.tabs}>
+        <TouchableOpacity style={[s.tab, activeTab === 'new' && s.tabActive]} onPress={() => setActiveTab('new')}>
+          <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>New Request</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tab, activeTab === 'mine' && s.tabActive]} onPress={() => setActiveTab('mine')}>
+          <Text style={[s.tabText, activeTab === 'mine' && s.tabTextActive]}>My Requests</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* List */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={COLORS.secondary} size="large" />
-        </View>
-      ) : sorted.length === 0 ? (
-        <View style={styles.center}>
-          <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={styles.emptyTitle}>
-            {activeTab === 'mine' ? "You haven't added any items yet" : 'No items on the list'}
-          </Text>
-          <Text style={styles.emptyText}>
-            Tap the + button to add what the store needs.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
-        >
-          {sorted.map(item => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              isOwn={item.addedById === userId}
-              onEdit={setEditItem}
-              onDelete={handleDelete}
-            />
-          ))}
-        </ScrollView>
-      )}
-
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowAdd(true)}>
-        <PlusIcon size={24} color="#fff" strokeWidth={2.5} />
-      </TouchableOpacity>
-
-      {/* Add Item Modal */}
-      <ItemFormModal
-        visible={showAdd}
-        title="Add Item"
-        loading={addMutation.isPending}
-        onSubmit={(d) => addMutation.mutate(d)}
-        onClose={() => setShowAdd(false)}
-      />
-
-      {/* Edit Item Modal */}
-      {editItem && (
-        <ItemFormModal
-          visible={!!editItem}
-          title="Edit Item"
-          initialValues={{
-            name:     editItem.name,
-            quantity: editItem.quantity || '',
-            category: editItem.category || '',
-            notes:    editItem.notes    || '',
-            priority: editItem.priority,
+      {activeTab === 'new' ? (
+        <RequestForm
+          categories={categories}
+          onSubmitted={() => {
+            qc.invalidateQueries({ queryKey: ['my-item-requests'] });
+            setActiveTab('mine');
           }}
-          loading={updateMutation.isPending}
-          onSubmit={(d) => updateMutation.mutate({ id: editItem.id, data: d })}
-          onClose={() => setEditItem(null)}
         />
+      ) : (
+        <MyRequests />
       )}
     </SafeAreaView>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
-  // Header
   header: {
     backgroundColor: COLORS.secondary,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  headerLeft:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.65)' },
 
-  // Tabs
   tabs:          { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  tab:           { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tab:           { flex: 1, paddingVertical: 13, alignItems: 'center' },
   tabActive:     { borderBottomWidth: 2, borderBottomColor: COLORS.secondary },
   tabText:       { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
   tabTextActive: { color: COLORS.secondary, fontWeight: '700' },
 
-  // Scroll
-  scroll:        { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
-
-  // Item Card
-  itemCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  formInfo: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#EEF2FF', borderRadius: 12, padding: 14, marginBottom: 16,
   },
-  urgentCard: {
-    borderWidth: 1,
-    borderColor: '#FECACA',
+  formInfoText: { flex: 1, fontSize: 13, color: '#3730A3', lineHeight: 19 },
+
+  lineCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
+  lineHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  lineNum:  { width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center' },
+  lineNumText: { fontSize: 12, fontWeight: '800', color: '#fff' },
+  lineTitle:   { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.text },
+  removeLineBtn: { padding: 4 },
+
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted, marginBottom: 6, marginTop: 10 },
+  input: {
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.text,
   },
-  priorityBar: { width: 4 },
-  itemBody:    { flex: 1, padding: 12, gap: 4 },
+  textArea: { minHeight: 60, textAlignVertical: 'top', paddingTop: 10 },
 
-  itemBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'transparent',
+  catChip:     { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
+  catChipText: { fontSize: 12, color: COLORS.text, fontWeight: '500' },
+
+  addLineBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed',
+    borderColor: COLORS.secondary, backgroundColor: '#fff', marginBottom: 16,
   },
-  badgeText: { fontSize: 11, fontWeight: '600' },
+  addLineBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
 
-  itemActions: { flexDirection: 'row', gap: 4 },
-  actionBtn:   { padding: 6, borderRadius: 6, backgroundColor: '#F1F5F9' },
-  deleteBtn:   { backgroundColor: '#FEF2F2' },
+  submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  itemName:  { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  itemMeta:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  metaChip:  { fontSize: 12, color: COLORS.textMuted },
-  itemNotes: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
-  itemFooter: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
-
-  // Empty state
   emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
   emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
 
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
+  reqCard:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  reqCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
+  reqCardDate:   { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  reqCardMeta:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  statusDot:     { width: 8, height: 8, borderRadius: 4 },
+  statusBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  statusBadgePending: { backgroundColor: '#FEF3C7' },
+  statusBadgeDone:    { backgroundColor: '#DCFCE7' },
+  statusBadgeText:    { fontSize: 11, fontWeight: '700' },
 
-  // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '92%',
-  },
-  sheetHandle: { width: 40, height: 4, backgroundColor: COLORS.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  closeBtn:    { padding: 4 },
+  reqLines: { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12, gap: 8 },
 
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 8, marginTop: 12 },
-  input: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  textArea: { minHeight: 72, textAlignVertical: 'top', paddingTop: 12 },
+  reqNoteBox:  { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, marginBottom: 8 },
+  reqNoteLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
+  reqNoteText:  { fontSize: 13, color: COLORS.text },
 
-  // Priority chips
-  priorityRow: { flexDirection: 'row', gap: 8 },
-  priorityChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: '#fff',
+  lineItem: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    padding: 10, borderRadius: 10, backgroundColor: COLORS.background,
+    borderWidth: 1, borderColor: COLORS.border,
   },
-  priorityChipText: { fontSize: 13, fontWeight: '600' },
+  lineItemAccepted: { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' },
+  lineItemRejected: { borderColor: '#FECACA', backgroundColor: '#FFF5F5' },
+  lineItemName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  lineItemMeta: { fontSize: 12, color: COLORS.textMuted },
+  lineItemNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
+  rejectionText:{ fontSize: 12, color: '#DC2626', marginTop: 4 },
 
-  // Category chips
-  categoryScroll: { marginBottom: 4 },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 8,
-    backgroundColor: '#fff',
+  lineStatus: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8,
   },
-  categoryChipText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
-
-  // Submit
-  submitBtn: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  lineStatusText: { fontSize: 11, fontWeight: '700' },
 });
