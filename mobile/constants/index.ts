@@ -9,7 +9,7 @@ export const COLORS = {
   text: '#212529',
   textMuted: '#6C757D',
   success: '#2DC653',
-  error: '#E63946',
+  error: '#C1121F',        // Distinct darker red — NOT the same as primary
   border: '#DEE2E6',
 };
 

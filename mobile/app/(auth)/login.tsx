@@ -7,6 +7,7 @@ import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -107,7 +108,9 @@ export default function LoginScreen() {
       const { data } = await authApi.login(quickLoginPhone, pin);
       await setAuth(data.data.user, data.data.token);
       if (biometricEnabled) await saveBiometricPin(pin); // keep saved PIN in sync
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
       setLoading(false);
@@ -127,10 +130,12 @@ export default function LoginScreen() {
     try {
       const { data } = await authApi.login(rawPhone(), pin);
       await setAuth(data.data.user, data.data.token);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Offer biometric enrollment after successful login
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
       else if (bioAvailable && biometricEnabled) await saveBiometricPin(pin); // refresh saved PIN
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
       setLoading(false);
@@ -227,7 +232,9 @@ export default function LoginScreen() {
       <View style={styles.bioOfferRoot}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
         <View style={styles.bioOfferCard}>
-          <Text style={styles.bioOfferIcon}>🔐</Text>
+          <View style={styles.bioIconRing}>
+            <View style={styles.bioIconInner} />
+          </View>
           <Text style={styles.bioOfferTitle}>Enable {bioType}?</Text>
           <Text style={styles.bioOfferDesc}>
             Skip typing your PIN next time. Use {bioType} to sign in instantly.
@@ -254,20 +261,22 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>⛽ Lucky Stop</Text>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoMarkText}>LS</Text>
+            </View>
+            <Text style={styles.logo}>Lucky Stop</Text>
             <Text style={styles.tagline}>Welcome back</Text>
           </View>
 
           <View style={styles.quickCard}>
             <View style={styles.quickAvatar}>
-              <Text style={styles.quickAvatarIcon}>👤</Text>
+              <Text style={styles.quickAvatarText}>{quickLoginPhone ? quickLoginPhone.slice(-4) : '••••'}</Text>
             </View>
             <Text style={styles.quickPhone}>{displayPhone}</Text>
 
             {biometricEnabled && bioAvailable ? (
               <>
                 <TouchableOpacity style={styles.bioBtn} onPress={triggerBiometric} disabled={loading}>
-                  <Text style={styles.bioBtnIcon}>{Platform.OS === 'ios' ? '🔒' : '👆'}</Text>
                   <Text style={styles.bioBtnText}>
                     {Platform.OS === 'ios' ? 'Use Face ID / Touch ID' : 'Use Fingerprint'}
                   </Text>
@@ -332,7 +341,10 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>⛽ Lucky Stop</Text>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoMarkText}>LS</Text>
+            </View>
+            <Text style={styles.logo}>Lucky Stop</Text>
             <Text style={styles.tagline}>Verify your number</Text>
           </View>
 
@@ -524,9 +536,18 @@ const styles = StyleSheet.create({
   safeTop: { backgroundColor: COLORS.background },
   scroll: { padding: 24, paddingTop: 16, paddingBottom: 40 },
   scrollQuick: { padding: 24, paddingTop: 16, paddingBottom: 40, flexGrow: 1, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 32 },
-  logo: { fontSize: 36, fontWeight: '800', color: COLORS.primary },
-  tagline: { fontSize: 16, color: COLORS.textMuted, marginTop: 8 },
+  header: { alignItems: 'center', marginBottom: 32, paddingTop: 16 },
+  logoMark: {
+    width: 64, height: 64, borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
+  },
+  logoMarkText: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  logo: { fontSize: 28, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
+  tagline: { fontSize: 14, color: COLORS.textMuted, marginTop: 6, fontWeight: '500' },
 
   // Full login tabs
   tabs: {
@@ -569,23 +590,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 16, elevation: 4,
   },
   quickAvatar: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.primary + '15',
+    width: 72, height: 72, borderRadius: 22,
+    backgroundColor: COLORS.secondary,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: COLORS.primary + '30',
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22, shadowRadius: 10, elevation: 5,
   },
-  quickAvatarIcon: { fontSize: 36 },
+  quickAvatarText: { color: 'rgba(255,255,255,0.8)', fontSize: 18, fontWeight: '800', letterSpacing: 2 },
   quickPhone: { fontSize: 18, fontWeight: '700', color: COLORS.text },
 
   // Biometric button
   bioBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    alignItems: 'center',
     backgroundColor: COLORS.secondary + '12', borderRadius: 16,
-    paddingVertical: 14, paddingHorizontal: 24,
+    paddingVertical: 16, paddingHorizontal: 24,
     borderWidth: 1.5, borderColor: COLORS.secondary + '25',
     width: '100%', justifyContent: 'center',
   },
-  bioBtnIcon: { fontSize: 22 },
   bioBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.secondary },
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
   orLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
@@ -602,7 +623,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1, shadowRadius: 16, elevation: 6,
   },
-  bioOfferIcon: { fontSize: 64 },
+  bioIconRing: {
+    width: 80, height: 80, borderRadius: 24,
+    backgroundColor: COLORS.primary + '15',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.primary + '30',
+  },
+  bioIconInner: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
+  },
   bioOfferTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   bioOfferDesc: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 21 },
   bioOfferBtn: {

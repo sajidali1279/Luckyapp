@@ -42,8 +42,8 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
   const openDrawer = useCallback(() => {
     setOpen(true);
     Animated.parallel([
-      Animated.spring(slideX, { toValue: 0, useNativeDriver: true, bounciness: 4 }),
-      Animated.timing(overlayOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(slideX, { toValue: 0, useNativeDriver: true, tension: 280, friction: 28, overshootClamping: true }),
+      Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   }, []);
 

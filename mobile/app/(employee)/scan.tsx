@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { pointsApi, catalogApi, storesApi, welcomeBonusApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -323,9 +324,11 @@ export default function EmployeeScanScreen() {
       setCatalogItems(catalogRes.data.data || []);
       setPendingRedemptions(pendingRes.data.data || []);
       setWelcomeBonus(wbRes?.data?.data ?? null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep('mode');
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Customer not found';
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: 'Invalid QR Code', text2: msg });
       setScanned(false);
     } finally {
@@ -380,8 +383,10 @@ export default function EmployeeScanScreen() {
       setPointsAwarded(results.reduce((sum, r) => sum + r.data.data.pointsAwarded, 0));
       setGasBonusAwarded(results.reduce((sum, r) => sum + (r.data.data.gasBonusPoints || 0), 0));
       setPromotionApplied(results.find(r => r.data.data.promotionApplied)?.data.data.promotionApplied || null);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setStep('receipt');
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create transaction' });
       setScanned(false);
     } finally {
@@ -404,8 +409,10 @@ export default function EmployeeScanScreen() {
           return pointsApi.uploadReceipt(id, formData);
         })
       );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep('grant-done');
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setReceiptImage(null);
       Toast.show({ type: 'error', text1: 'Upload failed — retake receipt', text2: err.response?.data?.error });
     } finally {
@@ -592,7 +599,7 @@ export default function EmployeeScanScreen() {
         <ScrollView style={s.fill} contentContainerStyle={s.body}>
           {/* Customer tier card */}
           {cdata && (
-            <View style={[s.customerCard, { borderLeftColor: tierCfg.color, borderLeftWidth: 4 }]}>
+            <View style={[s.customerCard, { borderColor: tierCfg.color + '50' }]}>
               <View style={s.customerCardLeft}>
                 <View style={[s.customerAvatar, { backgroundColor: tierCfg.color + '20' }]}>
                   <Text style={[s.customerAvatarText, { color: tierCfg.color }]}>
@@ -1348,9 +1355,9 @@ const s = StyleSheet.create({
   customerCard: {
     backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
-    borderLeftWidth: 4, borderLeftColor: COLORS.primary,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1, shadowRadius: 10, elevation: 4,
+    borderWidth: 1.5, borderColor: COLORS.primary + '25',
   },
   customerCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   customerCardRight: { alignItems: 'flex-end', gap: 6 },

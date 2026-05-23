@@ -447,7 +447,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   section: {
     fontSize: 15, fontWeight: 800, color: '#1D3557', margin: 0,
-    borderLeft: '4px solid #E63946', paddingLeft: 12,
   },
   sectionSub: { fontSize: 12, color: '#6c757d', marginTop: 6, marginBottom: 0, paddingLeft: 16 },
   sectionLink: {

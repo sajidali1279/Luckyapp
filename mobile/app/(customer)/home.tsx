@@ -33,12 +33,12 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string }> = {
-  BRONZE:   { color: '#CD7F32', label: 'Bronze'   },
-  SILVER:   { color: '#A8A9AD', label: 'Silver'   },
-  GOLD:     { color: '#FFD700', label: 'Gold'     },
-  DIAMOND:  { color: '#7dd8f8', label: 'Diamond'  },
-  PLATINUM: { color: '#E5E4E2', label: 'Platinum' },
+const TIER_CONFIG: Record<string, { color: string; label: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null }> = {
+  BRONZE:   { color: '#CD7F32', label: 'Bronze',   nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000  },
+  SILVER:   { color: '#A8A9AD', label: 'Silver',   nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000 },
+  GOLD:     { color: '#FFD700', label: 'Gold',     nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000 },
+  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 60000 },
+  PLATINUM: { color: '#E5E4E2', label: 'Platinum', nextLabel: null,       thresholdPts: 60000,  nextThresholdPts: null  },
 };
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -294,6 +294,10 @@ export default function CustomerHome() {
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
+  const periodPts = Math.round(Number(user?.periodPoints || 0) * 100);
+  const tierProgress = tier.nextThresholdPts != null
+    ? Math.min(1, Math.max(0, (periodPts - tier.thresholdPts) / (tier.nextThresholdPts - tier.thresholdPts)))
+    : 1;
 
   return (
     <ScrollView
@@ -366,6 +370,24 @@ export default function CustomerHome() {
           <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
             <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
           </TouchableOpacity>
+
+          {/* Tier progress bar */}
+          {tier.nextLabel && (
+            <View style={styles.tierProgress}>
+              <View style={styles.tierProgressLabels}>
+                <Text style={styles.tierProgressLeft}>{tier.label}</Text>
+                <Text style={styles.tierProgressRight}>
+                  {(tier.nextThresholdPts! - periodPts).toLocaleString()} pts to {tier.nextLabel}
+                </Text>
+              </View>
+              <View style={styles.tierProgressTrack}>
+                <View style={[styles.tierProgressFill, { width: `${Math.round(tierProgress * 100)}%` as any, backgroundColor: tier.color }]} />
+              </View>
+            </View>
+          )}
+          {!tier.nextLabel && (
+            <Text style={styles.tierProgressMaxText}>Max tier achieved</Text>
+          )}
         </View>
       </Animated.View>
 
@@ -374,9 +396,15 @@ export default function CustomerHome() {
         <View style={styles.qrSection}>
           <Text style={styles.sectionTitleText}>Your QR Code</Text>
           <Text style={styles.qrSubtext}>Show this to the cashier to earn points</Text>
-          {user?.qrCode && (
+          {user?.qrCode ? (
             <View style={styles.qrContainer}>
               <QRCode value={user.qrCode} size={176} color={COLORS.secondary} />
+            </View>
+          ) : (
+            <View style={styles.qrEmpty}>
+              <View style={styles.qrEmptyInner} />
+              <Text style={styles.qrEmptyText}>QR code loading</Text>
+              <Text style={styles.qrEmptySub}>Pull down to refresh</Text>
             </View>
           )}
         </View>
@@ -788,6 +816,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 12, marginTop: 18,
   },
   redeemButtonText: { fontWeight: '800', color: '#fff', fontSize: 14 },
+  tierProgress: { width: '100%', marginTop: 18 },
+  tierProgressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  tierProgressLeft: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700' },
+  tierProgressRight: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '600' },
+  tierProgressTrack: {
+    height: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 3, overflow: 'hidden',
+  },
+  tierProgressFill: { height: '100%', borderRadius: 3 },
+  tierProgressMaxText: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '700', marginTop: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   qrSection: {
     alignItems: 'center', paddingVertical: 22, paddingHorizontal: 16,
@@ -799,6 +836,17 @@ const styles = StyleSheet.create({
     padding: 16, backgroundColor: '#fff', borderRadius: 16, marginTop: 14,
     borderWidth: 1, borderColor: COLORS.border,
   },
+  qrEmpty: {
+    marginTop: 14, width: 208, height: 208, borderRadius: 16,
+    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.border,
+    borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  qrEmptyInner: {
+    width: 60, height: 60, borderRadius: 12,
+    borderWidth: 3, borderColor: COLORS.border,
+  },
+  qrEmptyText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
+  qrEmptySub: { fontSize: 11, color: COLORS.border, fontWeight: '600' },
   qrSubtext: { color: COLORS.textMuted, fontSize: 13, marginTop: 6, fontWeight: '500' },
 
   bannerWrapper: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
@@ -814,7 +862,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
-  dealSlideCard: { borderLeftWidth: 4, borderLeftColor: COLORS.accent },
+  dealSlideCard: { borderWidth: 1.5, borderColor: COLORS.accent + '45', backgroundColor: COLORS.accent + '08' },
   offerSlideImage: { width: 220, height: 110, resizeMode: 'cover' },
   offerSlidePlaceholder: {
     width: 220, height: 110, alignItems: 'center', justifyContent: 'center',
@@ -840,11 +888,11 @@ const styles = StyleSheet.create({
   offerBonusText: { color: '#fff', fontWeight: '700', fontSize: 11 },
 
   dealCard: {
-    backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden', marginBottom: 10,
+    backgroundColor: COLORS.accent + '08', borderRadius: 18, overflow: 'hidden', marginBottom: 10,
     flexDirection: 'row', alignItems: 'center',
-    borderLeftWidth: 4, borderLeftColor: COLORS.accent,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+    borderWidth: 1.5, borderColor: COLORS.accent + '45',
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   dealText: { fontSize: 20, fontWeight: '900', color: COLORS.accent, marginBottom: 2, letterSpacing: -0.5 },
 
@@ -872,11 +920,11 @@ const styles = StyleSheet.create({
 
   scanReceiptCard: {
     marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
+    backgroundColor: COLORS.accent + '08', borderRadius: 18, padding: 16,
     flexDirection: 'row', alignItems: 'center',
-    borderLeftWidth: 4, borderLeftColor: COLORS.accent,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    borderWidth: 1.5, borderColor: COLORS.accent + '40',
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
   },
   scanReceiptLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
   scanReceiptIconWrap: {
