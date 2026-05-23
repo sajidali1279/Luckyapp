@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,15 +39,28 @@ const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] 
 
 export default function Scheduling() {
   const qc = useQueryClient();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role === 'STORE_MANAGER';
+  const managerStoreId = isStoreManager ? (user?.storeIds?.[0] ?? null) : null;
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(managerStoreId);
   const [addModal, setAddModal] = useState<{ day: string; shiftType: string } | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [activeTab, setActiveTab] = useState<'schedule' | 'requests'>('schedule');
 
   // ── Queries ──
+  // SuperAdmin+: fetch all stores for the sidebar selector
   const { data: storesData, isLoading: storesLoading } = useQuery({
     queryKey: ['stores'],
     queryFn: () => storesApi.getAll(),
+    enabled: !isStoreManager,
+  });
+
+  // StoreManager: fetch just their own store for the header
+  const { data: myStoreData } = useQuery({
+    queryKey: ['store', managerStoreId],
+    queryFn: () => storesApi.getOne(managerStoreId!),
+    enabled: isStoreManager && !!managerStoreId,
   });
 
   const { data: scheduleData, isLoading: scheduleLoading } = useQuery({
@@ -114,7 +128,10 @@ export default function Scheduling() {
   });
 
   // ── Data ──
-  const stores: any[] = storesData?.data?.data || [];
+  // For SuperAdmin+: list from getAll. For StoreManager: single-item list from getOne.
+  const stores: any[] = isStoreManager
+    ? (myStoreData?.data?.data ? [myStoreData.data.data] : [])
+    : (storesData?.data?.data || []);
   const grouped: Record<string, any[]> = scheduleData?.data?.data?.grouped || {};
   const roster: any[] = rosterData?.data?.data?.roster || [];
   const todayDay: string = rosterData?.data?.data?.day || '';
@@ -179,8 +196,8 @@ export default function Scheduling() {
 
   return (
     <div style={s.page}>
-      {/* ── Sidebar ── */}
-      <div style={s.sidebar}>
+      {/* ── Sidebar — hidden for store managers (they only manage one store) ── */}
+      {!isStoreManager && <div style={s.sidebar}>
         <div style={s.sidebarTop}>
           <div style={s.sidebarTitle}>Scheduling</div>
           <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
@@ -219,7 +236,7 @@ export default function Scheduling() {
             })
           )}
         </div>
-      </div>
+      </div>}
 
       {/* ── Main Panel ── */}
       <div style={s.chatPanel}>
@@ -241,19 +258,21 @@ export default function Scheduling() {
                   {selectedStore?.city}, {selectedStore?.state}
                 </div>
               </div>
-              {/* Shift toggle */}
-              <div style={s.shiftToggle}>
-                <button
-                  style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
-                  onClick={() => shiftToggleMutation.mutate(3)}
-                  disabled={shiftToggleMutation.isPending}
-                >3 shifts</button>
-                <button
-                  style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
-                  onClick={() => shiftToggleMutation.mutate(2)}
-                  disabled={shiftToggleMutation.isPending}
-                >2 shifts</button>
-              </div>
+              {/* Shift toggle — SuperAdmin+ only (requires PATCH /stores/:storeId) */}
+              {!isStoreManager && (
+                <div style={s.shiftToggle}>
+                  <button
+                    style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
+                    onClick={() => shiftToggleMutation.mutate(3)}
+                    disabled={shiftToggleMutation.isPending}
+                  >3 shifts</button>
+                  <button
+                    style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
+                    onClick={() => shiftToggleMutation.mutate(2)}
+                    disabled={shiftToggleMutation.isPending}
+                  >2 shifts</button>
+                </div>
+              )}
               {/* Tabs */}
               <div style={s.tabRow}>
                 <button style={{ ...s.tab, ...(activeTab === 'schedule' ? s.tabActive : {}) }} onClick={() => setActiveTab('schedule')}>

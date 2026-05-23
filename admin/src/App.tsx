@@ -84,11 +84,12 @@ export default function App() {
               <Route path="/staff" element={<Staff />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />
+              {/* Scheduling accessible to StoreManager+ */}
+              <Route path="/scheduling" element={<Scheduling />} />
               <Route element={<SuperAdminOnly />}>
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
-                <Route path="/scheduling" element={<Scheduling />} />
                 <Route path="/rates" element={<Rates />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/stores" element={<Stores />} />

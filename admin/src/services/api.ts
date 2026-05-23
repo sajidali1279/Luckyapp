@@ -103,6 +103,7 @@ export const customersApi = {
 
 export const storesApi = {
   getAll: () => api.get('/stores'),
+  getOne: (storeId: string) => api.get(`/stores/${storeId}`),
   update: (storeId: string, data: object) => api.patch(`/stores/${storeId}`, data),
   updateGasPrices: (storeId: string, data: object) => api.patch(`/stores/${storeId}/gas-prices`, data),
   getApiKey: (storeId: string) => api.get(`/billing/stores/${storeId}/api-key`),

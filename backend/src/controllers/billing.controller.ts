@@ -7,6 +7,22 @@ import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
 
+// STORE_MANAGER+ — single store info (for scheduling page)
+export async function getStoreById(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      id: true, name: true, address: true, city: true, state: true, zipCode: true,
+      phone: true, latitude: true, longitude: true, shiftsPerDay: true,
+      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+      enabledCategories: true,
+    },
+  });
+  if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
+  res.json({ success: true, data: store });
+}
+
 // SUPER_ADMIN+ — basic store list (no billing info)
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({

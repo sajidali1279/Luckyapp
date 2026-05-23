@@ -204,6 +204,7 @@ export default function Navbar() {
   ];
   const peopleItemsManager: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'       },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
     { to: '/store-requests', icon: '📋', label: 'Requests'   },
     { to: '/order-list',     icon: '📦', label: 'Order List' },
   ];

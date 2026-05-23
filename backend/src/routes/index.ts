@@ -90,6 +90,7 @@ import {
 import {
   updateStoreBilling,
   getAllStoresBilling,
+  getStoreById,
   getStores,
   updateStore,
   updateGasPrices,
@@ -192,6 +193,7 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
+router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
