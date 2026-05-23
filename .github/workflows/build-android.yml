@@ -31,46 +31,89 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
-      - name: Prebuild + APK (single step)
+      - name: Prebuild Android
         working-directory: ./mobile
         run: |
-          echo "=== Step start: $(pwd) ==="
-          echo "=== Files here ==="
-          ls -la
-
-          # Write google-services.json from secret (most reliable method)
           if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
             echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json
-            echo "✅ Wrote google-services.json from secret ($(wc -c < google-services.json) bytes)"
-          elif [ -f "google-services.json" ]; then
-            echo "✅ google-services.json already present ($(wc -c < google-services.json) bytes)"
-          else
-            echo "❌ google-services.json not found and no secret set — build will fail"
-            exit 1
           fi
-
           npx expo prebuild --platform android --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
 
+      - name: Generate signing keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore /tmp/release.keystore \
+            -alias key0 \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass luckystop123 \
+            -keypass luckystop123 \
+            -dname "CN=Lucky Stop, O=LuckyStop, C=US"
+          echo "✅ Keystore generated"
+
+      - name: Configure release signing
+        working-directory: ./mobile/android
+        run: |
+          # Point release build to use our generated keystore
+          cat >> gradle.properties << 'EOF'
+
+          MYAPP_UPLOAD_STORE_FILE=/tmp/release.keystore
+          MYAPP_UPLOAD_STORE_PASSWORD=luckystop123
+          MYAPP_UPLOAD_KEY_ALIAS=key0
+          MYAPP_UPLOAD_KEY_PASSWORD=luckystop123
+          EOF
+
+          # Patch build.gradle — replace release signingConfig with our keystore
+          python3 << 'PYEOF'
+          import re
+
+          with open('app/build.gradle', 'r') as f:
+              content = f.read()
+
+          # Add signingConfig block to release buildType
+          content = re.sub(
+              r'(signingConfigs\s*\{)',
+              r'''\1
+              release {
+                  storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                  storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                  keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                  keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+              }''',
+              content,
+              count=1
+          )
+
+          # Make release buildType use the release signing config
+          content = re.sub(
+              r'(buildTypes\s*\{[^}]*?release\s*\{[^}]*?)(signingConfig[^\n]*\n)',
+              r'\1signingConfig signingConfigs.release\n',
+              content,
+              count=1,
+              flags=re.DOTALL
+          )
+
+          with open('app/build.gradle', 'w') as f:
+              f.write(content)
+
+          print("✅ build.gradle patched for release signing")
+          PYEOF
+
       - name: Make gradlew executable
         working-directory: ./mobile/android
         run: chmod +x gradlew
 
-      - name: Enable JS bundling in APK
+      - name: Build Release APK
         working-directory: ./mobile/android
-        run: echo -e "\nbundleInDebug=true" >> gradle.properties
-
-      - name: Build Debug APK
-        working-directory: ./mobile/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucky-stop-debug-${{ github.run_number }}
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
+          name: lucky-stop-${{ github.run_number }}
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
