@@ -341,7 +341,7 @@ export async function adminGetAllLists(req: AuthRequest, res: Response) {
         store:    { select: { id: true, name: true } },
         openedBy: { select: { id: true, name: true } },
         closedBy: { select: { id: true, name: true } },
-        _count:   { select: { items: true } },
+        _count:   { select: { items: { where: { status: { not: 'REMOVED' } } } } },
       },
       orderBy: [{ status: 'asc' }, { openedAt: 'desc' }],
       skip: (page - 1) * 20, take: 20,

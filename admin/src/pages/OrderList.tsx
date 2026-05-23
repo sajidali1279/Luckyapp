@@ -72,13 +72,19 @@ function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: (
   const [quantity, setQuantity] = useState('');
   const [category, setCategory] = useState('');
   const [notes, setNotes]       = useState('');
+  const qc = useQueryClient();
 
   const addMutation = useMutation({
     mutationFn: () => orderListApi.addItem(listId, {
       name: name.trim(), quantity: quantity.trim() || undefined,
       category: category.trim() || undefined, notes: notes.trim() || undefined,
     }),
-    onSuccess: () => { toast.success('Item added'); onSaved(); },
+    onSuccess: () => {
+      toast.success('Item added');
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', listId] });
+      onSaved();
+    },
     onError: () => toast.error('Failed to add item'),
   });
 
@@ -120,19 +126,34 @@ function OrderListDetail({ list, canEdit, onBack, onListChanged }: {
 
   const closeMutation = useMutation({
     mutationFn: () => orderListApi.closeList(list.id),
-    onSuccess: () => { toast.success('List closed'); onListChanged(); onBack(); },
+    onSuccess: () => {
+      toast.success('List closed');
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      onListChanged();
+      onBack();
+    },
     onError: () => toast.error('Failed to close list'),
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => orderListApi.updateItemStatus(id, status),
-    onSuccess: () => { toast.success('Item updated'); onListChanged(); },
+    onSuccess: () => {
+      toast.success('Item updated');
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
+      onListChanged();
+    },
     onError: () => toast.error('Failed to update'),
   });
 
   const removeMutation = useMutation({
     mutationFn: (itemId: string) => orderListApi.removeItem(itemId),
-    onSuccess: () => { toast.success('Item removed'); onListChanged(); },
+    onSuccess: () => {
+      toast.success('Item removed');
+      // Invalidate grid so card count updates immediately
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
+      onListChanged();
+    },
     onError: () => toast.error('Failed to remove'),
   });
 
