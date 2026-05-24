@@ -207,24 +207,29 @@ interface ItemRowProps {
   onRemove: (item: OrderListItem) => void;
   onMarkOrdered: (item: OrderListItem) => void;
   onMarkReceived: (item: OrderListItem) => void;
+  onMarkPriority: (item: OrderListItem, priority: Priority) => void;
 }
 
-function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
+function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, onMarkPriority }: ItemRowProps) {
   const pc = PRIORITY_CFG[item.priority];
   const sc = STATUS_CFG[item.status];
 
   const showActions = () => {
     const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (item.status === 'PENDING') {
+      if (item.priority !== 'URGENT') buttons.push({ text: '🔴 Mark Urgent',  onPress: () => onMarkPriority(item, 'URGENT') });
+      if (item.priority !== 'NORMAL') buttons.push({ text: '⚫ Mark Normal',  onPress: () => onMarkPriority(item, 'NORMAL') });
+      if (item.priority !== 'LOW')    buttons.push({ text: '🔵 Mark Low',     onPress: () => onMarkPriority(item, 'LOW') });
       buttons.push({ text: '✓ Mark Ordered',  onPress: () => onMarkOrdered(item) });
-      buttons.push({ text: '✎ Edit',           onPress: () => onEdit(item) });
-      buttons.push({ text: '✕ Remove',         style: 'destructive', onPress: () => onRemove(item) });
+      buttons.push({ text: '✎ Edit Details', onPress: () => onEdit(item) });
+      buttons.push({ text: '✕ Remove',        style: 'destructive', onPress: () => onRemove(item) });
     } else if (item.status === 'ORDERED') {
       buttons.push({ text: '✓ Mark Received', onPress: () => onMarkReceived(item) });
-      buttons.push({ text: '✎ Edit',          onPress: () => onEdit(item) });
+      buttons.push({ text: '✎ Edit Details',  onPress: () => onEdit(item) });
     }
     buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert(item.name, item.quantity ? `Qty: ${item.quantity}` : undefined, buttons);
+    const subtitle = [item.quantity && `Qty: ${item.quantity}`, item.category].filter(Boolean).join(' · ');
+    Alert.alert(item.name, subtitle || undefined, buttons);
   };
 
   return (
@@ -243,18 +248,20 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
         </View>
       </View>
 
-      {/* Name */}
+      {/* Name + qty merged */}
       <View style={t.colName}>
-        <Text style={[t.cellName, item.status === 'RECEIVED' && t.strikethrough]} numberOfLines={2}>
-          {item.name}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 4 }}>
+          <Text style={[t.cellName, item.status === 'RECEIVED' && t.strikethrough]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {item.quantity ? (
+            <Text style={t.cellQtyInline} numberOfLines={1}>· {item.quantity}</Text>
+          ) : null}
+        </View>
         {item.source === 'EMPLOYEE_REQUEST' && (
-          <Text style={t.reqTag}>employee</Text>
+          <Text style={t.reqTag}>employee request</Text>
         )}
       </View>
-
-      {/* Qty */}
-      <Text style={[t.colQty, t.cellMuted]} numberOfLines={1}>{item.quantity || ''}</Text>
 
       {/* Category */}
       <View style={t.colCat}>
@@ -277,125 +284,86 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
   );
 }
 
-// ─── Add Row (spreadsheet add row, pinned at bottom) ─────────────────────────
+// ─── Quick Add Bar (single input, paper-fast) ────────────────────────────────
+//
+//  Type the item name. Optionally append a quantity using "x4" or "4x" notation.
+//  Examples:  "milk"  →  name=milk
+//             "milk x4"  →  name=milk, qty=x4
+//             "OJ 3 cases"  →  name=OJ 3 cases  (no x-pattern, kept as name)
+//
+//  Priority defaults to NORMAL. Tap any item in the list to mark it Urgent/Low.
+//  Category is set via the Edit sheet (tap an item → Edit Details).
+// ─────────────────────────────────────────────────────────────────────────────
 
-interface AddRowProps {
-  listId: string;
-  storeId: string;
-  categories: string[];
+function parseInput(raw: string): { name: string; quantity?: string } {
+  const trimmed = raw.trim();
+  // Match trailing "x4", "x 4", "4x", "4 x" (case-insensitive)
+  const qtyMatch = trimmed.match(/\s+(x\s*\d+[\w]*|\d+[\w]*\s*x)\s*$/i);
+  if (qtyMatch) {
+    const quantity = qtyMatch[1].replace(/\s+/g, '');
+    const name = trimmed.slice(0, trimmed.length - qtyMatch[0].length).trim();
+    if (name) return { name, quantity };
+  }
+  return { name: trimmed };
 }
 
-function AddRow({ listId, storeId, categories }: AddRowProps) {
+interface QuickAddBarProps {
+  listId: string;
+  storeId: string;
+}
+
+function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
   const qc = useQueryClient();
-  const [name,     setName]     = useState('');
-  const [qty,      setQty]      = useState('');
-  const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState<Priority>('NORMAL');
-  const [showCat,  setShowCat]  = useState(false);
-  const nameRef = useRef<any>(null);
+  const [text, setText] = useState('');
+  const inputRef = useRef<any>(null);
 
   const addMutation = useMutation({
     mutationFn: (d: object) => orderListApi.addItem(listId, d),
     onSuccess: () => {
-      setName('');
-      setQty('');
+      setText('');
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
-      setTimeout(() => nameRef.current?.focus(), 80);
+      // Keep focus — next item is ready to type immediately
+      inputRef.current?.focus();
     },
     onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
   });
 
-  const cyclePriority = () =>
-    setPriority(p => p === 'NORMAL' ? 'URGENT' : p === 'URGENT' ? 'LOW' : 'NORMAL');
-
   const handleAdd = () => {
-    if (!name.trim()) return;
-    addMutation.mutate({
-      name: name.trim(),
-      quantity: qty.trim() || undefined,
-      category: category || undefined,
-      priority,
-    });
+    const { name, quantity } = parseInput(text);
+    if (!name) return;
+    addMutation.mutate({ name, quantity, priority: 'NORMAL' });
   };
 
-  const pc = PRIORITY_CFG[priority];
+  const ready = text.trim().length > 0 && !addMutation.isPending;
 
   return (
-    <>
-      <View style={[t.row, t.addRow]}>
-        {/* Priority dot (tap cycles) */}
-        <TouchableOpacity style={t.colP} onPress={cyclePriority} activeOpacity={0.7}>
-          <View style={[t.dot, { backgroundColor: pc.text }]}>
-            {priority === 'URGENT' && <AlertTriangleIcon size={8} color="#fff" strokeWidth={2.5} />}
-            {priority === 'LOW'    && <ArrowDownIcon     size={8} color="#fff" strokeWidth={2.5} />}
-          </View>
-        </TouchableOpacity>
-
-        {/* Name input */}
-        <TextInput
-          ref={nameRef}
-          style={[t.colName, t.addInput]}
-          value={name}
-          onChangeText={setName}
-          placeholder="Add item..."
-          placeholderTextColor="#B0B8C4"
-          returnKeyType="done"
-          blurOnSubmit={false}
-          onSubmitEditing={handleAdd}
-          maxLength={120}
-        />
-
-        {/* Qty input */}
-        <TextInput
-          style={[t.colQty, t.addInput, { textAlign: 'center' }]}
-          value={qty}
-          onChangeText={setQty}
-          placeholder="Qty"
-          placeholderTextColor="#B0B8C4"
-          returnKeyType="done"
-          blurOnSubmit={false}
-          onSubmitEditing={handleAdd}
-          maxLength={30}
-        />
-
-        {/* Category picker trigger */}
-        <TouchableOpacity style={t.colCat} onPress={() => setShowCat(true)} activeOpacity={0.7}>
-          {category
-            ? <View style={[t.catPill, { backgroundColor: '#EEF2FF' }]}>
-                <Text style={[t.catPillText, { color: COLORS.secondary }]} numberOfLines={1}>{category}</Text>
-              </View>
-            : <Text style={t.addCatPlaceholder}>Cat ▾</Text>
-          }
-        </TouchableOpacity>
-
-        {/* Add button */}
-        <TouchableOpacity
-          style={[t.colAction, { alignItems: 'center', justifyContent: 'center' }]}
-          onPress={handleAdd}
-          disabled={!name.trim() || addMutation.isPending}
-          activeOpacity={0.8}
-        >
-          {addMutation.isPending
-            ? <ActivityIndicator size="small" color={COLORS.secondary} />
-            : <View style={[t.addCircle, !name.trim() && { opacity: 0.3 }]}>
-                <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-              </View>
-          }
-        </TouchableOpacity>
-      </View>
-
-      <CategoryPicker
-        visible={showCat}
-        categories={categories}
-        selected={category}
-        onSelect={setCategory}
-        onSubmitNew={async (newCat) => {
-          await orderCategoriesApi.submitNew(newCat);
-          Toast.show({ type: 'success', text1: 'Submitted for approval', text2: `"${newCat}" will appear once approved` });
-        }}
-        onClose={() => setShowCat(false)}
+    <View style={qa.bar}>
+      <TextInput
+        ref={inputRef}
+        style={qa.input}
+        value={text}
+        onChangeText={setText}
+        placeholder='Add item…  tip: "milk x4" sets quantity'
+        placeholderTextColor="#B0B8C4"
+        returnKeyType="done"
+        blurOnSubmit={false}
+        onSubmitEditing={handleAdd}
+        maxLength={150}
+        autoCorrect={false}
+        autoCapitalize="sentences"
       />
-    </>
+      <TouchableOpacity
+        style={[qa.addBtn, !ready && qa.addBtnDim]}
+        onPress={handleAdd}
+        disabled={!ready}
+        activeOpacity={0.8}
+      >
+        {addMutation.isPending
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
+        }
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -921,6 +889,12 @@ export default function ManagerOrderListScreen() {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
   });
 
+  const priorityMutation = useMutation({
+    mutationFn: ({ id, priority }: { id: string; priority: Priority }) => orderListApi.updateItem(id, { priority }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to update priority' }),
+  });
+
   const printMutation = useMutation({
     mutationFn: () => orderListApi.printList(activeList!.id),
     onSuccess: async () => {
@@ -1063,7 +1037,6 @@ export default function ManagerOrderListScreen() {
           <View style={t.tableHeader}>
             <View style={t.colP} />
             <Text style={[t.colName, t.headerText]}>Item</Text>
-            <Text style={[t.colQty, t.headerText]}>Qty</Text>
             <Text style={[t.colCat, t.headerText]}>Category</Text>
             <View style={t.colAction} />
           </View>
@@ -1092,13 +1065,14 @@ export default function ManagerOrderListScreen() {
                     onRemove={handleRemove}
                     onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
                     onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
+                    onMarkPriority={(it, p) => priorityMutation.mutate({ id: it.id, priority: p })}
                   />
                 ))}
               </ScrollView>
             )}
 
-            {/* Add Row — always pinned at bottom */}
-            <AddRow listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
+            {/* Quick Add Bar — always pinned at bottom */}
+            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} />
           </KeyboardAvoidingView>
         </>
       )}
@@ -1329,6 +1303,7 @@ const t = StyleSheet.create({
   },
 
   cellName: { fontSize: 14, fontWeight: '600', color: COLORS.text, lineHeight: 19 },
+  cellQtyInline: { fontSize: 12, color: COLORS.textMuted, lineHeight: 19 },
   strikethrough: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   cellMuted: { fontSize: 12, color: COLORS.textMuted },
   reqTag: { fontSize: 10, color: '#16A34A', fontWeight: '600', marginTop: 2 },
@@ -1344,7 +1319,7 @@ const t = StyleSheet.create({
   },
   statusLetter: { fontSize: 11, fontWeight: '800' },
 
-  // Add row inputs
+  // Add row inputs (legacy — kept so StyleSheet compile doesn't fail; unused in UI)
   addInput: {
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB',
     borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7,
@@ -1356,4 +1331,32 @@ const t = StyleSheet.create({
     backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
     shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
   },
+});
+
+// ─── Quick Add Bar Styles ─────────────────────────────────────────────────────
+
+const qa = StyleSheet.create({
+  bar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1.5, borderTopColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 15, color: COLORS.text,
+  },
+  addBtn: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: COLORS.secondary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35, shadowRadius: 6, elevation: 5,
+  },
+  addBtnDim: { opacity: 0.4 },
 });
