@@ -263,6 +263,11 @@ export const inventoryAnalyticsApi = {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
     return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);
   },
+  getItemSuggestions: (params: { q: string; category?: string }) => {
+    const qs = new URLSearchParams({ q: params.q });
+    if (params.category) qs.set('category', params.category);
+    return api.get(`/order-lists/suggestions?${qs.toString()}`);
+  },
 };
 
 export default api;

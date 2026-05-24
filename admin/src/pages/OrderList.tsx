@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi } from '../services/api';
+import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -68,11 +68,40 @@ const CAT_STATUS_CFG = {
 // ─── Add Item Modal (DevAdmin passive helper) ─────────────────────────────────
 
 function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: () => void; onSaved: () => void }) {
-  const [name, setName]         = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [category, setCategory] = useState('');
-  const [notes, setNotes]       = useState('');
+  const [name,          setName]          = useState('');
+  const [debouncedName, setDebouncedName] = useState('');
+  const [showNameDrop,  setShowNameDrop]  = useState(false);
+  const [quantity,      setQuantity]      = useState('');
+  const [category,      setCategory]      = useState('');
+  const [catSearch,     setCatSearch]     = useState('');
+  const [showCatDrop,   setShowCatDrop]   = useState(false);
+  const [notes,         setNotes]         = useState('');
   const qc = useQueryClient();
+
+  // Debounce name for item suggestions
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedName(name), 300);
+    return () => clearTimeout(t);
+  }, [name]);
+
+  // Item name suggestions
+  const { data: nameSuggData } = useQuery({
+    queryKey: ['item-suggestions-admin', debouncedName, category],
+    queryFn: () => inventoryAnalyticsApi.getItemSuggestions({ q: debouncedName, category: category || undefined }),
+    enabled: debouncedName.trim().length >= 2,
+    staleTime: 5 * 60 * 1000,
+  });
+  const nameSuggestions: { name: string; count: number }[] = (nameSuggData as any)?.data?.data || [];
+
+  const { data: catData } = useQuery({
+    queryKey: ['order-categories-admin-modal'],
+    queryFn: () => orderCategoriesApi.adminGetAll('APPROVED'),
+    staleTime: 10 * 60 * 1000,
+  });
+  const allCats: string[] = (catData?.data?.data || []).map((c: { name: string }) => c.name);
+  const catSuggestions = catSearch.trim()
+    ? allCats.filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
+    : allCats;
 
   const addMutation = useMutation({
     mutationFn: () => orderListApi.addItem(listId, {
@@ -95,14 +124,65 @@ function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: (
           <span style={m.modalTitle}>Add Item (DevAdmin)</span>
           <button style={m.closeBtn} onClick={onClose}>✕</button>
         </div>
-        <div style={m.field}><label style={m.label}>Item Name *</label>
-          <input style={m.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Whole Milk 2%" maxLength={120} />
+        <div style={m.field}>
+          <label style={m.label}>Item Name *</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              style={m.input}
+              value={name}
+              onChange={e => { setName(e.target.value); setShowNameDrop(true); }}
+              onFocus={() => setShowNameDrop(true)}
+              onBlur={() => setTimeout(() => setShowNameDrop(false), 150)}
+              placeholder="e.g. Whole Milk 2%"
+              maxLength={120}
+              autoComplete="off"
+            />
+            {showNameDrop && nameSuggestions.length > 0 && (
+              <div style={m.catDrop}>
+                {nameSuggestions.map(sug => (
+                  <div
+                    key={sug.name}
+                    style={{ ...m.catDropRow, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onMouseDown={() => { setName(sug.name); setDebouncedName(sug.name); setShowNameDrop(false); }}
+                  >
+                    <span>{sug.name}</span>
+                    <span style={{ fontSize: 11, color: '#94A3B8' }}>{sug.count}×</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div style={m.field}><label style={m.label}>Quantity</label>
           <input style={m.input} value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="e.g. 2 cases" maxLength={60} />
         </div>
-        <div style={m.field}><label style={m.label}>Category</label>
-          <input style={m.input} value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Groceries" maxLength={80} />
+        <div style={m.field}>
+          <label style={m.label}>Category</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              style={m.input}
+              value={catSearch}
+              onChange={e => { setCatSearch(e.target.value); setCategory(''); setShowCatDrop(true); }}
+              onFocus={() => setShowCatDrop(true)}
+              onBlur={() => setTimeout(() => setShowCatDrop(false), 150)}
+              placeholder="Search category…"
+              maxLength={80}
+              autoComplete="off"
+            />
+            {showCatDrop && catSuggestions.length > 0 && (
+              <div style={m.catDrop}>
+                {catSuggestions.map(cat => (
+                  <div
+                    key={cat}
+                    style={{ ...m.catDropRow, ...(category === cat ? m.catDropRowActive : {}) }}
+                    onMouseDown={() => { setCategory(cat); setCatSearch(cat); setShowCatDrop(false); }}
+                  >
+                    {cat}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div style={m.field}><label style={m.label}>Notes</label>
           <textarea style={m.textarea} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." maxLength={300} rows={3} />
@@ -909,4 +989,17 @@ const m: Record<string, React.CSSProperties> = {
   input:  { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' },
   textarea: { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box', resize: 'vertical' },
   primaryBtn: { width: '100%', padding: '13px 0', borderRadius: 10, background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer', marginTop: 8 },
+
+  // Category autocomplete dropdown
+  catDrop: {
+    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+    background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 8, marginTop: 4,
+    maxHeight: 220, overflowY: 'auto',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+  },
+  catDropRow: {
+    padding: '9px 14px', fontSize: 14, color: '#1E293B', cursor: 'pointer',
+    borderBottom: '1px solid #F1F5F9',
+  },
+  catDropRowActive: { background: '#EEF2FF', color: '#1D3557', fontWeight: 700 },
 };

@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi } from '../../services/api';
+import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi, managerApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import {
   PackageIcon, PrinterIcon, CheckCircleIcon,
@@ -135,6 +135,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
             onChangeText={setSearch}
             placeholder="Search categories..."
             placeholderTextColor={COLORS.textMuted}
+            autoFocus
           />
 
           {/* List */}
@@ -299,16 +300,54 @@ interface QuickAddBarProps {
 
 function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const qc = useQueryClient();
-  const [text,     setText]     = useState('');
-  const [category, setCategory] = useState('');
-  const [showCat,  setShowCat]  = useState(false);
+  const [text,          setText]          = useState('');
+  const [debouncedText, setDebouncedText] = useState('');
+  const [category,      setCategory]      = useState('');
+  const [catSearch,     setCatSearch]     = useState('');
+  const [showItemSugg,  setShowItemSugg]  = useState(false);
+  const [showCatSugg,   setShowCatSugg]   = useState(false);
+  const [showNewCat,    setShowNewCat]    = useState(false);
   const inputRef = useRef<any>(null);
+
+  // Debounce item name for API call (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedText(text), 300);
+    return () => clearTimeout(t);
+  }, [text]);
+
+  // Item suggestions from order history
+  const { data: itemSuggData } = useQuery({
+    queryKey: ['item-suggestions', debouncedText, category],
+    queryFn: () => managerApi.getItemSuggestions({ q: debouncedText, category: category || undefined }),
+    enabled: debouncedText.trim().length >= 2,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (prev: any) => prev,
+  });
+  const itemSuggestions: { name: string; count: number }[] = itemSuggData?.data?.data || [];
+
+  // Category filtered suggestions
+  const catSuggestions = catSearch.trim()
+    ? categories.filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
+    : categories;
+
+  const handleSelectItem = (itemName: string) => {
+    setText(itemName);
+    setShowItemSugg(false);
+    inputRef.current?.focus();
+  };
+
+  const handleSelectCat = (cat: string) => {
+    setCategory(cat);
+    setCatSearch(cat);
+    setShowCatSugg(false);
+  };
 
   const addMutation = useMutation({
     mutationFn: (d: { name: string; quantity?: string; category?: string; priority?: string }) =>
       orderListApi.addItem(listId, d),
     onSuccess: () => {
       setText('');
+      setDebouncedText('');
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
       inputRef.current?.focus();
     },
@@ -325,32 +364,69 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
 
   return (
     <View style={qa.wrapper}>
-      {/* Category strip — horizontal chip selector */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={qa.catStrip}
-        contentContainerStyle={qa.catStripInner}
-        keyboardShouldPersistTaps="handled"
-      >
-        <TouchableOpacity
-          style={[qa.catChip, !category && qa.catChipActive]}
-          onPress={() => setCategory('')}
-        >
-          <Text style={[qa.catChipText, !category && qa.catChipTextActive]}>All</Text>
-        </TouchableOpacity>
-        {categories.map(cat => (
+      {/* Item suggestion dropdown — shown when name input is focused */}
+      {showItemSugg && itemSuggestions.length > 0 && (
+        <View style={qa.suggBox}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+            {itemSuggestions.map(item => (
+              <TouchableOpacity key={item.name} style={qa.suggRow} onPress={() => handleSelectItem(item.name)}>
+                <Text style={qa.suggText}>{item.name}</Text>
+                <Text style={qa.suggCount}>{item.count}×</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Category suggestion dropdown — shown when category input is focused */}
+      {showCatSugg && !showItemSugg && catSuggestions.length > 0 && (
+        <View style={qa.suggBox}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+            {catSuggestions.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[qa.suggRow, category === cat && qa.suggRowActive]}
+                onPress={() => handleSelectCat(cat)}
+              >
+                <Text style={[qa.suggText, category === cat && qa.suggTextActive]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Category search row */}
+      <View style={qa.catRow}>
+        <Text style={qa.catLabel}>Category</Text>
+        <TextInput
+          style={qa.catInput}
+          value={catSearch}
+          onChangeText={v => { setCatSearch(v); setCategory(''); setShowCatSugg(true); }}
+          onFocus={() => setShowCatSugg(true)}
+          onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
+          placeholder="Search or skip…"
+          placeholderTextColor="#B0B8C4"
+          maxLength={80}
+          returnKeyType="done"
+          autoCorrect={false}
+        />
+        {catSearch ? (
           <TouchableOpacity
-            key={cat}
-            style={[qa.catChip, category === cat && qa.catChipActive]}
-            onPress={() => setCategory(cat)}
+            onPress={() => { setCatSearch(''); setCategory(''); setShowCatSugg(false); }}
+            style={qa.catClearBtn}
+            accessibilityLabel="Clear category"
           >
-            <Text style={[qa.catChipText, category === cat && qa.catChipTextActive]} numberOfLines={1}>
-              {cat}
-            </Text>
+            <XIcon size={14} color={COLORS.textMuted} />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        ) : null}
+        <TouchableOpacity
+          onPress={() => setShowNewCat(true)}
+          style={qa.catNewBtn}
+          accessibilityLabel="Submit new category"
+        >
+          <PlusIcon size={14} color={COLORS.secondary} strokeWidth={2.5} />
+        </TouchableOpacity>
+      </View>
 
       {/* Name input + add button */}
       <View style={qa.bar}>
@@ -358,8 +434,10 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           ref={inputRef}
           style={qa.input}
           value={text}
-          onChangeText={setText}
-          placeholder={category ? `Add item to ${category}…` : 'Item name… tip: "milk x4" sets qty'}
+          onChangeText={v => { setText(v); setShowItemSugg(true); }}
+          onFocus={() => setShowItemSugg(true)}
+          onBlur={() => setTimeout(() => setShowItemSugg(false), 130)}
+          placeholder={category ? `Add to ${category}…` : 'Item name… tip: "milk x4" sets qty'}
           placeholderTextColor="#B0B8C4"
           returnKeyType="done"
           blurOnSubmit={false}
@@ -383,17 +461,19 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
         </TouchableOpacity>
       </View>
 
+      {/* New Category Submission Modal */}
       <CategoryPicker
-        visible={showCat}
+        visible={showNewCat}
         categories={categories}
         selected={category}
-        onSelect={setCategory}
+        onSelect={(cat) => { setCategory(cat); setCatSearch(cat); }}
         onSubmitNew={async (newCat) => {
           await orderCategoriesApi.submitNew(newCat);
           setCategory(newCat);
+          setCatSearch(newCat);
           Toast.show({ type: 'success', text1: 'Submitted for approval' });
         }}
-        onClose={() => setShowCat(false)}
+        onClose={() => setShowNewCat(false)}
       />
     </View>
   );
@@ -411,18 +491,40 @@ interface EditItemSheetProps {
 }
 
 function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: EditItemSheetProps) {
-  const [name,     setName]     = useState(item.name);
-  const [quantity, setQuantity] = useState(item.quantity || '');
-  const [category, setCategory] = useState(item.category || '');
-  const [showCat,  setShowCat]  = useState(false);
+  const [name,           setName]           = useState(item.name);
+  const [debouncedName,  setDebouncedName]  = useState(item.name);
+  const [showNameSugg,   setShowNameSugg]   = useState(false);
+  const [quantity,       setQuantity]       = useState(item.quantity || '');
+  const [category,       setCategory]       = useState(item.category || '');
+  const [catSearch,      setCatSearch]      = useState(item.category || '');
+  const [showCatSugg,    setShowCatSugg]    = useState(false);
+  const [showNewCat,     setShowNewCat]     = useState(false);
+
+  // Debounce name for API
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedName(name), 300);
+    return () => clearTimeout(t);
+  }, [name]);
 
   useEffect(() => {
     if (visible) {
       setName(item.name);
+      setDebouncedName(item.name);
       setQuantity(item.quantity || '');
       setCategory(item.category || '');
+      setCatSearch(item.category || '');
     }
   }, [visible, item.id]);
+
+  // Item name suggestions
+  const { data: nameSuggData } = useQuery({
+    queryKey: ['item-suggestions-edit', debouncedName, category],
+    queryFn: () => managerApi.getItemSuggestions({ q: debouncedName, category: category || undefined }),
+    enabled: visible && debouncedName.trim().length >= 2,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (prev: any) => prev,
+  });
+  const nameSuggestions: { name: string; count: number }[] = nameSuggData?.data?.data || [];
 
   const editMutation = useMutation({
     mutationFn: (d: object) => orderListApi.updateItem(item.id, d),
@@ -439,6 +541,10 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
     });
   };
 
+  const catSuggestions = catSearch.trim()
+    ? categories.filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
+    : categories;
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -454,21 +560,84 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Name */}
             <Text style={s.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
-            <TextInput style={s.input} value={name} onChangeText={setName}
-              placeholder="e.g. Whole Milk 2%" placeholderTextColor={COLORS.textMuted} maxLength={120} />
+            <TextInput
+              style={s.input}
+              value={name}
+              onChangeText={v => { setName(v); setShowNameSugg(true); }}
+              onFocus={() => setShowNameSugg(true)}
+              onBlur={() => setTimeout(() => setShowNameSugg(false), 130)}
+              placeholder="e.g. Whole Milk 2%"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={120}
+            />
+            {showNameSugg && nameSuggestions.length > 0 && (
+              <View style={s.catSuggestBox}>
+                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 140 }}>
+                  {nameSuggestions.map(sug => (
+                    <TouchableOpacity
+                      key={sug.name}
+                      style={[s.catSuggestRow, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                      onPress={() => { setName(sug.name); setShowNameSugg(false); }}
+                    >
+                      <Text style={s.catSuggestText}>{sug.name}</Text>
+                      <Text style={{ fontSize: 11, color: COLORS.textMuted }}>{sug.count}×</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Quantity */}
             <Text style={s.label}>Quantity / Amount</Text>
             <TextInput style={s.input} value={quantity} onChangeText={setQuantity}
               placeholder="e.g. 4 gallons, 2 cases" placeholderTextColor={COLORS.textMuted} maxLength={60} />
 
-            {/* Category */}
+            {/* Category — inline autocomplete */}
             <Text style={s.label}>Category</Text>
-            <TouchableOpacity style={s.catPickerBtn} onPress={() => setShowCat(true)} activeOpacity={0.7}>
-              <Text style={category ? s.catPickerBtnText : s.catPickerBtnPlaceholder} numberOfLines={1}>
-                {category || 'Tap to choose category...'}
-              </Text>
-              <ChevronDownIcon size={16} color={COLORS.textMuted} />
+            <View style={s.catAutoRow}>
+              <TextInput
+                style={[s.input, { flex: 1, marginBottom: 0 }]}
+                value={catSearch}
+                onChangeText={v => { setCatSearch(v); setCategory(''); setShowCatSugg(true); }}
+                onFocus={() => setShowCatSugg(true)}
+                onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
+                placeholder="Search category…"
+                placeholderTextColor={COLORS.textMuted}
+                autoCorrect={false}
+                maxLength={80}
+              />
+              {catSearch ? (
+                <TouchableOpacity
+                  onPress={() => { setCatSearch(''); setCategory(''); setShowCatSugg(false); }}
+                  style={s.catAutoClear}
+                  accessibilityLabel="Clear category"
+                >
+                  <XIcon size={15} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              ) : (
+                <ChevronDownIcon size={15} color={COLORS.textMuted} />
+              )}
+            </View>
+
+            {showCatSugg && catSuggestions.length > 0 && (
+              <View style={s.catSuggestBox}>
+                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 160 }}>
+                  {catSuggestions.map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[s.catSuggestRow, category === cat && s.catSuggestRowActive]}
+                      onPress={() => { setCategory(cat); setCatSearch(cat); setShowCatSugg(false); }}
+                    >
+                      <Text style={[s.catSuggestText, category === cat && s.catSuggestTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TouchableOpacity style={[s.catNewTrigger, { marginTop: 8 }]} onPress={() => setShowNewCat(true)}>
+              <PlusIcon size={13} color={COLORS.secondary} strokeWidth={2.5} />
+              <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -485,18 +654,19 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
           </ScrollView>
         </View>
 
-        {/* Category picker renders over the edit sheet */}
+        {/* New Category Submission Modal */}
         <CategoryPicker
-          visible={showCat}
+          visible={showNewCat}
           categories={categories}
           selected={category}
-          onSelect={setCategory}
+          onSelect={(cat) => { setCategory(cat); setCatSearch(cat); }}
           onSubmitNew={async (newCat) => {
             await orderCategoriesApi.submitNew(newCat);
             setCategory(newCat);
+            setCatSearch(newCat);
             Toast.show({ type: 'success', text1: 'Submitted for approval' });
           }}
-          onClose={() => setShowCat(false)}
+          onClose={() => setShowNewCat(false)}
         />
       </KeyboardAvoidingView>
     </Modal>
@@ -1210,14 +1380,19 @@ const s = StyleSheet.create({
   },
   catNewSubmitText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  // Edit sheet category picker button
-  catPickerBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+  // Category autocomplete (EditItemSheet)
+  catAutoRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  catAutoClear:   { padding: 6 },
+  catSuggestBox:  {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
+    backgroundColor: '#fff', marginBottom: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 6, overflow: 'hidden',
   },
-  catPickerBtnText:        { fontSize: 15, color: COLORS.text, flex: 1 },
-  catPickerBtnPlaceholder: { fontSize: 15, color: COLORS.textMuted, flex: 1 },
+  catSuggestRow:       { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
+  catSuggestRowActive: { backgroundColor: '#EEF2FF' },
+  catSuggestText:      { fontSize: 14, color: COLORS.text },
+  catSuggestTextActive:{ fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
 
   submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
@@ -1340,16 +1515,41 @@ const qa = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
   },
-  catStrip: { borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
-  catStripInner: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
-  catChip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16,
-    borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F8FAFC',
-    minHeight: 36,
+
+  // Suggestion dropdown — appears at top of wrapper (above inputs)
+  suggBox: {
+    borderBottomWidth: 1, borderBottomColor: '#F1F3F5',
+    backgroundColor: '#fff',
   },
-  catChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  catChipText:       { fontSize: 12, fontWeight: '500', color: '#6C757D' },
-  catChipTextActive: { color: '#fff', fontWeight: '600' },
+  suggRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
+  },
+  suggRowActive:  { backgroundColor: '#EEF2FF' },
+  suggText:       { fontSize: 14, color: COLORS.text, flex: 1 },
+  suggTextActive: { fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+  suggCount:      { fontSize: 12, color: COLORS.textMuted, marginLeft: 8 },
+
+  // Category search row
+  catRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8, gap: 8,
+    borderBottomWidth: 1, borderBottomColor: '#F1F3F5',
+  },
+  catLabel: { fontSize: 12, fontWeight: '600', color: '#6C757D', width: 66 },
+  catInput: {
+    flex: 1, backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
+    fontSize: 13, color: COLORS.text,
+  },
+  catClearBtn: { padding: 6 },
+  catNewBtn: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+  },
+
   bar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 12, paddingVertical: 10,

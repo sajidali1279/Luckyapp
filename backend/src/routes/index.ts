@@ -349,7 +349,7 @@ router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.ST
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 
 // ─── Order Lists (Procurement Ticketing) ─────────────────────────────────────
-router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getItemSuggestions);   // Autocomplete from history
+router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), getItemSuggestions);                    // Item name autocomplete — all stores combined, no store filter needed
 router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllLists);                          // All lists across stores
 router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
 router.get('/order-lists/store/:storeId/history',               authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getListHistory);         // Closed lists (paginated)
@@ -376,7 +376,7 @@ router.get('/employee-requests/store/:storeId/rejected',         authenticate, r
 router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                        // Accept/reject each line → adds to list
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
-router.get('/inventory/analytics', authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);  // Top items, category breakdown, store comparison
+router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
 
 // ─── Order Categories ─────────────────────────────────────────────────────────
 router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown
