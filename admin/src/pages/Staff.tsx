@@ -450,6 +450,29 @@ export default function Staff() {
               <button type="button" style={s.modalClose} onClick={() => setStoresMgmtTarget(null)}>✕</button>
             </div>
 
+            {/* Select All / Clear All row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 600 }}>
+                {pendingStoreIds.length} of {stores.length} selected
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  style={s.quickBtn}
+                  onClick={() => setPendingStoreIds(stores.map((s: any) => s.id))}
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  style={s.quickBtn}
+                  onClick={() => setPendingStoreIds([])}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
             <div style={s.storeCheckList}>
               {stores.map((store: any, i: number) => {
                 const checked = pendingStoreIds.includes(store.id);
@@ -822,6 +845,11 @@ const s: Record<string, React.CSSProperties> = {
   checkboxActive: { background: '#1D3557', borderColor: '#1D3557' },
 
   modalActions: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
+  quickBtn: {
+    padding: '5px 12px', borderRadius: 8,
+    border: '1px solid #e5e7eb', background: '#f8fafc',
+    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#374151',
+  },
   cancelBtn: {
     padding: '10px 20px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', background: '#fff',

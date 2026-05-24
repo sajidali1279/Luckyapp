@@ -633,13 +633,102 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
   );
 }
 
+// ─── Quick-Add Bar ────────────────────────────────────────────────────────────
+
+interface QuickAddBarProps {
+  listId: string;
+  storeId: string;
+}
+
+function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
+  const qc = useQueryClient();
+  const [name,     setName]     = useState('');
+  const [qty,      setQty]      = useState('');
+  const [priority, setPriority] = useState<Priority>('NORMAL');
+  const nameRef = useRef<any>(null);
+
+  const addMutation = useMutation({
+    mutationFn: (d: object) => orderListApi.addItem(listId, d),
+    onSuccess: () => {
+      setName('');
+      setQty('');
+      qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
+      setTimeout(() => nameRef.current?.focus(), 80);
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
+  });
+
+  const cyclePriority = () =>
+    setPriority(p => p === 'NORMAL' ? 'URGENT' : p === 'URGENT' ? 'LOW' : 'NORMAL');
+
+  const handleAdd = () => {
+    if (!name.trim()) return;
+    addMutation.mutate({
+      name: name.trim(),
+      quantity: qty.trim() || undefined,
+      priority,
+    });
+  };
+
+  const dotColor = priority === 'URGENT' ? '#DC2626' : priority === 'LOW' ? '#3B82F6' : '#D1D5DB';
+
+  return (
+    <View style={qa.bar}>
+      {/* Priority dot — tap to cycle NORMAL → URGENT → LOW → NORMAL */}
+      <TouchableOpacity style={[qa.priorityDot, { backgroundColor: dotColor }]} onPress={cyclePriority} activeOpacity={0.7}>
+        {priority === 'URGENT' && <AlertTriangleIcon size={11} color="#fff" strokeWidth={2.5} />}
+        {priority === 'LOW'    && <ArrowDownIcon     size={11} color="#fff" strokeWidth={2.5} />}
+      </TouchableOpacity>
+
+      {/* Item name */}
+      <TextInput
+        ref={nameRef}
+        style={qa.nameInput}
+        value={name}
+        onChangeText={setName}
+        placeholder="Add item..."
+        placeholderTextColor="#9CA3AF"
+        returnKeyType="done"
+        blurOnSubmit={false}
+        onSubmitEditing={handleAdd}
+        maxLength={120}
+      />
+
+      {/* Qty (small) */}
+      <TextInput
+        style={qa.qtyInput}
+        value={qty}
+        onChangeText={setQty}
+        placeholder="Qty"
+        placeholderTextColor="#9CA3AF"
+        returnKeyType="done"
+        blurOnSubmit={false}
+        onSubmitEditing={handleAdd}
+        maxLength={30}
+      />
+
+      {/* Add button */}
+      <TouchableOpacity
+        style={[qa.addBtn, (!name.trim() || addMutation.isPending) && { opacity: 0.4 }]}
+        onPress={handleAdd}
+        disabled={!name.trim() || addMutation.isPending}
+        activeOpacity={0.8}
+      >
+        {addMutation.isPending
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
+        }
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ManagerOrderListScreen() {
   const qc = useQueryClient();
 
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const [showAddItem,     setShowAddItem]      = useState(false);
   const [editingItem,     setEditingItem]      = useState<OrderListItem | null>(null);
   const [showReview,      setShowReview]       = useState(false);
   const [showHistory,     setShowHistory]      = useState(false);
@@ -843,6 +932,17 @@ export default function ManagerOrderListScreen() {
                 {urgentCount   > 0 && <Text style={[s.statChip, { color: '#DC2626', fontWeight: '700' }]}>{urgentCount} urgent!</Text>}
               </View>
             </View>
+            {/* Print icon */}
+            <TouchableOpacity
+              style={[s.bannerIconBtn, (printMutation.isPending || items.length === 0) && { opacity: 0.35 }]}
+              onPress={() => printMutation.mutate()}
+              disabled={printMutation.isPending || items.length === 0}
+            >
+              {printMutation.isPending
+                ? <ActivityIndicator size="small" color={COLORS.textMuted} />
+                : <PrinterIcon size={19} color={COLORS.textMuted} strokeWidth={2} />
+              }
+            </TouchableOpacity>
             <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList}
               disabled={closeListMutation.isPending}>
               {closeListMutation.isPending
@@ -852,80 +952,70 @@ export default function ManagerOrderListScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Items by category */}
-          {items.length === 0 ? (
-            <View style={s.center}>
-              <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-              <Text style={s.emptyTitle}>List is empty</Text>
-              <Text style={s.emptyText}>Tap + below to add items.</Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
-              showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
-            >
-              {sections.map(section => (
-                <View key={section.title} style={s.section}>
-                  <Text style={s.sectionHeader}>{section.title}</Text>
-                  {section.data.map(item => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onEdit={setEditingItem}
-                      onRemove={handleRemove}
-                      onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                      onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
-                    />
-                  ))}
-                </View>
-              ))}
-            </ScrollView>
-          )}
+          {/* Items + Quick-Add bar (keyboard-aware) */}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            {items.length === 0 ? (
+              <View style={[s.center, { flex: 1 }]}>
+                <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
+                <Text style={s.emptyTitle}>List is empty</Text>
+                <Text style={s.emptyText}>Type an item below to start.</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
+                keyboardShouldPersistTaps="handled"
+              >
+                {sections.map(section => (
+                  <View key={section.title} style={s.section}>
+                    <Text style={s.sectionHeader}>{section.title}</Text>
+                    {section.data.map(item => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        onEdit={setEditingItem}
+                        onRemove={handleRemove}
+                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
+                      />
+                    ))}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
 
-          {/* Bottom Bar */}
-          <View style={s.bottomBar}>
-            <TouchableOpacity style={s.addBtn} onPress={() => { setEditingItem(null); setShowAddItem(true); }}>
-              <PlusIcon size={18} color={COLORS.secondary} strokeWidth={2.5} />
-              <Text style={s.addBtnText}>Add Item</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.printBtn, printMutation.isPending && { opacity: 0.6 }]}
-              onPress={() => printMutation.mutate()}
-              disabled={printMutation.isPending || items.length === 0}>
-              {printMutation.isPending
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <>
-                    <PrinterIcon size={17} color="#fff" strokeWidth={2} />
-                    <Text style={s.printBtnText}>Print / Share</Text>
-                  </>
-              }
-            </TouchableOpacity>
-          </View>
+            {/* Quick-Add Bar */}
+            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} />
+          </KeyboardAvoidingView>
         </>
       )}
 
-      {/* Add / Edit Item Sheet */}
-      <AddItemSheet
-        visible={showAddItem || !!editingItem}
-        listId={activeList?.id || ''}
-        initialValues={editingItem ? {
-          id: editingItem.id,
-          name: editingItem.name,
-          quantity: editingItem.quantity || '',
-          category: editingItem.category || '',
-          notes: editingItem.notes || '',
-          priority: editingItem.priority,
-        } : undefined}
-        categories={categories}
-        onClose={() => { setShowAddItem(false); setEditingItem(null); }}
-        onSaved={() => {
-          setShowAddItem(false);
-          setEditingItem(null);
-          qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
-        }}
-      />
+      {/* Edit Item Sheet (only opens when tapping Edit on an existing item) */}
+      {editingItem && (
+        <AddItemSheet
+          visible={true}
+          listId={activeList?.id || ''}
+          initialValues={{
+            id: editingItem.id,
+            name: editingItem.name,
+            quantity: editingItem.quantity || '',
+            category: editingItem.category || '',
+            notes: editingItem.notes || '',
+            priority: editingItem.priority,
+          }}
+          categories={categories}
+          onClose={() => setEditingItem(null)}
+          onSaved={() => {
+            setEditingItem(null);
+            qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
+          }}
+        />
+      )}
 
       {/* Employee Requests Review */}
       <ReviewModal
@@ -1004,6 +1094,11 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.primary,
   },
   closeListBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  bannerIconBtn: {
+    width: 36, height: 36, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.background,
+  },
 
   section: { marginBottom: 16 },
   sectionHeader: {
@@ -1150,4 +1245,67 @@ const s = StyleSheet.create({
   },
   restoreItemSelected: { borderColor: COLORS.secondary, backgroundColor: '#EEF2FF' },
   restoreCheckbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Quick-Add Bar Styles ─────────────────────────────────────────────────────
+const qa = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  priorityDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nameInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 13,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  qtyInput: {
+    width: 58,
+    height: 44,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  addBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
 });
