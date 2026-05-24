@@ -26,6 +26,19 @@ const SHIFTS = [
   { value: 'WEEKENDS',   label: 'Weekends'              },
 ];
 
+type PerkDef = {
+  Icon: (props: { size?: number; color?: string; strokeWidth?: number }) => any;
+  color: string;
+  bg: string;
+  text: string;
+};
+const PERKS: PerkDef[] = [
+  { Icon: DollarSignIcon, color: '#16a34a', bg: '#f0fdf4', text: 'Competitive pay' },
+  { Icon: CalendarIcon,   color: '#0369a1', bg: '#eff6ff', text: 'Flexible hours' },
+  { Icon: AwardIcon,      color: '#7c3aed', bg: '#f5f3ff', text: 'On-the-job training' },
+  { Icon: TagIcon,        color: '#b45309', bg: '#fffbeb', text: 'Employee discounts' },
+];
+
 interface FormState {
   name: string;
   phone: string;
@@ -123,12 +136,7 @@ export default function CareersScreen() {
 
         {/* Perks */}
         <View style={st.perksRow}>
-          {([
-            { Icon: DollarSignIcon, color: '#16a34a', bg: '#f0fdf4', text: 'Competitive pay' },
-            { Icon: CalendarIcon,   color: '#0369a1', bg: '#eff6ff', text: 'Flexible hours' },
-            { Icon: AwardIcon,      color: '#7c3aed', bg: '#f5f3ff', text: 'On-the-job training' },
-            { Icon: TagIcon,        color: '#b45309', bg: '#fffbeb', text: 'Employee discounts' },
-          ] as const).map(p => (
+          {PERKS.map(p => (
             <View key={p.text} style={[st.perk, { backgroundColor: p.bg }]}>
               <p.Icon size={22} color={p.color} strokeWidth={2} />
               <Text style={st.perkText}>{p.text}</Text>

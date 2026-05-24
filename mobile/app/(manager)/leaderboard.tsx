@@ -171,7 +171,12 @@ export default function ManagerLeaderboardScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={s.staffName} numberOfLines={1}>{item.name || item.phone}</Text>
-                    {isEOM && <View style={s.eomBadge}><Text style={s.eomText}>⭐ Month</Text></View>}
+                    {isEOM && (
+                      <View style={s.eomBadge}>
+                        <StarIcon size={10} color="#B45309" strokeWidth={2} />
+                        <Text style={s.eomText}>Month</Text>
+                      </View>
+                    )}
                   </View>
                   {item.allTime?.count > 0
                     ? <Stars rating={item.allTime.avg} />
@@ -259,7 +264,7 @@ const s = StyleSheet.create({
   },
   staffRowEOM: { borderWidth: 1.5, borderColor: '#F59E0B' },
   staffName: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  eomBadge: { backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  eomBadge: { backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 },
   eomText: { fontSize: 10, fontWeight: '800', color: '#B45309' },
   ratingNum: { fontSize: 18, fontWeight: '800', color: '#F59E0B' },
   ratingCount: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },

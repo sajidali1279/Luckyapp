@@ -1,9 +1,9 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
-import { leaderboardApi } from '../../services/api';
+import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, TrophyIcon } from '../../components/Icons';
@@ -13,10 +13,19 @@ const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 export default function CustomerLeaderboardScreen() {
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'chain' | 'store'>('chain');
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  // Nearest store id stored in a global — passed from home screen via navigation params
-  // or we just rely on the chain-wide view as primary
-  const storeId = undefined; // TODO: pass nearestStore.id via route params when navigating
+  // Reuse the gas-prices cache (same data as home screen) to get store list
+  const { data: storesData } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 30 * 60 * 1000,
+  });
+  const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
+
+  useEffect(() => {
+    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
+  }, [stores]);
 
   const chainQuery = useQuery({
     queryKey: ['leaderboard-customers-chain'],
@@ -24,7 +33,15 @@ export default function CustomerLeaderboardScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const entries: any[] = chainQuery.data?.data?.data || [];
+  const storeQuery = useQuery({
+    queryKey: ['leaderboard-customers-store', selectedStoreId],
+    queryFn: () => leaderboardApi.getCustomers(selectedStoreId!),
+    enabled: tab === 'store' && !!selectedStoreId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const activeQuery = tab === 'chain' ? chainQuery : storeQuery;
+  const entries: any[] = activeQuery.data?.data?.data || [];
 
   const myEntry = entries.find((e: any) => e.isCurrentUser);
   const myRank = myEntry?.rank;
@@ -67,7 +84,9 @@ export default function CustomerLeaderboardScreen() {
               <TrophyIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
               <Text style={st.headerTitle}>Leaderboard</Text>
             </View>
-            <Text style={st.headerSub}>Top Lucky Stop customers</Text>
+            <Text style={st.headerSub}>
+            {tab === 'chain' ? 'Top Lucky Stop customers' : (stores.find(s => s.id === selectedStoreId)?.name ?? 'Store rankings')}
+          </Text>
           </View>
           {myRank && (
             <View style={st.myRankPill}>
@@ -76,13 +95,47 @@ export default function CustomerLeaderboardScreen() {
             </View>
           )}
         </View>
+
+        {/* Tab bar */}
+        <View style={st.tabBar}>
+          {(['chain', 'store'] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[st.tab, tab === t && st.tabActive]}
+              onPress={() => setTab(t)}
+              activeOpacity={0.8}
+            >
+              <Text style={[st.tabText, tab === t && st.tabTextActive]}>
+                {t === 'chain' ? 'All Stores' : 'By Store'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Store picker — only when store tab active */}
+        {tab === 'store' && stores.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.storePickerRow}>
+            {stores.map((store: any) => (
+              <TouchableOpacity
+                key={store.id}
+                style={[st.storeChip, store.id === selectedStoreId && st.storeChipActive]}
+                onPress={() => setSelectedStoreId(store.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={[st.storeChipText, store.id === selectedStoreId && st.storeChipTextActive]}>
+                  {store.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </SafeAreaView>
 
-      {chainQuery.isLoading ? (
+      {activeQuery.isLoading ? (
         <View style={st.center}>
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 && !activeQuery.isLoading ? (
         <View style={st.center}>
           <View style={st.emptyIconRing}>
             <TrophyIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
@@ -142,6 +195,24 @@ const st = StyleSheet.create({
   },
   myRankLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   myRankNum: { color: '#fff', fontSize: 18, fontWeight: '900' },
+
+  tabBar: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14, gap: 8 },
+  tab: {
+    flex: 1, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+  },
+  tabActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  tabText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '700' },
+  tabTextActive: { color: COLORS.secondary, fontWeight: '800' },
+  storePickerRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
+  storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  storeChipTextActive: { color: '#fff', fontWeight: '700' },
 
   list: { padding: 16, paddingBottom: 32 },
 

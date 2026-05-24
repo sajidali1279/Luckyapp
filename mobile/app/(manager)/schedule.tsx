@@ -8,6 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import {
+  InboxIcon, CheckCircleIcon, XIcon, CalendarIcon, ClockIcon,
+} from '../../components/Icons';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -149,7 +152,7 @@ export default function ManagerScheduleScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>🏪 STORE MANAGER</Text>
+            <Text style={s.headerEyebrow}>STORE MANAGER</Text>
             <Text style={s.headerTitle}>Schedule</Text>
           </View>
           {pendingCount > 0 && (
@@ -203,7 +206,7 @@ export default function ManagerScheduleScreen() {
 
               {roster.length === 0 ? (
                 <View style={s.emptyWrap}>
-                  <Text style={s.emptyEmoji}>📭</Text>
+                  <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />
                   <Text style={s.emptyTitle}>No staff scheduled today</Text>
                   <Text style={s.emptySub}>Go to the admin panel to manage the weekly schedule</Text>
                 </View>
@@ -215,7 +218,7 @@ export default function ManagerScheduleScreen() {
                   return (
                     <View key={shift} style={s.shiftSection}>
                       {/* Shift header */}
-                      <View style={[s.shiftHeader, { borderLeftColor: color }]}>
+                      <View style={s.shiftHeader}>
                         <View style={[s.shiftHeaderDot, { backgroundColor: color }]} />
                         <View style={{ flex: 1 }}>
                           <Text style={[s.shiftHeaderLabel, { color }]}>{SHIFT_LABELS[shift]}</Text>
@@ -370,7 +373,7 @@ export default function ManagerScheduleScreen() {
               </View>
               {pendingReqs.length === 0 ? (
                 <View style={s.emptyWrap}>
-                  <Text style={s.emptyEmoji}>✅</Text>
+                  <CheckCircleIcon size={44} color="#2DC653" strokeWidth={1.25} />
                   <Text style={s.emptyTitle}>All clear!</Text>
                   <Text style={s.emptySub}>No pending requests from your team</Text>
                 </View>
@@ -415,18 +418,21 @@ export default function ManagerScheduleScreen() {
             {confirmModal && (
               <>
                 <View style={[s.modalIconWrap, { backgroundColor: confirmModal.action === 'APPROVED' ? '#f0fdf4' : '#fff1f2' }]}>
-                  <Text style={s.modalIconEmoji}>{confirmModal.action === 'APPROVED' ? '✅' : '❌'}</Text>
+                  {confirmModal.action === 'APPROVED'
+                    ? <CheckCircleIcon size={30} color="#16a34a" strokeWidth={2} />
+                    : <XIcon size={28} color="#E63946" strokeWidth={2.5} />
+                  }
                 </View>
                 <Text style={s.modalTitle}>
                   {confirmModal.action === 'APPROVED' ? 'Approve Request?' : 'Deny Request?'}
                 </Text>
                 <View style={s.modalPreview}>
-                  <Text style={s.modalPreviewRow}>👤 <Text style={{ fontWeight: '700' }}>{confirmModal.employeeName}</Text></Text>
+                  <Text style={s.modalPreviewRow}><Text style={{ fontWeight: '700' }}>{confirmModal.employeeName}</Text></Text>
                   <Text style={s.modalPreviewRow}>
-                    {confirmModal.type === 'TIME_OFF' ? '🏖️ Time Off' : '🔄 Fill-In'}
+                    {confirmModal.type === 'TIME_OFF' ? 'Time Off Request' : 'Fill-In Request'}
                   </Text>
-                  <Text style={s.modalPreviewRow}>📅 {fmtDateFull(confirmModal.date)}</Text>
-                  <Text style={s.modalPreviewRow}>🕐 {SHIFT_LABELS[confirmModal.shift]}</Text>
+                  <Text style={s.modalPreviewRow}>{fmtDateFull(confirmModal.date)}</Text>
+                  <Text style={s.modalPreviewRow}>{SHIFT_LABELS[confirmModal.shift]}</Text>
                 </View>
                 {confirmModal.action === 'APPROVED' && (
                   <Text style={s.modalNote}>
@@ -479,7 +485,7 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
   const name = req.employee?.name || req.employee?.phone || 'Employee';
 
   return (
-    <View style={[s.reqCard, { borderLeftColor: typeColor }]}>
+    <View style={[s.reqCard, { borderColor: typeColor + '40', backgroundColor: typeColor + '06' }]}>
       <View style={s.reqCardTop}>
         <View style={[s.reqAvatar, { backgroundColor: avatarColor }]}>
           <Text style={s.reqAvatarText}>{name[0].toUpperCase()}</Text>
@@ -490,23 +496,29 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
         </View>
         <View style={[s.reqTypeBadge, { backgroundColor: typeColor + '18' }]}>
           <Text style={[s.reqTypeText, { color: typeColor }]}>
-            {isTimeOff ? '🏖️ Time Off' : '🙋 Fill-In'}
+            {isTimeOff ? 'Time Off' : 'Fill-In'}
           </Text>
         </View>
       </View>
       <View style={s.reqDetail}>
-        <Text style={s.reqDetailText}>📅 {new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
-        <Text style={s.reqDetailText}>🕐 {SHIFT_LABELS[req.shiftType]}</Text>
+        <View style={s.reqDetailItem}>
+          <CalendarIcon size={13} color="#6b7280" strokeWidth={2} />
+          <Text style={s.reqDetailText}>{new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
+        </View>
+        <View style={s.reqDetailItem}>
+          <ClockIcon size={13} color="#6b7280" strokeWidth={2} />
+          <Text style={s.reqDetailText}>{SHIFT_LABELS[req.shiftType]}</Text>
+        </View>
       </View>
       {req.notes ? <Text style={s.reqNotes}>"{req.notes}"</Text> : null}
 
       {showActions ? (
         <View style={s.reqActions}>
           <TouchableOpacity style={s.approveBtn} onPress={onApprove} activeOpacity={0.8}>
-            <Text style={s.approveBtnText}>✓  Approve</Text>
+            <Text style={s.approveBtnText}>Approve</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.denyBtn} onPress={onDeny} activeOpacity={0.8}>
-            <Text style={s.denyBtnText}>✕  Deny</Text>
+            <Text style={s.denyBtnText}>Deny</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -561,7 +573,6 @@ const s = StyleSheet.create({
   pendingCountBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
   emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyEmoji: { fontSize: 44, marginBottom: 4 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', paddingHorizontal: 20 },
 
@@ -573,7 +584,7 @@ const s = StyleSheet.create({
   shiftSection: { marginBottom: 20 },
   shiftHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderLeftWidth: 4, paddingLeft: 12, marginBottom: 10,
+    marginBottom: 10,
   },
   shiftHeaderDot: { width: 10, height: 10, borderRadius: 5 },
   shiftHeaderLabel: { fontSize: 15, fontWeight: '800' },
@@ -660,10 +671,11 @@ const s = StyleSheet.create({
   // Requests
   reqCard: {
     backgroundColor: '#fff', borderRadius: 14, padding: 14,
-    marginBottom: 10, borderLeftWidth: 4, gap: 10,
+    marginBottom: 10, borderWidth: 1.5, gap: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
+  reqDetailItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   reqCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reqAvatar: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   reqAvatarText: { color: '#fff', fontSize: 15, fontWeight: '800' },
@@ -696,7 +708,6 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modal: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', gap: 12 },
   modalIconWrap: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  modalIconEmoji: { fontSize: 28 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' },
   modalPreview: {
     backgroundColor: '#f8fafc', borderRadius: 12, padding: 14,
