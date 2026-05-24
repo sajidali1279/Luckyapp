@@ -50,7 +50,7 @@ export async function submitCategory(req: AuthRequest, res: Response) {
     // Notify all DevAdmins
     const devAdmins = await prisma.user.findMany({ where: { role: 'DEV_ADMIN', isActive: true } });
     if (devAdmins.length > 0) {
-      await prisma.notification.createMany({
+      await prisma.userNotification.createMany({
         data: devAdmins.map(u => ({
           userId: u.id,
           title: 'New Category Pending',
