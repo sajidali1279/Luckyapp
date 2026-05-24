@@ -411,7 +411,8 @@ export default function CustomerHome() {
 
         <WelcomeBonusCard />
 
-        <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.82}>
+        {/* Scan Receipt QR — hidden until v2 (requires printer agent + category setup) */}
+        {/* <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.82}>
           <View style={styles.scanReceiptLeft}>
             <View style={styles.scanReceiptIconWrap}>
               <ReceiptIcon size={24} color={COLORS.accent} strokeWidth={1.75} />
@@ -422,7 +423,7 @@ export default function CustomerHome() {
             </View>
           </View>
           <ChevronRightIcon size={22} color={COLORS.accent} strokeWidth={2.5} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </Animated.View>
 
       {/* ── Banners ── */}
