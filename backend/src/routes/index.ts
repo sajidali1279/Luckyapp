@@ -46,6 +46,7 @@ import {
 import {
   submitRequest as submitItemRequest,
   getStoreRequests as getStoreItemRequests,
+  adminGetAllRequests as adminGetAllItemRequests,
   getMyRequests as getMyItemRequests,
   getRejectedLines,
   reviewRequest,
@@ -365,13 +366,14 @@ router.patch('/order-lists/items/:itemId/status',               authenticate, re
 router.delete('/order-lists/items/:itemId',                     authenticate, requireRole(Role.STORE_MANAGER), removeItem);                                 // Soft-delete item (status → REMOVED)
 
 // ─── Employee Item Requests ───────────────────────────────────────────────────
-router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);         // Item name + category autocomplete
-router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);     // Badge count across all manager's stores
-router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);               // Employee submits multi-item form
-router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);               // Employee views own requests
-router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);  // Manager views store requests
-router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);       // Rejection log for a store
-router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                  // Accept/reject each line → adds to list
+router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);              // Item name + category autocomplete
+router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);          // Badge count — all stores for admin, own stores for manager
+router.get('/employee-requests/admin/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllItemRequests);              // Admin: all requests across stores
+router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);                    // Employee submits multi-item form
+router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);                    // Employee views own requests
+router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);   // Manager views store requests
+router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);        // Rejection log for a store
+router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                        // Accept/reject each line → adds to list
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics', authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);  // Top items, category breakdown, store comparison

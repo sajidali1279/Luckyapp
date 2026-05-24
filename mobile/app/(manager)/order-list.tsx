@@ -123,7 +123,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
             <Text style={s.sheetTitle}>Category</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close" accessibilityRole="button">
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -373,6 +373,8 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           onPress={handleAdd}
           disabled={!ready}
           activeOpacity={0.8}
+          accessibilityLabel="Add item to list"
+          accessibilityRole="button"
         >
           {addMutation.isPending
             ? <ActivityIndicator color="#fff" size="small" />
@@ -444,7 +446,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
             <Text style={s.sheetTitle}>Edit Item</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close" accessibilityRole="button">
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -583,7 +585,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalFullHeader}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel="Close" accessibilityRole="button">
             <XIcon size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.modalFullTitle}>Employee Requests</Text>
@@ -721,7 +723,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalFullHeader}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel="Close" accessibilityRole="button">
             <XIcon size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.modalFullTitle}>Past Lists</Text>
@@ -1174,7 +1176,7 @@ const s = StyleSheet.create({
   sheetHandle: { width: 40, height: 4, backgroundColor: COLORS.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sheetTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  closeBtn:    { padding: 4 },
+  closeBtn:    { padding: 10 },
 
   label: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 8, marginTop: 12 },
   input: {
@@ -1280,7 +1282,6 @@ const t = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   addRow: {
-    borderLeftColor: COLORS.secondary,
     borderTopWidth: 1.5,
     borderTopColor: '#E5E7EB',
     paddingVertical: 8,
@@ -1342,8 +1343,9 @@ const qa = StyleSheet.create({
   catStrip: { borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
   catStripInner: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
   catChip: {
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16,
     borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F8FAFC',
+    minHeight: 36,
   },
   catChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
   catChipText:       { fontSize: 12, fontWeight: '500', color: '#6C757D' },

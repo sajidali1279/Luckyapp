@@ -248,6 +248,16 @@ export const orderCategoriesApi = {
   adminDelete:    (id: string) => api.delete(`/order-categories/${id}`),
 };
 
+export const employeeRequestApi = {
+  adminGetAll: (params?: { storeId?: string; status?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+    return api.get(`/employee-requests/admin/all${q ? `?${q}` : ''}`);
+  },
+  reviewRequest: (requestId: string, data: { lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
+    api.patch(`/employee-requests/${requestId}/review`, data),
+  getPendingCount: () => api.get('/employee-requests/pending-count'),
+};
+
 export const inventoryAnalyticsApi = {
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');

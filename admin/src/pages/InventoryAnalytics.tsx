@@ -83,7 +83,7 @@ export default function InventoryAnalytics() {
           <h1 style={s.title}>Inventory Intelligence</h1>
           <p style={s.sub}>Order history across {stores.length} stores — {totalItems} items tracked</p>
         </div>
-        <button style={s.refreshBtn} onClick={() => refetch()}>Refresh</button>
+        <button style={s.refreshBtn} onClick={() => refetch()} aria-label="Refresh analytics data">↺ Refresh</button>
       </div>
 
       {/* Filters */}
@@ -92,11 +92,12 @@ export default function InventoryAnalytics() {
         <div style={s.filterGroup}>
           <label style={s.filterLabel}>Period</label>
           <div style={s.segmented}>
-            {PERIODS.map(p => (
+            {PERIODS.map((p, idx) => (
               <button
                 key={p.value}
-                style={{ ...s.seg, ...(period === p.value ? s.segActive : {}) }}
+                style={{ ...s.seg, ...(period === p.value ? s.segActive : {}), ...(idx === PERIODS.length - 1 ? { borderRight: 'none' } : {}) }}
                 onClick={() => setPeriod(p.value)}
+                aria-pressed={period === p.value}
               >
                 {p.label}
               </button>

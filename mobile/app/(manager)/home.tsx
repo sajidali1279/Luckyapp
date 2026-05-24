@@ -270,7 +270,7 @@ const s = StyleSheet.create({
   sectionTitle:  { fontSize: 14, fontWeight: '700', color: '#495057', flex: 1 },
 
   periodPicker: { flexDirection: 'row', backgroundColor: '#E9ECEF', borderRadius: 8, padding: 2 },
-  periodBtn:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  periodBtn:     { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 6 },
   periodBtnActive: { backgroundColor: '#FFFFFF' },
   periodBtnText:   { fontSize: 12, color: '#6C757D', fontWeight: '500' },
   periodBtnTextActive: { color: '#212529', fontWeight: '600' },

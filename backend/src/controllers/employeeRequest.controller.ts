@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType } from '@prisma/client';
+import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType, Role } from '@prisma/client';
 import { generateListName } from './orderList.controller';
 
 // ─── GET /employee-requests/suggestions ──────────────────────────────────────
@@ -82,6 +82,28 @@ export async function getStoreRequests(req: AuthRequest, res: Response) {
   res.json({ success: true, data: requests });
 }
 
+// ─── GET /employee-requests/admin/all ────────────────────────────────────────
+// Admin view: all requests across all stores, filterable by status and store
+
+export async function adminGetAllRequests(req: AuthRequest, res: Response) {
+  const { status, storeId } = req.query as { status?: string; storeId?: string };
+  const where: Record<string, unknown> = {};
+  if (status === 'PENDING' || status === 'REVIEWED') where.status = status;
+  if (storeId) where.storeId = storeId;
+  const requests = await prisma.employeeItemRequest.findMany({
+    where,
+    include: {
+      submittedBy: { select: { id: true, name: true, role: true } },
+      reviewedBy:  { select: { id: true, name: true } },
+      lines: true,
+      store: { select: { id: true, name: true } },
+    },
+    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+    take: 200,
+  });
+  res.json({ success: true, data: requests });
+}
+
 // ─── GET /employee-requests/mine ─────────────────────────────────────────────
 
 export async function getMyRequests(req: AuthRequest, res: Response) {
@@ -109,6 +131,15 @@ export async function getRejectedLines(req: AuthRequest, res: Response) {
 
 export async function getItemRequestsPendingCount(req: AuthRequest, res: Response) {
   const user = req.user!;
+  const isAdmin = user.role === Role.DEV_ADMIN || user.role === Role.SUPER_ADMIN;
+
+  // Admins see the global count across all stores — no UserStoreRole lookup needed
+  if (isAdmin) {
+    const count = await prisma.employeeItemRequest.count({ where: { status: 'PENDING' } });
+    res.json({ success: true, data: { count } });
+    return;
+  }
+
   const storeRoles = await prisma.userStoreRole.findMany({
     where: { userId: user.id },
     select: { storeId: true },

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { orderListApi, orderCategoriesApi, storesApi } from '../services/api';
+import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -348,8 +348,11 @@ function OrderListsTab({ canEdit }: { canEdit: boolean }) {
             const pending    = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
             const received   = list.items?.filter(i => i.status === 'RECEIVED').length ?? 0;
             return (
-              <div key={list.id} style={{ ...s.listCard, borderLeft: `4px solid ${isOpen ? '#10B981' : '#94A3B8'}` }}
-                onClick={() => setSelectedList(list)}>
+              <div key={list.id} style={{ ...s.listCard, background: isOpen ? '#fff' : '#FAFAFA' }}
+                onClick={() => setSelectedList(list)}
+                role="button" tabIndex={0}
+                aria-label={`Open list ${list.name} for ${list.store?.name}`}
+                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedList(list)}>
                 <div style={s.listCardTop}>
                   <span style={{ ...s.statusPill, background: isOpen ? '#D1FAE5' : '#F3F4F6', color: isOpen ? '#059669' : '#6B7280' }}>
                     {isOpen ? '● Open' : '✓ Closed'}
@@ -541,15 +544,206 @@ function CategoriesTab() {
   );
 }
 
+// ─── Tab: Employee Requests ───────────────────────────────────────────────────
+
+const REJECTION_REASONS = [
+  { value: 'NO_SUPPLIER',   label: 'No supplier' },
+  { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
+  { value: 'IN_STOCK',      label: 'In stock' },
+  { value: 'DUPLICATE',     label: 'Duplicate' },
+  { value: 'OTHER',         label: 'Other' },
+];
+
+interface ReqLine { id: string; name: string; quantity?: string; category?: string; notes?: string; status: string; rejectionReason?: string; rejectionNote?: string }
+interface EmpRequest {
+  id: string; status: string; note?: string; requestType: string; createdAt: string;
+  submittedBy: { id: string; name: string; role: string };
+  reviewedBy?: { id: string; name: string };
+  store: { id: string; name: string };
+  lines: ReqLine[];
+}
+
+function RequestsTab() {
+  const qc = useQueryClient();
+  const [filterStoreId, setFilterStoreId] = useState('');
+  const [filterStatus,  setFilterStatus]  = useState('PENDING');
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
+  const [lineState, setLineState] = useState<Record<string, { action: 'ACCEPT' | 'REJECT' | null; reason: string; note: string }>>({});
+
+  const { data: storesData } = useQuery({ queryKey: ['stores-all'], queryFn: storesApi.getAll });
+  const stores: { id: string; name: string }[] = storesData?.data?.data || [];
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['admin-employee-requests', filterStoreId, filterStatus],
+    queryFn: () => employeeRequestApi.adminGetAll({ storeId: filterStoreId || undefined, status: filterStatus || undefined }),
+    refetchInterval: 30000,
+  });
+  const requests: EmpRequest[] = data?.data?.data || [];
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ requestId, lines }: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
+      employeeRequestApi.reviewRequest(requestId, { lines }),
+    onSuccess: () => {
+      toast.success('Request reviewed — accepted items added to active list');
+      qc.invalidateQueries({ queryKey: ['admin-employee-requests'] });
+      setLineState({});
+      setExpandedId(null);
+    },
+    onError: () => toast.error('Failed to submit review'),
+  });
+
+  const setLine = (lineId: string, field: 'action' | 'reason' | 'note', value: string) =>
+    setLineState(prev => ({ ...prev, [lineId]: Object.assign({ action: null, reason: 'OTHER', note: '' }, prev[lineId], { [field]: value }) }));
+
+  const handleReview = (req: EmpRequest) => {
+    const pending = req.lines.filter(l => l.status === 'PENDING');
+    const lines = pending.map(l => {
+      const st = lineState[l.id];
+      if (!st?.action) return null;
+      return { id: l.id, action: st.action, ...(st.action === 'REJECT' ? { rejectionReason: st.reason || 'OTHER', rejectionNote: st.note || undefined } : {}) };
+    }).filter(Boolean) as { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[];
+    if (lines.length === 0) { toast('Select Accept or Reject for at least one item', { icon: 'ℹ️' }); return; }
+    reviewMutation.mutate({ requestId: req.id, lines });
+  };
+
+  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
+
+  return (
+    <div>
+      <div style={s.filters}>
+        <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
+          <option value="">All Stores</option>
+          {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+        </select>
+        <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All Statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="REVIEWED">Reviewed</option>
+        </select>
+        <button style={s.refreshBtn} onClick={() => refetch()}>↺ Refresh</button>
+        {pendingCount > 0 && (
+          <span style={s.pendingBadge}>{pendingCount} pending review</span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div style={s.loading}>Loading requests…</div>
+      ) : requests.length === 0 ? (
+        <div style={s.empty}>No employee requests found.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {requests.map(req => {
+            const isExpanded = expandedId === req.id;
+            const isPending  = req.status === 'PENDING';
+            const pendingLines = req.lines.filter(l => l.status === 'PENDING');
+            return (
+              <div key={req.id} style={{ ...r.card, borderColor: isPending ? '#FDE68A' : '#E2E8F0', background: isPending ? '#FFFBEB' : '#fff' }}>
+                {/* Header */}
+                <div style={r.cardHead} onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                  role="button" tabIndex={0} aria-expanded={isExpanded}
+                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setExpandedId(isExpanded ? null : req.id)}>
+                  <div style={{ flex: 1 }}>
+                    <div style={r.cardTitle}>
+                      {req.submittedBy.name}
+                      <span style={{ ...s.statusPill, background: isPending ? '#FEF3C7' : '#D1FAE5', color: isPending ? '#D97706' : '#059669', marginLeft: 8, fontSize: 11 }}>
+                        {isPending ? 'Pending' : 'Reviewed'}
+                      </span>
+                      <span style={{ ...s.statusPill, background: '#EEF2FF', color: '#4F46E5', marginLeft: 6, fontSize: 11 }}>
+                        {req.requestType === 'CUSTOMER_REQUEST' ? 'Customer Request' : 'Low Stock'}
+                      </span>
+                    </div>
+                    <div style={r.cardMeta}>
+                      {req.store.name} · {req.lines.length} item{req.lines.length !== 1 ? 's' : ''} · {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {req.note && ` · "${req.note}"`}
+                    </div>
+                    {req.reviewedBy && <div style={r.cardMeta}>Reviewed by {req.reviewedBy.name}</div>}
+                  </div>
+                  <span style={{ color: '#94A3B8', fontSize: 18 }}>{isExpanded ? '▲' : '▼'}</span>
+                </div>
+
+                {/* Expanded lines */}
+                {isExpanded && (
+                  <div style={r.lines}>
+                    {req.lines.map(line => {
+                      const st = lineState[line.id] || { action: null, reason: 'OTHER', note: '' };
+                      const linePending = line.status === 'PENDING';
+                      return (
+                        <div key={line.id} style={{ ...r.line, opacity: linePending ? 1 : 0.7 }}>
+                          <div style={r.lineName}>{line.name}</div>
+                          <div style={r.lineMeta}>
+                            {line.quantity && `Qty: ${line.quantity}`}
+                            {line.quantity && line.category && ' · '}
+                            {line.category}
+                            {line.notes && ` — ${line.notes}`}
+                          </div>
+                          {!linePending && (
+                            <span style={{ ...s.statusPill, background: line.status === 'ACCEPTED' ? '#D1FAE5' : '#FEE2E2', color: line.status === 'ACCEPTED' ? '#059669' : '#DC2626', fontSize: 11 }}>
+                              {line.status === 'ACCEPTED' ? 'Accepted' : `Rejected${line.rejectionReason ? ` — ${line.rejectionReason}` : ''}`}
+                            </span>
+                          )}
+                          {linePending && isPending && (
+                            <div style={{ marginTop: 8 }}>
+                              <div style={r.actionRow}>
+                                <button style={{ ...r.actionBtn, ...(st.action === 'ACCEPT' ? r.acceptActive : {}) }}
+                                  onClick={() => setLine(line.id, 'action', 'ACCEPT')}>
+                                  ✓ Accept
+                                </button>
+                                <button style={{ ...r.actionBtn, ...(st.action === 'REJECT' ? r.rejectActive : {}) }}
+                                  onClick={() => setLine(line.id, 'action', 'REJECT')}>
+                                  ✕ Reject
+                                </button>
+                              </div>
+                              {st.action === 'REJECT' && (
+                                <div style={{ marginTop: 8 }}>
+                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginBottom: 6 }}>
+                                    {REJECTION_REASONS.map(rr => (
+                                      <button key={rr.value}
+                                        style={{ ...r.chipBtn, ...(st.reason === rr.value ? { background: '#FEE2E2', borderColor: '#DC2626', color: '#DC2626' } : {}) }}
+                                        onClick={() => setLine(line.id, 'reason', rr.value)}>
+                                        {rr.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <input style={s.input} value={st.note} onChange={e => setLine(line.id, 'note', e.target.value)}
+                                    placeholder="Optional note..." maxLength={300} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {isPending && pendingLines.length > 0 && (
+                      <button
+                        style={{ ...m.primaryBtn, marginTop: 12, opacity: reviewMutation.isPending ? 0.6 : 1 }}
+                        onClick={() => handleReview(req)}
+                        disabled={reviewMutation.isPending}
+                      >
+                        {reviewMutation.isPending ? 'Submitting…' : 'Submit Review'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function OrderListPage() {
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<'lists' | 'categories'>('lists');
+  const [tab, setTab] = useState<'lists' | 'categories' | 'requests'>('lists');
 
   const isDevAdmin   = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const canEdit      = isDevAdmin;   // Only DevAdmin can add/close passively
+  const canEdit      = isDevAdmin;
+  const canSeeRequests = isDevAdmin || isSuperAdmin;
 
   return (
     <div style={s.page}>
@@ -559,8 +753,8 @@ export default function OrderListPage() {
           <h1 style={s.pageTitle}>📦 Order Lists</h1>
           <p style={s.pageSubtitle}>
             {isDevAdmin
-              ? 'View all store order lists. You can add items or close lists when helping out.'
-              : 'Read-only view of all store order lists.'}
+              ? 'View and manage all store order lists, employee requests, and categories.'
+              : 'View all store order lists and review employee item requests.'}
           </p>
         </div>
       </div>
@@ -570,6 +764,11 @@ export default function OrderListPage() {
         <button style={{ ...s.tab, ...(tab === 'lists' && s.tabActive) }} onClick={() => setTab('lists')}>
           Order Lists
         </button>
+        {canSeeRequests && (
+          <button style={{ ...s.tab, ...(tab === 'requests' && s.tabActive) }} onClick={() => setTab('requests')}>
+            Employee Requests
+          </button>
+        )}
         {isDevAdmin && (
           <button style={{ ...s.tab, ...(tab === 'categories' && s.tabActive) }} onClick={() => setTab('categories')}>
             Categories
@@ -578,7 +777,8 @@ export default function OrderListPage() {
       </div>
 
       <div style={s.tabContent}>
-        {tab === 'lists'      && <OrderListsTab canEdit={canEdit} />}
+        {tab === 'lists'    && <OrderListsTab canEdit={canEdit} />}
+        {tab === 'requests' && canSeeRequests && <RequestsTab />}
         {tab === 'categories' && isDevAdmin && <CategoriesTab />}
       </div>
     </div>
@@ -678,6 +878,23 @@ const s: Record<string, React.CSSProperties> = {
   deleteBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   saveBtnSm:    { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
   cancelBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 12, cursor: 'pointer' },
+};
+
+// Request tab styles
+const r: Record<string, React.CSSProperties> = {
+  card:      { borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
+  cardHead:  { display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', gap: 8 },
+  cardTitle: { fontSize: 15, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
+  cardMeta:  { fontSize: 12, color: '#64748B', marginTop: 2 },
+  lines:     { borderTop: '1px solid #E2E8F0', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#F8FAFC' },
+  line:      { background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', padding: 12 },
+  lineName:  { fontSize: 14, fontWeight: 600, color: '#1E293B' },
+  lineMeta:  { fontSize: 12, color: '#64748B', marginTop: 2 },
+  actionRow: { display: 'flex', gap: 8, marginTop: 6 },
+  actionBtn: { flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  acceptActive: { background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
+  rejectActive: { background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
+  chipBtn:   { padding: '4px 12px', borderRadius: 16, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#64748B' },
 };
 
 // Modal styles
