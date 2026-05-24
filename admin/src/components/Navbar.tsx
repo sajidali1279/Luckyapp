@@ -188,20 +188,20 @@ export default function Navbar() {
   // ── Dropdown item lists ───────────────────────────────────────────────────
 
   const overviewItems: DropdownItem[] = [
-    { to: '/',          icon: '📊', label: 'Dashboard' },
-    { to: '/analytics', icon: '📈', label: 'Analytics' },
+    { to: '/',                     icon: '📊', label: 'Dashboard'               },
+    { to: '/analytics',            icon: '📈', label: 'Analytics'               },
+    { to: '/inventory-analytics',  icon: '📦', label: 'Inventory Intelligence'  },
   ];
   const overviewItemsBasic: DropdownItem[] = [{ to: '/', icon: '📊', label: 'Dashboard' }];
 
   const peopleItemsAdminFull: DropdownItem[] = [
-    { to: '/chat',                  icon: '💬', label: 'Chat'       },
-    { to: '/scheduling',            icon: '📅', label: 'Scheduling' },
-    { to: '/staff',                 icon: '👥', label: 'Staff'      },
-    { to: '/customers',             icon: '🙋', label: 'Customers'  },
-    { to: '/store-requests',        icon: '📋', label: 'Requests'   },
-    { to: '/order-list',            icon: '📦', label: 'Order List' },
-    { to: '/inventory-analytics',   icon: '📊', label: 'Inventory Intelligence' },
-    { to: '/careers',               icon: '💼', label: 'Careers', badge: careersNewCount },
+    { to: '/chat',           icon: '💬', label: 'Chat'       },
+    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
+    { to: '/staff',          icon: '👥', label: 'Staff'      },
+    { to: '/customers',      icon: '🙋', label: 'Customers'  },
+    { to: '/store-requests', icon: '📋', label: 'Requests'   },
+    { to: '/order-list',     icon: '📦', label: 'Order List' },
+    { to: '/careers',        icon: '💼', label: 'Careers', badge: careersNewCount },
   ];
   const peopleItemsManager: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'       },
@@ -219,8 +219,8 @@ export default function Navbar() {
     { to: '/banners', icon: '🖼️', label: 'Banners' },
   ];
 
-  const overviewRoutes = ['/', '/analytics'];
-  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests', '/order-list', '/inventory-analytics', '/careers'];
+  const overviewRoutes = ['/', '/analytics', '/inventory-analytics'];
+  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests', '/order-list', '/careers'];
   const contentRoutes  = ['/offers', '/banners', '/catalog'];
 
   return (
