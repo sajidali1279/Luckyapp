@@ -64,6 +64,51 @@ type CommittedLine = {
 
 function makeKey() { return `${Date.now()}-${Math.random()}`; }
 
+// ─── Category Auto-Input ──────────────────────────────────────────────────────
+
+function CategoryAutoInput({ value, onChange, categories }: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: string[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const suggestions = categories.filter(
+    c => c.toLowerCase().includes(value.toLowerCase()) && c.toLowerCase() !== value.toLowerCase()
+  ).slice(0, 5);
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      <TextInput
+        style={s.tileInput}
+        value={value}
+        onChangeText={v => { onChange(v); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        placeholder="Category  (type or leave blank)"
+        placeholderTextColor="#B0B8C4"
+        maxLength={80}
+        autoCapitalize="words"
+        autoCorrect={false}
+        returnKeyType="next"
+      />
+      {open && suggestions.length > 0 && (
+        <View style={s.suggestBox}>
+          {suggestions.map(c => (
+            <TouchableOpacity
+              key={c}
+              style={s.suggestRow}
+              onPress={() => { onChange(c); setOpen(false); }}
+            >
+              <Text style={s.suggestText}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ─── Request Form ─────────────────────────────────────────────────────────────
 
 interface RequestFormProps {
@@ -225,20 +270,12 @@ function RequestForm({ categories, onSubmitted }: RequestFormProps) {
             returnKeyType="next"
           />
 
-          {/* Category chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catRow} keyboardShouldPersistTaps="handled">
-            {['', ...categories].map(c => (
-              <TouchableOpacity
-                key={c || '__none__'}
-                onPress={() => setActiveCategory(c)}
-                style={[s.catChip, activeCategory === c && s.catChipActive]}
-              >
-                <Text style={[s.catChipText, activeCategory === c && s.catChipTextActive]}>
-                  {c || 'No category'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Category */}
+          <CategoryAutoInput
+            value={activeCategory}
+            onChange={setActiveCategory}
+            categories={categories}
+          />
 
           {/* Notes */}
           <TextInput
@@ -572,11 +609,19 @@ const s = StyleSheet.create({
   },
   tileTextArea: { minHeight: 56, textAlignVertical: 'top', paddingTop: 10 },
 
-  catRow: { marginTop: 10, marginBottom: 2 },
-  catChip:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
-  catChipActive:    { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  catChipText:      { fontSize: 12, color: COLORS.text, fontWeight: '500' },
-  catChipTextActive: { color: '#fff', fontWeight: '600' },
+  // Category autocomplete
+  suggestBox: {
+    backgroundColor: '#fff',
+    borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, marginTop: 2, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 6, elevation: 4,
+  },
+  suggestRow: {
+    paddingHorizontal: 14, paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
+  },
+  suggestText: { fontSize: 14, color: COLORS.text },
 
   addToListBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
