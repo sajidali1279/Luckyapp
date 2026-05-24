@@ -10,8 +10,8 @@ import Toast from 'react-native-toast-message';
 import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import {
-  PackageIcon, PrinterIcon, CheckCircleIcon, ArrowDownIcon,
-  AlertTriangleIcon, PlusIcon, EditIcon, XIcon, ClipboardIcon,
+  PackageIcon, PrinterIcon, CheckCircleIcon,
+  PlusIcon, XIcon, ClipboardIcon,
   ListIcon, ChevronDownIcon,
 } from '../../components/Icons';
 
@@ -64,12 +64,6 @@ interface EmployeeRequest {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const PRIORITY_CFG: Record<Priority, { label: string; bg: string; text: string; border: string }> = {
-  URGENT: { label: 'Urgent', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
-  NORMAL: { label: 'Normal', bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' },
-  LOW:    { label: 'Low',    bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
-};
-
 const STATUS_CFG: Record<ItemStatus, { label: string; bg: string; text: string }> = {
   PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706' },
   ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669' },
@@ -84,8 +78,6 @@ const REJECTION_REASONS = [
   { value: 'DUPLICATE',     label: 'Duplicate' },
   { value: 'OTHER',         label: 'Other' },
 ];
-
-const PRIORITY_ORDER: Record<Priority, number> = { URGENT: 0, NORMAL: 1, LOW: 2 };
 
 // ─── Category Picker ─────────────────────────────────────────────────────────
 
@@ -207,22 +199,24 @@ interface ItemRowProps {
   onRemove: (item: OrderListItem) => void;
   onMarkOrdered: (item: OrderListItem) => void;
   onMarkReceived: (item: OrderListItem) => void;
-  onMarkPriority: (item: OrderListItem, priority: Priority) => void;
 }
 
-function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, onMarkPriority }: ItemRowProps) {
-  const pc = PRIORITY_CFG[item.priority];
+const STATUS_BORDER: Record<ItemStatus, string> = {
+  PENDING:  '#D97706',
+  ORDERED:  '#059669',
+  RECEIVED: '#D1FAE5',
+  REMOVED:  '#E5E7EB',
+};
+
+function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
   const sc = STATUS_CFG[item.status];
 
   const showActions = () => {
     const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (item.status === 'PENDING') {
-      if (item.priority !== 'URGENT') buttons.push({ text: '🔴 Mark Urgent',  onPress: () => onMarkPriority(item, 'URGENT') });
-      if (item.priority !== 'NORMAL') buttons.push({ text: '⚫ Mark Normal',  onPress: () => onMarkPriority(item, 'NORMAL') });
-      if (item.priority !== 'LOW')    buttons.push({ text: '🔵 Mark Low',     onPress: () => onMarkPriority(item, 'LOW') });
       buttons.push({ text: '✓ Mark Ordered',  onPress: () => onMarkOrdered(item) });
-      buttons.push({ text: '✎ Edit Details', onPress: () => onEdit(item) });
-      buttons.push({ text: '✕ Remove',        style: 'destructive', onPress: () => onRemove(item) });
+      buttons.push({ text: '✎ Edit Details',  onPress: () => onEdit(item) });
+      buttons.push({ text: '✕ Remove',         style: 'destructive', onPress: () => onRemove(item) });
     } else if (item.status === 'ORDERED') {
       buttons.push({ text: '✓ Mark Received', onPress: () => onMarkReceived(item) });
       buttons.push({ text: '✎ Edit Details',  onPress: () => onEdit(item) });
@@ -234,20 +228,10 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, onMark
 
   return (
     <TouchableOpacity
-      style={[t.row, { borderLeftColor: item.status === 'RECEIVED' ? '#D1FAE5' : pc.text }]}
+      style={[t.row, { borderLeftColor: STATUS_BORDER[item.status] }]}
       onPress={showActions}
       activeOpacity={0.65}
     >
-      {/* Priority dot */}
-      <View style={t.colP}>
-        <View style={[t.dot, { backgroundColor: item.status === 'RECEIVED' ? '#D1D5DB' : pc.text }]}>
-          {item.priority === 'URGENT' && item.status === 'PENDING' &&
-            <AlertTriangleIcon size={8} color="#fff" strokeWidth={2.5} />}
-          {item.priority === 'LOW' && item.status === 'PENDING' &&
-            <ArrowDownIcon size={8} color="#fff" strokeWidth={2.5} />}
-        </View>
-      </View>
-
       {/* Name + qty merged */}
       <View style={t.colName}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 4 }}>
@@ -266,8 +250,8 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, onMark
       {/* Category */}
       <View style={t.colCat}>
         {item.category ? (
-          <View style={[t.catPill, { backgroundColor: item.status === 'RECEIVED' ? '#F3F4F6' : pc.bg }]}>
-            <Text style={[t.catPillText, { color: item.status === 'RECEIVED' ? '#9CA3AF' : pc.text }]} numberOfLines={1}>
+          <View style={[t.catPill, { backgroundColor: item.status === 'RECEIVED' ? '#F3F4F6' : '#EEF2FF' }]}>
+            <Text style={[t.catPillText, { color: item.status === 'RECEIVED' ? '#9CA3AF' : '#4F46E5' }]} numberOfLines={1}>
               {item.category}
             </Text>
           </View>
@@ -382,7 +366,6 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
   const [name,     setName]     = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity || '');
   const [category, setCategory] = useState(item.category || '');
-  const [priority, setPriority] = useState<Priority>(item.priority);
   const [showCat,  setShowCat]  = useState(false);
 
   useEffect(() => {
@@ -390,7 +373,6 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       setName(item.name);
       setQuantity(item.quantity || '');
       setCategory(item.category || '');
-      setPriority(item.priority);
     }
   }, [visible, item.id]);
 
@@ -406,7 +388,6 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       name: name.trim(),
       quantity: quantity.trim() || null,
       category: category.trim() || null,
-      priority,
     });
   };
 
@@ -423,22 +404,6 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Priority */}
-            <Text style={s.label}>Priority</Text>
-            <View style={s.priorityRow}>
-              {(['URGENT', 'NORMAL', 'LOW'] as Priority[]).map(p => {
-                const cfg = PRIORITY_CFG[p];
-                const sel = priority === p;
-                return (
-                  <TouchableOpacity key={p} onPress={() => setPriority(p)}
-                    style={[s.priorityChip, { borderColor: cfg.border }, sel && { backgroundColor: cfg.bg, borderColor: cfg.text }]}>
-                    {p === 'URGENT' && <AlertTriangleIcon size={13} color={sel ? cfg.text : '#9CA3AF'} strokeWidth={2} />}
-                    <Text style={[s.priorityChipText, { color: sel ? cfg.text : '#9CA3AF' }]}>{cfg.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
             {/* Name */}
             <Text style={s.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
             <TextInput style={s.input} value={name} onChangeText={setName}
@@ -833,10 +798,11 @@ export default function ManagerOrderListScreen() {
   const activeList: OrderList | null = activeData?.data?.data || null;
   const items: OrderListItem[] = activeList?.items?.filter(i => i.status !== 'REMOVED') || [];
 
-  // Sorted flat list: URGENT → NORMAL → LOW, then alphabetically within each priority
+  // Sort: PENDING → ORDERED → RECEIVED, then alphabetical within each status
+  const STATUS_SORT: Record<ItemStatus, number> = { PENDING: 0, ORDERED: 1, RECEIVED: 2, REMOVED: 3 };
   const sortedItems = [...items].sort((a, b) => {
-    if (PRIORITY_ORDER[a.priority] !== PRIORITY_ORDER[b.priority])
-      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    if (STATUS_SORT[a.status] !== STATUS_SORT[b.status])
+      return STATUS_SORT[a.status] - STATUS_SORT[b.status];
     return a.name.localeCompare(b.name);
   });
 
@@ -889,11 +855,6 @@ export default function ManagerOrderListScreen() {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
   });
 
-  const priorityMutation = useMutation({
-    mutationFn: ({ id, priority }: { id: string; priority: Priority }) => orderListApi.updateItem(id, { priority }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to update priority' }),
-  });
 
   const printMutation = useMutation({
     mutationFn: () => orderListApi.printList(activeList!.id),
@@ -933,7 +894,6 @@ export default function ManagerOrderListScreen() {
   const pendingCount  = items.filter(i => i.status === 'PENDING').length;
   const orderedCount  = items.filter(i => i.status === 'ORDERED').length;
   const receivedCount = items.filter(i => i.status === 'RECEIVED').length;
-  const urgentCount   = items.filter(i => i.priority === 'URGENT' && i.status === 'PENDING').length;
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -1011,7 +971,6 @@ export default function ManagerOrderListScreen() {
                 {pendingCount  > 0 && <Text style={[s.statChip, { color: '#D97706' }]}>{pendingCount} needed</Text>}
                 {orderedCount  > 0 && <Text style={[s.statChip, { color: '#059669' }]}>{orderedCount} ordered</Text>}
                 {receivedCount > 0 && <Text style={[s.statChip, { color: '#16A34A' }]}>{receivedCount} received</Text>}
-                {urgentCount   > 0 && <Text style={[s.statChip, { color: '#DC2626', fontWeight: '700' }]}>{urgentCount} urgent!</Text>}
               </View>
             </View>
             {/* Print icon */}
@@ -1035,7 +994,6 @@ export default function ManagerOrderListScreen() {
 
           {/* Table Header */}
           <View style={t.tableHeader}>
-            <View style={t.colP} />
             <Text style={[t.colName, t.headerText]}>Item</Text>
             <Text style={[t.colCat, t.headerText]}>Category</Text>
             <View style={t.colAction} />
@@ -1065,7 +1023,6 @@ export default function ManagerOrderListScreen() {
                     onRemove={handleRemove}
                     onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
                     onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
-                    onMarkPriority={(it, p) => priorityMutation.mutate({ id: it.id, priority: p })}
                   />
                 ))}
               </ScrollView>

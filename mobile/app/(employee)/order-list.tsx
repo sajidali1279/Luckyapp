@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  RefreshControl, StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  RefreshControl, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,11 +10,13 @@ import { employeeRequestApi, orderCategoriesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  ClipboardIcon, PlusIcon, Trash2Icon, CheckCircleIcon,
-  XIcon, AlertTriangleIcon, PackageIcon,
+  ClipboardIcon, PlusIcon, CheckCircleIcon,
+  XIcon, AlertTriangleIcon, PackageIcon, Trash2Icon,
 } from '../../components/Icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+type RequestType = 'LOW_STOCK' | 'CUSTOMER_REQUEST';
 
 interface RequestLine {
   id: string;
@@ -47,11 +49,20 @@ const REJECTION_LABELS: Record<string, string> = {
   OTHER:         'Other reason',
 };
 
-function createBlankLine() {
-  return { key: String(Date.now() + Math.random()), name: '', quantity: '', category: '', notes: '' };
-}
+const REQUEST_TYPES: { value: RequestType; label: string; hint: string }[] = [
+  { value: 'LOW_STOCK',        label: 'Low Stock',       hint: 'Items that are running low and need restocking' },
+  { value: 'CUSTOMER_REQUEST', label: 'Customer Request', hint: 'Items customers have asked for' },
+];
 
-type FormLine = ReturnType<typeof createBlankLine>;
+type CommittedLine = {
+  key: string;
+  name: string;
+  quantity: string;
+  category: string;
+  notes: string;
+};
+
+function makeKey() { return `${Date.now()}-${Math.random()}`; }
 
 // ─── Request Form ─────────────────────────────────────────────────────────────
 
@@ -61,156 +72,252 @@ interface RequestFormProps {
 }
 
 function RequestForm({ categories, onSubmitted }: RequestFormProps) {
-  const [lines, setLines] = useState<FormLine[]>([createBlankLine()]);
-  const [note, setNote]   = useState('');
+  // Step 1 — type selection
+  const [requestType, setRequestType] = useState<RequestType | null>(null);
+
+  // Active tile state
+  const [activeName,     setActiveName]     = useState('');
+  const [activeQty,      setActiveQty]      = useState('');
+  const [activeCategory, setActiveCategory] = useState('');
+  const [activeNotes,    setActiveNotes]    = useState('');
+
+  // Committed items list
+  const [committed, setCommitted] = useState<CommittedLine[]>([]);
+
+  // Overall note
+  const [overallNote, setOverallNote] = useState('');
+
+  const nameRef = useRef<TextInput>(null);
+
+  const clearTile = () => {
+    setActiveName('');
+    setActiveQty('');
+    setActiveCategory('');
+    setActiveNotes('');
+    setTimeout(() => nameRef.current?.focus(), 80);
+  };
+
+  const handleAddToList = () => {
+    if (!activeName.trim()) {
+      Toast.show({ type: 'error', text1: 'Enter an item name first' });
+      return;
+    }
+    setCommitted(prev => [...prev, {
+      key: makeKey(),
+      name: activeName.trim(),
+      quantity: activeQty.trim(),
+      category: activeCategory,
+      notes: activeNotes.trim(),
+    }]);
+    clearTile();
+  };
+
+  const handleRemoveCommitted = (key: string) => {
+    setCommitted(prev => prev.filter(l => l.key !== key));
+  };
 
   const submitMutation = useMutation({
-    mutationFn: () => employeeRequestApi.submit({
-      note: note.trim() || undefined,
-      lines: lines
-        .filter(l => l.name.trim())
-        .map(l => ({
-          name: l.name.trim(),
-          quantity: l.quantity.trim() || undefined,
-          category: l.category.trim() || undefined,
-          notes: l.notes.trim() || undefined,
-        })),
-    }),
+    mutationFn: () => {
+      // Include the active tile if it has a name (don't require "Add to List" for single items)
+      const activeLine = activeName.trim()
+        ? [{ name: activeName.trim(), quantity: activeQty.trim() || undefined, category: activeCategory || undefined, notes: activeNotes.trim() || undefined }]
+        : [];
+      const allLines = [
+        ...committed.map(l => ({ name: l.name, quantity: l.quantity || undefined, category: l.category || undefined, notes: l.notes || undefined })),
+        ...activeLine,
+      ];
+      const typeLabel = requestType === 'LOW_STOCK' ? 'Low Stock' : requestType === 'CUSTOMER_REQUEST' ? 'Customer Request' : '';
+      const noteStr = [typeLabel && `[${typeLabel}]`, overallNote.trim()].filter(Boolean).join(' ');
+      return employeeRequestApi.submit({ note: noteStr || undefined, lines: allLines });
+    },
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Request submitted', text2: 'Your manager will review it soon' });
-      setLines([createBlankLine()]);
-      setNote('');
+      setRequestType(null);
+      setCommitted([]);
+      clearTile();
+      setOverallNote('');
       onSubmitted();
     },
     onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit request' }),
   });
 
-  const setLine = (key: string, field: keyof FormLine, value: string) => {
-    setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
-  };
-
-  const removeLine = (key: string) => {
-    if (lines.length === 1) {
-      setLines([createBlankLine()]);
-    } else {
-      setLines(prev => prev.filter(l => l.key !== key));
-    }
-  };
-
   const handleSubmit = () => {
-    const valid = lines.filter(l => l.name.trim());
-    if (valid.length === 0) {
-      Toast.show({ type: 'error', text1: 'Add at least one item name' });
+    const hasActive = !!activeName.trim();
+    const total = committed.length + (hasActive ? 1 : 0);
+    if (total === 0) {
+      Toast.show({ type: 'error', text1: 'Add at least one item' });
       return;
     }
     submitMutation.mutate();
   };
 
+  // ── Step 1: Type picker ───────────────────────────────────────────────────
+
+  if (!requestType) {
+    return (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 12 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.typePrompt}>What are you requesting?</Text>
+        <Text style={s.typeHint}>Choose a reason to help your manager understand the request.</Text>
+        {REQUEST_TYPES.map(t => (
+          <TouchableOpacity key={t.value} style={s.typeCard} onPress={() => setRequestType(t.value)} activeOpacity={0.75}>
+            <View style={s.typeCardInner}>
+              <Text style={s.typeCardLabel}>{t.label}</Text>
+              <Text style={s.typeCardHint}>{t.hint}</Text>
+            </View>
+            <Text style={s.typeChevron}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    );
+  }
+
+  // ── Step 2: Item entry ────────────────────────────────────────────────────
+
+  const typeConfig = REQUEST_TYPES.find(t => t.value === requestType)!;
+  const totalCount = committed.length + (activeName.trim() ? 1 : 0);
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header info */}
-        <View style={s.formInfo}>
-          <PackageIcon size={20} color={COLORS.secondary} strokeWidth={2} />
-          <Text style={s.formInfoText}>
-            List what the store needs. Your manager will review and add approved items to the order.
-          </Text>
+        {/* Type badge + change */}
+        <View style={s.typeBadgeRow}>
+          <View style={s.typeBadge}>
+            <Text style={s.typeBadgeText}>{typeConfig.label}</Text>
+          </View>
+          <TouchableOpacity onPress={() => { setRequestType(null); setCommitted([]); clearTile(); }}>
+            <Text style={s.typeChangeBtn}>Change</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Item lines */}
-        {lines.map((line, idx) => (
-          <View key={line.key} style={s.lineCard}>
-            <View style={s.lineHeader}>
-              <View style={s.lineNum}>
-                <Text style={s.lineNumText}>{idx + 1}</Text>
-              </View>
-              <Text style={s.lineTitle}>Item {idx + 1}</Text>
-              <TouchableOpacity style={s.removeLineBtn} onPress={() => removeLine(line.key)}>
-                <XIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+        {/* ── Active Tile ── */}
+        <View style={s.activeTile}>
+          <Text style={s.tileLabel}>
+            {committed.length === 0 ? 'Add first item' : 'Add another item'}
+          </Text>
+
+          {/* Name */}
+          <TextInput
+            ref={nameRef}
+            style={s.tileInput}
+            value={activeName}
+            onChangeText={setActiveName}
+            placeholder="Item name *"
+            placeholderTextColor="#B0B8C4"
+            maxLength={120}
+            autoCapitalize="sentences"
+            autoCorrect={false}
+            returnKeyType="next"
+          />
+
+          {/* Qty */}
+          <TextInput
+            style={[s.tileInput, { marginTop: 8 }]}
+            value={activeQty}
+            onChangeText={setActiveQty}
+            placeholder="Quantity / amount  (e.g. 2 cases)"
+            placeholderTextColor="#B0B8C4"
+            maxLength={60}
+            returnKeyType="next"
+          />
+
+          {/* Category chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catRow} keyboardShouldPersistTaps="handled">
+            {['', ...categories].map(c => (
+              <TouchableOpacity
+                key={c || '__none__'}
+                onPress={() => setActiveCategory(c)}
+                style={[s.catChip, activeCategory === c && s.catChipActive]}
+              >
+                <Text style={[s.catChipText, activeCategory === c && s.catChipTextActive]}>
+                  {c || 'No category'}
+                </Text>
               </TouchableOpacity>
-            </View>
+            ))}
+          </ScrollView>
 
-            <Text style={s.fieldLabel}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
-            <TextInput
-              style={s.input}
-              value={line.name}
-              onChangeText={v => setLine(line.key, 'name', v)}
-              placeholder="e.g. Whole Milk 2%"
-              placeholderTextColor={COLORS.textMuted}
-              maxLength={120}
-            />
+          {/* Notes */}
+          <TextInput
+            style={[s.tileInput, s.tileTextArea, { marginTop: 8 }]}
+            value={activeNotes}
+            onChangeText={setActiveNotes}
+            placeholder="Notes for manager  (optional)"
+            placeholderTextColor="#B0B8C4"
+            maxLength={300}
+            multiline
+            numberOfLines={2}
+            textAlignVertical="top"
+          />
 
-            <Text style={s.fieldLabel}>Quantity / Amount</Text>
-            <TextInput
-              style={s.input}
-              value={line.quantity}
-              onChangeText={v => setLine(line.key, 'quantity', v)}
-              placeholder="e.g. 2 cases, 4 gallons"
-              placeholderTextColor={COLORS.textMuted}
-              maxLength={60}
-            />
-
-            <Text style={s.fieldLabel}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              {['', ...categories].map(c => (
-                <TouchableOpacity key={c || '__none__'} onPress={() => setLine(line.key, 'category', c)}
-                  style={[s.catChip, line.category === c && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
-                  <Text style={[s.catChipText, line.category === c && { color: '#fff' }]}>{c || 'None'}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={s.fieldLabel}>Notes</Text>
-            <TextInput
-              style={[s.input, s.textArea]}
-              value={line.notes}
-              onChangeText={v => setLine(line.key, 'notes', v)}
-              placeholder="Any specific details..."
-              placeholderTextColor={COLORS.textMuted}
-              maxLength={300}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-        ))}
-
-        {/* Add line button */}
-        {lines.length < 30 && (
-          <TouchableOpacity style={s.addLineBtn} onPress={() => setLines(prev => [...prev, createBlankLine()])}>
-            <PlusIcon size={18} color={COLORS.secondary} strokeWidth={2.5} />
-            <Text style={s.addLineBtnText}>Add Another Item</Text>
+          {/* Add to List */}
+          <TouchableOpacity
+            style={[s.addToListBtn, !activeName.trim() && s.addToListBtnDim]}
+            onPress={handleAddToList}
+            disabled={!activeName.trim()}
+            activeOpacity={0.8}
+          >
+            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+            <Text style={s.addToListBtnText}>Add to List</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ── Committed List ── */}
+        {committed.length > 0 && (
+          <View style={s.committedSection}>
+            <Text style={s.committedHeader}>
+              {committed.length} item{committed.length !== 1 ? 's' : ''} added
+            </Text>
+            {committed.map((line, idx) => (
+              <View key={line.key} style={s.committedRow}>
+                <View style={s.committedNum}>
+                  <Text style={s.committedNumText}>{idx + 1}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.committedName} numberOfLines={1}>{line.name}</Text>
+                  <Text style={s.committedMeta} numberOfLines={1}>
+                    {[line.quantity && `qty: ${line.quantity}`, line.category].filter(Boolean).join(' · ') || 'no details'}
+                  </Text>
+                  {line.notes ? <Text style={s.committedNote} numberOfLines={1}>{line.notes}</Text> : null}
+                </View>
+                <TouchableOpacity style={s.removeBtn} onPress={() => handleRemoveCommitted(line.key)}>
+                  <Trash2Icon size={15} color="#DC2626" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         )}
 
         {/* Overall note */}
-        <View style={s.lineCard}>
-          <Text style={[s.fieldLabel, { marginTop: 0 }]}>Overall Note (optional)</Text>
+        <View style={s.overallNoteCard}>
+          <Text style={s.overallNoteLabel}>Overall note  <Text style={{ fontWeight: '400' }}>(optional)</Text></Text>
           <TextInput
-            style={[s.input, s.textArea]}
-            value={note}
-            onChangeText={setNote}
-            placeholder="Any context for the manager..."
-            placeholderTextColor={COLORS.textMuted}
+            style={[s.tileInput, s.tileTextArea]}
+            value={overallNote}
+            onChangeText={setOverallNote}
+            placeholder="Any context for your manager..."
+            placeholderTextColor="#B0B8C4"
             maxLength={300}
             multiline
             numberOfLines={3}
+            textAlignVertical="top"
           />
         </View>
 
         {/* Submit */}
         <TouchableOpacity
-          style={[s.submitBtn, submitMutation.isPending && { opacity: 0.6 }]}
+          style={[s.submitBtn, (submitMutation.isPending || totalCount === 0) && { opacity: 0.5 }]}
           onPress={handleSubmit}
-          disabled={submitMutation.isPending}
+          disabled={submitMutation.isPending || totalCount === 0}
         >
           {submitMutation.isPending
             ? <ActivityIndicator color="#fff" />
-            : <Text style={s.submitBtnText}>Submit Request ({lines.filter(l => l.name.trim()).length} item{lines.filter(l => l.name.trim()).length !== 1 ? 's' : ''})</Text>
+            : <Text style={s.submitBtnText}>
+                Submit Request{totalCount > 0 ? ` (${totalCount} item${totalCount !== 1 ? 's' : ''})` : ''}
+              </Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -253,17 +360,21 @@ function MyRequests() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
     >
       {requests.map(req => {
-        const isExpanded  = expandedId === req.id;
-        const isPending   = req.status === 'PENDING';
-        const accepted    = req.lines.filter(l => l.status === 'ACCEPTED').length;
-        const rejected    = req.lines.filter(l => l.status === 'REJECTED').length;
-        const stillPending = req.lines.filter(l => l.status === 'PENDING').length;
+        const isExpanded   = expandedId === req.id;
+        const isPending    = req.status === 'PENDING';
+        const accepted     = req.lines.filter(l => l.status === 'ACCEPTED').length;
+        const rejected     = req.lines.filter(l => l.status === 'REJECTED').length;
+
+        // Extract type label from note prefix "[Low Stock]" or "[Customer Request]"
+        const typeMatch = req.note?.match(/^\[([^\]]+)\]/);
+        const typeLabel = typeMatch ? typeMatch[1] : null;
+        const noteBody  = typeLabel ? req.note?.replace(/^\[[^\]]+\]\s*/, '') : req.note;
 
         return (
           <View key={req.id} style={s.reqCard}>
             <TouchableOpacity style={s.reqCardHeader} onPress={() => setExpandedId(isExpanded ? null : req.id)}>
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <View style={[s.statusDot, { backgroundColor: isPending ? '#F59E0B' : '#22C55E' }]} />
                   <Text style={s.reqCardDate}>
                     {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -273,11 +384,16 @@ function MyRequests() {
                       {isPending ? 'Pending' : 'Reviewed'}
                     </Text>
                   </View>
+                  {typeLabel && (
+                    <View style={s.typeLabelBadge}>
+                      <Text style={s.typeLabelText}>{typeLabel}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={s.reqCardMeta}>
                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
                   {!isPending && ` · ${accepted} accepted, ${rejected} rejected`}
-                  {isPending && stillPending > 0 && ` · Waiting for review`}
+                  {isPending && ' · Waiting for review'}
                 </Text>
                 {req.reviewedBy && <Text style={s.reqCardMeta}>Reviewed by {req.reviewedBy.name}</Text>}
               </View>
@@ -286,14 +402,18 @@ function MyRequests() {
 
             {isExpanded && (
               <View style={s.reqLines}>
-                {req.note && (
+                {noteBody ? (
                   <View style={s.reqNoteBox}>
                     <Text style={s.reqNoteLabel}>Your note</Text>
-                    <Text style={s.reqNoteText}>{req.note}</Text>
+                    <Text style={s.reqNoteText}>{noteBody}</Text>
                   </View>
-                )}
+                ) : null}
                 {req.lines.map(line => (
-                  <View key={line.id} style={[s.lineItem, line.status === 'ACCEPTED' && s.lineItemAccepted, line.status === 'REJECTED' && s.lineItemRejected]}>
+                  <View key={line.id} style={[
+                    s.lineItem,
+                    line.status === 'ACCEPTED' && s.lineItemAccepted,
+                    line.status === 'REJECTED' && s.lineItemRejected,
+                  ]}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.lineItemName}>{line.name}</Text>
                       {line.quantity && <Text style={s.lineItemMeta}>Qty: {line.quantity}</Text>}
@@ -306,7 +426,8 @@ function MyRequests() {
                         </Text>
                       )}
                     </View>
-                    <View style={[s.lineStatus,
+                    <View style={[
+                      s.lineStatus,
                       line.status === 'ACCEPTED' && { backgroundColor: '#DCFCE7' },
                       line.status === 'REJECTED' && { backgroundColor: '#FEE2E2' },
                       line.status === 'PENDING'  && { backgroundColor: '#FEF3C7' },
@@ -314,7 +435,8 @@ function MyRequests() {
                       {line.status === 'ACCEPTED' && <CheckCircleIcon size={14} color="#16A34A" strokeWidth={2.5} />}
                       {line.status === 'REJECTED' && <XIcon size={14} color="#DC2626" strokeWidth={2.5} />}
                       {line.status === 'PENDING'  && <AlertTriangleIcon size={14} color="#D97706" strokeWidth={2.5} />}
-                      <Text style={[s.lineStatusText,
+                      <Text style={[
+                        s.lineStatusText,
                         line.status === 'ACCEPTED' && { color: '#16A34A' },
                         line.status === 'REJECTED' && { color: '#DC2626' },
                         line.status === 'PENDING'  && { color: '#D97706' },
@@ -416,42 +538,84 @@ const s = StyleSheet.create({
   tabText:       { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
   tabTextActive: { color: COLORS.secondary, fontWeight: '700' },
 
-  formInfo: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#EEF2FF', borderRadius: 12, padding: 14, marginBottom: 16,
+  // ── Type picker ──────────────────────────────────────────────────────────
+  typePrompt: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  typeHint:   { fontSize: 14, color: COLORS.textMuted, marginBottom: 8, lineHeight: 20 },
+  typeCard: {
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  formInfoText: { flex: 1, fontSize: 13, color: '#3730A3', lineHeight: 19 },
+  typeCardInner: { flex: 1 },
+  typeCardLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
+  typeCardHint:  { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
+  typeChevron:   { fontSize: 22, color: COLORS.textMuted, fontWeight: '300' },
 
-  lineCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  lineHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  lineNum:  { width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center' },
-  lineNumText: { fontSize: 12, fontWeight: '800', color: '#fff' },
-  lineTitle:   { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.text },
-  removeLineBtn: { padding: 4 },
+  // ── Item entry ───────────────────────────────────────────────────────────
+  typeBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  typeBadge:    { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: COLORS.secondary },
+  typeBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  typeChangeBtn: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
 
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted, marginBottom: 6, marginTop: 10 },
-  input: {
+  activeTile: {
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1.5, borderColor: COLORS.secondary,
+    padding: 14, marginBottom: 14,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 3,
+  },
+  tileLabel: { fontSize: 12, fontWeight: '700', color: COLORS.secondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tileInput: {
     backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.text,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 15, color: COLORS.text,
   },
-  textArea: { minHeight: 60, textAlignVertical: 'top', paddingTop: 10 },
+  tileTextArea: { minHeight: 56, textAlignVertical: 'top', paddingTop: 10 },
 
-  catChip:     { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
-  catChipText: { fontSize: 12, color: COLORS.text, fontWeight: '500' },
+  catRow: { marginTop: 10, marginBottom: 2 },
+  catChip:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
+  catChipActive:    { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  catChipText:      { fontSize: 12, color: COLORS.text, fontWeight: '500' },
+  catChipTextActive: { color: '#fff', fontWeight: '600' },
 
-  addLineBtn: {
+  addToListBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    paddingVertical: 14, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed',
-    borderColor: COLORS.secondary, backgroundColor: '#fff', marginBottom: 16,
+    marginTop: 14, paddingVertical: 13, borderRadius: 12,
+    backgroundColor: COLORS.secondary,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  addLineBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+  addToListBtnDim: { opacity: 0.35, shadowOpacity: 0 },
+  addToListBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
+  // ── Committed list ───────────────────────────────────────────────────────
+  committedSection: { marginBottom: 14 },
+  committedHeader:  { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  committedRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#fff', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: COLORS.border, marginBottom: 6,
+  },
+  committedNum:     { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E0E7FF', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  committedNumText: { fontSize: 11, fontWeight: '800', color: '#4F46E5' },
+  committedName:    { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  committedMeta:    { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  committedNote:    { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 1 },
+  removeBtn:        { padding: 4, marginTop: 2 },
+
+  // ── Overall note ─────────────────────────────────────────────────────────
+  overallNoteCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
+  overallNoteLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  // ── Submit ───────────────────────────────────────────────────────────────
   submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
+  // ── Empty / shared ───────────────────────────────────────────────────────
   emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
   emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
 
+  // ── My Requests ──────────────────────────────────────────────────────────
   reqCard:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   reqCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
   reqCardDate:   { fontSize: 14, fontWeight: '600', color: COLORS.text },
@@ -461,10 +625,11 @@ const s = StyleSheet.create({
   statusBadgePending: { backgroundColor: '#FEF3C7' },
   statusBadgeDone:    { backgroundColor: '#DCFCE7' },
   statusBadgeText:    { fontSize: 11, fontWeight: '700' },
+  typeLabelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: '#EEF2FF' },
+  typeLabelText:  { fontSize: 11, fontWeight: '600', color: '#4F46E5' },
 
-  reqLines: { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12, gap: 8 },
-
-  reqNoteBox:  { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, marginBottom: 8 },
+  reqLines:     { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12, gap: 8 },
+  reqNoteBox:   { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, marginBottom: 8 },
   reqNoteLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
   reqNoteText:  { fontSize: 13, color: COLORS.text },
 
@@ -478,7 +643,7 @@ const s = StyleSheet.create({
   lineItemName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   lineItemMeta: { fontSize: 12, color: COLORS.textMuted },
   lineItemNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
-  rejectionText:{ fontSize: 12, color: '#DC2626', marginTop: 4 },
+  rejectionText: { fontSize: 12, color: '#DC2626', marginTop: 4 },
 
   lineStatus: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
