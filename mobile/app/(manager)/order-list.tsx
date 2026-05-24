@@ -302,7 +302,8 @@ function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
   const inputRef = useRef<any>(null);
 
   const addMutation = useMutation({
-    mutationFn: (d: object) => orderListApi.addItem(listId, d),
+    mutationFn: (d: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
+      orderListApi.addItem(listId, d),
     onSuccess: () => {
       setText('');
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
@@ -512,7 +513,7 @@ function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: Re
   const setLine = (lineId: string, field: 'action' | 'reason' | 'note', value: string) => {
     setLineState(prev => ({
       ...prev,
-      [lineId]: { action: null, reason: 'OTHER', note: '', ...prev[lineId], [field]: value },
+      [lineId]: Object.assign({ action: null, reason: 'OTHER', note: '' }, prev[lineId], { [field]: value }),
     }));
   };
 
@@ -568,8 +569,9 @@ function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: Re
                     </Text>
                     {req.note && <Text style={s.reqCardNote}>{req.note}</Text>}
                   </View>
-                  <ChevronDownIcon size={18} color={COLORS.textMuted}
-                    style={expandedReq === req.id ? { transform: [{ rotate: '180deg' }] } : {}} />
+                  <View style={expandedReq === req.id ? { transform: [{ rotate: '180deg' }] } : {}}>
+                    <ChevronDownIcon size={18} color={COLORS.textMuted} />
+                  </View>
                 </TouchableOpacity>
 
                 {expandedReq === req.id && (
@@ -713,8 +715,9 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                         </Text>
                       )}
                     </View>
-                    <ChevronDownIcon size={18} color={COLORS.textMuted}
-                      style={isExpanded ? { transform: [{ rotate: '180deg' }] } : {}} />
+                    <View style={isExpanded ? { transform: [{ rotate: '180deg' }] } : {}}>
+                      <ChevronDownIcon size={18} color={COLORS.textMuted} />
+                    </View>
                   </TouchableOpacity>
 
                   {isExpanded && (
