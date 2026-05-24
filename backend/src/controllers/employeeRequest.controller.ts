@@ -102,6 +102,22 @@ export async function getRejectedLines(req: AuthRequest, res: Response) {
   res.json({ success: true, data: lines });
 }
 
+// ─── GET /employee-requests/pending-count ────────────────────────────────────
+
+export async function getItemRequestsPendingCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  const storeRoles = await prisma.userStoreRole.findMany({
+    where: { userId: user.id },
+    select: { storeId: true },
+  });
+  const storeIds = storeRoles.map(r => r.storeId);
+  if (storeIds.length === 0) { res.json({ success: true, data: { count: 0 } }); return; }
+  const count = await prisma.employeeItemRequest.count({
+    where: { storeId: { in: storeIds }, status: 'PENDING' },
+  });
+  res.json({ success: true, data: { count } });
+}
+
 // ─── PATCH /employee-requests/:requestId/review ───────────────────────────────
 
 const reviewLineSchema = z.object({

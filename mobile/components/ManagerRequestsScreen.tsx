@@ -109,7 +109,6 @@ export default function ManagerRequestsScreen() {
 
     return (
       <View style={[s.card, isDone && s.cardDone]}>
-        <View style={[s.priorityStripe, { backgroundColor: isDone ? '#d1fae5' : pColor }]} />
         <View style={s.cardInner}>
           {/* Top row */}
           <View style={s.cardTop}>
@@ -181,7 +180,7 @@ export default function ManagerRequestsScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>📋 STORE REQUESTS</Text>
+            <Text style={s.headerEyebrow}>STORE REQUESTS</Text>
             <Text style={s.headerTitle}>Incoming Requests</Text>
           </View>
           {pending.length > 0 && (
@@ -399,14 +398,13 @@ const s = StyleSheet.create({
 
   // Request cards
   card: {
-    backgroundColor: '#fff', borderRadius: 16, flexDirection: 'row', overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     borderWidth: 1, borderColor: '#f0f1f2',
   },
   cardDone: { opacity: 0.75 },
-  priorityStripe: { width: 5 },
-  cardInner: { flex: 1, padding: 14, gap: 10 },
+  cardInner: { padding: 14, gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   typeIconWrap: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   typeIconText: { fontSize: 22 },

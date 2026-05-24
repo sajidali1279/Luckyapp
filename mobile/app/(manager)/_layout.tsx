@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
-import { schedulingApi, notificationsApi } from '../../services/api';
+import { schedulingApi, notificationsApi, storeRequestApi, employeeRequestApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, CalendarIcon, MegaphoneIcon, ImageIcon,
-  MessageCircleIcon, ClipboardIcon, BellIcon, PackageIcon,
+  MessageCircleIcon, ClipboardIcon, BellIcon, PackageIcon, TrophyIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -22,6 +22,22 @@ export default function ManagerLayout() {
     refetchInterval: 30000,
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
+
+  // Badge: pending store requests (maintenance / supply / work orders)
+  const { data: storeReqData } = useQuery({
+    queryKey: ['store-requests-pending-count'],
+    queryFn: () => storeRequestApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const storeReqPending: number = storeReqData?.data?.data?.count ?? 0;
+
+  // Badge: pending employee item requests (procurement ordering)
+  const { data: empReqData } = useQuery({
+    queryKey: ['employee-requests-pending-count'],
+    queryFn: () => employeeRequestApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const empReqPending: number = empReqData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(manager)/home',     icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: 'Home' },
@@ -47,14 +63,15 @@ export default function ManagerLayout() {
     {
       title: 'Team',
       items: [
-        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Requests' },
-        { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: 'Order List' },
+        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Requests',   badge: storeReqPending },
+        { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: 'Order List', badge: empReqPending },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />, label: 'Alerts', badge: unreadCount },
+        { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />,   label: 'Alerts',       badge: unreadCount },
+        { route: '/(manager)/leaderboard',   icon: (p) => <TrophyIcon {...p} />, label: 'Leaderboard' },
       ],
     },
   ];
@@ -70,6 +87,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="requests" />
         <Tabs.Screen name="order-list" />
         <Tabs.Screen name="notifications" />
+        <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="profile" />
       </Tabs>
     </DrawerShell>

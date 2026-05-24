@@ -358,7 +358,11 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         <Text style={[s.sectionLabel, { marginTop: 8 }]}>Community</Text>
         <TouchableOpacity
           style={s.settingRow}
-          onPress={() => router.push(isCustomer ? '/(customer)/leaderboard' : '/(employee)/leaderboard')}
+          onPress={() => {
+            if (isCustomer) router.push('/(customer)/leaderboard');
+            else if (user?.role === 'STORE_MANAGER') router.push('/(manager)/leaderboard' as any);
+            else router.push('/(employee)/leaderboard');
+          }}
           activeOpacity={0.8}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#FFD70020' }]}>

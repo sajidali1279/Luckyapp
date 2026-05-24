@@ -50,6 +50,7 @@ import {
   getRejectedLines,
   reviewRequest,
   getEmployeeSuggestions,
+  getItemRequestsPendingCount,
 } from '../controllers/employeeRequest.controller';
 import {
   getCategories as getOrderCategories,
@@ -364,16 +365,17 @@ router.patch('/order-lists/items/:itemId/status',               authenticate, re
 router.delete('/order-lists/items/:itemId',                     authenticate, requireRole(Role.STORE_MANAGER), removeItem);                                 // Soft-delete item (status → REMOVED)
 
 // ─── Employee Item Requests ───────────────────────────────────────────────────
-router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);   // Item name + category autocomplete
-router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);         // Employee submits multi-item form
-router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);         // Employee views own requests
+router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);         // Item name + category autocomplete
+router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);     // Badge count across all manager's stores
+router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);               // Employee submits multi-item form
+router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);               // Employee views own requests
 router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);  // Manager views store requests
 router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);       // Rejection log for a store
-router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);            // Accept/reject each line → adds to list
+router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                  // Accept/reject each line → adds to list
 
 // ─── Order Categories ─────────────────────────────────────────────────────────
 router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown
-router.post('/order-categories/submit',  authenticate, requireRole(Role.STORE_MANAGER), submitCategory);       // Manager submits new → DevAdmin notified
+router.post('/order-categories/submit',  authenticate, requireRole(Role.EMPLOYEE), submitCategory);            // Employee/Manager submits new → DevAdmin notified
 router.get('/order-categories/admin',    authenticate, requireRole(Role.DEV_ADMIN),    adminGetCategories);    // All categories with status filter
 router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMIN),    adminUpdateCategory);   // Approve / edit name (cascades to items) / reject
 router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete

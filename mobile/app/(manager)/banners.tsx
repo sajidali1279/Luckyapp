@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Image, TextInput, RefreshControl, StatusBar,
@@ -8,14 +8,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { offersApi, managerApi } from '../../services/api';
+import { offersApi, managerApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { ImageIcon, CameraIcon, XIcon, PlusIcon, InboxIcon } from '../../components/Icons';
+
+interface Store { id: string; name: string }
 
 export default function ManagerBannersScreen() {
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
   const qc = useQueryClient();
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+
+  // Accessible stores
+  const { data: storesData } = useQuery({
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.accessible(),
+  });
+  const stores: Store[] = storesData?.data?.data || [];
+  useEffect(() => {
+    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
+  }, [stores]);
+  const storeId = selectedStoreId || user?.storeIds?.[0];
 
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
@@ -26,7 +40,6 @@ export default function ManagerBannersScreen() {
     queryFn: () => offersApi.getBanners(storeId),
     enabled: !!storeId,
   });
-
   const banners: any[] = data?.data?.data || [];
 
   const createMutation = useMutation({
@@ -68,9 +81,7 @@ export default function ManagerBannersScreen() {
       aspect: [16, 9],
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
-    }
+    if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   }
 
   function handleCreate() {
@@ -94,16 +105,35 @@ export default function ManagerBannersScreen() {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
-      <SafeAreaView style={s.headerBg}>
+      <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Banners</Text>
             <Text style={s.headerSub}>Promotional images shown to customers</Text>
           </View>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowCreate(true)}>
-            <Text style={s.addBtnText}>+ Upload</Text>
+          <TouchableOpacity style={s.addBtn} onPress={() => setShowCreate(true)} activeOpacity={0.8}>
+            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+            <Text style={s.addBtnText}>Upload</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Store selector */}
+        {stores.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
+            {stores.map(store => (
+              <TouchableOpacity
+                key={store.id}
+                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
+                onPress={() => setSelectedStoreId(store.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
+                  {store.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
       </SafeAreaView>
 
       <ScrollView
@@ -117,7 +147,9 @@ export default function ManagerBannersScreen() {
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : banners.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyEmoji}>🖼️</Text>
+            <View style={s.emptyIconWrap}>
+              <ImageIcon size={44} color={COLORS.textMuted} strokeWidth={1.25} />
+            </View>
             <Text style={s.emptyTitle}>No banners yet</Text>
             <Text style={s.emptySub}>Upload promotional images that customers see in the app</Text>
             <TouchableOpacity style={s.emptyBtn} onPress={() => setShowCreate(true)}>
@@ -133,7 +165,7 @@ export default function ManagerBannersScreen() {
                   <Image source={{ uri: banner.imageUrl }} style={s.bannerImg} resizeMode="cover" />
                 ) : (
                   <View style={[s.bannerImg, s.bannerPlaceholder]}>
-                    <Text style={{ fontSize: 32 }}>🖼️</Text>
+                    <ImageIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
                   </View>
                 )}
                 <View style={s.bannerInfo}>
@@ -146,6 +178,7 @@ export default function ManagerBannersScreen() {
                   style={s.deleteBtn}
                   onPress={() => confirmDelete(banner)}
                   disabled={deleteMutation.isPending}
+                  activeOpacity={0.75}
                 >
                   <Text style={s.deleteBtnText}>Remove</Text>
                 </TouchableOpacity>
@@ -161,8 +194,12 @@ export default function ManagerBannersScreen() {
         <View style={s.modal}>
           <View style={s.modalHeader}>
             <Text style={s.modalTitle}>Upload Banner</Text>
-            <TouchableOpacity onPress={() => { setShowCreate(false); setTitle(''); setImageUri(null); }}>
-              <Text style={s.modalClose}>✕</Text>
+            <TouchableOpacity
+              onPress={() => { setShowCreate(false); setTitle(''); setImageUri(null); }}
+              style={s.modalCloseBtn}
+              activeOpacity={0.7}
+            >
+              <XIcon size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
 
@@ -173,7 +210,7 @@ export default function ManagerBannersScreen() {
                 <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
               ) : (
                 <View style={s.imagePlaceholder}>
-                  <Text style={{ fontSize: 40 }}>📷</Text>
+                  <CameraIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
                   <Text style={s.imagePlaceholderText}>Tap to select image</Text>
                   <Text style={s.imagePlaceholderSub}>16:9 recommended</Text>
                 </View>
@@ -217,19 +254,36 @@ const s = StyleSheet.create({
   headerBg: { backgroundColor: COLORS.secondary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 18,
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14,
   },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
   headerSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 3 },
-  addBtn: { backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
+  },
   addBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
+  storePickerRow: {
+    flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 14,
+  },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
+  storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  storeChipTextActive: { color: '#fff', fontWeight: '700' },
+
   body: { padding: 16, paddingBottom: 24 },
-  sectionLabel: { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10 },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 10,
+  },
 
   loadingCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 48, alignItems: 'center' },
   emptyCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 36, alignItems: 'center', gap: 8, marginTop: 16 },
-  emptyEmoji: { fontSize: 48, marginBottom: 4 },
+  emptyIconWrap: { marginBottom: 4 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20 },
   emptyBtn: { marginTop: 8, backgroundColor: COLORS.primary, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 },
@@ -240,7 +294,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   bannerImg: { width: '100%', height: 180 },
-  bannerPlaceholder: { backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  bannerPlaceholder: { backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center', gap: 8 },
   bannerInfo: { padding: 14 },
   bannerTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   bannerDate: { fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
@@ -257,7 +311,11 @@ const s = StyleSheet.create({
     padding: 20, paddingTop: 52, backgroundColor: COLORS.secondary,
   },
   modalTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  modalClose: { color: 'rgba(255,255,255,0.7)', fontSize: 22, fontWeight: '300', paddingHorizontal: 4 },
+  modalCloseBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   modalBody: { padding: 20 },
 
   imagePicker: { borderRadius: 16, overflow: 'hidden', marginBottom: 8 },
@@ -270,7 +328,10 @@ const s = StyleSheet.create({
   imagePlaceholderText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   imagePlaceholderSub: { fontSize: 13, color: COLORS.textMuted },
 
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  fieldLabel: {
+    fontSize: 12, fontWeight: '700', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8,
+  },
   input: {
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
     padding: 14, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.white, marginBottom: 16,

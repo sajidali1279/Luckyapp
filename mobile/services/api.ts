@@ -260,6 +260,7 @@ export const orderListApi = {
 
 export const employeeRequestApi = {
   getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
+  getPendingCount: () => api.get('/employee-requests/pending-count'),
   submit: (data: { note?: string; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
     api.post('/employee-requests', data),
   mine: () => api.get('/employee-requests/mine'),
@@ -280,6 +281,7 @@ export const orderCategoriesApi = {
 
 export const managerApi = {
   createOffer: (data: object) => api.post('/offers', data),
+  updateOffer: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),
   createBanner: async (formData: FormData) => {
     const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
