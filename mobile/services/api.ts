@@ -271,6 +271,7 @@ export const employeeRequestApi = {
 
 export const orderCategoriesApi = {
   getApproved: () => api.get('/order-categories'),
+  submitNew:   (name: string) => api.post('/order-categories/submit', { name }),
   adminGetAll: (status?: string) => api.get(`/order-categories/admin${status ? `?status=${status}` : ''}`),
   adminUpdate: (id: string, data: { name?: string; status?: 'APPROVED' | 'REJECTED' }) => api.patch(`/order-categories/${id}`, data),
   adminDelete: (id: string) => api.delete(`/order-categories/${id}`),

@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
   RefreshControl, StatusBar, Modal, Alert, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Share, FlatList, SectionList,
+  Platform, ActivityIndicator, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,9 +10,9 @@ import Toast from 'react-native-toast-message';
 import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import {
-  PackageIcon, PrinterIcon, CheckCircleIcon, ArrowUpIcon, ArrowDownIcon,
-  AlertTriangleIcon, PlusIcon, EditIcon, Trash2Icon, XIcon, ClipboardIcon,
-  ListIcon, RefreshIcon, ChevronDownIcon, ChevronRightIcon,
+  PackageIcon, PrinterIcon, CheckCircleIcon, ArrowDownIcon,
+  AlertTriangleIcon, PlusIcon, EditIcon, XIcon, ClipboardIcon,
+  ListIcon, ChevronDownIcon,
 } from '../../components/Icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -28,7 +28,6 @@ interface OrderListItem {
   name: string;
   quantity?: string;
   category?: string;
-  notes?: string;
   priority: Priority;
   status: ItemStatus;
   source: 'MANAGER' | 'EMPLOYEE_REQUEST';
@@ -63,11 +62,11 @@ interface EmployeeRequest {
   lines: RequestLine[];
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const PRIORITY_CFG: Record<Priority, { label: string; bg: string; text: string; border: string }> = {
   URGENT: { label: 'Urgent', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
-  NORMAL: { label: 'Normal', bg: '#F3F4F6', text: '#4B5563', border: '#E5E7EB' },
+  NORMAL: { label: 'Normal', bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB' },
   LOW:    { label: 'Low',    bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' },
 };
 
@@ -79,103 +78,50 @@ const STATUS_CFG: Record<ItemStatus, { label: string; bg: string; text: string }
 };
 
 const REJECTION_REASONS = [
-  { value: 'NO_SUPPLIER',  label: 'No supplier available' },
+  { value: 'NO_SUPPLIER',   label: 'No supplier' },
   { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
-  { value: 'IN_STOCK',     label: 'Already in stock' },
-  { value: 'DUPLICATE',    label: 'Duplicate item' },
-  { value: 'OTHER',        label: 'Other reason' },
+  { value: 'IN_STOCK',      label: 'In stock' },
+  { value: 'DUPLICATE',     label: 'Duplicate' },
+  { value: 'OTHER',         label: 'Other' },
 ];
 
-function groupByCategory(items: OrderListItem[]) {
-  const map = new Map<string, OrderListItem[]>();
-  for (const item of items) {
-    const key = item.category?.trim() || 'Uncategorized';
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(item);
-  }
-  // Sort within each group by priority then sortOrder
-  const priorityOrder = { URGENT: 0, NORMAL: 1, LOW: 2 };
-  map.forEach(arr => arr.sort((a, b) => {
-    if (priorityOrder[a.priority] !== priorityOrder[b.priority])
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    return a.sortOrder - b.sortOrder;
-  }));
-  return Array.from(map.entries()).map(([title, data]) => ({ title, data }));
-}
+const PRIORITY_ORDER: Record<Priority, number> = { URGENT: 0, NORMAL: 1, LOW: 2 };
 
-// ─── Add / Edit Item Bottom Sheet ─────────────────────────────────────────────
+// ─── Category Picker ─────────────────────────────────────────────────────────
 
-interface AddItemSheetProps {
+interface CategoryPickerProps {
   visible: boolean;
-  listId: string;
-  initialValues?: { id: string; name: string; quantity: string; category: string; notes: string; priority: Priority };
   categories: string[];
+  selected: string;
+  onSelect: (cat: string) => void;
+  onSubmitNew: (name: string) => Promise<void>;
   onClose: () => void;
-  onSaved: () => void;
 }
 
-function AddItemSheet({ visible, listId, initialValues, categories, onClose, onSaved }: AddItemSheetProps) {
-  const [name, setName]         = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [category, setCategory] = useState('');
-  const [notes, setNotes]       = useState('');
-  const [priority, setPriority] = useState<Priority>('NORMAL');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, onClose }: CategoryPickerProps) {
+  const [search,      setSearch]      = useState('');
+  const [showNew,     setShowNew]     = useState(false);
+  const [newName,     setNewName]     = useState('');
+  const [submitting,  setSubmitting]  = useState(false);
 
   useEffect(() => {
-    if (visible && initialValues) {
-      setName(initialValues.name);
-      setQuantity(initialValues.quantity);
-      setCategory(initialValues.category);
-      setNotes(initialValues.notes);
-      setPriority(initialValues.priority);
-    } else if (visible) {
-      setName(''); setQuantity(''); setCategory(''); setNotes(''); setPriority('NORMAL');
-    }
-    setSuggestions([]);
+    if (!visible) { setSearch(''); setShowNew(false); setNewName(''); }
   }, [visible]);
 
-  const addMutation = useMutation({
-    mutationFn: (d: { name: string; quantity?: string; category?: string; notes?: string; priority: string }) =>
-      orderListApi.addItem(listId, d),
-    onSuccess: () => { Toast.show({ type: 'success', text1: 'Item added' }); onSaved(); },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
-  });
+  const filtered = categories.filter(c => c.toLowerCase().includes(search.toLowerCase()));
 
-  const editMutation = useMutation({
-    mutationFn: (d: { name?: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
-      orderListApi.updateItem(initialValues!.id, d),
-    onSuccess: () => { Toast.show({ type: 'success', text1: 'Item updated' }); onSaved(); },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
-  });
-
-  const isEditing = !!initialValues;
-  const isPending = addMutation.isPending || editMutation.isPending;
-
-  const handleNameChange = (text: string) => {
-    setName(text);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (text.trim().length < 2) { setSuggestions([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await orderListApi.getSuggestions(text.trim());
-        setSuggestions((res.data?.data || []).map((s: { name: string }) => s.name).slice(0, 6));
-      } catch { setSuggestions([]); }
-    }, 280);
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Item name is required' }); return; }
-    const payload = {
-      name: name.trim(),
-      quantity: quantity.trim() || undefined,
-      category: category.trim() || undefined,
-      notes: notes.trim() || undefined,
-      priority,
-    };
-    if (isEditing) editMutation.mutate(payload);
-    else addMutation.mutate(payload);
+  const handleSubmitNew = async () => {
+    if (!newName.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmitNew(newName.trim());
+      onSelect(newName.trim());
+      onClose();
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to submit category' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -184,7 +130,325 @@ function AddItemSheet({ visible, listId, initialValues, categories, onClose, onS
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
-            <Text style={s.sheetTitle}>{isEditing ? 'Edit Item' : 'Add Item'}</Text>
+            <Text style={s.sheetTitle}>Category</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+              <XIcon size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <TextInput
+            style={s.catSearch}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search categories..."
+            placeholderTextColor={COLORS.textMuted}
+          />
+
+          {/* List */}
+          <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <TouchableOpacity style={[s.catOption, !selected && s.catOptionSel]} onPress={() => { onSelect(''); onClose(); }}>
+              <Text style={[s.catOptionText, !selected && { color: COLORS.secondary, fontWeight: '700' }]}>None</Text>
+              {!selected && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
+            </TouchableOpacity>
+            {filtered.map(cat => (
+              <TouchableOpacity key={cat} style={[s.catOption, selected === cat && s.catOptionSel]} onPress={() => { onSelect(cat); onClose(); }}>
+                <Text style={[s.catOptionText, selected === cat && { color: COLORS.secondary, fontWeight: '700' }]}>{cat}</Text>
+                {selected === cat && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Submit New */}
+          <View style={s.catNewSection}>
+            {!showNew ? (
+              <TouchableOpacity style={s.catNewTrigger} onPress={() => setShowNew(true)}>
+                <PlusIcon size={14} color={COLORS.secondary} strokeWidth={2.5} />
+                <Text style={s.catNewTriggerText}>Submit New Category for Approval</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={s.catNewForm}>
+                <TextInput
+                  style={s.catNewInput}
+                  value={newName}
+                  onChangeText={setNewName}
+                  placeholder="Enter category name..."
+                  placeholderTextColor={COLORS.textMuted}
+                  autoFocus
+                  maxLength={80}
+                />
+                <Text style={s.catNewHint}>
+                  Will be sent to the admin for review. Once approved it appears for all managers.
+                </Text>
+                <TouchableOpacity
+                  style={[s.catNewSubmitBtn, (!newName.trim() || submitting) && { opacity: 0.4 }]}
+                  onPress={handleSubmitNew}
+                  disabled={!newName.trim() || submitting}
+                >
+                  {submitting
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.catNewSubmitText}>Submit for Approval</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Item Row (spreadsheet row) ───────────────────────────────────────────────
+
+interface ItemRowProps {
+  item: OrderListItem;
+  onEdit: (item: OrderListItem) => void;
+  onRemove: (item: OrderListItem) => void;
+  onMarkOrdered: (item: OrderListItem) => void;
+  onMarkReceived: (item: OrderListItem) => void;
+}
+
+function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
+  const pc = PRIORITY_CFG[item.priority];
+  const sc = STATUS_CFG[item.status];
+
+  const showActions = () => {
+    const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (item.status === 'PENDING') {
+      buttons.push({ text: '✓ Mark Ordered',  onPress: () => onMarkOrdered(item) });
+      buttons.push({ text: '✎ Edit',           onPress: () => onEdit(item) });
+      buttons.push({ text: '✕ Remove',         style: 'destructive', onPress: () => onRemove(item) });
+    } else if (item.status === 'ORDERED') {
+      buttons.push({ text: '✓ Mark Received', onPress: () => onMarkReceived(item) });
+      buttons.push({ text: '✎ Edit',          onPress: () => onEdit(item) });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert(item.name, item.quantity ? `Qty: ${item.quantity}` : undefined, buttons);
+  };
+
+  return (
+    <TouchableOpacity
+      style={[t.row, { borderLeftColor: item.status === 'RECEIVED' ? '#D1FAE5' : pc.text }]}
+      onPress={showActions}
+      activeOpacity={0.65}
+    >
+      {/* Priority dot */}
+      <View style={t.colP}>
+        <View style={[t.dot, { backgroundColor: item.status === 'RECEIVED' ? '#D1D5DB' : pc.text }]}>
+          {item.priority === 'URGENT' && item.status === 'PENDING' &&
+            <AlertTriangleIcon size={8} color="#fff" strokeWidth={2.5} />}
+          {item.priority === 'LOW' && item.status === 'PENDING' &&
+            <ArrowDownIcon size={8} color="#fff" strokeWidth={2.5} />}
+        </View>
+      </View>
+
+      {/* Name */}
+      <View style={t.colName}>
+        <Text style={[t.cellName, item.status === 'RECEIVED' && t.strikethrough]} numberOfLines={2}>
+          {item.name}
+        </Text>
+        {item.source === 'EMPLOYEE_REQUEST' && (
+          <Text style={t.reqTag}>employee</Text>
+        )}
+      </View>
+
+      {/* Qty */}
+      <Text style={[t.colQty, t.cellMuted]} numberOfLines={1}>{item.quantity || ''}</Text>
+
+      {/* Category */}
+      <View style={t.colCat}>
+        {item.category ? (
+          <View style={[t.catPill, { backgroundColor: item.status === 'RECEIVED' ? '#F3F4F6' : pc.bg }]}>
+            <Text style={[t.catPillText, { color: item.status === 'RECEIVED' ? '#9CA3AF' : pc.text }]} numberOfLines={1}>
+              {item.category}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Status */}
+      <View style={t.colAction}>
+        <View style={[t.statusDot, { backgroundColor: sc.bg }]}>
+          <Text style={[t.statusLetter, { color: sc.text }]}>{sc.label[0]}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Add Row (spreadsheet add row, pinned at bottom) ─────────────────────────
+
+interface AddRowProps {
+  listId: string;
+  storeId: string;
+  categories: string[];
+}
+
+function AddRow({ listId, storeId, categories }: AddRowProps) {
+  const qc = useQueryClient();
+  const [name,     setName]     = useState('');
+  const [qty,      setQty]      = useState('');
+  const [category, setCategory] = useState('');
+  const [priority, setPriority] = useState<Priority>('NORMAL');
+  const [showCat,  setShowCat]  = useState(false);
+  const nameRef = useRef<any>(null);
+
+  const addMutation = useMutation({
+    mutationFn: (d: object) => orderListApi.addItem(listId, d),
+    onSuccess: () => {
+      setName('');
+      setQty('');
+      qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
+      setTimeout(() => nameRef.current?.focus(), 80);
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
+  });
+
+  const cyclePriority = () =>
+    setPriority(p => p === 'NORMAL' ? 'URGENT' : p === 'URGENT' ? 'LOW' : 'NORMAL');
+
+  const handleAdd = () => {
+    if (!name.trim()) return;
+    addMutation.mutate({
+      name: name.trim(),
+      quantity: qty.trim() || undefined,
+      category: category || undefined,
+      priority,
+    });
+  };
+
+  const pc = PRIORITY_CFG[priority];
+
+  return (
+    <>
+      <View style={[t.row, t.addRow]}>
+        {/* Priority dot (tap cycles) */}
+        <TouchableOpacity style={t.colP} onPress={cyclePriority} activeOpacity={0.7}>
+          <View style={[t.dot, { backgroundColor: pc.text }]}>
+            {priority === 'URGENT' && <AlertTriangleIcon size={8} color="#fff" strokeWidth={2.5} />}
+            {priority === 'LOW'    && <ArrowDownIcon     size={8} color="#fff" strokeWidth={2.5} />}
+          </View>
+        </TouchableOpacity>
+
+        {/* Name input */}
+        <TextInput
+          ref={nameRef}
+          style={[t.colName, t.addInput]}
+          value={name}
+          onChangeText={setName}
+          placeholder="Add item..."
+          placeholderTextColor="#B0B8C4"
+          returnKeyType="done"
+          blurOnSubmit={false}
+          onSubmitEditing={handleAdd}
+          maxLength={120}
+        />
+
+        {/* Qty input */}
+        <TextInput
+          style={[t.colQty, t.addInput, { textAlign: 'center' }]}
+          value={qty}
+          onChangeText={setQty}
+          placeholder="Qty"
+          placeholderTextColor="#B0B8C4"
+          returnKeyType="done"
+          blurOnSubmit={false}
+          onSubmitEditing={handleAdd}
+          maxLength={30}
+        />
+
+        {/* Category picker trigger */}
+        <TouchableOpacity style={t.colCat} onPress={() => setShowCat(true)} activeOpacity={0.7}>
+          {category
+            ? <View style={[t.catPill, { backgroundColor: '#EEF2FF' }]}>
+                <Text style={[t.catPillText, { color: COLORS.secondary }]} numberOfLines={1}>{category}</Text>
+              </View>
+            : <Text style={t.addCatPlaceholder}>Cat ▾</Text>
+          }
+        </TouchableOpacity>
+
+        {/* Add button */}
+        <TouchableOpacity
+          style={[t.colAction, { alignItems: 'center', justifyContent: 'center' }]}
+          onPress={handleAdd}
+          disabled={!name.trim() || addMutation.isPending}
+          activeOpacity={0.8}
+        >
+          {addMutation.isPending
+            ? <ActivityIndicator size="small" color={COLORS.secondary} />
+            : <View style={[t.addCircle, !name.trim() && { opacity: 0.3 }]}>
+                <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+              </View>
+          }
+        </TouchableOpacity>
+      </View>
+
+      <CategoryPicker
+        visible={showCat}
+        categories={categories}
+        selected={category}
+        onSelect={setCategory}
+        onSubmitNew={async (newCat) => {
+          await orderCategoriesApi.submitNew(newCat);
+          Toast.show({ type: 'success', text1: 'Submitted for approval', text2: `"${newCat}" will appear once approved` });
+        }}
+        onClose={() => setShowCat(false)}
+      />
+    </>
+  );
+}
+
+// ─── Edit Item Sheet (edit-only, no Notes) ────────────────────────────────────
+
+interface EditItemSheetProps {
+  visible: boolean;
+  listId: string;
+  item: OrderListItem;
+  categories: string[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: EditItemSheetProps) {
+  const [name,     setName]     = useState(item.name);
+  const [quantity, setQuantity] = useState(item.quantity || '');
+  const [category, setCategory] = useState(item.category || '');
+  const [priority, setPriority] = useState<Priority>(item.priority);
+  const [showCat,  setShowCat]  = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setName(item.name);
+      setQuantity(item.quantity || '');
+      setCategory(item.category || '');
+      setPriority(item.priority);
+    }
+  }, [visible, item.id]);
+
+  const editMutation = useMutation({
+    mutationFn: (d: object) => orderListApi.updateItem(item.id, d),
+    onSuccess: () => { Toast.show({ type: 'success', text1: 'Item updated' }); onSaved(); },
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name is required' }); return; }
+    editMutation.mutate({
+      name: name.trim(),
+      quantity: quantity.trim() || null,
+      category: category.trim() || null,
+      priority,
+    });
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <View style={s.sheetHeader}>
+            <Text style={s.sheetTitle}>Edit Item</Text>
             <TouchableOpacity onPress={onClose} style={s.closeBtn}>
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -207,20 +471,10 @@ function AddItemSheet({ visible, listId, initialValues, categories, onClose, onS
               })}
             </View>
 
-            {/* Name + suggestions */}
+            {/* Name */}
             <Text style={s.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
-            <TextInput style={s.input} value={name} onChangeText={handleNameChange}
+            <TextInput style={s.input} value={name} onChangeText={setName}
               placeholder="e.g. Whole Milk 2%" placeholderTextColor={COLORS.textMuted} maxLength={120} />
-            {suggestions.length > 0 && (
-              <View style={s.suggestionBox}>
-                {suggestions.map(sg => (
-                  <TouchableOpacity key={sg} style={s.suggestionRow} onPress={() => { setName(sg); setSuggestions([]); }}>
-                    <ClipboardIcon size={13} color={COLORS.textMuted} />
-                    <Text style={s.suggestionText}>{sg}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
 
             {/* Quantity */}
             <Text style={s.label}>Quantity / Amount</Text>
@@ -229,98 +483,42 @@ function AddItemSheet({ visible, listId, initialValues, categories, onClose, onS
 
             {/* Category */}
             <Text style={s.label}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              {['', ...categories].map(c => (
-                <TouchableOpacity key={c || '__none__'} onPress={() => setCategory(c)}
-                  style={[s.catChip, category === c && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
-                  <Text style={[s.catChipText, category === c && { color: '#fff' }]}>{c || 'None'}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <TouchableOpacity style={s.catPickerBtn} onPress={() => setShowCat(true)} activeOpacity={0.7}>
+              <Text style={category ? s.catPickerBtnText : s.catPickerBtnPlaceholder} numberOfLines={1}>
+                {category || 'Tap to choose category...'}
+              </Text>
+              <ChevronDownIcon size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
 
-            {/* Notes */}
-            <Text style={s.label}>Notes</Text>
-            <TextInput style={[s.input, s.textArea]} value={notes} onChangeText={setNotes}
-              placeholder="Any specific details..." placeholderTextColor={COLORS.textMuted} maxLength={300} multiline numberOfLines={3} />
-
-            <TouchableOpacity style={[s.submitBtn, isPending && { opacity: 0.6 }]} onPress={handleSubmit} disabled={isPending}>
-              {isPending
+            <TouchableOpacity
+              style={[s.submitBtn, editMutation.isPending && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={editMutation.isPending}
+            >
+              {editMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.submitBtnText}>{isEditing ? 'Save Changes' : 'Add to List'}</Text>
+                : <Text style={s.submitBtnText}>Save Changes</Text>
               }
             </TouchableOpacity>
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
+
+        {/* Category picker renders over the edit sheet */}
+        <CategoryPicker
+          visible={showCat}
+          categories={categories}
+          selected={category}
+          onSelect={setCategory}
+          onSubmitNew={async (newCat) => {
+            await orderCategoriesApi.submitNew(newCat);
+            setCategory(newCat);
+            Toast.show({ type: 'success', text1: 'Submitted for approval' });
+          }}
+          onClose={() => setShowCat(false)}
+        />
       </KeyboardAvoidingView>
     </Modal>
-  );
-}
-
-// ─── Item Card ────────────────────────────────────────────────────────────────
-
-interface ItemCardProps {
-  item: OrderListItem;
-  onEdit: (item: OrderListItem) => void;
-  onRemove: (item: OrderListItem) => void;
-  onMarkOrdered: (item: OrderListItem) => void;
-  onMarkReceived: (item: OrderListItem) => void;
-}
-
-function ItemCard({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemCardProps) {
-  const pc = PRIORITY_CFG[item.priority];
-  const sc = STATUS_CFG[item.status];
-
-  return (
-    <View style={[s.itemCard, item.priority === 'URGENT' && s.urgentCard]}>
-      <View style={[s.priorityBar, { backgroundColor: pc.text }]} />
-      <View style={s.itemBody}>
-        <View style={s.itemBadgeRow}>
-          <View style={[s.badge, { backgroundColor: pc.bg, borderColor: pc.border }]}>
-            {item.priority === 'URGENT' && <AlertTriangleIcon size={11} color={pc.text} strokeWidth={2.5} />}
-            <Text style={[s.badgeText, { color: pc.text }]}>{pc.label}</Text>
-          </View>
-          <View style={[s.badge, { backgroundColor: sc.bg }]}>
-            <Text style={[s.badgeText, { color: sc.text }]}>{sc.label}</Text>
-          </View>
-          {item.source === 'EMPLOYEE_REQUEST' && (
-            <View style={[s.badge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-              <Text style={[s.badgeText, { color: '#16A34A' }]}>Request</Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={s.itemName}>{item.name}</Text>
-        <View style={s.itemMeta}>
-          {item.quantity && <Text style={s.metaText}>Qty: {item.quantity}</Text>}
-        </View>
-        {item.notes && <Text style={s.itemNotes}>{item.notes}</Text>}
-        <Text style={s.itemBy}>Added by {item.addedBy?.name}</Text>
-
-        {item.status === 'PENDING' && (
-          <View style={s.itemActions}>
-            <TouchableOpacity style={s.actionBtn} onPress={() => onEdit(item)}>
-              <EditIcon size={14} color={COLORS.secondary} strokeWidth={2} />
-              <Text style={[s.actionBtnText, { color: COLORS.secondary }]}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]} onPress={() => onRemove(item)}>
-              <Trash2Icon size={14} color={COLORS.primary} strokeWidth={2} />
-              <Text style={[s.actionBtnText, { color: COLORS.primary }]}>Remove</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.actionBtn, s.actionBtnGreen]} onPress={() => onMarkOrdered(item)}>
-              <CheckCircleIcon size={14} color="#059669" strokeWidth={2} />
-              <Text style={[s.actionBtnText, { color: '#059669' }]}>Ordered</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {item.status === 'ORDERED' && (
-          <TouchableOpacity style={[s.actionBtn, s.actionBtnPurple, { marginTop: 8, alignSelf: 'flex-start' }]} onPress={() => onMarkReceived(item)}>
-            <CheckCircleIcon size={14} color="#7C3AED" strokeWidth={2} />
-            <Text style={[s.actionBtnText, { color: '#7C3AED' }]}>Mark Received</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
   );
 }
 
@@ -345,7 +543,6 @@ function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: Re
 
   const requests: EmployeeRequest[] = requestsData?.data?.data || [];
 
-  // Per-line state: { [lineId]: { action: 'ACCEPT'|'REJECT'|null, reason: string, note: string } }
   const [lineState, setLineState] = useState<Record<string, {
     action: 'ACCEPT' | 'REJECT' | null;
     reason: string;
@@ -516,7 +713,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
 }) {
   const qc = useQueryClient();
   const [expandedList, setExpandedList] = useState<string | null>(null);
-  const [selected, setSelected]         = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['order-list-history', storeId],
@@ -633,96 +830,6 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
   );
 }
 
-// ─── Quick-Add Bar ────────────────────────────────────────────────────────────
-
-interface QuickAddBarProps {
-  listId: string;
-  storeId: string;
-}
-
-function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
-  const qc = useQueryClient();
-  const [name,     setName]     = useState('');
-  const [qty,      setQty]      = useState('');
-  const [priority, setPriority] = useState<Priority>('NORMAL');
-  const nameRef = useRef<any>(null);
-
-  const addMutation = useMutation({
-    mutationFn: (d: object) => orderListApi.addItem(listId, d),
-    onSuccess: () => {
-      setName('');
-      setQty('');
-      qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
-      setTimeout(() => nameRef.current?.focus(), 80);
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
-  });
-
-  const cyclePriority = () =>
-    setPriority(p => p === 'NORMAL' ? 'URGENT' : p === 'URGENT' ? 'LOW' : 'NORMAL');
-
-  const handleAdd = () => {
-    if (!name.trim()) return;
-    addMutation.mutate({
-      name: name.trim(),
-      quantity: qty.trim() || undefined,
-      priority,
-    });
-  };
-
-  const dotColor = priority === 'URGENT' ? '#DC2626' : priority === 'LOW' ? '#3B82F6' : '#D1D5DB';
-
-  return (
-    <View style={qa.bar}>
-      {/* Priority dot — tap to cycle NORMAL → URGENT → LOW → NORMAL */}
-      <TouchableOpacity style={[qa.priorityDot, { backgroundColor: dotColor }]} onPress={cyclePriority} activeOpacity={0.7}>
-        {priority === 'URGENT' && <AlertTriangleIcon size={11} color="#fff" strokeWidth={2.5} />}
-        {priority === 'LOW'    && <ArrowDownIcon     size={11} color="#fff" strokeWidth={2.5} />}
-      </TouchableOpacity>
-
-      {/* Item name */}
-      <TextInput
-        ref={nameRef}
-        style={qa.nameInput}
-        value={name}
-        onChangeText={setName}
-        placeholder="Add item..."
-        placeholderTextColor="#9CA3AF"
-        returnKeyType="done"
-        blurOnSubmit={false}
-        onSubmitEditing={handleAdd}
-        maxLength={120}
-      />
-
-      {/* Qty (small) */}
-      <TextInput
-        style={qa.qtyInput}
-        value={qty}
-        onChangeText={setQty}
-        placeholder="Qty"
-        placeholderTextColor="#9CA3AF"
-        returnKeyType="done"
-        blurOnSubmit={false}
-        onSubmitEditing={handleAdd}
-        maxLength={30}
-      />
-
-      {/* Add button */}
-      <TouchableOpacity
-        style={[qa.addBtn, (!name.trim() || addMutation.isPending) && { opacity: 0.4 }]}
-        onPress={handleAdd}
-        disabled={!name.trim() || addMutation.isPending}
-        activeOpacity={0.8}
-      >
-        {addMutation.isPending
-          ? <ActivityIndicator color="#fff" size="small" />
-          : <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
-        }
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ManagerOrderListScreen() {
@@ -748,9 +855,7 @@ export default function ManagerOrderListScreen() {
   const selectedStore = stores.find(s => s.id === selectedStoreId);
 
   // ── Active list ──────────────────────────────────────────────────────────
-  const {
-    data: activeData, isLoading: listLoading, refetch: refetchList, isRefetching: listRefetching,
-  } = useQuery({
+  const { data: activeData, isLoading: listLoading, refetch: refetchList, isRefetching: listRefetching } = useQuery({
     queryKey: ['order-list-active', selectedStoreId],
     queryFn: () => orderListApi.getActive(selectedStoreId!),
     enabled: !!selectedStoreId,
@@ -759,7 +864,13 @@ export default function ManagerOrderListScreen() {
 
   const activeList: OrderList | null = activeData?.data?.data || null;
   const items: OrderListItem[] = activeList?.items?.filter(i => i.status !== 'REMOVED') || [];
-  const sections = useMemo(() => groupByCategory(items), [items]);
+
+  // Sorted flat list: URGENT → NORMAL → LOW, then alphabetically within each priority
+  const sortedItems = [...items].sort((a, b) => {
+    if (PRIORITY_ORDER[a.priority] !== PRIORITY_ORDER[b.priority])
+      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    return a.name.localeCompare(b.name);
+  });
 
   // ── Employee request count ───────────────────────────────────────────────
   const { data: reqData } = useQuery({
@@ -800,10 +911,7 @@ export default function ManagerOrderListScreen() {
 
   const removeMutation = useMutation({
     mutationFn: (itemId: string) => orderListApi.removeItem(itemId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
-      Toast.show({ type: 'success', text1: 'Item removed' });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
     onError: () => Toast.show({ type: 'error', text1: 'Failed to remove item' }),
   });
 
@@ -816,7 +924,7 @@ export default function ManagerOrderListScreen() {
   const printMutation = useMutation({
     mutationFn: () => orderListApi.printList(activeList!.id),
     onSuccess: async () => {
-      const lines = items.map((item, idx) => {
+      const lines = sortedItems.map((item, idx) => {
         let line = `${idx + 1}. ${item.name}`;
         if (item.quantity) line += ` — ${item.quantity}`;
         if (item.category) line += ` [${item.category}]`;
@@ -847,12 +955,13 @@ export default function ManagerOrderListScreen() {
     );
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
-
+  // ── Counters ─────────────────────────────────────────────────────────────
   const pendingCount  = items.filter(i => i.status === 'PENDING').length;
   const orderedCount  = items.filter(i => i.status === 'ORDERED').length;
   const receivedCount = items.filter(i => i.status === 'RECEIVED').length;
   const urgentCount   = items.filter(i => i.priority === 'URGENT' && i.status === 'PENDING').length;
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -906,7 +1015,6 @@ export default function ManagerOrderListScreen() {
       ) : listLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
       ) : !activeList ? (
-        /* No open list */
         <View style={s.center}>
           <PackageIcon size={56} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyTitle}>No open list for {selectedStore?.name}</Text>
@@ -943,8 +1051,7 @@ export default function ManagerOrderListScreen() {
                 : <PrinterIcon size={19} color={COLORS.textMuted} strokeWidth={2} />
               }
             </TouchableOpacity>
-            <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList}
-              disabled={closeListMutation.isPending}>
+            <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList} disabled={closeListMutation.isPending}>
               {closeListMutation.isPending
                 ? <ActivityIndicator size="small" color={COLORS.primary} />
                 : <Text style={s.closeListBtnText}>Close List</Text>
@@ -952,62 +1059,56 @@ export default function ManagerOrderListScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Items + Quick-Add bar (keyboard-aware) */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
+          {/* Table Header */}
+          <View style={t.tableHeader}>
+            <View style={t.colP} />
+            <Text style={[t.colName, t.headerText]}>Item</Text>
+            <Text style={[t.colQty, t.headerText]}>Qty</Text>
+            <Text style={[t.colCat, t.headerText]}>Category</Text>
+            <View style={t.colAction} />
+          </View>
+
+          {/* Rows + pinned Add Row */}
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {items.length === 0 ? (
               <View style={[s.center, { flex: 1 }]}>
-                <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
+                <ClipboardIcon size={48} color={COLORS.border} strokeWidth={1.25} />
                 <Text style={s.emptyTitle}>List is empty</Text>
-                <Text style={s.emptyText}>Type an item below to start.</Text>
+                <Text style={s.emptyText}>Add an item below to get started.</Text>
               </View>
             ) : (
               <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
+                contentContainerStyle={{ paddingBottom: 8 }}
                 showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
                 keyboardShouldPersistTaps="handled"
+                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
               >
-                {sections.map(section => (
-                  <View key={section.title} style={s.section}>
-                    <Text style={s.sectionHeader}>{section.title}</Text>
-                    {section.data.map(item => (
-                      <ItemCard
-                        key={item.id}
-                        item={item}
-                        onEdit={setEditingItem}
-                        onRemove={handleRemove}
-                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
-                      />
-                    ))}
-                  </View>
+                {sortedItems.map(item => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    onEdit={setEditingItem}
+                    onRemove={handleRemove}
+                    onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                    onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
+                  />
                 ))}
               </ScrollView>
             )}
 
-            {/* Quick-Add Bar */}
-            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} />
+            {/* Add Row — always pinned at bottom */}
+            <AddRow listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
           </KeyboardAvoidingView>
         </>
       )}
 
-      {/* Edit Item Sheet (only opens when tapping Edit on an existing item) */}
+      {/* Edit Item Sheet */}
       {editingItem && (
-        <AddItemSheet
+        <EditItemSheet
           visible={true}
           listId={activeList?.id || ''}
-          initialValues={{
-            id: editingItem.id,
-            name: editingItem.name,
-            quantity: editingItem.quantity || '',
-            category: editingItem.category || '',
-            notes: editingItem.notes || '',
-            priority: editingItem.priority,
-          }}
+          item={editingItem}
           categories={categories}
           onClose={() => setEditingItem(null)}
           onSaved={() => {
@@ -1042,21 +1143,18 @@ export default function ManagerOrderListScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  center:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
 
   header: {
     backgroundColor: COLORS.secondary,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
+    paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexWrap: 'wrap', gap: 8,
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
   headerBtn: {
@@ -1068,114 +1166,40 @@ const s = StyleSheet.create({
 
   storeTabs:      { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeTabsInner: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  storeTab: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff',
-  },
+  storeTab:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff' },
   storeTabActive:     { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
   storeTabText:       { fontSize: 13, fontWeight: '600', color: COLORS.text },
   storeTabTextActive: { color: '#fff' },
 
   listBanner: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
   listName:  { fontSize: 14, fontWeight: '700', color: COLORS.text },
   listStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   statChip:  { fontSize: 12, fontWeight: '600' },
-  closeListBtn: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
-    borderWidth: 1.5, borderColor: COLORS.primary,
-  },
+  bannerIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
+  closeListBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.primary },
   closeListBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
-  bannerIconBtn: {
-    width: 36, height: 36, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.background,
-  },
-
-  section: { marginBottom: 16 },
-  sectionHeader: {
-    fontSize: 12, fontWeight: '700', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.6,
-    marginBottom: 8, paddingLeft: 4,
-  },
-
-  itemCard: {
-    backgroundColor: '#fff', borderRadius: 12, marginBottom: 8,
-    flexDirection: 'row', overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 2,
-  },
-  urgentCard: { borderWidth: 1, borderColor: '#FECACA' },
-  priorityBar: { width: 4 },
-  itemBody:    { flex: 1, padding: 12, gap: 4 },
-
-  itemBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3,
-    borderRadius: 20, borderWidth: 1, borderColor: 'transparent',
-  },
-  badgeText:  { fontSize: 11, fontWeight: '600' },
-  itemName:   { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  itemMeta:   { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  metaText:   { fontSize: 12, color: COLORS.textMuted },
-  itemNotes:  { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
-  itemBy:     { fontSize: 11, color: '#94A3B8', marginTop: 2 },
-  itemActions:     { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
-  actionBtn:       { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: '#EEF2FF' },
-  actionBtnDanger: { backgroundColor: '#FEF2F2' },
-  actionBtnGreen:  { backgroundColor: '#F0FDF4' },
-  actionBtnPurple: { backgroundColor: '#F5F3FF' },
-  actionBtnText:   { fontSize: 12, fontWeight: '600' },
-
-  bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', gap: 10,
-    padding: 16, paddingBottom: 24,
-    backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: COLORS.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 10,
-  },
-  addBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 13, borderRadius: 12,
-    borderWidth: 2, borderColor: COLORS.secondary, backgroundColor: '#fff',
-  },
-  addBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
-  printBtn: {
-    flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: COLORS.secondary,
-  },
-  printBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   openListBtn: {
-    marginTop: 20, paddingHorizontal: 32, paddingVertical: 14,
-    borderRadius: 14, backgroundColor: COLORS.secondary,
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    marginTop: 20, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.secondary,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
   openListBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
   emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
   emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
 
-  // Bottom sheet / modal
+  // Modal / sheet
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, maxHeight: '92%',
   },
   sheetHandle: { width: 40, height: 4, backgroundColor: COLORS.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sheetTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text },
   closeBtn:    { padding: 4 },
 
@@ -1184,128 +1208,152 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: COLORS.text,
   },
-  textArea: { minHeight: 72, textAlignVertical: 'top', paddingTop: 12 },
 
   priorityRow:      { flexDirection: 'row', gap: 8 },
   priorityChip:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 10, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff' },
   priorityChipText: { fontSize: 13, fontWeight: '600' },
 
-  catChip:     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
-  catChipText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  // Category picker (in sheet)
+  catSearch: {
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: COLORS.text, marginBottom: 8,
+  },
+  catOption:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  catOptionSel: { backgroundColor: '#EEF2FF' },
+  catOptionText: { fontSize: 15, color: COLORS.text },
+  catNewSection: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  catNewTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  catNewTriggerText: { fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+  catNewForm: { gap: 10 },
+  catNewInput: {
+    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.secondary,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.text,
+  },
+  catNewHint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
+  catNewSubmitBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  },
+  catNewSubmitText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  suggestionBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, marginTop: 4, overflow: 'hidden' },
-  suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  suggestionText: { fontSize: 14, color: COLORS.text },
+  // Edit sheet category picker button
+  catPickerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  catPickerBtnText:        { fontSize: 15, color: COLORS.text, flex: 1 },
+  catPickerBtnPlaceholder: { fontSize: 15, color: COLORS.textMuted, flex: 1 },
 
   submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Full-screen modal
+  // Full-screen modals
   modalFullHeader: {
-    backgroundColor: COLORS.secondary, paddingHorizontal: 16,
-    paddingTop: 16, paddingBottom: 16,
+    backgroundColor: COLORS.secondary, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   modalFullTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#fff' },
 
-  // Request review
-  reqCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
+  // Request review cards
+  reqCard:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
   reqCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
-  reqCardName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  reqCardMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  reqCardNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 4 },
-  reqLines: { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12 },
-  reqLine: { backgroundColor: COLORS.background, borderRadius: 10, padding: 10, marginBottom: 10 },
-  reqLineName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  reqLineMeta: { fontSize: 12, color: COLORS.textMuted },
-  reqLineNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
+  reqCardName:   { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  reqCardMeta:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  reqCardNote:   { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 4 },
+  reqLines:      { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12 },
+  reqLine:       { backgroundColor: COLORS.background, borderRadius: 10, padding: 10, marginBottom: 10 },
+  reqLineName:   { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  reqLineMeta:   { fontSize: 12, color: COLORS.textMuted },
+  reqLineNote:   { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
 
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  acceptBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: '#16A34A', backgroundColor: '#F0FDF4',
-  },
+  actionRow:       { flexDirection: 'row', gap: 8, marginTop: 8 },
+  acceptBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
   acceptBtnActive: { backgroundColor: '#16A34A' },
-  acceptBtnText: { fontSize: 13, fontWeight: '700', color: '#16A34A' },
-  rejectBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: '#DC2626', backgroundColor: '#FEF2F2',
-  },
+  acceptBtnText:   { fontSize: 13, fontWeight: '700', color: '#16A34A' },
+  rejectBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: '#DC2626', backgroundColor: '#FEF2F2' },
   rejectBtnActive: { backgroundColor: '#DC2626' },
-  rejectBtnText: { fontSize: 13, fontWeight: '700', color: '#DC2626' },
-
-  rejectDetails: { marginTop: 8, gap: 4 },
-  reasonChip:     { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
-  reasonChipText: { fontSize: 12, fontWeight: '500', color: COLORS.text },
+  rejectBtnText:   { fontSize: 13, fontWeight: '700', color: '#DC2626' },
+  rejectDetails:   { marginTop: 8, gap: 4 },
+  reasonChip:      { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8, backgroundColor: '#fff' },
+  reasonChipText:  { fontSize: 12, fontWeight: '500', color: COLORS.text },
 
   // Restore
-  restoreItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 10, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff',
-  },
+  restoreItem:         { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff' },
   restoreItemSelected: { borderColor: COLORS.secondary, backgroundColor: '#EEF2FF' },
-  restoreCheckbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  restoreCheckbox:     { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
 });
 
-// ─── Quick-Add Bar Styles ─────────────────────────────────────────────────────
-const qa = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 12,
+// ─── Table Styles ─────────────────────────────────────────────────────────────
+
+const COL_P      = 28;
+const COL_QTY    = 48;
+const COL_CAT    = 82;
+const COL_ACTION = 32;
+
+const t = StyleSheet.create({
+  tableHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
+  },
+  headerText: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 10,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F0F0F0',
+    borderLeftWidth: 3,
+    borderLeftColor: '#E5E7EB',
   },
-  priorityDot: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+  addRow: {
+    borderLeftColor: COLORS.secondary,
+    borderTopWidth: 1.5,
+    borderTopColor: '#E5E7EB',
+    paddingVertical: 8,
+    backgroundColor: '#FAFAFA',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 6,
   },
-  nameInput: {
-    flex: 1,
-    height: 44,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 13,
-    fontSize: 15,
-    color: COLORS.text,
+
+  colP:      { width: COL_P,      alignItems: 'center', justifyContent: 'center' },
+  colName:   { flex: 1,           paddingHorizontal: 6 },
+  colQty:    { width: COL_QTY,    paddingHorizontal: 4 },
+  colCat:    { width: COL_CAT,    paddingHorizontal: 4 },
+  colAction: { width: COL_ACTION, alignItems: 'center', justifyContent: 'center' },
+
+  dot: {
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
   },
-  qtyInput: {
-    width: 58,
-    height: 44,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 8,
-    fontSize: 13,
-    color: COLORS.text,
-    textAlign: 'center',
+
+  cellName: { fontSize: 14, fontWeight: '600', color: COLORS.text, lineHeight: 19 },
+  strikethrough: { textDecorationLine: 'line-through', color: COLORS.textMuted },
+  cellMuted: { fontSize: 12, color: COLORS.textMuted },
+  reqTag: { fontSize: 10, color: '#16A34A', fontWeight: '600', marginTop: 2 },
+
+  catPill: {
+    borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3,
+    alignSelf: 'flex-start',
   },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
+  catPillText: { fontSize: 11, fontWeight: '600' },
+
+  statusDot: {
+    width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+  },
+  statusLetter: { fontSize: 11, fontWeight: '800' },
+
+  // Add row inputs
+  addInput: {
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7,
+    fontSize: 14, color: COLORS.text,
+  },
+  addCatPlaceholder: { fontSize: 12, color: '#B0B8C4', fontWeight: '500', textAlign: 'center' },
+  addCircle: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
   },
 });

@@ -52,6 +52,7 @@ import {
 } from '../controllers/employeeRequest.controller';
 import {
   getCategories as getOrderCategories,
+  submitCategory,
   adminGetCategories,
   adminUpdateCategory,
   adminDeleteCategory,
@@ -369,9 +370,10 @@ router.get('/employee-requests/store/:storeId/rejected',         authenticate, r
 router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);            // Accept/reject each line → adds to list
 
 // ─── Order Categories ─────────────────────────────────────────────────────────
-router.get('/order-categories',         authenticate, requireRole(Role.EMPLOYEE),  getOrderCategories);    // Approved categories for dropdown
-router.get('/order-categories/admin',   authenticate, requireRole(Role.DEV_ADMIN), adminGetCategories);    // All categories with status filter
-router.patch('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN), adminUpdateCategory);   // Approve / modify / reject
-router.delete('/order-categories/:id',  authenticate, requireRole(Role.DEV_ADMIN), adminDeleteCategory);   // Hard delete
+router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown
+router.post('/order-categories/submit',  authenticate, requireRole(Role.STORE_MANAGER), submitCategory);       // Manager submits new → DevAdmin notified
+router.get('/order-categories/admin',    authenticate, requireRole(Role.DEV_ADMIN),    adminGetCategories);    // All categories with status filter
+router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMIN),    adminUpdateCategory);   // Approve / edit name (cascades to items) / reject
+router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete
 
 export default router;

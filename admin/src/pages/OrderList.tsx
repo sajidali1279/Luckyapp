@@ -378,9 +378,11 @@ function OrderListsTab({ canEdit }: { canEdit: boolean }) {
 
 function CategoriesTab() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState('');
-  const [editingId, setEditingId]       = useState<string | null>(null);
-  const [editName, setEditName]         = useState('');
+  const [filterStatus, setFilterStatus] = useState('PENDING'); // default to pending
+  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [editName,     setEditName]     = useState('');
+  const [approvingId,  setApprovingId]  = useState<string | null>(null);
+  const [approveEdit,  setApproveEdit]  = useState('');
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['order-categories-admin', filterStatus],
@@ -390,7 +392,13 @@ function CategoriesTab() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: object }) => orderCategoriesApi.adminUpdate(id, data),
-    onSuccess: () => { toast.success('Category updated'); qc.invalidateQueries({ queryKey: ['order-categories-admin'] }); setEditingId(null); },
+    onSuccess: (_r, vars: any) => {
+      const wasApprove = (vars.data as any).status === 'APPROVED';
+      toast.success(wasApprove ? 'Category approved — all list items updated' : 'Category updated');
+      qc.invalidateQueries({ queryKey: ['order-categories-admin'] });
+      setEditingId(null);
+      setApprovingId(null);
+    },
     onError: () => toast.error('Failed to update'),
   });
 
@@ -401,13 +409,25 @@ function CategoriesTab() {
   });
 
   const pendingCount = categories.filter(c => c.status === 'PENDING').length;
+  const allPendingCount = (data?.data?.data as any[])?.filter?.((c: any) => c.status === 'PENDING').length || pendingCount;
+
+  const openApprove = (cat: OrderCategory) => {
+    setApprovingId(cat.id);
+    setApproveEdit(cat.name);
+    setEditingId(null);
+  };
+
+  const confirmApprove = (id: string) => {
+    if (!approveEdit.trim()) return;
+    updateMutation.mutate({ id, data: { name: approveEdit.trim(), status: 'APPROVED' } });
+  };
 
   return (
     <div>
       <div style={s.filters}>
         <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">All Statuses</option>
-          <option value="PENDING">Pending ({pendingCount})</option>
+          <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
         </select>
@@ -416,6 +436,12 @@ function CategoriesTab() {
           <span style={s.pendingBadge}>{pendingCount} awaiting review</span>
         )}
       </div>
+
+      {pendingCount > 0 && (
+        <div style={s.approveHint}>
+          ℹ️ When approving, you can edit the name to fix typos — the correction will automatically apply to every item on every list.
+        </div>
+      )}
 
       {isLoading ? (
         <div style={s.loading}>Loading categories…</div>
@@ -431,11 +457,24 @@ function CategoriesTab() {
           </div>
           {categories.map(cat => {
             const cfg = CAT_STATUS_CFG[cat.status];
+            const isApproving = approvingId === cat.id;
+            const isEditing   = editingId === cat.id;
             return (
-              <div key={cat.id} style={s.catTableRow}>
-                {editingId === cat.id ? (
+              <div key={cat.id} style={{ ...s.catTableRow, ...(cat.status === 'PENDING' ? { background: '#FFFBEB' } : {}) }}>
+                {/* Name column */}
+                {isApproving ? (
                   <div style={s.editRow}>
-                    <input style={{ ...s.input, flex: 1 }} value={editName} onChange={e => setEditName(e.target.value)} maxLength={80} />
+                    <input
+                      style={{ ...s.input, flex: 1, borderColor: '#10B981' }}
+                      value={approveEdit}
+                      onChange={e => setApproveEdit(e.target.value)}
+                      maxLength={80}
+                      autoFocus
+                    />
+                  </div>
+                ) : isEditing ? (
+                  <div style={s.editRow}>
+                    <input style={{ ...s.input, flex: 1 }} value={editName} onChange={e => setEditName(e.target.value)} maxLength={80} autoFocus />
                     <button style={s.saveBtnSm} onClick={() => updateMutation.mutate({ id: cat.id, data: { name: editName } })}
                       disabled={updateMutation.isPending || !editName.trim()}>
                       Save
@@ -448,41 +487,50 @@ function CategoriesTab() {
                     {cat.storeId && <span style={s.storeTag}>store-specific</span>}
                   </span>
                 )}
+
                 <span style={s.catUses}>{cat.usageCount}</span>
                 <span style={{ ...s.statusPill, background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}` }}>
                   {cfg.label}
                 </span>
+
+                {/* Actions */}
                 <div style={s.catActions}>
-                  {cat.status === 'PENDING' && (
-                    <button style={s.approveBtn}
-                      onClick={() => updateMutation.mutate({ id: cat.id, data: { status: 'APPROVED' } })}
-                      disabled={updateMutation.isPending}>
-                      Approve
-                    </button>
+                  {isApproving ? (
+                    <>
+                      <button
+                        style={s.approveBtn}
+                        onClick={() => confirmApprove(cat.id)}
+                        disabled={updateMutation.isPending || !approveEdit.trim()}
+                      >
+                        {updateMutation.isPending ? '…' : approveEdit.trim() !== cat.name ? 'Approve & Rename' : 'Approve'}
+                      </button>
+                      <button style={s.cancelBtnSm} onClick={() => setApprovingId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      {(cat.status === 'PENDING' || cat.status === 'REJECTED') && (
+                        <button style={s.approveBtn} onClick={() => openApprove(cat)} disabled={updateMutation.isPending}>
+                          {cat.status === 'REJECTED' ? 'Re-approve' : 'Approve…'}
+                        </button>
+                      )}
+                      {cat.status !== 'REJECTED' && (
+                        <button style={s.rejectBtnSm}
+                          onClick={() => updateMutation.mutate({ id: cat.id, data: { status: 'REJECTED' } })}
+                          disabled={updateMutation.isPending}>
+                          Reject
+                        </button>
+                      )}
+                      <button style={s.editBtnSm}
+                        onClick={() => { setEditingId(cat.id); setEditName(cat.name); setApprovingId(null); }}>
+                        Rename
+                      </button>
+                      <button style={s.deleteBtnSm}
+                        onClick={() => { if (confirm(`Delete category "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
+                        disabled={deleteMutation.isPending}>
+                        Delete
+                      </button>
+                    </>
                   )}
-                  {cat.status !== 'REJECTED' && (
-                    <button style={s.rejectBtnSm}
-                      onClick={() => updateMutation.mutate({ id: cat.id, data: { status: 'REJECTED' } })}
-                      disabled={updateMutation.isPending}>
-                      Reject
-                    </button>
-                  )}
-                  {cat.status === 'REJECTED' && (
-                    <button style={s.approveBtn}
-                      onClick={() => updateMutation.mutate({ id: cat.id, data: { status: 'APPROVED' } })}
-                      disabled={updateMutation.isPending}>
-                      Re-approve
-                    </button>
-                  )}
-                  <button style={s.editBtnSm}
-                    onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}>
-                    Rename
-                  </button>
-                  <button style={s.deleteBtnSm}
-                    onClick={() => { if (confirm(`Delete category "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
-                    disabled={deleteMutation.isPending}>
-                    Delete
-                  </button>
                 </div>
               </div>
             );
@@ -553,7 +601,11 @@ const s: Record<string, React.CSSProperties> = {
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },
   filterSelect: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer' },
   refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, color: '#64748B', background: '#fff', cursor: 'pointer' },
-  pendingBadge: { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 13, fontWeight: 700 },
+  pendingBadge:  { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 13, fontWeight: 700 },
+  approveHint: {
+    background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10,
+    padding: '10px 16px', fontSize: 13, color: '#065F46', marginBottom: 16, lineHeight: 1.5,
+  },
 
   loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 15 },
   empty:   { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 15 },
