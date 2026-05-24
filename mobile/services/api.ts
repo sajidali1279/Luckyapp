@@ -48,8 +48,7 @@ export const authApi = {
     api.post('/auth/push-token', { token, platform }),
   getMe: () => api.get('/auth/me'),
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
-  forgotPin: (phone: string, email?: string) => api.post('/auth/forgot-pin', { phone, email }),
-  verifyOtp: (phone: string, code: string) => api.post('/auth/verify-otp', { phone, code }),
+  verifyFirebaseReset: (firebaseToken: string) => api.post('/auth/verify-firebase-reset', { firebaseToken }),
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
 };
 

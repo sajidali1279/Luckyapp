@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, forgotPin, verifyOtp, resetPin } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -145,9 +145,8 @@ router.patch('/auth/profile', authenticate, updateProfile);                     
 router.post('/auth/push-token', authenticate, registerPushToken);
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email
-router.post('/auth/forgot-pin', forgotPin);                                       // Request OTP (unauthenticated)
-router.post('/auth/verify-otp', verifyOtp);                                       // Verify OTP → get resetToken
-router.post('/auth/reset-pin', resetPin);                                         // Reset PIN using resetToken                                                          // Get current user (balance refresh)                 // Register push token
+router.post('/auth/verify-firebase-reset', verifyFirebaseReset);                  // Firebase phone OTP verified → get resetToken
+router.post('/auth/reset-pin', resetPin);                                         // Reset PIN using resetToken
 router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin);       // Create SuperAdmin (HQ account)
 router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);         // Create employee/manager
 router.get('/staff', authenticate, requireRole(Role.SUPER_ADMIN), listStaff);                        // List all staff

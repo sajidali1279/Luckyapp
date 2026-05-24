@@ -7,7 +7,6 @@ import { Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { audit } from '../utils/audit';
-import { sendOtpEmail } from '../utils/email';
 import admin from '../config/firebase';
 
 const SALT_ROUNDS = 12;
@@ -524,85 +523,48 @@ export async function updateEmail(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
-// ─── Forgot PIN — request OTP ─────────────────────────────────────────────────
+// ─── Verify Firebase Phone Token → issue reset token ─────────────────────────
 
-export async function forgotPin(req: Request, res: Response) {
-  const { phone, email } = req.body as { phone: string; email?: string };
-  if (!phone) {
-    res.status(400).json({ success: false, error: 'phone is required' });
+export async function verifyFirebaseReset(req: Request, res: Response) {
+  const { firebaseToken } = req.body as { firebaseToken?: string };
+  if (!firebaseToken) {
+    res.status(400).json({ success: false, error: 'firebaseToken is required' });
     return;
   }
+
+  // Verify the Firebase ID token (proves they own the phone number via SMS)
+  let decodedToken: admin.auth.DecodedIdToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+  } catch {
+    res.status(401).json({ success: false, error: 'Phone verification failed. Please try again.' });
+    return;
+  }
+
+  // Extract 10-digit phone from E.164 format (+12345678900)
+  const firebaseDigits = (decodedToken.phone_number ?? '').replace(/\D/g, '');
+  const phone = firebaseDigits.slice(-10);
+
+  // Clean up Firebase Auth user — we manage sessions ourselves
+  admin.auth().deleteUser(decodedToken.uid).catch(() => {});
 
   const user = await prisma.user.findUnique({ where: { phone } });
-  // Always return 200 to avoid user enumeration
   if (!user || !user.isActive) {
-    res.json({ success: true, message: 'If that account exists, an OTP was sent.' });
+    res.status(404).json({ success: false, error: 'No account found for this phone number.' });
     return;
   }
 
-  // If email provided, verify it matches their account
-  if (email && user.email && user.email.toLowerCase() !== email.toLowerCase()) {
-    res.status(400).json({ success: false, error: 'Email does not match the account' });
-    return;
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-  // Invalidate existing OTPs for this phone
-  await prisma.otpCode.updateMany({
-    where: { phone, purpose: 'FORGOT_PIN', used: false },
-    data: { used: true },
-  });
-
-  await prisma.otpCode.create({
-    data: { phone, email: user.email, code: otp, purpose: 'FORGOT_PIN', expiresAt },
-  });
-
-  if (user.email) {
-    await sendOtpEmail(user.email, otp);
-  }
-
-  res.json({
-    success: true,
-    message: user.email ? 'OTP sent to your email.' : 'OTP sent.',
-    email: user.email ? user.email.replace(/(.{2}).*(@.*)/, '$1***$2') : null,
-  });
-}
-
-// ─── Verify OTP ───────────────────────────────────────────────────────────────
-
-export async function verifyOtp(req: Request, res: Response) {
-  const { phone, code } = req.body as { phone: string; code: string };
-  if (!phone || !code) {
-    res.status(400).json({ success: false, error: 'phone and code are required' });
-    return;
-  }
-
-  const record = await prisma.otpCode.findFirst({
-    where: { phone, code, purpose: 'FORGOT_PIN', used: false },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!record || record.expiresAt < new Date()) {
-    res.status(400).json({ success: false, error: 'Invalid or expired OTP' });
-    return;
-  }
-
-  // Mark as used
-  await prisma.otpCode.update({ where: { id: record.id }, data: { used: true } });
-
-  // Issue a short-lived reset token (reuse JWT with special claim)
+  // Issue a short-lived reset token (10 minutes)
   const resetToken = jwt.sign(
     { phone, purpose: 'RESET_PIN' },
     process.env.JWT_SECRET!,
-    { expiresIn: 600 } // 10 minutes
+    { expiresIn: 600 }
   );
 
   res.json({ success: true, resetToken });
 }
 
-// ─── Reset PIN (after OTP verified) ──────────────────────────────────────────
+// ─── Reset PIN (after Firebase phone verification) ────────────────────────────
 
 export async function resetPin(req: Request, res: Response) {
   const { resetToken, newPin } = req.body as { resetToken: string; newPin: string };

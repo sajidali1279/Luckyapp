@@ -1,41 +1,80 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
   ScrollView, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { authApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import { ChevronLeftIcon, CheckCircleIcon } from '../../components/Icons';
 
-type Step = 'request' | 'verify' | 'reset' | 'done';
+type Step = 'phone' | 'verify' | 'reset' | 'done';
 
 export default function ForgotPinScreen() {
-  const [step, setStep] = useState<Step>('request');
+  const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [confirmation, setConfirmation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  async function handleRequestOtp() {
-    if (phone.length < 10) {
-      Toast.show({ type: 'error', text1: 'Enter a valid phone number' });
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  function rawPhone() {
+    return phone.replace(/\D/g, '');
+  }
+
+  function formatPhone(text: string) {
+    const digits = text.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  async function handleSendOtp() {
+    if (rawPhone().length < 10) {
+      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit phone number' });
       return;
     }
-    setLoading(true);
+    setSendingOtp(true);
     try {
-      await authApi.forgotPin(phone.trim(), email.trim() || undefined);
-      Toast.show({ type: 'success', text1: 'OTP sent!', text2: 'Check your email for the 6-digit code.' });
+      const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
+      setConfirmation(result);
+      setOtp('');
+      setResendCooldown(60);
       setStep('verify');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to send OTP' });
+      Toast.show({ type: 'error', text1: 'Could not send code', text2: err.message || 'Check the number and try again' });
     } finally {
-      setLoading(false);
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    setResending(true);
+    try {
+      const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
+      setConfirmation(result);
+      setOtp('');
+      setResendCooldown(60);
+      Toast.show({ type: 'success', text1: 'New code sent!' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to resend — try again' });
+    } finally {
+      setResending(false);
     }
   }
 
@@ -46,11 +85,21 @@ export default function ForgotPinScreen() {
     }
     setLoading(true);
     try {
-      const res = await authApi.verifyOtp(phone.trim(), otp.trim());
-      setResetToken(res.data.data?.resetToken ?? res.data.resetToken);
+      const credential = await confirmation.confirm(otp);
+      const firebaseToken = await credential.user.getIdToken();
+      signOut(getAuth()).catch(() => {});
+      const res = await authApi.verifyFirebaseReset(firebaseToken);
+      setResetToken(res.data.resetToken);
       setStep('reset');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Invalid or expired code' });
+      const code = err.code as string | undefined;
+      if (code === 'auth/invalid-verification-code') {
+        Toast.show({ type: 'error', text1: 'Wrong code — try again' });
+      } else if (code === 'auth/code-expired') {
+        Toast.show({ type: 'error', text1: 'Code expired', text2: 'Tap Resend to get a new one' });
+      } else {
+        Toast.show({ type: 'error', text1: err.response?.data?.error || 'Verification failed' });
+      }
     } finally {
       setLoading(false);
     }
@@ -76,98 +125,123 @@ export default function ForgotPinScreen() {
     }
   }
 
+  const displayPhone = rawPhone().length === 10
+    ? `(${rawPhone().slice(0, 3)}) ${rawPhone().slice(3, 6)}-${rawPhone().slice(6)}`
+    : phone;
+
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <SafeAreaView style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>‹ Back</Text>
+          <ChevronLeftIcon size={22} color="rgba(255,255,255,0.85)" strokeWidth={2.5} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Forgot PIN</Text>
-        <View style={{ width: 60 }} />
+        <Text style={s.headerTitle}>Reset PIN</Text>
+        <View style={{ width: 44 }} />
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={s.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
-          {/* ── Step indicator ── */}
-          <View style={s.steps}>
-            {(['request', 'verify', 'reset'] as Step[]).map((st, i) => (
-              <View key={st} style={s.stepRow}>
-                <View style={[s.stepDot, step === st && s.stepDotActive, (step === 'verify' && i === 0) || (step === 'reset' && i < 2) || step === 'done' ? s.stepDotDone : {}]}>
-                  <Text style={s.stepDotText}>{i + 1}</Text>
-                </View>
-                {i < 2 && <View style={s.stepLine} />}
-              </View>
-            ))}
-          </View>
+          {/* Step indicator — 3 steps */}
+          {step !== 'done' && (
+            <View style={s.steps}>
+              {(['phone', 'verify', 'reset'] as Step[]).map((st, i) => {
+                const stepIndex = ['phone', 'verify', 'reset'].indexOf(step);
+                const isDone = i < stepIndex;
+                const isActive = step === st;
+                return (
+                  <View key={st} style={s.stepRow}>
+                    <View style={[s.stepDot, isActive && s.stepDotActive, isDone && s.stepDotDone]}>
+                      <Text style={s.stepDotText}>{i + 1}</Text>
+                    </View>
+                    {i < 2 && <View style={[s.stepLine, isDone && s.stepLineDone]} />}
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
-          {/* ── Step: Request OTP ── */}
-          {step === 'request' && (
+          {/* ── Step 1: Phone number ── */}
+          {step === 'phone' && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Enter your phone number</Text>
-              <Text style={s.cardSub}>We'll send a 6-digit code to your recovery email.</Text>
+              <Text style={s.cardTitle}>Verify your number</Text>
+              <Text style={s.cardSub}>We'll send a verification code to your phone via SMS.</Text>
 
               <Text style={s.label}>Phone Number</Text>
               <TextInput
                 style={s.input}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(t) => setPhone(formatPhone(t))}
                 keyboardType="phone-pad"
-                placeholder="+1 555 000 0000"
+                placeholder="(555) 000-0000"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
               />
 
-              <Text style={s.label}>Recovery Email (optional)</Text>
-              <TextInput
-                style={s.input}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholder="your@email.com"
-                placeholderTextColor={COLORS.textMuted}
-              />
-
-              <TouchableOpacity style={s.btn} onPress={handleRequestOtp} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Send Code</Text>}
+              <TouchableOpacity
+                style={[s.btn, (sendingOtp || rawPhone().length < 10) && { opacity: 0.6 }]}
+                onPress={handleSendOtp}
+                disabled={sendingOtp || rawPhone().length < 10}
+              >
+                {sendingOtp
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.btnText}>Send Verification Code</Text>
+                }
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ── Step: Verify OTP ── */}
+          {/* ── Step 2: Verify SMS code ── */}
           {step === 'verify' && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Enter the 6-digit code</Text>
-              <Text style={s.cardSub}>Check your email for the OTP. It expires in 10 minutes.</Text>
+              <Text style={s.cardTitle}>Enter the code</Text>
 
-              <Text style={s.label}>OTP Code</Text>
+              <View style={s.phoneBadge}>
+                <Text style={s.phoneBadgeLabel}>Code sent to</Text>
+                <Text style={s.phoneBadgeNumber}>{displayPhone}</Text>
+              </View>
+
+              <Text style={s.label}>6-Digit Code</Text>
               <TextInput
                 style={[s.input, s.otpInput]}
                 value={otp}
                 onChangeText={setOtp}
                 keyboardType="number-pad"
                 maxLength={6}
-                placeholder="······"
+                placeholder="••••••"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
               />
 
-              <TouchableOpacity style={s.btn} onPress={handleVerifyOtp} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Verify Code</Text>}
+              <TouchableOpacity
+                style={[s.btn, (loading || otp.length < 6) && { opacity: 0.6 }]}
+                onPress={handleVerifyOtp}
+                disabled={loading || otp.length < 6}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.btnText}>Verify Code</Text>
+                }
               </TouchableOpacity>
 
-              <TouchableOpacity style={s.linkBtn} onPress={() => setStep('request')}>
-                <Text style={s.linkBtnText}>Didn't receive it? Go back</Text>
+              <TouchableOpacity
+                style={s.linkBtn}
+                onPress={resendCooldown > 0 || resending ? undefined : handleResendOtp}
+                disabled={resendCooldown > 0 || resending}
+              >
+                <Text style={[s.linkBtnText, (resendCooldown > 0) && { color: COLORS.textMuted }]}>
+                  {resending ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.linkBtn} onPress={() => { setStep('phone'); setOtp(''); setConfirmation(null); }}>
+                <Text style={[s.linkBtnText, { color: COLORS.textMuted, fontSize: 13 }]}>← Change number</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ── Step: Reset PIN ── */}
+          {/* ── Step 3: Set new PIN ── */}
           {step === 'reset' && (
             <View style={s.card}>
               <Text style={s.cardTitle}>Set a new PIN</Text>
@@ -198,20 +272,29 @@ export default function ForgotPinScreen() {
                 placeholderTextColor={COLORS.textMuted}
               />
 
-              <TouchableOpacity style={s.btn} onPress={handleResetPin} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Reset PIN</Text>}
+              <TouchableOpacity
+                style={[s.btn, loading && { opacity: 0.6 }]}
+                onPress={handleResetPin}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.btnText}>Reset PIN</Text>
+                }
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ── Step: Done ── */}
+          {/* ── Done ── */}
           {step === 'done' && (
             <View style={[s.card, s.doneCard]}>
-              <Text style={s.doneIcon}>✅</Text>
+              <View style={s.doneIconRing}>
+                <CheckCircleIcon size={36} color="#2DC653" strokeWidth={1.75} />
+              </View>
               <Text style={s.cardTitle}>PIN Reset!</Text>
-              <Text style={s.cardSub}>Your PIN has been updated. You can now log in with your new PIN.</Text>
+              <Text style={s.cardSub}>Your PIN has been updated. You can now sign in with your new PIN.</Text>
               <TouchableOpacity style={s.btn} onPress={() => router.replace('/(auth)/login')}>
-                <Text style={s.btnText}>Go to Login</Text>
+                <Text style={s.btnText}>Go to Sign In</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -230,13 +313,16 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 16,
   },
-  backBtn: { width: 60 },
-  backBtnText: { color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: '600' },
+  backBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
   body: { padding: 20, gap: 20, paddingBottom: 40 },
 
-  steps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 4 },
+  steps: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   stepRow: { flexDirection: 'row', alignItems: 'center' },
   stepDot: {
     width: 28, height: 28, borderRadius: 14,
@@ -247,6 +333,7 @@ const s = StyleSheet.create({
   stepDotDone: { backgroundColor: '#2DC653' },
   stepDotText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   stepLine: { width: 32, height: 2, backgroundColor: COLORS.border, marginHorizontal: 4 },
+  stepLineDone: { backgroundColor: '#2DC653' },
 
   card: {
     backgroundColor: COLORS.white, borderRadius: 20, padding: 20,
@@ -257,7 +344,17 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   cardSub: { fontSize: 14, color: COLORS.textMuted, lineHeight: 20 },
 
-  label: { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4 },
+  phoneBadge: {
+    backgroundColor: COLORS.secondary + '12', borderRadius: 14, padding: 16,
+    alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.secondary + '25',
+  },
+  phoneBadgeLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  phoneBadgeNumber: { fontSize: 20, fontWeight: '800', color: COLORS.text, marginTop: 3 },
+
+  label: {
+    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: -4,
+  },
   input: {
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
     padding: 14, fontSize: 16, color: COLORS.text, backgroundColor: COLORS.background,
@@ -275,5 +372,10 @@ const s = StyleSheet.create({
   linkBtnText: { color: COLORS.primary, fontWeight: '600', fontSize: 14 },
 
   doneCard: { alignItems: 'center', paddingVertical: 32, gap: 16 },
-  doneIcon: { fontSize: 56 },
+  doneIconRing: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: '#2DC65315',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#2DC65330',
+  },
 });
