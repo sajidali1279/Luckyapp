@@ -197,9 +197,11 @@ function RequestForm({ categories, onSubmitted }: RequestFormProps) {
       const newCats  = usedCats.filter(c => !categories.map(a => a.toLowerCase()).includes(c.toLowerCase()));
       newCats.forEach(cat => orderCategoriesApi.submitNew(cat).catch(() => {}));
 
-      const typeLabel = requestType === 'LOW_STOCK' ? 'Low Stock' : 'Customer Request';
-      const noteStr   = [`[${typeLabel}]`, overallNote.trim()].filter(Boolean).join(' ');
-      return employeeRequestApi.submit({ note: noteStr || undefined, lines });
+      return employeeRequestApi.submit({
+        requestType: requestType!,
+        note: overallNote.trim() || undefined,
+        lines,
+      });
     },
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Request submitted', text2: 'Your manager will review it soon' });

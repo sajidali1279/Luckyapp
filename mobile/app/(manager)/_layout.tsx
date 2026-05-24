@@ -1,21 +1,13 @@
 import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
-import { schedulingApi, notificationsApi, storeRequestApi, employeeRequestApi } from '../../services/api';
+import { notificationsApi, employeeRequestApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
-  HomeIcon, CalendarIcon, MegaphoneIcon, ImageIcon,
-  MessageCircleIcon, ClipboardIcon, BellIcon, PackageIcon, TrophyIcon,
+  HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
-  const { data: vacData } = useQuery({
-    queryKey: ['schedule-vacancies'],
-    queryFn: () => schedulingApi.getVacancies(),
-    refetchInterval: 120000,
-  });
-  const vacancyCount: number = vacData?.data?.data?.totalVacancies || 0;
-
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
@@ -23,15 +15,7 @@ export default function ManagerLayout() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
-  // Badge: pending store requests (maintenance / supply / work orders)
-  const { data: storeReqData } = useQuery({
-    queryKey: ['store-requests-pending-count'],
-    queryFn: () => storeRequestApi.getPendingCount(),
-    refetchInterval: 60000,
-  });
-  const storeReqPending: number = storeReqData?.data?.data?.count ?? 0;
-
-  // Badge: pending employee item requests (procurement ordering)
+  // Badge: pending employee item requests
   const { data: empReqData } = useQuery({
     queryKey: ['employee-requests-pending-count'],
     queryFn: () => employeeRequestApi.getPendingCount(),
@@ -40,38 +24,24 @@ export default function ManagerLayout() {
   const empReqPending: number = empReqData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
-    { route: '/(manager)/home',     icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: 'Home' },
-    { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} strokeWidth={2} />, label: 'Schedule' },
+    { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} strokeWidth={2} />,     label: 'Dashboard' },
+    { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />,  label: 'Orders' },
   ];
 
   const groups: NavGroup[] = [
     {
-      title: 'Main',
+      title: 'Inventory',
       items: [
-        { route: '/(manager)/home',     icon: (p) => <HomeIcon {...p} />,     label: 'Home' },
-        { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} />, label: 'Schedule', badge: vacancyCount },
-      ],
-    },
-    {
-      title: 'Content',
-      items: [
-        { route: '/(manager)/offers',  icon: (p) => <MegaphoneIcon {...p} />,    label: 'Offers' },
-        { route: '/(manager)/banners', icon: (p) => <ImageIcon {...p} />,         label: 'Banners' },
-        { route: '/(manager)/chat',    icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
-      ],
-    },
-    {
-      title: 'Team',
-      items: [
-        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Requests',   badge: storeReqPending },
-        { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: 'Order List', badge: empReqPending },
+        { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,     label: 'Dashboard' },
+        { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,  label: 'Order List' },
+        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Item Requests', badge: empReqPending },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />,   label: 'Alerts',       badge: unreadCount },
-        { route: '/(manager)/leaderboard',   icon: (p) => <TrophyIcon {...p} />, label: 'Leaderboard' },
+        { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />, label: 'Alerts', badge: unreadCount },
+        { route: '/(manager)/profile',       icon: (p) => <UserIcon {...p} />, label: 'Profile' },
       ],
     },
   ];
@@ -80,14 +50,9 @@ export default function ManagerLayout() {
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.secondary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
-        <Tabs.Screen name="offers" />
-        <Tabs.Screen name="banners" />
-        <Tabs.Screen name="schedule" />
-        <Tabs.Screen name="chat" />
-        <Tabs.Screen name="requests" />
         <Tabs.Screen name="order-list" />
+        <Tabs.Screen name="requests" />
         <Tabs.Screen name="notifications" />
-        <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="profile" />
       </Tabs>
     </DrawerShell>

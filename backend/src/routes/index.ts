@@ -59,6 +59,7 @@ import {
   adminUpdateCategory,
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
+import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -371,6 +372,9 @@ router.get('/employee-requests/mine',                            authenticate, r
 router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);  // Manager views store requests
 router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);       // Rejection log for a store
 router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                  // Accept/reject each line → adds to list
+
+// ─── Inventory Analytics ─────────────────────────────────────────────────────
+router.get('/inventory/analytics', authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);  // Top items, category breakdown, store comparison
 
 // ─── Order Categories ─────────────────────────────────────────────────────────
 router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown

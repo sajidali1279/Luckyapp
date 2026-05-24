@@ -2,7 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { OrderItemPriority, OrderItemSource, RejectionReason } from '@prisma/client';
+import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType } from '@prisma/client';
+import { generateListName } from './orderList.controller';
 
 // ─── GET /employee-requests/suggestions ──────────────────────────────────────
 //
@@ -40,7 +41,8 @@ export async function getEmployeeSuggestions(req: AuthRequest, res: Response) {
 // ─── POST /employee-requests ──────────────────────────────────────────────────
 
 const submitSchema = z.object({
-  note:  z.string().max(300).optional(),
+  note:        z.string().max(300).optional(),
+  requestType: z.enum(['LOW_STOCK', 'CUSTOMER_REQUEST']).default('LOW_STOCK'),
   lines: z.array(z.object({
     name:     z.string().min(1).max(120),
     quantity: z.string().max(60).optional(),
@@ -58,7 +60,8 @@ export async function submitRequest(req: AuthRequest, res: Response) {
   const request = await prisma.employeeItemRequest.create({
     data: {
       storeId: storeRole.storeId, submittedById: user.id, note: parsed.data.note,
-      lines: { create: parsed.data.lines.map(l => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) },
+      requestType: parsed.data.requestType as EmployeeRequestType,
+      lines: { create: parsed.data.lines.map((l: any) => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) },
     },
     include: { submittedBy: { select: { id: true, name: true } }, lines: true },
   });
@@ -128,7 +131,7 @@ const reviewLineSchema = z.object({
 });
 
 const reviewSchema = z.object({
-  listId: z.string().uuid(),
+  listId: z.string().uuid().optional(),
   lines:  z.array(reviewLineSchema).min(1),
 });
 
@@ -140,14 +143,33 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
   const request = await prisma.employeeItemRequest.findUnique({ where: { id: requestId }, include: { lines: true } });
   if (!request) { res.status(404).json({ success: false, error: 'Request not found' }); return; }
 
-  const targetList = await prisma.orderList.findUnique({ where: { id: parsed.data.listId } });
-  if (!targetList) { res.status(404).json({ success: false, error: 'Target list not found' }); return; }
-  if (targetList.status !== 'OPEN') { res.status(400).json({ success: false, error: 'Target list is closed' }); return; }
-  if (targetList.storeId !== request.storeId) { res.status(400).json({ success: false, error: 'List belongs to a different store' }); return; }
-
   const user = req.user!;
+
+  // Resolve the target list — use provided listId, or auto-find/create the store's OPEN list
+  let targetListId = parsed.data.listId;
+  if (!targetListId) {
+    let activeList = await prisma.orderList.findFirst({
+      where: { storeId: request.storeId, status: 'OPEN' },
+      select: { id: true },
+    });
+    if (!activeList) {
+      const name = await generateListName(request.storeId);
+      activeList = await prisma.orderList.create({
+        data: { storeId: request.storeId, name, openedById: user.id },
+        select: { id: true },
+      });
+    }
+    targetListId = activeList.id;
+  } else {
+    // Validate the explicitly provided listId
+    const targetList = await prisma.orderList.findUnique({ where: { id: targetListId } });
+    if (!targetList) { res.status(404).json({ success: false, error: 'Target list not found' }); return; }
+    if (targetList.status !== 'OPEN') { res.status(400).json({ success: false, error: 'Target list is closed' }); return; }
+    if (targetList.storeId !== request.storeId) { res.status(400).json({ success: false, error: 'List belongs to a different store' }); return; }
+  }
+
   const now  = new Date();
-  const max  = await prisma.orderListItem.aggregate({ where: { listId: parsed.data.listId }, _max: { sortOrder: true } });
+  const max  = await prisma.orderListItem.aggregate({ where: { listId: targetListId }, _max: { sortOrder: true } });
   let sortOrder = (max._max.sortOrder ?? 0) + 1;
 
   const updates = await prisma.$transaction(async (tx) => {
@@ -159,7 +181,7 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
       if (line.action === 'ACCEPT') {
         const listItem = await tx.orderListItem.create({
           data: {
-            listId: parsed.data.listId, name: src.name, quantity: src.quantity,
+            listId: targetListId, name: src.name, quantity: src.quantity,
             category: src.category, notes: src.notes, priority: OrderItemPriority.NORMAL,
             source: OrderItemSource.EMPLOYEE_REQUEST, requestLineId: src.id,
             addedById: user.id, sortOrder: sortOrder++,
@@ -182,5 +204,5 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
     return results;
   });
 
-  res.json({ success: true, data: { requestId, results: updates } });
+  res.json({ success: true, data: { requestId, results: updates, listId: targetListId } });
 }

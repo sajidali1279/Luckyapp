@@ -5,14 +5,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
-import { offersApi, managerApi, storesApi } from '../../services/api';
+import { useState } from 'react';
+import { managerApi, storesApi, employeeRequestApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  ReceiptIcon, ShoppingBagIcon, StarIcon,
-  PackageIcon, ClipboardIcon, CalendarIcon, MegaphoneIcon,
-  InboxIcon,
+  PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon,
 } from '../../components/Icons';
 
 function getGreeting() {
@@ -22,335 +20,283 @@ function getGreeting() {
   return 'Good evening';
 }
 
-interface Store { id: string; name: string }
-
-const STAT_CONFIG = [
-  {
-    key: 'transactions',
-    label: 'Transactions',
-    Icon: ReceiptIcon,
-    iconColor: '#3B82F6',
-    bg: '#EFF6FF',
-    value: (s: any) => String(s?.transactions ?? '—'),
-  },
-  {
-    key: 'volume',
-    label: 'Purchase',
-    Icon: ShoppingBagIcon,
-    iconColor: '#16A34A',
-    bg: '#F0FDF4',
-    value: (s: any) => s ? `$${Number(s.purchaseVolume || 0).toFixed(0)}` : '—',
-  },
-  {
-    key: 'cashback',
-    label: 'Cashback',
-    Icon: StarIcon,
-    iconColor: '#CA8A04',
-    bg: '#FEFCE8',
-    value: (s: any) => s ? `$${Number(s.cashbackIssued || 0).toFixed(0)}` : '—',
-  },
+const PERIODS = [
+  { label: '7d',  value: '7'   },
+  { label: '30d', value: '30'  },
+  { label: '90d', value: '90'  },
+  { label: 'All', value: 'all' },
 ];
 
-const QUICK_ACTIONS = [
-  { Icon: PackageIcon,   label: 'Order List', color: '#0369A1', route: '/(manager)/order-list' },
-  { Icon: ClipboardIcon, label: 'Requests',   color: '#7C3AED', route: '/(manager)/requests' },
-  { Icon: CalendarIcon,  label: 'Schedule',   color: '#0284C7', route: '/(manager)/schedule' },
-  { Icon: MegaphoneIcon, label: 'Offers',     color: '#16A34A', route: '/(manager)/offers' },
-];
-
-export default function ManagerHomeScreen() {
-  const { user } = useAuthStore();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const firstName = user?.name?.split(' ')[0] || 'Manager';
-  const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
-
-  const { data: storesData } = useQuery({
-    queryKey: ['accessible-stores'],
-    queryFn: () => storesApi.accessible(),
-  });
-  const stores: Store[] = storesData?.data?.data || [];
-
-  useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
-  }, [stores]);
-
-  const storeId = selectedStoreId || user?.storeIds?.[0];
-  const currentStore = stores.find(s => s.id === storeId);
-
-  const {
-    data: offersData, isLoading: offersLoading,
-    refetch: refetchOffers, isRefetching: offersRefetching,
-  } = useQuery({
-    queryKey: ['manager-offers', storeId],
-    queryFn: () => offersApi.getActive(storeId),
-    enabled: !!storeId,
-  });
-
-  const {
-    data: statsData,
-    refetch: refetchStats, isRefetching: statsRefetching,
-  } = useQuery({
-    queryKey: ['manager-stats', storeId],
-    queryFn: () => managerApi.getStoreStats(storeId!),
-    enabled: !!storeId,
-  });
-
-  const offers: any[] = offersData?.data?.data || [];
-  const stats = statsData?.data?.data?.today;
-
+// Compact horizontal bar for category breakdown
+function CategoryBar({ name, pct, count }: { name: string; pct: number; count: number }) {
   return (
-    <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-
-      {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.greeting}>{getGreeting()},</Text>
-            <Text style={s.greetingName}>{firstName}!</Text>
-            {currentStore && <Text style={s.storeName}>{currentStore.name}</Text>}
-          </View>
-          <TouchableOpacity style={s.avatarRing} onPress={() => router.push('/(manager)/profile')} activeOpacity={0.75}>
-            <View style={s.avatarCircle}>
-              <Text style={s.avatarText}>{initial}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Store selector — shown only when manager has multiple stores */}
-        {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
-                  {store.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </SafeAreaView>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.body}
-        refreshControl={
-          <RefreshControl
-            refreshing={offersRefetching || statsRefetching}
-            onRefresh={() => { refetchOffers(); refetchStats(); }}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
-          />
-        }
-      >
-        {/* ── Today's Stats ── */}
-        <Text style={s.sectionLabel}>Today's Overview</Text>
-        <View style={s.statsRow}>
-          {STAT_CONFIG.map((cfg) => (
-            <View key={cfg.key} style={[s.statCard, { backgroundColor: cfg.bg }]}>
-              <View style={[s.statIconWrap, { backgroundColor: cfg.iconColor + '22' }]}>
-                <cfg.Icon size={17} color={cfg.iconColor} strokeWidth={2} />
-              </View>
-              {!stats && !statsData ? (
-                <ActivityIndicator size="small" color={cfg.iconColor} style={{ marginVertical: 4 }} />
-              ) : (
-                <Text style={[s.statValue, { color: cfg.iconColor }]}>{cfg.value(stats)}</Text>
-              )}
-              <Text style={s.statLabel}>{cfg.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Quick Actions ── */}
-        <Text style={[s.sectionLabel, { marginTop: 24 }]}>Quick Actions</Text>
-        <View style={s.quickGrid}>
-          {QUICK_ACTIONS.map((item) => (
-            <TouchableOpacity
-              key={item.label}
-              style={s.quickCard}
-              onPress={() => router.push(item.route as any)}
-              activeOpacity={0.75}
-            >
-              <View style={[s.quickIconWrap, { backgroundColor: item.color + '15' }]}>
-                <item.Icon size={22} color={item.color} strokeWidth={2} />
-              </View>
-              <Text style={[s.quickLabel, { color: item.color }]}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Active Offers ── */}
-        <View style={s.sectionHeaderRow}>
-          <Text style={[s.sectionLabel, { marginBottom: 0 }]}>Active Offers</Text>
-          {offers.length > 0 && (
-            <View style={s.offerCountBadge}>
-              <Text style={s.offerCountText}>{offers.length}</Text>
-            </View>
-          )}
-          <TouchableOpacity onPress={() => router.push('/(manager)/offers')} activeOpacity={0.7} style={s.manageLink}>
-            <Text style={s.manageLinkText}>Manage</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 12 }} />
-
-        {offersLoading ? (
-          <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
-        ) : offers.length === 0 ? (
-          <View style={s.emptyCard}>
-            <View style={s.emptyIconWrap}>
-              <InboxIcon size={40} color={COLORS.textMuted} strokeWidth={1.25} />
-            </View>
-            <Text style={s.emptyTitle}>No active offers</Text>
-            <Text style={s.emptySub}>Tap Manage to create promotions for your store</Text>
-          </View>
-        ) : (
-          offers.map((offer: any, i: number) => {
-            const accents = ['#1D3557', '#7C3AED', '#0369A1', '#16A34A', '#B45309'];
-            const accent = accents[i % accents.length];
-            return (
-              <View key={offer.id} style={[s.offerCard, { borderTopColor: accent }]}>
-                <View style={s.offerTopRow}>
-                  <Text style={s.offerTitle} numberOfLines={1}>{offer.title}</Text>
-                  {offer.bonusRate ? (
-                    <View style={[s.rateBadge, { backgroundColor: accent + '14', borderColor: accent + '35' }]}>
-                      <Text style={[s.rateText, { color: accent }]}>+{Math.round(offer.bonusRate * 100)}% cashback</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {offer.description ? (
-                  <Text style={s.offerDesc} numberOfLines={2}>{offer.description}</Text>
-                ) : null}
-                <View style={s.offerFooter}>
-                  {offer.dealText ? (
-                    <View style={s.dealChip}>
-                      <Text style={s.dealChipText}>{offer.dealText}</Text>
-                    </View>
-                  ) : null}
-                  {offer.category ? (
-                    <View style={s.catChip}>
-                      <Text style={s.catChipText}>{offer.category.replace(/_/g, ' ')}</Text>
-                    </View>
-                  ) : null}
-                  <Text style={s.offerDates}>
-                    Until {new Date(offer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-
-        <View style={{ height: 20 }} />
-      </ScrollView>
+    <View style={s.catRow}>
+      <Text style={s.catName} numberOfLines={1}>{name}</Text>
+      <View style={s.barTrack}>
+        <View style={[s.barFill, { width: `${Math.max(pct, 2)}%` as any }]} />
+      </View>
+      <Text style={s.catCount}>{count}</Text>
     </View>
   );
 }
 
+export default function ManagerHome() {
+  const user = useAuthStore(s => s.user);
+  const [period, setPeriod] = useState('30');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch store(s) for this manager
+  const { data: storesData } = useQuery({
+    queryKey: ['accessible-stores'],
+    queryFn: storesApi.accessible,
+    staleTime: 5 * 60 * 1000,
+  });
+  const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
+  // For single-store managers take first; admins get aggregate
+  const storeId = stores.length === 1 ? stores[0].id : undefined;
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['inventory-analytics', storeId, period],
+    queryFn: () => managerApi.getInventoryAnalytics({ storeId, period }),
+    enabled: true,
+  });
+  const analytics = data?.data?.data;
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['employee-requests-pending-count'],
+    queryFn: () => employeeRequestApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const pendingCount: number = pendingData?.data?.data?.count ?? analytics?.pendingRequestsCount ?? 0;
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }
+
+  const topItems: { name: string; category: string | null; orderCount: number }[] =
+    analytics?.topItems ?? [];
+  const categories: { category: string; count: number; pct: number }[] =
+    analytics?.categoryBreakdown ?? [];
+  const activeList = analytics?.activeListSummary;
+  const totalItems: number = analytics?.totalItems ?? 0;
+
+  return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.greeting}>{getGreeting()},</Text>
+        <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
+        {stores.length === 1 && (
+          <Text style={s.storeName}>{stores[0].name}</Text>
+        )}
+      </View>
+
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Pending requests alert — shown only when there are pending */}
+        {pendingCount > 0 && (
+          <TouchableOpacity
+            style={s.alertCard}
+            onPress={() => router.push('/(manager)/requests')}
+            activeOpacity={0.8}
+          >
+            <View style={s.alertIcon}>
+              <InboxIcon size={20} color="#C2410C" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.alertTitle}>
+                {pendingCount} pending item {pendingCount === 1 ? 'request' : 'requests'}
+              </Text>
+              <Text style={s.alertSub}>Tap to review and add to order list</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Active list status */}
+        <View style={s.row}>
+          <TouchableOpacity
+            style={[s.quickCard, { flex: 1, marginRight: 8 }]}
+            onPress={() => router.push('/(manager)/order-list')}
+            activeOpacity={0.8}
+          >
+            <PackageIcon size={22} color={COLORS.secondary} />
+            <Text style={s.quickLabel}>Active List</Text>
+            {activeList ? (
+              <>
+                <Text style={s.quickValue}>{activeList.itemCount}</Text>
+                <Text style={s.quickSub} numberOfLines={1}>{activeList.name}</Text>
+              </>
+            ) : (
+              <Text style={s.quickSub}>No open list</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.quickCard, { flex: 1, marginLeft: 8 }]}
+            onPress={() => router.push('/(manager)/requests')}
+            activeOpacity={0.8}
+          >
+            <ClipboardIcon size={22} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
+            <Text style={s.quickLabel}>Requests</Text>
+            <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
+              {pendingCount}
+            </Text>
+            <Text style={s.quickSub}>Pending review</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Period selector */}
+        <View style={s.sectionHeader}>
+          <TrendingUpIcon size={16} color={COLORS.secondary} />
+          <Text style={s.sectionTitle}>Order Intelligence</Text>
+          <View style={s.periodPicker}>
+            {PERIODS.map(p => (
+              <TouchableOpacity
+                key={p.value}
+                style={[s.periodBtn, period === p.value && s.periodBtnActive]}
+                onPress={() => setPeriod(p.value)}
+              >
+                <Text style={[s.periodBtnText, period === p.value && s.periodBtnTextActive]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {isLoading ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.secondary} />
+        ) : (
+          <>
+            {/* Top ordered items */}
+            <View style={s.card}>
+              <Text style={s.cardTitle}>Most Ordered Items</Text>
+              <Text style={s.cardSub}>{totalItems} orders tracked</Text>
+              {topItems.length === 0 ? (
+                <Text style={s.empty}>No order history yet</Text>
+              ) : (
+                topItems.slice(0, 10).map((item, i) => (
+                  <View key={`${item.name}-${i}`} style={s.itemRow}>
+                    <View style={s.itemRank}>
+                      <Text style={s.itemRankText}>{i + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.itemName}>{item.name}</Text>
+                      {item.category && (
+                        <Text style={s.itemCat}>{item.category}</Text>
+                      )}
+                    </View>
+                    <Text style={s.itemCount}>{item.orderCount}×</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Category breakdown */}
+            {categories.length > 0 && (
+              <View style={s.card}>
+                <Text style={s.cardTitle}>By Category</Text>
+                {categories.map(cat => (
+                  <CategoryBar
+                    key={cat.category}
+                    name={cat.category}
+                    pct={cat.pct}
+                    count={cat.count}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe:   { flex: 1, backgroundColor: '#F8F9FA' },
+  scroll: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
 
-  // Header
-  headerBg: { backgroundColor: '#0F5132' },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, gap: 12,
+  header: {
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingBottom: 24,
   },
-  greeting: { color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: '600' },
-  greetingName: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  storeName: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600', marginTop: 3 },
+  greeting: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '400', letterSpacing: 0.2 },
+  name:     { fontSize: 24, color: '#FFFFFF', fontWeight: '700', marginTop: 2 },
+  storeName:{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
 
-  avatarRing: {
-    width: 52, height: 52, borderRadius: 26, marginTop: 4,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    gap: 12,
   },
-  avatarCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#2DC653', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  alertIcon:  { width: 36, height: 36, borderRadius: 8, backgroundColor: '#FFEDD5', alignItems: 'center', justifyContent: 'center' },
+  alertTitle: { fontSize: 14, fontWeight: '600', color: '#C2410C' },
+  alertSub:   { fontSize: 12, color: '#9A3412', marginTop: 1 },
 
-  storePickerRow: {
-    flexDirection: 'row', gap: 8,
-    paddingHorizontal: 20, paddingBottom: 14,
-  },
-  storeChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-  },
-  storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
-  storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
-  storeChipTextActive: { color: '#fff', fontWeight: '700' },
+  row: { flexDirection: 'row', marginBottom: 14 },
 
-  // Body
-  body: { padding: 16, paddingBottom: 24 },
-  sectionLabel: {
-    fontSize: 11, fontWeight: '800', color: '#6B7280',
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
-  },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24 },
-  offerCountBadge: {
-    backgroundColor: '#1D3557', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
-  },
-  offerCountText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  manageLink: { marginLeft: 'auto' },
-  manageLinkText: { fontSize: 12, color: COLORS.primary, fontWeight: '700' },
-
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
-    flex: 1, borderRadius: 16, padding: 14, alignItems: 'center', gap: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
-  },
-  statIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: {
-    fontSize: 10, color: '#6B7280', fontWeight: '700', textAlign: 'center',
-    textTransform: 'uppercase', letterSpacing: 0.3,
-  },
-
-  // Quick actions
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: {
-    width: '47%', backgroundColor: '#fff', borderRadius: 16, padding: 16,
-    alignItems: 'center', gap: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-    borderWidth: 1, borderColor: '#F0F1F2',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    alignItems: 'flex-start',
+    gap: 4,
   },
-  quickIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontSize: 13, fontWeight: '800' },
+  quickLabel: { fontSize: 11, color: '#6C757D', fontWeight: '500', marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
+  quickValue: { fontSize: 28, fontWeight: '700', color: '#212529', lineHeight: 32 },
+  quickSub:   { fontSize: 12, color: '#6C757D' },
 
-  // Offer cards
-  loadingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center' },
-  emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 28, alignItems: 'center', gap: 8 },
-  emptyIconWrap: { marginBottom: 4 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  emptySub: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 19 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, marginTop: 4 },
+  sectionTitle:  { fontSize: 14, fontWeight: '700', color: '#495057', flex: 1 },
 
-  offerCard: {
-    backgroundColor: '#fff', borderRadius: 16, marginBottom: 10,
-    padding: 14, borderTopWidth: 3,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-    borderWidth: 1, borderColor: '#F0F1F2',
+  periodPicker: { flexDirection: 'row', backgroundColor: '#E9ECEF', borderRadius: 8, padding: 2 },
+  periodBtn:     { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  periodBtnActive: { backgroundColor: '#FFFFFF' },
+  periodBtnText:   { fontSize: 12, color: '#6C757D', fontWeight: '500' },
+  periodBtnTextActive: { color: '#212529', fontWeight: '600' },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    padding: 16,
+    marginBottom: 14,
   },
-  offerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  offerTitle: { fontSize: 15, fontWeight: '700', color: '#111827', flex: 1 },
-  offerDesc: { fontSize: 13, color: '#6B7280', lineHeight: 18, marginBottom: 6 },
-  offerFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 },
-  rateBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, flexShrink: 0 },
-  rateText: { fontSize: 11, fontWeight: '800' },
-  offerDates: { fontSize: 11, color: '#9CA3AF', marginLeft: 'auto' },
-  dealChip: {
-    backgroundColor: '#FFF7ED', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: '#FED7AA',
-  },
-  dealChipText: { color: '#B45309', fontSize: 11, fontWeight: '700' },
-  catChip: { backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  catChipText: { color: '#6B7280', fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: '#212529', marginBottom: 2 },
+  cardSub:   { fontSize: 12, color: '#6C757D', marginBottom: 12 },
+  empty:     { fontSize: 13, color: '#ADB5BD', textAlign: 'center', paddingVertical: 24 },
+
+  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
+  itemRank: { width: 24, height: 24, borderRadius: 6, backgroundColor: '#F1F3F5', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  itemRankText: { fontSize: 11, fontWeight: '700', color: '#495057' },
+  itemName: { fontSize: 14, fontWeight: '500', color: '#212529' },
+  itemCat:  { fontSize: 11, color: '#6C757D', marginTop: 1 },
+  itemCount:{ fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+
+  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 },
+  catName: { fontSize: 12, color: '#495057', width: 100 },
+  barTrack: { flex: 1, height: 6, backgroundColor: '#F1F3F5', borderRadius: 3, overflow: 'hidden' },
+  barFill:  { height: 6, backgroundColor: COLORS.secondary, borderRadius: 3 },
+  catCount: { fontSize: 12, fontWeight: '600', color: '#495057', width: 30, textAlign: 'right' },
 });

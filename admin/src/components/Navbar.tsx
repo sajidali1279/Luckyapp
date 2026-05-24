@@ -194,13 +194,14 @@ export default function Navbar() {
   const overviewItemsBasic: DropdownItem[] = [{ to: '/', icon: '📊', label: 'Dashboard' }];
 
   const peopleItemsAdminFull: DropdownItem[] = [
-    { to: '/chat',           icon: '💬', label: 'Chat'       },
-    { to: '/scheduling',     icon: '📅', label: 'Scheduling' },
-    { to: '/staff',          icon: '👥', label: 'Staff'      },
-    { to: '/customers',      icon: '🙋', label: 'Customers'  },
-    { to: '/store-requests', icon: '📋', label: 'Requests'   },
-    { to: '/order-list',     icon: '📦', label: 'Order List' },
-    { to: '/careers',        icon: '💼', label: 'Careers', badge: careersNewCount },
+    { to: '/chat',                  icon: '💬', label: 'Chat'       },
+    { to: '/scheduling',            icon: '📅', label: 'Scheduling' },
+    { to: '/staff',                 icon: '👥', label: 'Staff'      },
+    { to: '/customers',             icon: '🙋', label: 'Customers'  },
+    { to: '/store-requests',        icon: '📋', label: 'Requests'   },
+    { to: '/order-list',            icon: '📦', label: 'Order List' },
+    { to: '/inventory-analytics',   icon: '📊', label: 'Inventory Intelligence' },
+    { to: '/careers',               icon: '💼', label: 'Careers', badge: careersNewCount },
   ];
   const peopleItemsManager: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'       },
@@ -219,7 +220,7 @@ export default function Navbar() {
   ];
 
   const overviewRoutes = ['/', '/analytics'];
-  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests', '/order-list', '/careers'];
+  const peopleRoutes   = ['/chat', '/scheduling', '/staff', '/customers', '/store-requests', '/order-list', '/inventory-analytics', '/careers'];
   const contentRoutes  = ['/offers', '/banners', '/catalog'];
 
   return (

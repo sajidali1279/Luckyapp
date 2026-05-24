@@ -248,4 +248,11 @@ export const orderCategoriesApi = {
   adminDelete:    (id: string) => api.delete(`/order-categories/${id}`),
 };
 
+export const inventoryAnalyticsApi = {
+  get: (params?: { storeId?: string; period?: string; category?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
+    return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);
+  },
+};
+
 export default api;

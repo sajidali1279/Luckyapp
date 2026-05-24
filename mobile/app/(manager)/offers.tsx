@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { offersApi, managerApi, storesApi } from '../../services/api';
+import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { XIcon, EditIcon, PlusIcon } from '../../components/Icons';
@@ -68,7 +68,7 @@ export default function ManagerOffersScreen() {
   const offers: any[] = data?.data?.data || [];
 
   const createMutation = useMutation({
-    mutationFn: (payload: object) => managerApi.createOffer(payload),
+    mutationFn: (payload: object) => offersApi.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
       Toast.show({ type: 'success', text1: 'Offer created!' });
@@ -82,7 +82,7 @@ export default function ManagerOffersScreen() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: object }) => managerApi.updateOffer(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: object }) => offersApi.update(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
       Toast.show({ type: 'success', text1: 'Offer updated!' });
@@ -95,7 +95,7 @@ export default function ManagerOffersScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (offerId: string) => managerApi.deleteOffer(offerId),
+    mutationFn: (offerId: string) => offersApi.deleteOffer(offerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
       Toast.show({ type: 'success', text1: 'Offer removed' });

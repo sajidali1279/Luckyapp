@@ -7,7 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function generateListName(storeId: string): Promise<string> {
+export async function generateListName(storeId: string): Promise<string> {
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
   const storeName = store?.name ?? 'Store';
   const now = new Date();
@@ -40,12 +40,22 @@ async function trackCategoryUsage(name: string): Promise<void> {
 export async function getItemSuggestions(req: AuthRequest, res: Response) {
   const q = String(req.query.q || '').trim();
   if (q.length < 1) { res.json({ success: true, data: [] }); return; }
-  const results = await prisma.$queryRaw<{ name: string; count: bigint }[]>`
-    SELECT name, COUNT(*) as count FROM order_list_items
+
+  const results = await prisma.$queryRaw<{ name: string; category: string | null; count: bigint }[]>`
+    SELECT name, category, COUNT(*) as count FROM order_list_items
     WHERE name ILIKE ${'%' + q + '%'} AND status != 'REMOVED'
-    GROUP BY name ORDER BY count DESC LIMIT 8
+    GROUP BY name, category
+    ORDER BY count DESC LIMIT 20
   `;
-  res.json({ success: true, data: results.map(r => ({ name: r.name, count: Number(r.count) })) });
+
+  // Deduplicate by name — keep top category
+  const seen = new Map<string, { name: string; category: string | null; count: number }>();
+  for (const r of results) {
+    const key = r.name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, { name: r.name, category: r.category, count: Number(r.count) });
+  }
+
+  res.json({ success: true, data: [...seen.values()].slice(0, 8) });
 }
 
 // ─── GET /order-lists/store/:storeId/active ───────────────────────────────────

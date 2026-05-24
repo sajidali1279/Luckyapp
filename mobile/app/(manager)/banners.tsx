@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { offersApi, managerApi, storesApi } from '../../services/api';
+import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ImageIcon, CameraIcon, XIcon, PlusIcon, InboxIcon } from '../../components/Icons';
@@ -43,7 +43,7 @@ export default function ManagerBannersScreen() {
   const banners: any[] = data?.data?.data || [];
 
   const createMutation = useMutation({
-    mutationFn: (formData: FormData) => managerApi.createBanner(formData),
+    mutationFn: (formData: FormData) => offersApi.createBanner(formData),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-banners'] });
       Toast.show({ type: 'success', text1: 'Banner uploaded!' });
@@ -59,7 +59,7 @@ export default function ManagerBannersScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (bannerId: string) => managerApi.deleteBanner(bannerId),
+    mutationFn: (bannerId: string) => offersApi.deleteBanner(bannerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-banners'] });
       Toast.show({ type: 'success', text1: 'Banner removed' });

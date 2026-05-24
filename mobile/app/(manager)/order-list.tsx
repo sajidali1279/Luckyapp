@@ -201,11 +201,11 @@ interface ItemRowProps {
   onMarkReceived: (item: OrderListItem) => void;
 }
 
-const STATUS_BORDER: Record<ItemStatus, string> = {
-  PENDING:  '#D97706',
-  ORDERED:  '#059669',
-  RECEIVED: '#D1FAE5',
-  REMOVED:  '#E5E7EB',
+const STATUS_ROW_BG: Record<ItemStatus, string> = {
+  PENDING:  '#FFFFFF',
+  ORDERED:  '#F0FDF4',
+  RECEIVED: '#F0FDF4',
+  REMOVED:  '#F9FAFB',
 };
 
 function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
@@ -214,12 +214,12 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
   const showActions = () => {
     const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (item.status === 'PENDING') {
-      buttons.push({ text: '✓ Mark Ordered',  onPress: () => onMarkOrdered(item) });
-      buttons.push({ text: '✎ Edit Details',  onPress: () => onEdit(item) });
-      buttons.push({ text: '✕ Remove',         style: 'destructive', onPress: () => onRemove(item) });
+      buttons.push({ text: 'Mark Ordered',  onPress: () => onMarkOrdered(item) });
+      buttons.push({ text: 'Edit Details',  onPress: () => onEdit(item) });
+      buttons.push({ text: 'Remove',         style: 'destructive', onPress: () => onRemove(item) });
     } else if (item.status === 'ORDERED') {
-      buttons.push({ text: '✓ Mark Received', onPress: () => onMarkReceived(item) });
-      buttons.push({ text: '✎ Edit Details',  onPress: () => onEdit(item) });
+      buttons.push({ text: 'Mark Received', onPress: () => onMarkReceived(item) });
+      buttons.push({ text: 'Edit Details',  onPress: () => onEdit(item) });
     }
     buttons.push({ text: 'Cancel', style: 'cancel' });
     const subtitle = [item.quantity && `Qty: ${item.quantity}`, item.category].filter(Boolean).join(' · ');
@@ -228,7 +228,7 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
 
   return (
     <TouchableOpacity
-      style={[t.row, { borderLeftColor: STATUS_BORDER[item.status] }]}
+      style={[t.row, { backgroundColor: STATUS_ROW_BG[item.status] }]}
       onPress={showActions}
       activeOpacity={0.65}
     >
@@ -294,20 +294,22 @@ function parseInput(raw: string): { name: string; quantity?: string } {
 interface QuickAddBarProps {
   listId: string;
   storeId: string;
+  categories: string[];
 }
 
-function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
+function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const qc = useQueryClient();
-  const [text, setText] = useState('');
+  const [text,     setText]     = useState('');
+  const [category, setCategory] = useState('');
+  const [showCat,  setShowCat]  = useState(false);
   const inputRef = useRef<any>(null);
 
   const addMutation = useMutation({
-    mutationFn: (d: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>
+    mutationFn: (d: { name: string; quantity?: string; category?: string; priority?: string }) =>
       orderListApi.addItem(listId, d),
     onSuccess: () => {
       setText('');
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
-      // Keep focus — next item is ready to type immediately
       inputRef.current?.focus();
     },
     onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
@@ -316,38 +318,81 @@ function QuickAddBar({ listId, storeId }: QuickAddBarProps) {
   const handleAdd = () => {
     const { name, quantity } = parseInput(text);
     if (!name) return;
-    addMutation.mutate({ name, quantity, priority: 'NORMAL' });
+    addMutation.mutate({ name, quantity, category: category || undefined, priority: 'NORMAL' });
   };
 
   const ready = text.trim().length > 0 && !addMutation.isPending;
 
   return (
-    <View style={qa.bar}>
-      <TextInput
-        ref={inputRef}
-        style={qa.input}
-        value={text}
-        onChangeText={setText}
-        placeholder='Add item…  tip: "milk x4" sets quantity'
-        placeholderTextColor="#B0B8C4"
-        returnKeyType="done"
-        blurOnSubmit={false}
-        onSubmitEditing={handleAdd}
-        maxLength={150}
-        autoCorrect={false}
-        autoCapitalize="sentences"
-      />
-      <TouchableOpacity
-        style={[qa.addBtn, !ready && qa.addBtnDim]}
-        onPress={handleAdd}
-        disabled={!ready}
-        activeOpacity={0.8}
+    <View style={qa.wrapper}>
+      {/* Category strip — horizontal chip selector */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={qa.catStrip}
+        contentContainerStyle={qa.catStripInner}
+        keyboardShouldPersistTaps="handled"
       >
-        {addMutation.isPending
-          ? <ActivityIndicator color="#fff" size="small" />
-          : <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
-        }
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[qa.catChip, !category && qa.catChipActive]}
+          onPress={() => setCategory('')}
+        >
+          <Text style={[qa.catChipText, !category && qa.catChipTextActive]}>All</Text>
+        </TouchableOpacity>
+        {categories.map(cat => (
+          <TouchableOpacity
+            key={cat}
+            style={[qa.catChip, category === cat && qa.catChipActive]}
+            onPress={() => setCategory(cat)}
+          >
+            <Text style={[qa.catChipText, category === cat && qa.catChipTextActive]} numberOfLines={1}>
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Name input + add button */}
+      <View style={qa.bar}>
+        <TextInput
+          ref={inputRef}
+          style={qa.input}
+          value={text}
+          onChangeText={setText}
+          placeholder={category ? `Add item to ${category}…` : 'Item name… tip: "milk x4" sets qty'}
+          placeholderTextColor="#B0B8C4"
+          returnKeyType="done"
+          blurOnSubmit={false}
+          onSubmitEditing={handleAdd}
+          maxLength={150}
+          autoCorrect={false}
+          autoCapitalize="sentences"
+        />
+        <TouchableOpacity
+          style={[qa.addBtn, !ready && qa.addBtnDim]}
+          onPress={handleAdd}
+          disabled={!ready}
+          activeOpacity={0.8}
+        >
+          {addMutation.isPending
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
+          }
+        </TouchableOpacity>
+      </View>
+
+      <CategoryPicker
+        visible={showCat}
+        categories={categories}
+        selected={category}
+        onSelect={setCategory}
+        onSubmitNew={async (newCat) => {
+          await orderCategoriesApi.submitNew(newCat);
+          setCategory(newCat);
+          Toast.show({ type: 'success', text1: 'Submitted for approval' });
+        }}
+        onClose={() => setShowCat(false)}
+      />
     </View>
   );
 }
@@ -461,12 +506,11 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
 interface ReviewModalProps {
   visible: boolean;
   storeId: string;
-  activeListId: string | null;
   onClose: () => void;
   onReviewed: () => void;
 }
 
-function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: ReviewModalProps) {
+function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps) {
   const qc = useQueryClient();
 
   const { data: requestsData, isLoading } = useQuery({
@@ -500,7 +544,7 @@ function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: Re
     mutationFn: ({ requestId, lines }: {
       requestId: string;
       lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[];
-    }) => employeeRequestApi.review(requestId, { listId: activeListId!, lines }),
+    }) => employeeRequestApi.review(requestId, { lines }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee-requests', storeId] });
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
@@ -518,10 +562,6 @@ function ReviewModal({ visible, storeId, activeListId, onClose, onReviewed }: Re
   };
 
   const handleSubmitReview = (req: EmployeeRequest) => {
-    if (!activeListId) {
-      Toast.show({ type: 'error', text1: 'Open a list first before accepting items' });
-      return;
-    }
     const lines = req.lines.filter(l => l.status === 'PENDING').map(l => {
       const st = lineState[l.id];
       if (!st?.action) return null;
@@ -1032,7 +1072,7 @@ export default function ManagerOrderListScreen() {
             )}
 
             {/* Quick Add Bar — always pinned at bottom */}
-            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} />
+            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
           </KeyboardAvoidingView>
         </>
       )}
@@ -1056,7 +1096,6 @@ export default function ManagerOrderListScreen() {
       <ReviewModal
         visible={showReview}
         storeId={selectedStoreId || ''}
-        activeListId={activeList?.id || null}
         onClose={() => setShowReview(false)}
         onReviewed={() => setShowReview(false)}
       />
@@ -1239,8 +1278,6 @@ const t = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#F0F0F0',
-    borderLeftWidth: 3,
-    borderLeftColor: '#E5E7EB',
   },
   addRow: {
     borderLeftColor: COLORS.secondary,
@@ -1296,13 +1333,24 @@ const t = StyleSheet.create({
 // ─── Quick Add Bar Styles ─────────────────────────────────────────────────────
 
 const qa = StyleSheet.create({
+  wrapper: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: '#E5E7EB',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
+  },
+  catStrip: { borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
+  catStripInner: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 8, gap: 6 },
+  catChip: {
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16,
+    borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F8FAFC',
+  },
+  catChipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  catChipText:       { fontSize: 12, fontWeight: '500', color: '#6C757D' },
+  catChipTextActive: { color: '#fff', fontWeight: '600' },
   bar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1.5, borderTopColor: '#E5E7EB',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
   },
   input: {
     flex: 1,

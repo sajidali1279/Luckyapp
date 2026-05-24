@@ -154,6 +154,11 @@ enum CategoryStatus {
   REJECTED  // Hidden / removed
 }
 
+enum EmployeeRequestType {
+  LOW_STOCK         // Running low on an item
+  CUSTOMER_REQUEST  // Customer asked for this product
+}
+
 enum Tier {
   BRONZE
   SILVER
@@ -1009,6 +1014,7 @@ model EmployeeItemRequest {
   submittedById String
   status        EmployeeRequestStatus @default(PENDING)
   note          String?               // Employee's optional message
+  requestType   EmployeeRequestType   @default(LOW_STOCK)
   reviewedById  String?
   reviewedAt    DateTime?
   createdAt     DateTime              @default(now())

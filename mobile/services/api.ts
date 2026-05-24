@@ -99,10 +99,18 @@ export const receiptApi = {
 };
 
 export const offersApi = {
-  getActive: (storeId?: string) =>
-    api.get(`/offers${storeId ? `?storeId=${storeId}` : ''}`),
-  getBanners: (storeId?: string) =>
-    api.get(`/banners${storeId ? `?storeId=${storeId}` : ''}`),
+  getActive:   (storeId?: string) => api.get(`/offers${storeId ? `?storeId=${storeId}` : ''}`),
+  getBanners:  (storeId?: string) => api.get(`/banners${storeId ? `?storeId=${storeId}` : ''}`),
+  create:      (data: object) => api.post('/offers', data),
+  update:      (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
+  deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),
+  deleteBanner:(bannerId: string) => api.delete(`/banners/${bannerId}`),
+  createBanner: async (formData: FormData) => {
+    const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
+    const json = await res.json();
+    if (!res.ok) throw { response: { data: json, status: res.status } };
+    return { data: json };
+  },
 };
 
 export const schedulingApi = {
@@ -260,13 +268,13 @@ export const orderListApi = {
 export const employeeRequestApi = {
   getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
   getPendingCount: () => api.get('/employee-requests/pending-count'),
-  submit: (data: { note?: string; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
+  submit: (data: { note?: string; requestType?: 'LOW_STOCK' | 'CUSTOMER_REQUEST'; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
     api.post('/employee-requests', data),
   mine: () => api.get('/employee-requests/mine'),
   forStore: (storeId: string, status?: string) =>
     api.get(`/employee-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
   rejectedLines: (storeId: string) => api.get(`/employee-requests/store/${storeId}/rejected`),
-  review: (requestId: string, data: { listId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
+  review: (requestId: string, data: { listId?: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
     api.patch(`/employee-requests/${requestId}/review`, data),
 };
 
@@ -279,17 +287,11 @@ export const orderCategoriesApi = {
 };
 
 export const managerApi = {
-  createOffer: (data: object) => api.post('/offers', data),
-  updateOffer: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
-  deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),
-  createBanner: async (formData: FormData) => {
-    const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
-    const json = await res.json();
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
-  },
-  deleteBanner: (bannerId: string) => api.delete(`/banners/${bannerId}`),
   getStoreStats: (storeId: string) =>
     api.get(`/points/store/${storeId}/summary`),
+  getInventoryAnalytics: (params?: { storeId?: string; period?: string; category?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
+    return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);
+  },
 };
 
