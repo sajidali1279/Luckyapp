@@ -4,6 +4,39 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { OrderItemPriority, OrderItemSource, RejectionReason } from '@prisma/client';
 
+// ─── GET /employee-requests/suggestions ──────────────────────────────────────
+//
+//  Returns item-name suggestions with their most common category, drawn from
+//  real order-list history (what was actually ordered).  Employees can't call
+//  the manager-only /order-lists/suggestions endpoint, so this is their path.
+//
+export async function getEmployeeSuggestions(req: AuthRequest, res: Response) {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) { res.json({ success: true, data: [] }); return; }
+
+  // Pull name + category pairs from real order history, rank by frequency.
+  // GROUP BY name + category so "Milk → Dairy" and "Milk → Produce" are
+  // separate rows; the front-end picks the top match per name.
+  const results = await prisma.$queryRaw<{ name: string; category: string | null; count: bigint }[]>`
+    SELECT name, category, COUNT(*) AS count
+    FROM order_list_items
+    WHERE name ILIKE ${'%' + q + '%'}
+      AND status != 'REMOVED'
+    GROUP BY name, category
+    ORDER BY count DESC
+    LIMIT 10
+  `;
+
+  // Deduplicate by name — keep the highest-count category for each name
+  const seen = new Map<string, { name: string; category: string | null; count: number }>();
+  for (const r of results) {
+    const key = r.name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, { name: r.name, category: r.category, count: Number(r.count) });
+  }
+
+  res.json({ success: true, data: [...seen.values()].slice(0, 8) });
+}
+
 // ─── POST /employee-requests ──────────────────────────────────────────────────
 
 const submitSchema = z.object({

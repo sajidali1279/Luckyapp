@@ -259,6 +259,7 @@ export const orderListApi = {
 };
 
 export const employeeRequestApi = {
+  getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
   submit: (data: { note?: string; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
     api.post('/employee-requests', data),
   mine: () => api.get('/employee-requests/mine'),

@@ -49,6 +49,7 @@ import {
   getMyRequests as getMyItemRequests,
   getRejectedLines,
   reviewRequest,
+  getEmployeeSuggestions,
 } from '../controllers/employeeRequest.controller';
 import {
   getCategories as getOrderCategories,
@@ -363,8 +364,9 @@ router.patch('/order-lists/items/:itemId/status',               authenticate, re
 router.delete('/order-lists/items/:itemId',                     authenticate, requireRole(Role.STORE_MANAGER), removeItem);                                 // Soft-delete item (status → REMOVED)
 
 // ─── Employee Item Requests ───────────────────────────────────────────────────
-router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);       // Employee submits multi-item form
-router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);        // Employee views own requests
+router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);   // Item name + category autocomplete
+router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);         // Employee submits multi-item form
+router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);         // Employee views own requests
 router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);  // Manager views store requests
 router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);       // Rejection log for a store
 router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);            // Accept/reject each line → adds to list
