@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { careersApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircleIcon } from '../../components/Icons';
 
 const POSITIONS = [
   { value: 'CASHIER',           label: 'Cashier',                 emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
@@ -110,7 +111,9 @@ export default function CareersScreen() {
 
         {/* Hero */}
         <View style={st.hero}>
-          <Text style={st.heroEmoji}>🌟</Text>
+          <View style={st.heroIconWrap}>
+            <StarIcon size={36} color="#f59e0b" strokeWidth={1.5} filled />
+          </View>
           <Text style={st.heroTitle}>Work at Lucky Stop</Text>
           <Text style={st.heroText}>
             Be part of a growing team serving your community. We offer competitive pay,
@@ -120,14 +123,14 @@ export default function CareersScreen() {
 
         {/* Perks */}
         <View style={st.perksRow}>
-          {[
-            { emoji: '💰', text: 'Competitive pay' },
-            { emoji: '📅', text: 'Flexible hours' },
-            { emoji: '🎓', text: 'On-the-job training' },
-            { emoji: '⭐', text: 'Employee discounts' },
-          ].map(p => (
-            <View key={p.text} style={st.perk}>
-              <Text style={st.perkEmoji}>{p.emoji}</Text>
+          {([
+            { Icon: DollarSignIcon, color: '#16a34a', bg: '#f0fdf4', text: 'Competitive pay' },
+            { Icon: CalendarIcon,   color: '#0369a1', bg: '#eff6ff', text: 'Flexible hours' },
+            { Icon: AwardIcon,      color: '#7c3aed', bg: '#f5f3ff', text: 'On-the-job training' },
+            { Icon: TagIcon,        color: '#b45309', bg: '#fffbeb', text: 'Employee discounts' },
+          ] as const).map(p => (
+            <View key={p.text} style={[st.perk, { backgroundColor: p.bg }]}>
+              <p.Icon size={22} color={p.color} strokeWidth={2} />
               <Text style={st.perkText}>{p.text}</Text>
             </View>
           ))}
@@ -156,7 +159,7 @@ export default function CareersScreen() {
       {/* Success Banner */}
       {submitted && (
         <View style={st.successBanner}>
-          <Text style={st.successIcon}>🎉</Text>
+          <CheckCircleIcon size={28} color="#16a34a" strokeWidth={2} />
           <View>
             <Text style={st.successTitle}>Application Submitted!</Text>
             <Text style={st.successSub}>We'll review your application and be in touch.</Text>
@@ -261,14 +264,13 @@ const st = StyleSheet.create({
   content: { padding: 16 },
 
   hero: { backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  heroEmoji: { fontSize: 40, marginBottom: 10 },
+  heroIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#1D3557', marginBottom: 8 },
   heroText: { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20 },
 
   perksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  perk: { flex: 1, minWidth: '45%', backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  perkEmoji: { fontSize: 22, marginBottom: 6 },
-  perkText: { fontSize: 12, color: '#555', fontWeight: '600', textAlign: 'center' },
+  perk: { flex: 1, minWidth: '45%', borderRadius: 12, padding: 14, alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  perkText: { fontSize: 12, color: '#555', fontWeight: '700', textAlign: 'center' },
 
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1D3557', marginBottom: 12 },
 
@@ -282,7 +284,6 @@ const st = StyleSheet.create({
   applyBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
   successBanner: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#f0fdf4', borderTopWidth: 1, borderTopColor: '#bbf7d0', padding: 16 },
-  successIcon: { fontSize: 28 },
   successTitle: { fontSize: 15, fontWeight: '800', color: '#166534' },
   successSub: { fontSize: 12, color: '#4ade80', marginTop: 2 },
 

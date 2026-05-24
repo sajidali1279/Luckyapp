@@ -10,7 +10,10 @@ import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
-import { BellIcon } from './Icons';
+import {
+  BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
+  CalendarIcon, ClockIcon, ClipboardIcon,
+} from './Icons';
 
 function getNotifRoute(type: string, role?: string): string | null {
   if (role === 'CUSTOMER') {
@@ -34,16 +37,30 @@ function getNotifRoute(type: string, role?: string): string | null {
   return null;
 }
 
-const TYPE_CONFIG: Record<string, { emoji: string; color: string }> = {
-  GAS_PRICE_UPDATE: { emoji: '⛽', color: '#f97316' },
-  OFFER:         { emoji: '🎉', color: '#F4A261' },
-  POINTS:        { emoji: '💰', color: '#2DC653' },
-  REDEMPTION:    { emoji: '🎁', color: '#a78bfa' },
-  SCHEDULE:      { emoji: '📅', color: '#60a5fa' },
-  SHIFT_REQUEST: { emoji: '🙋', color: '#f472b6' },
-  STORE_REQUEST: { emoji: '📋', color: '#fb923c' },
-  GENERAL:       { emoji: '🔔', color: COLORS.primary },
+const TYPE_CONFIG: Record<string, { color: string }> = {
+  GAS_PRICE_UPDATE: { color: '#f97316' },
+  OFFER:         { color: '#F4A261' },
+  POINTS:        { color: '#2DC653' },
+  REDEMPTION:    { color: '#a78bfa' },
+  SCHEDULE:      { color: '#60a5fa' },
+  SHIFT_REQUEST: { color: '#f472b6' },
+  STORE_REQUEST: { color: '#fb923c' },
+  GENERAL:       { color: COLORS.primary },
 };
+
+function NotifIcon({ type, color }: { type: string; color: string }) {
+  const p = { size: 22, color, strokeWidth: 1.75 };
+  switch (type) {
+    case 'GAS_PRICE_UPDATE': return <GasPumpIcon {...p} />;
+    case 'OFFER':            return <TagIcon {...p} />;
+    case 'POINTS':           return <DollarSignIcon {...p} />;
+    case 'REDEMPTION':       return <GiftIcon {...p} />;
+    case 'SCHEDULE':         return <CalendarIcon {...p} />;
+    case 'SHIFT_REQUEST':    return <ClockIcon {...p} />;
+    case 'STORE_REQUEST':    return <ClipboardIcon {...p} />;
+    default:                 return <BellIcon {...p} />;
+  }
+}
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -132,9 +149,8 @@ export default function NotificationsScreen() {
         }}
         activeOpacity={0.75}
       >
-        {isGasAlert && <View style={s.gasAlertBar} />}
         <View style={[s.iconWrap, { backgroundColor: cfg.color + '18' }]}>
-          <Text style={s.iconEmoji}>{cfg.emoji}</Text>
+          <NotifIcon type={item.type} color={cfg.color} />
         </View>
         <View style={s.cardBody}>
           <View style={s.cardTop}>
@@ -244,7 +260,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  iconEmoji: { fontSize: 22 },
 
   cardBody: { flex: 1, gap: 3 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -257,19 +272,9 @@ const s = StyleSheet.create({
   cardAction: { fontSize: 11, fontWeight: '800' },
 
   cardGasAlert: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#f97316',
-    paddingLeft: 11,
-  },
-  gasAlertBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: '#f97316',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#f9731640',
+    backgroundColor: '#fff7f0',
   },
   actionBadge: {
     backgroundColor: '#f9731618',

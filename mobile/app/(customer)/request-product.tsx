@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productRequestApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import { ShoppingBagIcon, CheckCircleIcon, XIcon, ChevronRightIcon } from '../../components/Icons';
 
 const STATUS_CONFIG = {
   PENDING:  { label: 'Pending',  color: '#b45309', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
@@ -106,7 +107,9 @@ export default function RequestProductScreen() {
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : myRequests.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>🛍️</Text>
+              <View style={styles.emptyIconWrap}>
+                <ShoppingBagIcon size={40} color="#D1D5DB" strokeWidth={1.5} />
+              </View>
               <Text style={styles.emptyTitle}>No requests yet</Text>
               <Text style={styles.emptySub}>Tap "+ New" to request a product you'd like to see in a Lucky Stop store.</Text>
             </View>
@@ -133,14 +136,16 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Product Request</Text>
-              <TouchableOpacity onPress={() => { setShowForm(false); setSubmitted(false); }}>
-                <Text style={styles.modalClose}>✕</Text>
+              <TouchableOpacity onPress={() => { setShowForm(false); setSubmitted(false); }} style={styles.modalCloseBtn}>
+                <XIcon size={18} color="#6c757d" strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
             {submitted ? (
               <View style={styles.successWrap}>
-                <Text style={styles.successIcon}>✅</Text>
+                <View style={styles.successIconWrap}>
+                  <CheckCircleIcon size={52} color="#22c55e" strokeWidth={1.5} />
+                </View>
                 <Text style={styles.successTitle}>Request Submitted!</Text>
                 <Text style={styles.successSub}>
                   The store team will review your request within 7 days. You'll get a notification with their response.
@@ -157,7 +162,7 @@ export default function RequestProductScreen() {
                   <Text style={[styles.storePickerText, !selectedStore && styles.placeholder]}>
                     {selectedStore ? `${selectedStore.name} — ${selectedStore.city}, ${selectedStore.state}` : 'Select a store…'}
                   </Text>
-                  <Text style={styles.chevron}>›</Text>
+                  <ChevronRightIcon size={16} color="#adb5bd" strokeWidth={1.5} />
                 </TouchableOpacity>
 
                 {/* Product Name */}
@@ -188,7 +193,7 @@ export default function RequestProductScreen() {
 
                 <View style={styles.hintBox}>
                   <Text style={styles.hintText}>
-                    ⏱ Requests are live for 7 days. You'll receive a push notification when the store responds.
+                    Requests are live for 7 days. You'll receive a push notification when the store responds.
                   </Text>
                 </View>
 
@@ -212,8 +217,8 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select a Store</Text>
-              <TouchableOpacity onPress={() => setShowStorePicker(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+              <TouchableOpacity onPress={() => setShowStorePicker(false)} style={styles.modalCloseBtn}>
+                <XIcon size={18} color="#6c757d" strokeWidth={2} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -230,7 +235,7 @@ export default function RequestProductScreen() {
                     <Text style={styles.storeOptionName}>{store.name}</Text>
                     <Text style={styles.storeOptionCity}>{store.city}, {store.state}</Text>
                   </View>
-                  {selectedStore?.id === store.id && <Text style={styles.checkmark}>✓</Text>}
+                  {selectedStore?.id === store.id && <CheckCircleIcon size={20} color="#16a34a" strokeWidth={2.5} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -245,8 +250,7 @@ function RequestCard({ request }: { request: ProductRequest }) {
   const cfg = STATUS_CONFIG[request.status];
   const expired = daysLeft(request.expiresAt) === 0 && request.status === 'PENDING';
   return (
-    <View style={styles.card}>
-      <View style={[styles.cardStripe, { backgroundColor: cfg.dot }]} />
+    <View style={[styles.card, { borderColor: cfg.dot + '40', backgroundColor: cfg.bg }]}>
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
           <View style={styles.cardIconWrap}>
@@ -270,7 +274,7 @@ function RequestCard({ request }: { request: ProductRequest }) {
           <Text style={styles.metaText}>Submitted {timeAgo(request.createdAt)}</Text>
           {request.status === 'PENDING' && !expired && (
             <View style={styles.expiryPill}>
-              <Text style={styles.expiryText}>⏱ {daysLeft(request.expiresAt)}d left</Text>
+              <Text style={styles.expiryText}>{daysLeft(request.expiresAt)}d left</Text>
             </View>
           )}
         </View>
@@ -309,19 +313,19 @@ const styles = StyleSheet.create({
   },
 
   emptyWrap: { alignItems: 'center', padding: 40, marginTop: 20 },
-  emptyIcon: { fontSize: 56, marginBottom: 12 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a2e', marginBottom: 6 },
   emptySub: { fontSize: 13, color: '#6c757d', textAlign: 'center', lineHeight: 19 },
 
   // Card
   card: {
-    flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16,
-    marginHorizontal: 16, marginBottom: 10, overflow: 'hidden',
+    backgroundColor: '#fff', borderRadius: 16,
+    marginHorizontal: 16, marginBottom: 10,
+    borderWidth: 1.5, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardStripe: { width: 5 },
-  cardBody: { flex: 1, padding: 14 },
+  cardBody: { padding: 14 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   cardIconWrap: {
     width: 42, height: 42, borderRadius: 12,
@@ -358,7 +362,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a2e' },
-  modalClose: { fontSize: 18, color: '#6c757d', fontWeight: '700', padding: 4 },
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
 
   formScroll: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6, marginTop: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -371,7 +375,6 @@ const styles = StyleSheet.create({
   },
   storePickerText: { flex: 1, fontSize: 14, color: '#1a1a2e', fontWeight: '500' },
   placeholder: { color: '#adb5bd', fontWeight: '400' },
-  chevron: { fontSize: 18, color: '#adb5bd', fontWeight: '300' },
 
   input: {
     borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12,
@@ -395,7 +398,7 @@ const styles = StyleSheet.create({
 
   // Success
   successWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  successIcon: { fontSize: 64, marginBottom: 16 },
+  successIconWrap: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a2e', marginBottom: 8 },
   successSub: { fontSize: 14, color: '#6c757d', textAlign: 'center', lineHeight: 20, marginBottom: 32 },
   doneBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
@@ -414,5 +417,4 @@ const styles = StyleSheet.create({
   storeOptionInitial: { color: '#fff', fontWeight: '800', fontSize: 16 },
   storeOptionName: { fontSize: 15, fontWeight: '700', color: '#1a1a2e' },
   storeOptionCity: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  checkmark: { fontSize: 18, color: '#16a34a', fontWeight: '700' },
 });

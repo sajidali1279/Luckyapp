@@ -10,14 +10,15 @@ import { router } from 'expo-router';
 import { receiptApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { AlertTriangleIcon, XIcon } from '../../components/Icons';
 
 type Step = 'scan' | 'loading' | 'confirm' | 'success' | 'error';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  GAS: '⛽ Gas', DIESEL: '🚛 Diesel', HOT_FOODS: '🌮 Hot Foods',
-  GROCERIES: '🛒 Groceries', FROZEN_FOODS: '🧊 Frozen Foods',
-  FRESH_FOODS: '🥗 Fresh Foods', TOBACCO_VAPES: '🚬 Tobacco/Vapes',
-  ALCOHOL: '🍺 Alcohol', OTHER: '🏪 Other',
+  GAS: 'Gas', DIESEL: 'Diesel', HOT_FOODS: 'Hot Foods',
+  GROCERIES: 'Groceries', FROZEN_FOODS: 'Frozen Foods',
+  FRESH_FOODS: 'Fresh Foods', TOBACCO_VAPES: 'Tobacco/Vapes',
+  ALCOHOL: 'Alcohol', OTHER: 'Other',
 };
 
 export default function ScanReceiptScreen() {
@@ -104,7 +105,7 @@ export default function ScanReceiptScreen() {
         <View style={s.overlay}>
           <SafeAreaView style={s.scanHeader}>
             <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
-              <Text style={s.closeBtnText}>✕</Text>
+              <XIcon size={18} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
           </SafeAreaView>
           <View style={s.overlayTop} />
@@ -148,7 +149,7 @@ export default function ScanReceiptScreen() {
         <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
         <SafeAreaView style={s.confirmHeader}>
           <View style={s.confirmHeaderInner}>
-            <Text style={s.confirmHeaderTitle}>📄 Confirm Receipt</Text>
+            <Text style={s.confirmHeaderTitle}>Confirm Receipt</Text>
             <Text style={s.confirmHeaderSub}>{tokenData.store?.name}</Text>
           </View>
         </SafeAreaView>
@@ -158,7 +159,7 @@ export default function ScanReceiptScreen() {
           <View style={s.totalCard}>
             <Text style={s.totalLabel}>Receipt Total</Text>
             <Text style={s.totalAmount}>${Number(tokenData.total).toFixed(2)}</Text>
-            <Text style={s.expiryNote}>⏱ Expires in {minsLeft} min</Text>
+            <Text style={s.expiryNote}>Expires in {minsLeft} min</Text>
           </View>
 
           {/* Item breakdown */}
@@ -214,7 +215,7 @@ export default function ScanReceiptScreen() {
   // ── Error step ──
   return (
     <Animated.View style={[s.center, { opacity: fadeAnim }]}>
-      <Text style={s.errorIcon}>⚠️</Text>
+      <AlertTriangleIcon size={56} color="#E63946" strokeWidth={1.5} />
       <Text style={s.errorTitle}>Couldn't Claim Points</Text>
       <Text style={s.errorMsg}>{errorMsg}</Text>
       <TouchableOpacity style={s.retryBtn} onPress={() => { setScanned(false); setStep('scan'); }}>
@@ -254,7 +255,6 @@ const s = StyleSheet.create({
 
   scanHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   closeBtn: { margin: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 22 },
 
   cancelBtn: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 12 },
   cancelBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
@@ -322,7 +322,6 @@ const s = StyleSheet.create({
   doneBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
   // Error
-  errorIcon: { fontSize: 56 },
   errorTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   errorMsg: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center' },
   retryBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 36 },

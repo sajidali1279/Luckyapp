@@ -10,7 +10,7 @@ import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
-import { MessageCircleIcon } from './Icons';
+import { MessageCircleIcon, ArrowUpIcon } from './Icons';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -321,7 +321,7 @@ export default function ChatScreen() {
             contentContainerStyle={s.messageList}
             ListEmptyComponent={
               <View style={s.noMsgs}>
-                <Text style={s.noMsgsEmoji}>👋</Text>
+                <MessageCircleIcon size={40} color="#d1d5db" strokeWidth={1.5} />
                 <Text style={s.noMsgsText}>No messages yet — say hello!</Text>
               </View>
             }
@@ -353,7 +353,7 @@ export default function ChatScreen() {
             >
               {sending
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.sendBtnIcon}>↑</Text>
+                : <ArrowUpIcon size={20} color="#fff" strokeWidth={2.5} />
               }
             </TouchableOpacity>
           </Animated.View>
@@ -408,8 +408,7 @@ const s = StyleSheet.create({
 
   // Messages
   messageList: { padding: 16, paddingBottom: 10 },
-  noMsgs: { alignItems: 'center', paddingTop: 60 },
-  noMsgsEmoji: { fontSize: 40, marginBottom: 10 },
+  noMsgs: { alignItems: 'center', paddingTop: 60, gap: 10 },
   noMsgsText: { color: '#9ca3af', fontSize: 14 },
 
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
@@ -469,6 +468,5 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
-  sendBtnIcon: { color: '#fff', fontSize: 20, fontWeight: '800' },
 
 });

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
-import { ReceiptIcon } from '../../components/Icons';
+import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/Icons';
 import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -33,7 +33,10 @@ export default function HistoryScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={s.headerBg}>
         <View style={s.headerInner}>
-          <Text style={s.headerTitle}>📋 History</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ClipboardIcon size={20} color="#fff" strokeWidth={2} />
+              <Text style={s.headerTitle}>History</Text>
+            </View>
           {!isLoading && (
             <View style={s.countPill}>
               <Text style={s.countPillText}>{transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</Text>
@@ -84,11 +87,11 @@ export default function HistoryScreen() {
                   {item.status === 'APPROVED' ? (
                     <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
                   ) : item.status === 'PENDING' ? (
-                    <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>⏳ Pending</Text>
+                    <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>Pending</Text>
                   ) : (
-                    <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>✕ Rejected</Text>
+                    <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>Rejected</Text>
                   )}
-                  <Text style={s.chevron}>›</Text>
+                  <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={1.5} />
                 </View>
               </TouchableOpacity>
             );
@@ -194,7 +197,6 @@ const s = StyleSheet.create({
   cardRight: { alignItems: 'flex-end', flexShrink: 0 },
   points: { fontSize: 18, fontWeight: '800', color: COLORS.success },
   purchase: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
-  chevron: { color: COLORS.border, fontSize: 24, fontWeight: '400', marginTop: 2, lineHeight: 28 },
 
   // Footer
   footerLoader: { paddingVertical: 20, alignItems: 'center' },

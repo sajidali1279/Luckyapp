@@ -616,7 +616,6 @@ const s = StyleSheet.create({
   shiftBadgeLabel: { fontSize: 14, fontWeight: '800' },
   shiftBadgeTime: { fontSize: 13, fontWeight: '600' },
   storeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  storePin: { fontSize: 14 },
   storeName: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
 
   statusPill: {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
@@ -13,10 +13,15 @@ import { Image } from 'react-native';
 import { authApi, promotionsApi, leaderboardApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
+import {
+  EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
+  GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
+  CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon,
+} from './Icons';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
-interface InfoRowDef { icon: string; label: string; value: string }
+interface InfoRowDef { icon: ReactNode; label: string; value: string }
 
 interface Props {
   /** true = COLORS.primary header + balance badge + email panel */
@@ -154,14 +159,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   const staffInfoRows: InfoRowDef[] = [
-    { icon: '⛽', label: 'Store', value: user?.storeIds?.length ? `${user.storeIds.length} store(s) assigned` : 'No store assigned' },
-    { icon: '🛡️', label: 'Role', value: roleLabel },
-    { icon: '📱', label: 'Phone', value: user?.phone || '—' },
+    { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Store', value: user?.storeIds?.length ? `${user.storeIds.length} store(s) assigned` : 'No store assigned' },
+    { icon: <ShieldIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Role', value: roleLabel },
+    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Phone', value: user?.phone || '—' },
   ];
 
   const customerInfoRows: InfoRowDef[] = [
-    { icon: '🎁', label: 'Redeem', value: 'Use points at any location' },
-    { icon: '📍', label: 'Locations', value: 'All Lucky Stop stores' },
+    { icon: <GiftIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Redeem', value: 'Use points at any location' },
+    { icon: <MapPinIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Locations', value: 'All Lucky Stop stores' },
   ];
 
   const infoRows = isCustomer ? customerInfoRows : staffInfoRows;
@@ -202,13 +207,16 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         {/* Update Name */}
         <TouchableOpacity style={s.settingRow} onPress={() => setPanel(panel === 'name' ? null : 'name')} activeOpacity={0.8}>
           <View style={[s.settingIconBg, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={s.settingEmoji}>✏️</Text>
+            <EditIcon size={20} color={COLORS.primary} strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
             <Text style={s.settingTitle}>Update Name</Text>
             <Text style={s.settingValue}>{user?.name || 'Not set'}</Text>
           </View>
-          <Text style={s.chevron}>{panel === 'name' ? '∧' : '›'}</Text>
+          {panel === 'name'
+            ? <ChevronDownIcon size={18} color={COLORS.primary} strokeWidth={2} />
+            : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+          }
         </TouchableOpacity>
 
         {panel === 'name' && (
@@ -228,13 +236,16 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         {/* Change PIN */}
         <TouchableOpacity style={s.settingRow} onPress={() => setPanel(panel === 'pin' ? null : 'pin')} activeOpacity={0.8}>
           <View style={[s.settingIconBg, { backgroundColor: COLORS.secondary + '18' }]}>
-            <Text style={s.settingEmoji}>🔒</Text>
+            <LockClosedIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
             <Text style={s.settingTitle}>Change PIN</Text>
             <Text style={s.settingValue}>••••</Text>
           </View>
-          <Text style={s.chevron}>{panel === 'pin' ? '∧' : '›'}</Text>
+          {panel === 'pin'
+            ? <ChevronDownIcon size={18} color={COLORS.primary} strokeWidth={2} />
+            : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+          }
         </TouchableOpacity>
 
         {panel === 'pin' && (
@@ -268,13 +279,16 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <>
             <TouchableOpacity style={s.settingRow} onPress={() => setPanel(panel === 'email' ? null : 'email')} activeOpacity={0.8}>
               <View style={[s.settingIconBg, { backgroundColor: '#00B4D818' }]}>
-                <Text style={s.settingEmoji}>📧</Text>
+                <MailIcon size={20} color="#00B4D8" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
                 <Text style={s.settingTitle}>Recovery Email</Text>
                 <Text style={s.settingValue}>{email || 'Not set — add for PIN recovery'}</Text>
               </View>
-              <Text style={s.chevron}>{panel === 'email' ? '∧' : '›'}</Text>
+              {panel === 'email'
+                ? <ChevronDownIcon size={18} color={COLORS.primary} strokeWidth={2} />
+                : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+              }
             </TouchableOpacity>
 
             {panel === 'email' && (
@@ -304,7 +318,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               activeOpacity={0.8}
             >
               <View style={[s.settingIconBg, { backgroundColor: '#f9731618' }]}>
-                <Text style={s.settingEmoji}>📣</Text>
+                <MegaphoneIcon size={20} color="#f97316" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
                 <Text style={s.settingTitle}>Promote Your Business</Text>
@@ -319,10 +333,10 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 </Text>
               </View>
               {myPromo?.status === 'APPROVED'
-                ? <Text style={[s.chevron, { color: '#2DC653', fontSize: 18 }]}>✓</Text>
+                ? <CheckCircleIcon size={18} color="#2DC653" strokeWidth={2.5} />
                 : myPromo?.status === 'PENDING'
-                ? <Text style={[s.chevron, { color: '#f97316', fontSize: 14 }]}>Pending</Text>
-                : <Text style={s.chevron}>›</Text>
+                ? <Text style={s.pendingText}>Pending</Text>
+                : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
               }
             </TouchableOpacity>
           </>
@@ -332,7 +346,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         {bioAvailable && (
           <View style={s.settingRow}>
             <View style={[s.settingIconBg, { backgroundColor: '#6C5CE718' }]}>
-              <Text style={s.settingEmoji}>🔐</Text>
+              <ShieldIcon size={20} color="#6C5CE7" strokeWidth={1.75} />
             </View>
             <View style={s.settingBody}>
               <Text style={s.settingTitle}>Biometric Login</Text>
@@ -366,7 +380,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           activeOpacity={0.8}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#FFD70020' }]}>
-            <Text style={s.settingEmoji}>🏆</Text>
+            <TrophyIcon size={20} color="#b8860b" strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
             <Text style={s.settingTitle}>{isCustomer ? 'Customer Leaderboard' : 'Staff Rankings'}</Text>
@@ -378,7 +392,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                   : 'See employee rankings at your store'}
             </Text>
           </View>
-          <Text style={s.chevron}>›</Text>
+          <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
         {/* ── Info Card ── */}
@@ -437,16 +451,22 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                   <Image source={{ uri: promoImageUri }} style={s.promoImgPreview} resizeMode="cover" />
                   <View style={s.promoImgActions}>
                     <TouchableOpacity style={s.promoImgBtn} onPress={pickPromoImage} activeOpacity={0.8}>
-                      <Text style={s.promoImgBtnText}>🔄 Change</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <RefreshIcon size={14} color={COLORS.textMuted} strokeWidth={2.5} />
+                        <Text style={s.promoImgBtnText}>Change</Text>
+                      </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.promoImgBtn, { borderColor: COLORS.error + '60' }]} onPress={() => setPromoImageUri(null)} activeOpacity={0.8}>
-                      <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>🗑 Remove</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Trash2Icon size={14} color={COLORS.error} strokeWidth={2.5} />
+                        <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>Remove</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <TouchableOpacity style={s.promoImgPicker} onPress={pickPromoImage} activeOpacity={0.8}>
-                  <Text style={{ fontSize: 28 }}>🖼️</Text>
+                  <ImageIcon size={28} color={COLORS.textMuted} strokeWidth={1.5} />
                   <Text style={s.promoImgPickerText}>Tap to add a photo or logo</Text>
                   <Text style={s.promoImgPickerSub}>Shown with your ad — JPG, PNG</Text>
                 </TouchableOpacity>
@@ -475,7 +495,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 function InfoRow({ icon, label, value }: InfoRowDef) {
   return (
     <View style={s.infoRow}>
-      <Text style={s.infoRowIcon}>{icon}</Text>
+      <View style={s.infoRowIconWrap}>{icon}</View>
       <Text style={s.infoRowLabel}>{label}</Text>
       <Text style={s.infoRowValue}>{value}</Text>
     </View>
@@ -535,11 +555,10 @@ const s = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   settingIconBg: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  settingEmoji: { fontSize: 20 },
   settingBody: { flex: 1 },
   settingTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   settingValue: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  chevron: { fontSize: 20, color: COLORS.textMuted, fontWeight: '300' },
+  pendingText: { fontSize: 12, color: '#f97316', fontWeight: '700' },
 
   panelCard: {
     backgroundColor: COLORS.white, borderRadius: 16,
@@ -563,7 +582,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
-  infoRowIcon: { fontSize: 18, width: 26, textAlign: 'center' },
+  infoRowIconWrap: { width: 26, alignItems: 'center', justifyContent: 'center' },
   infoRowLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted, flex: 1 },
   infoRowValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', textTransform: 'capitalize' },
   infoDivider: { height: 1, backgroundColor: COLORS.border, marginHorizontal: 14 },

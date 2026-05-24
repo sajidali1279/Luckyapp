@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
-import { MegaphoneIcon } from '../../components/Icons';
+import { MegaphoneIcon, BuildingIcon, GlobeIcon } from '../../components/Icons';
 
 interface Ad {
   id: string;
@@ -54,7 +54,7 @@ export default function AdsScreen() {
       <View style={s.card}>
         <View style={s.cardHeader}>
           <View style={s.bizIconWrap}>
-            <Text style={s.bizIcon}>🏢</Text>
+            <BuildingIcon size={20} color={COLORS.primary} strokeWidth={1.75} />
           </View>
           <View style={s.cardHeaderText}>
             <Text style={s.bizName}>{item.businessName}</Text>
@@ -77,7 +77,10 @@ export default function AdsScreen() {
             onPress={() => Linking.openURL(item.website!).catch(() => {})}
             activeOpacity={0.75}
           >
-            <Text style={s.websiteBtnText}>🌐 Visit Website</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <GlobeIcon size={14} color={COLORS.primary} strokeWidth={2} />
+              <Text style={s.websiteBtnText}>Visit Website</Text>
+            </View>
           </TouchableOpacity>
         ) : null}
 
@@ -162,7 +165,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bizIcon: { fontSize: 20 },
   cardHeaderText: { flex: 1 },
   bizName: { fontSize: 14, fontWeight: '800', color: COLORS.text },
   cardTime: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
