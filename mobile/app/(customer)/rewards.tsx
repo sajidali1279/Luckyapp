@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
 import { catalogApi, pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import { StarIcon, TagIcon, ClockIcon } from '../../components/Icons';
 
 // ─── Tier config ───────────────────────────────────────────────────────────────
 const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string; next?: string }> = {
@@ -184,7 +185,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
               <Text style={md.costLabel}>Cost</Text>
               <Text style={md.costVal}>{item.pointsCost.toLocaleString()} pts</Text>
             </View>
-            <Text style={md.arrow}>→</Text>
+            <View style={md.arrowLine} />
             <View style={md.costBox}>
               <Text style={md.costLabel}>Remaining</Text>
               <Text style={[md.costVal, { color: remaining < 0 ? '#E63946' : COLORS.success }]}>
@@ -193,7 +194,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
             </View>
           </View>
           <View style={md.warningBox}>
-            <Text style={md.warningIcon}>⏱️</Text>
+            <ClockIcon size={20} color="#F4A226" strokeWidth={2} />
             <Text style={md.warningText}>
               Points deducted immediately. Show the code to the cashier within <Text style={{ fontWeight: '800' }}>30 minutes</Text> or points are refunded.
             </Text>
@@ -351,7 +352,10 @@ export default function RewardsScreen() {
       {/* ── Header ── */}
       <SafeAreaView style={r.headerBg}>
         <View style={r.headerInner}>
-          <Text style={r.headerTitle}>⭐ Rewards</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <StarIcon size={20} color="rgba(255,255,255,0.85)" strokeWidth={1.75} />
+            <Text style={r.headerTitle}>Rewards</Text>
+          </View>
           <View style={[r.ptsPill, { backgroundColor: tierCfg.color }]}>
             <Text style={r.ptsPillText}>{pts.toLocaleString()} pts</Text>
           </View>
@@ -420,7 +424,10 @@ export default function RewardsScreen() {
 
             {/* ── Redeem Rewards header + category filter ── */}
             <View style={r.redeemHeader}>
-              <Text style={r.redeemTitle}>🏷️ Redeem Rewards</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                <TagIcon size={16} color={COLORS.text} strokeWidth={2} />
+                <Text style={r.redeemTitle}>Redeem Rewards</Text>
+              </View>
               <Text style={r.redeemSub}>Use your points for free items</Text>
             </View>
 
@@ -469,7 +476,9 @@ export default function RewardsScreen() {
         ListFooterComponent={
           filtered.length > 0 ? (
             <View style={r.hint}>
-              <Text style={r.hintIcon}>💡</Text>
+              <View style={r.hintIconWrap}>
+                <ClockIcon size={16} color={COLORS.secondary} strokeWidth={2} />
+              </View>
               <Text style={r.hintText}>Tap Redeem → show the code to the cashier → they scan your QR to confirm.</Text>
             </View>
           ) : <View style={{ height: 32 }} />
@@ -650,7 +659,7 @@ const r = StyleSheet.create({
     padding: 14, borderWidth: 1, borderColor: COLORS.secondary + '18',
     marginTop: 4,
   },
-  hintIcon: { fontSize: 18 },
+  hintIconWrap: { marginTop: 1 },
   hintText: { flex: 1, fontSize: 13, color: COLORS.text, lineHeight: 19 },
 });
 
@@ -693,13 +702,12 @@ const md = StyleSheet.create({
   costBox: { alignItems: 'center', flex: 1 },
   costLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   costVal: { fontSize: 20, fontWeight: '900', color: COLORS.text, marginTop: 4 },
-  arrow: { fontSize: 22, color: COLORS.textMuted },
+  arrowLine: { width: 24, height: 1.5, backgroundColor: COLORS.border },
   warningBox: {
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    flexDirection: 'row', gap: 10, alignItems: 'center',
     backgroundColor: '#FFF8E1', borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: '#FFE082', width: '100%',
   },
-  warningIcon: { fontSize: 20 },
   warningText: { flex: 1, fontSize: 13, color: '#5D4037', lineHeight: 19 },
   confirmBtn: {
     width: '100%', borderRadius: 16, padding: 17, alignItems: 'center', marginTop: 4,

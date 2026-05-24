@@ -11,6 +11,9 @@ import Toast from 'react-native-toast-message';
 import { pointsApi, catalogApi, storesApi, welcomeBonusApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import {
+  CameraIcon, XIcon, ReceiptIcon, CreditCardIcon, GiftIcon, ClockIcon,
+} from '../../components/Icons';
 
 type Step =
   | 'scan' | 'mode'
@@ -527,7 +530,9 @@ export default function EmployeeScanScreen() {
     return (
       <SafeAreaView style={[s.fill, s.center]}>
         <StatusBar barStyle="dark-content" />
-        <Text style={s.permIcon}>📷</Text>
+        <View style={s.permIconWrap}>
+          <CameraIcon size={52} color={COLORS.primary} strokeWidth={1.5} />
+        </View>
         <Text style={s.permTitle}>Camera Access Needed</Text>
         <Text style={s.permSub}>Camera is required to scan customer QR codes</Text>
         <TouchableOpacity style={s.primaryBtn} onPress={requestPermission}>
@@ -553,12 +558,13 @@ export default function EmployeeScanScreen() {
       <SafeAreaView style={s.headerBg}>
         <View style={s.headerRow}>
           <View>
-            <Text style={s.headerStore}>⛽ Lucky Stop</Text>
+            <Text style={s.headerStore}>Lucky Stop</Text>
             <Text style={s.headerSub}>{user?.name || user?.phone} · {user?.role?.replace(/_/g, ' ')}</Text>
           </View>
           {step !== 'scan' && (
             <TouchableOpacity style={s.headerBackBtn} onPress={reset}>
-              <Text style={s.headerBackText}>✕ Cancel</Text>
+              <XIcon size={14} color="#fff" strokeWidth={2.5} />
+              <Text style={s.headerBackText}>Cancel</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -634,7 +640,7 @@ export default function EmployeeScanScreen() {
           {/* Pending Catalog Redemptions — customer-initiated holds awaiting confirmation */}
           {pendingRedemptions.length > 0 && (
             <View style={s.pendingSection}>
-              <Text style={s.pendingSectionTitle}>🎁 Pending Redemptions ({pendingRedemptions.length})</Text>
+              <Text style={s.pendingSectionTitle}>Pending Redemptions ({pendingRedemptions.length})</Text>
               <Text style={s.pendingSectionSub}>Customer redeemed these — confirm to complete</Text>
               {pendingRedemptions.map((r) => {
                 const expiresAt = new Date(r.expiresAt);
@@ -656,7 +662,7 @@ export default function EmployeeScanScreen() {
                         <Text style={s.pendingCode}>{r.redemptionCode}</Text>
                       </View>
                       <Text style={[s.pendingTimer, urgent && s.pendingTimerUrgent]}>
-                        ⏱ {minLeft}:{String(secLeft).padStart(2, '0')} remaining
+                        {minLeft}:{String(secLeft).padStart(2, '0')} remaining
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -678,7 +684,7 @@ export default function EmployeeScanScreen() {
           {/* Grant Points */}
           <TouchableOpacity style={s.modeCard} onPress={() => setStep('grant-amount')} activeOpacity={0.85}>
             <View style={[s.modeIconBg, { backgroundColor: COLORS.primary + '15' }]}>
-              <Text style={s.modeEmoji}>💵</Text>
+              <ReceiptIcon size={26} color={COLORS.primary} strokeWidth={1.75} />
             </View>
             <View style={s.modeBody}>
               <Text style={s.modeTitle}>Grant Points</Text>
@@ -692,7 +698,7 @@ export default function EmployeeScanScreen() {
           {/* Redeem Credits */}
           <TouchableOpacity style={[s.modeCard, s.modeCardAlt]} onPress={() => setStep('redeem-amount')} activeOpacity={0.85}>
             <View style={[s.modeIconBg, { backgroundColor: COLORS.accent + '15' }]}>
-              <Text style={s.modeEmoji}>💳</Text>
+              <CreditCardIcon size={26} color={COLORS.accent} strokeWidth={1.75} />
             </View>
             <View style={s.modeBody}>
               <Text style={[s.modeTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
@@ -742,7 +748,7 @@ export default function EmployeeScanScreen() {
               activeOpacity={0.85}
             >
               <View style={[s.modeIconBg, { backgroundColor: '#9B5DE5' + '15' }]}>
-                <Text style={s.modeEmoji}>🎁</Text>
+                <GiftIcon size={26} color="#9B5DE5" strokeWidth={1.75} />
               </View>
               <View style={s.modeBody}>
                 <Text style={[s.modeTitle, { color: '#9B5DE5' }]}>Catalog Reward</Text>
@@ -978,7 +984,7 @@ export default function EmployeeScanScreen() {
 
           {promotionApplied && (
             <View style={s.promoBanner}>
-              <Text style={s.promoBannerText}>🎉 Promo: {promotionApplied}</Text>
+              <Text style={s.promoBannerText}>Promo applied: {promotionApplied}</Text>
             </View>
           )}
 
@@ -993,12 +999,15 @@ export default function EmployeeScanScreen() {
               <View style={{ width: '100%' }}>
                 <Image source={{ uri: receiptImage }} style={s.receiptImg} />
                 <View style={s.retakeRow}>
-                  <Text style={s.retakeText}>📷 Tap to retake</Text>
+                  <CameraIcon size={14} color={COLORS.textMuted} strokeWidth={2} />
+                  <Text style={s.retakeText}>Tap to retake</Text>
                 </View>
               </View>
             ) : (
               <>
-                <Text style={s.receiptIcon}>📸</Text>
+                <View style={s.receiptIconWrap}>
+                  <CameraIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
+                </View>
                 <Text style={s.receiptTitle}>Take Receipt Photo</Text>
                 <Text style={s.receiptSub}>Required for fraud protection</Text>
               </>
@@ -1043,7 +1052,7 @@ export default function EmployeeScanScreen() {
           </Text>
           {promotionApplied && (
             <View style={[s.promoBanner, { marginTop: 12 }]}>
-              <Text style={s.promoBannerText}>🎉 Promo applied: {promotionApplied}</Text>
+              <Text style={s.promoBannerText}>Promo applied: {promotionApplied}</Text>
             </View>
           )}
           <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={reset} activeOpacity={0.85}>
@@ -1159,7 +1168,7 @@ export default function EmployeeScanScreen() {
       {step === 'catalog-select' && (
         <View style={s.fill}>
           <View style={s.catalogHeader}>
-            <Text style={s.catalogHeaderTitle}>🎁 Catalog Rewards</Text>
+            <Text style={s.catalogHeaderTitle}>Catalog Rewards</Text>
             {cdata && (
               <Text style={s.catalogHeaderBalance}>
                 Balance: {cdata.pointsBalance?.toLocaleString() || 0} pts
@@ -1311,6 +1320,7 @@ const s = StyleSheet.create({
   headerStore: { color: '#fff', fontSize: 18, fontWeight: '800' },
   headerSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
   headerBackBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 7,
     backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10,
   },
@@ -1480,11 +1490,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   receiptBoxFilled: { borderStyle: 'solid', borderColor: COLORS.success },
-  receiptIcon: { fontSize: 36, marginBottom: 8 },
+  receiptIconWrap: { marginBottom: 8 },
   receiptTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   receiptSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   receiptImg: { width: '100%', height: 200, resizeMode: 'cover' },
-  retakeRow: { padding: 10, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.04)' },
+  retakeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.04)' },
   retakeText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
 
   // ── Multi-item committed list ─────────────────────────────────────────────────
@@ -1533,7 +1543,11 @@ const s = StyleSheet.create({
   dangerBtnText: { color: COLORS.error, fontWeight: '700', fontSize: 14 },
 
   // ── Permission screen ─────────────────────────────────────────────────────────
-  permIcon: { fontSize: 64, marginBottom: 16 },
+  permIconWrap: {
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: COLORS.primary + '12',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
   permTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   permSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 8, marginBottom: 24, lineHeight: 20 },
 

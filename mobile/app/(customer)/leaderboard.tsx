@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { leaderboardApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { ChevronLeftIcon, TrophyIcon } from '../../components/Icons';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -59,10 +60,13 @@ export default function CustomerLeaderboardScreen() {
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
           <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-            <Text style={st.backText}>‹</Text>
+            <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={st.headerTitle}>🏆 Leaderboard</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TrophyIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
+              <Text style={st.headerTitle}>Leaderboard</Text>
+            </View>
             <Text style={st.headerSub}>Top Lucky Stop customers</Text>
           </View>
           {myRank && (
@@ -80,7 +84,9 @@ export default function CustomerLeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={st.center}>
-          <Text style={{ fontSize: 40, marginBottom: 12 }}>🏁</Text>
+          <View style={st.emptyIconRing}>
+            <TrophyIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
+          </View>
           <Text style={st.emptyTitle}>No rankings yet</Text>
           <Text style={st.emptySub}>Be the first to earn points!</Text>
         </View>
@@ -110,16 +116,23 @@ export default function CustomerLeaderboardScreen() {
 
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyIconRing: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-  emptySub: { fontSize: 14, color: COLORS.textMuted, marginTop: 6 },
+  emptySub: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18,
   },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#fff', fontSize: 28, fontWeight: '300', lineHeight: 32 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900' },
   headerSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600', marginTop: 2 },
 

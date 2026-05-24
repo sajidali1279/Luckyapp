@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { CheckCircleIcon, ClockIcon, MapPinIcon, InfoIcon } from '../../components/Icons';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ export default function ScheduleScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>⛽ LUCKY STOP STAFF</Text>
+            <Text style={s.headerEyebrow}>LUCKY STOP STAFF</Text>
             <Text style={s.headerTitle}>My Schedule</Text>
           </View>
           <View style={s.scheduleSummary}>
@@ -270,7 +271,7 @@ export default function ScheduleScreen() {
 
                     {/* Store */}
                     <View style={s.storeRow}>
-                      <Text style={s.storePin}>📍</Text>
+                      <MapPinIcon size={14} color="#6b7280" strokeWidth={2} />
                       <Text style={s.storeName}>
                         {selectedTemplate.store?.name || 'Store'}{selectedTemplate.store?.city ? `, ${selectedTemplate.store.city}` : ''}
                       </Text>
@@ -279,11 +280,13 @@ export default function ScheduleScreen() {
                     {/* Time off status / button */}
                     {hasApprovedTimeOff(selectedDayISO) ? (
                       <View style={s.statusPill}>
-                        <Text style={s.statusPillText}>✅  Time Off Approved</Text>
+                        <CheckCircleIcon size={13} color="#16a34a" strokeWidth={2.5} />
+                        <Text style={s.statusPillText}>Time Off Approved</Text>
                       </View>
                     ) : hasPendingTimeOff(selectedDayISO) ? (
                       <View style={[s.statusPill, s.statusPillAmber]}>
-                        <Text style={[s.statusPillText, s.statusPillAmberText]}>⏳  Time Off Pending</Text>
+                        <ClockIcon size={13} color="#b45309" strokeWidth={2.5} />
+                        <Text style={[s.statusPillText, s.statusPillAmberText]}>Time Off Pending</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -310,7 +313,8 @@ export default function ScheduleScreen() {
                       if (!storeId) return null;
                       return hasPendingFillIn(selectedDayISO) ? (
                         <View style={[s.statusPill, s.statusPillGreen]}>
-                          <Text style={[s.statusPillText, s.statusPillGreenText]}>⏳  Fill-In Requested</Text>
+                          <ClockIcon size={13} color="#16a34a" strokeWidth={2.5} />
+                          <Text style={[s.statusPillText, s.statusPillGreenText]}>Fill-In Requested</Text>
                         </View>
                       ) : (
                         <TouchableOpacity
@@ -365,11 +369,11 @@ export default function ScheduleScreen() {
                   const isTimeOff = r.requestType === 'TIME_OFF';
                   const typeColor = isTimeOff ? '#E63946' : '#2DC653';
                   return (
-                    <View key={r.id} style={[s.requestCard, { borderLeftColor: typeColor }]}>
+                    <View key={r.id} style={[s.requestCard, { borderColor: typeColor + '40', backgroundColor: typeColor + '06' }]}>
                       <View style={s.requestCardTop}>
                         <View style={[s.requestTypePill, { backgroundColor: typeColor + '18' }]}>
                           <Text style={[s.requestTypeText, { color: typeColor }]}>
-                            {isTimeOff ? '🏖️ Time Off' : '🙋 Fill-In'}
+                            {isTimeOff ? 'Time Off' : 'Fill-In'}
                           </Text>
                         </View>
                         <View style={s.pendingTag}>
@@ -390,7 +394,10 @@ export default function ScheduleScreen() {
 
             {/* ── Tips ── */}
             <View style={s.infoBox}>
-              <Text style={s.infoTitle}>💡 How it works</Text>
+              <View style={s.infoTitleRow}>
+                <InfoIcon size={14} color="#1d4ed8" strokeWidth={2} />
+                <Text style={s.infoTitle}>How it works</Text>
+              </View>
               <Text style={s.infoText}>
                 On your <Text style={{ fontWeight: '700' }}>days off</Text>, tap{' '}
                 <Text style={{ fontWeight: '700' }}>+ Request Extra Shift</Text> to volunteer for an open slot.
@@ -492,9 +499,9 @@ export default function ScheduleScreen() {
                   {/* Time off: summary */}
                   {requestModal.requestType === 'TIME_OFF' && (
                     <View style={s.summaryCard}>
-                      <Text style={s.summaryCardRow}>📅 {fmtMonthDay(requestModal.date)} ({JS_DAY_TO_ENUM[requestModal.date.getDay()]})</Text>
-                      <Text style={s.summaryCardRow}>🕐 {SHIFT_LABELS[requestModal.shiftType]} · {SHIFT_TIMES[requestModal.shiftType]}</Text>
-                      <Text style={s.summaryCardRow}>📍 {requestModal.storeName}</Text>
+                      <Text style={s.summaryCardRow}>{fmtMonthDay(requestModal.date)} ({JS_DAY_TO_ENUM[requestModal.date.getDay()]})</Text>
+                      <Text style={s.summaryCardRow}>{SHIFT_LABELS[requestModal.shiftType]} · {SHIFT_TIMES[requestModal.shiftType]}</Text>
+                      <Text style={s.summaryCardRow}>{requestModal.storeName}</Text>
                     </View>
                   )}
 
@@ -613,6 +620,7 @@ const s = StyleSheet.create({
   storeName: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
 
   statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#f0fdf4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1, borderColor: '#bbf7d0', alignSelf: 'flex-start',
   },
@@ -668,7 +676,7 @@ const s = StyleSheet.create({
   // Pending requests
   requestCard: {
     backgroundColor: '#fff', borderRadius: 14, padding: 14,
-    marginBottom: 10, borderLeftWidth: 4,
+    marginBottom: 10, borderWidth: 1.5, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
     gap: 6,
@@ -688,7 +696,8 @@ const s = StyleSheet.create({
     backgroundColor: '#eff6ff', borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: '#bfdbfe', marginTop: 8, gap: 4,
   },
-  infoTitle: { fontSize: 13, fontWeight: '800', color: '#1d4ed8', marginBottom: 4 },
+  infoTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  infoTitle: { fontSize: 13, fontWeight: '800', color: '#1d4ed8' },
   infoText: { fontSize: 13, color: '#1e40af', lineHeight: 20 },
 
   // Modal

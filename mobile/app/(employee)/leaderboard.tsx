@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { leaderboardApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
 
 function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   return (
@@ -39,10 +40,13 @@ export default function EmployeeLeaderboardScreen() {
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
           <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
-            <Text style={st.backText}>‹</Text>
+            <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={st.headerTitle}>⭐ Staff Rankings</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <StarIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
+              <Text style={st.headerTitle}>Staff Rankings</Text>
+            </View>
             <Text style={st.headerSub}>{storeName || 'Employee ratings'}</Text>
           </View>
         </View>
@@ -79,7 +83,8 @@ export default function EmployeeLeaderboardScreen() {
           </View>
           {myEntry.isEmployeeOfMonth && (
             <View style={st.eomBadge}>
-              <Text style={st.eomBadgeText}>🏅 Employee of the Month</Text>
+              <AwardIcon size={14} color="#92400E" strokeWidth={2} />
+              <Text style={st.eomBadgeText}>Employee of the Month</Text>
             </View>
           )}
         </View>
@@ -89,7 +94,9 @@ export default function EmployeeLeaderboardScreen() {
         <View style={st.center}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : leaderboard.length === 0 ? (
         <View style={st.center}>
-          <Text style={{ fontSize: 40, marginBottom: 12 }}>⭐</Text>
+          <View style={st.emptyIconRing}>
+            <StarIcon size={32} color="#F59E0B" strokeWidth={1.5} />
+          </View>
           <Text style={st.emptyTitle}>No ratings yet</Text>
           <Text style={st.emptySub}>Ratings appear after customers rate their experience</Text>
         </View>
@@ -112,7 +119,7 @@ export default function EmployeeLeaderboardScreen() {
                     <Text style={[st.rowName, isMine && { color: COLORS.primary }]}>
                       {item.firstName}{isMine ? ' (You)' : ''}
                     </Text>
-                    {isEOM && <Text style={st.eomChip}>🏅 Month</Text>}
+                    {isEOM && <View style={[st.eomChipWrap]}><Text style={st.eomChip}>Month</Text></View>}
                   </View>
                   <Stars rating={item.avgRating} size={13} />
                 </View>
@@ -132,6 +139,10 @@ export default function EmployeeLeaderboardScreen() {
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyIconRing: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   emptySub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', paddingHorizontal: 32 },
 
@@ -139,8 +150,11 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16,
   },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#fff', fontSize: 28, fontWeight: '300', lineHeight: 32 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900' },
   headerSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600', marginTop: 2 },
 
@@ -170,8 +184,9 @@ const st = StyleSheet.create({
   myRankNum: { fontSize: 18, fontWeight: '900', color: COLORS.primary },
   myRankLabel2: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
   eomBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     width: '100%', marginTop: 4,
-    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 8, alignItems: 'center',
+    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 8, justifyContent: 'center',
   },
   eomBadgeText: { fontSize: 13, fontWeight: '800', color: '#92400E' },
 
@@ -186,10 +201,12 @@ const st = StyleSheet.create({
   rowRank: { fontSize: 20, width: 32, textAlign: 'center', fontWeight: '800', color: COLORS.textMuted },
   rowBody: { flex: 1, gap: 4 },
   rowName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  eomChip: {
+  eomChipWrap: {
     backgroundColor: '#FEF3C7', borderRadius: 8,
     paddingHorizontal: 7, paddingVertical: 2,
-    fontSize: 11, fontWeight: '700', color: '#92400E', overflow: 'hidden',
+  },
+  eomChip: {
+    fontSize: 11, fontWeight: '700', color: '#92400E',
   },
   rowRight: { alignItems: 'flex-end' },
   rowAvg: { fontSize: 18, fontWeight: '900', color: COLORS.secondary },

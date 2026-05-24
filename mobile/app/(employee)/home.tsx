@@ -8,6 +8,10 @@ import { useQuery } from '@tanstack/react-query';
 import { offersApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import {
+  QrCodeScanIcon, GiftIcon, MegaphoneIcon, TagIcon, ImageIcon,
+  InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
+} from '../../components/Icons';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -46,7 +50,7 @@ export default function EmployeeHomeScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.storeLine}>⛽ LUCKY STOP STAFF</Text>
+            <Text style={s.storeLine}>LUCKY STOP STAFF</Text>
             <Text style={s.greeting}>{getGreeting()},</Text>
             <Text style={s.greetingName}>{firstName}!</Text>
           </View>
@@ -64,7 +68,7 @@ export default function EmployeeHomeScreen() {
 
         {promotions.length > 0 && (
           <View style={s.promoStrip}>
-            <Text style={s.promoStripIcon}>🔥</Text>
+            <FlameIcon size={16} color="#fff" strokeWidth={2} />
             <Text style={s.promoStripText}>
               {promotions.length} promo{promotions.length > 1 ? 's' : ''} active — bonus cashback applied automatically
             </Text>
@@ -93,11 +97,13 @@ export default function EmployeeHomeScreen() {
             activeOpacity={0.82}
           >
             <View style={s.actionIconBg}>
-              <Text style={s.actionEmoji}>📱</Text>
+              <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
             </View>
             <Text style={s.actionTitle}>Grant Points</Text>
             <Text style={s.actionSub}>Scan QR · Enter amount · Upload receipt</Text>
-            <View style={s.actionArrow}><Text style={s.actionArrowText}>→</Text></View>
+            <View style={s.actionArrow}>
+              <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -106,22 +112,29 @@ export default function EmployeeHomeScreen() {
             activeOpacity={0.82}
           >
             <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-              <Text style={s.actionEmoji}>🎁</Text>
+              <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
             </View>
             <Text style={s.actionTitle}>Redeem Credits</Text>
             <Text style={s.actionSub}>Scan customer QR to apply credits</Text>
-            <View style={s.actionArrow}><Text style={s.actionArrowText}>→</Text></View>
+            <View style={s.actionArrow}>
+              <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
+            </View>
           </TouchableOpacity>
         </View>
 
         {/* ── Active Promotions ── */}
-        <Text style={[s.sectionLabel, { marginTop: 28 }]}>📢 Active Promotions</Text>
+        <View style={s.sectionRow}>
+          <MegaphoneIcon size={13} color="#6b7280" strokeWidth={2} />
+          <Text style={s.sectionLabel}>Active Promotions</Text>
+        </View>
 
         {offersLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
         ) : promotions.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyEmoji}>📭</Text>
+            <View style={s.emptyIconWrap}>
+              <InboxIcon size={38} color="#D1D5DB" strokeWidth={1.5} />
+            </View>
             <Text style={s.emptyTitle}>No active promotions</Text>
             <Text style={s.emptySub}>Standard 5% cashback applies to all purchases</Text>
           </View>
@@ -157,7 +170,10 @@ export default function EmployeeHomeScreen() {
         {/* ── Today's Deals ── */}
         {deals.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 28 }]}>🏷️ Today's Deals</Text>
+            <View style={[s.sectionRow, { marginTop: 28 }]}>
+              <TagIcon size={13} color="#6b7280" strokeWidth={2} />
+              <Text style={s.sectionLabel}>Today's Deals</Text>
+            </View>
             {deals.map((d: any) => (
               <View key={d.id} style={s.dealCard}>
                 <View style={s.dealBadge}>
@@ -178,7 +194,10 @@ export default function EmployeeHomeScreen() {
         {/* ── Store Banners ── */}
         {banners.length > 0 && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 28 }]}>🎟️ Store Banners</Text>
+            <View style={[s.sectionRow, { marginTop: 28 }]}>
+              <ImageIcon size={13} color="#6b7280" strokeWidth={2} />
+              <Text style={s.sectionLabel}>Store Banners</Text>
+            </View>
             <ScrollView
               horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 12, paddingRight: 4 }}
@@ -202,12 +221,12 @@ export default function EmployeeHomeScreen() {
         {/* ── Info Footer ── */}
         <View style={s.infoFooter}>
           {[
-            { icon: '💰', text: 'Standard cashback: 5¢ per $1 spent' },
-            { icon: '📸', text: 'Always upload a receipt to complete the transaction' },
-            ...(promotions.length > 0 ? [{ icon: '🔥', text: 'Active promotions apply automatically' }] : []),
+            { icon: <DollarSignIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Standard cashback: 5¢ per $1 spent' },
+            { icon: <ReceiptIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Always upload a receipt to complete the transaction' },
+            ...(promotions.length > 0 ? [{ icon: <FlameIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Active promotions apply automatically' }] : []),
           ].map((row, i) => (
             <View key={i} style={s.infoRow}>
-              <Text style={s.infoIcon}>{row.icon}</Text>
+              <View style={s.infoIconWrap}>{row.icon}</View>
               <Text style={s.infoText}>{row.text}</Text>
             </View>
           ))}
@@ -260,18 +279,18 @@ const s = StyleSheet.create({
     backgroundColor: '#F4A261',
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
   },
-  promoStripIcon: { fontSize: 16 },
   promoStripText: { color: '#fff', fontSize: 12.5, fontWeight: '700', flex: 1 },
 
   // Body
   body: { padding: 16, paddingBottom: 24 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, marginTop: 28 },
   sectionLabel: {
     fontSize: 11, fontWeight: '800', color: '#6b7280',
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
+    textTransform: 'uppercase', letterSpacing: 0.8,
   },
 
   // Action cards — full width tiles
-  actionsRow: { flexDirection: 'row', gap: 10 },
+  actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 0 },
   actionCard: {
     flex: 1, borderRadius: 20, padding: 18,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
@@ -283,7 +302,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 14,
   },
-  actionEmoji: { fontSize: 22 },
   actionTitle: { color: '#fff', fontSize: 15, fontWeight: '800', marginBottom: 4 },
   actionSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11.5, lineHeight: 16 },
   actionArrow: {
@@ -291,12 +309,11 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-end',
   },
-  actionArrowText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // Cards
   loadingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, alignItems: 'center' },
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, padding: 28, alignItems: 'center', gap: 6 },
-  emptyEmoji: { fontSize: 38, marginBottom: 4 },
+  emptyIconWrap: { marginBottom: 4 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
   emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 19 },
 
@@ -350,6 +367,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#bae6fd', marginTop: 24, gap: 10,
   },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  infoIcon: { fontSize: 15, marginTop: 1 },
+  infoIconWrap: { marginTop: 2 },
   infoText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 20 },
 });
