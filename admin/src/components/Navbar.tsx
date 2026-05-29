@@ -192,7 +192,10 @@ export default function Navbar() {
     { to: '/analytics',            icon: '📈', label: 'Analytics'               },
     { to: '/inventory-analytics',  icon: '📦', label: 'Inventory Intelligence'  },
   ];
-  const overviewItemsBasic: DropdownItem[] = [{ to: '/', icon: '📊', label: 'Dashboard' }];
+  const overviewItemsBasic: DropdownItem[] = [
+    { to: '/',                    icon: '📊', label: 'Dashboard'              },
+    { to: '/inventory-analytics', icon: '📦', label: 'Inventory Intelligence' },
+  ];
 
   const peopleItemsAdminFull: DropdownItem[] = [
     { to: '/chat',           icon: '💬', label: 'Chat'       },
