@@ -11,6 +11,11 @@ import admin from '../config/firebase';
 
 const SALT_ROUNDS = 12;
 
+const COMMON_PINS = new Set([
+  '0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
+  '1234','4321','0123','9876','1230','2580','1357','2468','1212','1122',
+]);
+
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 // ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
@@ -223,8 +228,16 @@ export async function registerPushToken(req: AuthRequest, res: Response) {
 export async function changePin(req: AuthRequest, res: Response) {
   const { currentPin, newPin } = req.body as { currentPin: string; newPin: string };
 
+  if (!currentPin || !/^\d{4}$/.test(currentPin)) {
+    res.status(400).json({ success: false, error: 'Current PIN must be 4 digits' });
+    return;
+  }
   if (!newPin || !/^\d{4}$/.test(newPin)) {
     res.status(400).json({ success: false, error: 'New PIN must be 4 digits' });
+    return;
+  }
+  if (COMMON_PINS.has(newPin)) {
+    res.status(400).json({ success: false, error: 'That PIN is too common. Choose something more unique.' });
     return;
   }
 
@@ -410,10 +423,11 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'New PIN must be 4 digits' });
     return;
   }
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, phone: true, role: true, pinHash: true, pinHistory: true } });
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
-  await prisma.user.update({ where: { id: userId }, data: { pinHash } });
+  const newHistory = user.pinHash ? [user.pinHash, ...user.pinHistory].slice(0, 3) : user.pinHistory;
+  await prisma.user.update({ where: { id: userId }, data: { pinHash, pinHistory: newHistory } });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'RESET_PIN', entity: 'user', entityId: userId,
@@ -570,6 +584,10 @@ export async function resetPin(req: Request, res: Response) {
   const { resetToken, newPin } = req.body as { resetToken: string; newPin: string };
   if (!resetToken || !newPin || !/^\d{4}$/.test(newPin)) {
     res.status(400).json({ success: false, error: 'resetToken and 4-digit newPin are required' });
+    return;
+  }
+  if (COMMON_PINS.has(newPin)) {
+    res.status(400).json({ success: false, error: 'That PIN is too common. Choose something more unique.' });
     return;
   }
 
