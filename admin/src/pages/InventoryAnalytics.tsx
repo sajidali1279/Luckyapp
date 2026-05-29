@@ -51,8 +51,8 @@ export default function InventoryAnalytics() {
 
   // Categories for filter
   const { data: catData } = useQuery({
-    queryKey: ['order-categories-admin'],
-    queryFn: () => orderCategoriesApi.adminGetAll('APPROVED'),
+    queryKey: ['order-categories-approved'],
+    queryFn: () => orderCategoriesApi.getApproved(),
     staleTime: 10 * 60 * 1000,
   });
   const categories: { id: string; name: string }[] = catData?.data?.data || [];

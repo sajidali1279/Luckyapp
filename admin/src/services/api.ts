@@ -243,6 +243,7 @@ export const orderListApi = {
 };
 
 export const orderCategoriesApi = {
+  getApproved:    () => api.get('/order-categories'),
   adminGetAll:    (status?: string) => api.get(`/order-categories/admin${status ? `?status=${status}` : ''}`),
   adminUpdate:    (id: string, data: { name?: string; status?: string }) => api.patch(`/order-categories/${id}`, data),
   adminDelete:    (id: string) => api.delete(`/order-categories/${id}`),

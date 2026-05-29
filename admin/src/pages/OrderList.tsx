@@ -94,8 +94,8 @@ function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: (
   const nameSuggestions: { name: string; count: number }[] = (nameSuggData as any)?.data?.data || [];
 
   const { data: catData } = useQuery({
-    queryKey: ['order-categories-admin-modal'],
-    queryFn: () => orderCategoriesApi.adminGetAll('APPROVED'),
+    queryKey: ['order-categories-approved'],
+    queryFn: () => orderCategoriesApi.getApproved(),
     staleTime: 10 * 60 * 1000,
   });
   const allCats: string[] = (catData?.data?.data || []).map((c: { name: string }) => c.name);
