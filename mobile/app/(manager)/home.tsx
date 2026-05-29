@@ -6,12 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { managerApi, storesApi, employeeRequestApi } from '../../services/api';
+import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
   PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon,
 } from '../../components/Icons';
+
+const BAR_COLORS = [
+  '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
+  '#1CBEC0', '#F7B731', '#FC5C65', '#45AAF2', '#26DE81',
+];
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -27,15 +32,15 @@ const PERIODS = [
   { label: 'All', value: 'all' },
 ];
 
-// Compact horizontal bar for category breakdown
-function CategoryBar({ name, pct, count }: { name: string; pct: number; count: number }) {
+function CategoryBar({ name, pct, count, color }: { name: string; pct: number; count: number; color: string }) {
   return (
     <View style={s.catRow}>
+      <View style={[s.catDot, { backgroundColor: color }]} />
       <Text style={s.catName} numberOfLines={1}>{name}</Text>
       <View style={s.barTrack}>
-        <View style={[s.barFill, { width: `${Math.max(pct, 2)}%` as any }]} />
+        <View style={[s.barFill, { width: `${Math.max(pct, 2)}%` as any, backgroundColor: color }]} />
       </View>
-      <Text style={s.catCount}>{count}</Text>
+      <Text style={s.catCount}>{count} <Text style={s.catPct}>({pct}%)</Text></Text>
     </View>
   );
 }
@@ -43,6 +48,7 @@ function CategoryBar({ name, pct, count }: { name: string; pct: number; count: n
 export default function ManagerHome() {
   const user = useAuthStore(s => s.user);
   const [period, setPeriod] = useState('30');
+  const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch store(s) for this manager
@@ -55,9 +61,16 @@ export default function ManagerHome() {
   // For single-store managers take first; admins get aggregate
   const storeId = stores.length === 1 ? stores[0].id : undefined;
 
+  const { data: catListData } = useQuery({
+    queryKey: ['order-categories-approved'],
+    queryFn: () => orderCategoriesApi.getApproved(),
+    staleTime: 10 * 60 * 1000,
+  });
+  const categoryOptions: { id: string; name: string }[] = catListData?.data?.data ?? [];
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['inventory-analytics', storeId, period],
-    queryFn: () => managerApi.getInventoryAnalytics({ storeId, period }),
+    queryKey: ['inventory-analytics', storeId, period, category],
+    queryFn: () => managerApi.getInventoryAnalytics({ storeId, period, category: category || undefined }),
     enabled: true,
   });
   const analytics = data?.data?.data;
@@ -153,10 +166,10 @@ export default function ManagerHome() {
           </TouchableOpacity>
         </View>
 
-        {/* Period selector */}
+        {/* Inventory Intelligence header */}
         <View style={s.sectionHeader}>
           <TrendingUpIcon size={16} color={COLORS.secondary} />
-          <Text style={s.sectionTitle}>Order Intelligence</Text>
+          <Text style={s.sectionTitle}>Inventory Intelligence</Text>
           <View style={s.periodPicker}>
             {PERIODS.map(p => (
               <TouchableOpacity
@@ -171,6 +184,34 @@ export default function ManagerHome() {
             ))}
           </View>
         </View>
+
+        {/* Category filter chips */}
+        {categoryOptions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.chipScroll}
+            contentContainerStyle={s.chipRow}
+          >
+            <TouchableOpacity
+              style={[s.chip, category === '' && s.chipActive]}
+              onPress={() => setCategory('')}
+            >
+              <Text style={[s.chipText, category === '' && s.chipTextActive]}>All</Text>
+            </TouchableOpacity>
+            {categoryOptions.map(c => (
+              <TouchableOpacity
+                key={c.id}
+                style={[s.chip, category === c.name && s.chipActive]}
+                onPress={() => setCategory(category === c.name ? '' : c.name)}
+              >
+                <Text style={[s.chipText, category === c.name && s.chipTextActive]} numberOfLines={1}>
+                  {c.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.secondary} />
@@ -204,12 +245,13 @@ export default function ManagerHome() {
             {categories.length > 0 && (
               <View style={s.card}>
                 <Text style={s.cardTitle}>By Category</Text>
-                {categories.map(cat => (
+                {categories.map((cat, i) => (
                   <CategoryBar
                     key={cat.category}
                     name={cat.category}
                     pct={cat.pct}
                     count={cat.count}
+                    color={BAR_COLORS[i % BAR_COLORS.length]}
                   />
                 ))}
               </View>
@@ -294,9 +336,18 @@ const s = StyleSheet.create({
   itemCat:  { fontSize: 11, color: '#6C757D', marginTop: 1 },
   itemCount:{ fontSize: 14, fontWeight: '700', color: COLORS.secondary },
 
-  catRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 },
-  catName: { fontSize: 12, color: '#495057', width: 100 },
-  barTrack: { flex: 1, height: 6, backgroundColor: '#F1F3F5', borderRadius: 3, overflow: 'hidden' },
-  barFill:  { height: 6, backgroundColor: COLORS.secondary, borderRadius: 3 },
-  catCount: { fontSize: 12, fontWeight: '600', color: '#495057', width: 30, textAlign: 'right' },
+  catRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, gap: 8 },
+  catDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  catName: { fontSize: 12, color: '#495057', width: 90, flexShrink: 0 },
+  barTrack:{ flex: 1, height: 6, backgroundColor: '#F1F3F5', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: 6, borderRadius: 3 },
+  catCount:{ fontSize: 11, fontWeight: '600', color: '#495057', minWidth: 56, textAlign: 'right' },
+  catPct:  { fontWeight: '400', color: '#ADB5BD' },
+
+  chipScroll: { marginBottom: 14, marginHorizontal: -16 },
+  chipRow:    { paddingHorizontal: 16, gap: 8, flexDirection: 'row' },
+  chip:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#E9ECEF', borderWidth: 1, borderColor: '#DEE2E6' },
+  chipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  chipText:   { fontSize: 12, color: '#495057', fontWeight: '500' },
+  chipTextActive: { color: '#FFFFFF', fontWeight: '600' },
 });
