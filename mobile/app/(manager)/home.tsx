@@ -10,12 +10,18 @@ import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi } from '.
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon,
+  PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon,
 } from '../../components/Icons';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
   '#1CBEC0', '#F7B731', '#FC5C65', '#45AAF2', '#26DE81',
+];
+
+const RANK = [
+  { bg: '#FEF9C3', color: '#A16207', border: '#FDE047' }, // 1 — gold
+  { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' }, // 2 — silver
+  { bg: '#FEF0E6', color: '#C2410C', border: '#FED7AA' }, // 3 — bronze
 ];
 
 function getGreeting() {
@@ -40,7 +46,7 @@ function CategoryBar({ name, pct, count, color }: { name: string; pct: number; c
       <View style={s.barTrack}>
         <View style={[s.barFill, { width: `${Math.max(pct, 2)}%` as any, backgroundColor: color }]} />
       </View>
-      <Text style={s.catCount}>{count} <Text style={s.catPct}>({pct}%)</Text></Text>
+      <Text style={s.catCount}>{count}<Text style={s.catPct}> · {pct}%</Text></Text>
     </View>
   );
 }
@@ -51,14 +57,12 @@ export default function ManagerHome() {
   const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch store(s) for this manager
   const { data: storesData } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: storesApi.accessible,
     staleTime: 5 * 60 * 1000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
-  // For single-store managers take first; admins get aggregate
   const storeId = stores.length === 1 ? stores[0].id : undefined;
 
   const { data: catListData } = useQuery({
@@ -88,10 +92,8 @@ export default function ManagerHome() {
     setRefreshing(false);
   }
 
-  const topItems: { name: string; category: string | null; orderCount: number }[] =
-    analytics?.topItems ?? [];
-  const categories: { category: string; count: number; pct: number }[] =
-    analytics?.categoryBreakdown ?? [];
+  const topItems: { name: string; category: string | null; orderCount: number }[] = analytics?.topItems ?? [];
+  const categories: { category: string; count: number; pct: number }[] = analytics?.categoryBreakdown ?? [];
   const activeList = analytics?.activeListSummary;
   const totalItems: number = analytics?.totalItems ?? 0;
 
@@ -99,12 +101,19 @@ export default function ManagerHome() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
-      {/* Header */}
+      {/* Header — extends down so quick cards can overlap it */}
       <View style={s.header}>
-        <Text style={s.greeting}>{getGreeting()},</Text>
-        <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
-        {stores.length === 1 && (
-          <Text style={s.storeName}>{stores[0].name}</Text>
+        <View>
+          <Text style={s.greeting}>{getGreeting()},</Text>
+          <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
+          {stores.length === 1 && (
+            <Text style={s.storeName}>{stores[0].name}</Text>
+          )}
+        </View>
+        {totalItems > 0 && (
+          <View style={s.headerBadge}>
+            <Text style={s.headerBadgeText}>{totalItems} items tracked</Text>
+          </View>
         )}
       </View>
 
@@ -114,7 +123,61 @@ export default function ManagerHome() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Pending requests alert — shown only when there are pending */}
+        {/* Quick stat cards — overlap the header */}
+        <View style={s.quickRow}>
+          <TouchableOpacity
+            style={s.quickCard}
+            onPress={() => router.push('/(manager)/order-list')}
+            activeOpacity={0.85}
+          >
+            <View style={s.quickTop}>
+              <View style={[s.quickIconBox, { backgroundColor: COLORS.secondary + '15' }]}>
+                <PackageIcon size={20} color={COLORS.secondary} />
+              </View>
+              <ChevronRightIcon size={14} color="#ADB5BD" />
+            </View>
+            <Text style={s.quickLabel}>Active List</Text>
+            {activeList ? (
+              <>
+                <Text style={s.quickValue}>{activeList.itemCount}</Text>
+                <View style={s.quickBadge}>
+                  <Text style={s.quickBadgeText}>OPEN</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={s.quickValue}>—</Text>
+                <Text style={s.quickSub}>No open list</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={s.quickCard}
+            onPress={() => router.push('/(manager)/requests')}
+            activeOpacity={0.85}
+          >
+            <View style={s.quickTop}>
+              <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.secondary + '15' }]}>
+                <ClipboardIcon size={20} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
+              </View>
+              <ChevronRightIcon size={14} color="#ADB5BD" />
+            </View>
+            <Text style={s.quickLabel}>Requests</Text>
+            <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
+              {pendingCount}
+            </Text>
+            {pendingCount > 0 ? (
+              <View style={[s.quickBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                <Text style={[s.quickBadgeText, { color: '#C2410C' }]}>REVIEW</Text>
+              </View>
+            ) : (
+              <Text style={s.quickSub}>All clear</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Pending alert banner */}
         {pendingCount > 0 && (
           <TouchableOpacity
             style={s.alertCard}
@@ -122,7 +185,7 @@ export default function ManagerHome() {
             activeOpacity={0.8}
           >
             <View style={s.alertIcon}>
-              <InboxIcon size={20} color="#C2410C" />
+              <InboxIcon size={18} color="#C2410C" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.alertTitle}>
@@ -130,45 +193,13 @@ export default function ManagerHome() {
               </Text>
               <Text style={s.alertSub}>Tap to review and add to order list</Text>
             </View>
+            <ChevronRightIcon size={16} color="#C2410C" />
           </TouchableOpacity>
         )}
 
-        {/* Active list status */}
-        <View style={s.row}>
-          <TouchableOpacity
-            style={[s.quickCard, { flex: 1, marginRight: 8 }]}
-            onPress={() => router.push('/(manager)/order-list')}
-            activeOpacity={0.8}
-          >
-            <PackageIcon size={22} color={COLORS.secondary} />
-            <Text style={s.quickLabel}>Active List</Text>
-            {activeList ? (
-              <>
-                <Text style={s.quickValue}>{activeList.itemCount}</Text>
-                <Text style={s.quickSub} numberOfLines={1}>{activeList.name}</Text>
-              </>
-            ) : (
-              <Text style={s.quickSub}>No open list</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.quickCard, { flex: 1, marginLeft: 8 }]}
-            onPress={() => router.push('/(manager)/requests')}
-            activeOpacity={0.8}
-          >
-            <ClipboardIcon size={22} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
-            <Text style={s.quickLabel}>Requests</Text>
-            <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
-              {pendingCount}
-            </Text>
-            <Text style={s.quickSub}>Pending review</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Inventory Intelligence header */}
         <View style={s.sectionHeader}>
-          <TrendingUpIcon size={16} color={COLORS.secondary} />
+          <TrendingUpIcon size={15} color={COLORS.secondary} />
           <Text style={s.sectionTitle}>Inventory Intelligence</Text>
           <View style={s.periodPicker}>
             {PERIODS.map(p => (
@@ -214,37 +245,51 @@ export default function ManagerHome() {
         )}
 
         {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.secondary} />
+          <View style={s.loadingBox}>
+            <ActivityIndicator color={COLORS.secondary} />
+            <Text style={s.loadingText}>Loading analytics…</Text>
+          </View>
         ) : (
           <>
             {/* Top ordered items */}
             <View style={s.card}>
-              <Text style={s.cardTitle}>Most Ordered Items</Text>
-              <Text style={s.cardSub}>{totalItems} orders tracked</Text>
+              <View style={s.cardHeader}>
+                <Text style={s.cardTitle}>Most Ordered Items</Text>
+                {totalItems > 0 && <Text style={s.cardSub}>{totalItems} total</Text>}
+              </View>
               {topItems.length === 0 ? (
-                <Text style={s.empty}>No order history yet</Text>
+                <Text style={s.empty}>No order history yet for this filter</Text>
               ) : (
-                topItems.slice(0, 10).map((item, i) => (
-                  <View key={`${item.name}-${i}`} style={s.itemRow}>
-                    <View style={s.itemRank}>
-                      <Text style={s.itemRankText}>{i + 1}</Text>
+                topItems.slice(0, 10).map((item, i) => {
+                  const rank = RANK[i] ?? null;
+                  return (
+                    <View key={`${item.name}-${i}`} style={[s.itemRow, i === topItems.slice(0, 10).length - 1 && { borderBottomWidth: 0 }]}>
+                      <View style={[s.itemRank, rank && { backgroundColor: rank.bg, borderColor: rank.border, borderWidth: 1 }]}>
+                        <Text style={[s.itemRankText, rank && { color: rank.color }]}>{i + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.itemName}>{item.name}</Text>
+                        {item.category && (
+                          <Text style={s.itemCat}>{item.category}</Text>
+                        )}
+                      </View>
+                      <View style={s.itemCountBox}>
+                        <Text style={s.itemCount}>{item.orderCount}</Text>
+                        <Text style={s.itemCountLabel}>orders</Text>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.itemName}>{item.name}</Text>
-                      {item.category && (
-                        <Text style={s.itemCat}>{item.category}</Text>
-                      )}
-                    </View>
-                    <Text style={s.itemCount}>{item.orderCount}×</Text>
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
 
             {/* Category breakdown */}
             {categories.length > 0 && (
               <View style={s.card}>
-                <Text style={s.cardTitle}>By Category</Text>
+                <View style={s.cardHeader}>
+                  <Text style={s.cardTitle}>By Category</Text>
+                  <Text style={s.cardSub}>{categories.length} categories</Text>
+                </View>
                 {categories.map((cat, i) => (
                   <CategoryBar
                     key={cat.category}
@@ -264,90 +309,128 @@ export default function ManagerHome() {
 }
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#F8F9FA' },
+  safe:   { flex: 1, backgroundColor: '#F1F3F5' },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { paddingTop: 0, paddingHorizontal: 16, paddingBottom: 48 },
 
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     backgroundColor: COLORS.secondary,
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingBottom: 24,
-  },
-  greeting: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '400', letterSpacing: 0.2 },
-  name:     { fontSize: 24, color: '#FFFFFF', fontWeight: '700', marginTop: 2 },
-  storeName:{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
-
-  alertCard: {
+    paddingTop: 18,
+    paddingBottom: 64,           // extra room so quick cards overlap cleanly
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    gap: 12,
-  },
-  alertIcon:  { width: 36, height: 36, borderRadius: 8, backgroundColor: '#FFEDD5', alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontSize: 14, fontWeight: '600', color: '#C2410C' },
-  alertSub:   { fontSize: 12, color: '#9A3412', marginTop: 1 },
-
-  row: { flexDirection: 'row', marginBottom: 14 },
-
-  quickCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  greeting:  { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', letterSpacing: 0.2 },
+  name:      { fontSize: 26, color: '#FFFFFF', fontWeight: '800', marginTop: 2, letterSpacing: -0.3 },
+  storeName: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 5, fontWeight: '400' },
+  headerBadge: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+    alignSelf: 'flex-start', marginTop: 4,
+  },
+  headerBadgeText: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+
+  // ── Quick cards (overlap header) ─────────────────────────────────────────────
+  quickRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: -52,
+    marginBottom: 14,
+  },
+  quickCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#1D3557',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
     gap: 4,
   },
-  quickLabel: { fontSize: 11, color: '#6C757D', fontWeight: '500', marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.4 },
-  quickValue: { fontSize: 28, fontWeight: '700', color: '#212529', lineHeight: 32 },
-  quickSub:   { fontSize: 12, color: '#6C757D' },
-
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, marginTop: 4 },
-  sectionTitle:  { fontSize: 14, fontWeight: '700', color: '#495057', flex: 1 },
-
-  periodPicker: { flexDirection: 'row', backgroundColor: '#E9ECEF', borderRadius: 8, padding: 2 },
-  periodBtn:     { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 6 },
-  periodBtnActive: { backgroundColor: '#FFFFFF' },
-  periodBtnText:   { fontSize: 12, color: '#6C757D', fontWeight: '500' },
-  periodBtnTextActive: { color: '#212529', fontWeight: '600' },
-
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-    padding: 16,
-    marginBottom: 14,
+  quickTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  quickIconBox:{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  quickLabel:  { fontSize: 10, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  quickValue:  { fontSize: 30, fontWeight: '800', color: '#111827', lineHeight: 34, letterSpacing: -0.5 },
+  quickSub:    { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  quickBadge:  {
+    alignSelf: 'flex-start', marginTop: 4,
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#6EE7B7',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#212529', marginBottom: 2 },
-  cardSub:   { fontSize: 12, color: '#6C757D', marginBottom: 12 },
-  empty:     { fontSize: 13, color: '#ADB5BD', textAlign: 'center', paddingVertical: 24 },
+  quickBadgeText: { fontSize: 9, fontWeight: '800', color: '#059669', letterSpacing: 0.8 },
 
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1F3F5' },
-  itemRank: { width: 24, height: 24, borderRadius: 6, backgroundColor: '#F1F3F5', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  itemRankText: { fontSize: 11, fontWeight: '700', color: '#495057' },
-  itemName: { fontSize: 14, fontWeight: '500', color: '#212529' },
-  itemCat:  { fontSize: 11, color: '#6C757D', marginTop: 1 },
-  itemCount:{ fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+  // ── Alert banner ────────────────────────────────────────────────────────────
+  alertCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1, borderColor: '#FED7AA',
+    borderRadius: 14, padding: 14,
+    marginBottom: 16, gap: 12,
+  },
+  alertIcon:  { width: 34, height: 34, borderRadius: 10, backgroundColor: '#FFEDD5', alignItems: 'center', justifyContent: 'center' },
+  alertTitle: { fontSize: 13, fontWeight: '700', color: '#92400E' },
+  alertSub:   { fontSize: 12, color: '#B45309', marginTop: 2 },
 
-  catRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, gap: 8 },
-  catDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  catName: { fontSize: 12, color: '#495057', width: 90, flexShrink: 0 },
-  barTrack:{ flex: 1, height: 6, backgroundColor: '#F1F3F5', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: 6, borderRadius: 3 },
-  catCount:{ fontSize: 11, fontWeight: '600', color: '#495057', minWidth: 56, textAlign: 'right' },
-  catPct:  { fontWeight: '400', color: '#ADB5BD' },
+  // ── Section header ──────────────────────────────────────────────────────────
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 6 },
+  sectionTitle:  { fontSize: 13, fontWeight: '800', color: '#374151', flex: 1, textTransform: 'uppercase', letterSpacing: 0.5 },
 
+  periodPicker:       { flexDirection: 'row', backgroundColor: '#E5E7EB', borderRadius: 8, padding: 2 },
+  periodBtn:          { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 6 },
+  periodBtnActive:    { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
+  periodBtnText:      { fontSize: 11, color: '#6B7280', fontWeight: '500' },
+  periodBtnTextActive:{ color: '#111827', fontWeight: '700' },
+
+  // ── Category chips ──────────────────────────────────────────────────────────
   chipScroll: { marginBottom: 14, marginHorizontal: -16 },
   chipRow:    { paddingHorizontal: 16, gap: 8, flexDirection: 'row' },
-  chip:       { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#E9ECEF', borderWidth: 1, borderColor: '#DEE2E6' },
+  chip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
   chipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-  chipText:   { fontSize: 12, color: '#495057', fontWeight: '500' },
-  chipTextActive: { color: '#FFFFFF', fontWeight: '600' },
+  chipText:   { fontSize: 12, color: '#4B5563', fontWeight: '500' },
+  chipTextActive: { color: '#FFFFFF', fontWeight: '700' },
+
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  cardTitle:  { fontSize: 15, fontWeight: '800', color: '#111827' },
+  cardSub:    { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  empty:      { fontSize: 13, color: '#D1D5DB', textAlign: 'center', paddingVertical: 28 },
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  loadingBox:  { alignItems: 'center', paddingVertical: 48, gap: 10 },
+  loadingText: { fontSize: 13, color: '#9CA3AF' },
+
+  // ── Item rows ──────────────────────────────────────────────────────────────
+  itemRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 12 },
+  itemRank:     { width: 26, height: 26, borderRadius: 8, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  itemRankText: { fontSize: 11, fontWeight: '800', color: '#6B7280' },
+  itemName:     { fontSize: 14, fontWeight: '600', color: '#111827' },
+  itemCat:      { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  itemCountBox: { alignItems: 'flex-end' },
+  itemCount:    { fontSize: 16, fontWeight: '800', color: COLORS.secondary },
+  itemCountLabel:{ fontSize: 9, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+
+  // ── Category bars ──────────────────────────────────────────────────────────
+  catRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
+  catDot:   { width: 9, height: 9, borderRadius: 5, flexShrink: 0 },
+  catName:  { fontSize: 12, color: '#4B5563', width: 96, flexShrink: 0, fontWeight: '500' },
+  barTrack: { flex: 1, height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' },
+  barFill:  { height: 8, borderRadius: 4 },
+  catCount: { fontSize: 11, fontWeight: '700', color: '#374151', minWidth: 58, textAlign: 'right' },
+  catPct:   { fontWeight: '400', color: '#9CA3AF' },
 });
