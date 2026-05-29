@@ -348,8 +348,9 @@ model PointsTransaction {
   cashbackRate    Float             @default(0.05) // rate used at time of grant
   category        ProductCategory   @default(OTHER)
   status          TransactionStatus @default(PENDING)
-  receiptImageUrl String?
-  notes           String?
+  receiptImageUrl  String?
+  receiptImageHash String? @unique   // SHA-256 of receipt file — reuse of same photo across any transaction is blocked
+  notes            String?
   isGas             Boolean @default(false)
   gasGallons        Float?
   gasPricePerGallon Float?

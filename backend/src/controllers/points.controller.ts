@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -264,6 +265,17 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Duplicate receipt detection — hash file bytes to prevent reusing the same photo
+  const receiptHash = createHash('sha256').update(req.file!.buffer).digest('hex');
+  const duplicateReceipt = await prisma.pointsTransaction.findFirst({
+    where: { receiptImageHash: receiptHash },
+    select: { id: true },
+  });
+  if (duplicateReceipt) {
+    res.status(409).json({ success: false, error: 'This receipt image has already been used for another transaction. Upload the original receipt photo.' });
+    return;
+  }
+
   // Upload receipt to Cloudinary
   const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -282,7 +294,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     // Flagged: save receipt but hold points — manager must review
     const updatedTransaction = await prisma.pointsTransaction.update({
       where: { id: transactionId },
-      data: { receiptImageUrl: uploadResult.secure_url },
+      data: { receiptImageUrl: uploadResult.secure_url, receiptImageHash: receiptHash },
     });
     res.json({
       success: true,
@@ -301,6 +313,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       data: {
         status: TransactionStatus.APPROVED,
         receiptImageUrl: uploadResult.secure_url,
+        receiptImageHash: receiptHash,
       },
     }),
     prisma.user.update({
@@ -490,6 +503,13 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
       res.status(403).json({ success: false, error: 'No access to this store' });
       return;
     }
+  }
+
+  // High-value flagged transactions require SUPER_ADMIN to approve — prevents colluding manager sign-off
+  const flags: string[] = transaction.fraudFlags ? JSON.parse(transaction.fraudFlags) : [];
+  if (action === 'APPROVE' && flags.includes('LARGE_PURCHASE') && !hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    res.status(403).json({ success: false, error: 'Transactions over $800 require Super Admin approval.' });
+    return;
   }
 
   if (action === 'REJECT') {

@@ -112,6 +112,15 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
     return;
   }
 
+  // Concurrent redemption cap — prevents holding many items in limbo simultaneously
+  const activePendingCount = await prisma.catalogRedemption.count({
+    where: { customerId: customer.id, status: 'PENDING', expiresAt: { gt: new Date() } },
+  });
+  if (activePendingCount >= 5) {
+    res.status(429).json({ success: false, error: 'You have too many active redemptions. Cancel one or wait for them to expire before starting another.' });
+    return;
+  }
+
   const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
   let code = generateCode();
   // Ensure code is unique
