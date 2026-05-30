@@ -15,7 +15,7 @@ import { COLORS } from '../constants';
 import {
   EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
-  CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon,
+  CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon,
 } from './Icons';
 
 type Panel = null | 'name' | 'pin' | 'email';
@@ -461,6 +461,33 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             </View>
           ))}
         </View>
+
+        {/* ── Help & Guide ── */}
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Support</Text>
+        <TouchableOpacity
+          style={s.settingRow}
+          onPress={() => {
+            if (isCustomer) router.push('/(customer)/guide');
+            else if (user?.role === 'STORE_MANAGER') router.push('/(manager)/guide' as any);
+            else router.push('/(employee)/guide');
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={[s.settingIconBg, { backgroundColor: COLORS.secondary + '18' }]}>
+            <BookOpenIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>Help & Guide</Text>
+            <Text style={s.settingValue}>
+              {isCustomer
+                ? 'Customer guide, FAQs, and rewards info'
+                : user?.role === 'STORE_MANAGER'
+                ? 'Store manager manual and procedures'
+                : 'Employee manual and transaction guide'}
+            </Text>
+          </View>
+          <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+        </TouchableOpacity>
 
         {/* ── Sign Out ── */}
         <TouchableOpacity style={s.signOutBtn} onPress={() => logout()} activeOpacity={0.85}>
