@@ -55,6 +55,8 @@ export const authApi = {
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
   verifyFirebaseReset: (firebaseToken: string) => api.post('/auth/verify-firebase-reset', { firebaseToken }),
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
+  confirm21: () => api.patch('/auth/confirm-21'),
+  deleteAccount: () => api.delete('/auth/account'),
 };
 
 export const pointsApi = {

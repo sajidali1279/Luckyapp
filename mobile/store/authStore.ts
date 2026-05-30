@@ -15,6 +15,7 @@ export interface AuthUser {
   periodPoints?: number;
   tierPeriod?: string;
   avatarUrl?: string;
+  age21Confirmed?: boolean;
 }
 
 interface AuthState {
@@ -29,6 +30,7 @@ interface AuthState {
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
   updateBalance: (newBalance: number) => void;
+  setAge21Confirmed: () => void;
   setQuickLoginPhone: (phone: string) => Promise<void>;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
   saveBiometricPin: (pin: string) => Promise<void>;
@@ -90,6 +92,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateBalance: (newBalance) =>
     set((state) => ({
       user: state.user ? { ...state.user, pointsBalance: newBalance } : null,
+    })),
+
+  setAge21Confirmed: () =>
+    set((state) => ({
+      user: state.user ? { ...state.user, age21Confirmed: true } : null,
     })),
 
   setQuickLoginPhone: async (phone) => {

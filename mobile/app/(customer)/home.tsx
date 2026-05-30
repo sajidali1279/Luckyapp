@@ -197,6 +197,10 @@ export default function CustomerHome() {
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
+  const [pendingAgeGateStore, setPendingAgeGateStore] = useState<{ id: string; name: string } | null>(null);
+  const [show21Gate, setShow21Gate] = useState(false);
+  const [confirming21, setConfirming21] = useState(false);
+  const { setAge21Confirmed } = useAuthStore();
 
   const storesWithPrices = allStores.filter(
     (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
@@ -223,8 +227,14 @@ export default function CustomerHome() {
           if (d < closestDist) { closestDist = d; closest = s; }
         }
         if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
-          setNearestStore({ id: closest.id, name: closest.name });
-          setLocationStatus('found');
+          if (closest.minimumAge === 21 && !user?.age21Confirmed) {
+            setPendingAgeGateStore({ id: closest.id, name: closest.name });
+            setShow21Gate(true);
+            setLocationStatus('found');
+          } else {
+            setNearestStore({ id: closest.id, name: closest.name });
+            setLocationStatus('found');
+          }
         } else if (!cancelled) {
           setLocationStatus('none');
         }
@@ -329,7 +339,7 @@ export default function CustomerHome() {
                     : <GlobeIcon size={11} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />
                   }
                   <Text style={styles.nearbyPillText}>
-                    {locationStatus === 'found' ? nearestStore!.name : 'All Stores'}
+                    {locationStatus === 'found' ? (nearestStore?.name ?? pendingAgeGateStore?.name ?? 'All Stores') : 'All Stores'}
                   </Text>
                 </View>
               )}
@@ -703,6 +713,58 @@ export default function CustomerHome() {
         </Modal>
       )}
 
+      {/* ── 21+ age gate modal ── */}
+      {show21Gate && pendingAgeGateStore && (
+        <Modal transparent animationType="fade" onRequestClose={() => {}}>
+          <View style={ag.overlay}>
+            <View style={ag.card}>
+              <View style={ag.badge}>
+                <Text style={ag.badgeText}>21+</Text>
+              </View>
+              <Text style={ag.title}>Age-Restricted Store</Text>
+              <Text style={ag.storeName}>{pendingAgeGateStore.name}</Text>
+              <Text style={ag.body}>
+                This store sells age-restricted products. You must be 21 or older to earn rewards here.{'\n\n'}
+                By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account.
+              </Text>
+              <TouchableOpacity
+                style={[ag.confirmBtn, confirming21 && { opacity: 0.6 }]}
+                onPress={async () => {
+                  if (confirming21) return;
+                  setConfirming21(true);
+                  try {
+                    await authApi.confirm21();
+                    setAge21Confirmed();
+                    setNearestStore(pendingAgeGateStore);
+                    setPendingAgeGateStore(null);
+                    setShow21Gate(false);
+                  } catch {
+                    // silent — gate stays open, user can retry
+                  } finally {
+                    setConfirming21(false);
+                  }
+                }}
+                disabled={confirming21}
+                activeOpacity={0.85}
+              >
+                <Text style={ag.confirmBtnText}>{confirming21 ? 'Confirming…' : 'I am 21 or older — Continue'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={ag.backBtn}
+                onPress={() => {
+                  setPendingAgeGateStore(null);
+                  setShow21Gate(false);
+                  setLocationStatus('none');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={ag.backBtnText}>Go back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* ── Offer detail modal ── */}
       {selectedOffer && (
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
@@ -999,4 +1061,34 @@ const om = StyleSheet.create({
     padding: 16, alignItems: 'center', marginTop: 4,
   },
   closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+});
+
+const ag = StyleSheet.create({
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  card: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 28,
+    alignItems: 'center', width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25, shadowRadius: 24, elevation: 20,
+  },
+  badge: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: '#1D3557', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+  },
+  badgeText: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  title: { fontSize: 20, fontWeight: '900', color: '#1D3557', marginBottom: 4 },
+  storeName: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, marginBottom: 16 },
+  body: { fontSize: 14, color: '#444', lineHeight: 22, textAlign: 'center', marginBottom: 24 },
+  confirmBtn: {
+    backgroundColor: '#1D3557', borderRadius: 16,
+    paddingVertical: 16, paddingHorizontal: 20,
+    width: '100%', alignItems: 'center', marginBottom: 10,
+  },
+  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  backBtn: { paddingVertical: 10, width: '100%', alignItems: 'center' },
+  backBtnText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 });

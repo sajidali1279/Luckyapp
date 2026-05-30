@@ -111,6 +111,22 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteAccount();
+      await logout();
+      router.replace('/(auth)/welcome');
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to delete account. Try again.' });
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteModal(false);
+    }
+  }
 
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -451,8 +467,44 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <Text style={s.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
+        {/* ── Delete Account — customers only ── */}
+        {isCustomer && (
+          <TouchableOpacity style={s.deleteAccountBtn} onPress={() => setShowDeleteModal(true)} activeOpacity={0.85}>
+            <Text style={s.deleteAccountText}>Delete My Account</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={{ height: 16 }} />
       </ScrollView>
+
+      {/* ── Delete Account confirmation modal ── */}
+      {showDeleteModal && (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+          <View style={s.deleteOverlay}>
+            <View style={s.deleteCard}>
+              <View style={s.deleteIconWrap}>
+                <Trash2Icon size={28} color="#fff" strokeWidth={2} />
+              </View>
+              <Text style={s.deleteTitle}>Delete My Account?</Text>
+              <Text style={s.deleteBody}>
+                This will permanently delete your account, points balance, transaction history, and all personal data.{'\n\n'}
+                This action cannot be undone.
+              </Text>
+              <TouchableOpacity
+                style={[s.deleteConfirmBtn, deletingAccount && { opacity: 0.6 }]}
+                onPress={handleDeleteAccount}
+                disabled={deletingAccount}
+                activeOpacity={0.85}
+              >
+                <Text style={s.deleteConfirmText}>{deletingAccount ? 'Deleting…' : 'Yes, delete my account'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.deleteCancelBtn} onPress={() => setShowDeleteModal(false)} activeOpacity={0.7}>
+                <Text style={s.deleteCancelText}>Keep my account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* ── Promote Your Business Modal ── */}
       <Modal visible={promoModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPromoModalVisible(false)}>
@@ -672,4 +724,35 @@ const s = StyleSheet.create({
   modalCloseText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   modalSubtitle: { fontSize: 14, color: COLORS.textMuted, paddingHorizontal: 20, paddingVertical: 12, lineHeight: 20 },
   modalBody: { flex: 1, paddingHorizontal: 20 },
+
+  deleteAccountBtn: {
+    alignItems: 'center', paddingVertical: 14, marginTop: 4,
+  },
+  deleteAccountText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+
+  deleteOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center', padding: 28,
+  },
+  deleteCard: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 28,
+    alignItems: 'center', width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25, shadowRadius: 24, elevation: 20,
+  },
+  deleteIconWrap: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: COLORS.error, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  deleteTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text, marginBottom: 12 },
+  deleteBody: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
+  deleteConfirmBtn: {
+    backgroundColor: COLORS.error, borderRadius: 16,
+    paddingVertical: 16, width: '100%', alignItems: 'center', marginBottom: 10,
+  },
+  deleteConfirmText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  deleteCancelBtn: {
+    paddingVertical: 12, width: '100%', alignItems: 'center',
+  },
+  deleteCancelText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '700' },
 });

@@ -1211,7 +1211,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
     select: {
       id: true, name: true, address: true, city: true, state: true, phone: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      latitude: true, longitude: true, enabledCategories: true,
+      latitude: true, longitude: true, enabledCategories: true, minimumAge: true,
     },
     orderBy: { name: 'asc' },
   });

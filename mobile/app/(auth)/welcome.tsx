@@ -53,7 +53,7 @@ Last updated: March 2026
 By creating an account and using the Lucky Stop Rewards app ("App"), you agree to these Terms & Conditions. If you do not agree, do not use the App.
 
 2. ELIGIBILITY
-The App is available to individuals 13 years of age or older. By registering, you confirm you meet this requirement.
+You must be 18 years of age or older to use this App. By registering, you confirm you are at least 18 years old. Users under 18 are not permitted to create an account or use the App for any purpose.
 
 3. ACCOUNT & SECURITY
 You are responsible for maintaining the confidentiality of your PIN and account. Notify us immediately of any unauthorized use. Lucky Stop is not liable for losses from unauthorized access due to your failure to secure your account.
@@ -102,6 +102,7 @@ export default function WelcomeScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   function handleNext() {
@@ -167,10 +168,23 @@ export default function WelcomeScreen() {
             </Text>
           </View>
 
+          <View style={ts.agreeRow}>
+            <TouchableOpacity
+              style={[ts.checkbox, ageConfirmed && ts.checkboxChecked]}
+              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              activeOpacity={0.7}
+            >
+              {ageConfirmed && <Text style={ts.checkmark}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={ts.agreeLabel}>
+              I confirm I am 18 years of age or older
+            </Text>
+          </View>
+
           <TouchableOpacity
-            style={[ts.agreeBtn, (!agreed) && ts.agreeBtnOff]}
+            style={[ts.agreeBtn, (!agreed || !ageConfirmed) && ts.agreeBtnOff]}
             onPress={handleAgree}
-            disabled={!agreed}
+            disabled={!agreed || !ageConfirmed}
             activeOpacity={0.85}
           >
             <Text style={ts.agreeBtnText}>I Agree & Continue →</Text>

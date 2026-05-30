@@ -196,7 +196,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   const [user, storeRoles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true, age21Confirmed: true },
     }),
     prisma.userStoreRole.findMany({
       where: { userId: req.user!.id },
@@ -698,4 +698,49 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
     success: true,
     data: { id: staff.id, phone: staff.phone, name: staff.name, role: staff.role },
   });
+}
+
+// ─── Confirm 21+ Age (customer self-declares for age-restricted stores) ────────
+
+export async function confirm21(req: AuthRequest, res: Response) {
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { age21Confirmed: true },
+  });
+  res.json({ success: true });
+}
+
+// ─── Delete Own Account (customer self-service) ───────────────────────────────
+
+export async function deleteOwnAccount(req: AuthRequest, res: Response) {
+  const userId = req.user!.id;
+
+  if (req.user!.role !== 'CUSTOMER') {
+    res.status(403).json({ success: false, error: 'Staff accounts must be removed by an admin' });
+    return;
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.userNotification.deleteMany({ where: { userId } }),
+      prisma.pushToken.deleteMany({ where: { userId } }),
+      prisma.catalogRedemption.deleteMany({ where: { customerId: userId } }),
+      prisma.creditRedemption.deleteMany({ where: { customerId: userId } }),
+      prisma.welcomeBonusClaim.deleteMany({ where: { customerId: userId } }),
+      prisma.tierBenefitClaim.deleteMany({ where: { userId } }),
+      prisma.productRequest.deleteMany({ where: { customerId: userId } }),
+      prisma.businessPromotion.deleteMany({ where: { requesterId: userId } }),
+      prisma.employeeRating.deleteMany({ where: { customerId: userId } }),
+      prisma.pointsTransaction.updateMany({
+        where: { customerId: userId },
+        data: { notes: 'ACCOUNT_DELETED' },
+      }),
+      prisma.user.delete({ where: { id: userId } }),
+    ]);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: `Account deletion failed: ${err?.message ?? 'unknown'}` });
+    return;
+  }
+
+  res.json({ success: true, message: 'Account deleted' });
 }
