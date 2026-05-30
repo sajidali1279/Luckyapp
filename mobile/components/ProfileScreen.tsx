@@ -2,14 +2,13 @@ import { useState, useEffect, ReactNode } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
 import { authApi, promotionsApi, leaderboardApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -111,6 +110,35 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     }
   }
 
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  async function handlePickAvatar() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow photo access to set a profile picture.' });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setAvatarUploading(true);
+    try {
+      const res = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
+      const newAvatarUrl: string = res.data?.data?.avatarUrl;
+      if (user && token) setAuth({ ...user, avatarUrl: newAvatarUrl }, token);
+      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to upload photo' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
   const headerBg = isCustomer ? COLORS.primary : COLORS.secondary;
@@ -178,9 +206,21 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       {/* ── Header ── */}
       <SafeAreaView style={[s.headerBg, { backgroundColor: headerBg }]}>
         <View style={s.headerInner}>
-          <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
-            <Text style={s.avatarText}>{initial}</Text>
-          </View>
+          <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.8} style={s.avatarWrap}>
+            <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={s.avatarImage} />
+              ) : (
+                <Text style={s.avatarText}>{initial}</Text>
+              )}
+            </View>
+            <View style={s.avatarCameraBtn}>
+              {avatarUploading
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <ImageIcon size={12} color="#fff" strokeWidth={2.5} />
+              }
+            </View>
+          </TouchableOpacity>
           <View style={s.headerInfo}>
             <Text style={s.headerName}>{user?.name || 'No name set'}</Text>
             <Text style={s.headerPhone}>{user?.phone}</Text>
@@ -524,6 +564,15 @@ const s = StyleSheet.create({
     borderWidth: 3, borderColor: 'rgba(255,255,255,0.2)',
   },
   avatarText: { color: '#fff', fontSize: 28, fontWeight: '800' },
+  avatarWrap: { position: 'relative' },
+  avatarImage: { width: 62, height: 62, borderRadius: 31 },
+  avatarCameraBtn: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
   headerInfo: { flex: 1 },
   headerName: { color: '#fff', fontSize: 20, fontWeight: '800' },
   headerPhone: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 3 },

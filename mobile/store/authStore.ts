@@ -14,6 +14,7 @@ export interface AuthUser {
   tier?: string;
   periodPoints?: number;
   tierPeriod?: string;
+  avatarUrl?: string;
 }
 
 interface AuthState {

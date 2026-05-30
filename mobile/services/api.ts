@@ -42,6 +42,11 @@ export const authApi = {
     api.post('/auth/login', { phone, pin, pushToken, platform }),
   updateProfile: (name: string) =>
     api.patch('/auth/profile', { name }),
+  uploadAvatar: (uri: string, mimeType: string) => {
+    const form = new FormData();
+    form.append('avatar', { uri, name: 'avatar.jpg', type: mimeType } as any);
+    return api.post('/auth/profile/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   changePin: (currentPin: string, newPin: string) =>
     api.patch('/auth/pin', { currentPin, newPin }),
   registerPushToken: (token: string, platform: string) =>

@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -144,6 +144,7 @@ router.post('/auth/register', register);                                        
 router.post('/auth/login', login);                                                // Phone + PIN login
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
 router.patch('/auth/profile', authenticate, updateProfile);                       // Update name
+router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploadAvatar); // Upload profile picture
 router.post('/auth/push-token', authenticate, registerPushToken);
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email

@@ -2,17 +2,17 @@ import prisma from '../config/prisma';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-async function saveNotification(userId: string, title: string, body: string, type: string) {
+async function saveNotification(userId: string, title: string, body: string, type: string, expiresAt?: Date) {
   try {
-    await prisma.userNotification.create({ data: { userId, title, body, type } });
+    await prisma.userNotification.create({ data: { userId, title, body, type, ...(expiresAt && { expiresAt }) } });
   } catch { /* non-critical */ }
 }
 
-export async function saveNotificationMany(userIds: string[], title: string, body: string, type: string) {
+export async function saveNotificationMany(userIds: string[], title: string, body: string, type: string, expiresAt?: Date) {
   if (userIds.length === 0) return;
   try {
     await prisma.userNotification.createMany({
-      data: userIds.map((userId) => ({ userId, title, body, type })),
+      data: userIds.map((userId) => ({ userId, title, body, type, ...(expiresAt && { expiresAt }) })),
     });
   } catch { /* non-critical */ }
 }
@@ -56,7 +56,7 @@ export async function sendPushToUser(userId: string, title: string, body: string
 }
 
 /** Broadcast a push notification to all customers (role = CUSTOMER). */
-export async function broadcastToCustomers(title: string, body: string, type = 'OFFER'): Promise<void> {
+export async function broadcastToCustomers(title: string, body: string, type = 'OFFER', expiresAt?: Date): Promise<void> {
   try {
     const customers = await prisma.user.findMany({
       where: { role: 'CUSTOMER' },
@@ -64,7 +64,7 @@ export async function broadcastToCustomers(title: string, body: string, type = '
     });
     if (customers.length === 0) return;
 
-    saveNotificationMany(customers.map((c) => c.id), title, body, type);
+    saveNotificationMany(customers.map((c) => c.id), title, body, type, expiresAt);
 
     const allTokens = customers.flatMap((c) => c.pushTokens.map((t) => t.token));
     if (allTokens.length === 0) return;

@@ -67,8 +67,8 @@ export async function createOffer(req: AuthRequest, res: Response) {
     data: { ...parsed.data, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) } as any,
   });
 
-  // Notify all customers about the new promotion (fire-and-forget)
-  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER');
+  // Notify all customers — notification auto-expires when the offer ends
+  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate));
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

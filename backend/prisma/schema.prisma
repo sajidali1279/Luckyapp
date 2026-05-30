@@ -205,6 +205,7 @@ model User {
   // Customer-specific
   qrCode          String?  @unique
   pointsBalance   Float    @default(0)
+  avatarUrl       String?
 
   // Multi-store manager flag — when true, STORE_MANAGER bypasses per-store access check
   allStoresAccess      Boolean  @default(false)
@@ -671,13 +672,14 @@ model OtpCode {
 // ─── In-App Notifications ─────────────────────────────────────────────────────
 
 model UserNotification {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   title     String
   body      String
-  type      String   // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST"
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type      String    // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST"
+  isRead    Boolean   @default(false)
+  expiresAt DateTime? // when set, notification is hidden after this time (used for OFFER type)
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

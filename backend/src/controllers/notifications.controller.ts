@@ -7,16 +7,23 @@ import { broadcastToCustomers, sendPushToStoreStaff, saveNotificationMany } from
 export async function getMyNotifications(req: AuthRequest, res: Response) {
   const page  = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = 20;
+  const now   = new Date();
+
+  // Exclude notifications that have expired (e.g. offer notifications past the offer's end date)
+  const activeFilter = {
+    userId: req.user!.id,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+  };
 
   const [notifications, unreadCount] = await Promise.all([
     prisma.userNotification.findMany({
-      where: { userId: req.user!.id },
+      where: activeFilter,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
     prisma.userNotification.count({
-      where: { userId: req.user!.id, isRead: false },
+      where: { ...activeFilter, isRead: false },
     }),
   ]);
 
@@ -44,8 +51,13 @@ export async function markOneRead(req: AuthRequest, res: Response) {
 
 // GET /notifications/unread-count — lightweight for badge polling
 export async function getUnreadCount(req: AuthRequest, res: Response) {
+  const now = new Date();
   const count = await prisma.userNotification.count({
-    where: { userId: req.user!.id, isRead: false },
+    where: {
+      userId: req.user!.id,
+      isRead: false,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
   });
   res.json({ success: true, data: { count } });
 }

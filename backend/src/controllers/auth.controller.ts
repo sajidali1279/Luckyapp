@@ -8,6 +8,7 @@ import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { audit } from '../utils/audit';
 import admin from '../config/firebase';
+import cloudinary from '../config/cloudinary';
 
 const SALT_ROUNDS = 12;
 
@@ -195,7 +196,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   const [user, storeRoles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true },
     }),
     prisma.userStoreRole.findMany({
       where: { userId: req.user!.id },
@@ -282,6 +283,29 @@ export async function updateProfile(req: AuthRequest, res: Response) {
     select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true },
   });
   res.json({ success: true, data: user });
+}
+
+// ─── Upload Avatar ────────────────────────────────────────────────────────────
+
+export async function uploadAvatar(req: AuthRequest, res: Response) {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'No image file provided' });
+    return;
+  }
+
+  const b64 = Buffer.from(req.file.buffer).toString('base64');
+  const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+
+  const result = await cloudinary.uploader.upload(dataUri, {
+    folder: 'lucky-stop/avatars',
+    public_id: `avatar_${req.user!.id}`,
+    overwrite: true,
+    transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+  });
+
+  await prisma.user.update({ where: { id: req.user!.id }, data: { avatarUrl: result.secure_url } });
+
+  res.json({ success: true, data: { avatarUrl: result.secure_url } });
 }
 
 // ─── Create Super Admin (DevAdmin only) ───────────────────────────────────────
