@@ -36,6 +36,7 @@ const Leaderboard            = lazy(() => import('./pages/Leaderboard'));
 const Careers                = lazy(() => import('./pages/Careers'));
 const OrderList              = lazy(() => import('./pages/OrderList'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
+const Documents              = lazy(() => import('./pages/Documents'));
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ export default function App() {
               <Route path="/order-list" element={<OrderList />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/analytics" element={<Analytics />} />

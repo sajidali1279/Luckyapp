@@ -292,6 +292,9 @@ export default function Navbar() {
         {isStoreManager && (
           <HoverLink to="/transactions" icon="🧾" label="Transactions" />
         )}
+
+        {/* Documents — all roles */}
+        <HoverLink to="/documents" icon="📄" label="Docs" />
       </div>
 
       <div style={s.right}>
