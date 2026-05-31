@@ -419,21 +419,29 @@ export async function listStaff(_req: AuthRequest, res: Response) {
 
 export async function toggleUserActive(req: AuthRequest, res: Response) {
   const { userId } = req.params;
+  const { fraudNote } = req.body as { fraudNote?: string };
+
   if (userId === req.user!.id) {
     res.status(400).json({ success: false, error: 'Cannot deactivate your own account' });
     return;
   }
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+
+  const nowActive = !target.isActive;
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { isActive: !target.isActive },
-    select: { id: true, isActive: true },
+    data: {
+      isActive: nowActive,
+      // Stamp fraud note when restricting; clear it when restoring
+      fraudNote: nowActive ? null : (fraudNote?.trim() || target.fraudNote || null),
+    },
+    select: { id: true, isActive: true, fraudNote: true },
   });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'TOGGLE_USER', entity: 'user', entityId: userId,
-    details: { targetName: target.name, targetPhone: target.phone, targetRole: target.role, isActive: updated.isActive },
+    details: { targetName: target.name, targetPhone: target.phone, targetRole: target.role, isActive: updated.isActive, fraudNote: updated.fraudNote },
   });
   res.json({ success: true, data: updated });
 }

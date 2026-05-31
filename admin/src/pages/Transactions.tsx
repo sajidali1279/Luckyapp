@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
+import api from '../services/api';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -135,6 +136,32 @@ export default function Transactions() {
     setFrom(monthAgoStr()); setTo(todayStr()); setPage(1);
   }
 
+  const [exporting, setExporting] = useState(false);
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      const params: Record<string, string> = {};
+      if (selectedStore)  params.storeId  = selectedStore;
+      if (statusFilter)   params.status   = statusFilter;
+      if (categoryFilter) params.category = categoryFilter;
+      if (from) params.from = new Date(from).toISOString();
+      if (to)   params.to   = to;
+      const res = await api.get('/points/export', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers['content-disposition'] || '';
+      const match = cd.match(/filename="(.+?)"/);
+      a.download = match ? match[1] : 'transactions.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Export failed — try again');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div style={s.container}>
       <div style={s.header}>
@@ -142,7 +169,19 @@ export default function Transactions() {
           <h1 style={s.title}>🧾 Transactions</h1>
           <p style={s.sub}>Review and manage point grant activity</p>
         </div>
-        {total > 0 && <div style={s.totalBadge}>{total.toLocaleString()} transaction{total !== 1 ? 's' : ''}</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {total > 0 && <div style={s.totalBadge}>{total.toLocaleString()} transaction{total !== 1 ? 's' : ''}</div>}
+          {total > 0 && (
+            <button
+              style={s.exportBtn}
+              onClick={handleExportCsv}
+              disabled={exporting}
+              title="Download filtered transactions as CSV"
+            >
+              {exporting ? '⏳ Exporting…' : '⬇ Export CSV'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Filters ── */}
@@ -314,6 +353,7 @@ const s: Record<string, React.CSSProperties> = {
   select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 13, background: '#fff', cursor: 'pointer' },
   dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 13 },
   clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6c757d', fontWeight: 600 },
+  exportBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#1D3557', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' as const },
 
   summaryBar: {
     display: 'flex', gap: 0, background: '#fff',

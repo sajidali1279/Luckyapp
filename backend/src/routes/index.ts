@@ -15,6 +15,7 @@ import {
   redeemCredits,
   getPlatformSummary,
   getAllTransactions,
+  exportTransactionsCsv,
   getCustomerInfo,
   getMyBenefitStatus,
   claimTierBenefit,
@@ -99,6 +100,7 @@ import {
   updateApplication,
   deleteApplication,
 } from '../controllers/careers.controller';
+import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, resolveDispute } from '../controllers/dispute.controller';
 import {
   getCustomerLeaderboard,
   getEmployeeLeaderboard,
@@ -198,6 +200,7 @@ router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STO
 router.patch('/points/:transactionId/review', authenticate, requireRole(Role.STORE_MANAGER), reviewFlaggedTransaction);
 router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformSummary);
 router.get('/points/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllTransactions);
+router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), exportTransactionsCsv);
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
@@ -387,5 +390,12 @@ router.post('/order-categories/submit',  authenticate, requireRole(Role.EMPLOYEE
 router.get('/order-categories/admin',    authenticate, requireRole(Role.DEV_ADMIN),    adminGetCategories);    // All categories with status filter
 router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMIN),    adminUpdateCategory);   // Approve / edit name (cascades to items) / reject
 router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete
+
+// ─── Points Disputes ──────────────────────────────────────────────────────────
+router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
+router.get('/disputes/mine',                      authenticate, requireRole(Role.CUSTOMER),     getMyDisputes);
+router.get('/disputes/store/:storeId',            authenticate, requireRole(Role.STORE_MANAGER), getStoreDisputes);
+router.get('/disputes/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   getAllDisputes);
+router.patch('/disputes/:id/resolve',             authenticate, requireRole(Role.STORE_MANAGER), resolveDispute);
 
 export default router;

@@ -98,7 +98,19 @@ export const pointsApi = {
 
 export const customersApi = {
   list: (search = '', page = 1) => api.get(`/users/customers?search=${encodeURIComponent(search)}&page=${page}`),
-  toggleActive: (userId: string) => api.patch(`/users/${userId}/toggle-active`),
+  toggleActive: (userId: string, fraudNote?: string) =>
+    api.patch(`/users/${userId}/toggle-active`, fraudNote ? { fraudNote } : {}),
+};
+
+export const disputesApi = {
+  getForStore: (storeId: string, status?: string) =>
+    api.get(`/disputes/store/${storeId}${status ? `?status=${status}` : ''}`),
+  getAll: (params?: { storeId?: string; status?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+    return api.get(`/disputes/all${q ? `?${q}` : ''}`);
+  },
+  resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
+    api.patch(`/disputes/${id}/resolve`, data),
 };
 
 export const storesApi = {

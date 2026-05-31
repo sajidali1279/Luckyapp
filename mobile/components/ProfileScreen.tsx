@@ -9,7 +9,7 @@ import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { authApi, promotionsApi, leaderboardApi } from '../services/api';
+import { authApi, promotionsApi, leaderboardApi, disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import {
@@ -72,6 +72,35 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const myRating = ratingData?.data?.data;
 
   const qc = useQueryClient();
+
+  // Dispute modal state (customers only)
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeStoreId, setDisputeStoreId] = useState('');
+  const [disputeDesc, setDisputeDesc] = useState('');
+  const [disputeEstAmt, setDisputeEstAmt] = useState('');
+
+  const { data: storesData } = useQuery({
+    queryKey: ['all-stores'],
+    queryFn: () => storesApi.getAll(),
+    enabled: isCustomer,
+  });
+  const allStores: any[] = storesData?.data?.data || [];
+
+  const submitDisputeMutation = useMutation({
+    mutationFn: () => disputeApi.submit({
+      storeId: disputeStoreId,
+      description: disputeDesc.trim(),
+      estimatedAmt: disputeEstAmt ? parseFloat(disputeEstAmt) : undefined,
+    }),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Report submitted', text2: "We'll review your missing points." });
+      setShowDisputeModal(false);
+      setDisputeStoreId('');
+      setDisputeDesc('');
+      setDisputeEstAmt('');
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Submission failed', text2: 'Please try again.' }),
+  });
 
   const submitPromoMutation = useMutation({
     mutationFn: () => promotionsApi.submit({
@@ -489,6 +518,20 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
+        {/* ── Report Missing Points (customers only) ── */}
+        {isCustomer && (
+          <TouchableOpacity style={s.settingRow} onPress={() => setShowDisputeModal(true)} activeOpacity={0.8}>
+            <View style={[s.settingIconBg, { backgroundColor: '#fff7ed' }]}>
+              <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
+            </View>
+            <View style={s.settingBody}>
+              <Text style={s.settingTitle}>Report Missing Points</Text>
+              <Text style={s.settingValue}>Didn't receive your cashback? Let us know</Text>
+            </View>
+            <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+          </TouchableOpacity>
+        )}
+
         {/* ── Sign Out ── */}
         <TouchableOpacity style={s.signOutBtn} onPress={() => logout()} activeOpacity={0.85}>
           <Text style={s.signOutText}>Sign Out</Text>
@@ -600,6 +643,74 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 {submitPromoMutation.isPending
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={s.panelBtnText}>Submit Request</Text>
+                }
+              </TouchableOpacity>
+              <View style={{ height: 16 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Report Missing Points Modal ── */}
+      <Modal visible={showDisputeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDisputeModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.modalRoot}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Report Missing Points</Text>
+              <TouchableOpacity onPress={() => setShowDisputeModal(false)} style={s.modalClose}>
+                <Text style={s.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={s.modalSubtitle}>If your cashback didn't appear after a purchase, let us know and we'll look into it.</Text>
+            <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
+              <Text style={s.panelLabel}>Store *</Text>
+              <View style={s.disputePickerWrap}>
+                {allStores.length === 0 ? (
+                  <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>Loading stores…</Text>
+                ) : (
+                  allStores.map((st: any) => (
+                    <TouchableOpacity
+                      key={st.id}
+                      style={[s.disputeStorePill, disputeStoreId === st.id && s.disputeStorePillActive]}
+                      onPress={() => setDisputeStoreId(st.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[s.disputeStorePillText, disputeStoreId === st.id && { color: '#fff' }]}>{st.name}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+
+              <Text style={s.panelLabel}>What happened? *</Text>
+              <TextInput
+                style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
+                value={disputeDesc}
+                onChangeText={setDisputeDesc}
+                placeholder="Describe your purchase — what you bought, approximate time, why points are missing..."
+                placeholderTextColor={COLORS.textMuted}
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={s.panelLabel}>Purchase Amount (optional)</Text>
+              <TextInput
+                style={s.panelInput}
+                value={disputeEstAmt}
+                onChangeText={setDisputeEstAmt}
+                placeholder="e.g. 24.50"
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="decimal-pad"
+              />
+
+              <TouchableOpacity
+                style={[s.panelBtn, (!disputeStoreId || !disputeDesc.trim() || submitDisputeMutation.isPending) && { opacity: 0.5 }]}
+                onPress={() => submitDisputeMutation.mutate()}
+                disabled={!disputeStoreId || !disputeDesc.trim() || submitDisputeMutation.isPending}
+                activeOpacity={0.85}
+              >
+                {submitDisputeMutation.isPending
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.panelBtnText}>Submit Report</Text>
                 }
               </TouchableOpacity>
               <View style={{ height: 16 }} />
@@ -782,4 +893,13 @@ const s = StyleSheet.create({
     paddingVertical: 12, width: '100%', alignItems: 'center',
   },
   deleteCancelText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '700' },
+
+  // Dispute modal
+  disputePickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  disputeStorePill: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: '#f1f5f9', borderWidth: 1.5, borderColor: '#e2e8f0',
+  },
+  disputeStorePillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  disputeStorePillText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
 });

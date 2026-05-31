@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { customersApi } from '../services/api';
+import { customersApi, disputesApi, storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 
 function fmt$(n: number) {
@@ -15,25 +16,64 @@ function avatarColor(name: string) {
 
 export default function Customers() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
+  const [fraudNote, setFraudNote] = useState('');
+  const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>('customers');
+  const [disputeStore, setDisputeStore] = useState('');
+  const [disputeStatus, setDisputeStatus] = useState('PENDING');
+  const [resolveTarget, setResolveTarget] = useState<any | null>(null);
+  const [resolveNote, setResolveNote] = useState('');
+  const [creditAmt, setCreditAmt] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', search, page],
     queryFn: () => customersApi.list(search, page),
   });
 
+  const { data: storesData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => storesApi.getAll(),
+    enabled: isSuperAdmin,
+  });
+
+  const { data: disputesData, isLoading: disputesLoading } = useQuery({
+    queryKey: ['disputes', disputeStore, disputeStatus],
+    queryFn: () => isSuperAdmin
+      ? disputesApi.getAll({ storeId: disputeStore || undefined, status: disputeStatus || undefined })
+      : disputesApi.getForStore(user?.storeIds?.[0] || '', disputeStatus || undefined),
+    enabled: activeTab === 'disputes',
+  });
+
   const toggleMutation = useMutation({
-    mutationFn: (userId: string) => customersApi.toggleActive(userId),
+    mutationFn: ({ id, note }: { id: string; note?: string }) =>
+      customersApi.toggleActive(id, note),
     onSuccess: (res) => {
       const active = res.data?.data?.isActive;
       toast.success(active ? 'Account reactivated' : 'Account restricted');
       qc.invalidateQueries({ queryKey: ['customers'] });
       setConfirmTarget(null);
+      setFraudNote('');
     },
     onError: () => toast.error('Failed to update account'),
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, action, note, amt }: { id: string; action: 'APPROVED' | 'REJECTED'; note: string; amt?: number }) =>
+      disputesApi.resolve(id, { action, resolvedNote: note, creditedAmt: amt }),
+    onSuccess: (_res, { action }) => {
+      toast.success(action === 'APPROVED' ? 'Dispute approved — points credited' : 'Dispute rejected');
+      qc.invalidateQueries({ queryKey: ['disputes'] });
+      setResolveTarget(null);
+      setResolveNote('');
+      setCreditAmt('');
+    },
+    onError: () => toast.error('Failed to resolve dispute'),
   });
 
   const customers = data?.data?.data?.customers || [];
@@ -47,6 +87,9 @@ export default function Customers() {
     setSearch(searchInput);
     setPage(1);
   }
+
+  const stores = storesData?.data?.data || [];
+  const disputes = disputesData?.data?.data || [];
 
   return (
     <div style={s.page}>
@@ -72,7 +115,68 @@ export default function Customers() {
         </div>
       </div>
 
+      {/* ── Tabs ── */}
+      <div style={s.tabs}>
+        <button style={{ ...s.tab, ...(activeTab === 'customers' ? s.tabActive : {}) }} onClick={() => setActiveTab('customers')}>
+          Customers
+        </button>
+        <button style={{ ...s.tab, ...(activeTab === 'disputes' ? s.tabActive : {}) }} onClick={() => setActiveTab('disputes')}>
+          Disputes {disputes.filter((d: any) => d.status === 'PENDING').length > 0 && `(${disputes.filter((d: any) => d.status === 'PENDING').length})`}
+        </button>
+      </div>
+
+      {/* ── Disputes tab ── */}
+      {activeTab === 'disputes' && (
+        <div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            {isSuperAdmin && (
+              <select style={s.filterSelect} value={disputeStore} onChange={e => setDisputeStore(e.target.value)}>
+                <option value="">All Stores</option>
+                {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </select>
+            )}
+            <select style={s.filterSelect} value={disputeStatus} onChange={e => setDisputeStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+          {disputesLoading ? (
+            <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptyTitle}>Loading…</div></div>
+          ) : disputes.length === 0 ? (
+            <div style={s.emptyState}><div style={{ fontSize: 48 }}>✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear — no missing points reports</div></div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {disputes.map((d: any) => (
+                <div key={d.id} style={s.disputeCard}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <span style={{ ...s.disputeStatusPill, background: d.status === 'PENDING' ? '#fffbeb' : d.status === 'APPROVED' ? '#f0fdf4' : '#fff1f2', color: d.status === 'PENDING' ? '#b45309' : d.status === 'APPROVED' ? '#16a34a' : '#E63946' }}>
+                        {d.status}
+                      </span>
+                      <span style={s.disputeMeta}>{d.store?.name || 'Unknown store'} · {format(new Date(d.createdAt), 'MMM d, yyyy')}</span>
+                    </div>
+                    <div style={s.disputeCustomer}>{d.customer?.name || d.customer?.phone}</div>
+                    <div style={s.disputeDesc}>{d.description}</div>
+                    {d.estimatedAmt && <div style={s.disputeMeta}>Estimated purchase: ${Number(d.estimatedAmt).toFixed(2)}</div>}
+                    {d.resolvedNote && <div style={{ ...s.disputeMeta, marginTop: 4, fontStyle: 'italic' }}>Note: {d.resolvedNote}</div>}
+                    {d.creditedAmt && <div style={{ ...s.disputeMeta, color: '#16a34a' }}>Credited: ${Number(d.creditedAmt).toFixed(2)}</div>}
+                  </div>
+                  {d.status === 'PENDING' && (
+                    <button style={s.resolveBtn} onClick={() => { setResolveTarget(d); setResolveNote(''); setCreditAmt(''); }}>
+                      Review
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Search ── */}
+      {activeTab === 'customers' && (<>
       <form style={s.searchRow} onSubmit={handleSearch}>
         <div style={s.searchWrap}>
           <span style={s.searchIcon}>🔍</span>
@@ -118,6 +222,7 @@ export default function Customers() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={s.customerName}>{c.name || <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>No name</span>}</div>
                       <div style={s.customerPhone}>{c.phone}</div>
+                      {c.fraudNote && <div style={s.fraudBadge}>⚠ Fraud: {c.fraudNote}</div>}
                     </div>
                     <div style={{ ...s.statusDot, background: c.isActive ? '#2DC653' : '#E63946' }} title={c.isActive ? 'Active' : 'Restricted'} />
                   </div>
@@ -153,7 +258,7 @@ export default function Customers() {
                   {/* Action */}
                   <button
                     style={{ ...s.actionBtn, ...(c.isActive ? s.actionBtnRestrict : s.actionBtnRestore) }}
-                    onClick={() => setConfirmTarget({ id: c.id, name: c.name || c.phone, isActive: c.isActive })}
+                    onClick={() => { setConfirmTarget({ id: c.id, name: c.name || c.phone, isActive: c.isActive }); setFraudNote(''); }}
                     disabled={toggleMutation.isPending}
                   >
                     {c.isActive ? '🚫 Restrict Account' : '✅ Restore Account'}
@@ -173,10 +278,11 @@ export default function Customers() {
           )}
         </>
       )}
+      </>)}
 
       {/* ── Confirm Modal ── */}
       {confirmTarget && (
-        <div style={s.backdrop} onClick={() => setConfirmTarget(null)}>
+        <div style={s.backdrop} onClick={() => { setConfirmTarget(null); setFraudNote(''); }}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <div style={s.dragHandle} />
             <div style={{ ...s.modalIcon, background: confirmTarget.isActive ? '#fff1f2' : '#f0fdf4' }}>
@@ -190,15 +296,71 @@ export default function Customers() {
                 ? `${confirmTarget.name} won't be able to log in or earn points.`
                 : `${confirmTarget.name} will be able to use the app again.`}
             </div>
+            {confirmTarget.isActive && (
+              <div style={{ marginBottom: 16, textAlign: 'left' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+                  Reason (optional — shown as fraud flag)
+                </label>
+                <input
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none' }}
+                  value={fraudNote}
+                  onChange={e => setFraudNote(e.target.value)}
+                  placeholder="e.g. Fake receipts, multiple accounts..."
+                />
+              </div>
+            )}
             <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setConfirmTarget(null)}>Cancel</button>
+              <button style={s.cancelBtn} onClick={() => { setConfirmTarget(null); setFraudNote(''); }}>Cancel</button>
               <button
                 style={{ ...s.confirmBtn, background: confirmTarget.isActive ? '#E63946' : '#16a34a' }}
-                onClick={() => toggleMutation.mutate(confirmTarget.id)}
+                onClick={() => toggleMutation.mutate({ id: confirmTarget.id, note: fraudNote || undefined })}
                 disabled={toggleMutation.isPending}
               >
                 {toggleMutation.isPending ? 'Updating…' : confirmTarget.isActive ? 'Restrict' : 'Restore'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resolve Dispute Modal ── */}
+      {resolveTarget && (
+        <div style={s.backdrop} onClick={() => setResolveTarget(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.dragHandle} />
+            <div style={s.modalTitle}>Resolve Dispute</div>
+            <div style={{ textAlign: 'left', marginBottom: 16 }}>
+              <div style={s.disputeCustomer}>{resolveTarget.customer?.name || resolveTarget.customer?.phone}</div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>{resolveTarget.description}</div>
+              {resolveTarget.estimatedAmt && <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Estimated: ${Number(resolveTarget.estimatedAmt).toFixed(2)}</div>}
+            </div>
+            <div style={{ textAlign: 'left', marginBottom: 12 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Credits to Award (if approving)</label>
+              <input
+                type="number" min="0" step="0.01"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10 }}
+                value={creditAmt} onChange={e => setCreditAmt(e.target.value)}
+                placeholder="e.g. 2.50 (= $2.50 in credits)"
+              />
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Note to customer (optional)</label>
+              <input
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none' }}
+                value={resolveNote} onChange={e => setResolveNote(e.target.value)}
+                placeholder="Explanation for your decision"
+              />
+            </div>
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setResolveTarget(null)}>Cancel</button>
+              <button
+                style={{ ...s.confirmBtn, background: '#E63946' }}
+                onClick={() => resolveMutation.mutate({ id: resolveTarget.id, action: 'REJECTED', note: resolveNote })}
+                disabled={resolveMutation.isPending}
+              >Reject</button>
+              <button
+                style={{ ...s.confirmBtn, background: '#16a34a' }}
+                onClick={() => resolveMutation.mutate({ id: resolveTarget.id, action: 'APPROVED', note: resolveNote, amt: creditAmt ? parseFloat(creditAmt) : undefined })}
+                disabled={resolveMutation.isPending}
+              >Approve</button>
             </div>
           </div>
         </div>
@@ -283,6 +445,43 @@ const s: Record<string, React.CSSProperties> = {
   emptyState: { textAlign: 'center', padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#374151' },
   emptySub: { fontSize: 13, color: '#9ca3af' },
+
+  // Tabs
+  tabs: { display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #f0f1f2', paddingBottom: 0 },
+  tab: {
+    padding: '10px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
+    fontSize: 14, fontWeight: 600, color: '#9ca3af', borderBottom: '2px solid transparent', marginBottom: -2,
+  },
+  tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
+
+  // Disputes
+  filterSelect: {
+    padding: '9px 14px', borderRadius: 10, borderWidth: '1.5px', borderStyle: 'solid',
+    borderColor: '#e5e7eb', fontSize: 13, background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
+  },
+  disputeCard: {
+    background: '#fff', borderRadius: 14, padding: '16px 18px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'flex-start', gap: 14,
+    borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+  },
+  disputeStatusPill: {
+    display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+    textTransform: 'uppercase' as const, letterSpacing: 0.5,
+  },
+  disputeMeta: { fontSize: 12, color: '#9ca3af' },
+  disputeCustomer: { fontSize: 14, fontWeight: 700, color: '#111827' },
+  disputeDesc: { fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 1.5 },
+  resolveBtn: {
+    padding: '8px 18px', background: '#1D3557', color: '#fff', border: 'none',
+    borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13, flexShrink: 0,
+  },
+
+  // Fraud badge
+  fraudBadge: {
+    display: 'inline-block', marginTop: 4, padding: '2px 8px', background: '#fff1f2',
+    color: '#E63946', fontSize: 11, fontWeight: 700, borderRadius: 6, maxWidth: 200,
+    whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis',
+  },
 
   // Confirm modal
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },

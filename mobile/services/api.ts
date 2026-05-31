@@ -144,6 +144,12 @@ export const chatApi = {
     api.post(`/chat/${storeId}/messages`, { text }),
 };
 
+export const disputeApi = {
+  submit: (data: { storeId: string; description: string; estimatedAmt?: number }) =>
+    api.post('/disputes', data),
+  getMine: () => api.get('/disputes/mine'),
+};
+
 export const storeRequestApi = {
   // Employee
   submit: (data: { storeId: string; type: string; priority: string; notes?: string }) =>
@@ -165,6 +171,7 @@ export const notificationsApi = {
 };
 
 export const storesApi = {
+  getAll:         () => api.get('/stores'),
   getGasPrices:   () => api.get('/stores/gas-prices'),
   getTierRates:   () => api.get('/billing/tier-rates'),
   getCategoryRates: () => api.get('/billing/category-rates'),

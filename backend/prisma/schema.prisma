@@ -211,8 +211,13 @@ model User {
   // Multi-store manager flag — when true, STORE_MANAGER bypasses per-store access check
   allStoresAccess      Boolean  @default(false)
 
+  // Fraud / restriction
+  fraudNote            String?  // reason stored when account is restricted for fraud
+
   // Relations
   storeRoles           UserStoreRole[]
+  disputes             PointsDispute[]  @relation("DisputeSubmitter")
+  resolvedDisputes     PointsDispute[]  @relation("DisputeResolver")
   pointsEarned         PointsTransaction[]  @relation("PointsEarner")
   pointsGranted        PointsTransaction[]  @relation("PointsGranter")
   redemptions          Redemption[]
@@ -305,6 +310,7 @@ model Store {
   orderLists         OrderList[]
   printJobs          PrintJob[]
   employeeItemRequests EmployeeItemRequest[]
+  pointsDisputes       PointsDispute[]
 
   @@map("stores")
 }
@@ -1069,4 +1075,34 @@ model OrderCategory {
   @@unique([name, storeId])
   @@index([status, usageCount])
   @@map("order_categories")
+}
+
+// ─── Points Dispute ───────────────────────────────────────────────────────────
+
+enum DisputeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PointsDispute {
+  id            String        @id @default(uuid())
+  customerId    String
+  storeId       String
+  description   String
+  estimatedAmt  Float?
+  status        DisputeStatus @default(PENDING)
+  resolvedById  String?
+  resolvedNote  String?
+  creditedAmt   Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  customer      User          @relation("DisputeSubmitter", fields: [customerId], references: [id], onDelete: Cascade)
+  store         Store         @relation(fields: [storeId], references: [id])
+  resolvedBy    User?         @relation("DisputeResolver", fields: [resolvedById], references: [id])
+
+  @@index([storeId, status])
+  @@index([customerId])
+  @@map("points_disputes")
 }

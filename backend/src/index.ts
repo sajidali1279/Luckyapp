@@ -57,8 +57,27 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api', routes);
 
-// Health check
-app.get('/health', (_, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+// Health check — public, used by UptimeRobot and monitoring
+app.get('/health', async (_, res) => {
+  let db = 'ok';
+  try {
+    // Lightweight ping — just confirms DB connection is alive
+    const { PrismaClient } = await import('@prisma/client');
+    const p = new PrismaClient();
+    await p.$queryRaw`SELECT 1`;
+    await p.$disconnect();
+  } catch {
+    db = 'error';
+  }
+  const status = db === 'ok' ? 'ok' : 'degraded';
+  res.status(db === 'ok' ? 200 : 503).json({
+    status,
+    version: '1.1.0',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    db,
+  });
+});
 
 // Root
 app.get('/', (_, res) => res.json({ success: true, message: 'Lucky Stop API is running', version: '1.0.0' }));

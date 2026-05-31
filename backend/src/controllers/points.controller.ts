@@ -924,3 +924,68 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
     },
   });
 }
+
+// SuperAdmin / StoreManager: export transactions as CSV
+export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
+  const { storeId, from, to, status, category } = req.query as Record<string, string>;
+
+  const user = req.user!;
+  // StoreManager can only export their own store
+  if (user.role === Role.STORE_MANAGER) {
+    if (!storeId || !user.storeIds?.includes(storeId)) {
+      res.status(403).json({ success: false, error: 'Specify a store you manage' });
+      return;
+    }
+  }
+
+  const where: Record<string, unknown> = {};
+  if (storeId)  where.storeId  = storeId;
+  if (status)   where.status   = status;
+  if (category) where.category = category;
+  if (from || to) {
+    const dateFilter: Record<string, Date> = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to)   dateFilter.lte = new Date(to + 'T23:59:59');
+    where.createdAt = dateFilter;
+  }
+
+  const rows = await prisma.pointsTransaction.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: 10000,
+    include: {
+      customer:  { select: { name: true, phone: true } },
+      grantedBy: { select: { name: true, phone: true } },
+      store:     { select: { name: true } },
+    },
+  });
+
+  const escape = (v: string | null | undefined) => {
+    if (v == null) return '';
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const header = 'Date,Time,Store,Customer Name,Customer Phone,Employee Name,Category,Purchase Amount,Points Awarded,Status\n';
+  const lines = rows.map(t => {
+    const d = new Date(t.createdAt);
+    return [
+      d.toLocaleDateString('en-US'),
+      d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      escape(t.store.name),
+      escape(t.customer.name),
+      escape(t.customer.phone),
+      escape(t.grantedBy?.name),
+      t.category,
+      Number(t.purchaseAmount).toFixed(2),
+      Number(t.pointsAwarded).toFixed(2),
+      t.status,
+    ].join(',');
+  }).join('\n');
+
+  const filename = `transactions-${(storeId ? rows[0]?.store?.name?.replace(/\s+/g, '-') ?? 'store' : 'all')}-${new Date().toISOString().slice(0,10)}.csv`;
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(header + lines);
+}
