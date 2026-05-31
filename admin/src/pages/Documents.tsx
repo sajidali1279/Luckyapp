@@ -13,6 +13,8 @@ import storeManagerManualMd  from '../../../docs/user-manual/store-manager-manua
 import employeeManualMd      from '../../../docs/user-manual/employee-manual.md?raw';
 import customerGuideMd       from '../../../docs/user-manual/customer-guide.md?raw';
 import appDocumentationMd    from '../../../docs/technical/app-documentation.md?raw';
+import storeOwnerPitchMd     from '../../../docs/business/store-owner-pitch.md?raw';
+import storeOwnerOverviewMd  from '../../../docs/business/store-owner-overview.md?raw';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
 
@@ -25,7 +27,7 @@ interface Doc {
   icon: string;
   content: string;
   roles: DocRole[];        // which roles can see this doc
-  category: 'legal' | 'manual' | 'technical';
+  category: 'legal' | 'manual' | 'technical' | 'business';
 }
 
 const ALL_DOCS: Doc[] = [
@@ -113,12 +115,32 @@ const ALL_DOCS: Doc[] = [
     roles: ['DEV_ADMIN'],
     category: 'technical',
   },
+  // Business
+  {
+    id: 'store-owner-pitch',
+    title: 'Store Owner Pitch',
+    description: 'Sales pitch for prospective store owners — value proposition, features, pricing, and onboarding.',
+    icon: '📊',
+    content: storeOwnerPitchMd,
+    roles: ['DEV_ADMIN'],
+    category: 'business',
+  },
+  {
+    id: 'store-owner-overview',
+    title: 'Store Owner Overview',
+    description: 'Operational overview for onboarded store owners — what they have, how it works, support.',
+    icon: '🏪',
+    content: storeOwnerOverviewMd,
+    roles: ['DEV_ADMIN'],
+    category: 'business',
+  },
 ];
 
 const CATEGORIES = [
   { id: 'legal',     label: 'Legal Documents',  icon: '⚖️',  color: '#1D3557', bg: '#EFF6FF' },
   { id: 'manual',    label: 'User Manuals',      icon: '📖',  color: '#157A6E', bg: '#F0FDF9' },
   { id: 'technical', label: 'Technical Docs',    icon: '🛠️',  color: '#7C3AED', bg: '#F5F3FF' },
+  { id: 'business',  label: 'Business Docs',     icon: '📊',  color: '#B45309', bg: '#FFFBEB' },
 ] as const;
 
 // ─── Reader modal ─────────────────────────────────────────────────────────────
