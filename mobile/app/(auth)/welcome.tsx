@@ -6,7 +6,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../../constants';
+import { TERMS_OF_SERVICE } from '../../constants/termsOfService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,55 +47,6 @@ const SLIDES = [
   },
 ];
 
-const TERMS = `LUCKY STOP REWARDS — TERMS & CONDITIONS
-
-Last updated: March 2026
-
-1. ACCEPTANCE
-By creating an account and using the Lucky Stop Rewards app ("App"), you agree to these Terms & Conditions. If you do not agree, do not use the App.
-
-2. ELIGIBILITY
-You must be 18 years of age or older to use this App. By registering, you confirm you are at least 18 years old. Users under 18 are not permitted to create an account or use the App for any purpose.
-
-3. ACCOUNT & SECURITY
-You are responsible for maintaining the confidentiality of your PIN and account. Notify us immediately of any unauthorized use. Lucky Stop is not liable for losses from unauthorized access due to your failure to secure your account.
-
-4. POINTS & REWARDS
-- Points are earned on qualifying purchases at participating Lucky Stop locations.
-- Points have no cash value and cannot be transferred between accounts.
-- Lucky Stop reserves the right to adjust point values, expiration policies, and redemption rules at any time.
-- Points may expire if your account is inactive for 12 consecutive months.
-- Fraudulent transactions will result in point forfeiture and account termination.
-
-5. RECEIPT REQUIREMENTS
-Points grants require a valid receipt photo upload. Submitting fraudulent or altered receipts is grounds for immediate account termination and may be reported to authorities.
-
-6. CATALOG REDEMPTIONS
-- Catalog rewards are subject to availability at your local store.
-- Pending redemptions expire after 30 minutes if not confirmed by an employee.
-- Points are refunded automatically on expiry.
-
-7. TIER PROGRAM
-- Tiers are calculated based on points earned in 6-month periods.
-- Tier benefits are subject to change with 30 days' notice.
-- Tier downgrades occur at the start of each new period if thresholds are not maintained.
-
-8. PRIVACY
-We collect your phone number, purchase history, and device push notification token to provide the service. We do not sell your personal data to third parties. Push notifications can be disabled in your device settings at any time.
-
-9. MODIFICATIONS
-Lucky Stop reserves the right to modify or discontinue the rewards program at any time with reasonable notice to users via in-app notification or email.
-
-10. LIMITATION OF LIABILITY
-Lucky Stop is not liable for any indirect, incidental, or consequential damages arising from your use of the App or inability to redeem rewards.
-
-11. GOVERNING LAW
-These Terms are governed by the laws of the State of Texas, without regard to conflict of law provisions.
-
-12. CONTACT
-For questions or disputes, contact Lucky Stop support through the app or at your local store.
-
-By tapping "I Agree & Continue", you confirm you have read, understood, and agree to these Terms & Conditions.`;
 
 type Step = 'slides' | 'terms';
 
@@ -145,7 +98,7 @@ export default function WelcomeScreen() {
               scrollEventThrottle={100}
               showsVerticalScrollIndicator={true}
             >
-              <Text style={ts.termsText}>{TERMS}</Text>
+              <Markdown style={mdStyles}>{TERMS_OF_SERVICE}</Markdown>
               <View style={{ height: 32 }} />
             </ScrollView>
             {!scrolledToBottom && (
@@ -258,6 +211,18 @@ export default function WelcomeScreen() {
     </View>
   );
 }
+
+// ─── Markdown styles ──────────────────────────────────────────────────────────
+const mdStyles = {
+  body:        { fontSize: 13, color: '#444', lineHeight: 22 },
+  heading1:    { fontSize: 15, fontWeight: '900' as const, color: '#1D3557', marginTop: 8, marginBottom: 6 },
+  heading2:    { fontSize: 14, fontWeight: '800' as const, color: '#1D3557', marginTop: 16, marginBottom: 4 },
+  strong:      { fontWeight: '700' as const, color: '#1D3557' },
+  hr:          { backgroundColor: '#e9ecef', height: 1, marginVertical: 12 },
+  bullet_list: { marginBottom: 8 },
+  list_item:   { marginBottom: 3 },
+  em:          { fontStyle: 'italic' as const },
+};
 
 // ─── Slide styles ──────────────────────────────────────────────────────────────
 const ss = StyleSheet.create({
