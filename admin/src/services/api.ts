@@ -100,6 +100,13 @@ export const customersApi = {
   list: (search = '', page = 1) => api.get(`/users/customers?search=${encodeURIComponent(search)}&page=${page}`),
   toggleActive: (userId: string, fraudNote?: string) =>
     api.patch(`/users/${userId}/toggle-active`, fraudNote ? { fraudNote } : {}),
+  exportCsv: (search = '', isActive?: boolean) => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (isActive !== undefined) params.set('isActive', String(isActive));
+    const qs = params.toString();
+    return api.get(`/users/customers/export${qs ? `?${qs}` : ''}`, { responseType: 'blob' });
+  },
 };
 
 export const disputesApi = {

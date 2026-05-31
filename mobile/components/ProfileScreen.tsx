@@ -518,18 +518,30 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
-        {/* ── Report Missing Points (customers only) ── */}
+        {/* ── Report Missing Points + My Reports (customers only) ── */}
         {isCustomer && (
-          <TouchableOpacity style={s.settingRow} onPress={() => setShowDisputeModal(true)} activeOpacity={0.8}>
-            <View style={[s.settingIconBg, { backgroundColor: '#fff7ed' }]}>
-              <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
-            </View>
-            <View style={s.settingBody}>
-              <Text style={s.settingTitle}>Report Missing Points</Text>
-              <Text style={s.settingValue}>Didn't receive your cashback? Let us know</Text>
-            </View>
-            <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={s.settingRow} onPress={() => setShowDisputeModal(true)} activeOpacity={0.8}>
+              <View style={[s.settingIconBg, { backgroundColor: '#fff7ed' }]}>
+                <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
+              </View>
+              <View style={s.settingBody}>
+                <Text style={s.settingTitle}>Report Missing Points</Text>
+                <Text style={s.settingValue}>Didn't receive your cashback? Let us know</Text>
+              </View>
+              <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.settingRow} onPress={() => router.push('/(customer)/my-disputes')} activeOpacity={0.8}>
+              <View style={[s.settingIconBg, { backgroundColor: '#f0fdf4' }]}>
+                <CheckCircleIcon size={20} color="#16a34a" strokeWidth={1.75} />
+              </View>
+              <View style={s.settingBody}>
+                <Text style={s.settingTitle}>My Reports</Text>
+                <Text style={s.settingValue}>Track status of missing-points reports</Text>
+              </View>
+              <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+            </TouchableOpacity>
+          </>
         )}
 
         {/* ── Sign Out ── */}

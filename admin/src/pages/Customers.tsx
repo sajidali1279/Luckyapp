@@ -30,6 +30,24 @@ export default function Customers() {
   const [resolveTarget, setResolveTarget] = useState<any | null>(null);
   const [resolveNote, setResolveNote] = useState('');
   const [creditAmt, setCreditAmt] = useState('');
+  const [exportingCustomers, setExportingCustomers] = useState(false);
+
+  async function handleExportCustomers() {
+    setExportingCustomers(true);
+    try {
+      const res = await customersApi.exportCsv(search);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportingCustomers(false);
+    }
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', search, page],
@@ -112,6 +130,11 @@ export default function Customers() {
             <span style={{ ...s.statNum, color: '#b45309' }}>{fmt$(totalCreditsOutstanding)}</span>
             <span style={s.statLbl}>Credits Out</span>
           </div>
+          {isSuperAdmin && total > 0 && (
+            <button style={s.exportBtn} onClick={handleExportCustomers} disabled={exportingCustomers}>
+              {exportingCustomers ? '…' : '⬇ Export CSV'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -384,6 +407,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   statNum: { display: 'block', fontSize: 18, fontWeight: 800, color: '#1D3557' },
   statLbl: { display: 'block', fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
+
+  exportBtn: { padding: '9px 18px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 },
 
   searchRow: { display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' },
   searchWrap: { flex: 1, maxWidth: 420, position: 'relative' },

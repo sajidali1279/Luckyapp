@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -158,6 +158,7 @@ router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), crea
 router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);         // Create employee/manager
 router.get('/staff', authenticate, requireRole(Role.SUPER_ADMIN), listStaff);                        // List all staff
 router.get('/users/customers', authenticate, requireRole(Role.SUPER_ADMIN), listCustomers);          // List customers
+router.get('/users/customers/export', authenticate, requireRole(Role.SUPER_ADMIN), exportCustomersCsv); // Export customers CSV
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
 router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 router.post('/users/:userId/stores', authenticate, requireRole(Role.SUPER_ADMIN), addUserStore);    // Add store assignment

@@ -401,6 +401,65 @@ export async function listCustomers(req: AuthRequest, res: Response) {
   });
 }
 
+// ─── Export Customers CSV (SuperAdmin+) ──────────────────────────────────────
+
+export async function exportCustomersCsv(req: AuthRequest, res: Response) {
+  const { search = '', isActive } = req.query as { search?: string; isActive?: string };
+
+  const where = {
+    role: Role.CUSTOMER,
+    ...(search ? {
+      OR: [
+        { phone: { contains: search } },
+        { name: { contains: search, mode: 'insensitive' as const } },
+      ],
+    } : {}),
+    ...(isActive !== undefined ? { isActive: isActive === 'true' } : {}),
+  };
+
+  const customers = await prisma.user.findMany({
+    where,
+    select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, fraudNote: true, createdAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: 20000,
+  });
+
+  const customerIds = customers.map((c) => c.id);
+  const txStats = await prisma.pointsTransaction.groupBy({
+    by: ['customerId'],
+    where: { customerId: { in: customerIds }, status: 'APPROVED' },
+    _count: { id: true },
+    _sum: { purchaseAmount: true },
+  });
+  const txMap = Object.fromEntries(txStats.map((r) => [r.customerId, r]));
+
+  function esc(v: string | null | undefined) {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  const header = 'Name,Phone,Credits Balance,Transactions,Total Spent,Status,Fraud Note,Joined';
+  const rows = customers.map((c) => {
+    const stats = txMap[c.id];
+    return [
+      esc(c.name),
+      esc(c.phone),
+      (c.pointsBalance ?? 0).toFixed(2),
+      String(stats?._count.id ?? 0),
+      (stats?._sum.purchaseAmount ?? 0).toFixed(2),
+      c.isActive ? 'Active' : 'Restricted',
+      esc(c.fraudNote),
+      new Date(c.createdAt).toLocaleDateString('en-US'),
+    ].join(',');
+  });
+
+  const csv = [header, ...rows].join('\n');
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="customers-${date}.csv"`);
+  res.send(csv);
+}
+
 // ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────
 
 export async function listStaff(_req: AuthRequest, res: Response) {

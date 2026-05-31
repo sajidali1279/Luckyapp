@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { storesApi } from '../services/api';
+import { storesApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -75,6 +75,17 @@ export default function Stores() {
   });
 
   const stores: Store[] = data?.data?.data ?? [];
+
+  // Pending dispute counts — one query, grouped client-side
+  const { data: disputeData } = useQuery({
+    queryKey: ['disputes-pending-by-store'],
+    queryFn: () => disputesApi.getAll({ status: 'PENDING' }),
+    enabled: ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || ''),
+  });
+  const pendingDisputesByStore: Record<string, number> = {};
+  (disputeData?.data?.data || []).forEach((d: any) => {
+    pendingDisputesByStore[d.storeId] = (pendingDisputesByStore[d.storeId] || 0) + 1;
+  });
 
   const mutation = useMutation({
     mutationFn: ({ storeId, payload }: { storeId: string; payload: object }) =>
@@ -399,6 +410,18 @@ export default function Stores() {
                   </>
                 )}
 
+                {pendingDisputesByStore[store.id] > 0 && (
+                  <div style={s.disputeBanner}>
+                    <span style={s.disputeBannerDot} />
+                    <span style={s.disputeBannerText}>
+                      {pendingDisputesByStore[store.id]} pending dispute{pendingDisputesByStore[store.id] > 1 ? 's' : ''}
+                    </span>
+                    <a href="/customers?tab=disputes" style={s.disputeBannerLink} onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.location.href = '/customers'; }}>
+                      Review →
+                    </a>
+                  </div>
+                )}
+
                 <div style={s.divider} />
                 <div style={s.cardBtns}>
                   <button style={s.kwBtn} onClick={() => openKwModal(store.id)}>
@@ -639,6 +662,11 @@ const s: Record<string, React.CSSProperties> = {
   apiKeyCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1D3557', wordBreak: 'break-all' as const, marginBottom: 8 },
   apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   apiKeyBtn: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: '#1D3557' },
+
+  disputeBanner: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff7ed', borderRadius: 10, padding: '8px 12px', margin: '10px 0 0', border: '1px solid #fed7aa' },
+  disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#ea580c', flexShrink: 0 },
+  disputeBannerText: { flex: 1, fontSize: 12, fontWeight: 700, color: '#c2410c' },
+  disputeBannerLink: { fontSize: 12, fontWeight: 700, color: '#ea580c', textDecoration: 'none' },
 
   cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
   kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 12, cursor: 'pointer', color: '#1D3557' },
