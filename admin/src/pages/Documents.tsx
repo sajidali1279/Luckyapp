@@ -15,6 +15,13 @@ import customerGuideMd       from '../../../docs/user-manual/customer-guide.md?r
 import appDocumentationMd    from '../../../docs/technical/app-documentation.md?raw';
 import storeOwnerPitchMd     from '../../../docs/business/store-owner-pitch.md?raw';
 import storeOwnerOverviewMd  from '../../../docs/business/store-owner-overview.md?raw';
+import cashierQuickRefMd     from '../../../docs/operational/cashier-quick-reference.md?raw';
+import newStoreChecklistMd   from '../../../docs/operational/new-store-setup-checklist.md?raw';
+import changelogMd           from '../../../docs/operational/changelog.md?raw';
+import dpaMd                 from '../../../docs/legal/data-processing-agreement.md?raw';
+import slaMd                 from '../../../docs/legal/service-level-agreement.md?raw';
+import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
+import aupMd                 from '../../../docs/legal/acceptable-use-policy.md?raw';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
 
@@ -27,7 +34,7 @@ interface Doc {
   icon: string;
   content: string;
   roles: DocRole[];        // which roles can see this doc
-  category: 'legal' | 'manual' | 'technical' | 'business';
+  category: 'legal' | 'manual' | 'technical' | 'business' | 'operational';
 }
 
 const ALL_DOCS: Doc[] = [
@@ -115,6 +122,43 @@ const ALL_DOCS: Doc[] = [
     roles: ['DEV_ADMIN'],
     category: 'technical',
   },
+  // Legal (additional)
+  {
+    id: 'data-processing-agreement',
+    title: 'Data Processing Agreement',
+    description: 'DPA between Cliff Industries (Processor) and store operators (Controller) — CCPA/privacy compliance.',
+    icon: '🔐',
+    content: dpaMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
+    category: 'legal',
+  },
+  {
+    id: 'service-level-agreement',
+    title: 'Service Level Agreement',
+    description: 'Uptime commitment (99.5%), support response times, service credits, and maintenance windows.',
+    icon: '📶',
+    content: slaMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
+    category: 'legal',
+  },
+  {
+    id: 'cookie-policy',
+    title: 'Cookie Policy',
+    description: 'Cookies and local storage used by the admin portal — what, why, and how to manage them.',
+    icon: '🍪',
+    content: cookiePolicyMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
+    category: 'legal',
+  },
+  {
+    id: 'acceptable-use-policy',
+    title: 'Acceptable Use Policy',
+    description: 'Platform rules for all roles — prohibited uses, fraud prevention, enforcement, and reporting.',
+    icon: '📜',
+    content: aupMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
+    category: 'legal',
+  },
   // Business
   {
     id: 'store-owner-pitch',
@@ -129,18 +173,47 @@ const ALL_DOCS: Doc[] = [
     id: 'store-owner-overview',
     title: 'Store Owner Overview',
     description: 'Operational overview for onboarded store owners — what they have, how it works, support.',
-    icon: '🏪',
+    icon: '🏬',
     content: storeOwnerOverviewMd,
     roles: ['DEV_ADMIN'],
     category: 'business',
   },
+  // Operational
+  {
+    id: 'cashier-quick-reference',
+    title: 'Cashier Quick Reference',
+    description: 'One-page printable guide for cashiers — scan flow, redemption, common issues, and rules.',
+    icon: '🖨️',
+    content: cashierQuickRefMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
+    category: 'operational',
+  },
+  {
+    id: 'new-store-setup-checklist',
+    title: 'New Store Setup Checklist',
+    description: 'Step-by-step onboarding checklist for launching a new store on the platform.',
+    icon: '✅',
+    content: newStoreChecklistMd,
+    roles: ['DEV_ADMIN'],
+    category: 'operational',
+  },
+  {
+    id: 'changelog',
+    title: 'Platform Changelog',
+    description: 'Release notes and feature history — what changed, when, and which roles it affects.',
+    icon: '📝',
+    content: changelogMd,
+    roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
+    category: 'operational',
+  },
 ];
 
 const CATEGORIES = [
-  { id: 'legal',     label: 'Legal Documents',  icon: '⚖️',  color: '#1D3557', bg: '#EFF6FF' },
-  { id: 'manual',    label: 'User Manuals',      icon: '📖',  color: '#157A6E', bg: '#F0FDF9' },
-  { id: 'technical', label: 'Technical Docs',    icon: '🛠️',  color: '#7C3AED', bg: '#F5F3FF' },
-  { id: 'business',  label: 'Business Docs',     icon: '📊',  color: '#B45309', bg: '#FFFBEB' },
+  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: '#1D3557', bg: '#EFF6FF' },
+  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#157A6E', bg: '#F0FDF9' },
+  { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#7C3AED', bg: '#F5F3FF' },
+  { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#B45309', bg: '#FFFBEB' },
+  { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#0F766E', bg: '#F0FDFA' },
 ] as const;
 
 // ─── Reader modal ─────────────────────────────────────────────────────────────
