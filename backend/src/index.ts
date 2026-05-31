@@ -44,8 +44,6 @@ app.use(cors(corsOptions));
 // Most sensitive: login and PIN reset (brute-force targets)
 app.use('/api/disputes',        rateLimit({ windowMs: 60 * 60 * 1000, max:  5, message: { success: false, error: 'Too many dispute submissions — try again in 1 hour' } }));
 app.use('/api/auth/login',      rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { success: false, error: 'Too many login attempts — try again in 15 minutes' } }));
-app.use('/api/auth/forgot-pin', rateLimit({ windowMs: 60 * 60 * 1000, max:  5, message: { success: false, error: 'Too many PIN reset requests — try again in 1 hour' } }));
-app.use('/api/auth/verify-otp', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { success: false, error: 'Too many OTP attempts — try again in 15 minutes' } }));
 app.use('/api/auth/register',   rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { success: false, error: 'Too many registrations from this IP' } }));
 // General auth routes: 30 per 15min (covers /auth/me, push-token, etc.)
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));

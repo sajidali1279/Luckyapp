@@ -31,8 +31,6 @@ export const authApi = {
     api.post('/auth/super-admin', { phone, name, pin }),
   createStaff: (phone: string, name: string, pin: string, role: string, storeId: string) =>
     api.post('/auth/staff', { phone, name, pin, role, storeId }),
-  forgotPin: (phone: string, email?: string) => api.post('/auth/forgot-pin', { phone, email }),
-  verifyOtp: (phone: string, code: string) => api.post('/auth/verify-otp', { phone, code }),
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
   updateProfile: (name: string) => api.patch('/auth/profile', { name }),
   changePin: (currentPin: string, newPin: string) => api.patch('/auth/pin', { currentPin, newPin }),
