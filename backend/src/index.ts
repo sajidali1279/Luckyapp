@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import routes from './routes';
+import prisma from './config/prisma';
 import { startBillingCron } from './utils/billing-cron';
 import { startExpiryCron } from './utils/expiry-cron';
 import { startTierResetCron } from './utils/tier-reset-cron';
@@ -60,11 +61,7 @@ app.use('/api', routes);
 app.get('/health', async (_, res) => {
   let db = 'ok';
   try {
-    // Lightweight ping — just confirms DB connection is alive
-    const { PrismaClient } = await import('@prisma/client');
-    const p = new PrismaClient();
-    await p.$queryRaw`SELECT 1`;
-    await p.$disconnect();
+    await prisma.$queryRaw`SELECT 1`;
   } catch {
     db = 'error';
   }

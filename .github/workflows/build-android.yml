@@ -42,64 +42,18 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
 
-      - name: Generate signing keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore /tmp/release.keystore \
-            -alias key0 \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass luckystop123 \
-            -keypass luckystop123 \
-            -dname "CN=Lucky Stop, O=LuckyStop, C=US"
-          echo "✅ Keystore generated"
+      - name: Decode release keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > /tmp/release.keystore
 
       - name: Configure release signing
         working-directory: ./mobile/android
         run: |
-          # Point release build to use our generated keystore
-          cat >> gradle.properties << 'EOF'
-
+          cat >> gradle.properties << EOF
           MYAPP_UPLOAD_STORE_FILE=/tmp/release.keystore
-          MYAPP_UPLOAD_STORE_PASSWORD=luckystop123
-          MYAPP_UPLOAD_KEY_ALIAS=key0
-          MYAPP_UPLOAD_KEY_PASSWORD=luckystop123
+          MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
-
-          # Patch build.gradle — replace release signingConfig with our keystore
-          python3 << 'PYEOF'
-          import re
-
-          with open('app/build.gradle', 'r') as f:
-              content = f.read()
-
-          # Add signingConfig block to release buildType
-          content = re.sub(
-              r'(signingConfigs\s*\{)',
-              r'''\1
-              release {
-                  storeFile file(MYAPP_UPLOAD_STORE_FILE)
-                  storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                  keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                  keyPassword MYAPP_UPLOAD_KEY_PASSWORD
-              }''',
-              content,
-              count=1
-          )
-
-          # Make release buildType use the release signing config
-          content = re.sub(
-              r'(buildTypes\s*\{[^}]*?release\s*\{[^}]*?)(signingConfig[^\n]*\n)',
-              r'\1signingConfig signingConfigs.release\n',
-              content,
-              count=1,
-              flags=re.DOTALL
-          )
-
-          with open('app/build.gradle', 'w') as f:
-              f.write(content)
-
-          print("✅ build.gradle patched for release signing")
-          PYEOF
 
       - name: Make gradlew executable
         working-directory: ./mobile/android
