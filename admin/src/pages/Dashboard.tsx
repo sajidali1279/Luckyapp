@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, AreaChart, Area,
 } from 'recharts';
-import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi } from '../services/api';
+import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -179,6 +179,126 @@ function LiveRateCard({ r, bronzeBase }: { r: any; bronzeBase: number }) {
   );
 }
 
+function AttentionBanner({ pending, disputes }: { pending: number; disputes: number }) {
+  const navigate = useNavigate();
+  const items = [];
+  if (pending > 0) items.push({ label: `${pending} transaction${pending > 1 ? 's' : ''} awaiting review`, to: '/transactions', color: '#E63946' });
+  if (disputes > 0) items.push({ label: `${disputes} open dispute${disputes > 1 ? 's' : ''}`, to: '/transactions', color: '#F4A261' });
+  if (!items.length) return null;
+  return (
+    <div style={s.attnBanner}>
+      <span style={s.attnIcon}>⚠️</span>
+      <div style={s.attnBody}>
+        <span style={s.attnTitle}>Needs your attention</span>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, marginTop: 4 }}>
+          {items.map(item => (
+            <button key={item.to + item.label} onClick={() => navigate(item.to)}
+              style={{ ...s.attnLink, color: item.color, borderColor: item.color + '44' }}>
+              {item.label} →
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }: {
+  label: string; value: string | number; sub?: string; color?: string; bg?: string; icon: string;
+}) {
+  return (
+    <div style={{ ...s.kpiCard, borderTop: `3px solid ${color}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ ...s.kpiIconWrap, background: bg }}>
+          <span style={{ fontSize: 18 }}>{icon}</span>
+        </div>
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] }) {
+  const navigate = useNavigate();
+  const now = new Date();
+  const liveOffers = offers.filter((o: any) => o.isActive && new Date(o.startDate) <= now && new Date(o.endDate) >= now);
+  const liveBanners = banners.filter((b: any) => b.isActive);
+  return (
+    <div style={s.offersPanel}>
+      <div style={s.offersPanelHeader}>
+        <span style={s.offersPanelTitle}>Active Promotions</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => navigate('/offers')} style={s.sectionLink}>Manage Offers →</button>
+          <button onClick={() => navigate('/banners')} style={s.sectionLink}>Manage Banners →</button>
+        </div>
+      </div>
+      {liveOffers.length === 0 && liveBanners.length === 0 ? (
+        <div style={s.emptyState}>No active offers or banners right now.</div>
+      ) : (
+        <div style={s.offersGrid}>
+          {liveOffers.slice(0, 4).map((o: any) => (
+            <div key={o.id} style={s.offerChip}>
+              <div style={s.offerChipTop}>
+                <span style={s.offerChipBadge}>OFFER</span>
+                {o.bonusRate != null && (
+                  <span style={s.offerChipRate}>+{(o.bonusRate * 100).toFixed(0)}%</span>
+                )}
+              </div>
+              <div style={s.offerChipName}>{o.title}</div>
+              {o.category && <div style={s.offerChipCat}>{o.category.replace(/_/g, ' ')}</div>}
+              <div style={s.offerChipExpiry}>Ends {new Date(o.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+            </div>
+          ))}
+          {liveBanners.slice(0, 2).map((b: any) => (
+            <div key={b.id} style={{ ...s.offerChip, borderColor: '#7c3aed22', background: '#faf5ff' }}>
+              <div style={s.offerChipTop}>
+                <span style={{ ...s.offerChipBadge, background: '#7c3aed', color: '#fff' }}>BANNER</span>
+              </div>
+              <div style={s.offerChipName}>{b.title}</div>
+              {b.storeId && <div style={s.offerChipCat}>Store-specific</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentTransactions({ txs }: { txs: any[] }) {
+  const navigate = useNavigate();
+  if (!txs.length) return null;
+  const STATUS_DOT: Record<string, string> = {
+    APPROVED: '#2DC653', PENDING: '#F4A261', REJECTED: '#9ca3af', FLAGGED: '#E63946',
+  };
+  return (
+    <div style={s.recentPanel}>
+      <div style={s.offersPanelHeader}>
+        <span style={s.offersPanelTitle}>Recent Transactions</span>
+        <button onClick={() => navigate('/transactions')} style={s.sectionLink}>View all →</button>
+      </div>
+      <div>
+        {txs.map((tx: any) => (
+          <div key={tx.id} style={s.recentRow}>
+            <div style={{ ...s.recentDot, background: STATUS_DOT[tx.status] || '#dee2e6' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>
+              <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || '—'}</div>
+            </div>
+            <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+              <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
+              <div style={s.recentTime}>
+                {new Date(tx.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -204,6 +324,43 @@ export default function Dashboard() {
   const { data: analyticsData } = useQuery({ queryKey: ['analytics-30d'], queryFn: () => billingApi.getAnalytics(), enabled: isDevAdmin });
   const { data: ratesData } = useQuery({ queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled: isDevAdmin });
   const { data: tierRatesData } = useQuery({ queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates(), enabled: isDevAdmin });
+
+  const thirtyDaysAgo = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString(); }, []);
+  const { data: trendRaw } = useQuery({
+    queryKey: ['sa-trend-30d'],
+    queryFn: () => pointsApi.getAllTransactions({ limit: '500', from: thirtyDaysAgo }),
+    enabled: isSuperAdmin && !isDevAdmin,
+    refetchInterval: 300_000,
+  });
+  const { data: disputesRaw } = useQuery({
+    queryKey: ['sa-disputes-pending'],
+    queryFn: () => disputesApi.getAll({ status: 'PENDING' }),
+    enabled: isSuperAdmin && !isDevAdmin,
+    refetchInterval: 60_000,
+  });
+
+  const trend30 = useMemo(() => {
+    const txs: any[] = trendRaw?.data?.data?.transactions || [];
+    const byDate: Record<string, { volume: number; count: number }> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      byDate[d.toISOString().slice(0, 10)] = { volume: 0, count: 0 };
+    }
+    txs.forEach((tx: any) => {
+      const key = new Date(tx.createdAt).toISOString().slice(0, 10);
+      if (byDate[key]) { byDate[key].volume += tx.purchaseAmount || 0; byDate[key].count += 1; }
+    });
+    return Object.entries(byDate).map(([date, d]) => ({
+      date: date.slice(5), volume: +d.volume.toFixed(2), count: d.count,
+    }));
+  }, [trendRaw]);
+
+  const recentTxs: any[] = useMemo(() => {
+    const txs: any[] = trendRaw?.data?.data?.transactions || [];
+    return [...txs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8);
+  }, [trendRaw]);
+
+  const pendingDisputesCount: number = (disputesRaw?.data?.data || []).length;
 
   const activeOffersCount = (offersData?.data?.data || []).length;
   const activeBanners = (bannersData?.data?.data || []).length;
@@ -269,51 +426,93 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* ── SuperAdmin Platform Summary ── */}
-      {isSuperAdmin && platform && (
+      {/* ── SuperAdmin sections ── */}
+      {isSuperAdmin && !isDevAdmin && (
         <>
-          <SectionHeader title="Today's Activity" action={{ label: 'View Transactions', to: '/transactions' }} />
-          <div style={s.statsGrid}>
-            <StatCard icon="🧾" label="Today's Transactions" value={platform.today.transactions} to="/transactions" />
-            <StatCard icon="💵" label="Today's Volume" value={fmt$(platform.today.purchaseVolume)} />
-            <StatCard icon="⭐" label="Today's Cashback" value={fmt$(platform.today.cashbackIssued)} />
-            <StatCard
-              icon="⏳" label="Pending Reviews" value={platform.pending}
-              valueColor={platform.pending > 0 ? '#E63946' : '#2DC653'} to="/transactions"
-            />
-            <StatCard icon="💰" label="Credits Outstanding" value={fmt$(platform.totalCreditsOutstanding)} valueColor="#F4A261" />
-            <StatCard icon="📅" label="This Month Volume" value={fmt$(platform.thisMonth.purchaseVolume)} />
+          {/* Attention banner */}
+          {((platform?.pending ?? 0) > 0 || pendingDisputesCount > 0) && (
+            <AttentionBanner pending={platform?.pending ?? 0} disputes={pendingDisputesCount} />
+          )}
+
+          {/* KPI row */}
+          {platform && (
+            <>
+              <SectionHeader title="Today's Activity" action={{ label: 'View Transactions', to: '/transactions' }} />
+              <div style={s.kpiGrid}>
+                <KPICard icon="🧾" label="Transactions" value={platform.today.transactions} sub="Today" color="#1D3557" bg="#eff6ff" />
+                <KPICard icon="💵" label="Purchase Volume" value={fmt$(platform.today.purchaseVolume)} sub="Today" color="#157A6E" bg="#f0fdf9" />
+                <KPICard icon="⭐" label="Cashback Issued" value={fmt$(platform.today.cashbackIssued)} sub="Today" color="#7C3AED" bg="#f5f3ff" />
+                <KPICard icon="📅" label="Monthly Volume" value={fmt$(platform.thisMonth.purchaseVolume)} sub="This month" color="#B45309" bg="#fffbeb" />
+                <KPICard
+                  icon="⏳" label="Pending Reviews" value={platform.pending}
+                  sub={platform.pending > 0 ? 'Need action' : 'All clear'}
+                  color={platform.pending > 0 ? '#E63946' : '#2DC653'}
+                  bg={platform.pending > 0 ? '#fff5f5' : '#f0fdf4'}
+                />
+                <KPICard icon="💰" label="Credits Outstanding" value={fmt$(platform.totalCreditsOutstanding)} sub="Unredeemed" color="#0369a1" bg="#f0f9ff" />
+              </div>
+            </>
+          )}
+
+          {/* 30-day trend chart */}
+          {trend30.length > 0 && (
+            <>
+              <SectionHeader title="30-Day Purchase Volume" subtitle="Daily volume across all stores" />
+              <div style={s.chartBoxFull}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={trend30} margin={{ top: 4, right: 16, bottom: 0, left: -10 }}>
+                    <defs>
+                      <linearGradient id="saGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1D3557" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#1D3557" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
+                    <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Volume']} labelFormatter={(l) => `Date: ${l}`} />
+                    <Area type="monotone" dataKey="volume" stroke="#1D3557" strokeWidth={2} fill="url(#saGrad)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+
+          {/* Store performance */}
+          {platform?.storeRanking?.length > 0 && (
+            <>
+              <SectionHeader title="Store Performance — This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
+              <div style={s.storeTable}>
+                <div style={s.storeTableHeader}>
+                  <span style={s.storeColName}>Store</span>
+                  <span style={s.storeColNum}>Transactions</span>
+                  <span style={s.storeColNum}>Purchase Volume</span>
+                  <span style={s.storeColNum}>Cashback Issued</span>
+                  <span style={s.storeColBar}>Activity</span>
+                </div>
+                {platform.storeRanking.map((store: any, i: number) => {
+                  const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
+                  const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
+                  return <StoreRow key={store.id} store={store} i={i} barWidth={barWidth} color={storeColor(i)} />;
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Active promotions + recent transactions side by side */}
+          <div style={s.twoColRow}>
+            <ActiveOffersPanel offers={activeOffersList} banners={bannersData?.data?.data || []} />
+            <RecentTransactions txs={recentTxs} />
           </div>
-        </>
-      )}
 
-      {/* ── Platform Overview ── */}
-      <SectionHeader title="Platform Overview" />
-      <div style={s.statsGrid}>
-        <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} to="/stores" />
-        <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} to="/customers" />
-        <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
-        <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
-        <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
-      </div>
-
-      {/* ── Store Performance (SuperAdmin) ── */}
-      {isSuperAdmin && platform?.storeRanking?.length > 0 && (
-        <>
-          <SectionHeader title="Store Performance — This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
-          <div style={s.storeTable}>
-            <div style={s.storeTableHeader}>
-              <span style={s.storeColName}>Store</span>
-              <span style={s.storeColNum}>Transactions</span>
-              <span style={s.storeColNum}>Purchase Volume</span>
-              <span style={s.storeColNum}>Cashback Issued</span>
-              <span style={s.storeColBar}>Activity</span>
-            </div>
-            {platform.storeRanking.map((store: any, i: number) => {
-              const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
-              const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
-              return <StoreRow key={store.id} store={store} i={i} barWidth={barWidth} color={storeColor(i)} />;
-            })}
+          {/* Platform overview */}
+          <SectionHeader title="Platform Overview" />
+          <div style={s.statsGrid}>
+            <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} to="/stores" />
+            <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} to="/customers" />
+            <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
+            <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
+            <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
           </div>
         </>
       )}
@@ -456,6 +655,72 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: 'flex-start', marginTop: 2,
   },
   sectionLinkHov: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+
+  attnBanner: {
+    display: 'flex', alignItems: 'flex-start', gap: 14,
+    background: '#fff8f0', border: '1.5px solid #F4A26144',
+    borderRadius: 14, padding: '16px 20px', marginBottom: 20,
+  },
+  attnIcon: { fontSize: 22, flexShrink: 0, marginTop: 1 },
+  attnBody: { flex: 1 },
+  attnTitle: { fontSize: 14, fontWeight: 800, color: '#92400e' },
+  attnLink: {
+    background: 'none', border: '1px solid', borderRadius: 8,
+    padding: '4px 12px', fontSize: 12, fontWeight: 700,
+    cursor: 'pointer', transition: 'all 0.12s ease',
+  },
+
+  kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 14, marginBottom: 28 },
+  kpiCard: {
+    background: '#fff', borderRadius: 14, padding: '18px 18px 16px',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)',
+    border: '1px solid #f0f1f2',
+  },
+  kpiIconWrap: { width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+
+  twoColRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28, alignItems: 'start' },
+
+  offersPanel: {
+    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden',
+  },
+  offersPanelHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '14px 18px', borderBottom: '1px solid #f0f1f2',
+    background: '#fafbfc',
+  },
+  offersPanelTitle: { fontSize: 13, fontWeight: 800, color: '#1D3557' },
+  offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
+  offerChip: {
+    background: '#fff', border: '1.5px solid #e63946 22', borderColor: '#e9ecef',
+    borderRadius: 12, padding: '12px 14px',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+  },
+  offerChipTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  offerChipBadge: {
+    fontSize: 9, fontWeight: 800, background: '#E63946', color: '#fff',
+    borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
+  },
+  offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
+  offerChipName: { fontSize: 13, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
+  offerChipCat: { fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  offerChipExpiry: { fontSize: 10, color: '#E63946', fontWeight: 600, marginTop: 6 },
+  emptyState: { padding: '24px 18px', color: '#9ca3af', fontSize: 13, textAlign: 'center' as const },
+
+  recentPanel: {
+    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden',
+  },
+  recentRow: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '11px 18px', borderBottom: '1px solid #f9fafb',
+    transition: 'background 0.12s ease',
+  },
+  recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  recentCustomer: { fontSize: 13, fontWeight: 700, color: '#111827' },
+  recentMeta: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+  recentAmount: { fontSize: 13, fontWeight: 800, color: '#1D3557' },
+  recentTime: { fontSize: 10, color: '#9ca3af', marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
   statCard: {
