@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
-  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated,
+  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
@@ -545,7 +545,13 @@ export default function CustomerHome() {
                       <Text style={styles.gasStoreAddress} numberOfLines={1}>{store.address}, {store.city}</Text>
                     )}
                     {!nearestStore && store.phone && (
-                      <Text style={styles.gasStorePhone}>{store.phone}</Text>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`)}
+                        activeOpacity={0.7}
+                        style={styles.gasPhoneBtn}
+                      >
+                        <Text style={styles.gasStorePhone}>📞 {store.phone}</Text>
+                      </TouchableOpacity>
                     )}
                     {store.gasPricePerGallon != null && (
                       <View style={styles.gasPriceLine}>
@@ -1092,7 +1098,11 @@ const styles = StyleSheet.create({
   gasPriceUnit: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
   gasUpdatedAt: { fontSize: 10, color: COLORS.border, marginTop: 6, fontWeight: '600' },
   gasStoreAddress: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500', marginBottom: 6 },
-  gasStorePhone: { fontSize: 11, color: COLORS.primary, fontWeight: '600', marginBottom: 6 },
+  gasPhoneBtn: { alignSelf: 'flex-start', marginBottom: 6 },
+  gasStorePhone: {
+    fontSize: 11, color: COLORS.primary, fontWeight: '700',
+    textDecorationLine: 'underline', textDecorationColor: COLORS.primary,
+  },
 
   offerStoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, marginTop: 1 },
   offerStoreText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
