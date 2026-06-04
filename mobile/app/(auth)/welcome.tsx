@@ -10,6 +10,7 @@ import Markdown from 'react-native-markdown-display';
 import Svg, { Polygon, Circle, Path, Rect, G, Ellipse } from 'react-native-svg';
 import { COLORS } from '../../constants';
 import { TERMS_OF_SERVICE } from '../../constants/termsOfService';
+import LegalDocModal from '../../components/LegalDocModal';
 
 const { width } = Dimensions.get('window');
 
@@ -154,7 +155,9 @@ export default function WelcomeScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<'terms' | 'privacy' | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   function handleNext() {
@@ -207,6 +210,18 @@ export default function WelcomeScreen() {
             )}
           </View>
 
+          {/* Quick view links */}
+          <View style={ts.viewLinksRow}>
+            <TouchableOpacity onPress={() => setLegalDoc('terms')} activeOpacity={0.7}>
+              <Text style={ts.viewLink}>View Terms</Text>
+            </TouchableOpacity>
+            <Text style={ts.viewLinkSep}>·</Text>
+            <TouchableOpacity onPress={() => setLegalDoc('privacy')} activeOpacity={0.7}>
+              <Text style={ts.viewLink}>View Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* T&C checkbox */}
           <View style={ts.agreeRow}>
             <TouchableOpacity
               style={[ts.checkbox, agreed && ts.checkboxChecked]}
@@ -216,10 +231,27 @@ export default function WelcomeScreen() {
               {agreed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
             <Text style={[ts.agreeLabel, !scrolledToBottom && { color: '#aaa' }]}>
-              I have read and agree to the Terms & Conditions
+              I agree to the{' '}
+              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('terms')}>Terms of Service</Text>
             </Text>
           </View>
 
+          {/* Privacy Policy checkbox */}
+          <View style={ts.agreeRow}>
+            <TouchableOpacity
+              style={[ts.checkbox, privacyAgreed && ts.checkboxChecked]}
+              onPress={() => setPrivacyAgreed(!privacyAgreed)}
+              activeOpacity={0.7}
+            >
+              {privacyAgreed && <Text style={ts.checkmark}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={ts.agreeLabel}>
+              I agree to the{' '}
+              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('privacy')}>Privacy Policy</Text>
+            </Text>
+          </View>
+
+          {/* Age checkbox */}
           <View style={ts.agreeRow}>
             <TouchableOpacity
               style={[ts.checkbox, ageConfirmed && ts.checkboxChecked]}
@@ -234,9 +266,9 @@ export default function WelcomeScreen() {
           </View>
 
           <TouchableOpacity
-            style={[ts.agreeBtn, (!agreed || !ageConfirmed) && ts.agreeBtnOff]}
+            style={[ts.agreeBtn, (!agreed || !privacyAgreed || !ageConfirmed) && ts.agreeBtnOff]}
             onPress={handleAgree}
-            disabled={!agreed || !ageConfirmed}
+            disabled={!agreed || !privacyAgreed || !ageConfirmed}
             activeOpacity={0.85}
           >
             <Text style={ts.agreeBtnText}>I Agree & Continue →</Text>
@@ -246,6 +278,13 @@ export default function WelcomeScreen() {
             <Text style={ts.backBtnText}>← Back</Text>
           </TouchableOpacity>
         </SafeAreaView>
+
+        {/* Legal doc viewer */}
+        <LegalDocModal
+          visible={legalDoc !== null}
+          doc={legalDoc ?? 'terms'}
+          onClose={() => setLegalDoc(null)}
+        />
       </View>
     );
   }
@@ -377,7 +416,14 @@ const ts = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   checkmark: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  viewLinksRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, marginBottom: 12, marginTop: -4,
+  },
+  viewLink: { fontSize: 12, color: COLORS.secondary, fontWeight: '700' },
+  viewLinkSep: { fontSize: 12, color: '#adb5bd' },
   agreeLabel: { flex: 1, fontSize: 13, color: '#444', lineHeight: 18 },
+  agreeLabelLink: { color: COLORS.secondary, fontWeight: '700', textDecorationLine: 'underline' },
   agreeBtn: {
     backgroundColor: COLORS.primary, borderRadius: 16,
     paddingVertical: 18, alignItems: 'center', marginBottom: 10,

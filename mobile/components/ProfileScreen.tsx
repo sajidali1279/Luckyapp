@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
@@ -17,6 +17,7 @@ import {
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
   CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon,
 } from './Icons';
+import LegalDocModal from './LegalDocModal';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -39,6 +40,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }, []);
 
   const [panel, setPanel] = useState<Panel>(null);
+  const [legalDoc, setLegalDoc] = useState<'terms' | 'privacy' | null>(null);
   const [name, setName] = useState(user?.name || '');
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -544,6 +546,29 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           </>
         )}
 
+        {/* ── Legal ── */}
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Legal</Text>
+        <TouchableOpacity style={s.settingRow} onPress={() => setLegalDoc('terms')} activeOpacity={0.8}>
+          <View style={[s.settingIconBg, { backgroundColor: '#eff6ff' }]}>
+            <BookOpenIcon size={20} color="#1D3557" strokeWidth={1.75} />
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>Terms of Service</Text>
+            <Text style={s.settingValue}>Your rights, program rules, and conditions</Text>
+          </View>
+          <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.settingRow} onPress={() => setLegalDoc('privacy')} activeOpacity={0.8}>
+          <View style={[s.settingIconBg, { backgroundColor: '#f0fdf9' }]}>
+            <ShieldIcon size={20} color="#157A6E" strokeWidth={1.75} />
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>Privacy Policy</Text>
+            <Text style={s.settingValue}>What data we collect and how we use it</Text>
+          </View>
+          <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+        </TouchableOpacity>
+
         {/* ── Sign Out ── */}
         <TouchableOpacity style={s.signOutBtn} onPress={() => logout()} activeOpacity={0.85}>
           <Text style={s.signOutText}>Sign Out</Text>
@@ -730,6 +755,13 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Legal doc modal */}
+      <LegalDocModal
+        visible={legalDoc !== null}
+        doc={legalDoc ?? 'terms'}
+        onClose={() => setLegalDoc(null)}
+      />
     </View>
   );
 }
