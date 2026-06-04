@@ -33,12 +33,12 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null }> = {
-  BRONZE:   { color: '#CD7F32', label: 'Bronze',   nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000  },
-  SILVER:   { color: '#A8A9AD', label: 'Silver',   nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000 },
-  GOLD:     { color: '#FFD700', label: 'Gold',     nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000 },
-  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 60000 },
-  PLATINUM: { color: '#E5E4E2', label: 'Platinum', nextLabel: null,       thresholdPts: 60000,  nextThresholdPts: null  },
+const TIER_CONFIG: Record<string, { color: string; label: string; icon: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null }> = {
+  BRONZE:   { color: '#CD7F32', label: 'Bronze',   icon: '🥉', nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000  },
+  SILVER:   { color: '#A8A9AD', label: 'Silver',   icon: '🥈', nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000 },
+  GOLD:     { color: '#FFD700', label: 'Gold',     icon: '🥇', nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000 },
+  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  icon: '💎', nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 60000 },
+  PLATINUM: { color: '#E5E4E2', label: 'Platinum', icon: '👑', nextLabel: null,       thresholdPts: 60000,  nextThresholdPts: null  },
 };
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -405,12 +405,15 @@ export default function CustomerHome() {
                   )}
                   <View style={[
                     styles.tierBubble,
-                    isCurrent && { backgroundColor: cfg.color, borderColor: cfg.color, transform: [{ scale: 1.25 }] },
-                    isPast && { backgroundColor: cfg.color + '60', borderColor: cfg.color + '80' },
-                    !isCurrent && !isPast && { borderColor: 'rgba(255,255,255,0.2)' },
+                    isCurrent && { backgroundColor: cfg.color + '30', borderColor: cfg.color, transform: [{ scale: 1.3 }] },
+                    isPast && { backgroundColor: cfg.color + '25', borderColor: cfg.color + '60' },
+                    !isCurrent && !isPast && { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)' },
                   ]}>
-                    <Text style={[styles.tierBubbleText, (isCurrent || isPast) && { color: '#fff' }]}>
-                      {cfg.label[0]}
+                    <Text style={[
+                      styles.tierBubbleText,
+                      !isCurrent && !isPast && { opacity: 0.4 },
+                    ]}>
+                      {cfg.icon}
                     </Text>
                   </View>
                   {isCurrent && <View style={[styles.tierBubbleDot, { backgroundColor: cfg.color }]} />}
@@ -952,13 +955,13 @@ const styles = StyleSheet.create({
     height: 2, backgroundColor: 'rgba(255,255,255,0.15)',
   },
   tierBubble: {
-    width: 28, height: 28, borderRadius: 14,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    width: 34, height: 34, borderRadius: 17,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   tierBubbleText: {
-    fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.35)',
+    fontSize: 16,
   },
   tierBubbleDot: {
     width: 5, height: 5, borderRadius: 3, marginTop: 4,
