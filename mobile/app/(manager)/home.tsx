@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -101,20 +102,36 @@ export default function ManagerHome() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
-      {/* Header — extends down so quick cards can overlap it */}
+      {/* Header with SVG gradient */}
       <View style={s.header}>
-        <View>
-          <Text style={s.greeting}>{getGreeting()},</Text>
-          <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
-          {stores.length === 1 && (
-            <Text style={s.storeName}>{stores[0].name}</Text>
+        <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+          <Defs>
+            <SvgGradient id="hg" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#0f1f35" />
+              <Stop offset="1" stopColor="#2a4a73" />
+            </SvgGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#hg)" />
+        </Svg>
+
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', zIndex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            {/* LS logo mark */}
+            <View style={s.headerLogo}>
+              <Text style={s.headerLogoText}>LS</Text>
+            </View>
+            <View>
+              <Text style={s.greeting}>{getGreeting()}</Text>
+              <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
+              {stores.length === 1 && <Text style={s.storeName}>{stores[0].name}</Text>}
+            </View>
+          </View>
+          {totalItems > 0 && (
+            <View style={s.headerBadge}>
+              <Text style={s.headerBadgeText}>{totalItems} tracked</Text>
+            </View>
           )}
         </View>
-        {totalItems > 0 && (
-          <View style={s.headerBadge}>
-            <Text style={s.headerBadgeText}>{totalItems} items tracked</Text>
-          </View>
-        )}
       </View>
 
       <ScrollView
@@ -124,6 +141,22 @@ export default function ManagerHome() {
         showsVerticalScrollIndicator={false}
       >
         {/* Quick stat cards — overlap the header */}
+        <View style={s.quickRow}>
+          <TouchableOpacity style={[s.quickCard, s.quickCardWide]} onPress={() => router.push('/(manager)/order-list')} activeOpacity={0.85}>
+            <View style={s.quickTop}>
+              <View style={[s.quickIconBox, { backgroundColor: COLORS.primary + '15' }]}>
+                <TrendingUpIcon size={20} color={COLORS.primary} />
+              </View>
+              <Text style={[s.quickBadgeText, { color: COLORS.textMuted, fontSize: 10 }]}>
+                {PERIODS.find(p => p.value === period)?.label}
+              </Text>
+            </View>
+            <Text style={s.quickLabel}>Total Orders</Text>
+            <Text style={s.quickValue}>{topItems.reduce((a, b) => a + b.orderCount, 0) || '—'}</Text>
+            <Text style={s.quickSub}>{categories.length} categories</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={s.quickRow}>
           <TouchableOpacity
             style={s.quickCard}
@@ -258,7 +291,11 @@ export default function ManagerHome() {
                 {totalItems > 0 && <Text style={s.cardSub}>{totalItems} total</Text>}
               </View>
               {topItems.length === 0 ? (
-                <Text style={s.empty}>No order history yet for this filter</Text>
+                <View style={s.emptyBox}>
+                  <View style={s.emptyIcon}><PackageIcon size={28} color={COLORS.border} /></View>
+                  <Text style={s.empty}>No orders yet for this period</Text>
+                  <Text style={s.emptySub}>Orders will appear here as your team logs inventory requests</Text>
+                </View>
               ) : (
                 topItems.slice(0, 10).map((item, i) => {
                   const rank = RANK[i] ?? null;
@@ -315,17 +352,21 @@ const s = StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: COLORS.secondary,
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 64,           // extra room so quick cards overlap cleanly
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    paddingBottom: 64,
+    overflow: 'hidden',
   },
-  greeting:  { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500', letterSpacing: 0.2 },
-  name:      { fontSize: 26, color: '#FFFFFF', fontWeight: '800', marginTop: 2, letterSpacing: -0.3 },
-  storeName: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 5, fontWeight: '400' },
+  headerLogo: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  headerLogoText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  greeting:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500', letterSpacing: 0.3 },
+  name:      { fontSize: 24, color: '#FFFFFF', fontWeight: '800', marginTop: 1, letterSpacing: -0.3 },
+  storeName: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3, fontWeight: '400' },
   headerBadge: {
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
@@ -338,8 +379,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: -52,
-    marginBottom: 14,
+    marginBottom: 10,
   },
+  quickCardWide: { flex: 1 },
   quickCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -409,7 +451,10 @@ const s = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   cardTitle:  { fontSize: 15, fontWeight: '800', color: '#111827' },
   cardSub:    { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
-  empty:      { fontSize: 13, color: '#D1D5DB', textAlign: 'center', paddingVertical: 28 },
+  emptyBox:   { alignItems: 'center', paddingVertical: 28, gap: 8 },
+  emptyIcon:  { width: 56, height: 56, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  empty:      { fontSize: 14, color: '#9CA3AF', textAlign: 'center', fontWeight: '600' },
+  emptySub:   { fontSize: 12, color: '#D1D5DB', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 },
 
   // ── Loading ────────────────────────────────────────────────────────────────
   loadingBox:  { alignItems: 'center', paddingVertical: 48, gap: 10 },

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
+  Animated, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -137,6 +138,84 @@ function TierBadge({ tier }: { tier: string }) {
       <Text style={s.tierBadgeEmoji}>{cfg.emoji}</Text>
       <Text style={[s.tierBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
     </View>
+  );
+}
+
+// ─── Celebration done screen ───────────────────────────────────────────────────
+
+const PARTICLE_COLORS = ['#CC2936', '#F4A261', '#FFD700', '#2DC653', '#7B2FBE', '#fff'];
+const NUM_PARTICLES = 18;
+
+function CelebrationDone({
+  heading, amount, amountColor = COLORS.success, sub, sub2, extraNode, onNext, nextLabel,
+}: {
+  heading: string; amount: string; amountColor?: string;
+  sub?: string; sub2?: string; extraNode?: React.ReactNode;
+  onNext: () => void; nextLabel: string;
+}) {
+  const scale    = useRef(new Animated.Value(0)).current;
+  const opacity  = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+  const particles = useRef(
+    Array.from({ length: NUM_PARTICLES }, () => ({
+      x: new Animated.Value(0), y: new Animated.Value(0),
+      op: new Animated.Value(1), r: new Animated.Value(0),
+    }))
+  ).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start(() => {
+      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }).start();
+      particles.forEach((p, i) => {
+        const angle = (i / NUM_PARTICLES) * 2 * Math.PI;
+        const dist  = 80 + Math.random() * 60;
+        Animated.parallel([
+          Animated.timing(p.x, { toValue: Math.cos(angle) * dist, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(p.y, { toValue: Math.sin(angle) * dist - 20, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.sequence([
+            Animated.delay(300),
+            Animated.timing(p.op, { toValue: 0, duration: 500, useNativeDriver: true }),
+          ]),
+          Animated.timing(p.r, { toValue: Math.random() * 6.28, duration: 700, useNativeDriver: true }),
+        ]).start();
+      });
+    });
+  }, []);
+
+  return (
+    <Animated.View style={[s.fill, s.center, { opacity, transform: [{ scale }] }]}>
+      {/* Particle burst */}
+      <View style={s.particleOrigin} pointerEvents="none">
+        {particles.map((p, i) => (
+          <Animated.View
+            key={i}
+            style={[s.particle, {
+              backgroundColor: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+              opacity: p.op,
+              transform: [{ translateX: p.x }, { translateY: p.y }, { rotate: p.r.interpolate({ inputRange: [0, 6.28], outputRange: ['0deg', '360deg'] }) }],
+            }]}
+          />
+        ))}
+      </View>
+
+      {/* Check ring */}
+      <Animated.View style={[s.doneIconRing, { transform: [{ scale: checkScale }] }]}>
+        <Text style={s.doneCheck}>✓</Text>
+      </Animated.View>
+
+      <Text style={s.doneHeading}>{heading}</Text>
+      <Text style={[s.doneAmount, { color: amountColor }]}>{amount}</Text>
+      {sub  && <Text style={s.doneSub}>{sub}</Text>}
+      {sub2 && <Text style={s.doneSub}>{sub2}</Text>}
+      {extraNode}
+
+      <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={onNext} activeOpacity={0.85}>
+        <Text style={s.primaryBtnText}>{nextLabel}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -1033,32 +1112,29 @@ export default function EmployeeScanScreen() {
 
       {/* ──────────────────────── GRANT: DONE ────────────────────────── */}
       {step === 'grant-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={s.doneIconRing}>
-            <Text style={s.doneEmoji}>✅</Text>
-          </View>
-          <Text style={s.doneHeading}>Points Granted!</Text>
-          <Text style={s.doneAmount}>+{Math.round(pointsAwarded * 100)} pts</Text>
-          {gasBonusAwarded > 0 && (
-            <Text style={[s.doneSub, { color: tierCfg.color, fontWeight: '700' }]}>
-              +{Math.round(gasBonusAwarded * 100)} gas bonus pts ({tier})
-            </Text>
-          )}
-          <Text style={s.doneName}>{customerInfo?.name || customerInfo?.phone}</Text>
-          <Text style={s.doneSub}>
-            {transactionIds.length > 1
-              ? `${transactionIds.length} categories — cashback credited`
-              : 'Cashback credited to their account'}
-          </Text>
-          {promotionApplied && (
-            <View style={[s.promoBanner, { marginTop: 12 }]}>
-              <Text style={s.promoBannerText}>Promo applied: {promotionApplied}</Text>
-            </View>
-          )}
-          <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={reset} activeOpacity={0.85}>
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Points Granted!"
+          amount={`+${Math.round(pointsAwarded * 100)} pts`}
+          amountColor={COLORS.success}
+          sub={customerInfo?.name || customerInfo?.phone}
+          sub2={transactionIds.length > 1 ? `${transactionIds.length} categories — cashback credited` : 'Cashback credited to their account'}
+          extraNode={
+            <>
+              {gasBonusAwarded > 0 && (
+                <Text style={[s.doneSub, { color: tierCfg.color, fontWeight: '700' }]}>
+                  +{Math.round(gasBonusAwarded * 100)} gas bonus pts ({tier})
+                </Text>
+              )}
+              {promotionApplied && (
+                <View style={[s.promoBanner, { marginTop: 8 }]}>
+                  <Text style={s.promoBannerText}>🎉 Promo applied: {promotionApplied}</Text>
+                </View>
+              )}
+            </>
+          }
+          onNext={reset}
+          nextLabel="Scan Next Customer"
+        />
       )}
 
       {/* ──────────────────────── REDEEM: AMOUNT ────────────────────────── */}
@@ -1120,48 +1196,36 @@ export default function EmployeeScanScreen() {
 
       {/* ──────────────────────── REDEEM: DONE ────────────────────────── */}
       {step === 'redeem-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={[s.doneIconRing, { backgroundColor: COLORS.accent + '20' }]}>
-            <Text style={s.doneEmoji}>🎉</Text>
-          </View>
-          <Text style={s.doneHeading}>Redeemed!</Text>
-          <Text style={[s.doneAmount, { color: COLORS.accent }]}>-${pointsAwarded.toFixed(2)}</Text>
-          <Text style={s.doneName}>{customerInfo?.name || customerInfo?.phone}</Text>
-          <View style={s.newBalanceCard}>
-            <Text style={s.newBalanceLabel}>Remaining balance</Text>
-            <Text style={s.newBalanceValue}>{Math.round(Number(customerInfo?.pointsBalance ?? 0) * 100).toLocaleString()} pts</Text>
-          </View>
-          <TouchableOpacity
-            style={[s.primaryBtn, s.doneBtn, { backgroundColor: COLORS.accent }]}
-            onPress={reset}
-            activeOpacity={0.85}
-          >
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Redeemed!"
+          amount={`-$${pointsAwarded.toFixed(2)}`}
+          amountColor={COLORS.accent}
+          sub={customerInfo?.name || customerInfo?.phone}
+          extraNode={
+            <View style={s.newBalanceCard}>
+              <Text style={s.newBalanceLabel}>Remaining balance</Text>
+              <Text style={s.newBalanceValue}>{Math.round(Number(customerInfo?.pointsBalance ?? 0) * 100).toLocaleString()} pts</Text>
+            </View>
+          }
+          onNext={reset} nextLabel="Scan Next Customer"
+        />
       )}
 
       {/* ──────────────────────── BENEFIT: DONE ────────────────────────── */}
       {step === 'benefit-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={[s.doneIconRing, { backgroundColor: tierCfg.color + '20' }]}>
-            <Text style={s.doneEmoji}>{benefitType === 'SILVER_FOUNTAIN' ? '🥤' : '☕'}</Text>
-          </View>
-          <Text style={s.doneHeading}>Benefit Claimed!</Text>
-          <Text style={[s.doneAmount, { color: tierCfg.color }]}>
-            {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
-          </Text>
-          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
-          <View style={[s.newBalanceCard, { borderColor: tierCfg.color + '40' }]}>
-            <Text style={s.newBalanceLabel}>{tierCfg.emoji} {tierCfg.label} Member</Text>
-            {benefitType === 'SILVER_FOUNTAIN' && (
-              <Text style={s.newBalanceValue}>{silverRemaining - 1} uses remaining</Text>
-            )}
-          </View>
-          <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={reset} activeOpacity={0.85}>
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Benefit Claimed!"
+          amount={benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
+          amountColor={tierCfg.color}
+          sub={cdata?.name || cdata?.phone}
+          extraNode={
+            <View style={[s.newBalanceCard, { borderColor: tierCfg.color + '40' }]}>
+              <Text style={s.newBalanceLabel}>{tierCfg.emoji} {tierCfg.label} Member</Text>
+              {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{silverRemaining - 1} uses remaining</Text>}
+            </View>
+          }
+          onNext={reset} nextLabel="Scan Next Customer"
+        />
       )}
 
       {/* ──────────────────────── CATALOG: SELECT ────────────────────────── */}
@@ -1235,72 +1299,53 @@ export default function EmployeeScanScreen() {
 
       {/* ──────────────────────── CATALOG: DONE ────────────────────────── */}
       {step === 'catalog-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={[s.doneIconRing, { backgroundColor: '#9B5DE5' + '20' }]}>
-            <Text style={s.doneEmoji}>🎁</Text>
-          </View>
-          <Text style={s.doneHeading}>Reward Redeemed!</Text>
-          <Text style={[s.doneAmount, { color: '#9B5DE5', fontSize: 22 }]}>
-            {selectedCatalogItem?.emoji ? `${selectedCatalogItem.emoji} ` : ''}{selectedCatalogItem?.title}
-          </Text>
-          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
-          <View style={s.newBalanceCard}>
-            <Text style={s.newBalanceLabel}>Points deducted</Text>
-            <Text style={[s.newBalanceValue, { color: '#9B5DE5' }]}>
-              -{selectedCatalogItem?.pointsCost?.toLocaleString()} pts
-            </Text>
-          </View>
-          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#9B5DE5' }]} onPress={reset} activeOpacity={0.85}>
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Reward Redeemed!"
+          amount={`${selectedCatalogItem?.emoji ? selectedCatalogItem.emoji + ' ' : ''}${selectedCatalogItem?.title}`}
+          amountColor="#9B5DE5"
+          sub={cdata?.name || cdata?.phone}
+          extraNode={
+            <View style={s.newBalanceCard}>
+              <Text style={s.newBalanceLabel}>Points deducted</Text>
+              <Text style={[s.newBalanceValue, { color: '#9B5DE5' }]}>-{selectedCatalogItem?.pointsCost?.toLocaleString()} pts</Text>
+            </View>
+          }
+          onNext={reset} nextLabel="Scan Next Customer"
+        />
       )}
 
       {/* ──────────────────────── WELCOME BONUS: DONE ────────────────────────── */}
       {step === 'welcome-bonus-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={[s.doneIconRing, { backgroundColor: '#FEF3C720' }]}>
-            <Text style={s.doneEmoji}>{confirmedWelcomeBonus?.rewardEmoji || '🎁'}</Text>
-          </View>
-          <Text style={s.doneHeading}>Welcome Bonus Confirmed!</Text>
-          <Text style={[s.doneAmount, { color: '#D97706', fontSize: 22 }]}>
-            {confirmedWelcomeBonus?.rewardLabel}
-          </Text>
-          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
-          <View style={s.newBalanceCard}>
-            <Text style={s.newBalanceLabel}>Day {confirmedWelcomeBonus?.day} of 7 redeemed</Text>
-          </View>
-          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#F59E0B' }]} onPress={reset} activeOpacity={0.85}>
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Welcome Bonus!"
+          amount={`${confirmedWelcomeBonus?.rewardEmoji || '🎁'} ${confirmedWelcomeBonus?.rewardLabel}`}
+          amountColor="#D97706"
+          sub={cdata?.name || cdata?.phone}
+          extraNode={
+            <View style={s.newBalanceCard}>
+              <Text style={s.newBalanceLabel}>Day {confirmedWelcomeBonus?.day} of 7 redeemed</Text>
+            </View>
+          }
+          onNext={reset} nextLabel="Scan Next Customer"
+        />
       )}
 
       {/* ──────────────────────── PENDING REDEMPTION: DONE ────────────────────────── */}
       {step === 'pending-done' && (
-        <View style={[s.fill, s.center]}>
-          <View style={[s.doneIconRing, { backgroundColor: '#22C55E20' }]}>
-            <Text style={s.doneEmoji}>✅</Text>
-          </View>
-          <Text style={s.doneHeading}>Reward Confirmed!</Text>
-          <Text style={[s.doneAmount, { color: '#22C55E', fontSize: 22 }]}>
-            {confirmedPending?.catalogItem?.emoji ? `${confirmedPending.catalogItem.emoji} ` : ''}
-            {confirmedPending?.catalogItem?.title}
-          </Text>
-          <Text style={s.doneName}>{cdata?.name || cdata?.phone}</Text>
-          <View style={s.newBalanceCard}>
-            <Text style={s.newBalanceLabel}>Code redeemed</Text>
-            <Text style={[s.newBalanceValue, { color: '#22C55E', letterSpacing: 4, fontSize: 22 }]}>
-              {confirmedPending?.redemptionCode}
-            </Text>
-          </View>
-          <Text style={[s.doneSub, { marginTop: 8 }]}>
-            -{confirmedPending?.pointsSpent?.toLocaleString()} pts already deducted
-          </Text>
-          <TouchableOpacity style={[s.primaryBtn, s.doneBtn, { backgroundColor: '#22C55E' }]} onPress={reset} activeOpacity={0.85}>
-            <Text style={s.primaryBtnText}>Scan Next Customer</Text>
-          </TouchableOpacity>
-        </View>
+        <CelebrationDone
+          heading="Reward Confirmed!"
+          amount={`${confirmedPending?.catalogItem?.emoji ? confirmedPending.catalogItem.emoji + ' ' : ''}${confirmedPending?.catalogItem?.title}`}
+          amountColor="#22C55E"
+          sub={cdata?.name || cdata?.phone}
+          sub2={`-${confirmedPending?.pointsSpent?.toLocaleString()} pts already deducted`}
+          extraNode={
+            <View style={s.newBalanceCard}>
+              <Text style={s.newBalanceLabel}>Code redeemed</Text>
+              <Text style={[s.newBalanceValue, { color: '#22C55E', letterSpacing: 4, fontSize: 22 }]}>{confirmedPending?.redemptionCode}</Text>
+            </View>
+          }
+          onNext={reset} nextLabel="Scan Next Customer"
+        />
       )}
     </View>
   );
@@ -1551,17 +1596,20 @@ const s = StyleSheet.create({
   permTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   permSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 8, marginBottom: 24, lineHeight: 20 },
 
-  // ── Done screen ───────────────────────────────────────────────────────────────
+  // ── Done / celebration screen ─────────────────────────────────────────────────
+  particleOrigin: { position: 'absolute', width: 0, height: 0, alignItems: 'center', justifyContent: 'center' },
+  particle: { position: 'absolute', width: 10, height: 10, borderRadius: 3 },
   doneIconRing: {
-    width: 96, height: 96, borderRadius: 48,
+    width: 88, height: 88, borderRadius: 44,
     backgroundColor: COLORS.success + '20',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+    borderWidth: 2, borderColor: COLORS.success + '40',
   },
-  doneEmoji: { fontSize: 44 },
-  doneHeading: { fontSize: 28, fontWeight: '900', color: COLORS.text, marginBottom: 4 },
-  doneAmount: { fontSize: 36, fontWeight: '900', color: COLORS.success, marginBottom: 6 },
-  doneName: { fontSize: 16, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
-  doneSub: { fontSize: 14, color: COLORS.textMuted, marginBottom: 24 },
+  doneCheck: { fontSize: 40, color: COLORS.success, fontWeight: '900' },
+  doneHeading: { fontSize: 26, fontWeight: '900', color: COLORS.text, marginBottom: 4 },
+  doneAmount: { fontSize: 34, fontWeight: '900', color: COLORS.success, marginBottom: 6 },
+  doneName: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
+  doneSub: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8, textAlign: 'center' },
   doneBtn: { marginTop: 12, width: 260 },
   newBalanceCard: {
     backgroundColor: COLORS.white, borderRadius: 16, padding: 16,

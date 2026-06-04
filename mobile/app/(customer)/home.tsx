@@ -165,6 +165,17 @@ export default function CustomerHome() {
     )).start();
   }, []);
 
+  // QR scan line animation
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineAnim, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanLineAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       authApi.getMe().then(({ data }) => {
@@ -381,22 +392,43 @@ export default function CustomerHome() {
             <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
           </TouchableOpacity>
 
-          {/* Tier progress bar */}
-          {tier.nextLabel && (
-            <View style={styles.tierProgress}>
-              <View style={styles.tierProgressLabels}>
-                <Text style={styles.tierProgressLeft}>{tier.label}</Text>
-                <Text style={styles.tierProgressRight}>
-                  {(tier.nextThresholdPts! - periodPts).toLocaleString()} pts to {tier.nextLabel}
-                </Text>
-              </View>
+          {/* Tier track */}
+          <View style={styles.tierTrack}>
+            {Object.entries(TIER_CONFIG).map(([key, cfg], i, arr) => {
+              const isCurrent = (user?.tier || 'BRONZE') === key;
+              const isPast = i < Object.keys(TIER_CONFIG).indexOf(user?.tier || 'BRONZE');
+              const isNext = i === Object.keys(TIER_CONFIG).indexOf(user?.tier || 'BRONZE') + 1;
+              return (
+                <View key={key} style={styles.tierTrackItem}>
+                  {i > 0 && (
+                    <View style={[styles.tierConnector, { backgroundColor: isPast ? cfg.color : 'rgba(255,255,255,0.15)' }]} />
+                  )}
+                  <View style={[
+                    styles.tierBubble,
+                    isCurrent && { backgroundColor: cfg.color, borderColor: cfg.color, transform: [{ scale: 1.25 }] },
+                    isPast && { backgroundColor: cfg.color + '60', borderColor: cfg.color + '80' },
+                    !isCurrent && !isPast && { borderColor: 'rgba(255,255,255,0.2)' },
+                  ]}>
+                    <Text style={[styles.tierBubbleText, (isCurrent || isPast) && { color: '#fff' }]}>
+                      {cfg.label[0]}
+                    </Text>
+                  </View>
+                  {isCurrent && <View style={[styles.tierBubbleDot, { backgroundColor: cfg.color }]} />}
+                </View>
+              );
+            })}
+          </View>
+          {tier.nextLabel ? (
+            <View style={styles.tierProgressWrap}>
               <View style={styles.tierProgressTrack}>
                 <View style={[styles.tierProgressFill, { width: `${Math.round(tierProgress * 100)}%` as any, backgroundColor: tier.color }]} />
               </View>
+              <Text style={styles.tierProgressRight}>
+                {(tier.nextThresholdPts! - periodPts).toLocaleString()} pts to {tier.nextLabel}
+              </Text>
             </View>
-          )}
-          {!tier.nextLabel && (
-            <Text style={styles.tierProgressMaxText}>Max tier achieved</Text>
+          ) : (
+            <Text style={styles.tierProgressMaxText}>✦ Platinum — Max tier achieved</Text>
           )}
         </View>
       </Animated.View>
@@ -404,11 +436,40 @@ export default function CustomerHome() {
       {/* ── QR + Scan Receipt ── */}
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <View style={styles.qrSection}>
-          <Text style={styles.sectionTitleText}>Your QR Code</Text>
-          <Text style={styles.qrSubtext}>Show this to the cashier to earn points</Text>
+          {/* Header row */}
+          <View style={styles.qrHeader}>
+            <View style={styles.qrLogoMark}>
+              <Text style={styles.qrLogoText}>LS</Text>
+            </View>
+            <View>
+              <Text style={styles.qrTitle}>Your QR Code</Text>
+              <Text style={styles.qrSubtext}>Show to cashier to earn points</Text>
+            </View>
+          </View>
+
           {user?.qrCode ? (
-            <View style={styles.qrContainer}>
-              <QRCode value={user.qrCode} size={176} color={COLORS.secondary} />
+            <View style={styles.qrFrame}>
+              {/* Corner brackets */}
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+
+              {/* QR code */}
+              <View style={styles.qrInner}>
+                <QRCode value={user.qrCode} size={188} color={COLORS.secondary} backgroundColor="transparent" />
+              </View>
+
+              {/* Animated scan line */}
+              <Animated.View
+                style={[styles.scanLine, {
+                  transform: [{
+                    translateY: scanLineAnim.interpolate({
+                      inputRange: [0, 1], outputRange: [0, 188],
+                    }),
+                  }],
+                }]}
+              />
             </View>
           ) : (
             <View style={styles.qrEmpty}>
@@ -417,6 +478,8 @@ export default function CustomerHome() {
               <Text style={styles.qrEmptySub}>Pull down to refresh</Text>
             </View>
           )}
+
+          <Text style={styles.qrHint}>🔒 Unique to your account</Text>
         </View>
 
         <WelcomeBonusCard />
@@ -879,28 +942,82 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28, paddingVertical: 12, marginTop: 18,
   },
   redeemButtonText: { fontWeight: '800', color: '#fff', fontSize: 14 },
-  tierProgress: { width: '100%', marginTop: 18 },
-  tierProgressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  tierProgressLeft: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700' },
-  tierProgressRight: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '600' },
+  tierTrack: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    width: '100%', marginTop: 20, marginBottom: 14,
+  },
+  tierTrackItem: { alignItems: 'center', flex: 1, position: 'relative' },
+  tierConnector: {
+    position: 'absolute', left: '-50%', right: '50%', top: 13,
+    height: 2, backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  tierBubble: {
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  tierBubbleText: {
+    fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.35)',
+  },
+  tierBubbleDot: {
+    width: 5, height: 5, borderRadius: 3, marginTop: 4,
+  },
+  tierProgressWrap: { width: '100%', gap: 6 },
+  tierProgressRight: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '600', textAlign: 'center' },
   tierProgressTrack: {
     height: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 3, overflow: 'hidden',
   },
   tierProgressFill: { height: '100%', borderRadius: 3 },
-  tierProgressMaxText: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: '700', marginTop: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
+  tierProgressMaxText: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
 
   qrSection: {
-    alignItems: 'center', paddingVertical: 22, paddingHorizontal: 16,
-    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 12, borderRadius: 22,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
+    alignItems: 'center', paddingTop: 20, paddingBottom: 18, paddingHorizontal: 20,
+    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 12, borderRadius: 24,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07, shadowRadius: 12, elevation: 4,
   },
-  qrContainer: {
-    padding: 16, backgroundColor: '#fff', borderRadius: 16, marginTop: 14,
-    borderWidth: 1, borderColor: COLORS.border,
+  qrHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    width: '100%', marginBottom: 20,
+  },
+  qrLogoMark: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qrLogoText: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+  qrTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  qrSubtext: { color: COLORS.textMuted, fontSize: 12, fontWeight: '500', marginTop: 1 },
+  qrFrame: {
+    width: 220, height: 220,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fafafa',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  qrInner: { padding: 16 },
+  corner: {
+    position: 'absolute', width: 22, height: 22,
+    borderColor: COLORS.primary, borderWidth: 3,
+  },
+  cornerTL: { top: 8, left: 8, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: 6 },
+  cornerTR: { top: 8, right: 8, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: 6 },
+  cornerBL: { bottom: 8, left: 8, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 6 },
+  cornerBR: { bottom: 8, right: 8, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 6 },
+  scanLine: {
+    position: 'absolute', top: 16, left: 16, right: 16, height: 2,
+    backgroundColor: COLORS.primary, opacity: 0.6,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8, shadowRadius: 4, elevation: 2,
+  },
+  qrHint: {
+    marginTop: 14, fontSize: 11, fontWeight: '600',
+    color: COLORS.textMuted, letterSpacing: 0.2,
   },
   qrEmpty: {
-    marginTop: 14, width: 208, height: 208, borderRadius: 16,
+    width: 220, height: 220, borderRadius: 16,
     backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.border,
     borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
@@ -910,7 +1027,6 @@ const styles = StyleSheet.create({
   },
   qrEmptyText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
   qrEmptySub: { fontSize: 11, color: COLORS.border, fontWeight: '600' },
-  qrSubtext: { color: COLORS.textMuted, fontSize: 13, marginTop: 6, fontWeight: '500' },
 
   bannerWrapper: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   section: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
