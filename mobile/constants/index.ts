@@ -1,7 +1,7 @@
 export const API_URL = 'https://api.luckystop.cliffindus.com/api';
 
 export const COLORS = {
-  primary: '#E63946',      // Lucky Stop red
+  primary: '#CC2936',      // Lucky Stop sign red (matches physical store logo)
   secondary: '#1D3557',    // Deep navy
   accent: '#F4A261',       // Warm orange for highlights
   background: '#F8F9FA',
@@ -9,7 +9,7 @@ export const COLORS = {
   text: '#212529',
   textMuted: '#6C757D',
   success: '#2DC653',
-  error: '#C1121F',        // Distinct darker red — NOT the same as primary
+  error: '#A01020',        // Distinct darker red — NOT the same as primary
   border: '#DEE2E6',
 };
 
