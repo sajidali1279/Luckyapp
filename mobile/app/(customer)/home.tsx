@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
-  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
+  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
@@ -177,6 +177,28 @@ export default function CustomerHome() {
     ).start();
   }, []);
 
+  // Wave animations
+  const waveEntrance = useRef(new Animated.Value(0)).current;
+  const waveLateral  = useRef(new Animated.Value(0)).current;
+  const scrollY      = useRef(new Animated.Value(0)).current;
+  const [showQR, setShowQR] = useState(false);
+
+  useEffect(() => {
+    Animated.timing(waveEntrance, { toValue: 1, duration: 900, delay: 250, useNativeDriver: true }).start(() => {
+      Animated.loop(
+        Animated.timing(waveLateral, { toValue: 1, duration: 5000, easing: Easing.linear, useNativeDriver: true })
+      ).start();
+    });
+  }, []);
+
+  const waveTranslateX = waveLateral.interpolate({ inputRange: [0, 1], outputRange: [0, -SCREEN_W] });
+  const waveOpacity    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+  const waveSlideUp    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+
+  // 4× wide wave path (seamless loop every SCREEN_W)
+  const W = SCREEN_W, H = 44, A = 18;
+  const WAVE_PATH = `M0,${A} C${W*.25},0 ${W*.75},0 ${W},${A} C${W*1.25},${A*2} ${W*1.75},${A*2} ${W*2},${A} C${W*2.25},0 ${W*2.75},0 ${W*3},${A} C${W*3.25},${A*2} ${W*3.75},${A*2} ${W*4},${A} L${W*4},${H} L0,${H} Z`;
+
   useFocusEffect(
     useCallback(() => {
       authApi.getMe().then(({ data }) => {
@@ -326,21 +348,10 @@ export default function CustomerHome() {
     : 1;
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          tintColor={COLORS.primary}
-          colors={[COLORS.primary]}
-        />
-      }
-    >
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
-      {/* ── Header ── */}
+      {/* ── Fixed header ── */}
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
         <SafeAreaView style={styles.headerBg}>
           <View style={styles.header}>
@@ -381,19 +392,34 @@ export default function CustomerHome() {
               </TouchableOpacity>
             </View>
           </View>
-          {/* Wave transition from header to background */}
-          <Svg
-            style={{ display: 'flex' }}
-            width={SCREEN_W} height={28}
-            viewBox={`0 0 ${SCREEN_W} 28`}
-          >
-            <Path
-              d={`M0,0 C${SCREEN_W * 0.3},28 ${SCREEN_W * 0.7},28 ${SCREEN_W},0 L${SCREEN_W},28 L0,28 Z`}
-              fill="#EDF1F7"
-            />
-          </Svg>
         </SafeAreaView>
       </Animated.View>
+
+      {/* ── Animated wave transition ── */}
+      <Animated.View style={[styles.waveOuter, { opacity: waveOpacity, transform: [{ translateY: waveSlideUp }] }]}>
+        <Animated.View style={{ transform: [{ translateX: waveTranslateX }] }}>
+          <Svg width={SCREEN_W * 4} height={H} viewBox={`0 0 ${SCREEN_W * 4} ${H}`}>
+            <Path d={WAVE_PATH} fill="#EDF1F7" />
+          </Svg>
+        </Animated.View>
+      </Animated.View>
+
+      {/* ── Scrollable content ── */}
+      <Animated.ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
 
       {/* ── Balance Card ── */}
       <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
@@ -456,70 +482,9 @@ export default function CustomerHome() {
         </View>
       </Animated.View>
 
-      {/* ── QR + Scan Receipt ── */}
+      {/* QR section removed — accessible via floating QR button */}
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
-        <View style={styles.qrSection}>
-          {/* Header row */}
-          <View style={styles.qrHeader}>
-            <View style={styles.qrLogoMark}>
-              <Text style={styles.qrLogoText}>LS</Text>
-            </View>
-            <View>
-              <Text style={styles.qrTitle}>Your QR Code</Text>
-              <Text style={styles.qrSubtext}>Show to cashier to earn points</Text>
-            </View>
-          </View>
-
-          {user?.qrCode ? (
-            <View style={styles.qrFrame}>
-              {/* Corner brackets */}
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerTR]} />
-              <View style={[styles.corner, styles.cornerBL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
-
-              {/* QR code */}
-              <View style={styles.qrInner}>
-                <QRCode value={user.qrCode} size={188} color={COLORS.secondary} backgroundColor="transparent" />
-              </View>
-
-              {/* Animated scan line */}
-              <Animated.View
-                style={[styles.scanLine, {
-                  transform: [{
-                    translateY: scanLineAnim.interpolate({
-                      inputRange: [0, 1], outputRange: [0, 188],
-                    }),
-                  }],
-                }]}
-              />
-            </View>
-          ) : (
-            <View style={styles.qrEmpty}>
-              <View style={styles.qrEmptyInner} />
-              <Text style={styles.qrEmptyText}>QR code loading</Text>
-              <Text style={styles.qrEmptySub}>Pull down to refresh</Text>
-            </View>
-          )}
-
-          <Text style={styles.qrHint}>🔒 Unique to your account</Text>
-        </View>
-
         <WelcomeBonusCard />
-
-        {/* Scan Receipt QR — hidden until v2 (requires printer agent + category setup) */}
-        {/* <TouchableOpacity style={styles.scanReceiptCard} onPress={() => router.push('/(customer)/scan-receipt')} activeOpacity={0.82}>
-          <View style={styles.scanReceiptLeft}>
-            <View style={styles.scanReceiptIconWrap}>
-              <ReceiptIcon size={24} color={COLORS.accent} strokeWidth={1.75} />
-            </View>
-            <View>
-              <Text style={styles.scanReceiptTitle}>Scan Receipt QR</Text>
-              <Text style={styles.scanReceiptSub}>Earn points by scanning your receipt</Text>
-            </View>
-          </View>
-          <ChevronRightIcon size={22} color={COLORS.accent} strokeWidth={2.5} />
-        </TouchableOpacity> */}
       </Animated.View>
 
       {/* ── Banners ── */}
@@ -909,13 +874,133 @@ export default function CustomerHome() {
           </View>
         </Modal>
       )}
-    </ScrollView>
+
+      </Animated.ScrollView>
+
+      {/* ── QR floating button ── */}
+      <TouchableOpacity style={styles.qrFab} onPress={() => setShowQR(true)} activeOpacity={0.85}>
+        <View style={styles.qrFabInner}>
+          <Text style={styles.qrFabIcon}>▦</Text>
+          <Text style={styles.qrFabLabel}>My QR</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* ── QR Modal ── */}
+      <Modal visible={showQR} transparent animationType="slide" onRequestClose={() => setShowQR(false)}>
+        <View style={styles.qrModalBackdrop}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowQR(false)} activeOpacity={1} />
+          <View style={styles.qrModalSheet}>
+            {/* Handle + header */}
+            <View style={styles.qrModalHeader}>
+              <View style={styles.qrModalPill} />
+              <View style={styles.qrModalLogoRow}>
+                <View style={styles.qrModalLogo}><Text style={styles.qrModalLogoText}>LS</Text></View>
+                <View>
+                  <Text style={styles.qrModalTitle}>Your QR Code</Text>
+                  <Text style={styles.qrModalSub}>Show this to the cashier to earn points</Text>
+                </View>
+              </View>
+            </View>
+            {/* QR code */}
+            {user?.qrCode ? (
+              <View style={styles.qrModalFrame}>
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
+                <View style={styles.qrInner}>
+                  <QRCode value={user.qrCode} size={220} color={COLORS.secondary} backgroundColor="transparent" />
+                </View>
+                <Animated.View style={[styles.scanLine, {
+                  transform: [{ translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }) }],
+                }]} />
+              </View>
+            ) : (
+              <View style={[styles.qrModalFrame, { alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ color: COLORS.textMuted }}>QR code loading…</Text>
+              </View>
+            )}
+            <Text style={styles.qrHint}>🔒 Unique to your account</Text>
+            <TouchableOpacity style={styles.qrModalClose} onPress={() => setShowQR(false)} activeOpacity={0.8}>
+              <Text style={styles.qrModalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EDF1F7' },
+  scroll: { flex: 1 },
   headerBg: { backgroundColor: COLORS.primary },
+  waveOuter: {
+    backgroundColor: COLORS.primary,
+    overflow: 'hidden',
+    width: SCREEN_W,
+  },
+
+  // QR floating button
+  qrFab: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -52,
+  },
+  qrFabInner: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 28, paddingHorizontal: 22, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  qrFabIcon: { fontSize: 18, color: '#fff' },
+  qrFabLabel: { color: '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
+
+  // QR modal
+  qrModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  qrModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingBottom: 32, alignItems: 'center',
+    overflow: 'hidden',
+  },
+  qrModalHeader: {
+    width: '100%',
+    backgroundColor: COLORS.primary,
+    paddingTop: 12, paddingBottom: 20, paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  qrModalPill: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.4)', marginBottom: 16,
+  },
+  qrModalLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
+  qrModalLogo: {
+    width: 42, height: 42, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qrModalLogoText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  qrModalTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  qrModalSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  qrModalFrame: {
+    width: 256, height: 256,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fafafa', borderRadius: 16,
+    overflow: 'hidden', position: 'relative',
+    marginTop: 24,
+  },
+  qrModalClose: {
+    marginTop: 20, paddingVertical: 14, paddingHorizontal: 48,
+    backgroundColor: '#f1f5f9', borderRadius: 16,
+  },
+  qrModalCloseText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: COLORS.primary,
