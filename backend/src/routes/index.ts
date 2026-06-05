@@ -102,6 +102,17 @@ import {
 } from '../controllers/careers.controller';
 import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, resolveDispute } from '../controllers/dispute.controller';
 import {
+  getMenu as getHotFoodMenu,
+  createItem as createHotFoodItem,
+  updateItem as updateHotFoodItem,
+  deleteItem as deleteHotFoodItem,
+  getAllOrders as getHotFoodOrders,
+  updateOrderStatus,
+  getStoreMenu,
+  placeOrder,
+  getMyOrders as getMyHotFoodOrders,
+} from '../controllers/hotFood.controller';
+import {
   getCustomerLeaderboard,
   getEmployeeLeaderboard,
   submitRating,
@@ -391,6 +402,20 @@ router.post('/order-categories/submit',  authenticate, requireRole(Role.EMPLOYEE
 router.get('/order-categories/admin',    authenticate, requireRole(Role.DEV_ADMIN),    adminGetCategories);    // All categories with status filter
 router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMIN),    adminUpdateCategory);   // Approve / edit name (cascades to items) / reject
 router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete
+
+// ─── Hot Food ─────────────────────────────────────────────────────────────────
+// Menu — admin CRUD (STORE_MANAGER = read-only, SUPER_ADMIN+ = write)
+router.get('/hot-food/menu',         authenticate, requireRole(Role.STORE_MANAGER), getHotFoodMenu);
+router.post('/hot-food/menu',        authenticate, requireRole(Role.SUPER_ADMIN),   createHotFoodItem);
+router.patch('/hot-food/menu/:id',   authenticate, requireRole(Role.STORE_MANAGER), updateHotFoodItem);
+router.delete('/hot-food/menu/:id',  authenticate, requireRole(Role.SUPER_ADMIN),   deleteHotFoodItem);
+// Orders — admin board (specific routes before :id param)
+router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
+router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
+router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.STORE_MANAGER), updateOrderStatus);
+// Menu + orders — customer / mobile
+router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
+router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);

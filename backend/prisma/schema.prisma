@@ -248,6 +248,7 @@ model User {
   approvedCategories   OrderCategory[]  @relation("CategoryApprovals")
   submittedItemRequests EmployeeItemRequest[] @relation("EmployeeRequestsSubmitted")
   reviewedItemRequests  EmployeeItemRequest[] @relation("EmployeeRequestsReviewed")
+  hotFoodOrders         HotFoodOrder[]        @relation("HotFoodOrdersPlaced")
 
   @@map("users")
 }
@@ -311,6 +312,8 @@ model Store {
   printJobs          PrintJob[]
   employeeItemRequests EmployeeItemRequest[]
   pointsDisputes       PointsDispute[]
+  hotFoodMenuItems     HotFoodMenuItem[]
+  hotFoodOrders        HotFoodOrder[]
 
   @@map("stores")
 }
@@ -1075,6 +1078,70 @@ model OrderCategory {
   @@unique([name, storeId])
   @@index([status, usageCount])
   @@map("order_categories")
+}
+
+// ─── Hot Food ─────────────────────────────────────────────────────────────────
+
+enum HotFoodOrderStatus {
+  PENDING
+  ACCEPTED
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+model HotFoodMenuItem {
+  id               String   @id @default(uuid())
+  storeId          String?  // null = available at all hot-food-enabled stores
+  name             String
+  description      String?
+  price            Float
+  isAvailable      Boolean  @default(true)
+  estimatedMinutes Int?
+  imageUrl         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  store      Store?             @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  orderItems HotFoodOrderItem[]
+
+  @@index([storeId, isAvailable])
+  @@map("hot_food_menu_items")
+}
+
+model HotFoodOrder {
+  id               String             @id @default(uuid())
+  orderNumber      String             @unique
+  storeId          String
+  customerId       String
+  status           HotFoodOrderStatus @default(PENDING)
+  note             String?
+  estimatedMinutes Int?
+  totalAmount      Float
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  store    Store              @relation(fields: [storeId], references: [id])
+  customer User               @relation("HotFoodOrdersPlaced", fields: [customerId], references: [id])
+  items    HotFoodOrderItem[]
+
+  @@index([storeId, status])
+  @@index([customerId])
+  @@map("hot_food_orders")
+}
+
+model HotFoodOrderItem {
+  id         String @id @default(uuid())
+  orderId    String
+  menuItemId String
+  name       String // snapshot at order time
+  price      Float  // snapshot at order time
+  quantity   Int    @default(1)
+
+  order    HotFoodOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem HotFoodMenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("hot_food_order_items")
 }
 
 // ─── Points Dispute ───────────────────────────────────────────────────────────

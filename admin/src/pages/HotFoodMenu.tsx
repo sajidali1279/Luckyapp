@@ -132,6 +132,7 @@ export default function HotFoodMenu() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const isManager = user?.role === 'STORE_MANAGER';
+  const canWrite = user?.role === 'DEV_ADMIN' || user?.role === 'SUPER_ADMIN';
   const storeId = isManager ? user?.storeIds?.[0] : undefined;
 
   const [filterStore, setFilterStore] = useState(storeId ?? '');
@@ -193,10 +194,12 @@ export default function HotFoodMenu() {
             <p style={pg.sub}>Manage menu items · Enable hot food per store via <strong>Stores → Categories</strong></p>
           </div>
         </div>
-        <button style={pg.addBtn} onClick={() => { setEditItem(null); setShowModal(true); }}>
-          <Plus size={15} />
-          Add Item
-        </button>
+        {canWrite && (
+          <button style={pg.addBtn} onClick={() => { setEditItem(null); setShowModal(true); }}>
+            <Plus size={15} />
+            Add Item
+          </button>
+        )}
       </div>
 
       {/* Store filter (SuperAdmin/DevAdmin only) */}
@@ -231,7 +234,7 @@ export default function HotFoodMenu() {
                 <th style={tbl.th}>Store</th>
                 <th style={tbl.th}>Wait</th>
                 <th style={tbl.th}>Status</th>
-                <th style={tbl.th}></th>
+                {canWrite && <th style={tbl.th}></th>}
               </tr>
             </thead>
             <tbody>
@@ -259,21 +262,23 @@ export default function HotFoodMenu() {
                       {item.isAvailable ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                     </button>
                   </td>
-                  <td style={{ ...tbl.td, textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button style={tbl.iconBtn} onClick={() => { setEditItem(item); setShowModal(true); }} title="Edit">
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        style={{ ...tbl.iconBtn, color: '#EF4444', opacity: deletingId === item.id ? 0.5 : 1 }}
-                        onClick={() => handleDelete(item.id)}
-                        disabled={deletingId === item.id}
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
+                  {canWrite && (
+                    <td style={{ ...tbl.td, textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button style={tbl.iconBtn} onClick={() => { setEditItem(item); setShowModal(true); }} title="Edit">
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          style={{ ...tbl.iconBtn, color: '#EF4444', opacity: deletingId === item.id ? 0.5 : 1 }}
+                          onClick={() => handleDelete(item.id)}
+                          disabled={deletingId === item.id}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
