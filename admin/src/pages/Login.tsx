@@ -3,17 +3,15 @@ import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { Particles } from '../components/ui/particles';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
-  const [phoneActive, setPhoneActive] = useState(false);
-  const [pinActive, setPinActive] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
-
-  const [showForgot, setShowForgot] = useState(false);
 
   function formatPhone(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, 10);
@@ -45,296 +43,189 @@ export default function Login() {
   }
 
   return (
-    <div style={s.page}>
-      {/* ── Left branding panel ── */}
-      <div style={s.brand} className="login-brand-panel">
-        <div style={s.brandNoise} />
-        <div style={s.brandInner}>
-          <div style={s.logoWrap}>
-            <span style={s.logoEmoji}>⛽</span>
-          </div>
-          <h1 style={s.brandName}>Lucky Stop</h1>
-          <p style={s.brandTag}>Admin Command Center</p>
+    <div style={{ position: 'relative', minHeight: '100vh', background: '#0c0e12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Particles className="absolute inset-0" color="#444444" ease={30} quantity={100} staticity={60} />
 
-          <div style={s.divider} />
-
-          <div style={s.featureList}>
-            {[
-              { icon: '📢', text: 'Create offers for all 12 stores', color: '#F4A261' },
-              { icon: '👥', text: 'Manage staff and customers',      color: '#2DC653' },
-              { icon: '🧾', text: 'Review transactions in real time', color: '#60a5fa' },
-              { icon: '📊', text: 'Track revenue and subscriptions',  color: '#a78bfa' },
-            ].map((f) => (
-              <div key={f.text} style={s.featureRow}>
-                <div style={{ ...s.featureIconWrap, background: f.color + '22', border: `1px solid ${f.color}33` }}>
-                  <span style={s.featureIconEmoji}>{f.icon}</span>
-                </div>
-                <span style={s.featureText}>{f.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={s.storeCount}>
-            <div>
-              <span style={s.storeNum}>12</span>
-              <span style={s.storeNumUnit}> stores</span>
-            </div>
-            <span style={s.storeDivider} />
-            <span style={s.storeLabel}>All on one platform</span>
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 380, margin: '0 16px' }}>
+        {/* Logo mark */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 14,
+            background: 'linear-gradient(135deg, #1D3557 0%, #2c6fad 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 900, fontSize: 16, letterSpacing: 1,
+            boxShadow: '0 8px 24px rgba(29,53,87,0.5)',
+          }}>
+            LS
           </div>
         </div>
-      </div>
 
-      {/* ── Right form panel ── */}
-      <div style={s.formPanel}>
-        <div style={s.formCard}>
-          <div style={s.formTop}>
-            <div style={s.formLogo}>LS</div>
-            <div>
-              <h2 style={s.formTitle}>Welcome back</h2>
-              <p style={s.formSub}>Sign in to your admin account</p>
+        {/* Card */}
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 20,
+          padding: '36px 32px 28px',
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 32px 64px rgba(0,0,0,0.4)',
+        }}>
+          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 4px', letterSpacing: -0.3 }}>
+            Welcome back
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: '0 0 28px' }}>
+            Sign in to your admin account
+          </p>
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={labelStyle}>Phone Number</label>
+              <input
+                type="tel"
+                placeholder="(555) 000-0000"
+                value={phone}
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                autoComplete="tel"
+                style={inputStyle}
+                onFocus={(e) => Object.assign(e.currentTarget.style, inputFocusStyle)}
+                onBlur={(e) => Object.assign(e.currentTarget.style, inputStyle)}
+              />
             </div>
-          </div>
 
-          <form style={s.form} onSubmit={handleLogin}>
-            <div style={s.fieldGroup}>
-              <label style={s.label}>Phone Number</label>
-              <div style={{ position: 'relative' }}>
-                <span style={s.inputIcon}>📱</span>
-                <input
-                  style={{ ...s.input, paddingLeft: 44, ...(phoneActive ? s.inputActive : {}) }}
-                  type="tel"
-                  placeholder="(555) 000-0000"
-                  value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
-                  onFocus={() => setPhoneActive(true)}
-                  onBlur={() => setPhoneActive(false)}
-                  autoComplete="tel"
-                />
-              </div>
-            </div>
-
-            <div style={s.fieldGroup}>
-              <label style={s.label}>4-Digit PIN</label>
-              <div style={{ position: 'relative' }}>
-                <span style={s.inputIcon}>🔒</span>
-                <input
-                  style={{ ...s.input, paddingLeft: 44, letterSpacing: 14, fontSize: 20, textAlign: 'center', ...(pinActive ? s.inputActive : {}) }}
-                  type="password"
-                  placeholder="••••"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  onFocus={() => setPinActive(true)}
-                  onBlur={() => setPinActive(false)}
-                  maxLength={4}
-                  inputMode="numeric"
-                />
-              </div>
-              <div style={s.pinDots}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={labelStyle}>4-Digit PIN</label>
+              <input
+                type="password"
+                placeholder="••••"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                maxLength={4}
+                inputMode="numeric"
+                style={{ ...inputStyle, textAlign: 'center', letterSpacing: 12, fontSize: 20 }}
+                onFocus={(e) => Object.assign(e.currentTarget.style, { ...inputFocusStyle, textAlign: 'center', letterSpacing: '12px', fontSize: '20px' })}
+                onBlur={(e) => Object.assign(e.currentTarget.style, { ...inputStyle, textAlign: 'center', letterSpacing: '12px', fontSize: '20px' })}
+              />
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 4 }}>
                 {[0,1,2,3].map((i) => (
-                  <div key={i} style={{ ...s.pinDot, ...(i < pin.length ? s.pinDotFilled : {}) }} />
+                  <div key={i} style={{
+                    width: 7, height: 7, borderRadius: 4,
+                    background: i < pin.length ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.15)',
+                    transition: 'background 0.15s',
+                  }} />
                 ))}
               </div>
             </div>
 
             <button
-              style={{ ...s.button, ...(loading ? s.buttonLoading : {}) }}
               type="submit"
               disabled={loading}
+              style={{
+                padding: '13px 16px', marginTop: 4,
+                background: '#fff', color: '#0c0e12',
+                border: 'none', borderRadius: 12,
+                fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+                transition: 'opacity 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
             >
               {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={s.spinner} /> Signing in…
-                </span>
-              ) : (
-                <span>Sign In →</span>
-              )}
+                <>
+                  <span style={{
+                    width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)',
+                    borderTopColor: '#0c0e12', borderRadius: '50%',
+                    display: 'inline-block', animation: 'spin 0.7s linear infinite',
+                  }} />
+                  Signing in…
+                </>
+              ) : 'Sign In'}
             </button>
           </form>
 
-          <button type="button" style={s.forgotLink} onClick={() => setShowForgot(true)}>
+          <button
+            type="button"
+            onClick={() => setShowForgot(true)}
+            style={{
+              marginTop: 16, width: '100%', background: 'none', border: 'none',
+              color: 'rgba(255,255,255,0.3)', fontSize: 12, cursor: 'pointer',
+              textAlign: 'center', transition: 'color 0.15s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
+          >
             Forgot PIN?
           </button>
 
-          <p style={s.hint}>For Dev Admins, Super Admins, and Store Managers only.<br />Employees and customers use the mobile app.</p>
+          <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
+            For Dev Admins, Super Admins, and Store Managers only.
+            <br />Employees use the mobile app.
+          </p>
         </div>
       </div>
 
-      {/* ── Forgot PIN Modal ── */}
+      {/* Forgot PIN Modal */}
       {showForgot && (
-        <div style={s.modalOverlay} onClick={() => setShowForgot(false)}>
-          <div style={s.modalCard} onClick={(e) => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <h3 style={s.modalTitle}>Forgot PIN?</h3>
-              <button style={s.modalClose} onClick={() => setShowForgot(false)}>✕</button>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
+          onClick={() => setShowForgot(false)}
+        >
+          <div
+            style={{ background: '#161920', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 380, padding: '24px 24px 28px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: 0 }}>Forgot PIN?</h3>
+              <button
+                onClick={() => setShowForgot(false)}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 4 }}
+              >
+                ✕
+              </button>
             </div>
-            <div style={s.modalBody}>
-              <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 4 }}>🔒</div>
-              <p style={s.modalSub}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, margin: 0, lineHeight: 1.65 }}>
                 PINs can only be reset by an administrator.
               </p>
-              <ul style={{ ...s.modalSub, paddingLeft: 18, margin: 0 }}>
-                <li><strong>Employees & Managers</strong> — ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
-                <li style={{ marginTop: 8 }}><strong>Super Admins</strong> — contact your Lucky Stop developer to reset your PIN.</li>
+              <ul style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees & Managers</span> — ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
+                <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins</span> — contact your Lucky Stop developer to reset your PIN.</li>
               </ul>
-              <button style={s.modalBtn} onClick={() => setShowForgot(false)}>Got it</button>
+              <button
+                onClick={() => setShowForgot(false)}
+                style={{
+                  marginTop: 8, background: 'rgba(255,255,255,0.08)', color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+                  padding: '11px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Got it
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input::placeholder { color: rgba(255,255,255,0.2); }
+      `}</style>
     </div>
   );
 }
 
-const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', minHeight: '100vh', fontFamily: 'inherit' },
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '12px 14px', boxSizing: 'border-box',
+  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 12, color: '#fff', fontSize: 15, outline: 'none',
+  transition: 'border-color 0.15s, background 0.15s',
+};
 
-  // Brand panel
-  brand: {
-    width: 440,
-    background: 'linear-gradient(160deg, #0d1f33 0%, #1D3557 55%, #1a4a6e 100%)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 52, flexShrink: 0, position: 'relative', overflow: 'hidden',
-  },
-  brandNoise: {
-    position: 'absolute', inset: 0,
-    backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(244,162,97,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(69,123,157,0.12) 0%, transparent 50%)',
-    pointerEvents: 'none',
-  },
-  brandInner: { display: 'flex', flexDirection: 'column', gap: 0, zIndex: 1, width: '100%' },
+const inputFocusStyle: React.CSSProperties = {
+  ...inputStyle,
+  background: 'rgba(255,255,255,0.08)',
+  borderColor: 'rgba(255,255,255,0.25)',
+};
 
-  logoWrap: {
-    width: 70, height: 70, borderRadius: 20,
-    background: 'rgba(255,255,255,0.1)',
-    border: '1.5px solid rgba(255,255,255,0.18)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    marginBottom: 20,
-  },
-  logoEmoji: { fontSize: 36 },
-
-  brandName: { color: '#fff', fontSize: 34, fontWeight: 900, margin: 0, letterSpacing: -0.5 },
-  brandTag: { color: 'rgba(255,255,255,0.45)', fontSize: 14, marginTop: 6, marginBottom: 0 },
-
-  divider: { height: 1, background: 'rgba(255,255,255,0.1)', margin: '28px 0' },
-
-  featureList: { display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 32 },
-  featureRow: { display: 'flex', alignItems: 'center', gap: 12 },
-  featureIconWrap: {
-    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  featureIconEmoji: { fontSize: 18 },
-  featureText: { color: 'rgba(255,255,255,0.78)', fontSize: 13.5, lineHeight: 1.4 },
-
-  storeCount: {
-    display: 'flex', alignItems: 'center', gap: 14,
-    background: 'rgba(255,255,255,0.07)', borderRadius: 14,
-    padding: '16px 20px', border: '1px solid rgba(255,255,255,0.1)',
-  },
-  storeNum: { color: '#F4A261', fontSize: 28, fontWeight: 900 },
-  storeNumUnit: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: 600 },
-  storeDivider: { width: 1, height: 28, background: 'rgba(255,255,255,0.12)', flexShrink: 0 },
-  storeLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
-
-  // Form panel
-  formPanel: {
-    flex: 1,
-    background: '#f0f2f5',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 40,
-  },
-  formCard: {
-    background: '#fff', borderRadius: 24, padding: '44px 44px 36px',
-    width: '100%', maxWidth: 420,
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 20px 60px -10px rgba(0,0,0,0.12)',
-  },
-
-  formTop: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 32 },
-  formLogo: {
-    width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 900, fontSize: 16, letterSpacing: 0.5,
-  },
-  formTitle: { fontSize: 24, fontWeight: 800, color: '#111827', margin: 0, letterSpacing: -0.3 },
-  formSub: { color: '#9ca3af', marginTop: 3, fontSize: 14 },
-
-  form: { display: 'flex', flexDirection: 'column', gap: 20 },
-  fieldGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
-  inputIcon: {
-    position: 'absolute', left: 14, top: '50%',
-    transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none',
-  },
-  input: {
-    padding: '13px 16px', borderRadius: 12,
-    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
-    fontSize: 16, outline: 'none',
-    width: '100%', boxSizing: 'border-box' as const,
-    background: '#f9fafb', color: '#111827',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-  },
-  inputActive: {
-    borderColor: '#1D3557',
-    boxShadow: '0 0 0 3px rgba(29,53,87,0.1)',
-    background: '#fff',
-  },
-
-  pinDots: { display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 },
-  pinDot: { width: 10, height: 10, borderRadius: 5, background: '#e5e7eb', transition: 'background 0.15s' },
-  pinDotFilled: { background: '#1D3557' },
-
-  button: {
-    padding: '15px 16px',
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
-    color: '#fff', border: 'none', borderRadius: 12,
-    fontSize: 16, fontWeight: 700, cursor: 'pointer',
-    marginTop: 8, letterSpacing: 0.2,
-    boxShadow: '0 4px 14px rgba(29,53,87,0.35)',
-    transition: 'opacity 0.2s, transform 0.1s',
-  },
-  buttonLoading: { opacity: 0.75, cursor: 'not-allowed' },
-  spinner: {
-    width: 16, height: 16,
-    border: '2px solid rgba(255,255,255,0.35)',
-    borderTopColor: '#fff', borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite', display: 'inline-block',
-  },
-
-  hint: { color: '#9ca3af', fontSize: 11.5, textAlign: 'center', marginTop: 22, lineHeight: 1.7 },
-
-  forgotLink: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    color: '#1D3557', fontSize: 13, fontWeight: 600,
-    textDecoration: 'underline', padding: '4px 0', marginTop: 4,
-    display: 'block', width: '100%', textAlign: 'center',
-  },
-
-  // Modal
-  modalOverlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 1000, backdropFilter: 'blur(2px)',
-  },
-  modalCard: {
-    background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400,
-    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-    maxHeight: '90vh', overflowY: 'auto', margin: '0 16px',
-  },
-  modalHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 24px 16px', borderBottom: '1px solid #f3f4f6',
-  },
-  modalTitle: { fontSize: 18, fontWeight: 800, color: '#111827', margin: 0 },
-  modalClose: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: 16, color: '#9ca3af', padding: 4, lineHeight: 1,
-  },
-  modalBody: { padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 8 },
-  modalSub: { color: '#6b7280', fontSize: 13, margin: '0 0 8px', lineHeight: 1.6 },
-  modalBtn: {
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
-    color: '#fff', border: 'none', borderRadius: 10,
-    padding: '13px 16px', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 8,
-  },
+const labelStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: 0.8,
 };
