@@ -47,6 +47,7 @@ export const authApi = {
     form.append('avatar', { uri, name: 'avatar.jpg', type: mimeType } as any);
     return api.post('/auth/profile/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  removeAvatar: () => api.delete('/auth/profile/avatar'),
   changePin: (currentPin: string, newPin: string) =>
     api.patch('/auth/pin', { currentPin, newPin }),
   registerPushToken: (token: string, platform: string) =>

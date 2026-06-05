@@ -15,7 +15,7 @@ import { COLORS } from '../constants';
 import {
   EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
-  CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon,
+  CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon, CameraIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
 
@@ -142,6 +142,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -159,6 +160,21 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     }
   }
 
+  async function uploadAvatarAsset(uri: string, mimeType: string) {
+    setAvatarUploading(true);
+    setShowAvatarModal(false);
+    try {
+      const res = await authApi.uploadAvatar(uri, mimeType);
+      const newAvatarUrl: string = res.data?.data?.avatarUrl;
+      if (user && token) setAuth({ ...user, avatarUrl: newAvatarUrl }, token);
+      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to upload photo' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -166,21 +182,36 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.85,
     });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
+    await uploadAvatarAsset(asset.uri, asset.mimeType || 'image/jpeg');
+  }
+
+  async function handleTakePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow camera access to take a profile photo.' });
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, aspect: [1, 1], quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    await uploadAvatarAsset(asset.uri, asset.mimeType || 'image/jpeg');
+  }
+
+  async function handleRemoveAvatar() {
+    setShowAvatarModal(false);
     setAvatarUploading(true);
     try {
-      const res = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
-      const newAvatarUrl: string = res.data?.data?.avatarUrl;
-      if (user && token) setAuth({ ...user, avatarUrl: newAvatarUrl }, token);
-      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
-    } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to upload photo' });
+      await authApi.removeAvatar();
+      if (user && token) setAuth({ ...user, avatarUrl: undefined }, token);
+      Toast.show({ type: 'success', text1: 'Profile photo removed' });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to remove photo' });
     } finally {
       setAvatarUploading(false);
     }
@@ -253,7 +284,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       {/* ── Header ── */}
       <SafeAreaView style={[s.headerBg, { backgroundColor: headerBg }]}>
         <View style={s.headerInner}>
-          <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.8} style={s.avatarWrap}>
+          <TouchableOpacity onPress={() => setShowAvatarModal(true)} activeOpacity={0.8} style={s.avatarWrap}>
             <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={s.avatarImage} />
@@ -756,6 +787,54 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ── Avatar picker modal ── */}
+      <Modal visible={showAvatarModal} transparent animationType="fade" onRequestClose={() => setShowAvatarModal(false)}>
+        <TouchableOpacity style={s.avatarModalBackdrop} activeOpacity={1} onPress={() => setShowAvatarModal(false)}>
+          <View style={s.avatarModalSheet} onStartShouldSetResponder={() => true}>
+            {/* Preview */}
+            <View style={s.avatarModalPreview}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={s.avatarModalImage} />
+              ) : (
+                <View style={[s.avatarModalImage, s.avatarModalPlaceholder, { backgroundColor: headerBg }]}>
+                  <Text style={s.avatarModalInitial}>{initial}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={s.avatarModalName}>{user?.name || user?.phone}</Text>
+
+            <View style={s.avatarModalDivider} />
+
+            <TouchableOpacity style={s.avatarModalOption} onPress={handlePickAvatar} activeOpacity={0.7}>
+              <View style={[s.avatarModalOptionIcon, { backgroundColor: '#eff6ff' }]}>
+                <ImageIcon size={20} color="#1D3557" strokeWidth={1.75} />
+              </View>
+              <Text style={s.avatarModalOptionText}>Choose from Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.avatarModalOption} onPress={handleTakePhoto} activeOpacity={0.7}>
+              <View style={[s.avatarModalOptionIcon, { backgroundColor: '#f0fdf4' }]}>
+                <CameraIcon size={20} color="#16a34a" strokeWidth={1.75} />
+              </View>
+              <Text style={s.avatarModalOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            {user?.avatarUrl && (
+              <TouchableOpacity style={s.avatarModalOption} onPress={handleRemoveAvatar} activeOpacity={0.7}>
+                <View style={[s.avatarModalOptionIcon, { backgroundColor: '#fff5f5' }]}>
+                  <Trash2Icon size={20} color={COLORS.error} strokeWidth={1.75} />
+                </View>
+                <Text style={[s.avatarModalOptionText, { color: COLORS.error }]}>Remove Photo</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={s.avatarModalCancel} onPress={() => setShowAvatarModal(false)} activeOpacity={0.7}>
+              <Text style={s.avatarModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Legal doc modal */}
       <LegalDocModal
         visible={legalDoc !== null}
@@ -946,4 +1025,54 @@ const s = StyleSheet.create({
   },
   disputeStorePillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   disputeStorePillText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+
+  // Avatar modal
+  avatarModalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  avatarModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingBottom: 36, paddingTop: 8,
+    paddingHorizontal: 20,
+  },
+  avatarModalPreview: {
+    alignItems: 'center', marginTop: 16, marginBottom: 10,
+  },
+  avatarModalImage: {
+    width: 100, height: 100, borderRadius: 50,
+  },
+  avatarModalPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarModalInitial: {
+    fontSize: 38, fontWeight: '900', color: '#fff',
+  },
+  avatarModalName: {
+    textAlign: 'center', fontSize: 17, fontWeight: '700',
+    color: COLORS.text, marginBottom: 16,
+  },
+  avatarModalDivider: {
+    height: 1, backgroundColor: '#f1f5f9', marginBottom: 8,
+  },
+  avatarModalOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 14, paddingHorizontal: 4,
+  },
+  avatarModalOptionIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarModalOptionText: {
+    fontSize: 16, fontWeight: '600', color: COLORS.text,
+  },
+  avatarModalCancel: {
+    marginTop: 12, paddingVertical: 16,
+    alignItems: 'center', backgroundColor: '#f8fafc',
+    borderRadius: 16,
+  },
+  avatarModalCancelText: {
+    fontSize: 15, fontWeight: '700', color: COLORS.textMuted,
+  },
 });
