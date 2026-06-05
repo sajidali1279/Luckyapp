@@ -153,7 +153,7 @@ export default function InventoryAnalytics() {
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
-                    formatter={(v: number | undefined) => [`${v ?? 0} orders`, 'Orders']}
+                    formatter={(v: any) => [`${Number(v)} orders`, 'Orders']}
                   />
                   <Bar dataKey="orders" radius={[4, 4, 0, 0]}>
                     {chartData.map((_, idx) => (
@@ -228,7 +228,7 @@ export default function InventoryAnalytics() {
                   <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
-                    formatter={(v: number | undefined) => [`${v ?? 0}`, 'Order lines']}
+                    formatter={(v: any) => [`${Number(v)}`, 'Order lines']}
                   />
                   <Bar dataKey="items" fill="#1D3557" radius={[4, 4, 0, 0]} />
                 </BarChart>

@@ -553,7 +553,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number | undefined) => [`$${(v ?? 0).toFixed(2)}`, 'Dev Cut']} />
+                  <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Dev Cut']} />
                   <Area type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} fill="url(#devGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -569,7 +569,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
                     <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} tickFormatter={(v) => v.replace('_', ' ')} width={80} />
-                    <Tooltip formatter={(v: number | undefined) => [`$${(v ?? 0).toFixed(2)}`, 'Purchase Volume']} />
+                    <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Purchase Volume']} />
                     <Bar dataKey="purchaseVolume" radius={[0, 6, 6, 0]}>
                       {analytics.byCategory.map((_: any, i: number) => (
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
