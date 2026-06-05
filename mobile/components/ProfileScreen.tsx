@@ -164,9 +164,13 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     setAvatarUploading(true);
     setShowAvatarModal(false);
     try {
-      const res = await authApi.uploadAvatar(uri, mimeType);
-      const newAvatarUrl: string = res.data?.data?.avatarUrl;
-      if (user && token) setAuth({ ...user, avatarUrl: newAvatarUrl }, token);
+      await authApi.uploadAvatar(uri, mimeType);
+      // Refresh user from server to get the real avatarUrl regardless of response shape
+      const meRes = await authApi.getMe();
+      const fresh = meRes.data?.data;
+      if (fresh && user && token) {
+        setAuth({ ...user, avatarUrl: fresh.avatarUrl }, token);
+      }
       Toast.show({ type: 'success', text1: 'Profile photo updated!' });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to upload photo' });
@@ -210,8 +214,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       await authApi.removeAvatar();
       if (user && token) setAuth({ ...user, avatarUrl: undefined }, token);
       Toast.show({ type: 'success', text1: 'Profile photo removed' });
-    } catch {
-      Toast.show({ type: 'error', text1: 'Failed to remove photo' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to remove photo' });
     } finally {
       setAvatarUploading(false);
     }
@@ -287,7 +291,10 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <TouchableOpacity onPress={() => setShowAvatarModal(true)} activeOpacity={0.8} style={s.avatarWrap}>
             <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
               {user?.avatarUrl ? (
-                <Image source={{ uri: user.avatarUrl }} style={s.avatarImage} />
+                <Image
+                  source={{ uri: user.avatarUrl, cache: 'reload' }}
+                  style={s.avatarImage}
+                />
               ) : (
                 <Text style={s.avatarText}>{initial}</Text>
               )}
