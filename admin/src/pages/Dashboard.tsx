@@ -139,7 +139,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
         <div style={{ ...s.storeAvatar, background: color }}>{store.name[0]?.toUpperCase()}</div>
         <span>
           <div style={{ fontWeight: 700, color: '#1D3557', fontSize: 14 }}>{store.name}</div>
-          <div style={{ fontSize: 11, color: '#adb5bd' }}>{store.city}</div>
+          <div style={{ fontSize: 13, color: '#adb5bd' }}>{store.city}</div>
         </span>
       </span>
       <span style={s.storeColNum}>{store.transactions}</span>
@@ -214,8 +214,8 @@ function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }:
         </div>
       </div>
       <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{sub}</div>}
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+      {sub && <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -468,8 +468,8 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} />
-                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} interval={4} />
+                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Volume']} labelFormatter={(l) => `Date: ${l}`} />
                     <Area type="monotone" dataKey="volume" stroke="#1D3557" strokeWidth={2} fill="url(#saGrad)" dot={false} />
                   </AreaChart>
@@ -533,8 +533,8 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => l} />
                   <Area type="monotone" dataKey="transactions" stroke="#1D3557" strokeWidth={2} fill="url(#txGrad)" dot={false} />
                 </AreaChart>
@@ -551,8 +551,8 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Dev Cut']} />
                   <Area type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} fill="url(#devGrad)" dot={false} />
                 </AreaChart>
@@ -567,8 +567,8 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 80, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
-                    <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} tickFormatter={(v) => v.replace('_', ' ')} width={80} />
+                    <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                    <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={(v) => v.replace('_', ' ')} width={80} />
                     <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Purchase Volume']} />
                     <Bar dataKey="purchaseVolume" radius={[0, 6, 6, 0]}>
                       {analytics.byCategory.map((_: any, i: number) => (
@@ -613,7 +613,7 @@ const s: Record<string, React.CSSProperties> = {
     position: 'relative', overflow: 'hidden',
   },
   welcomeDate: {
-    color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 700,
+    color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 700,
     textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8,
   },
   welcomeTitle: { color: '#fff', fontSize: 28, fontWeight: 900, margin: 0 },
@@ -631,7 +631,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 6,
     background: '#fff', border: '1px solid #e9ecef',
     borderRadius: 10, padding: '8px 16px',
-    fontSize: 13, fontWeight: 600, color: '#374151',
+    fontSize: 15, fontWeight: 600, color: '#374151',
     cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     transition: 'all 0.15s ease',
   },
@@ -647,10 +647,10 @@ const s: Record<string, React.CSSProperties> = {
   section: {
     fontSize: 15, fontWeight: 800, color: '#1D3557', margin: 0,
   },
-  sectionSub: { fontSize: 12, color: '#6c757d', marginTop: 6, marginBottom: 0, paddingLeft: 16 },
+  sectionSub: { fontSize: 14, color: '#6c757d', marginTop: 6, marginBottom: 0, paddingLeft: 16 },
   sectionLink: {
     background: 'none', border: '1px solid #dee2e6', borderRadius: 8,
-    padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+    padding: '5px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
     color: '#6c757d', transition: 'all 0.15s ease', whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
   },
@@ -666,7 +666,7 @@ const s: Record<string, React.CSSProperties> = {
   attnTitle: { fontSize: 14, fontWeight: 800, color: '#92400e' },
   attnLink: {
     background: 'none', border: '1px solid', borderRadius: 8,
-    padding: '4px 12px', fontSize: 12, fontWeight: 700,
+    padding: '4px 12px', fontSize: 14, fontWeight: 700,
     cursor: 'pointer', transition: 'all 0.12s ease',
   },
 
@@ -689,7 +689,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '14px 18px', borderBottom: '1px solid #f0f1f2',
     background: '#fafbfc',
   },
-  offersPanelTitle: { fontSize: 13, fontWeight: 800, color: '#1D3557' },
+  offersPanelTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
   offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
   offerChip: {
     background: '#fff', border: '1.5px solid #e63946 22', borderColor: '#e9ecef',
@@ -702,10 +702,10 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
   },
   offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
-  offerChipName: { fontSize: 13, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
-  offerChipCat: { fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
-  offerChipExpiry: { fontSize: 10, color: '#E63946', fontWeight: 600, marginTop: 6 },
-  emptyState: { padding: '24px 18px', color: '#9ca3af', fontSize: 13, textAlign: 'center' as const },
+  offerChipName: { fontSize: 15, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
+  offerChipCat: { fontSize: 12, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  offerChipExpiry: { fontSize: 12, color: '#E63946', fontWeight: 600, marginTop: 6 },
+  emptyState: { padding: '24px 18px', color: '#9ca3af', fontSize: 15, textAlign: 'center' as const },
 
   recentPanel: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
@@ -717,10 +717,10 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'background 0.12s ease',
   },
   recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
-  recentCustomer: { fontSize: 13, fontWeight: 700, color: '#111827' },
-  recentMeta: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
-  recentAmount: { fontSize: 13, fontWeight: 800, color: '#1D3557' },
-  recentTime: { fontSize: 10, color: '#9ca3af', marginTop: 1 },
+  recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
+  recentMeta: { fontSize: 13, color: '#9ca3af', marginTop: 1 },
+  recentAmount: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
+  recentTime: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
   statCard: {
@@ -740,7 +740,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   statIcon: { fontSize: 20 },
   statArrow: { fontSize: 15, color: '#9ca3af', fontWeight: 700, transition: 'opacity 0.15s ease' },
-  statLabel: { color: '#6b7280', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statLabel: { color: '#6b7280', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
 
   storeTable: {
@@ -750,7 +750,7 @@ const s: Record<string, React.CSSProperties> = {
   storeTableHeader: {
     display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
     padding: '10px 20px', background: '#f8f9fa',
-    fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5,
+    fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5,
   },
   storeTableRow: {
     display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
@@ -764,7 +764,7 @@ const s: Record<string, React.CSSProperties> = {
   storeAvatar: {
     width: 30, height: 30, borderRadius: 8, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 12, fontWeight: 800,
+    color: '#fff', fontSize: 14, fontWeight: 800,
   },
   barTrack: { height: 7, background: '#f0f1f2', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 4, transition: 'width 0.6s ease' },
@@ -778,7 +778,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', borderRadius: 16, padding: '20px 20px 12px',
     border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28,
   },
-  chartTitle: { fontSize: 12, fontWeight: 700, color: '#6c757d', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  chartTitle: { fontSize: 14, fontWeight: 700, color: '#6c757d', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   ratesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, marginBottom: 36 },
   liveRateCard: {
@@ -789,10 +789,10 @@ const s: Record<string, React.CSSProperties> = {
   liveRateCardHov: { transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' },
   liveRateTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
   liveRateIcon: { fontSize: 20 },
-  liveRateLabel: { fontWeight: 700, fontSize: 13, color: '#1D3557' },
+  liveRateLabel: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
   liveRateValue: { fontSize: 30, fontWeight: 900, color: '#1D3557', marginBottom: 8, letterSpacing: -1 },
   rateTrack: { height: 5, background: '#f0f1f2', borderRadius: 3, overflow: 'hidden', marginBottom: 10 },
   rateFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 3 },
   liveRateBreakdown: { display: 'flex', flexDirection: 'column' as const, gap: 2 },
-  liveRateRow: { fontSize: 11, color: '#6c757d' },
+  liveRateRow: { fontSize: 13, color: '#6c757d' },
 };

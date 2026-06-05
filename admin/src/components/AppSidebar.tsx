@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { superAdminApi, devAdminApi, supportApi, careersApi } from '../services/api';
@@ -206,18 +206,22 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent style={{ padding: '2px 0' }}>
+      <SidebarContent style={{
+        padding: '2px 0',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'oklch(0.28 0.045 245) transparent',
+      }}>
         {/* Overview */}
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/" icon={<LayoutDashboard size={15} />} label="Dashboard" end />
+              <SidebarNavItem to="/" icon={<LayoutDashboard size={16} />} label="Dashboard" end />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/inventory-analytics" icon={<Package size={15} />} label="Inventory Intelligence" />
+                <SidebarNavItem to="/inventory-analytics" icon={<Package size={16} />} label="Inventory Intelligence" />
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/analytics" icon={<TrendingUp size={15} />} label="Analytics" />
+                <SidebarNavItem to="/analytics" icon={<TrendingUp size={16} />} label="Analytics" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -230,15 +234,15 @@ export function AppSidebar() {
           <SidebarGroupLabel>Content</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/offers" icon={<Tag size={15} />} label="Offers" />
-              <SidebarNavItem to="/banners" icon={<Image size={15} />} label="Banners" />
+              <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" />
+              <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/catalog" icon={<Gift size={15} />} label="Catalog" />
+                <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/promotions" icon={<Megaphone size={15} />} label="Promotions" />
+                <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" />
               )}
-              <SidebarNavItem to="/hot-food/menu" icon={<Flame size={15} />} label="Hot Food Menu" />
+              <SidebarNavItem to="/hot-food/menu" icon={<Flame size={16} />} label="Hot Food Menu" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -250,19 +254,19 @@ export function AppSidebar() {
           <SidebarGroupLabel>People</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/chat" icon={<MessageSquare size={15} />} label="Chat" />
-              <SidebarNavItem to="/scheduling" icon={<Calendar size={15} />} label="Scheduling" />
+              <SidebarNavItem to="/chat" icon={<MessageSquare size={16} />} label="Chat" />
+              <SidebarNavItem to="/scheduling" icon={<Calendar size={16} />} label="Scheduling" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/staff" icon={<Users size={15} />} label="Staff" />
+                <SidebarNavItem to="/staff" icon={<Users size={16} />} label="Staff" />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/customers" icon={<UserCircle size={15} />} label="Customers" />
+                <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" />
               )}
-              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={15} />} label="Requests" />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={15} />} label="Order List" />
-              <SidebarNavItem to="/hot-food/orders" icon={<Flame size={15} />} label="Hot Food Orders" />
+              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" />
+              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" />
+              <SidebarNavItem to="/hot-food/orders" icon={<Flame size={16} />} label="Hot Food Orders" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/careers" icon={<Briefcase size={15} />} label="Careers" badge={careersNewCount} />
+                <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -275,15 +279,15 @@ export function AppSidebar() {
           <SidebarGroupLabel>Reports</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/transactions" icon={<Receipt size={15} />} label="Transactions" />
+              <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
-                  <SidebarNavItem to="/rates" icon={<Trophy size={15} />} label="Tier Rates" />
-                  <SidebarNavItem to="/leaderboard" icon={<Activity size={15} />} label="Leaderboard" />
+                  <SidebarNavItem to="/rates" icon={<Trophy size={16} />} label="Tier Rates" />
+                  <SidebarNavItem to="/leaderboard" icon={<Activity size={16} />} label="Leaderboard" />
                 </>
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/activity" icon={<Activity size={15} />} label="Activity Log" />
+                <SidebarNavItem to="/activity" icon={<Activity size={16} />} label="Activity Log" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -297,24 +301,24 @@ export function AppSidebar() {
               <SidebarGroupLabel>Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarNavItem to="/stores" icon={<Store size={15} />} label="Stores" />
+                  <SidebarNavItem to="/stores" icon={<Store size={16} />} label="Stores" />
                   {isDevAdmin && (
-                    <SidebarNavItem to="/billing" icon={<CreditCard size={15} />} label="Billing" />
+                    <SidebarNavItem to="/billing" icon={<CreditCard size={16} />} label="Billing" />
                   )}
                   {isSuperAdmin && (
-                    <SidebarNavItem to="/my-billing" icon={<CreditCard size={15} />} label="Billing" />
+                    <SidebarNavItem to="/my-billing" icon={<CreditCard size={16} />} label="Billing" />
                   )}
                   <SidebarNavItem
                     to="/notifications"
-                    icon={<Bell size={15} />}
+                    icon={<Bell size={16} />}
                     label="Notifications"
                     badge={unreadCount}
                   />
                   {isDevAdmin && (
-                    <SidebarNavItem to="/support" icon={<Headphones size={15} />} label="Support" badge={supportUnread} />
+                    <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" badge={supportUnread} />
                   )}
                   {isSuperAdmin && (
-                    <SidebarNavItem to="/support" icon={<Headphones size={15} />} label="Support" />
+                    <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" />
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -328,7 +332,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/documents" icon={<FileText size={15} />} label="Docs" />
+              <SidebarNavItem to="/documents" icon={<FileText size={16} />} label="Docs" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

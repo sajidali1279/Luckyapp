@@ -412,7 +412,7 @@ export default function Billing() {
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
               <p style={{ margin: 0, color: '#6c757d' }}>No billing records for this filter.</p>
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: '#adb5bd' }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 15, color: '#adb5bd' }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
             </div>
           ) : (
             <table style={s.table}>
@@ -454,7 +454,7 @@ export default function Billing() {
                         <td style={s.td}>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button
-                              style={{ ...s.editBtn, background: '#457B9D', fontSize: 12 }}
+                              style={{ ...s.editBtn, background: '#457B9D', fontSize: 14 }}
                               onClick={() => setCombinedInvoiceView(inv)}
                             >📄 Invoice</button>
                             {!inv.isPaid && (
@@ -472,11 +472,11 @@ export default function Billing() {
                           <td colSpan={7} style={s.expandedCell}>
                             <div style={{ padding: '16px 20px' }}>
                               <div style={s.billSectionTitle}>Per-Store Breakdown — {inv.period}</div>
-                              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginTop: 8 }}>
+                              <table style={{ width: '100%', fontSize: 15, borderCollapse: 'collapse', marginTop: 8 }}>
                                 <thead>
                                   <tr>
                                     {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', ''].map((h) => (
-                                      <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 11, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
+                                      <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
                                     ))}
                                   </tr>
                                 </thead>
@@ -497,7 +497,7 @@ export default function Billing() {
                                           <td style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</td>
                                           <td style={s.catTd}>
                                             <button
-                                              style={{ padding: '4px 10px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}
+                                              style={{ padding: '4px 10px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
                                               onClick={() => setInvoiceView({ record: r, period: inv.period })}
                                             >📄 Invoice</button>
                                           </td>
@@ -564,7 +564,7 @@ export default function Billing() {
           <div style={{ padding: '24px 0' }}>
             <div style={{ background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' }}>Add Manual Charge</h2>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 24px' }}>
+              <p style={{ fontSize: 15, color: '#6b7280', margin: '0 0 24px' }}>
                 Add a one-time custom charge to a store's billing — for setup fees, custom work, or any extra services.
               </p>
 
@@ -613,7 +613,7 @@ export default function Billing() {
                 value={manualForm.period}
                 onChange={e => { setManualForm(f => ({ ...f, period: e.target.value })); setManualDone(null); }}
               />
-              <p style={{ fontSize: 11, color: '#9ca3af', margin: '-8px 0 16px' }}>This determines which invoice the charge appears on.</p>
+              <p style={{ fontSize: 13, color: '#9ca3af', margin: '-8px 0 16px' }}>This determines which invoice the charge appears on.</p>
 
               <button
                 style={{ ...s.btn, width: '100%', opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? 'pointer' : 'not-allowed' }}
@@ -627,11 +627,11 @@ export default function Billing() {
               {manualDone && (
                 <div style={{ marginTop: 20, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 16 }}>
                   <div style={{ fontWeight: 800, color: '#166534', marginBottom: 4 }}>✅ Charge added successfully</div>
-                  <div style={{ fontSize: 13, color: '#374151' }}>
+                  <div style={{ fontSize: 15, color: '#374151' }}>
                     <strong>{stores.find((st: any) => st.id === manualDone.storeId)?.name}</strong> —{' '}
                     ${parseFloat(manualDone.amount).toFixed(2)} for period <strong>{manualDone.period}</strong>
                   </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                  <div style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>
                     It will appear on the store's next invoice under Monthly Bills.
                   </div>
                 </div>
@@ -659,7 +659,7 @@ export default function Billing() {
                   <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
                     <th style={s.th}>Tier</th>
                     <th style={s.th}>Cashback %</th>
-                    <th style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 11 }}>(optional — overrides % for gas)</span></th>
+                    <th style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional — overrides % for gas)</span></th>
                     <th style={s.th}></th>
                   </tr>
                 </thead>
@@ -735,8 +735,8 @@ export default function Billing() {
                 <span style={{ color: '#E63946' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
               </div>
               <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #dee2e6' }}>
-                <span style={{ color: '#6c757d', fontSize: 12 }}>Store pays you monthly: sum of dev cut per transaction</span>
-                <span style={{ color: '#6c757d', fontSize: 12 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
+                <span style={{ color: '#6c757d', fontSize: 14 }}>Store pays you monthly: sum of dev cut per transaction</span>
+                <span style={{ color: '#6c757d', fontSize: 14 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
               </div>
             </div>
 
@@ -755,7 +755,7 @@ export default function Billing() {
                   placeholder="e.g. 0.04"
                   autoFocus
                 />
-                <span style={{ color: '#6c757d', fontSize: 13 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : '—'}</span>
+                <span style={{ color: '#6c757d', fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : '—'}</span>
                 <button style={s.saveBtn} onClick={saveRate} disabled={updateRate.isPending}>{updateRate.isPending ? '…' : 'Save'}</button>
                 <button style={s.cancelBtn} onClick={() => setEditingRate(false)}>Cancel</button>
               </div>
@@ -807,7 +807,7 @@ function RevenueCard({ label, value, highlight }: { label: string; value: any; h
 function StatItem({ label, value, highlight }: { label: string; value: any; highlight?: boolean }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 11, color: '#6c757d', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#2DC653' : '#1D3557' }}>{value}</div>
     </div>
   );
@@ -951,7 +951,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
                   <tr key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
                     <td style={inv2.tableTd}>
                       <div style={{ fontWeight: 700 }}>{r.store?.name ?? '—'}</div>
-                      {r.store?.city && <div style={{ fontSize: 11, color: '#6c757d', marginTop: 1 }}>{r.store.city}</div>}
+                      {r.store?.city && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{r.store.city}</div>}
                     </td>
                     <td style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</td>
                     <td style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
@@ -993,7 +993,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
                 <div style={{ fontWeight: 800, color: '#065f46', fontSize: 15 }}>All Stores — Payment Confirmed</div>
-                {inv.paidAt && <div style={{ fontSize: 13, color: '#047857', marginTop: 2 }}>Paid on {new Date(inv.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>}
+                {inv.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>Paid on {new Date(inv.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>}
               </div>
             </div>
           ) : (
@@ -1001,14 +1001,14 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
               <span style={{ fontSize: 24 }}>⏳</span>
               <div>
                 <div style={{ fontWeight: 800, color: '#92400e', fontSize: 15 }}>Payment Outstanding</div>
-                <div style={{ fontSize: 13, color: '#b45309', marginTop: 2 }}>
+                <div style={{ fontSize: 15, color: '#b45309', marginTop: 2 }}>
                   {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid — use "Mark Paid" to confirm receipt
                 </div>
               </div>
             </div>
           )}
 
-          <div style={{ fontSize: 12, color: '#6c757d', textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: 14, color: '#6c757d', textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e9ecef' }}>
             Lucky Stop Loyalty Platform · Invoice {invNum} · Generated {issueDate} · For questions contact your account manager
           </div>
         </div>
@@ -1143,7 +1143,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                     <tr key={cat.category}>
                       <td style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Fee — {cat.category}</div>
-                        <div style={{ fontSize: 11, color: '#6c757d', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)})
                         </div>
                       </td>
@@ -1156,7 +1156,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                     <tr>
                       <td style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Processing Fee</div>
-                        <div style={{ fontSize: 11, color: '#6c757d', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)}) × {n.txCount} transactions
                         </div>
                       </td>
@@ -1200,14 +1200,14 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
                 <div style={{ fontWeight: 800, color: '#065f46', fontSize: 15 }}>Payment Confirmed</div>
-                {record.paidAt && <div style={{ fontSize: 13, color: '#047857', marginTop: 2 }}>
+                {record.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>
                   Paid on {new Date(record.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 </div>}
               </div>
             </div>
           )}
 
-          <div style={{ fontSize: 12, color: '#6c757d', textAlign: 'center', padding: '16px 0 4px', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: 14, color: '#6c757d', textAlign: 'center', padding: '16px 0 4px', borderTop: '1px solid #e9ecef' }}>
             Lucky Stop Loyalty Platform · Invoice generated {new Date().toLocaleDateString()} · For questions contact your account manager
           </div>
         </div>
@@ -1233,7 +1233,7 @@ const s: Record<string, React.CSSProperties> = {
   revenueBox: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 },
   revCard: { padding: '12px 0' },
-  revLabel: { color: '#6c757d', fontSize: 12, margin: 0, fontWeight: 600 },
+  revLabel: { color: '#6c757d', fontSize: 14, margin: 0, fontWeight: 600 },
   revValue: { fontSize: 22, fontWeight: 800, margin: '4px 0 0' },
 
   // Tabs
@@ -1243,49 +1243,49 @@ const s: Record<string, React.CSSProperties> = {
 
   // Table
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-  th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 12, color: '#6c757d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
+  th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: '#6c757d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
   td: { padding: '12px 16px', borderBottom: '1px solid #f0f1f2', fontSize: 14, verticalAlign: 'middle' },
   rowExpanded: { background: '#f8faff' },
   expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e9ecef' },
   statsRow: { display: 'flex', gap: 12, padding: '16px 20px', flexWrap: 'wrap' },
   statBox: { flex: '1 1 180px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
-  statBoxLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  statBoxLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
 
   expandBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: 0 },
-  cityLabel: { fontSize: 12, color: '#adb5bd', marginTop: 2 },
-  badge: { background: '#E63946', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' },
-  paidBadge: { background: '#2DC653', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  unpaidBadge: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  na: { color: '#adb5bd', fontSize: 13 },
+  cityLabel: { fontSize: 14, color: '#adb5bd', marginTop: 2 },
+  badge: { background: '#E63946', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
+  paidBadge: { background: '#2DC653', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  unpaidBadge: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  na: { color: '#adb5bd', fontSize: 15 },
   input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 14 },
-  select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 13 },
+  select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 15 },
   volValue: { fontWeight: 700, color: '#1D3557' },
-  volSub: { fontSize: 11, color: '#adb5bd', marginTop: 2 },
-  editBtn: { padding: '6px 14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
-  saveBtn: { padding: '6px 14px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 13 },
-  cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
-  suggestionLine: { margin: '0 0 8px', fontSize: 13, color: '#495057', lineHeight: 1.5 },
+  volSub: { fontSize: 13, color: '#adb5bd', marginTop: 2 },
+  editBtn: { padding: '6px 14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
+  saveBtn: { padding: '6px 14px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
+  cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
+  suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#495057', lineHeight: 1.5 },
 
   // Monthly bills
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
-  filterLabel: { display: 'block', fontSize: 12, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
+  filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   exportBtn: { padding: '10px 20px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   sendBtn: { padding: '10px 20px', background: '#F4A261', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  monthlyHint: { fontSize: 13, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
+  monthlyHint: { fontSize: 15, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
   monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#495057' },
 
   // Compound bill detail
   billDetail: { display: 'flex', flexWrap: 'wrap', gap: 16, padding: '16px 20px' },
   billSection: { flex: '1 1 260px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
-  billSectionTitle: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
+  billSectionTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
   feeGrid: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', padding: '4px 0' },
-  catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 13, color: '#495057' },
+  feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0' },
+  catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 15, color: '#495057' },
 
   // Settings
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 },
@@ -1294,16 +1294,16 @@ const s: Record<string, React.CSSProperties> = {
   settingsCardDesc: { fontSize: 14, color: '#6c757d', margin: '0 0 20px', lineHeight: 1.6 },
 
   rateExampleBox: { background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', marginBottom: 20 },
-  rateExampleTitle: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  rateExampleRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', marginBottom: 6 },
+  rateExampleTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  rateExampleRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', marginBottom: 6 },
 
   rateDisplayRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   rateValue: { fontSize: 36, fontWeight: 800, color: '#1D3557' },
-  rateSub: { fontSize: 12, color: '#6c757d', marginTop: 2 },
+  rateSub: { fontSize: 14, color: '#6c757d', marginTop: 2 },
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
   infoList: { marginTop: 8 },
-  fieldLabel: { display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 16 },
+  fieldLabel: { display: 'block', fontSize: 15, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 16 },
   btn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 },
 };
 
@@ -1325,26 +1325,26 @@ const inv: Record<string, React.CSSProperties> = {
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 12, color: '#6c757d', marginTop: 4 },
+  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 4 },
   invTitle: { fontSize: 32, fontWeight: 900, color: '#1D3557', letterSpacing: 2 },
-  invNum: { fontSize: 13, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
+  invNum: { fontSize: 15, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
 
   metaRow: { display: 'flex', gap: 20, marginBottom: 28 },
   metaBox: { flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '16px 20px' },
-  metaLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  metaLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
-  metaSub: { fontSize: 13, color: '#6c757d', marginTop: 3 },
-  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
-  paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
+  metaSub: { fontSize: 15, color: '#6c757d', marginTop: 3 },
+  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
+  paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
+  unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
 
   table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: 24, borderRadius: 10, overflow: 'hidden' },
-  tableTh: { background: '#1D3557', color: '#fff', padding: '10px 14px', fontSize: 12, fontWeight: 700, textAlign: 'left' as const },
-  tableTd: { padding: '10px 14px', fontSize: 13, borderBottom: '1px solid #f0f1f2', color: '#1D3557', verticalAlign: 'top' as const },
+  tableTh: { background: '#1D3557', color: '#fff', padding: '10px 14px', fontSize: 14, fontWeight: 700, textAlign: 'left' as const },
+  tableTd: { padding: '10px 14px', fontSize: 15, borderBottom: '1px solid #f0f1f2', color: '#1D3557', verticalAlign: 'top' as const },
 
   notesBox: { background: '#f8f9fa', borderRadius: 10, padding: '16px 20px', marginBottom: 20 },
-  notesTitle: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
-  noteRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', padding: '5px 0', borderBottom: '1px solid #e9ecef' },
+  notesTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  noteRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '5px 0', borderBottom: '1px solid #e9ecef' },
 
   actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e9ecef' },
   printBtn: { padding: '10px 22px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
@@ -1369,27 +1369,27 @@ const inv2: Record<string, React.CSSProperties> = {
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 12, color: '#6c757d', marginTop: 4 },
+  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 4 },
   invTitle: { fontSize: 32, fontWeight: 900, color: '#1D3557', letterSpacing: 2 },
-  invNum: { fontSize: 13, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
+  invNum: { fontSize: 15, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
 
   metaRow: { display: 'flex', gap: 20, marginBottom: 24 },
   metaBox: { flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '16px 20px' },
-  metaLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  metaLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
-  metaSub: { fontSize: 13, color: '#6c757d', marginTop: 3 },
-  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
-  paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
+  metaSub: { fontSize: 15, color: '#6c757d', marginTop: 3 },
+  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
+  paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
+  unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
 
   summaryRow: { display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' as const },
   summaryCard: { flex: '1 1 120px', background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', textAlign: 'center' as const, border: '1px solid #e9ecef' },
-  summaryLabel: { fontSize: 10, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
+  summaryLabel: { fontSize: 12, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
   summaryValue: { fontSize: 16, fontWeight: 800, color: '#1D3557' },
 
   table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: 20, borderRadius: 10, overflow: 'hidden' },
-  tableTh: { background: '#1D3557', color: '#fff', padding: '10px 12px', fontSize: 11, fontWeight: 700, textAlign: 'left' as const },
-  tableTd: { padding: '9px 12px', fontSize: 13, borderBottom: '1px solid #f0f1f2', color: '#1D3557', verticalAlign: 'middle' as const },
+  tableTh: { background: '#1D3557', color: '#fff', padding: '10px 12px', fontSize: 13, fontWeight: 700, textAlign: 'left' as const },
+  tableTd: { padding: '9px 12px', fontSize: 15, borderBottom: '1px solid #f0f1f2', color: '#1D3557', verticalAlign: 'middle' as const },
 
   actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e9ecef' },
   printBtn: { padding: '10px 22px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },

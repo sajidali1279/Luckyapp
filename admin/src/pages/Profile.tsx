@@ -189,7 +189,7 @@ const s: Record<string, React.CSSProperties> = {
   role: {
     background: '#EEF2FF', color: '#4f46e5',
     borderRadius: 6, padding: '2px 10px',
-    fontSize: 12, fontWeight: 700,
+    fontSize: 14, fontWeight: 700,
   },
   phone: { color: '#9ca3af', fontSize: 14 },
 
@@ -201,10 +201,10 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column', gap: 8,
   },
   cardTitle: { fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 },
-  cardSub: { fontSize: 13, color: '#9ca3af', margin: '0 0 8px', lineHeight: 1.5 },
+  cardSub: { fontSize: 15, color: '#9ca3af', margin: '0 0 8px', lineHeight: 1.5 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 8 },
-  label: { fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.4 },
+  label: { fontSize: 13, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     padding: '11px 14px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', fontSize: 15,

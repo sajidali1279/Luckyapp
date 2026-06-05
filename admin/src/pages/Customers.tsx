@@ -321,11 +321,11 @@ export default function Customers() {
             </div>
             {confirmTarget.isActive && (
               <div style={{ marginBottom: 16, textAlign: 'left' }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
                   Reason (optional — shown as fraud flag)
                 </label>
                 <input
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none' }}
                   value={fraudNote}
                   onChange={e => setFraudNote(e.target.value)}
                   placeholder="e.g. Fake receipts, multiple accounts..."
@@ -354,20 +354,20 @@ export default function Customers() {
             <div style={s.modalTitle}>Resolve Dispute</div>
             <div style={{ textAlign: 'left', marginBottom: 16 }}>
               <div style={s.disputeCustomer}>{resolveTarget.customer?.name || resolveTarget.customer?.phone}</div>
-              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>{resolveTarget.description}</div>
-              {resolveTarget.estimatedAmt && <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Estimated: ${Number(resolveTarget.estimatedAmt).toFixed(2)}</div>}
+              <div style={{ fontSize: 15, color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>{resolveTarget.description}</div>
+              {resolveTarget.estimatedAmt && <div style={{ fontSize: 14, color: '#9ca3af', marginTop: 4 }}>Estimated: ${Number(resolveTarget.estimatedAmt).toFixed(2)}</div>}
             </div>
             <div style={{ textAlign: 'left', marginBottom: 12 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Credits to Award (if approving)</label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Credits to Award (if approving)</label>
               <input
                 type="number" min="0" step="0.01"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10 }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10 }}
                 value={creditAmt} onChange={e => setCreditAmt(e.target.value)}
                 placeholder="e.g. 2.50 (= $2.50 in credits)"
               />
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Note to customer (optional)</label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Note to customer (optional)</label>
               <input
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none' }}
                 value={resolveNote} onChange={e => setResolveNote(e.target.value)}
                 placeholder="Explanation for your decision"
               />
@@ -396,7 +396,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  eyebrow: { fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  eyebrow: { fontSize: 13, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
 
   headerStats: { display: 'flex', gap: 10, alignItems: 'center' },
@@ -406,9 +406,9 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
   },
   statNum: { display: 'block', fontSize: 18, fontWeight: 800, color: '#1D3557' },
-  statLbl: { display: 'block', fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
+  statLbl: { display: 'block', fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
 
-  exportBtn: { padding: '9px 18px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 },
+  exportBtn: { padding: '9px 18px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   searchRow: { display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' },
   searchWrap: { flex: 1, position: 'relative' },
@@ -418,8 +418,8 @@ const s: Record<string, React.CSSProperties> = {
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, background: '#fff',
   },
-  searchBtn: { padding: '10px 22px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 },
-  clearBtn: { padding: '10px 16px', background: '#f8fafc', color: '#6b7280', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 13 },
+  searchBtn: { padding: '10px 22px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
+  clearBtn: { padding: '10px 16px', background: '#f8fafc', color: '#6b7280', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 15 },
 
   cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 },
 
@@ -437,7 +437,7 @@ const s: Record<string, React.CSSProperties> = {
     color: '#fff', fontSize: 18, fontWeight: 800,
   },
   customerName: { fontWeight: 700, fontSize: 15, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  customerPhone: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  customerPhone: { fontSize: 14, color: '#6b7280', marginTop: 2 },
   statusDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
 
   balancePill: {
@@ -446,30 +446,30 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'baseline', gap: 6,
   },
   balanceAmt: { fontSize: 22, fontWeight: 800 },
-  balanceLbl: { fontSize: 11, color: '#9ca3af', fontWeight: 600 },
+  balanceLbl: { fontSize: 13, color: '#9ca3af', fontWeight: 600 },
 
   statsRow: { display: 'flex', alignItems: 'center', marginBottom: 14 },
   statBlock: { flex: 1, textAlign: 'center' },
   statBlockNum: { fontSize: 14, fontWeight: 800, color: '#111827' },
-  statBlockLbl: { fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
+  statBlockLbl: { fontSize: 12, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
   statDivider: { width: 1, height: 28, background: '#f0f1f2' },
 
   cardDivider: { height: 1, background: '#f0f1f2', marginBottom: 14 },
 
-  actionBtn: { width: '100%', padding: '9px 0', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  actionBtn: { width: '100%', padding: '9px 0', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
   actionBtnRestrict: { background: '#fff1f2', color: '#E63946' },
   actionBtnRestore: { background: '#f0fdf4', color: '#16a34a' },
 
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 8 },
   pageBtn: {
     padding: '9px 20px', background: '#fff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb',
-    borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#374151',
+    borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#374151',
   },
-  pageInfo: { color: '#6b7280', fontSize: 13 },
+  pageInfo: { color: '#6b7280', fontSize: 15 },
 
   emptyState: { textAlign: 'center', padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#374151' },
-  emptySub: { fontSize: 13, color: '#9ca3af' },
+  emptySub: { fontSize: 15, color: '#9ca3af' },
 
   // Tabs
   tabs: { display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #f0f1f2', paddingBottom: 0 },
@@ -482,7 +482,7 @@ const s: Record<string, React.CSSProperties> = {
   // Disputes
   filterSelect: {
     padding: '9px 14px', borderRadius: 10, borderWidth: '1.5px', borderStyle: 'solid',
-    borderColor: '#e5e7eb', fontSize: 13, background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
+    borderColor: '#e5e7eb', fontSize: 15, background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
   },
   disputeCard: {
     background: '#fff', borderRadius: 14, padding: '16px 18px',
@@ -490,21 +490,21 @@ const s: Record<string, React.CSSProperties> = {
     borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
   },
   disputeStatusPill: {
-    display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+    display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700,
     textTransform: 'uppercase' as const, letterSpacing: 0.5,
   },
-  disputeMeta: { fontSize: 12, color: '#9ca3af' },
+  disputeMeta: { fontSize: 14, color: '#9ca3af' },
   disputeCustomer: { fontSize: 14, fontWeight: 700, color: '#111827' },
-  disputeDesc: { fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 1.5 },
+  disputeDesc: { fontSize: 15, color: '#374151', marginTop: 4, lineHeight: 1.5 },
   resolveBtn: {
     padding: '8px 18px', background: '#1D3557', color: '#fff', border: 'none',
-    borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13, flexShrink: 0,
+    borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15, flexShrink: 0,
   },
 
   // Fraud badge
   fraudBadge: {
     display: 'inline-block', marginTop: 4, padding: '2px 8px', background: '#fff1f2',
-    color: '#E63946', fontSize: 11, fontWeight: 700, borderRadius: 6,
+    color: '#E63946', fontSize: 13, fontWeight: 700, borderRadius: 6,
     whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis',
   },
 
@@ -514,7 +514,7 @@ const s: Record<string, React.CSSProperties> = {
   dragHandle: { width: 40, height: 4, background: '#e2e8f0', borderRadius: 2, margin: '0 auto 20px' },
   modalIcon: { width: 60, height: 60, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' },
   modalTitle: { fontSize: 18, fontWeight: 800, color: '#111827', marginBottom: 8 },
-  modalSub: { fontSize: 13, color: '#6b7280', marginBottom: 24, lineHeight: 1.5 },
+  modalSub: { fontSize: 15, color: '#6b7280', marginBottom: 24, lineHeight: 1.5 },
   modalActions: { display: 'flex', gap: 10 },
   cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', color: '#6b7280', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   confirmBtn: { flex: 1, padding: '11px 0', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' },

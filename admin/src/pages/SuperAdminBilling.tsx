@@ -129,7 +129,7 @@ export default function SuperAdminBilling() {
                             <thead>
                               <tr>
                                 {['Store', 'City', 'Transactions', 'Cashback Issued', 'Dev Cut'].map((h) => (
-                                  <th key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 11 }}>{h}</th>
+                                  <th key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
@@ -185,36 +185,36 @@ const s: Record<string, React.CSSProperties> = {
 
   cards: { display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap' },
   card: { flex: '1 1 200px', background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
-  cardLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   cardValue: { fontSize: 28, fontWeight: 800, color: '#1D3557', lineHeight: 1 },
-  cardSub: { fontSize: 12, color: '#6c757d', marginTop: 6 },
+  cardSub: { fontSize: 14, color: '#6c757d', marginTop: 6 },
 
   tableWrap: { background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden', marginBottom: 24 },
   tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #f0f2f5' },
   tableTitle: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { background: '#f8f9fb', padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee' },
+  th: { background: '#f8f9fb', padding: '10px 14px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee' },
   tr: { borderBottom: '1px solid #f0f2f5' },
-  td: { padding: '14px', fontSize: 13, color: '#333', verticalAlign: 'middle' },
-  sub: { fontSize: 11, color: '#6c757d', marginTop: 3 },
-  expandBtn: { fontSize: 10, color: '#1D3557', minWidth: 14 },
+  td: { padding: '14px', fontSize: 15, color: '#333', verticalAlign: 'middle' },
+  sub: { fontSize: 13, color: '#6c757d', marginTop: 3 },
+  expandBtn: { fontSize: 12, color: '#1D3557', minWidth: 14 },
 
   expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e0e7ff' },
   storeBreakdown: { padding: '16px 20px' },
-  breakdownTitle: { fontWeight: 700, fontSize: 13, color: '#1D3557', marginBottom: 10 },
+  breakdownTitle: { fontWeight: 700, fontSize: 15, color: '#1D3557', marginBottom: 10 },
 
-  badgePaid: { background: '#d4edda', color: '#155724', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 },
-  badgeUnpaid: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 },
+  badgePaid: { background: '#d4edda', color: '#155724', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
+  badgeUnpaid: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
 
-  footer: { padding: '14px 20px', background: '#f8f9fb', borderTop: '1px solid #eee', fontSize: 13, color: '#6c757d' },
+  footer: { padding: '14px 20px', background: '#f8f9fb', borderTop: '1px solid #eee', fontSize: 15, color: '#6c757d' },
 
   infoBox: { background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: '18px 22px' },
-  infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 13, marginBottom: 6 },
-  infoText: { fontSize: 13, color: '#4338ca', lineHeight: 1.6 },
+  infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 15, marginBottom: 6 },
+  infoText: { fontSize: 15, color: '#4338ca', lineHeight: 1.6 },
 
   pdfBtn: {
     background: '#fff', border: '1.5px solid #2DC653', color: '#155724',
-    borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700,
+    borderRadius: 6, padding: '4px 10px', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
 };

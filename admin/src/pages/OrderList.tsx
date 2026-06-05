@@ -146,7 +146,7 @@ function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: (
                     onMouseDown={() => { setName(sug.name); setDebouncedName(sug.name); setShowNameDrop(false); }}
                   >
                     <span>{sug.name}</span>
-                    <span style={{ fontSize: 11, color: '#94A3B8' }}>{sug.count}×</span>
+                    <span style={{ fontSize: 13, color: '#94A3B8' }}>{sug.count}×</span>
                   </div>
                 ))}
               </div>
@@ -725,10 +725,10 @@ function RequestsTab() {
                   <div style={{ flex: 1 }}>
                     <div style={r.cardTitle}>
                       {req.submittedBy.name}
-                      <span style={{ ...s.statusPill, background: isPending ? '#FEF3C7' : '#D1FAE5', color: isPending ? '#D97706' : '#059669', marginLeft: 8, fontSize: 11 }}>
+                      <span style={{ ...s.statusPill, background: isPending ? '#FEF3C7' : '#D1FAE5', color: isPending ? '#D97706' : '#059669', marginLeft: 8, fontSize: 13 }}>
                         {isPending ? 'Pending' : 'Reviewed'}
                       </span>
-                      <span style={{ ...s.statusPill, background: '#EEF2FF', color: '#4F46E5', marginLeft: 6, fontSize: 11 }}>
+                      <span style={{ ...s.statusPill, background: '#EEF2FF', color: '#4F46E5', marginLeft: 6, fontSize: 13 }}>
                         {req.requestType === 'CUSTOMER_REQUEST' ? 'Customer Request' : 'Low Stock'}
                       </span>
                     </div>
@@ -757,7 +757,7 @@ function RequestsTab() {
                             {line.notes && ` — ${line.notes}`}
                           </div>
                           {!linePending && (
-                            <span style={{ ...s.statusPill, background: line.status === 'ACCEPTED' ? '#D1FAE5' : '#FEE2E2', color: line.status === 'ACCEPTED' ? '#059669' : '#DC2626', fontSize: 11 }}>
+                            <span style={{ ...s.statusPill, background: line.status === 'ACCEPTED' ? '#D1FAE5' : '#FEE2E2', color: line.status === 'ACCEPTED' ? '#059669' : '#DC2626', fontSize: 13 }}>
                               {line.status === 'ACCEPTED' ? 'Accepted' : `Rejected${line.rejectionReason ? ` — ${line.rejectionReason}` : ''}`}
                             </span>
                           )}
@@ -880,11 +880,11 @@ const s: Record<string, React.CSSProperties> = {
 
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },
   filterSelect: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer' },
-  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, color: '#64748B', background: '#fff', cursor: 'pointer' },
-  pendingBadge:  { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 13, fontWeight: 700 },
+  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 15, color: '#64748B', background: '#fff', cursor: 'pointer' },
+  pendingBadge:  { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 15, fontWeight: 700 },
   approveHint: {
     background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10,
-    padding: '10px 16px', fontSize: 13, color: '#065F46', marginBottom: 16, lineHeight: 1.5,
+    padding: '10px 16px', fontSize: 15, color: '#065F46', marginBottom: 16, lineHeight: 1.5,
   },
 
   loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 15 },
@@ -899,11 +899,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   listCardTop:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   listCardName:  { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
-  listCardStore: { fontSize: 13, color: '#64748B', marginBottom: 8 },
-  listCardDate:  { fontSize: 12, color: '#94A3B8' },
-  listCardStats: { display: 'flex', gap: 12, fontSize: 13, flexWrap: 'wrap' },
+  listCardStore: { fontSize: 15, color: '#64748B', marginBottom: 8 },
+  listCardDate:  { fontSize: 14, color: '#94A3B8' },
+  listCardStats: { display: 'flex', gap: 12, fontSize: 15, flexWrap: 'wrap' },
 
-  statusPill: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
+  statusPill: { padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 600 },
 
   // Detail view
   breadcrumb:    { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 },
@@ -913,7 +913,7 @@ const s: Record<string, React.CSSProperties> = {
 
   listDetailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24, padding: '20px', background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #E2E8F0' },
   listDetailTitle:  { fontSize: 20, fontWeight: 800, color: '#1E293B', marginBottom: 4 },
-  listDetailMeta:   { fontSize: 13, color: '#64748B', marginBottom: 8 },
+  listDetailMeta:   { fontSize: 15, color: '#64748B', marginBottom: 8 },
   listDetailStats:  { display: 'flex', gap: 16, fontSize: 14 },
 
   addItemBtn: {
@@ -926,38 +926,38 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   catSection: { marginBottom: 24 },
-  catHeader:  { fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingLeft: 4 },
+  catHeader:  { fontSize: 14, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingLeft: 4 },
   itemsGrid:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 },
 
   itemCard:    { background: '#fff', borderRadius: 10, padding: 14, border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
   itemCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 6 },
-  badge:       { padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600 },
+  badge:       { padding: '2px 8px', borderRadius: 12, fontSize: 13, fontWeight: 600 },
   itemName:    { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
-  itemMeta:    { fontSize: 12, color: '#64748B', marginBottom: 2 },
-  itemNote:    { fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginBottom: 4 },
-  itemBy:      { fontSize: 11, color: '#CBD5E1', marginTop: 4 },
+  itemMeta:    { fontSize: 14, color: '#64748B', marginBottom: 2 },
+  itemNote:    { fontSize: 14, color: '#94A3B8', fontStyle: 'italic', marginBottom: 4 },
+  itemBy:      { fontSize: 13, color: '#CBD5E1', marginTop: 4 },
   itemActions: { marginTop: 10, display: 'flex', gap: 6 },
   removeBtn:   { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px', borderRadius: 4 },
 
-  statusBtnGreen:  { padding: '6px 12px', borderRadius: 8, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
-  statusBtnPurple: { padding: '6px 12px', borderRadius: 8, background: '#EDE9FE', color: '#7C3AED', border: '1px solid #C4B5FD', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  statusBtnGreen:  { padding: '6px 12px', borderRadius: 8, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  statusBtnPurple: { padding: '6px 12px', borderRadius: 8, background: '#EDE9FE', color: '#7C3AED', border: '1px solid #C4B5FD', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Category table
   catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
-  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#F8FAFC', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E2E8F0' },
+  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#F8FAFC', fontSize: 14, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E2E8F0' },
   catTableRow:  { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', borderBottom: '1px solid #F1F5F9', alignItems: 'center' },
   catName:      { fontSize: 14, fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 8 },
   catUses:      { fontSize: 14, color: '#64748B' },
   catActions:   { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  storeTag:     { fontSize: 10, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: '#94A3B8', fontWeight: 500 },
+  storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: '#94A3B8', fontWeight: 500 },
 
   editRow: { display: 'flex', alignItems: 'center', gap: 8 },
-  approveBtn:   { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
-  rejectBtnSm:  { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
-  editBtnSm:    { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  deleteBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  saveBtnSm:    { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
-  cancelBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 12, cursor: 'pointer' },
+  approveBtn:   { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  rejectBtnSm:  { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  editBtnSm:    { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  deleteBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  saveBtnSm:    { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  cancelBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
 };
 
 // Request tab styles
@@ -965,16 +965,16 @@ const r: Record<string, React.CSSProperties> = {
   card:      { borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
   cardHead:  { display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
-  cardMeta:  { fontSize: 12, color: '#64748B', marginTop: 2 },
+  cardMeta:  { fontSize: 14, color: '#64748B', marginTop: 2 },
   lines:     { borderTop: '1px solid #E2E8F0', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#F8FAFC' },
   line:      { background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', padding: 12 },
   lineName:  { fontSize: 14, fontWeight: 600, color: '#1E293B' },
-  lineMeta:  { fontSize: 12, color: '#64748B', marginTop: 2 },
+  lineMeta:  { fontSize: 14, color: '#64748B', marginTop: 2 },
   actionRow: { display: 'flex', gap: 8, marginTop: 6 },
-  actionBtn: { flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  actionBtn: { flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151' },
   acceptActive: { background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
   rejectActive: { background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
-  chipBtn:   { padding: '4px 12px', borderRadius: 16, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#64748B' },
+  chipBtn:   { padding: '4px 12px', borderRadius: 16, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 14, color: '#64748B' },
 };
 
 // Modal styles
@@ -985,7 +985,7 @@ const m: Record<string, React.CSSProperties> = {
   modalTitle:  { fontSize: 18, fontWeight: 800, color: '#1E293B' },
   closeBtn:    { background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer', lineHeight: 1 },
   field:  { marginBottom: 14 },
-  label:  { display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' },
+  label:  { display: 'block', fontSize: 14, fontWeight: 700, color: '#64748B', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' },
   input:  { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' },
   textarea: { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box', resize: 'vertical' },
   primaryBtn: { width: '100%', padding: '13px 0', borderRadius: 10, background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer', marginTop: 8 },

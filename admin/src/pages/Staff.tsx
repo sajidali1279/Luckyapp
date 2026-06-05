@@ -452,7 +452,7 @@ export default function Staff() {
 
             {/* Select All / Clear All row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 600 }}>
+              <span style={{ fontSize: 15, color: '#6b7280', fontWeight: 600 }}>
                 {pendingStoreIds.length} of {stores.length} selected
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -498,7 +498,7 @@ export default function Staff() {
                       {store.city && <div style={s.storeCheckCity}>{store.city}</div>}
                     </div>
                     <div style={{ ...s.checkbox, ...(checked ? s.checkboxActive : {}) }}>
-                      {checked && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900 }}>✓</span>}
+                      {checked && <span style={{ color: '#fff', fontSize: 13, fontWeight: 900 }}>✓</span>}
                     </div>
                   </label>
                 );
@@ -608,7 +608,7 @@ const s: Record<string, React.CSSProperties> = {
   statChip: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb',
-    borderRadius: 10, padding: '4px 12px', fontSize: 13, fontWeight: 600,
+    borderRadius: 10, padding: '4px 12px', fontSize: 15, fontWeight: 600,
   },
   statChipNum: { fontWeight: 800, color: 'inherit' },
   headerRight: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
@@ -621,7 +621,7 @@ const s: Record<string, React.CSSProperties> = {
   searchInput: {
     paddingLeft: 36, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
     borderRadius: 10, border: '1.5px solid #e5e7eb',
-    fontSize: 13, background: '#fff', color: '#111827',
+    fontSize: 15, background: '#fff', color: '#111827',
     width: 220, outline: 'none',
     boxSizing: 'border-box' as const,
   },
@@ -631,7 +631,7 @@ const s: Record<string, React.CSSProperties> = {
   tab: {
     padding: '9px 18px', borderRadius: 10,
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
-    background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#6b7280',
+    background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#6b7280',
   },
   tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
 
@@ -652,7 +652,7 @@ const s: Record<string, React.CSSProperties> = {
   roleSectionIcon: { fontSize: 18 },
   roleSectionTitle: { fontSize: 16, fontWeight: 800, flex: 1 },
   roleSectionCount: {
-    fontSize: 12, fontWeight: 700, padding: '2px 10px',
+    fontSize: 14, fontWeight: 700, padding: '2px 10px',
     borderRadius: 20, border: '1px solid',
   },
 
@@ -677,27 +677,27 @@ const s: Record<string, React.CSSProperties> = {
     color: '#fff', fontWeight: 800, fontSize: 18,
   },
   memberName: { fontWeight: 700, fontSize: 15, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  memberPhone: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  memberPhone: { fontSize: 14, color: '#9ca3af', marginTop: 2 },
   activeDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
 
   cardMeta: { display: 'flex', gap: 8, alignItems: 'center' },
   roleBadge: {
     display: 'inline-block', borderRadius: 8, padding: '4px 10px',
-    fontSize: 11, fontWeight: 800,
+    fontSize: 13, fontWeight: 800,
   },
   youBadge: {
     display: 'inline-block', background: '#fefce8', color: '#b45309',
     border: '1px solid #fde68a', borderRadius: 8,
-    padding: '3px 9px', fontSize: 11, fontWeight: 700,
+    padding: '3px 9px', fontSize: 13, fontWeight: 700,
   },
 
   storeList: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   storeChip: {
     background: '#f8fafc', border: '1px solid #e5e7eb',
     borderRadius: 8, padding: '3px 9px',
-    fontSize: 11, fontWeight: 600, color: '#374151',
+    fontSize: 13, fontWeight: 600, color: '#374151',
   },
-  allStoresTag: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
+  allStoresTag: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic' },
 
   cardDivider: { height: 1, background: '#f3f4f6', margin: '0 -4px' },
 
@@ -705,7 +705,7 @@ const s: Record<string, React.CSSProperties> = {
   actionBtn: {
     padding: '6px 12px', background: '#f8fafc',
     border: '1.5px solid #e5e7eb', borderRadius: 8,
-    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#374151',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#374151',
     transition: 'all 0.12s',
   },
   actionBtnDanger: { color: '#E63946', borderColor: '#fecaca', background: '#fff1f2' },
@@ -729,12 +729,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   formCardHeader: { marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid #f0f1f2' },
   formCardTitle: { fontSize: 20, fontWeight: 800, color: '#111827' },
-  formCardSub: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
+  formCardSub: { fontSize: 15, color: '#9ca3af', marginTop: 4 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 22 },
   formRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   formGroup: { display: 'flex', flexDirection: 'column', gap: 8 },
-  formLabel: { fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.7px' },
+  formLabel: { fontSize: 13, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.7px' },
   input: {
     padding: '11px 14px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', fontSize: 14,
@@ -757,13 +757,13 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
-  roleCardLabel: { fontSize: 13, fontWeight: 800, color: '#111827' },
-  roleCardDesc: { fontSize: 11, color: '#9ca3af', lineHeight: 1.5 },
+  roleCardLabel: { fontSize: 15, fontWeight: 800, color: '#111827' },
+  roleCardDesc: { fontSize: 13, color: '#9ca3af', lineHeight: 1.5 },
   roleCardCheck: {
     position: 'absolute', top: 10, right: 10,
     width: 20, height: 20, borderRadius: 10,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 11, fontWeight: 900,
+    color: '#fff', fontSize: 13, fontWeight: 900,
   },
 
   // PIN input
@@ -783,7 +783,7 @@ const s: Record<string, React.CSSProperties> = {
   pinDotFilled: { background: '#1D3557' },
 
   formHint: {
-    fontSize: 12, color: '#9ca3af', lineHeight: 1.6,
+    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
     background: '#f8fafc', borderRadius: 10, padding: '12px 14px',
     border: '1px solid #f0f1f2',
   },
@@ -810,11 +810,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   modalHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   modalTitle: { fontSize: 18, fontWeight: 800, color: '#111827' },
-  modalSub: { fontSize: 13, color: '#9ca3af', marginTop: 3 },
+  modalSub: { fontSize: 15, color: '#9ca3af', marginTop: 3 },
   modalClose: {
     width: 30, height: 30, borderRadius: 15, border: 'none',
     background: '#f3f4f6', cursor: 'pointer',
-    fontSize: 13, color: '#6b7280', fontWeight: 700,
+    fontSize: 15, color: '#6b7280', fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
@@ -831,11 +831,11 @@ const s: Record<string, React.CSSProperties> = {
   storeCheckAvatar: {
     width: 32, height: 32, borderRadius: 9, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 13,
+    color: '#fff', fontWeight: 800, fontSize: 15,
     transition: 'background 0.15s',
   },
-  storeCheckName: { fontWeight: 700, fontSize: 13, transition: 'color 0.12s' },
-  storeCheckCity: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
+  storeCheckName: { fontWeight: 700, fontSize: 15, transition: 'color 0.12s' },
+  storeCheckCity: { fontSize: 13, color: '#9ca3af', marginTop: 1 },
   checkbox: {
     width: 20, height: 20, borderRadius: 6, flexShrink: 0,
     border: '2px solid #e5e7eb', background: '#fff',
@@ -848,17 +848,17 @@ const s: Record<string, React.CSSProperties> = {
   quickBtn: {
     padding: '5px 12px', borderRadius: 8,
     border: '1px solid #e5e7eb', background: '#f8fafc',
-    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#374151',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#374151',
   },
   cancelBtn: {
     padding: '10px 20px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', background: '#fff',
-    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#374151',
+    cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#374151',
   },
   confirmBtn: {
     padding: '10px 22px', borderRadius: 10,
     border: 'none', background: '#1D3557',
-    cursor: 'pointer', fontSize: 13, fontWeight: 800, color: '#fff',
+    cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#fff',
     boxShadow: '0 4px 12px rgba(29,53,87,0.3)',
   },
 };

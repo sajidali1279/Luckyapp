@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, productRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -418,7 +418,7 @@ export default function StoreRequests() {
                             {/* Response note */}
                             {pr.responseNote && (
                               <div style={{ ...s.prResponseBox, background: statusBg, borderColor: statusBorder }}>
-                                <span style={{ color: statusColor, fontSize: 13 }}>{pr.responseNote}</span>
+                                <span style={{ color: statusColor, fontSize: 15 }}>{pr.responseNote}</span>
                               </div>
                             )}
 
@@ -568,7 +568,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   sidebarTop: { padding: '20px 18px 8px' },
   sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  sidebarSubtitle: { fontSize: 14, color: '#9ca3af', marginTop: 2 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -584,7 +584,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  storeBtnCity: { fontSize: 14, color: '#9ca3af', marginTop: 1 },
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
 
   // ── Chat Panel ──
@@ -613,12 +613,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyIcon: { fontSize: 48, marginBottom: 4 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
-  emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center' },
+  emptySub: { fontSize: 15, color: '#6b7280', textAlign: 'center' },
 
   metaPill: {
     display: 'inline-flex', alignItems: 'center',
     padding: '3px 10px', borderRadius: 10,
-    fontSize: 12, fontWeight: 700,
+    fontSize: 14, fontWeight: 700,
   },
 
   // Tab switcher (in gradient header)
@@ -627,13 +627,13 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 20,
     border: '1.5px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)',
-    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
   },
   tabBtnActive: { background: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.6)', color: '#fff' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px',
-    background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800,
+    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
   },
 
   // Sub-filter row (below header, on white bg)
@@ -645,13 +645,13 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '5px 12px', borderRadius: 20,
     border: '1.5px solid #e5e7eb', background: '#f9fafb',
-    cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6b7280',
+    cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280',
   },
   subFilterTabActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
   subFilterCount: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
-    background: '#e5e7eb', color: '#6b7280', fontSize: 10, fontWeight: 800,
+    background: '#e5e7eb', color: '#6b7280', fontSize: 12, fontWeight: 800,
   },
   subFilterCountActive: { background: 'rgba(255,255,255,0.2)', color: '#fff' },
 
@@ -660,7 +660,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '6px 12px', borderRadius: 20,
     border: '1.5px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)',
-    cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
     transition: 'all 0.15s',
   },
   filterTabActive: { background: 'rgba(255,255,255,0.25)', borderColor: 'rgba(255,255,255,0.5)', color: '#fff' },
@@ -668,7 +668,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9,
     background: 'rgba(255,255,255,0.2)', color: '#fff',
-    fontSize: 10, fontWeight: 800, padding: '0 4px',
+    fontSize: 12, fontWeight: 800, padding: '0 4px',
   },
   filterCountActive: { background: 'rgba(255,255,255,0.3)', color: '#fff' },
 
@@ -692,19 +692,19 @@ const s: Record<string, React.CSSProperties> = {
   },
   typeIconEmoji: { fontSize: 22 },
   typeLabel: { fontWeight: 700, fontSize: 15, color: '#111827' },
-  storeMeta: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  storeMeta: { fontSize: 14, color: '#9ca3af', marginTop: 2 },
 
   badgeRow: { display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 },
   prioBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '4px 10px', borderRadius: 10,
-    fontSize: 11, fontWeight: 800, border: '1px solid',
+    fontSize: 13, fontWeight: 800, border: '1px solid',
   },
   prioBadgeDot: { width: 7, height: 7, borderRadius: 4, display: 'inline-block' },
   doneBadge: {
     padding: '4px 10px', borderRadius: 10,
     background: '#d1fae5', color: '#065f46',
-    fontSize: 11, fontWeight: 700,
+    fontSize: 13, fontWeight: 700,
     border: '1px solid #a7f3d0',
   },
 
@@ -712,12 +712,12 @@ const s: Record<string, React.CSSProperties> = {
   avatar: {
     width: 26, height: 26, borderRadius: 8,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0,
+    color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0,
   },
-  submitterText: { fontSize: 12, color: '#6b7280' },
+  submitterText: { fontSize: 14, color: '#6b7280' },
 
   notesBox: {
-    fontSize: 13, color: '#374151', fontStyle: 'italic',
+    fontSize: 15, color: '#374151', fontStyle: 'italic',
     background: '#f8fafc', padding: '9px 12px',
     borderRadius: 10, border: '1px solid #e5e7eb', lineHeight: 1.5,
   },
@@ -728,9 +728,9 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, border: '1px solid #bbf7d0',
   },
   ackIcon: { fontSize: 16, marginTop: 1, flexShrink: 0 },
-  ackBy: { fontSize: 12, fontWeight: 700, color: '#16a34a' },
+  ackBy: { fontSize: 14, fontWeight: 700, color: '#16a34a' },
   ackTime: { fontWeight: 500 },
-  ackNote: { fontSize: 12, color: '#16a34a', fontStyle: 'italic', marginTop: 3 },
+  ackNote: { fontSize: 14, color: '#16a34a', fontStyle: 'italic', marginTop: 3 },
 
   ackBtn: {
     alignSelf: 'stretch',
@@ -746,7 +746,7 @@ const s: Record<string, React.CSSProperties> = {
     alignSelf: 'flex-start',
     background: '#fffbeb', padding: '6px 12px',
     borderRadius: 10, border: '1px solid #fde68a',
-    fontSize: 12, fontWeight: 700, color: '#b45309',
+    fontSize: 14, fontWeight: 700, color: '#b45309',
   },
   pendingDot: {
     width: 7, height: 7, borderRadius: 4, background: '#f59e0b',
@@ -785,14 +785,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   previewIconEmoji: { fontSize: 20 },
   previewType: { fontWeight: 700, fontSize: 14, color: '#111827' },
-  previewMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  previewNotes: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 5 },
+  previewMeta: { fontSize: 14, color: '#6b7280', marginTop: 2 },
+  previewNotes: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic', marginTop: 5 },
 
   modalLabel: {
-    fontSize: 11, fontWeight: 800, color: '#6b7280',
+    fontSize: 13, fontWeight: 800, color: '#6b7280',
     textTransform: 'uppercase', letterSpacing: '0.8px',
   },
-  optionalTag: { fontSize: 10, fontWeight: 500, textTransform: 'none', color: '#9ca3af' },
+  optionalTag: { fontSize: 12, fontWeight: 500, textTransform: 'none', color: '#9ca3af' },
   noteInput: {
     width: '100%', padding: '12px 14px',
     borderRadius: 12, border: '1.5px solid #e5e7eb',
@@ -838,28 +838,28 @@ const s: Record<string, React.CSSProperties> = {
     background: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   prProductName: { fontWeight: 800, fontSize: 16, color: '#111827', lineHeight: 1.3 },
-  prDescription: { fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
+  prDescription: { fontSize: 14, color: '#6b7280', fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
   prStatusBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '4px 10px', borderRadius: 10, border: '1px solid',
-    fontSize: 11, fontWeight: 800, flexShrink: 0,
+    fontSize: 13, fontWeight: 800, flexShrink: 0,
   },
   prStatusDot: { width: 7, height: 7, borderRadius: 4, display: 'inline-block' },
 
   prCustomerRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
-  prCustomerName: { fontWeight: 700, fontSize: 13, color: '#374151' },
-  prCustomerPhone: { fontSize: 12, color: '#9ca3af' },
-  prTime: { fontSize: 12, color: '#9ca3af' },
+  prCustomerName: { fontWeight: 700, fontSize: 15, color: '#374151' },
+  prCustomerPhone: { fontSize: 14, color: '#9ca3af' },
+  prTime: { fontSize: 14, color: '#9ca3af' },
   prExpiryPill: {
     marginLeft: 'auto', background: '#fffbeb', borderRadius: 8,
     border: '1px solid #fde68a',
     padding: '3px 8px',
   },
-  prExpiryText: { fontSize: 11, fontWeight: 700, color: '#b45309' },
+  prExpiryText: { fontSize: 13, fontWeight: 700, color: '#b45309' },
 
   prResponseBox: {
     borderRadius: 10, padding: '10px 12px', border: '1px solid',
-    fontSize: 13, lineHeight: 1.5,
+    fontSize: 15, lineHeight: 1.5,
   },
 
   prActionRow: { display: 'flex', gap: 8 },
@@ -867,13 +867,13 @@ const s: Record<string, React.CSSProperties> = {
     flex: 1, padding: '9px 0',
     borderRadius: 10, border: 'none',
     background: '#0f5132', color: '#fff',
-    cursor: 'pointer', fontSize: 13, fontWeight: 800,
+    cursor: 'pointer', fontSize: 15, fontWeight: 800,
     boxShadow: '0 3px 8px rgba(15,81,50,0.25)',
   },
   prDeclineBtn: {
     flex: 1, padding: '9px 0',
     borderRadius: 10, border: '1.5px solid #fca5a5',
     background: '#fff', color: '#dc2626',
-    cursor: 'pointer', fontSize: 13, fontWeight: 700,
+    cursor: 'pointer', fontSize: 15, fontWeight: 700,
   },
 };

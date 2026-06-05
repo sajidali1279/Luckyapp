@@ -207,7 +207,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #f0f1f2',
   },
   statIcon: { fontSize: 28, flexShrink: 0 },
-  statLabel: { color: '#6c757d', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statLabel: { color: '#6c757d', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, marginTop: 2 },
 
   actionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginBottom: 24 },
@@ -220,7 +220,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   actionIcon: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 },
   actionTitle: { color: '#1D3557', fontWeight: 700, fontSize: 15 },
-  actionDesc: { color: '#6c757d', fontSize: 13, marginTop: 2 },
+  actionDesc: { color: '#6c757d', fontSize: 15, marginTop: 2 },
   arrow: { color: '#dee2e6', fontSize: 24, marginLeft: 'auto', flexShrink: 0 },
 
   pendingList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 },
@@ -231,13 +231,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   pendingLeft: { flex: 1 },
   pendingCustomer: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
-  pendingMeta: { fontSize: 13, color: '#6c757d', marginTop: 3 },
+  pendingMeta: { fontSize: 15, color: '#6c757d', marginTop: 3 },
   pendingRight: { display: 'flex', alignItems: 'center', gap: 12 },
   pendingPoints: { fontSize: 16, fontWeight: 800, color: '#2DC653' },
-  receiptLink: { fontSize: 13, color: '#457b9d', textDecoration: 'none', fontWeight: 600 },
+  receiptLink: { fontSize: 15, color: '#457b9d', textDecoration: 'none', fontWeight: 600 },
   rejectBtn: {
     padding: '6px 16px', borderRadius: 8, border: '1px solid #E63946',
-    background: 'transparent', color: '#E63946', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+    background: 'transparent', color: '#E63946', cursor: 'pointer', fontWeight: 600, fontSize: 15,
   },
 
   errorCard: { textAlign: 'center', padding: 60 },

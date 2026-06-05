@@ -145,14 +145,14 @@ export default function InventoryAnalytics() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 11, fill: '#6B7280' }}
+                    tick={{ fontSize: 13, fill: '#6B7280' }}
                     angle={-40}
                     textAnchor="end"
                     interval={0}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                  <YAxis tick={{ fontSize: 13, fill: '#6B7280' }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #E5E7EB' }}
                     formatter={(v: any) => [`${Number(v)} orders`, 'Orders']}
                   />
                   <Bar dataKey="orders" radius={[4, 4, 0, 0]}>
@@ -224,10 +224,10 @@ export default function InventoryAnalytics() {
                   margin={{ top: 8, right: 16, left: 0, bottom: 60 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} angle={-30} textAnchor="end" interval={0} />
-                  <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#6B7280' }} angle={-30} textAnchor="end" interval={0} />
+                  <YAxis tick={{ fontSize: 13, fill: '#6B7280' }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #E5E7EB' }}
                     formatter={(v: any) => [`${Number(v)}`, 'Order lines']}
                   />
                   <Bar dataKey="items" fill="#1D3557" radius={[4, 4, 0, 0]} />
@@ -247,24 +247,24 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '24px 32px' },
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   title:  { margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' },
-  sub:    { margin: '4px 0 0', fontSize: 13, color: '#6B7280' },
+  sub:    { margin: '4px 0 0', fontSize: 15, color: '#6B7280' },
   refreshBtn: {
     padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
-    backgroundColor: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151',
+    backgroundColor: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151',
   },
   filterBar:   { display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' },
   filterGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
-  filterLabel: { fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  filterLabel: { fontSize: 14, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' },
   segmented: { display: 'flex', borderRadius: 8, border: '1px solid #E5E7EB', overflow: 'hidden' },
   seg: {
     padding: '7px 14px', border: 'none', backgroundColor: '#fff',
-    cursor: 'pointer', fontSize: 13, color: '#6B7280', fontWeight: 500,
+    cursor: 'pointer', fontSize: 15, color: '#6B7280', fontWeight: 500,
     borderRight: '1px solid #E5E7EB',
   },
   segActive: { backgroundColor: '#1D3557', color: '#fff', fontWeight: 700 },
   select: {
     padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
-    backgroundColor: '#fff', fontSize: 13, color: '#374151', minWidth: 160,
+    backgroundColor: '#fff', fontSize: 15, color: '#374151', minWidth: 160,
   },
   loading: { textAlign: 'center', padding: 60, color: '#9CA3AF', fontSize: 15 },
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
@@ -273,11 +273,11 @@ const s: Record<string, React.CSSProperties> = {
     padding: '20px 24px',
   },
   cardTitle: { margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#111827' },
-  cardSub:   { margin: '0 0 16px', fontSize: 12, color: '#6B7280' },
+  cardSub:   { margin: '0 0 16px', fontSize: 14, color: '#6B7280' },
   empty: { textAlign: 'center', color: '#9CA3AF', padding: '32px 0', fontSize: 14 },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 15 },
   th: {
-    padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: 11,
+    padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: 13,
     color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em',
     borderBottom: '2px solid #F3F4F6',
   },
@@ -288,8 +288,8 @@ const s: Record<string, React.CSSProperties> = {
 const b: Record<string, React.CSSProperties> = {
   list: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 },
   row:  { display: 'flex', alignItems: 'center', gap: 10 },
-  label:{ fontSize: 13, color: '#374151', width: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  label:{ fontSize: 15, color: '#374151', width: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   track:{ flex: 1, height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, transition: 'width 0.3s ease' },
-  count:{ fontSize: 12, color: '#6B7280', width: 90, textAlign: 'right' as const },
+  count:{ fontSize: 14, color: '#6B7280', width: 90, textAlign: 'right' as const },
 };

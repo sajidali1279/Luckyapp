@@ -302,7 +302,7 @@ export default function Rates() {
                     {/* Tier threshold */}
                     <td style={s.td}>
                       {tierKey === 'BRONZE' ? (
-                        <span style={{ fontSize: 12, color: '#adb5bd' }}>Starting tier</span>
+                        <span style={{ fontSize: 14, color: '#adb5bd' }}>Starting tier</span>
                       ) : (
                         <div style={s.inputGroup}>
                           <input
@@ -570,7 +570,7 @@ export default function Rates() {
                       {!isNaN(cpgNum) && cpgNum > 0 ? (
                         <span style={s.effectiveTag}>${(10 * cpgNum / 100).toFixed(2)} cashback</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: '#adb5bd' }}>enter rate above</span>
+                        <span style={{ fontSize: 14, color: '#adb5bd' }}>enter rate above</span>
                       )}
                     </td>
                     <td style={{ ...s.td, textAlign: 'right' }}>
@@ -655,11 +655,11 @@ const s: Record<string, React.CSSProperties> = {
   thead: { background: '#f8f9fa' },
   th: {
     padding: '12px 16px', textAlign: 'left' as const,
-    fontSize: 12, fontWeight: 700, color: '#6c757d',
+    fontSize: 14, fontWeight: 700, color: '#6c757d',
     textTransform: 'uppercase' as const, letterSpacing: 0.5,
     borderBottom: '2px solid #e9ecef',
   },
-  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: '#adb5bd', fontSize: 10, marginTop: 2 },
+  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: '#adb5bd', fontSize: 12, marginTop: 2 },
   tr: { borderBottom: '1px solid #f1f3f5', transition: 'background 0.15s' },
   trDirty: { background: '#fffbf0' },
   td: { padding: '14px 16px', verticalAlign: 'middle' as const },
@@ -667,7 +667,7 @@ const s: Record<string, React.CSSProperties> = {
   tierCell: { display: 'flex', alignItems: 'center', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
   tierName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
-  tierSub: { fontSize: 11, color: '#adb5bd', marginTop: 1 },
+  tierSub: { fontSize: 13, color: '#adb5bd', marginTop: 1 },
 
   inputGroup: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const },
   input: {
@@ -677,32 +677,32 @@ const s: Record<string, React.CSSProperties> = {
     outline: 'none', transition: 'border 0.15s',
   },
   inputDirty: { borderColor: '#F4A226' },
-  suffix: { fontSize: 13, color: '#6c757d', fontWeight: 600 },
-  preview: { fontSize: 11, color: '#2DC653', fontStyle: 'italic' },
-  gasActive: { fontSize: 11, color: '#F4A261', marginTop: 4 },
+  suffix: { fontSize: 15, color: '#6c757d', fontWeight: 600 },
+  preview: { fontSize: 13, color: '#2DC653', fontStyle: 'italic' },
+  gasActive: { fontSize: 13, color: '#F4A261', marginTop: 4 },
 
   saveBtn: {
     padding: '6px 14px', background: '#2DC653', color: '#fff',
-    border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700,
+    border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15, fontWeight: 700,
   },
   undoBtn: {
     padding: '6px 10px', background: '#f8f9fa',
     border: '1px solid #dee2e6', borderRadius: 6,
-    cursor: 'pointer', fontSize: 13, color: '#6c757d',
+    cursor: 'pointer', fontSize: 15, color: '#6c757d',
   },
-  savedTag: { fontSize: 12, color: '#2DC653', fontWeight: 600 },
+  savedTag: { fontSize: 14, color: '#2DC653', fontWeight: 600 },
 
   sectionHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     margin: '36px 0 16px', gap: 16,
   },
   sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  sectionSubtitle: { margin: 0, color: '#6c757d', fontSize: 13 },
+  sectionSubtitle: { margin: 0, color: '#6c757d', fontSize: 15 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
   perGallonBadge: {
     display: 'inline-block', padding: '4px 12px',
     background: '#fff3e0', color: '#e65100',
-    borderRadius: 20, fontSize: 12, fontWeight: 600,
+    borderRadius: 20, fontSize: 14, fontWeight: 600,
     border: '1px solid #ffcc80',
   },
   gasModeCard: {
@@ -714,34 +714,34 @@ const s: Record<string, React.CSSProperties> = {
   modeBtn: {
     padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
     border: '1.5px solid #dee2e6', background: '#f8f9fa',
-    fontSize: 13, fontWeight: 600, color: '#6c757d', transition: 'all 0.15s',
+    fontSize: 15, fontWeight: 600, color: '#6c757d', transition: 'all 0.15s',
   },
   modeBtnActive: {
     background: '#1D3557', color: '#fff', borderColor: '#1D3557',
   },
-  gasModeHint: { fontSize: 12, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
+  gasModeHint: { fontSize: 14, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
   liveBadge: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f8ed', color: '#1a7a3a',
-    borderRadius: 20, fontSize: 12, fontWeight: 700,
+    borderRadius: 20, fontSize: 14, fontWeight: 700,
     border: '1px solid #a3d9b1',
   },
   liveInactiveBadge: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f0fb', color: '#1D3557',
-    borderRadius: 20, fontSize: 12, fontWeight: 700,
+    borderRadius: 20, fontSize: 14, fontWeight: 700,
     border: '1px solid #b3c8e8',
   },
   gasModeWarning: {
     marginTop: 12, padding: '10px 14px',
     background: '#fff8e1', color: '#7a5c00',
-    borderRadius: 8, fontSize: 13,
+    borderRadius: 8, fontSize: 15,
     border: '1px solid #ffe082',
   },
   effectiveTag: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f8ed', color: '#1a7a3a',
-    borderRadius: 20, fontSize: 12, fontWeight: 700,
+    borderRadius: 20, fontSize: 14, fontWeight: 700,
   },
 
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
@@ -751,7 +751,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '18px 20px',
   },
   infoCardTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 8 },
-  infoCardText: { fontSize: 13, color: '#6c757d', lineHeight: 1.55, margin: '0 0 12px' },
+  infoCardText: { fontSize: 15, color: '#6c757d', lineHeight: 1.55, margin: '0 0 12px' },
   calcBox: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  calcRow: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#495057' },
+  calcRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057' },
 };

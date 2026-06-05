@@ -158,7 +158,7 @@ export default function ActivityLog() {
             return (
               <div key={a.action} style={{ ...s.statChip, background: meta.bg }}>
                 <span style={{ color: meta.color, fontWeight: 800 }}>{a._count.action}</span>
-                <span style={{ color: meta.color, fontSize: 12 }}>{meta.icon} {meta.label}</span>
+                <span style={{ color: meta.color, fontSize: 14 }}>{meta.icon} {meta.label}</span>
               </div>
             );
           })}
@@ -222,7 +222,7 @@ export default function ActivityLog() {
         </select>
 
         <input style={s.dateInput} type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
-        <span style={{ color: '#6c757d', fontSize: 13 }}>to</span>
+        <span style={{ color: '#6c757d', fontSize: 15 }}>to</span>
         <input style={s.dateInput} type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
 
         <button style={s.clearBtn} onClick={resetFilters}>Clear</button>
@@ -291,11 +291,11 @@ const s: Record<string, React.CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4, fontSize: 14 },
-  refreshBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 13 },
+  refreshBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   statsStrip: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 },
-  statChip: { borderRadius: 8, padding: '6px 14px', display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 },
-  statNote: { color: '#adb5bd', fontSize: 12, marginLeft: 'auto' },
+  statChip: { borderRadius: 8, padding: '6px 14px', display: 'flex', gap: 6, alignItems: 'center', fontSize: 15 },
+  statNote: { color: '#adb5bd', fontSize: 14, marginLeft: 'auto' },
 
   alertBox: {
     background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 10,
@@ -303,10 +303,10 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   filters: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20, padding: '14px 16px', background: '#f8f9fa', borderRadius: 12 },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 13, background: '#fff', cursor: 'pointer' },
-  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 13 },
-  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6c757d', fontWeight: 600 },
-  totalLabel: { marginLeft: 'auto', color: '#6c757d', fontSize: 13, fontWeight: 600 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, background: '#fff', cursor: 'pointer' },
+  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15 },
+  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: '#6c757d', fontWeight: 600 },
+  totalLabel: { marginLeft: 'auto', color: '#6c757d', fontSize: 15, fontWeight: 600 },
 
   logList: { display: 'flex', flexDirection: 'column', gap: 6 },
   row: {
@@ -321,21 +321,21 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #f0f1f2',
   },
 
-  actionBadge: { display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '5px 10px', fontWeight: 700, fontSize: 12 },
+  actionBadge: { display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '5px 10px', fontWeight: 700, fontSize: 14 },
   actionLabel: { whiteSpace: 'nowrap' as const },
 
   actor: { display: 'flex', flexDirection: 'column', gap: 2 },
   actorName: { fontWeight: 700, fontSize: 14, color: '#1D3557', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  roleBadge: { fontSize: 11, fontWeight: 600 },
+  roleBadge: { fontSize: 13, fontWeight: 600 },
 
   detail: { display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' },
-  detailText: { fontSize: 13, color: '#495057', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeTag: { fontSize: 11, color: '#6c757d' },
+  detailText: { fontSize: 15, color: '#495057', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  storeTag: { fontSize: 13, color: '#6c757d' },
 
-  time: { fontSize: 12, color: '#adb5bd', textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },
+  time: { fontSize: 14, color: '#adb5bd', textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },
 
   pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 24 },
-  pageBtn: { padding: '8px 20px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 },
+  pageBtn: { padding: '8px 20px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 15 },
   pageInfo: { color: '#6c757d', fontSize: 14 },
 
   empty: { color: '#6c757d', textAlign: 'center', padding: 60 },

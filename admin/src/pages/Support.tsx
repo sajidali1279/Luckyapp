@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { supportApi } from '../services/api';
@@ -170,7 +170,7 @@ export default function Support() {
             <div style={{ fontWeight: 600, color: '#1D3557', marginBottom: 6 }}>
               {isDevAdmin ? 'Select a thread to reply' : 'Select a thread or start a new one'}
             </div>
-            <div style={{ fontSize: 13, color: '#888' }}>
+            <div style={{ fontSize: 15, color: '#888' }}>
               {isDevAdmin
                 ? 'All Super Admin support requests appear here.'
                 : 'You can ask about billing, features, or anything else.'}
@@ -278,23 +278,23 @@ const s: Record<string, React.CSSProperties> = {
   left: { width: 320, borderRight: '1px solid #e8ecf0', background: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0 },
   leftHeader: { padding: '20px 16px 12px', borderBottom: '1px solid #f0f2f5', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' },
   title: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
-  subtitle: { fontSize: 12, color: '#888', marginTop: 2 },
-  newBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
-  empty: { padding: 24, color: '#999', fontSize: 13, textAlign: 'center' },
+  subtitle: { fontSize: 14, color: '#888', marginTop: 2 },
+  newBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 15, fontWeight: 600, cursor: 'pointer', flexShrink: 0 },
+  empty: { padding: 24, color: '#999', fontSize: 15, textAlign: 'center' },
 
   threadItem: { padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #f5f5f5', transition: 'background 0.15s' },
   threadItemActive: { background: '#EFF6FF' },
   threadTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  threadSubject: { fontWeight: 600, fontSize: 13, color: '#1D3557', flex: 1 },
-  threadTime: { fontSize: 11, color: '#aaa', flexShrink: 0 },
+  threadSubject: { fontWeight: 600, fontSize: 15, color: '#1D3557', flex: 1 },
+  threadTime: { fontSize: 13, color: '#aaa', flexShrink: 0 },
   threadMeta: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 },
-  threadFrom: { fontSize: 12, color: '#555', fontWeight: 500 },
-  threadPreview: { fontSize: 12, color: '#888', marginTop: 4, lineHeight: 1.4 },
+  threadFrom: { fontSize: 14, color: '#555', fontWeight: 500 },
+  threadPreview: { fontSize: 14, color: '#888', marginTop: 4, lineHeight: 1.4 },
 
-  statusBadge: { fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '2px 6px', letterSpacing: 0.3 },
+  statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 4, padding: '2px 6px', letterSpacing: 0.3 },
   badgeOpen: { background: '#e8f5e9', color: '#2e7d32' },
   badgeResolved: { background: '#f3f4f6', color: '#666' },
-  unreadDot: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '1px 6px', fontSize: 10, fontWeight: 800, marginLeft: 'auto' },
+  unreadDot: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '1px 6px', fontSize: 12, fontWeight: 800, marginLeft: 'auto' },
 
   // Right panel
   right: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -302,9 +302,9 @@ const s: Record<string, React.CSSProperties> = {
 
   threadHeader: { padding: '16px 24px', borderBottom: '1px solid #e8ecf0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   threadHeaderSubject: { fontWeight: 700, fontSize: 16, color: '#1D3557' },
-  threadHeaderFrom: { fontSize: 13, color: '#666', marginTop: 2 },
+  threadHeaderFrom: { fontSize: 15, color: '#666', marginTop: 2 },
   threadHeaderActions: { display: 'flex', alignItems: 'center', gap: 10 },
-  resolveBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  resolveBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   reopenBtn: { background: '#f5f5f5', color: '#555', border: '1px solid #ddd' },
 
   messages: { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 },
@@ -313,22 +313,22 @@ const s: Record<string, React.CSSProperties> = {
   bubble: { maxWidth: '70%', borderRadius: 12, padding: '10px 14px' },
   bubbleMe: { background: '#1D3557', color: '#fff', borderBottomRightRadius: 4 },
   bubbleThem: { background: '#fff', color: '#1D3557', border: '1px solid #e8ecf0', borderBottomLeftRadius: 4 },
-  bubbleSender: { fontSize: 11, fontWeight: 700, marginBottom: 4, opacity: 0.7 },
+  bubbleSender: { fontSize: 13, fontWeight: 700, marginBottom: 4, opacity: 0.7 },
   bubbleBody: { fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  bubbleTime: { fontSize: 10, marginTop: 6, opacity: 0.5, textAlign: 'right' },
+  bubbleTime: { fontSize: 12, marginTop: 6, opacity: 0.5, textAlign: 'right' },
   devTag: { background: '#2DC653', color: '#fff', borderRadius: 3, padding: '0 4px', fontSize: 9, fontWeight: 800 },
 
   replyForm: { padding: '12px 24px', borderTop: '1px solid #e8ecf0', background: '#fff', display: 'flex', gap: 10, alignItems: 'flex-end' },
   replyInput: { flex: 1, border: '1px solid #e0e0e0', borderRadius: 10, padding: '10px 14px', fontSize: 14, resize: 'none', fontFamily: 'inherit', outline: 'none' },
-  sendBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0, height: 42 },
+  sendBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 15, fontWeight: 700, cursor: 'pointer', flexShrink: 0, height: 42 },
 
   // Modal
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   modal: { background: '#fff', borderRadius: 16, padding: 28, width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   modalTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557', marginBottom: 20 },
-  label: { display: 'block', fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 6, letterSpacing: 0.3 },
+  label: { display: 'block', fontSize: 14, fontWeight: 700, color: '#555', marginBottom: 6, letterSpacing: 0.3 },
   input: { width: '100%', border: '1px solid #e0e0e0', borderRadius: 10, padding: '10px 14px', fontSize: 14, marginBottom: 16, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' },
   modalActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 },
-  cancelBtn: { background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  submitBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  cancelBtn: { background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 8, padding: '9px 18px', fontSize: 15, fontWeight: 600, cursor: 'pointer' },
+  submitBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 };

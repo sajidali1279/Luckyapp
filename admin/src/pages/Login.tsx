@@ -72,7 +72,7 @@ export default function Login() {
           <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: '0 0 4px', letterSpacing: -0.3 }}>
             Welcome back
           </h1>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: '0 0 28px' }}>
+          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 15, margin: '0 0 28px' }}>
             Sign in to your admin account
           </p>
 
@@ -146,7 +146,7 @@ export default function Login() {
             onClick={() => setShowForgot(true)}
             style={{
               marginTop: 16, width: '100%', background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.3)', fontSize: 12, cursor: 'pointer',
+              color: 'rgba(255,255,255,0.3)', fontSize: 14, cursor: 'pointer',
               textAlign: 'center', transition: 'color 0.15s',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
@@ -155,7 +155,7 @@ export default function Login() {
             Forgot PIN?
           </button>
 
-          <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
+          <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 13, textAlign: 'center', marginTop: 20, lineHeight: 1.7 }}>
             For Dev Admins, Super Admins, and Store Managers only.
             <br />Employees use the mobile app.
           </p>
@@ -182,10 +182,10 @@ export default function Login() {
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, margin: 0, lineHeight: 1.65 }}>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, margin: 0, lineHeight: 1.65 }}>
                 PINs can only be reset by an administrator.
               </p>
-              <ul style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
+              <ul style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
                 <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees & Managers</span> — ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
                 <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins</span> — contact your Lucky Stop developer to reset your PIN.</li>
               </ul>
@@ -194,7 +194,7 @@ export default function Login() {
                 style={{
                   marginTop: 8, background: 'rgba(255,255,255,0.08)', color: '#fff',
                   border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
-                  padding: '11px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  padding: '11px 16px', fontSize: 15, fontWeight: 600, cursor: 'pointer',
                 }}
               >
                 Got it
@@ -226,6 +226,6 @@ const inputFocusStyle: React.CSSProperties = {
 };
 
 const labelStyle: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
+  color: 'rgba(255,255,255,0.45)', fontSize: 13, fontWeight: 600,
   textTransform: 'uppercase', letterSpacing: 0.8,
 };

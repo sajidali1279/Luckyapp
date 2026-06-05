@@ -352,7 +352,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '20px 18px 8px',
   },
   sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  sidebarSubtitle: { fontSize: 14, color: '#9ca3af', marginTop: 2 },
 
   storeSearch: {
     margin: '8px 14px 6px',
@@ -362,8 +362,8 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 8,
     cursor: 'text',
   },
-  searchIcon: { fontSize: 13, opacity: 0.5 },
-  searchPlaceholder: { fontSize: 13, color: '#9ca3af' },
+  searchIcon: { fontSize: 15, opacity: 0.5 },
+  searchPlaceholder: { fontSize: 15, color: '#9ca3af' },
 
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
@@ -380,7 +380,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  storeBtnCity: { fontSize: 14, color: '#9ca3af', marginTop: 1 },
   activeIndicator: {
     width: 8, height: 8, borderRadius: 4,
     background: '#2DC653', flexShrink: 0,
@@ -421,7 +421,7 @@ const s: Record<string, React.CSSProperties> = {
     background: 'rgba(255,255,255,0.15)', borderRadius: 20,
     padding: '4px 12px', backdropFilter: 'blur(4px)',
   },
-  chatHeaderBadgeText: { color: '#fff', fontSize: 12, fontWeight: 700 },
+  chatHeaderBadgeText: { color: '#fff', fontSize: 14, fontWeight: 700 },
 
   // ── Messages ──
   messageList: {
@@ -438,7 +438,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   dateDividerLine: { flex: 1, height: 1, background: '#e5e7eb' },
   dateDividerLabel: {
-    fontSize: 11, fontWeight: 700, color: '#9ca3af',
+    fontSize: 13, fontWeight: 700, color: '#9ca3af',
     textTransform: 'uppercase', letterSpacing: 0.6, whiteSpace: 'nowrap',
   },
 
@@ -446,13 +446,13 @@ const s: Record<string, React.CSSProperties> = {
   avatar: {
     width: 30, height: 30, borderRadius: 10, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 11,
+    color: '#fff', fontWeight: 800, fontSize: 13,
   },
   msgMeta: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 2 },
-  msgSenderName: { fontSize: 12, fontWeight: 700, color: '#374151' },
+  msgSenderName: { fontSize: 14, fontWeight: 700, color: '#374151' },
   roleBadge: {
     color: '#fff', borderRadius: 5, padding: '1px 6px',
-    fontSize: 10, fontWeight: 700,
+    fontSize: 12, fontWeight: 700,
   },
   bubble: {
     padding: '10px 14px', fontSize: 14, lineHeight: '1.5',
@@ -467,7 +467,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', color: '#111827',
     border: '1px solid #e5e7eb',
   },
-  msgTime: { fontSize: 10, color: '#9ca3af', marginBottom: 2, whiteSpace: 'nowrap' as const },
+  msgTime: { fontSize: 12, color: '#9ca3af', marginBottom: 2, whiteSpace: 'nowrap' as const },
 
   // ── Input bar ──
   inputBar: {
@@ -498,7 +498,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '4px 10px 8px',
   },
-  inputHint: { fontSize: 11, color: '#9ca3af' },
+  inputHint: { fontSize: 13, color: '#9ca3af' },
   sendBtn: {
     width: 34, height: 34, borderRadius: 10,
     background: 'linear-gradient(135deg, #1D3557, #2c5282)',

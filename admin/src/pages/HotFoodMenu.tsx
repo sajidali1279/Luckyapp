@@ -239,7 +239,7 @@ export default function HotFoodMenu() {
                 <tr key={item.id} style={tbl.tr}>
                   <td style={tbl.td}>
                     <div style={{ fontWeight: 600, color: '#111827' }}>{item.name}</div>
-                    {item.description && <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{item.description}</div>}
+                    {item.description && <div style={{ fontSize: 14, color: '#6B7280', marginTop: 2 }}>{item.description}</div>}
                   </td>
                   <td style={tbl.td}>
                     <span style={{ fontWeight: 700, color: '#111827' }}>${Number(item.price).toFixed(2)}</span>
@@ -301,12 +301,12 @@ const pg: Record<string, React.CSSProperties> = {
   header:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   iconWrap:  { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:     { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
-  sub:       { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  sub:       { fontSize: 15, color: '#6B7280', marginTop: 2 },
   addBtn:    { display: 'flex', alignItems: 'center', gap: 6, background: '#EA580C', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' },
   filterBar: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
-  filterLabel:{ fontSize: 13, fontWeight: 600, color: '#374151' },
+  filterLabel:{ fontSize: 15, fontWeight: 600, color: '#374151' },
   selectWrap:{ position: 'relative', display: 'inline-flex', alignItems: 'center' },
-  select:    { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
+  select:    { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 15, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
   selectIcon:{ position: 'absolute', right: 10, pointerEvents: 'none', color: '#9CA3AF' },
   card:      { background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' },
   empty:     { padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
@@ -314,15 +314,15 @@ const pg: Record<string, React.CSSProperties> = {
 
 const tbl: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse' },
-  th:    { padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #F3F4F6', background: '#F9FAFB' },
+  th:    { padding: '10px 16px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #F3F4F6', background: '#F9FAFB' },
   tr:    { borderBottom: '1px solid #F9FAFB' },
   td:    { padding: '12px 16px', fontSize: 14, color: '#374151', verticalAlign: 'middle' },
-  pill:  { display: 'inline-block', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 500, color: '#4B5563' },
+  pill:  { display: 'inline-block', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px', fontSize: 14, fontWeight: 500, color: '#4B5563' },
   iconBtn:{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 6, color: '#6B7280', display: 'flex', alignItems: 'center' },
 };
 
 const f: Record<string, React.CSSProperties> = {
-  label:     { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 14 },
+  label:     { display: 'block', fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 14 },
   input:     { width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 12px', fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' },
   cancelBtn: { flex: 1, background: '#F3F4F6', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' },
   primaryBtn:{ flex: 1, background: '#EA580C', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },

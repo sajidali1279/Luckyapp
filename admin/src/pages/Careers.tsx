@@ -187,7 +187,7 @@ export default function Careers() {
                     <td style={s.td}>
                       <span style={{ ...s.badge, color: sc.color, background: sc.bg }}>{sc.label}</span>
                     </td>
-                    <td style={{ ...s.td, color: '#888', fontSize: 12 }}>{timeAgo(app.createdAt)}</td>
+                    <td style={{ ...s.td, color: '#888', fontSize: 14 }}>{timeAgo(app.createdAt)}</td>
                   </tr>
                 );
               })}
@@ -209,7 +209,7 @@ export default function Careers() {
                   <div style={s.modalName}>{app.name}</div>
                   <div style={s.modalSub}>{POSITION_LABELS[app.position] ?? app.position}</div>
                 </div>
-                <span style={{ ...s.badge, color: sc.color, background: sc.bg, fontSize: 13 }}>{sc.label}</span>
+                <span style={{ ...s.badge, color: sc.color, background: sc.bg, fontSize: 15 }}>{sc.label}</span>
               </div>
 
               {/* Contact */}
@@ -308,22 +308,22 @@ const s: Record<string, React.CSSProperties> = {
   subtitle: { margin: '4px 0 0', fontSize: 14, color: '#888' },
 
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#555' },
+  tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
   tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
 
   filters: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 13, background: '#fff', cursor: 'pointer', minWidth: 180 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, background: '#fff', cursor: 'pointer', minWidth: 180 },
 
   tableWrap: { overflowX: 'auto', borderRadius: 12, border: '1px solid #e0e0e0', background: '#fff' },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
-  th: { padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
+  th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
   tr: { cursor: 'pointer', transition: 'background 0.15s' },
-  td: { padding: '14px 16px', fontSize: 13, color: '#1D3557', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
+  td: { padding: '14px 16px', fontSize: 15, color: '#1D3557', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
   appName: { fontWeight: 700, color: '#1D3557' },
-  appPhone: { fontSize: 12, color: '#888', marginTop: 2 },
-  badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 },
-  avail: { fontSize: 12, color: '#555' },
+  appPhone: { fontSize: 14, color: '#888', marginTop: 2 },
+  badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 700 },
+  avail: { fontSize: 14, color: '#555' },
 
   empty: { textAlign: 'center', padding: '60px 0', color: '#aaa', fontSize: 15 },
 
@@ -332,20 +332,20 @@ const s: Record<string, React.CSSProperties> = {
   modal: { background: '#fff', borderRadius: 16, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   modalName: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  modalSub: { fontSize: 13, color: '#888', marginTop: 3 },
+  modalSub: { fontSize: 15, color: '#888', marginTop: 3 },
 
   section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' },
-  sectionTitle: { fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
   row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#333' },
   label: { fontWeight: 600, color: '#888', minWidth: 70 },
   text: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
 
-  statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#555' },
+  statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#555' },
 
-  textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e0e0e0', padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
-  saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#1D3557', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e0e0e0', padding: '10px 12px', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
+  saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   metaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  metaText: { fontSize: 12, color: '#aaa' },
-  deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E63946', background: '#fff', color: '#E63946', fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  metaText: { fontSize: 14, color: '#aaa' },
+  deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E63946', background: '#fff', color: '#E63946', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

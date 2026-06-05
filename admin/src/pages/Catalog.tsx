@@ -118,7 +118,7 @@ function CatalogModal({
                   border: `2px solid ${category === opt.value ? '#1D3557' : '#ddd'}`,
                   background: category === opt.value ? '#1D3557' : '#fff',
                   color: category === opt.value ? '#fff' : '#444',
-                  fontWeight: 700, fontSize: 12, textAlign: 'center' as const,
+                  fontWeight: 700, fontSize: 14, textAlign: 'center' as const,
                   lineHeight: 1.4,
                 }}
               >
@@ -465,14 +465,14 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 90,
   },
   statVal: { fontSize: 26, fontWeight: 900, color: '#1D3557' },
-  statLabel: { fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
+  statLabel: { fontSize: 13, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
 
   infoBanner: {
     background: '#EBF5FF', border: '1px solid #bee3f8', borderRadius: 12,
     padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10,
     fontSize: 18,
   },
-  infoText: { fontSize: 13, color: '#2c5282', lineHeight: 1.6 },
+  infoText: { fontSize: 15, color: '#2c5282', lineHeight: 1.6 },
 
   loadingBox: { textAlign: 'center', padding: 40, color: '#888', fontSize: 16 },
   emptyBox: {
@@ -495,7 +495,7 @@ const cs: Record<string, React.CSSProperties> = {
   },
   chainIcon: { fontSize: 28 },
   chainName: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
-  chainCount: { fontSize: 12, color: '#888', fontWeight: 600, marginTop: 2 },
+  chainCount: { fontSize: 14, color: '#888', fontWeight: 600, marginTop: 2 },
   emptyChain: {
     background: '#fff', borderRadius: '0 0 14px 14px',
     padding: '24px', textAlign: 'center', color: '#aaa', fontSize: 14,
@@ -509,35 +509,35 @@ const cs: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
-    fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+    fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
     color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
   itemTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
-  itemDesc: { fontSize: 13, color: '#888', display: 'block', minWidth: 180 },
+  itemDesc: { fontSize: 15, color: '#888', display: 'block', minWidth: 180 },
   catBadge: {
     background: '#f0f4ff', color: '#1D3557',
-    borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 600,
+    borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 600,
   },
   ptsBadge: {
     background: '#1D3557', color: '#fff',
-    borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700,
+    borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
   valueBadge: {
     background: '#d4edda', color: '#155724',
-    borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700,
+    borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
-  orderBadge: { fontSize: 13, color: '#888', fontWeight: 600 },
-  statusBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 700 },
+  orderBadge: { fontSize: 15, color: '#888', fontWeight: 600 },
+  statusBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 700 },
   statusActive: { background: '#d4edda', color: '#155724' },
   statusInactive: { background: '#f8d7da', color: '#721c24' },
   editBtn: {
     background: '#e8f0fe', color: '#1D3557', border: 'none',
-    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
   },
   deleteBtn: {
     background: '#fff0f0', color: '#c53030', border: 'none',
-    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
   },
 };
 
@@ -562,13 +562,13 @@ const m: Record<string, React.CSSProperties> = {
     cursor: 'pointer', color: '#888', lineHeight: 1,
   },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 14 },
-  label: { fontSize: 13, fontWeight: 700, color: '#333', marginBottom: -6 },
+  label: { fontSize: 15, fontWeight: 700, color: '#333', marginBottom: -6 },
   input: {
     border: '1.5px solid #ddd', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
-  hint: { fontSize: 13, color: '#888', whiteSpace: 'nowrap' },
+  hint: { fontSize: 15, color: '#888', whiteSpace: 'nowrap' },
   checkRow: { display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 14 },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 },
   cancelBtn: {

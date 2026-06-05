@@ -404,10 +404,10 @@ export default function Offers() {
               {(quickCategory === 'GAS' || quickCategory === 'DIESEL') && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <button type="button"
-                    style={{ ...s.chip, ...(quickBonusMode === 'pct' ? s.chipActive : {}), fontSize: 12 }}
+                    style={{ ...s.chip, ...(quickBonusMode === 'pct' ? s.chipActive : {}), fontSize: 14 }}
                     onClick={() => setQuickBonusMode('pct')}>% Cashback</button>
                   <button type="button"
-                    style={{ ...s.chip, ...(quickBonusMode === 'cpg' ? s.chipActive : {}), fontSize: 12 }}
+                    style={{ ...s.chip, ...(quickBonusMode === 'cpg' ? s.chipActive : {}), fontSize: 14 }}
                     onClick={() => setQuickBonusMode('cpg')}>⛽ ¢/Gallon</button>
                 </div>
               )}
@@ -431,7 +431,7 @@ export default function Offers() {
                       style={s.quickInput}
                       placeholder="custom"
                     />
-                    <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>¢/gal</span>
+                    <span style={{ fontSize: 15, color: '#6c757d', fontWeight: 600 }}>¢/gal</span>
                   </div>
                 </>
               ) : (
@@ -454,7 +454,7 @@ export default function Offers() {
                       style={s.quickInput}
                       placeholder="custom"
                     />
-                    <span style={{ fontSize: 13, color: '#6c757d', fontWeight: 600 }}>%</span>
+                    <span style={{ fontSize: 15, color: '#6c757d', fontWeight: 600 }}>%</span>
                   </div>
                 </>
               )}
@@ -554,7 +554,7 @@ export default function Offers() {
                   style={{ ...s.catCard, ...(category === c.value ? s.catCardActive : {}) }}
                   onClick={() => { setCategory(c.value); setGasBonusCpg(''); setGasBonusType('cpg'); setBonusRate(''); }}>
                   <span style={{ fontSize: 20 }}>{c.emoji}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, marginTop: 3 }}>{c.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, marginTop: 3 }}>{c.label}</span>
                 </button>
               ))}
             </div>
@@ -570,12 +570,12 @@ export default function Offers() {
                 <div>
                   <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #dee2e6', width: 'fit-content' }}>
                     <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : '#6c757d' }}
+                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : '#6c757d' }}
                       onClick={() => setGasBonusType('cpg')}>
                       ⛽ ¢ / gallon
                     </button>
                     <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : '#6c757d' }}
+                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : '#6c757d' }}
                       onClick={() => setGasBonusType('pct')}>
                       💲 % of amount
                     </button>
@@ -620,7 +620,7 @@ export default function Offers() {
                       <span style={s.unit}>% bonus — same for all tiers</span>
                     </div>
                     <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
-                      style={{ fontSize: 11, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
+                      style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
                       {useTierBonuses ? '🏆 Per-tier on' : '🏆 Per-tier?'}
                     </button>
                   </div>
@@ -628,11 +628,11 @@ export default function Offers() {
                     <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {TIERS.map(tier => (
                         <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, minWidth: 80, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
+                          <span style={{ fontSize: 15, minWidth: 80, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
                           <input type="number" min="0" max="100" step="0.5" value={tierBonuses[tier]}
                             onChange={e => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
                             style={{ ...s.input, width: 70, margin: 0 }} placeholder="%" />
-                          <span style={{ fontSize: 12, color: '#6c757d' }}>%</span>
+                          <span style={{ fontSize: 14, color: '#6c757d' }}>%</span>
                         </div>
                       ))}
                     </div>
@@ -660,7 +660,7 @@ export default function Offers() {
                 </div>
               </div>
               {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600, marginTop: 8 }}>
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600, marginTop: 8 }}>
                   📍 This promotion will apply to your store only
                 </div>
               ) : (
@@ -684,7 +684,7 @@ export default function Offers() {
                         const enabled: string[] = selectedStore?.enabledCategories ?? [];
                         if (enabled.length > 0 && !enabled.includes(category)) {
                           return (
-                            <div style={{ marginTop: 8, padding: '10px 14px', background: '#fff8e1', borderRadius: 8, border: '1px solid #ffe082', color: '#b45309', fontSize: 13, fontWeight: 600 }}>
+                            <div style={{ marginTop: 8, padding: '10px 14px', background: '#fff8e1', borderRadius: 8, border: '1px solid #ffe082', color: '#b45309', fontSize: 15, fontWeight: 600 }}>
                               ⚠️ {selectedStore?.name} does not have <strong>{category.replace(/_/g, ' ')}</strong> enabled. This offer will still be created but won't apply to any transactions at this store.
                             </div>
                           );
@@ -743,7 +743,7 @@ export default function Offers() {
                 <div style={s.empty}>No past promotions found.</div>
               ) : (
                 <>
-                  <p style={{ color: '#6c757d', fontSize: 13, margin: '0 0 16px' }}>
+                  <p style={{ color: '#6c757d', fontSize: 15, margin: '0 0 16px' }}>
                     {pastPromotions.length} past promotions — click ♻️ Reuse on any to pre-fill the form.
                   </p>
                   <div style={s.grid}>
@@ -784,7 +784,7 @@ export default function Offers() {
                 </div>
               </div>
               {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 13, color: '#1D3557', fontWeight: 600 }}>
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
                   📍 This deal will apply to your store only
                 </div>
               ) : (
@@ -936,10 +936,10 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
+  sub: { color: '#9ca3af', marginTop: 4, fontSize: 15 },
 
-  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
-  templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13 },
+  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   quickPanel: {
     background: '#f0fdf4', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac',
@@ -948,11 +948,11 @@ const s: Record<string, React.CSSProperties> = {
   quickTitle: { fontWeight: 800, fontSize: 15, color: '#14532d', marginBottom: 16 },
   quickRow: { display: 'flex', flexDirection: 'column' as const, gap: 16 },
   quickGroup: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  quickLabel: { fontWeight: 700, fontSize: 11, color: '#166534', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  quickLabel: { fontWeight: 700, fontSize: 13, color: '#166534', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   quickChips: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
   quickBonusRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
   quickInput: { padding: '8px 12px', borderRadius: 8, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac', fontSize: 14, width: 90, outline: 'none', background: '#fff' },
-  chip: { padding: '6px 14px', borderRadius: 20, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#d1fae5', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  chip: { padding: '6px 14px', borderRadius: 20, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#d1fae5', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151' },
   chipActive: { background: '#16a34a', color: '#fff', borderColor: '#16a34a' },
   quickPreview: { marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', borderWidth: '1px', borderStyle: 'solid', borderColor: '#86efac', flexWrap: 'wrap' as const },
   quickPreviewText: { fontSize: 14, color: '#166534' },
@@ -960,30 +960,30 @@ const s: Record<string, React.CSSProperties> = {
 
   suggestionsBox: { background: '#f8faff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#d0d9f0', borderRadius: 16, padding: 24, marginBottom: 28 },
   suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 16, fontWeight: 800 },
-  suggestSub: { margin: '0 0 16px', color: '#6c757d', fontSize: 13 },
+  suggestSub: { margin: '0 0 16px', color: '#6c757d', fontSize: 15 },
   groupTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6b7280' },
+  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' },
   groupTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
   templateGrid: { display: 'flex', flexDirection: 'column', gap: 8 },
   templateCard: { background: '#fff', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e9ecef' },
   templateIcon: { fontSize: 22, flexShrink: 0, width: 32, textAlign: 'center' },
   templateTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 4 },
-  templateDesc: { fontSize: 12, color: '#6b7280', lineHeight: 1.5 },
+  templateDesc: { fontSize: 14, color: '#6b7280', lineHeight: 1.5 },
   templateMeta: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  templateBadge: { background: '#fef2f2', color: '#E63946', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 },
-  templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
-  useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
+  templateBadge: { background: '#fef2f2', color: '#E63946', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
+  templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 600 },
+  useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
 
   form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
   formSection: { padding: '16px 0', borderBottom: '1px solid #f1f3f5', display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  formSectionLabel: { fontWeight: 800, fontSize: 13, color: '#1D3557', marginBottom: 2 },
-  required: { fontWeight: 600, fontSize: 11, color: '#E63946', marginLeft: 4 },
+  formSectionLabel: { fontWeight: 800, fontSize: 15, color: '#1D3557', marginBottom: 2 },
+  required: { fontWeight: 600, fontSize: 13, color: '#E63946', marginLeft: 4 },
   catGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 8 },
   catCard: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '10px 6px', borderRadius: 10, border: '1.5px solid #e9ecef', background: '#fafafa', cursor: 'pointer', gap: 2, transition: 'all 0.15s' },
   catCardActive: { border: '2px solid #1D3557', background: '#e8f0fb', color: '#1D3557' },
-  unit: { fontSize: 13, color: '#6c757d', fontWeight: 600, whiteSpace: 'nowrap' as const },
-  calcHint: { fontSize: 11, color: '#2DC653', fontStyle: 'italic', marginTop: 4 },
-  label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
+  unit: { fontSize: 15, color: '#6c757d', fontWeight: 600, whiteSpace: 'nowrap' as const },
+  calcHint: { fontSize: 13, color: '#2DC653', fontStyle: 'italic', marginTop: 4 },
+  label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
   cancelFormBtn: { background: '#f8fafc', color: '#6b7280', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
@@ -999,15 +999,15 @@ const s: Record<string, React.CSSProperties> = {
   img: { width: '100%', height: 160, objectFit: 'cover' as const },
   cardBody: { padding: '16px 18px' },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' },
-  cardDesc: { color: '#6b7280', fontSize: 13, margin: '0 0 8px', lineHeight: 1.5 },
-  cardDate: { color: '#adb5bd', fontSize: 11, margin: '8px 0 0', fontWeight: 600 },
-  badge: { display: 'inline-block', background: '#fef2f2', color: '#E63946', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700 },
-  tagAll: { background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  tagPast: { background: '#f8fafc', color: '#9ca3af', borderRadius: 6, padding: '3px 9px', fontSize: 11, fontWeight: 700 },
-  reuseBtn: { background: '#eff6ff', color: '#1D3557', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 },
-  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  cardDesc: { color: '#6b7280', fontSize: 15, margin: '0 0 8px', lineHeight: 1.5 },
+  cardDate: { color: '#adb5bd', fontSize: 13, margin: '8px 0 0', fontWeight: 600 },
+  badge: { display: 'inline-block', background: '#fef2f2', color: '#E63946', borderRadius: 8, padding: '4px 10px', fontSize: 14, fontWeight: 700 },
+  tagAll: { background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagPast: { background: '#f8fafc', color: '#9ca3af', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  reuseBtn: { background: '#eff6ff', color: '#1D3557', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
+  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
   empty: { color: '#9ca3af', textAlign: 'center', padding: 60, fontSize: 14 },
 
@@ -1015,10 +1015,10 @@ const s: Record<string, React.CSSProperties> = {
   mainTab: {
     padding: '9px 20px', borderRadius: 10,
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
-    background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+    background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700,
     color: '#6b7280', display: 'flex', alignItems: 'center', gap: 8,
   },
   mainTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
-  tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 },
+  tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 13, fontWeight: 700 },
   dealTextBig: { fontSize: 24, fontWeight: 900, color: '#E63946', marginBottom: 6, letterSpacing: -0.5 },
 };

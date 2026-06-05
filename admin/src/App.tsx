@@ -56,8 +56,6 @@ function ProtectedLayout() {
         <AppSidebar />
         <SidebarInset>
           <div style={{
-            paddingLeft: '2.5rem',
-            paddingRight: '2rem',
             minHeight: '100%',
             background: 'oklch(0.962 0.005 80)',
           }}>

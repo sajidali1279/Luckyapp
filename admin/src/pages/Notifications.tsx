@@ -335,7 +335,7 @@ const s: Record<string, React.CSSProperties> = {
   header: { marginBottom: 20 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557', display: 'flex', alignItems: 'center', gap: 10 },
   subtitle: { margin: '4px 0 0', color: '#6c757d', fontSize: 14 },
-  badge: { background: '#E63946', color: '#fff', borderRadius: 12, padding: '2px 9px', fontSize: 13, fontWeight: 700 },
+  badge: { background: '#E63946', color: '#fff', borderRadius: 12, padding: '2px 9px', fontSize: 15, fontWeight: 700 },
 
   tabRow: { display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid #e9ecef', paddingBottom: 0 },
   tab: {
@@ -348,7 +348,7 @@ const s: Record<string, React.CSSProperties> = {
   tabActive: { color: '#1D3557', borderBottom: '2px solid #1D3557', background: '#f8f9fb' },
   tabBadge: {
     background: '#e9ecef', color: '#6c757d', borderRadius: 10,
-    padding: '1px 7px', fontSize: 11, fontWeight: 700,
+    padding: '1px 7px', fontSize: 13, fontWeight: 700,
   },
   tabBadgeActive: { background: '#E63946', color: '#fff' },
 
@@ -358,20 +358,20 @@ const s: Record<string, React.CSSProperties> = {
   cardLeft: { display: 'flex', gap: 12, alignItems: 'flex-start' },
   icon: { fontSize: 22, lineHeight: 1, marginTop: 1 },
   cardTitle: { fontWeight: 700, fontSize: 15, color: '#1D3557', marginBottom: 2 },
-  typeTag: { fontSize: 11, fontWeight: 600 },
-  time: { fontSize: 12, color: '#6c757d', whiteSpace: 'nowrap' },
-  message: { fontSize: 13, lineHeight: 1.6, marginLeft: 34 },
-  paidStamp: { fontSize: 11, fontWeight: 600, marginLeft: 34, marginTop: 6 },
+  typeTag: { fontSize: 13, fontWeight: 600 },
+  time: { fontSize: 14, color: '#6c757d', whiteSpace: 'nowrap' },
+  message: { fontSize: 15, lineHeight: 1.6, marginLeft: 34 },
+  paidStamp: { fontSize: 13, fontWeight: 600, marginLeft: 34, marginTop: 6 },
   cardActions: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 16 },
 
   actionBtn: {
     background: '#1D3557', border: 'none', color: '#fff',
-    borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700,
+    borderRadius: 8, padding: '6px 14px', fontSize: 14, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
   pdfBtn: {
     background: '#fff', border: '1.5px solid #2DC653', color: '#155724',
-    borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700,
+    borderRadius: 8, padding: '5px 12px', fontSize: 14, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
 
@@ -381,7 +381,7 @@ const s: Record<string, React.CSSProperties> = {
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557', marginBottom: 8 },
   emptyText: { fontSize: 14, color: '#6c757d', lineHeight: 1.6 },
 
-  infoBox: { marginTop: 28, background: '#f8f9fb', border: '1px solid #e9ecef', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: '#6c757d', lineHeight: 1.6 },
+  infoBox: { marginTop: 28, background: '#f8f9fb', border: '1px solid #e9ecef', borderRadius: 10, padding: '14px 18px', fontSize: 15, color: '#6c757d', lineHeight: 1.6 },
 };
 
 const sp: Record<string, React.CSSProperties> = {
@@ -389,19 +389,19 @@ const sp: Record<string, React.CSSProperties> = {
   panelHeader: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28, padding: '20px 24px', background: 'linear-gradient(135deg, #1D3557 0%, #457B9D 100%)', borderRadius: 16 },
   panelIcon: { fontSize: 40, lineHeight: 1 },
   panelTitle: { fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 4 },
-  panelSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  panelSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)' },
   field: { marginBottom: 18 },
-  label: { display: 'block', fontSize: 13, fontWeight: 700, color: '#1D3557', marginBottom: 6 },
-  charCount: { fontWeight: 400, color: '#6c757d', fontSize: 12 },
+  label: { display: 'block', fontSize: 15, fontWeight: 700, color: '#1D3557', marginBottom: 6 },
+  charCount: { fontWeight: 400, color: '#6c757d', fontSize: 14 },
   select: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #dee2e6', fontSize: 14, color: '#1D3557', background: '#fff', cursor: 'pointer' },
   input: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #dee2e6', fontSize: 14, color: '#1D3557', boxSizing: 'border-box' },
   textarea: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #dee2e6', fontSize: 14, color: '#1D3557', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' },
   preview: { marginBottom: 20, padding: '14px 18px', background: '#f8f9fb', borderRadius: 12, border: '1px solid #e9ecef' },
-  previewLabel: { fontSize: 11, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 },
+  previewLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 },
   previewCard: { background: '#fff', borderRadius: 10, padding: '14px 16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #1D3557' },
   previewTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557', marginBottom: 4 },
   previewBody: { fontSize: 14, color: '#495057', lineHeight: 1.5 },
   sendBtn: { width: '100%', padding: '14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 800, cursor: 'pointer' },
   sendBtnDisabled: { opacity: 0.45, cursor: 'not-allowed' },
-  hint: { marginTop: 16, fontSize: 12, color: '#6c757d', lineHeight: 1.6 },
+  hint: { marginTop: 16, fontSize: 14, color: '#6c757d', lineHeight: 1.6 },
 };

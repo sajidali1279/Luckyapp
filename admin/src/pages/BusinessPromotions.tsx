@@ -228,7 +228,7 @@ export default function BusinessPromotions() {
             onClick={() => setStatusFilter(st)}
           >
             {st === '' ? 'All' : st.charAt(0) + st.slice(1).toLowerCase()}
-            {st !== '' && <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: STATUS_COLORS[st] }}>{counts[st as keyof typeof counts]}</span>}
+            {st !== '' && <span style={{ marginLeft: 4, fontSize: 14, fontWeight: 700, color: STATUS_COLORS[st] }}>{counts[st as keyof typeof counts]}</span>}
           </button>
         ))}
       </div>
@@ -386,12 +386,12 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   statNum: { fontSize: 28, fontWeight: 900, lineHeight: 1 },
-  statLabel: { fontSize: 12, fontWeight: 600, color: '#94a3b8', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statLabel: { fontSize: 14, fontWeight: 600, color: '#94a3b8', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 20 },
   filterBtn: {
     padding: '7px 16px', borderRadius: 20, border: '1.5px solid #e2e8f0',
-    background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600,
     color: '#64748b', display: 'flex', alignItems: 'center', gap: 4,
   },
   filterBtnActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
@@ -416,13 +416,13 @@ const s: Record<string, React.CSSProperties> = {
   bizNameRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 },
   bizName: { fontSize: 16, fontWeight: 800, color: '#1e293b' },
   statusBadge: {
-    fontSize: 11, fontWeight: 700, padding: '2px 8px',
+    fontSize: 13, fontWeight: 700, padding: '2px 8px',
     borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  requesterLine: { fontSize: 12, color: '#94a3b8' },
+  requesterLine: { fontSize: 14, color: '#94a3b8' },
   expandBtn: {
     background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: 12, color: '#94a3b8', padding: 4,
+    fontSize: 14, color: '#94a3b8', padding: 4,
   },
 
   cardBody: {
@@ -432,7 +432,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
   infoBlock: {},
-  infoLabel: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
+  infoLabel: { fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   infoValue: { fontSize: 14, color: '#334155', lineHeight: 1.5 },
   link: { fontSize: 14, color: '#3b82f6' },
 
@@ -440,17 +440,17 @@ const s: Record<string, React.CSSProperties> = {
   publishActionBtn: {
     padding: '8px 16px', borderRadius: 8, border: 'none',
     background: '#1D3557', color: '#fff',
-    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },
   rejectBtn: {
     padding: '8px 16px', borderRadius: 8, border: '1.5px solid #fca5a5',
     background: '#fff', color: '#dc2626',
-    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },
   deleteBtn: {
     padding: '8px 16px', borderRadius: 8, border: '1.5px solid #e2e8f0',
     background: '#fff', color: '#64748b',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer',
+    fontSize: 15, fontWeight: 600, cursor: 'pointer',
   },
 };
 
@@ -469,14 +469,14 @@ const m: Record<string, React.CSSProperties> = {
     padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9',
   },
   modalTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
-  modalSub: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
+  modalSub: { fontSize: 15, color: '#94a3b8', marginTop: 2 },
   closeBtn: {
     background: '#f1f5f9', border: 'none', borderRadius: 8,
     width: 30, height: 30, cursor: 'pointer', fontSize: 14,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   modalBody: { padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 },
-  label: { fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 },
+  label: { fontSize: 14, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     width: '100%', padding: '10px 12px', borderRadius: 8,
     border: '1.5px solid #e2e8f0', fontSize: 14, color: '#1e293b',
@@ -503,12 +503,12 @@ const m: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   uploadBtnText: { fontSize: 14, fontWeight: 600, color: '#475569' },
-  uploadBtnSub: { fontSize: 11, color: '#94a3b8' },
+  uploadBtnSub: { fontSize: 13, color: '#94a3b8' },
   previewWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
   previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e2e8f0' },
   previewActions: { display: 'flex', gap: 8 },
   changeImgBtn: {
     padding: '6px 14px', borderRadius: 7, border: '1.5px solid #cbd5e1',
-    background: '#fff', fontSize: 12, fontWeight: 600, color: '#475569', cursor: 'pointer',
+    background: '#fff', fontSize: 14, fontWeight: 600, color: '#475569', cursor: 'pointer',
   },
 };

@@ -404,7 +404,7 @@ const ps: Record<string, React.CSSProperties> = {
   filterBtn: {
     background: '#f1f5f9', border: '1.5px solid #e2e8f0',
     borderRadius: 20, padding: '7px 16px',
-    fontSize: 13, fontWeight: 600, color: '#475569',
+    fontSize: 15, fontWeight: 600, color: '#475569',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
   filterBtnActive: {
@@ -431,9 +431,9 @@ const ps: Record<string, React.CSSProperties> = {
   cardIcon: { fontSize: 22 },
   cardBody: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557', marginBottom: 4 },
-  cardDesc: { fontSize: 13, color: '#6c757d', lineHeight: 1.5 },
+  cardDesc: { fontSize: 15, color: '#6c757d', lineHeight: 1.5 },
   cardCatBadge: {
-    fontSize: 11, fontWeight: 700, borderRadius: 8,
+    fontSize: 13, fontWeight: 700, borderRadius: 8,
     padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4, width: 'fit-content',
   },
   cardArrow: {
@@ -461,11 +461,11 @@ const rs: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   headerTitle: { fontSize: 17, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 12, color: '#6c757d', marginTop: 2 },
+  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 2 },
   printBtn: {
     background: '#1D3557', color: '#fff',
     border: 'none', borderRadius: 10,
-    padding: '9px 18px', fontSize: 13, fontWeight: 700,
+    padding: '9px 18px', fontSize: 15, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap' as const,
   },
   closeBtn: {
