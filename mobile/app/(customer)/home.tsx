@@ -372,7 +372,11 @@ export default function CustomerHome() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
-                <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={styles.profileBtnAvatar} />
+                ) : (
+                  <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -935,6 +939,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   profileBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  profileBtnAvatar: { width: 40, height: 40, borderRadius: 20 },
 
   balanceCard: {
     marginHorizontal: 16, marginTop: 16, marginBottom: 12,
