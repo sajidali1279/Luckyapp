@@ -55,7 +55,9 @@ function ProtectedLayout() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-          <Outlet />
+          <div style={{ paddingLeft: '2rem', paddingRight: '1rem', minHeight: '100%' }}>
+            <Outlet />
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
