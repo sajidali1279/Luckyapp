@@ -185,7 +185,7 @@ export default function Analytics() {
               <h2 style={s.chartTitle}>Revenue Breakdown</h2>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 48 }}>
                 <PieChart width={280} height={280}>
-                  <Pie data={pieData} cx={130} cy={130} outerRadius={110} dataKey="value" label={({ name, percent }) => `${Math.round(percent * 100)}%`} labelLine={false}>
+                  <Pie data={pieData} cx={130} cy={130} outerRadius={110} dataKey="value" label={({ name, percent }) => `${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
                     {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
                   <Tooltip formatter={(v: any) => fmt$(v)} />
