@@ -179,14 +179,18 @@ export default function CustomerHome() {
   useFocusEffect(
     useCallback(() => {
       authApi.getMe().then(({ data }) => {
-        if (data?.data && user && token) {
-          setAuth({
-            ...user,
+        // Use getState() for a fresh reference — avoids stale closure overwriting
+        // fields (like avatarUrl) that were updated after this callback was created.
+        const { user: u, token: t, setAuth: sa } = useAuthStore.getState();
+        if (data?.data && u && t) {
+          sa({
+            ...u,
             pointsBalance: data.data.pointsBalance,
             tier: data.data.tier,
             periodPoints: data.data.periodPoints,
             tierPeriod: data.data.tierPeriod,
-          }, token);
+            avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
+          }, t);
         }
       }).catch(() => {});
     }, [])
@@ -1099,10 +1103,7 @@ const styles = StyleSheet.create({
   gasUpdatedAt: { fontSize: 10, color: COLORS.border, marginTop: 6, fontWeight: '600' },
   gasStoreAddress: { fontSize: 11, color: COLORS.textMuted, fontWeight: '500', marginBottom: 6 },
   gasPhoneBtn: { alignSelf: 'flex-start', marginBottom: 6 },
-  gasStorePhone: {
-    fontSize: 11, color: COLORS.primary, fontWeight: '700',
-    textDecorationLine: 'underline', textDecorationColor: COLORS.primary,
-  },
+  gasStorePhone: { fontSize: 11, color: COLORS.primary, fontWeight: '700' },
 
   offerStoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3, marginTop: 1 },
   offerStoreText: { fontSize: 11, fontWeight: '700', color: COLORS.secondary },
