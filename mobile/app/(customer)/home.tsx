@@ -184,16 +184,16 @@ export default function CustomerHome() {
   const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
-    Animated.timing(waveEntrance, { toValue: 1, duration: 900, delay: 250, useNativeDriver: true }).start(() => {
-      Animated.loop(
-        Animated.timing(waveLateral, { toValue: 1, duration: 5000, easing: Easing.linear, useNativeDriver: true })
-      ).start();
-    });
+    // Entrance only — slide up + fade in, then hold still
+    Animated.parallel([
+      Animated.timing(waveEntrance, { toValue: 1, duration: 800, delay: 200, useNativeDriver: true }),
+      Animated.timing(waveLateral,  { toValue: 0.3, duration: 1200, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
   }, []);
 
-  const waveTranslateX = waveLateral.interpolate({ inputRange: [0, 1], outputRange: [0, -SCREEN_W] });
+  const waveTranslateX = waveLateral.interpolate({ inputRange: [0, 0.3], outputRange: [-SCREEN_W * 0.15, 0] });
   const waveOpacity    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const waveSlideUp    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+  const waveSlideUp    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [30, 0] });
 
   // 4× wide wave path (seamless loop every SCREEN_W)
   const W = SCREEN_W, H = 44, A = 18;
