@@ -193,7 +193,7 @@ function AttentionBanner({ pending, disputes }: { pending: number; disputes: num
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, marginTop: 4 }}>
           {items.map(item => (
             <button key={item.to + item.label} onClick={() => navigate(item.to)}
-              style={{ ...s.attnLink, color: item.color, borderColor: item.color + '44' }}>
+              style={{ ...s.attnLink, color: item.color, border: `1px solid ${item.color}44` }}>
               {item.label} →
             </button>
           ))}
@@ -252,7 +252,7 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
             </div>
           ))}
           {liveBanners.slice(0, 2).map((b: any) => (
-            <div key={b.id} style={{ ...s.offerChip, borderColor: '#7c3aed22', background: '#faf5ff' }}>
+            <div key={b.id} style={{ ...s.offerChip, border: '1.5px solid #7c3aed22', background: '#faf5ff' }}>
               <div style={s.offerChipTop}>
                 <span style={{ ...s.offerChipBadge, background: '#7c3aed', color: '#fff' }}>BANNER</span>
               </div>
@@ -624,7 +624,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 24, padding: '10px 22px', fontWeight: 700, fontSize: 14,
     whiteSpace: 'nowrap', flexShrink: 0,
   },
-  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#2DC653', borderColor: 'rgba(45,198,83,0.3)' },
+  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#2DC653', border: '1px solid rgba(45,198,83,0.3)' },
 
   quickActions: { display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' as const },
   quickBtn: {
@@ -636,7 +636,7 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'all 0.15s ease',
   },
   quickBtnHov: {
-    background: '#1D3557', color: '#fff', borderColor: '#1D3557',
+    background: '#1D3557', color: '#fff', border: '1px solid #1D3557',
     boxShadow: '0 4px 14px rgba(29,53,87,0.22)', transform: 'translateY(-1px)',
   },
 
@@ -654,7 +654,7 @@ const s: Record<string, React.CSSProperties> = {
     color: '#6c757d', transition: 'all 0.15s ease', whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
   },
-  sectionLinkHov: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  sectionLinkHov: { background: '#1D3557', color: '#fff', border: '1px solid #1D3557' },
 
   attnBanner: {
     display: 'flex', alignItems: 'flex-start', gap: 14,
@@ -665,7 +665,7 @@ const s: Record<string, React.CSSProperties> = {
   attnBody: { flex: 1 },
   attnTitle: { fontSize: 14, fontWeight: 800, color: '#92400e' },
   attnLink: {
-    background: 'none', border: '1px solid', borderRadius: 8,
+    background: 'none', borderRadius: 8,
     padding: '4px 12px', fontSize: 14, fontWeight: 700,
     cursor: 'pointer', transition: 'all 0.12s ease',
   },
@@ -692,7 +692,7 @@ const s: Record<string, React.CSSProperties> = {
   offersPanelTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
   offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
   offerChip: {
-    background: '#fff', border: '1.5px solid #e63946 22', borderColor: '#e9ecef',
+    background: '#fff', border: '1.5px solid #e9ecef',
     borderRadius: 12, padding: '12px 14px',
     boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
   },
@@ -732,7 +732,7 @@ const s: Record<string, React.CSSProperties> = {
   statCardHov: {
     transform: 'translateY(-3px)',
     boxShadow: '0 8px 28px rgba(0,0,0,0.1)',
-    borderColor: '#dde3f0',
+    border: '1px solid #dde3f0',
   },
   statIconWrap: {
     width: 42, height: 42, borderRadius: 12,
