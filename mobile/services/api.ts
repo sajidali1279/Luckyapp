@@ -315,3 +315,16 @@ export const managerApi = {
   },
 };
 
+export const hotFoodApi = {
+  getMenu:        (storeId: string) => api.get(`/hot-food/menu?storeId=${storeId}`),
+  placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
+    api.post('/hot-food/orders', data),
+  getMyOrders:    () => api.get('/hot-food/orders/mine'),
+  getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`),
+  updateStatus:   (orderId: string, status: string, estimatedMinutes?: number) =>
+    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
+  getPendingCount:          (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
+  updateItemAvailability:   (itemId: string, isAvailable: boolean) =>
+    api.patch(`/hot-food/menu/${itemId}`, { isAvailable }),
+};
+

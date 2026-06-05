@@ -1,6 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
-  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking, Easing,
+  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
+  TextInput, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
@@ -11,7 +12,7 @@ import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi, authApi, notificationsApi, storesApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import { COLORS } from '../../constants';
 import {
@@ -20,7 +21,6 @@ import {
   PercentIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
-import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -155,8 +155,8 @@ export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
 
   // Staggered entrance — 7 sections fade + slide up on mount
-  const fadeAnims = useRef([...Array(7)].map(() => new Animated.Value(0))).current;
-  const slideAnims = useRef([...Array(7)].map(() => new Animated.Value(18))).current;
+  const fadeAnims = useRef([...Array(8)].map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef([...Array(8)].map(() => new Animated.Value(18))).current;
   useEffect(() => {
     Animated.stagger(55, fadeAnims.map((anim, i) =>
       Animated.parallel([
@@ -177,27 +177,13 @@ export default function CustomerHome() {
     ).start();
   }, []);
 
-  // Wave animations
-  const waveEntrance = useRef(new Animated.Value(0)).current;
-  const waveLateral  = useRef(new Animated.Value(0)).current;
-  const scrollY      = useRef(new Animated.Value(0)).current;
   const [showQR, setShowQR] = useState(false);
 
-  useEffect(() => {
-    // Entrance only — slide up + fade in, then hold still
-    Animated.parallel([
-      Animated.timing(waveEntrance, { toValue: 1, duration: 800, delay: 200, useNativeDriver: true }),
-      Animated.timing(waveLateral,  { toValue: 0.3, duration: 1200, delay: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const waveTranslateX = waveLateral.interpolate({ inputRange: [0, 0.3], outputRange: [-SCREEN_W * 0.15, 0] });
-  const waveOpacity    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const waveSlideUp    = waveEntrance.interpolate({ inputRange: [0, 1], outputRange: [30, 0] });
-
-  // 4× wide wave path (seamless loop every SCREEN_W)
-  const W = SCREEN_W, H = 44, A = 18;
-  const WAVE_PATH = `M0,${A} C${W*.25},0 ${W*.75},0 ${W},${A} C${W*1.25},${A*2} ${W*1.75},${A*2} ${W*2},${A} C${W*2.25},0 ${W*2.75},0 ${W*3},${A} C${W*3.25},${A*2} ${W*3.75},${A*2} ${W*4},${A} L${W*4},${H} L0,${H} Z`;
+  // Hot food order state
+  const [selectedFoodItem, setSelectedFoodItem] = useState<any>(null);
+  const [foodQty, setFoodQty] = useState(1);
+  const [foodNote, setFoodNote] = useState('');
+  const [foodOrdering, setFoodOrdering] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -302,6 +288,14 @@ export default function CustomerHome() {
     enabled: locationReady,
   });
 
+  const { data: hotFoodData } = useQuery({
+    queryKey: ['hot-food-menu', nearestStore?.id],
+    queryFn: () => hotFoodApi.getMenu(nearestStore!.id),
+    enabled: !!nearestStore,
+    staleTime: 5 * 60 * 1000,
+  });
+  const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
+
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => o.bonusRate || o.gasBonusCentsPerGallon != null);
@@ -339,6 +333,24 @@ export default function CustomerHome() {
   function onRefresh() {
     refetchBanners();
     refetchOffers();
+  }
+
+  async function placeHotFoodOrder() {
+    if (!nearestStore || !selectedFoodItem || foodOrdering) return;
+    setFoodOrdering(true);
+    try {
+      await hotFoodApi.placeOrder({
+        storeId: nearestStore.id,
+        items: [{ menuItemId: selectedFoodItem.id, quantity: foodQty }],
+        note: foodNote.trim() || undefined,
+      });
+      setSelectedFoodItem(null);
+      Alert.alert('Order Placed!', "Your order has been sent to the team. They'll have it ready for you shortly.");
+    } catch {
+      Alert.alert('Error', 'Could not place your order. Please try again.');
+    } finally {
+      setFoodOrdering(false);
+    }
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
@@ -395,22 +407,11 @@ export default function CustomerHome() {
         </SafeAreaView>
       </Animated.View>
 
-      {/* ── Animated wave transition ── */}
-      <Animated.View style={[styles.waveOuter, { opacity: waveOpacity, transform: [{ translateY: waveSlideUp }] }]}>
-        <Animated.View style={{ transform: [{ translateX: waveTranslateX }] }}>
-          <Svg width={SCREEN_W * 4} height={H} viewBox={`0 0 ${SCREEN_W * 4} ${H}`}>
-            <Path d={WAVE_PATH} fill="#EDF1F7" />
-          </Svg>
-        </Animated.View>
-      </Animated.View>
-
       {/* ── Scrollable content ── */}
       <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -485,22 +486,6 @@ export default function CustomerHome() {
       {/* QR section removed — accessible via floating QR button */}
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <WelcomeBonusCard />
-      </Animated.View>
-
-      {/* ── Banners ── */}
-      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-        {contentLoading
-          ? (
-            <View style={styles.bannerWrapper}>
-              <SkeletonBannerCard />
-            </View>
-          )
-          : banners.length > 0 && (
-            <View style={styles.bannerWrapper}>
-              <BannerCarousel banners={banners} />
-            </View>
-          )
-        }
       </Animated.View>
 
       {/* ── Gas Prices ── */}
@@ -673,8 +658,46 @@ export default function CustomerHome() {
         }
       </Animated.View>
 
+      {/* ── Hot Food ── */}
+      {nearestStore && hotFoodMenu.length > 0 && (
+        <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
+          <View style={styles.section}>
+            <View style={styles.sectionRow}>
+              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label="Hot Food" />
+              <Text style={styles.sectionSubLabel}>Order ahead at {nearestStore.name}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotFoodRow}>
+              {hotFoodMenu.map((item: any) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.hotFoodCard}
+                  onPress={() => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
+                  activeOpacity={0.82}
+                >
+                  {item.imageUrl
+                    ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} />
+                    : (
+                      <View style={styles.hotFoodImgPlaceholder}>
+                        <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
+                      </View>
+                    )
+                  }
+                  <View style={styles.hotFoodCardBody}>
+                    <Text style={styles.hotFoodItemName} numberOfLines={2}>{item.name}</Text>
+                    {item.description
+                      ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text>
+                      : null}
+                    <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </Animated.View>
+      )}
+
       {/* ── Today's Deals + History ── */}
-      <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
+      <Animated.View style={{ opacity: fadeAnims[7], transform: [{ translateY: slideAnims[7] }] }}>
         {!contentLoading && deals.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
@@ -731,6 +754,86 @@ export default function CustomerHome() {
           <ChevronRightIcon size={16} color={COLORS.primary} strokeWidth={2.5} />
         </TouchableOpacity>
       </Animated.View>
+
+      {/* ── Banners ── */}
+      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+        {contentLoading
+          ? (
+            <View style={styles.bannerWrapper}>
+              <SkeletonBannerCard />
+            </View>
+          )
+          : banners.length > 0 && (
+            <View style={styles.bannerWrapper}>
+              <BannerCarousel banners={banners} />
+            </View>
+          )
+        }
+      </Animated.View>
+
+      {/* ── Hot Food Order Modal ── */}
+      <Modal visible={!!selectedFoodItem} transparent animationType="slide" onRequestClose={() => setSelectedFoodItem(null)}>
+        <View style={hf.overlay}>
+          <View style={hf.sheet}>
+            <View style={hf.handle} />
+            {selectedFoodItem && (
+              <>
+                {selectedFoodItem.imageUrl
+                  ? <Image source={{ uri: selectedFoodItem.imageUrl }} style={hf.itemImg} />
+                  : (
+                    <View style={hf.itemImgPlaceholder}>
+                      <FlameIcon size={40} color="#EA580C" strokeWidth={1.5} />
+                    </View>
+                  )
+                }
+                <Text style={hf.itemName}>{selectedFoodItem.name}</Text>
+                {selectedFoodItem.description
+                  ? <Text style={hf.itemDesc}>{selectedFoodItem.description}</Text>
+                  : null}
+
+                <View style={hf.qtyRow}>
+                  <TouchableOpacity onPress={() => setFoodQty(q => Math.max(1, q - 1))} style={hf.qtyBtn}>
+                    <Text style={hf.qtyBtnText}>−</Text>
+                  </TouchableOpacity>
+                  <Text style={hf.qty}>{foodQty}</Text>
+                  <TouchableOpacity onPress={() => setFoodQty(q => Math.min(10, q + 1))} style={hf.qtyBtn}>
+                    <Text style={hf.qtyBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={hf.noteInput}
+                  placeholder="Special instructions (optional)"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={foodNote}
+                  onChangeText={setFoodNote}
+                  multiline
+                  maxLength={200}
+                />
+
+                <View style={hf.totalRow}>
+                  <Text style={hf.totalLabel}>Total</Text>
+                  <Text style={hf.totalValue}>${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[hf.orderBtn, foodOrdering && { opacity: 0.6 }]}
+                  onPress={placeHotFoodOrder}
+                  disabled={foodOrdering}
+                  activeOpacity={0.85}
+                >
+                  <FlameIcon size={16} color="#fff" strokeWidth={2} />
+                  <Text style={hf.orderBtnText}>{foodOrdering ? 'Placing Order…' : 'Place Order'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setSelectedFoodItem(null)} style={hf.cancelLink}>
+                  <Text style={hf.cancelLinkText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Rating prompt ── */}
       {pendingRating && (
@@ -936,12 +1039,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EDF1F7' },
   scroll: { flex: 1 },
   headerBg: { backgroundColor: COLORS.primary },
-  waveOuter: {
-    backgroundColor: COLORS.primary,
-    overflow: 'hidden',
-    width: SCREEN_W,
-  },
-
   // QR floating button
   qrFab: {
     position: 'absolute',
@@ -1148,7 +1245,18 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   sectionTitleText: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-  sectionCount: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  sectionCount:    { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  sectionSubLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
+
+  // Hot food cards
+  hotFoodRow:          { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
+  hotFoodCard:         { width: 148, backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
+  hotFoodImg:          { width: 148, height: 96, resizeMode: 'cover' },
+  hotFoodImgPlaceholder:{ width: 148, height: 96, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
+  hotFoodCardBody:     { padding: 10 },
+  hotFoodItemName:     { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 2, lineHeight: 17 },
+  hotFoodItemDesc:     { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
+  hotFoodItemPrice:    { fontSize: 14, fontWeight: '800', color: '#EA580C' },
 
   sliderRow: { gap: 10, paddingBottom: 4 },
   offerSlideCard: {
@@ -1323,4 +1431,26 @@ const ag = StyleSheet.create({
   confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   backBtn: { paddingVertical: 10, width: '100%', alignItems: 'center' },
   backBtnText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
+});
+
+const hf = StyleSheet.create({
+  overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet:            { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  handle:           { width: 36, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  itemImg:          { width: '100%', height: 160, borderRadius: 14, marginBottom: 16, resizeMode: 'cover' },
+  itemImgPlaceholder:{ width: '100%', height: 120, backgroundColor: '#FFF7ED', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  itemName:         { fontSize: 20, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
+  itemDesc:         { fontSize: 13, color: COLORS.textMuted, marginBottom: 16, lineHeight: 18 },
+  qtyRow:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, marginVertical: 16 },
+  qtyBtn:           { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  qtyBtnText:       { fontSize: 24, fontWeight: '300', color: COLORS.text, lineHeight: 28 },
+  qty:              { fontSize: 26, fontWeight: '800', color: COLORS.text, minWidth: 36, textAlign: 'center' },
+  noteInput:        { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 14, color: COLORS.text, minHeight: 56, textAlignVertical: 'top', marginBottom: 16 },
+  totalRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  totalLabel:       { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
+  totalValue:       { fontSize: 22, fontWeight: '900', color: COLORS.text },
+  orderBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EA580C', borderRadius: 14, paddingVertical: 16, marginBottom: 12 },
+  orderBtnText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
+  cancelLink:       { alignItems: 'center', paddingVertical: 8 },
+  cancelLinkText:   { color: COLORS.textMuted, fontSize: 14 },
 });

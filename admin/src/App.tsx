@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
-import Navbar from './components/Navbar';
+import { AppSidebar } from './components/AppSidebar';
+import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
 import PageLoader from './components/PageLoader';
 
 // Eagerly loaded (always needed)
@@ -37,6 +38,8 @@ const Careers                = lazy(() => import('./pages/Careers'));
 const OrderList              = lazy(() => import('./pages/OrderList'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
+const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
+const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
 
 const queryClient = new QueryClient();
 
@@ -47,10 +50,12 @@ function ProtectedLayout() {
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   return (
-    <>
-      <Navbar />
-      <Outlet />
-    </>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -105,6 +110,8 @@ export default function App() {
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/order-list" element={<OrderList />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
+              <Route path="/hot-food/menu" element={<HotFoodMenu />} />
+              <Route path="/hot-food/orders" element={<HotFoodOrders />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>

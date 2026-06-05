@@ -276,6 +276,22 @@ export const employeeRequestApi = {
   getPendingCount: () => api.get('/employee-requests/pending-count'),
 };
 
+export const hotFoodApi = {
+  // Menu management
+  getMenu:       (storeId?: string) => api.get(`/hot-food/menu${storeId ? `?storeId=${storeId}` : ''}`),
+  createItem:    (data: { storeId?: string; name: string; description?: string; price: number; isAvailable?: boolean; estimatedMinutes?: number }) =>
+    api.post('/hot-food/menu', data),
+  updateItem:    (id: string, data: { name?: string; description?: string; price?: number; isAvailable?: boolean; estimatedMinutes?: number; storeId?: string }) =>
+    api.patch(`/hot-food/menu/${id}`, data),
+  deleteItem:    (id: string) => api.delete(`/hot-food/menu/${id}`),
+  // Orders management
+  getAllOrders:  (params?: { storeId?: string; status?: string }) => {
+    const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+    return api.get(`/hot-food/orders/admin${q ? `?${q}` : ''}`);
+  },
+  updateStatus:  (orderId: string, status: string) => api.patch(`/hot-food/orders/${orderId}`, { status }),
+};
+
 export const inventoryAnalyticsApi = {
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
