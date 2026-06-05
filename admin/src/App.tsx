@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { AppSidebar } from './components/AppSidebar';
 import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
+import { TooltipProvider } from './components/ui/tooltip';
 import PageLoader from './components/PageLoader';
 
 // Eagerly loaded (always needed)
@@ -50,12 +51,14 @@ function ProtectedLayout() {
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Outlet />
-      </SidebarInset>
-    </SidebarProvider>
+    <TooltipProvider delayDuration={0}>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <Outlet />
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }
 
