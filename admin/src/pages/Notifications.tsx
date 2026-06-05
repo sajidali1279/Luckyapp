@@ -331,7 +331,7 @@ export default function Notifications() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 800, padding: '32px 24px' },
+  page: { padding: '32px 24px' },
   header: { marginBottom: 20 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557', display: 'flex', alignItems: 'center', gap: 10 },
   subtitle: { margin: '4px 0 0', color: '#6c757d', fontSize: 14 },
@@ -379,7 +379,7 @@ const s: Record<string, React.CSSProperties> = {
   emptyState: { textAlign: 'center', padding: '80px 0' },
   emptyIcon: { fontSize: 52, marginBottom: 14 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6c757d', maxWidth: 380, lineHeight: 1.6 },
+  emptyText: { fontSize: 14, color: '#6c757d', lineHeight: 1.6 },
 
   infoBox: { marginTop: 28, background: '#f8f9fb', border: '1px solid #e9ecef', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: '#6c757d', lineHeight: 1.6 },
 };

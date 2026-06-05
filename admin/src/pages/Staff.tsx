@@ -518,7 +518,7 @@ export default function Staff() {
       {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
         <div style={s.overlay} onClick={() => setDeleteTarget(null)}>
-          <div style={{ ...s.modal, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ ...s.modal }} onClick={(e) => e.stopPropagation()}>
             <div style={s.deleteIconWrap}>
               <div style={s.deleteIcon}>🗑️</div>
             </div>
@@ -551,7 +551,7 @@ export default function Staff() {
       {/* ── Reset PIN Modal ── */}
       {resetTarget && (
         <div style={s.overlay} onClick={() => { setResetTarget(null); setNewPin(''); }}>
-          <form style={{ ...s.modal, maxWidth: 380 }} onSubmit={handleResetPin} onClick={(e) => e.stopPropagation()}>
+          <form style={{ ...s.modal }} onSubmit={handleResetPin} onClick={(e) => e.stopPropagation()}>
             <div style={s.modalHeader}>
               <div>
                 <div style={s.modalTitle}>Reset PIN</div>
@@ -595,7 +595,7 @@ export default function Staff() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', maxWidth: 1300, minHeight: 'calc(100vh - 64px)', background: '#f8fafc' },
+  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: '#f8fafc' },
 
   // Page header
   pageHeader: {
@@ -723,7 +723,7 @@ const s: Record<string, React.CSSProperties> = {
   formWrap: { display: 'flex', justifyContent: 'center', paddingTop: 8 },
   formCard: {
     background: '#fff', borderRadius: 20, padding: 32,
-    width: '100%', maxWidth: 680,
+    width: '100%',
     boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
     border: '1px solid #f0f1f2',
   },
@@ -803,7 +803,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   modal: {
     background: '#fff', borderRadius: 20, padding: 28,
-    width: '100%', maxWidth: 500,
+    width: '100%',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
     display: 'flex', flexDirection: 'column', gap: 18,
     maxHeight: '88vh', overflowY: 'auto',

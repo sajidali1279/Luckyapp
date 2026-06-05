@@ -297,7 +297,7 @@ export default function HotFoodMenu() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const pg: Record<string, React.CSSProperties> = {
-  container: { padding: '24px 28px', maxWidth: 900 },
+  container: { padding: '24px 28px' },
   header:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   iconWrap:  { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:     { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
@@ -330,7 +330,7 @@ const f: Record<string, React.CSSProperties> = {
 
 const modalStyles: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
-  panel:   { background: '#fff', borderRadius: 16, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
+  panel:   { background: '#fff', borderRadius: 16, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid #F3F4F6' },
   headerTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
   closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#9CA3AF', lineHeight: 1 },

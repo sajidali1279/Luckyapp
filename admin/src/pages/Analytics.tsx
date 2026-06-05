@@ -249,7 +249,7 @@ function SummaryCard({ icon, label, value, green }: { icon: string; label: strin
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1200 },
+  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 },
   title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4 },

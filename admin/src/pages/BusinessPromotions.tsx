@@ -375,7 +375,7 @@ export default function BusinessPromotions() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 960, padding: '32px 24px' },
+  page: { padding: '32px 24px' },
   topBar: { marginBottom: 24 },
   title: { margin: 0, fontSize: 24, fontWeight: 800, color: '#1D3557' },
   subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },
@@ -460,7 +460,7 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
   },
   modal: {
-    background: '#fff', borderRadius: 16, width: '100%', maxWidth: 540,
+    background: '#fff', borderRadius: 16, width: '100%',
     maxHeight: '90vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
   },

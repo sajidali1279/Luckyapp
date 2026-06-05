@@ -448,7 +448,7 @@ export default function CatalogPage() {
 
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
-  inner: { maxWidth: 1400, padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', margin: 0 },
@@ -547,7 +547,7 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
-    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 480,
+    background: '#fff', borderRadius: 18, width: '100%',
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
     maxHeight: '90vh', overflowY: 'auto',
   },

@@ -603,7 +603,7 @@ export default function Dashboard() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: '28px 32px', maxWidth: 1200 },
+  container: { padding: '28px 32px' },
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #12202f 0%, #1D3557 55%, #2a4a73 100%)',

@@ -561,7 +561,7 @@ export default function Billing() {
         const stores: any[] = data?.data?.data ?? [];
         const canSubmit = manualForm.storeId && manualForm.amount && parseFloat(manualForm.amount) > 0 && manualForm.description.trim() && manualForm.period;
         return (
-          <div style={{ maxWidth: 560, padding: '24px 0' }}>
+          <div style={{ padding: '24px 0' }}>
             <div style={{ background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' }}>Add Manual Charge</h2>
               <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 24px' }}>
@@ -1225,7 +1225,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1300 },
+  container: { padding: 32 },
   title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: '0 0 20px' },
   loading: { padding: 32, textAlign: 'center', color: '#6c757d' },
 
@@ -1316,7 +1316,7 @@ const inv: Record<string, React.CSSProperties> = {
     justifyContent: 'center', padding: '32px 20px', overflowY: 'auto',
   },
   paper: {
-    background: '#fff', borderRadius: 16, width: '100%', maxWidth: 780,
+    background: '#fff', borderRadius: 16, width: '100%',
     boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: '40px',
     position: 'relative', flexShrink: 0,
   },
@@ -1360,7 +1360,7 @@ const inv2: Record<string, React.CSSProperties> = {
     justifyContent: 'center', padding: '32px 20px', overflowY: 'auto',
   },
   paper: {
-    background: '#fff', borderRadius: 16, width: '100%', maxWidth: 960,
+    background: '#fff', borderRadius: 16, width: '100%',
     boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: '40px',
     position: 'relative', flexShrink: 0,
   },

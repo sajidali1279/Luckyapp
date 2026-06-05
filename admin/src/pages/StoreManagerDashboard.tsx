@@ -182,7 +182,7 @@ function StatCard({ icon, label, value, valueColor = '#1D3557' }: { icon: string
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1100 },
+  container: { padding: 32 },
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #2a6049 0%, #3d8a69 100%)',

@@ -393,7 +393,7 @@ export default function Customers() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 1300, padding: '32px 24px' },
+  page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   eyebrow: { fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
@@ -411,7 +411,7 @@ const s: Record<string, React.CSSProperties> = {
   exportBtn: { padding: '9px 18px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 },
 
   searchRow: { display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' },
-  searchWrap: { flex: 1, maxWidth: 420, position: 'relative' },
+  searchWrap: { flex: 1, position: 'relative' },
   searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' },
   searchInput: {
     width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10,
@@ -504,13 +504,13 @@ const s: Record<string, React.CSSProperties> = {
   // Fraud badge
   fraudBadge: {
     display: 'inline-block', marginTop: 4, padding: '2px 8px', background: '#fff1f2',
-    color: '#E63946', fontSize: 11, fontWeight: 700, borderRadius: 6, maxWidth: 200,
+    color: '#E63946', fontSize: 11, fontWeight: 700, borderRadius: 6,
     whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis',
   },
 
   // Confirm modal
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modal: { background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' },
+  modal: { background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' },
   dragHandle: { width: 40, height: 4, background: '#e2e8f0', borderRadius: 2, margin: '0 auto 20px' },
   modalIcon: { width: 60, height: 60, borderRadius: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' },
   modalTitle: { fontSize: 18, fontWeight: 800, color: '#111827', marginBottom: 8 },

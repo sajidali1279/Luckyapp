@@ -933,7 +933,7 @@ function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => vo
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1200 },
+  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
@@ -974,7 +974,7 @@ const s: Record<string, React.CSSProperties> = {
   templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 },
   useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
 
-  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, maxWidth: 620, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
+  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
   formSection: { padding: '16px 0', borderBottom: '1px solid #f1f3f5', display: 'flex', flexDirection: 'column' as const, gap: 10 },
   formSectionLabel: { fontWeight: 800, fontSize: 13, color: '#1D3557', marginBottom: 2 },
   required: { fontWeight: 600, fontSize: 11, color: '#E63946', marginLeft: 4 },

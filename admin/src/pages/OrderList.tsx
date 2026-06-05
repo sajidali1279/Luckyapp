@@ -868,7 +868,7 @@ export default function OrderListPage() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { maxWidth: 1200, padding: '24px 20px' },
+  page:       { padding: '24px 20px' },
   pageHeader: { marginBottom: 24 },
   pageTitle:  { fontSize: 24, fontWeight: 800, color: '#1E293B', margin: 0 },
   pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
@@ -980,7 +980,7 @@ const r: Record<string, React.CSSProperties> = {
 // Modal styles
 const m: Record<string, React.CSSProperties> = {
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modal:    { background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' },
+  modal:    { background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle:  { fontSize: 18, fontWeight: 800, color: '#1E293B' },
   closeBtn:    { background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer', lineHeight: 1 },

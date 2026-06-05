@@ -137,7 +137,7 @@ export default function Banners() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1200 },
+  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
@@ -146,7 +146,7 @@ const s: Record<string, React.CSSProperties> = {
   form: {
     background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32,
     boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12,
-    maxWidth: 560, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+    borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
   },
   label: { fontWeight: 700, fontSize: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },

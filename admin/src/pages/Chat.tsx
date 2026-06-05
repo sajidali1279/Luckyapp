@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -395,7 +395,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyIconWrap: { fontSize: 52, marginBottom: 4 },
   emptyTitle: { fontSize: 20, fontWeight: 800, color: '#111827' },
-  emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center', maxWidth: 300 },
+  emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
 
   chatHeader: {
     display: 'flex', alignItems: 'center', gap: 14,

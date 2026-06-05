@@ -392,7 +392,7 @@ export default function Documents() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const ps: Record<string, React.CSSProperties> = {
-  root: { padding: '32px 32px 48px', maxWidth: 1200 },
+  root: { padding: '32px 32px 48px' },
   hero: {
     marginBottom: 28, display: 'flex', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 16,
@@ -450,7 +450,7 @@ const rs: Record<string, React.CSSProperties> = {
     justifyContent: 'flex-end',
   },
   panel: {
-    background: '#fff', width: '100%', maxWidth: 860,
+    background: '#fff', width: '100%',
     display: 'flex', flexDirection: 'column' as const,
     boxShadow: '-8px 0 40px rgba(0,0,0,0.18)',
   },

@@ -621,7 +621,7 @@ export default function Stores() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 1100, padding: '32px 24px' },
+  page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
@@ -686,7 +686,7 @@ const s: Record<string, React.CSSProperties> = {
 
   // Modal
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modal: { background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
+  modal: { background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   dragHandle: { width: 40, height: 4, background: '#e2e8f0', borderRadius: 2, margin: '0 auto 18px' },
   modalHeader: { marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },

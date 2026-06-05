@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -46,7 +46,7 @@ export default function Login() {
     <div style={{ position: 'relative', minHeight: '100vh', background: '#0c0e12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Particles className="absolute inset-0" color="#444444" ease={30} quantity={100} staticity={60} />
 
-      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 380, margin: '0 16px' }}>
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', margin: '0 16px' }}>
         {/* Logo mark */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
           <div style={{
@@ -169,7 +169,7 @@ export default function Login() {
           onClick={() => setShowForgot(false)}
         >
           <div
-            style={{ background: '#161920', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 380, padding: '24px 24px 28px' }}
+            style={{ background: '#161920', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', padding: '24px 24px 28px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>

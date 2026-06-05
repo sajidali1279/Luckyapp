@@ -630,7 +630,7 @@ export default function Rates() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 900, padding: '32px 24px' },
+  page: { padding: '32px 24px' },
 
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 },
   title: { margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#1D3557' },

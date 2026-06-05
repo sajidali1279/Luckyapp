@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
@@ -715,7 +715,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 8, padding: '3px 4px 3px 8px',
     fontSize: 11, fontWeight: 600, color: '#1D3557',
   },
-  chipName: { maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  chipName: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   chipRemove: {
     background: 'none', border: 'none', cursor: 'pointer',
     color: '#E63946', fontSize: 14, fontWeight: 700,
@@ -808,7 +808,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyEmoji: { fontSize: 52 },
   emptyTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  emptyDesc: { fontSize: 14, color: '#6c757d', textAlign: 'center', maxWidth: 300 },
+  emptyDesc: { fontSize: 14, color: '#6c757d', textAlign: 'center' },
   emptyCard: {
     color: '#6c757d', background: '#f8f9fa',
     borderRadius: 12, padding: '16px 20px', fontSize: 14,

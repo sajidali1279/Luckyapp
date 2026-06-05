@@ -1,6 +1,6 @@
 ﻿export default function Privacy() {
   const s: Record<string, React.CSSProperties> = {
-    page:    { maxWidth: 760, padding: '48px 24px 80px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a', lineHeight: 1.7 },
+    page:    { padding: '48px 24px 80px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a', lineHeight: 1.7 },
     logo:    { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 },
     badge:   { background: '#1D3557', color: '#fff', fontWeight: 700, fontSize: 20, padding: '8px 16px', borderRadius: 8 },
     h1:      { fontSize: 28, fontWeight: 700, margin: '0 0 6px' },
