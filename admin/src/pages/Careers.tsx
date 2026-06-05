@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { careersApi, storesApi } from '../services/api';
@@ -302,7 +302,7 @@ export default function Careers() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px', maxWidth: 1100, margin: '0 auto' },
+  page: { padding: '32px 24px', maxWidth: 1100 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: '#888' },

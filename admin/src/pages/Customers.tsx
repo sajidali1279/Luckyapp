@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { customersApi, disputesApi, storesApi } from '../services/api';
@@ -393,7 +393,7 @@ export default function Customers() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 1300, margin: '0 auto', padding: '32px 24px' },
+  page: { maxWidth: 1300, padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   eyebrow: { fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },

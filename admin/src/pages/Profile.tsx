@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -171,7 +171,7 @@ export default function Profile() {
 
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f0f2f5', padding: '32px 24px' },
-  inner: { maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 },
+  inner: { maxWidth: 900, display: 'flex', flexDirection: 'column', gap: 28 },
 
   header: {
     display: 'flex', alignItems: 'center', gap: 20,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { catalogApi } from '../services/api';
@@ -448,7 +448,7 @@ export default function CatalogPage() {
 
 const s: Record<string, React.CSSProperties> = {
   page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
-  inner: { maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { maxWidth: 1400, padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', margin: 0 },

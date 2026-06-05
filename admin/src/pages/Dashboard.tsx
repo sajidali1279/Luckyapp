@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -603,7 +603,7 @@ export default function Dashboard() {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: '28px 32px', maxWidth: 1200, margin: '0 auto' },
+  container: { padding: '28px 32px', maxWidth: 1200 },
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #12202f 0%, #1D3557 55%, #2a4a73 100%)',

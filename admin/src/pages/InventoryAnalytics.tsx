@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -244,7 +244,7 @@ export default function InventoryAnalytics() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '24px 32px', maxWidth: 1200, margin: '0 auto' },
+  page: { padding: '24px 32px', maxWidth: 1200 },
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   title:  { margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' },
   sub:    { margin: '4px 0 0', fontSize: 13, color: '#6B7280' },

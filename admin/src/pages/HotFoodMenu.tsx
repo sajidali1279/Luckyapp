@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { hotFoodApi, storesApi } from '../services/api';
@@ -297,7 +297,7 @@ export default function HotFoodMenu() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const pg: Record<string, React.CSSProperties> = {
-  container: { padding: '24px 28px', maxWidth: 900, margin: '0 auto' },
+  container: { padding: '24px 28px', maxWidth: 900 },
   header:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   iconWrap:  { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:     { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },

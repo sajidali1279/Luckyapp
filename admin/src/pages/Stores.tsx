@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -621,7 +621,7 @@ export default function Stores() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 1100, margin: '0 auto', padding: '32px 24px' },
+  page: { maxWidth: 1100, padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },

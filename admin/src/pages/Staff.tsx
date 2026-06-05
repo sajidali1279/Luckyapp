@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { authApi, storesApi, staffApi } from '../services/api';
@@ -595,7 +595,7 @@ export default function Staff() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', maxWidth: 1300, margin: '0 auto', minHeight: 'calc(100vh - 64px)', background: '#f8fafc' },
+  page: { padding: '28px 32px', maxWidth: 1300, minHeight: 'calc(100vh - 64px)', background: '#f8fafc' },
 
   // Page header
   pageHeader: {

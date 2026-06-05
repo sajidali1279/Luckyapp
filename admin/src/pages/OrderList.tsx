@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
@@ -868,7 +868,7 @@ export default function OrderListPage() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { maxWidth: 1200, margin: '0 auto', padding: '24px 20px' },
+  page:       { maxWidth: 1200, padding: '24px 20px' },
   pageHeader: { marginBottom: 24 },
   pageTitle:  { fontSize: 24, fontWeight: 800, color: '#1E293B', margin: 0 },
   pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },

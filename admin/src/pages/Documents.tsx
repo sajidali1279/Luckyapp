@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuthStore } from '../store/authStore';
@@ -392,7 +392,7 @@ export default function Documents() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const ps: Record<string, React.CSSProperties> = {
-  root: { padding: '32px 32px 48px', maxWidth: 1200, margin: '0 auto' },
+  root: { padding: '32px 32px 48px', maxWidth: 1200 },
   hero: {
     marginBottom: 28, display: 'flex', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 16,
@@ -480,6 +480,6 @@ const rs: Record<string, React.CSSProperties> = {
   },
   prose: {
     fontSize: 14, lineHeight: 1.75, color: '#212529',
-    maxWidth: 720, margin: '0 auto',
+    maxWidth: 720,
   },
 };

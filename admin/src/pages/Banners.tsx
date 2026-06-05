@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { bannersApi, storesApi } from '../services/api';
@@ -137,7 +137,7 @@ export default function Banners() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1200, margin: '0 auto' },
+  container: { padding: 32, maxWidth: 1200 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#9ca3af', marginTop: 4, fontSize: 13 },

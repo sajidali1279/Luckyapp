@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
@@ -375,7 +375,7 @@ export default function BusinessPromotions() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 960, margin: '0 auto', padding: '32px 24px' },
+  page: { maxWidth: 960, padding: '32px 24px' },
   topBar: { marginBottom: 24 },
   title: { margin: 0, fontSize: 24, fontWeight: 800, color: '#1D3557' },
   subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },

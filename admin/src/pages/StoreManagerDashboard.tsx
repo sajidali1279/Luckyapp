@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+﻿import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { pointsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -182,7 +182,7 @@ function StatCard({ icon, label, value, valueColor = '#1D3557' }: { icon: string
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1100, margin: '0 auto' },
+  container: { padding: 32, maxWidth: 1100 },
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #2a6049 0%, #3d8a69 100%)',

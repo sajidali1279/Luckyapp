@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+﻿import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { superAdminApi } from '../services/api';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
@@ -178,7 +178,7 @@ export default function SuperAdminBilling() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 1100, margin: '0 auto', padding: '32px 24px' },
+  page: { maxWidth: 1100, padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
   subtitle: { margin: '4px 0 0', color: '#6c757d', fontSize: 14 },

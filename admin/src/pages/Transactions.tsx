@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
@@ -340,7 +340,7 @@ export default function Transactions() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32, maxWidth: 1400, margin: '0 auto' },
+  container: { padding: 32, maxWidth: 1400 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4, marginBottom: 0 },
