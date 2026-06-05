@@ -39,16 +39,22 @@ import {
   Bell,
   Headphones,
   FileText,
-  User,
   LogOut,
   Fuel,
   Flame,
+  ChevronRight,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
   SUPER_ADMIN: 'Super Admin',
   STORE_MANAGER: 'Store Manager',
+};
+
+const ROLE_COLOR: Record<string, string> = {
+  DEV_ADMIN: 'oklch(0.55 0.18 285)',
+  SUPER_ADMIN: 'oklch(0.50 0.22 27)',
+  STORE_MANAGER: 'oklch(0.58 0.14 145)',
 };
 
 type NavItem = {
@@ -67,13 +73,40 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+        style={isActive ? {
+          backgroundColor: 'oklch(0.50 0.22 27)',
+          color: 'oklch(0.97 0.005 27)',
+          fontWeight: 600,
+        } : undefined}
+      >
         <NavLink to={to} end={isEnd}>
           {icon}
           <span>{label}</span>
         </NavLink>
       </SidebarMenuButton>
-      {badge != null && badge > 0 && <SidebarMenuBadge>{badge}</SidebarMenuBadge>}
+      {badge != null && badge > 0 && (
+        <SidebarMenuBadge
+          style={{
+            backgroundColor: isActive ? 'oklch(0.97 0.005 27 / 0.22)' : 'oklch(0.50 0.22 27)',
+            color: 'oklch(0.97 0.005 27)',
+            fontWeight: 700,
+            fontSize: 10,
+            minWidth: 18,
+            height: 18,
+            borderRadius: 5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 5px',
+          }}
+        >
+          {badge}
+        </SidebarMenuBadge>
+      )}
     </SidebarMenuItem>
   );
 }
@@ -86,6 +119,8 @@ export function AppSidebar() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
+  const roleLabel = ROLE_LABELS[user?.role || ''] || user?.role || '';
+  const avatarColor = ROLE_COLOR[user?.role || ''] || 'oklch(0.50 0.22 27)';
 
   const { data: notifData } = useQuery({
     queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'],
@@ -118,28 +153,52 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" variant="floating">
-      {/* Brand header */}
-      <SidebarHeader>
+      {/* Brand */}
+      <SidebarHeader style={{ padding: '14px 12px 10px' }}>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               asChild
               tooltip="Lucky Stop Admin"
-              className="cursor-pointer"
+              style={{ padding: '6px 8px', borderRadius: 10, cursor: 'pointer' }}
               onClick={() => navigate('/')}
             >
               <div>
+                {/* Logo mark */}
                 <div style={{
-                  width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                  background: 'linear-gradient(135deg, #1D3557, #2c6fad)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 34,
+                  height: 34,
+                  borderRadius: 9,
+                  flexShrink: 0,
+                  background: 'oklch(0.50 0.22 27)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px oklch(0.50 0.22 27 / 0.45)',
                 }}>
-                  <Fuel style={{ width: 16, height: 16, color: '#fff' }} />
+                  <Fuel style={{ width: 17, height: 17, color: 'oklch(0.97 0.005 27)' }} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>Lucky Stop</span>
-                  <span style={{ fontSize: 11, color: 'var(--sidebar-foreground)', opacity: 0.45, marginTop: 2 }}>Admin</span>
+
+                {/* Brand name */}
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, minWidth: 0 }}>
+                  <span style={{
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    letterSpacing: '0.02em',
+                    color: 'oklch(0.92 0.012 245)',
+                  }}>
+                    Lucky Stop
+                  </span>
+                  <span style={{
+                    fontSize: 10.5,
+                    color: 'oklch(0.48 0.022 245)',
+                    marginTop: 2,
+                    fontWeight: 500,
+                    letterSpacing: '0.04em',
+                  }}>
+                    Admin Console
+                  </span>
                 </div>
               </div>
             </SidebarMenuButton>
@@ -147,18 +206,18 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent style={{ padding: '2px 0' }}>
         {/* Overview */}
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/" icon={<LayoutDashboard />} label="Dashboard" end />
+              <SidebarNavItem to="/" icon={<LayoutDashboard size={15} />} label="Dashboard" end />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/inventory-analytics" icon={<Package />} label="Inventory Intelligence" />
+                <SidebarNavItem to="/inventory-analytics" icon={<Package size={15} />} label="Inventory Intelligence" />
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/analytics" icon={<TrendingUp />} label="Analytics" />
+                <SidebarNavItem to="/analytics" icon={<TrendingUp size={15} />} label="Analytics" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -171,15 +230,15 @@ export function AppSidebar() {
           <SidebarGroupLabel>Content</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/offers" icon={<Tag />} label="Offers" />
-              <SidebarNavItem to="/banners" icon={<Image />} label="Banners" />
+              <SidebarNavItem to="/offers" icon={<Tag size={15} />} label="Offers" />
+              <SidebarNavItem to="/banners" icon={<Image size={15} />} label="Banners" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/catalog" icon={<Gift />} label="Catalog" />
+                <SidebarNavItem to="/catalog" icon={<Gift size={15} />} label="Catalog" />
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/promotions" icon={<Megaphone />} label="Promotions" />
+                <SidebarNavItem to="/promotions" icon={<Megaphone size={15} />} label="Promotions" />
               )}
-              <SidebarNavItem to="/hot-food/menu" icon={<Flame />} label="Hot Food Menu" />
+              <SidebarNavItem to="/hot-food/menu" icon={<Flame size={15} />} label="Hot Food Menu" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -191,19 +250,19 @@ export function AppSidebar() {
           <SidebarGroupLabel>People</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/chat" icon={<MessageSquare />} label="Chat" />
-              <SidebarNavItem to="/scheduling" icon={<Calendar />} label="Scheduling" />
+              <SidebarNavItem to="/chat" icon={<MessageSquare size={15} />} label="Chat" />
+              <SidebarNavItem to="/scheduling" icon={<Calendar size={15} />} label="Scheduling" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/staff" icon={<Users />} label="Staff" />
+                <SidebarNavItem to="/staff" icon={<Users size={15} />} label="Staff" />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/customers" icon={<UserCircle />} label="Customers" />
+                <SidebarNavItem to="/customers" icon={<UserCircle size={15} />} label="Customers" />
               )}
-              <SidebarNavItem to="/store-requests" icon={<ClipboardList />} label="Requests" />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart />} label="Order List" />
-              <SidebarNavItem to="/hot-food/orders" icon={<Flame />} label="Hot Food Orders" />
+              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={15} />} label="Requests" />
+              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={15} />} label="Order List" />
+              <SidebarNavItem to="/hot-food/orders" icon={<Flame size={15} />} label="Hot Food Orders" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/careers" icon={<Briefcase />} label="Careers" badge={careersNewCount} />
+                <SidebarNavItem to="/careers" icon={<Briefcase size={15} />} label="Careers" badge={careersNewCount} />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -216,21 +275,21 @@ export function AppSidebar() {
           <SidebarGroupLabel>Reports</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/transactions" icon={<Receipt />} label="Transactions" />
+              <SidebarNavItem to="/transactions" icon={<Receipt size={15} />} label="Transactions" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
-                  <SidebarNavItem to="/rates" icon={<Trophy />} label="Tier Rates" />
-                  <SidebarNavItem to="/leaderboard" icon={<Activity />} label="Leaderboard" />
+                  <SidebarNavItem to="/rates" icon={<Trophy size={15} />} label="Tier Rates" />
+                  <SidebarNavItem to="/leaderboard" icon={<Activity size={15} />} label="Leaderboard" />
                 </>
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/activity" icon={<Activity />} label="Activity Log" />
+                <SidebarNavItem to="/activity" icon={<Activity size={15} />} label="Activity Log" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin (Super Admin + Dev Admin) */}
+        {/* Admin */}
         {(isDevAdmin || isSuperAdmin) && (
           <>
             <SidebarSeparator />
@@ -238,24 +297,24 @@ export function AppSidebar() {
               <SidebarGroupLabel>Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  <SidebarNavItem to="/stores" icon={<Store />} label="Stores" />
+                  <SidebarNavItem to="/stores" icon={<Store size={15} />} label="Stores" />
                   {isDevAdmin && (
-                    <SidebarNavItem to="/billing" icon={<CreditCard />} label="Billing" />
+                    <SidebarNavItem to="/billing" icon={<CreditCard size={15} />} label="Billing" />
                   )}
                   {isSuperAdmin && (
-                    <SidebarNavItem to="/my-billing" icon={<CreditCard />} label="Billing" />
+                    <SidebarNavItem to="/my-billing" icon={<CreditCard size={15} />} label="Billing" />
                   )}
                   <SidebarNavItem
                     to="/notifications"
-                    icon={<Bell />}
+                    icon={<Bell size={15} />}
                     label="Notifications"
                     badge={unreadCount}
                   />
                   {isDevAdmin && (
-                    <SidebarNavItem to="/support" icon={<Headphones />} label="Support" badge={supportUnread} />
+                    <SidebarNavItem to="/support" icon={<Headphones size={15} />} label="Support" badge={supportUnread} />
                   )}
                   {isSuperAdmin && (
-                    <SidebarNavItem to="/support" icon={<Headphones />} label="Support" />
+                    <SidebarNavItem to="/support" icon={<Headphones size={15} />} label="Support" />
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -265,49 +324,127 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Docs — all roles */}
+        {/* Docs */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/documents" icon={<FileText />} label="Docs" />
+              <SidebarNavItem to="/documents" icon={<FileText size={15} />} label="Docs" />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer: user + logout */}
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip={user?.name || user?.phone || ''} size="lg">
-              <NavLink to="/profile">
+      {/* Footer: user identity + sign out */}
+      <SidebarFooter style={{ padding: '8px 10px 10px' }}>
+        {/* Divider */}
+        <div style={{
+          height: 1,
+          background: 'oklch(0.24 0.042 245 / 0.65)',
+          marginBottom: 8,
+        }} />
+
+        {/* Profile link */}
+        <NavLink
+          to="/profile"
+          style={{ textDecoration: 'none', display: 'block' }}
+        >
+          {({ isActive }) => (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '6px 8px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              transition: 'background 150ms ease',
+              background: isActive ? 'oklch(0.50 0.22 27)' : 'transparent',
+            }}
+              onMouseEnter={e => {
+                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'oklch(0.21 0.048 245)';
+              }}
+              onMouseLeave={e => {
+                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+              }}
+            >
+              {/* Avatar */}
+              <div style={{
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                background: isActive ? 'oklch(0.97 0.005 27 / 0.25)' : avatarColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'oklch(0.97 0.005 27)',
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: '0.02em',
+                flexShrink: 0,
+              }}>
+                {initials}
+              </div>
+
+              {/* Name + role */}
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
-                  width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                  background: 'linear-gradient(135deg, #1D3557, #2c5282)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: 12,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: isActive ? 'oklch(0.97 0.005 27)' : 'oklch(0.87 0.015 245)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}>
-                  {initials}
+                  {user?.name || user?.phone}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, minWidth: 0 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user?.name || user?.phone}
-                  </span>
-                  <span style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>
-                    {ROLE_LABELS[user?.role || ''] || user?.role}
-                  </span>
+                <div style={{
+                  fontSize: 10.5,
+                  color: isActive ? 'oklch(0.97 0.005 27 / 0.7)' : 'oklch(0.48 0.022 245)',
+                  marginTop: 1,
+                }}>
+                  {roleLabel}
                 </div>
-                <User style={{ marginLeft: 'auto', width: 14, height: 14, opacity: 0.4 }} />
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Sign out" onClick={handleLogout}>
-              <LogOut />
-              <span>Sign out</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              </div>
+
+              <ChevronRight size={12} style={{
+                color: isActive ? 'oklch(0.97 0.005 27 / 0.6)' : 'oklch(0.40 0.022 245)',
+                flexShrink: 0,
+              }} />
+            </div>
+          )}
+        </NavLink>
+
+        {/* Sign out */}
+        <button
+          onClick={handleLogout}
+          style={{
+            width: '100%',
+            marginTop: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 8px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'oklch(0.42 0.022 245)',
+            fontSize: 12.5,
+            fontWeight: 500,
+            transition: 'color 150ms ease, background 150ms ease',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.50 0.22 27 / 0.12)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 27)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.42 0.022 245)';
+          }}
+        >
+          <LogOut size={13} />
+          <span>Sign out</span>
+        </button>
       </SidebarFooter>
     </Sidebar>
   );
