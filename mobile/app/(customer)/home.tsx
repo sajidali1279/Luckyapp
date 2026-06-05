@@ -20,6 +20,7 @@ import {
   PercentIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
+import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -380,6 +381,17 @@ export default function CustomerHome() {
               </TouchableOpacity>
             </View>
           </View>
+          {/* Wave transition from header to background */}
+          <Svg
+            style={{ display: 'flex' }}
+            width={SCREEN_W} height={28}
+            viewBox={`0 0 ${SCREEN_W} 28`}
+          >
+            <Path
+              d={`M0,0 C${SCREEN_W * 0.3},28 ${SCREEN_W * 0.7},28 ${SCREEN_W},0 L${SCREEN_W},28 L0,28 Z`}
+              fill="#EDF1F7"
+            />
+          </Svg>
         </SafeAreaView>
       </Animated.View>
 
@@ -902,7 +914,7 @@ export default function CustomerHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#EDF1F7' },
   headerBg: { backgroundColor: COLORS.primary },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
