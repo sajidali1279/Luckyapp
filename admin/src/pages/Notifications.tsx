@@ -49,6 +49,20 @@ const SCHEDULE_ICON: Record<string, string> = {
 
 type TabKey = 'all' | 'billing' | 'transactions' | 'scheduling' | 'customers' | 'send';
 
+// Fallback category derivation for old API responses without the category field
+function deriveCategory(n: any): Notification['category'] {
+  switch (n.type) {
+    case 'BILLING':     return 'billing';
+    case 'REVENUE':     return 'billing';
+    case 'TRANSACTION': return 'transactions';
+    case 'SCHEDULE':    return 'scheduling';
+    case 'PLATFORM':
+      if (n.title?.toLowerCase().includes('customer')) return 'customers';
+      return 'transactions';
+    default:            return 'billing';
+  }
+}
+
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -116,19 +130,37 @@ export default function Notifications() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data ?? [];
 
-  const allNotifications: Notification[] = notifData?.data?.data ?? [];
+  // Normalize notifications — derive category from type if backend hasn't deployed yet
+  const rawNotifications: Notification[] = (notifData?.data?.data ?? []).map((n: any) => ({
+    ...n,
+    category: n.category ?? deriveCategory(n),
+  }));
   const invoices: any[] = invoiceData?.data?.data ?? [];
+
+  // In-page filter state
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<string>('');
 
   function isEffectivelyRead(n: Notification) { return n.isRead || localRead.has(n.id); }
   function unreadCount(list: Notification[]) { return list.filter(n => !isEffectivelyRead(n)).length; }
+
+  const allNotifications = rawNotifications;
+  const totalUnread = unreadCount(allNotifications);
 
   function byCategory(tab: TabKey) {
     if (tab === 'all' || tab === 'send') return allNotifications;
     return allNotifications.filter(n => n.category === tab);
   }
 
-  const displayed = byCategory(activeTab);
-  const totalUnread = unreadCount(allNotifications);
+  // Apply tab + inline filters
+  const tabFiltered = byCategory(activeTab);
+  const displayed = tabFiltered
+    .filter(n => !unreadOnly || !isEffectivelyRead(n))
+    .filter(n => !severityFilter || n.severity === severityFilter);
+
+  const filtersActive = unreadOnly || !!severityFilter;
+
+  function clearFilters() { setUnreadOnly(false); setSeverityFilter(''); }
 
   function handleNavigate(n: Notification) {
     markRead([n.id]);
@@ -227,7 +259,7 @@ export default function Notifications() {
             <button
               key={t.key}
               style={{ ...s.tab, ...(activeTab === t.key ? s.tabActive : {}) }}
-              onClick={() => setActiveTab(t.key)}
+              onClick={() => { setActiveTab(t.key); setSeverityFilter(''); setUnreadOnly(false); }}
             >
               {t.label}
               {cnt > 0 && (
@@ -239,6 +271,55 @@ export default function Notifications() {
           );
         })}
       </div>
+
+      {/* ── Inline Filters (hidden on Send Push tab) ── */}
+      {activeTab !== 'send' && (
+        <div style={s.filterBar}>
+          <div style={s.filterGroup}>
+            <span style={s.filterLabel}>Severity</span>
+            {(['', 'error', 'warning', 'info', 'success'] as const).map(sv => (
+              <button
+                key={sv || 'all'}
+                style={{
+                  ...s.filterPill,
+                  ...(severityFilter === sv ? s.filterPillActive : {}),
+                  ...(sv === 'error'   ? { borderColor: '#ef4444', ...(severityFilter === sv ? { background: '#ef4444', color: '#fff' } : { color: '#ef4444' }) } : {}),
+                  ...(sv === 'warning' ? { borderColor: '#f59e0b', ...(severityFilter === sv ? { background: '#f59e0b', color: '#fff' } : { color: '#b45309' }) } : {}),
+                  ...(sv === 'info'    ? { borderColor: '#3b82f6', ...(severityFilter === sv ? { background: '#3b82f6', color: '#fff' } : { color: '#1d4ed8' }) } : {}),
+                  ...(sv === 'success' ? { borderColor: '#10b981', ...(severityFilter === sv ? { background: '#10b981', color: '#fff' } : { color: '#065f46' }) } : {}),
+                }}
+                onClick={() => setSeverityFilter(sv)}
+              >
+                {sv === ''        ? 'All'
+                : sv === 'error'   ? '🚨 Error'
+                : sv === 'warning' ? '⚠️ Warning'
+                : sv === 'info'    ? 'ℹ️ Info'
+                :                   '✅ Success'}
+              </button>
+            ))}
+          </div>
+
+          <div style={s.filterGroup}>
+            <button
+              style={{ ...s.filterPill, ...(unreadOnly ? { ...s.filterPillActive, background: '#1D3557', borderColor: '#1D3557', color: '#fff' } : {}) }}
+              onClick={() => setUnreadOnly(v => !v)}
+            >
+              🔵 Unread only
+              {unreadOnly && totalUnread > 0 && <span style={s.filterCount}>{totalUnread}</span>}
+            </button>
+            {filtersActive && (
+              <button style={s.clearBtn} onClick={clearFilters}>✕ Clear</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Result count when filtered */}
+      {activeTab !== 'send' && filtersActive && !isLoading && !isError && (
+        <div style={s.resultCount}>
+          Showing {displayed.length} of {tabFiltered.length} notification{tabFiltered.length !== 1 ? 's' : ''}
+        </div>
+      )}
 
       {/* ── Send Push Panel ── */}
       {activeTab === 'send' ? (
@@ -334,9 +415,13 @@ export default function Notifications() {
 
       ) : displayed.length === 0 ? (
         <div style={s.emptyState}>
-          <div style={s.emptyIcon}>{EMPTY_STATES[activeTab].icon}</div>
-          <div style={s.emptyTitle}>{EMPTY_STATES[activeTab].title}</div>
-          <div style={s.emptyText}>{EMPTY_STATES[activeTab].text}</div>
+          <div style={s.emptyIcon}>{filtersActive ? '🔍' : EMPTY_STATES[activeTab].icon}</div>
+          <div style={s.emptyTitle}>{filtersActive ? 'No matches' : EMPTY_STATES[activeTab].title}</div>
+          <div style={s.emptyText}>
+            {filtersActive
+              ? <>No notifications match your current filters. <button style={s.emptyLink} onClick={clearFilters}>Clear filters</button></>
+              : EMPTY_STATES[activeTab].text}
+          </div>
         </div>
 
       ) : (
@@ -504,11 +589,36 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
 
+  filterBar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    flexWrap: 'wrap', gap: 12,
+    padding: '12px 16px', marginBottom: 16,
+    background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb',
+  },
+  filterGroup: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  filterLabel: { fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 },
+  filterPill: {
+    background: '#fff', border: '1.5px solid #d1d5db', color: '#374151',
+    borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
+  },
+  filterPillActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  filterCount: {
+    marginLeft: 6, background: 'rgba(255,255,255,0.3)',
+    borderRadius: 10, padding: '1px 6px', fontSize: 12,
+  },
+  clearBtn: {
+    background: 'none', border: '1.5px solid #fca5a5', color: '#dc2626',
+    borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+  },
+  resultCount: { fontSize: 13, color: '#6b7280', marginBottom: 12, paddingLeft: 4 },
+
   empty: { textAlign: 'center', padding: '60px 0', color: '#6b7280', fontSize: 15 },
   emptyState: { textAlign: 'center', padding: '80px 0' },
   emptyIcon: { fontSize: 52, marginBottom: 14 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
   emptyText: { fontSize: 14, color: '#6b7280', lineHeight: 1.6 },
+  emptyLink: { background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
 };
 
 const sp: Record<string, React.CSSProperties> = {
