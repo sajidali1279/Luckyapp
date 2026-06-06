@@ -206,20 +206,25 @@ export const promotionsApi = {
 
 export const supportApi = {
   // SuperAdmin
-  createThread: (subject: string, message: string) =>
-    api.post('/support/threads', { subject, message }),
-  getMyThreads: () => api.get('/support/threads'),
+  createThread: (subject: string, message: string, priority?: string, category?: string) =>
+    api.post('/support/threads', { subject, message, priority, category }),
+  getMyThreads: (params?: { status?: string; category?: string; priority?: string; search?: string }) =>
+    api.get('/support/threads', { params }),
   getThread: (threadId: string) => api.get(`/support/threads/${threadId}`),
   sendMessage: (threadId: string, body: string) =>
     api.post(`/support/threads/${threadId}/messages`, { body }),
   // DevAdmin
-  getInbox: () => api.get('/support/inbox'),
+  getInbox: (params?: { status?: string; category?: string; priority?: string; search?: string }) =>
+    api.get('/support/inbox', { params }),
   getInboxThread: (threadId: string) => api.get(`/support/inbox/${threadId}`),
   replyInbox: (threadId: string, body: string) =>
     api.post(`/support/inbox/${threadId}/messages`, { body }),
   resolveThread: (threadId: string, status: 'OPEN' | 'RESOLVED') =>
     api.patch(`/support/threads/${threadId}/resolve`, { status }),
+  setPriority: (threadId: string, priority: string) =>
+    api.patch(`/support/threads/${threadId}/priority`, { priority }),
   getUnreadCount: () => api.get('/support/unread-count'),
+  getStats: () => api.get('/support/stats'),
 };
 
 export const leaderboardApi = {

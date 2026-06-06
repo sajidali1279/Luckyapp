@@ -789,19 +789,23 @@ model BusinessPromotion {
 // ─── Support Threads (SuperAdmin → DevAdmin) ─────────────────────────────────
 
 model SupportThread {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   fromUserId String
   fromName   String
   subject    String
-  status     String   @default("OPEN")  // OPEN | RESOLVED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  status     String    @default("OPEN")    // OPEN | RESOLVED
+  priority   String    @default("NORMAL")  // LOW | NORMAL | HIGH | URGENT
+  category   String    @default("OTHER")   // BILLING | TECHNICAL | FEATURE_REQUEST | ACCESS | OTHER
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   messages SupportMessage[]
   fromUser User             @relation(fields: [fromUserId], references: [id], onDelete: Cascade)
 
   @@index([fromUserId])
   @@index([status])
+  @@index([priority])
   @@map("support_threads")
 }
 

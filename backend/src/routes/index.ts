@@ -76,7 +76,8 @@ import {
   getVacancies,
 } from '../controllers/schedule.controller';
 import {
-  createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread, getUnreadCount as getSupportUnreadCount,
+  createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
+  getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
 } from '../controllers/support.controller';
 import {
   submitPromotionRequest,
@@ -348,6 +349,8 @@ router.patch('/support/threads/:threadId/resolve', authenticate, requireRole(Rol
 router.get('/support/inbox', authenticate, requireRole(Role.DEV_ADMIN), getThreads);
 router.get('/support/inbox/:threadId', authenticate, requireRole(Role.DEV_ADMIN), getThread);
 router.post('/support/inbox/:threadId/messages', authenticate, requireRole(Role.DEV_ADMIN), sendSupportMessage);
+router.patch('/support/threads/:threadId/priority', authenticate, requireRole(Role.DEV_ADMIN), updatePriority);
+router.get('/support/stats', authenticate, requireRole(Role.DEV_ADMIN), getSupportStats);
 
 // ─── Leaderboard & Ratings ────────────────────────────────────────────────────
 router.get('/leaderboard/customers', authenticate, getCustomerLeaderboard);                                           // Chain or store customer leaderboard

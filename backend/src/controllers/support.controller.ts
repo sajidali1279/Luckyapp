@@ -3,13 +3,16 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 
-// ─── POST /support/threads ────────────────────────────────────────────────────
-// SuperAdmin opens a new thread with an initial message
+const VALID_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+const VALID_CATEGORIES = ['BILLING', 'TECHNICAL', 'FEATURE_REQUEST', 'ACCESS', 'OTHER'] as const;
 
+// ─── POST /support/threads ────────────────────────────────────────────────────
 export async function createThread(req: AuthRequest, res: Response) {
   const schema = z.object({
-    subject: z.string().min(1).max(200),
-    message: z.string().min(1).max(2000),
+    subject:  z.string().min(1).max(200),
+    message:  z.string().min(1).max(2000),
+    priority: z.enum(VALID_PRIORITIES).optional().default('NORMAL'),
+    category: z.enum(VALID_CATEGORIES).optional().default('OTHER'),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -19,19 +22,21 @@ export async function createThread(req: AuthRequest, res: Response) {
   }
 
   const user = req.user!;
-  const { subject, message } = parsed.data;
+  const { subject, message, priority, category } = parsed.data;
 
   const thread = await prisma.supportThread.create({
     data: {
       fromUserId: user.id,
-      fromName: user.name || user.phone,
+      fromName:   user.name || user.phone,
       subject,
+      priority,
+      category,
       messages: {
         create: {
-          senderId: user.id,
+          senderId:   user.id,
           senderName: user.name || user.phone,
           senderRole: user.role,
-          body: message,
+          body:       message,
         },
       },
     },
@@ -42,27 +47,33 @@ export async function createThread(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /support/threads ─────────────────────────────────────────────────────
-// SuperAdmin: own threads. DevAdmin: all threads.
-
+// Supports ?status=OPEN|RESOLVED, ?category=..., ?priority=..., ?search=...
 export async function getThreads(req: AuthRequest, res: Response) {
   const user = req.user!;
   const isDevAdmin = user.role === 'DEV_ADMIN';
+  const { status, category, priority, search } = req.query as Record<string, string | undefined>;
+
+  const where: any = isDevAdmin ? {} : { fromUserId: user.id };
+  if (status   && ['OPEN', 'RESOLVED'].includes(status))                 where.status   = status;
+  if (category && VALID_CATEGORIES.includes(category as any))            where.category = category;
+  if (priority && VALID_PRIORITIES.includes(priority as any))            where.priority = priority;
+  if (search?.trim()) {
+    where.subject = { contains: search.trim(), mode: 'insensitive' };
+  }
 
   const threads = await prisma.supportThread.findMany({
-    where: isDevAdmin ? {} : { fromUserId: user.id },
-    orderBy: { updatedAt: 'desc' },
+    where,
+    orderBy: [
+      // Urgent + High float to top for DevAdmin
+      ...(isDevAdmin ? [{ priority: 'desc' as const }] : []),
+      { updatedAt: 'desc' },
+    ],
     include: {
-      messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
+      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       _count: {
         select: {
           messages: {
-            where: {
-              isRead: false,
-              senderRole: { not: 'DEV_ADMIN' },
-            },
+            where: { isRead: false, senderRole: { not: 'DEV_ADMIN' } },
           },
         },
       },
@@ -73,8 +84,6 @@ export async function getThreads(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /support/threads/:threadId ──────────────────────────────────────────
-// Get full thread with all messages. DevAdmin: mark unread messages as read.
-
 export async function getThread(req: AuthRequest, res: Response) {
   const user = req.user!;
   const { threadId } = req.params;
@@ -82,23 +91,14 @@ export async function getThread(req: AuthRequest, res: Response) {
 
   const thread = await prisma.supportThread.findUnique({
     where: { id: threadId },
-    include: {
-      messages: { orderBy: { createdAt: 'asc' } },
-    },
+    include: { messages: { orderBy: { createdAt: 'asc' } } },
   });
 
-  if (!thread) {
-    res.status(404).json({ success: false, error: 'Thread not found' });
-    return;
-  }
-
-  // SuperAdmin can only view their own threads
+  if (!thread) { res.status(404).json({ success: false, error: 'Thread not found' }); return; }
   if (!isDevAdmin && thread.fromUserId !== user.id) {
-    res.status(403).json({ success: false, error: 'Access denied' });
-    return;
+    res.status(403).json({ success: false, error: 'Access denied' }); return;
   }
 
-  // Mark messages as read for the viewer (DevAdmin marks customer messages; SuperAdmin marks dev messages)
   await prisma.supportMessage.updateMany({
     where: {
       threadId,
@@ -112,8 +112,6 @@ export async function getThread(req: AuthRequest, res: Response) {
 }
 
 // ─── POST /support/threads/:threadId/messages ─────────────────────────────────
-// Both roles can send messages in a thread
-
 export async function sendMessage(req: AuthRequest, res: Response) {
   const user = req.user!;
   const { threadId } = req.params;
@@ -121,38 +119,23 @@ export async function sendMessage(req: AuthRequest, res: Response) {
 
   const schema = z.object({ body: z.string().min(1).max(2000) });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: 'Message body is required' });
-    return;
-  }
+  if (!parsed.success) { res.status(400).json({ success: false, error: 'Message body is required' }); return; }
 
   const thread = await prisma.supportThread.findUnique({ where: { id: threadId } });
-  if (!thread) {
-    res.status(404).json({ success: false, error: 'Thread not found' });
-    return;
-  }
-
-  if (!isDevAdmin && thread.fromUserId !== user.id) {
-    res.status(403).json({ success: false, error: 'Access denied' });
-    return;
-  }
-
-  if (thread.status === 'RESOLVED' && !isDevAdmin) {
-    res.status(400).json({ success: false, error: 'Thread is resolved' });
-    return;
-  }
+  if (!thread) { res.status(404).json({ success: false, error: 'Thread not found' }); return; }
+  if (!isDevAdmin && thread.fromUserId !== user.id) { res.status(403).json({ success: false, error: 'Access denied' }); return; }
+  if (thread.status === 'RESOLVED' && !isDevAdmin) { res.status(400).json({ success: false, error: 'Thread is resolved' }); return; }
 
   const message = await prisma.supportMessage.create({
     data: {
       threadId,
-      senderId: user.id,
+      senderId:   user.id,
       senderName: user.name || user.phone,
       senderRole: user.role,
-      body: parsed.data.body,
+      body:       parsed.data.body,
     },
   });
 
-  // Bump thread updatedAt
   await prisma.supportThread.update({
     where: { id: threadId },
     data: { updatedAt: new Date() },
@@ -162,8 +145,6 @@ export async function sendMessage(req: AuthRequest, res: Response) {
 }
 
 // ─── PATCH /support/threads/:threadId/resolve ─────────────────────────────────
-// DevAdmin marks a thread resolved (or re-opens it)
-
 export async function resolveThread(req: AuthRequest, res: Response) {
   const { threadId } = req.params;
   const { status } = req.body as { status?: string };
@@ -171,22 +152,65 @@ export async function resolveThread(req: AuthRequest, res: Response) {
 
   const thread = await prisma.supportThread.update({
     where: { id: threadId },
-    data: { status: newStatus },
+    data: {
+      status: newStatus,
+      resolvedAt: newStatus === 'RESOLVED' ? new Date() : null,
+    },
+  });
+
+  res.json({ success: true, data: thread });
+}
+
+// ─── PATCH /support/threads/:threadId/priority ───────────────────────────────
+// DevAdmin only — change thread priority
+export async function updatePriority(req: AuthRequest, res: Response) {
+  const { threadId } = req.params;
+  const { priority } = req.body as { priority?: string };
+
+  if (!priority || !VALID_PRIORITIES.includes(priority as any)) {
+    res.status(400).json({ success: false, error: `Priority must be one of: ${VALID_PRIORITIES.join(', ')}` }); return;
+  }
+
+  const thread = await prisma.supportThread.update({
+    where: { id: threadId },
+    data: { priority },
   });
 
   res.json({ success: true, data: thread });
 }
 
 // ─── GET /support/unread-count ────────────────────────────────────────────────
-// DevAdmin: how many unread messages from SuperAdmins
-
 export async function getUnreadCount(req: AuthRequest, res: Response) {
   const count = await prisma.supportMessage.count({
-    where: {
-      isRead: false,
-      senderRole: { not: 'DEV_ADMIN' },
-    },
+    where: { isRead: false, senderRole: { not: 'DEV_ADMIN' } },
   });
-
   res.json({ success: true, data: { count } });
+}
+
+// ─── GET /support/stats ───────────────────────────────────────────────────────
+// DevAdmin only — summary stats for the inbox header
+export async function getSupportStats(req: AuthRequest, res: Response) {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [openCount, urgentCount, resolvedThisWeek, allResolved] = await Promise.all([
+    prisma.supportThread.count({ where: { status: 'OPEN' } }),
+    prisma.supportThread.count({ where: { status: 'OPEN', priority: 'URGENT' } }),
+    prisma.supportThread.count({ where: { status: 'RESOLVED', resolvedAt: { gte: sevenDaysAgo } } }),
+    (prisma.supportThread as any).findMany({
+      where: { status: 'RESOLVED', resolvedAt: { not: null } },
+      select: { createdAt: true, resolvedAt: true },
+    }),
+  ]);
+
+  // Avg response time in hours (only threads with resolvedAt)
+  let avgResponseHours: number | null = null;
+  if (allResolved.length > 0) {
+    const totalMs = allResolved.reduce((sum: number, t: any) => {
+      return sum + (new Date(t.resolvedAt).getTime() - new Date(t.createdAt).getTime());
+    }, 0);
+    avgResponseHours = Math.round(totalMs / allResolved.length / 3600000 * 10) / 10;
+  }
+
+  res.json({ success: true, data: { openCount, urgentCount, resolvedThisWeek, avgResponseHours } });
 }
