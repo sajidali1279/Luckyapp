@@ -1136,15 +1136,16 @@ model HotFoodOrder {
 }
 
 model HotFoodOrderItem {
-  id         String @id @default(uuid())
-  orderId    String
-  menuItemId String
-  name       String // snapshot at order time
-  price      Float  // snapshot at order time
-  quantity   Int    @default(1)
+  id            String  @id @default(uuid())
+  orderId       String
+  menuItemId    String? // null when ordered from catalog item
+  catalogItemId String? // set when ordered from catalog item (no FK — name/price are snapshotted)
+  name          String  // snapshot at order time
+  price         Float   // snapshot at order time
+  quantity      Int     @default(1)
 
-  order    HotFoodOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem HotFoodMenuItem @relation(fields: [menuItemId], references: [id])
+  order    HotFoodOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem HotFoodMenuItem? @relation(fields: [menuItemId], references: [id])
 
   @@map("hot_food_order_items")
 }

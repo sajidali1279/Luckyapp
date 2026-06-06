@@ -1,15 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  ScrollView, Modal, TextInput, ActivityIndicator,
-  RefreshControl,
+  Modal, TextInput, ActivityIndicator,
+  RefreshControl, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import * as Location from 'expo-location';
 import { hotFoodApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
-import { FlameIcon, ClockIcon, CheckCircleIcon, XIcon } from '../../components/Icons';
+import { FlameIcon, ClockIcon, CheckCircleIcon, XIcon, MapPinIcon } from '../../components/Icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,35 +64,16 @@ function fmtPrice(n: number) {
   return `$${n.toFixed(2)}`;
 }
 
-// ─── Store Picker ─────────────────────────────────────────────────────────────
+const MAX_NEARBY_MILES = 2;
 
-function StorePicker({ stores, selected, onSelect }: {
-  stores: { id: string; name: string; city?: string }[];
-  selected: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={pk.row}>
-      {stores.map(s => {
-        const active = s.id === selected;
-        return (
-          <TouchableOpacity
-            key={s.id}
-            style={[pk.pill, active && pk.pillActive]}
-            onPress={() => onSelect(s.id)}
-            activeOpacity={0.75}
-          >
-            <Text style={[pk.pillText, active && pk.pillTextActive]} numberOfLines={1}>
-              {s.name}
-            </Text>
-            {s.city ? (
-              <Text style={[pk.pillCity, active && pk.pillCityActive]} numberOfLines={1}>{s.city}</Text>
-            ) : null}
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  );
+function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ─── Menu Item Card ───────────────────────────────────────────────────────────
@@ -320,24 +302,54 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
 export default function CustomerHotFoodScreen() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('menu');
-  const [selectedStore, setSelectedStore] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // All stores (for picker)
-  const { data: storesData, isLoading: storesLoading } = useQuery({
+  // Location-based store detection
+  const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
+
+  const { data: storesData } = useQuery({
     queryKey: ['stores-gas-prices'],
     queryFn: storesApi.getGasPrices,
     staleTime: 5 * 60 * 1000,
   });
-  const stores: { id: string; name: string; city?: string }[] = (storesData?.data?.data || [])
-    .map((s: any) => ({ id: s.id, name: s.name, city: s.city }));
+  const allStores: any[] = storesData?.data?.data || [];
 
-  // Auto-select first store
-  const effectiveStore = selectedStore || stores[0]?.id || '';
+  useEffect(() => {
+    let cancelled = false;
+    async function detect() {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude: uLat, longitude: uLon } = pos.coords;
+        const withCoords = allStores.filter((s: any) => s.latitude != null && s.longitude != null);
+        if (!withCoords.length || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
+        let closest: any = null;
+        let closestDist = Infinity;
+        for (const s of withCoords) {
+          const d = haversineMiles(uLat, uLon, s.latitude, s.longitude);
+          if (d < closestDist) { closestDist = d; closest = s; }
+        }
+        if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
+          setNearestStore({ id: closest.id, name: closest.name });
+          setLocationStatus('found');
+        } else if (!cancelled) {
+          setLocationStatus('none');
+        }
+      } catch {
+        if (!cancelled) setLocationStatus('none');
+      }
+    }
+    if (allStores.length > 0) detect();
+    return () => { cancelled = true; };
+  }, [allStores.length]);
 
-  // Menu for selected store
+  const effectiveStore = nearestStore?.id || '';
+
+  // Menu for detected store
   const { data: menuData, isLoading: menuLoading, refetch: refetchMenu, isRefetching: menuRefetching } = useQuery({
     queryKey: ['customer-hot-food-menu', effectiveStore],
     queryFn: () => hotFoodApi.getCustomerMenu(effectiveStore),
@@ -432,19 +444,30 @@ export default function CustomerHotFoodScreen() {
       {/* ── MENU TAB ── */}
       {tab === 'menu' && (
         <>
-          {/* Store picker */}
-          {stores.length > 1 && (
-            <View style={s.storePickerWrap}>
-              <Text style={s.storePickerLabel}>Store</Text>
-              <StorePicker
-                stores={stores}
-                selected={effectiveStore}
-                onSelect={id => { setSelectedStore(id); setCart([]); }}
-              />
-            </View>
-          )}
+          {/* Location status banner */}
+          <View style={s.locationBanner}>
+            <MapPinIcon size={14} color={locationStatus === 'found' ? COLORS.primary : COLORS.textMuted} />
+            <Text style={[s.locationText, locationStatus === 'found' && s.locationTextFound]}>
+              {locationStatus === 'detecting'
+                ? 'Detecting your location…'
+                : locationStatus === 'found'
+                ? nearestStore!.name
+                : 'No Lucky Stop nearby'}
+            </Text>
+          </View>
 
-          {menuLoading || (storesLoading && !effectiveStore) ? (
+          {locationStatus === 'detecting' ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={s.loadingText}>Finding your nearest store…</Text>
+            </View>
+          ) : locationStatus === 'none' ? (
+            <View style={s.emptyBox}>
+              <Text style={s.emptyEmoji}>📍</Text>
+              <Text style={s.emptyTitle}>No store nearby</Text>
+              <Text style={s.emptySub}>Visit a Lucky Stop location to browse and order hot food.</Text>
+            </View>
+          ) : menuLoading ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={s.loadingText}>Loading…</Text>
@@ -584,16 +607,14 @@ const s = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
   tabTextActive: { color: COLORS.primary },
 
-  // Store picker
-  storePickerWrap: {
+  // Location banner
+  locationBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F1F2',
-    paddingTop: 10, paddingBottom: 6,
+    paddingHorizontal: 16, paddingVertical: 10,
   },
-  storePickerLabel: {
-    fontSize: 11, fontWeight: '800', color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.6,
-    paddingHorizontal: 16, marginBottom: 8,
-  },
+  locationText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
+  locationTextFound: { color: COLORS.text },
 
   // Menu
   menuList: { padding: 12, paddingBottom: 32 },
@@ -633,20 +654,6 @@ const s = StyleSheet.create({
     borderRadius: 14, paddingVertical: 12, paddingHorizontal: 28,
   },
   goMenuBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-});
-
-// ─── Store picker styles ──────────────────────────────────────────────────────
-const pk = StyleSheet.create({
-  row: { paddingHorizontal: 14, gap: 8 },
-  pill: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: '#E5E7EB',
-  },
-  pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  pillText: { fontSize: 13, fontWeight: '700', color: COLORS.text },
-  pillTextActive: { color: '#fff' },
-  pillCity: { fontSize: 10, color: COLORS.textMuted, marginTop: 1 },
-  pillCityActive: { color: 'rgba(255,255,255,0.7)' },
 });
 
 // ─── Menu card styles ─────────────────────────────────────────────────────────

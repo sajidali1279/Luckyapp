@@ -169,18 +169,34 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
 
-// GET /hot-food/store/:storeId/menu — available items for a store
+// GET /hot-food/store/:storeId/menu — available items for a store (legacy + catalog)
 export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const items = await prisma.hotFoodMenuItem.findMany({
-    where: {
-      isAvailable: true,
-      OR: [{ storeId }, { storeId: null }],
-    },
+
+  // Legacy per-store or global menu items
+  const menuItems = await prisma.hotFoodMenuItem.findMany({
+    where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
     select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
     orderBy: { name: 'asc' },
   });
-  res.json({ success: true, data: items });
+
+  // Catalog items assigned to this store
+  const catalogAssignments = await prisma.hotFoodCatalogStore.findMany({
+    where: { storeId },
+    select: {
+      catalogItem: {
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+      },
+    },
+  });
+  const catalogItems = catalogAssignments.map(a => a.catalogItem);
+
+  // Catalog takes precedence — deduplicate legacy items with same name
+  const catalogNames = new Set(catalogItems.map(c => c.name.toLowerCase()));
+  const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
+
+  const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
+  res.json({ success: true, data: all });
 }
 
 // ─── Orders (customer / mobile) ───────────────────────────────────────────────
@@ -195,26 +211,41 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Validate + price each item from the current menu
-  const menuItemIds: string[] = items.map((i: any) => i.menuItemId);
-  const menuItems = await prisma.hotFoodMenuItem.findMany({
-    where: {
-      id: { in: menuItemIds },
-      isAvailable: true,
-      OR: [{ storeId }, { storeId: null }],
-    },
-  });
+  // Validate + price each item — check legacy menu table then catalog table
+  const itemIds: string[] = items.map((i: any) => i.menuItemId);
 
-  const menuMap = new Map(menuItems.map(m => [m.id, m]));
-  const orderLines: { menuItemId: string; name: string; price: number; quantity: number }[] = [];
+  const menuItemRows = await prisma.hotFoodMenuItem.findMany({
+    where: { id: { in: itemIds }, isAvailable: true, OR: [{ storeId }, { storeId: null }] },
+  });
+  const menuMap = new Map(menuItemRows.map(m => [m.id, m]));
+
+  // Any IDs not found in the legacy table — try catalog (must be assigned to this store)
+  const unmatchedIds = itemIds.filter(id => !menuMap.has(id));
+  const catalogMap = new Map<string, any>();
+  if (unmatchedIds.length > 0) {
+    const catalogRows = await prisma.hotFoodCatalogStore.findMany({
+      where: { storeId, catalogItemId: { in: unmatchedIds } },
+      include: { catalogItem: true },
+    });
+    for (const row of catalogRows) catalogMap.set(row.catalogItemId, row.catalogItem);
+  }
+
+  const orderLines: { menuItemId?: string; catalogItemId?: string; name: string; price: number; quantity: number }[] = [];
   for (const line of items) {
-    const menu = menuMap.get(line.menuItemId);
-    if (!menu) {
+    const menuItem   = menuMap.get(line.menuItemId);
+    const catalogItem = catalogMap.get(line.menuItemId);
+    const resolved   = menuItem || catalogItem;
+    if (!resolved) {
       res.status(400).json({ success: false, error: `Item not available: ${line.menuItemId}` });
       return;
     }
     const qty = parseInt(line.quantity) || 1;
-    orderLines.push({ menuItemId: menu.id, name: menu.name, price: menu.price, quantity: qty });
+    orderLines.push({
+      ...(menuItem ? { menuItemId: menuItem.id } : { catalogItemId: catalogItem.id }),
+      name: resolved.name,
+      price: resolved.price,
+      quantity: qty,
+    });
   }
 
   const totalAmount = orderLines.reduce((s, l) => s + l.price * l.quantity, 0);
