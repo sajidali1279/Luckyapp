@@ -39,6 +39,7 @@ const Careers                = lazy(() => import('./pages/Careers'));
 const OrderList              = lazy(() => import('./pages/OrderList'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
+const HotFood                = lazy(() => import('./pages/HotFood'));
 const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
 const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
 
@@ -102,6 +103,7 @@ export default function App() {
               {/* Scheduling accessible to StoreManager+ */}
               <Route path="/scheduling" element={<Scheduling />} />
               <Route element={<SuperAdminOnly />}>
+                <Route path="/hot-food" element={<HotFood />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />

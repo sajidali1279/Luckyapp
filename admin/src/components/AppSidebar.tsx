@@ -242,7 +242,9 @@ export function AppSidebar() {
               {isDevAdmin && (
                 <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" />
               )}
-              <SidebarNavItem to="/hot-food/menu" icon={<Flame size={16} />} label="Hot Food Menu" />
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" />
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -264,7 +266,6 @@ export function AppSidebar() {
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" />
               <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" />
-              <SidebarNavItem to="/hot-food/orders" icon={<Flame size={16} />} label="Hot Food Orders" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}

@@ -292,6 +292,22 @@ export const hotFoodApi = {
   updateStatus:  (orderId: string, status: string) => api.patch(`/hot-food/orders/${orderId}`, { status }),
 };
 
+export const hotFoodCatalogApi = {
+  getAll: () => api.get('/hot-food/catalog'),
+  create: (formData: FormData) =>
+    api.post('/hot-food/catalog', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null }>) =>
+    api.patch(`/hot-food/catalog/${id}`, data),
+  updateImage: (id: string, formData: FormData) =>
+    api.patch(`/hot-food/catalog/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id: string) => api.delete(`/hot-food/catalog/${id}`),
+  getStoreAssignments: (id: string) => api.get(`/hot-food/catalog/${id}/stores`),
+  assignToStore: (id: string, storeId: string) =>
+    api.post(`/hot-food/catalog/${id}/stores`, { storeId }),
+  removeFromStore: (id: string, storeId: string) =>
+    api.delete(`/hot-food/catalog/${id}/stores/${storeId}`),
+};
+
 export const inventoryAnalyticsApi = {
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
