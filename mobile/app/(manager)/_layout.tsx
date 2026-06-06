@@ -7,7 +7,7 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, CalendarIcon, TrophyIcon, BookOpenIcon,
-  FlameIcon, ListIcon,
+  FlameIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -53,8 +53,7 @@ export default function ManagerLayout() {
     ...(isAdmin(user?.role) ? [{
       title: 'Kitchen',
       items: [
-        { route: '/(manager)/hot-food',         icon: (p: any) => <FlameIcon {...p} />, label: 'Hot Food Orders', badge: hotFoodPending },
-        { route: '/(manager)/hot-food-catalog', icon: (p: any) => <ListIcon {...p} />,  label: 'Item Catalog' },
+        { route: '/(manager)/hot-food', icon: (p: any) => <FlameIcon {...p} />, label: 'Hot Food', badge: hotFoodPending },
       ] as NavItem[],
     }] : []),
     {
