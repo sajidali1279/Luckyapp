@@ -312,8 +312,9 @@ model Store {
   printJobs          PrintJob[]
   employeeItemRequests EmployeeItemRequest[]
   pointsDisputes       PointsDispute[]
-  hotFoodMenuItems     HotFoodMenuItem[]
-  hotFoodOrders        HotFoodOrder[]
+  hotFoodMenuItems      HotFoodMenuItem[]
+  hotFoodOrders         HotFoodOrder[]
+  hotFoodCatalogStores  HotFoodCatalogStore[]
 
   @@map("stores")
 }
@@ -1142,6 +1143,36 @@ model HotFoodOrderItem {
   menuItem HotFoodMenuItem @relation(fields: [menuItemId], references: [id])
 
   @@map("hot_food_order_items")
+}
+
+// ─── Hot Food Catalog ─────────────────────────────────────────────────────────
+
+model HotFoodCatalogItem {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  price            Float
+  imageUrl         String?
+  estimatedMinutes Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  stores HotFoodCatalogStore[]
+
+  @@map("hot_food_catalog_items")
+}
+
+model HotFoodCatalogStore {
+  id            String   @id @default(uuid())
+  catalogItemId String
+  storeId       String
+  assignedAt    DateTime @default(now())
+
+  catalogItem HotFoodCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  store       Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogItemId, storeId])
+  @@map("hot_food_catalog_stores")
 }
 
 // ─── Points Dispute ───────────────────────────────────────────────────────────

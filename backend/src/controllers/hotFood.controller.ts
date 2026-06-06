@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import cloudinary from '../config/cloudinary';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -261,4 +262,165 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
     take: 50,
   });
   res.json({ success: true, data: orders });
+}
+
+// ─── Orders (mobile — per store) ─────────────────────────────────────────────
+
+// GET /hot-food/orders/store/:storeId — for manager/employee mobile
+export async function getStoreOrders(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const orders = await prisma.hotFoodOrder.findMany({
+    where: { storeId },
+    include: {
+      store: { select: { id: true, name: true } },
+      customer: { select: { id: true, name: true, phone: true } },
+      items: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  res.json({ success: true, data: orders });
+}
+
+// GET /hot-food/orders/store/:storeId/pending-count — badge count for mobile nav
+export async function getStorePendingCount(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const count = await prisma.hotFoodOrder.count({
+    where: { storeId, status: 'PENDING' },
+  });
+  res.json({ success: true, data: { count } });
+}
+
+// ─── Catalog (admin) ──────────────────────────────────────────────────────────
+
+async function uploadToCloudinary(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'luckystop/hot-food-catalog', resource_type: 'image' },
+      (err, result) => (err ? reject(err) : resolve((result as { secure_url: string }).secure_url))
+    ).end(buffer);
+  });
+}
+
+// GET /hot-food/catalog
+export async function getCatalog(_req: AuthRequest, res: Response) {
+  const items = await prisma.hotFoodCatalogItem.findMany({
+    include: { _count: { select: { stores: true } } },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ success: true, data: items.map(i => ({ ...i, storeCount: i._count.stores })) });
+}
+
+// POST /hot-food/catalog
+export async function createCatalogItem(req: AuthRequest, res: Response) {
+  const { name, description, price, estimatedMinutes } = req.body;
+  if (!name?.trim()) {
+    res.status(400).json({ success: false, error: 'name is required' });
+    return;
+  }
+  const parsedPrice = parseFloat(price);
+  if (isNaN(parsedPrice) || parsedPrice <= 0) {
+    res.status(400).json({ success: false, error: 'price must be a positive number' });
+    return;
+  }
+
+  let imageUrl: string | undefined;
+  if (req.file) {
+    imageUrl = await uploadToCloudinary(req.file.buffer);
+  }
+
+  const item = await prisma.hotFoodCatalogItem.create({
+    data: {
+      name: name.trim(),
+      description: description?.trim() || null,
+      price: parsedPrice,
+      estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
+      imageUrl: imageUrl ?? null,
+    },
+    include: { _count: { select: { stores: true } } },
+  });
+  res.status(201).json({ success: true, data: { ...item, storeCount: item._count.stores } });
+}
+
+// PATCH /hot-food/catalog/:id
+export async function updateCatalogItem(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+
+  const data: any = {};
+  if (req.body.name !== undefined) data.name = req.body.name.trim();
+  if (req.body.description !== undefined) data.description = req.body.description?.trim() || null;
+  if (req.body.price !== undefined) {
+    const p = parseFloat(req.body.price);
+    if (!isNaN(p) && p > 0) data.price = p;
+  }
+  if (req.body.estimatedMinutes !== undefined) {
+    data.estimatedMinutes = req.body.estimatedMinutes ? parseInt(req.body.estimatedMinutes) : null;
+  }
+
+  const item = await prisma.hotFoodCatalogItem.update({
+    where: { id },
+    data,
+    include: { _count: { select: { stores: true } } },
+  });
+  res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
+}
+
+// PATCH /hot-food/catalog/:id/image
+export async function updateCatalogItemImage(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+  if (!req.file) { res.status(400).json({ success: false, error: 'image file is required' }); return; }
+
+  const imageUrl = await uploadToCloudinary(req.file.buffer);
+  const item = await prisma.hotFoodCatalogItem.update({
+    where: { id },
+    data: { imageUrl },
+    include: { _count: { select: { stores: true } } },
+  });
+  res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
+}
+
+// DELETE /hot-food/catalog/:id
+export async function deleteCatalogItem(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+  await prisma.hotFoodCatalogItem.delete({ where: { id } });
+  res.json({ success: true });
+}
+
+// GET /hot-food/catalog/:id/stores
+export async function getCatalogItemStores(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const assignments = await prisma.hotFoodCatalogStore.findMany({
+    where: { catalogItemId: id },
+    select: { storeId: true },
+  });
+  res.json({ success: true, data: { assignedStoreIds: assignments.map(a => a.storeId) } });
+}
+
+// POST /hot-food/catalog/:id/stores
+export async function assignCatalogItemToStore(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const { storeId } = req.body;
+  if (!storeId) { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
+
+  await prisma.hotFoodCatalogStore.upsert({
+    where: { catalogItemId_storeId: { catalogItemId: id, storeId } },
+    create: { catalogItemId: id, storeId },
+    update: {},
+  });
+  res.status(201).json({ success: true });
+}
+
+// DELETE /hot-food/catalog/:id/stores/:storeId
+export async function removeCatalogItemFromStore(req: AuthRequest, res: Response) {
+  const { id, storeId } = req.params;
+  await prisma.hotFoodCatalogStore.deleteMany({
+    where: { catalogItemId: id, storeId },
+  });
+  res.json({ success: true });
 }

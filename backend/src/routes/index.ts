@@ -111,6 +111,16 @@ import {
   getStoreMenu,
   placeOrder,
   getMyOrders as getMyHotFoodOrders,
+  getStoreOrders,
+  getStorePendingCount,
+  getCatalog as getHotFoodCatalog,
+  createCatalogItem as createHotFoodCatalogItem,
+  updateCatalogItem as updateHotFoodCatalogItem,
+  updateCatalogItemImage as updateHotFoodCatalogItemImage,
+  deleteCatalogItem as deleteHotFoodCatalogItem,
+  getCatalogItemStores as getHotFoodCatalogItemStores,
+  assignCatalogItemToStore as assignHotFoodCatalogItemToStore,
+  removeCatalogItemFromStore as removeHotFoodCatalogItemFromStore,
 } from '../controllers/hotFood.controller';
 import {
   getCustomerLeaderboard,
@@ -413,9 +423,21 @@ router.delete('/hot-food/menu/:id',  authenticate, requireRole(Role.SUPER_ADMIN)
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.STORE_MANAGER), updateOrderStatus);
+// Orders — mobile (manager/employee per-store board) — specific before generic
+router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getStorePendingCount);
+router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.STORE_MANAGER), getStoreOrders);
 // Menu + orders — customer / mobile
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);
+// Catalog — admin (global item library with store assignment)
+router.get('/hot-food/catalog',                         authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalog);
+router.post('/hot-food/catalog',                        authenticate, requireRole(Role.SUPER_ADMIN),   upload.single('image'), createHotFoodCatalogItem);
+router.patch('/hot-food/catalog/:id',                   authenticate, requireRole(Role.SUPER_ADMIN),   updateHotFoodCatalogItem);
+router.patch('/hot-food/catalog/:id/image',             authenticate, requireRole(Role.SUPER_ADMIN),   upload.single('image'), updateHotFoodCatalogItemImage);
+router.delete('/hot-food/catalog/:id',                  authenticate, requireRole(Role.SUPER_ADMIN),   deleteHotFoodCatalogItem);
+router.get('/hot-food/catalog/:id/stores',              authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalogItemStores);
+router.post('/hot-food/catalog/:id/stores',             authenticate, requireRole(Role.SUPER_ADMIN),   assignHotFoodCatalogItemToStore);
+router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRole(Role.SUPER_ADMIN),   removeHotFoodCatalogItemFromStore);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
