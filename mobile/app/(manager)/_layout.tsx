@@ -31,7 +31,7 @@ export default function ManagerLayout() {
   const { data: hotFoodData } = useQuery({
     queryKey: ['hot-food-pending-count', managerStoreId],
     queryFn: () => hotFoodApi.getPendingCount(managerStoreId),
-    enabled: !!managerStoreId,
+    enabled: !!managerStoreId && isAdmin(user?.role),
     refetchInterval: 30000,
   });
   const hotFoodPending: number = hotFoodData?.data?.data?.count ?? 0;
@@ -50,13 +50,13 @@ export default function ManagerLayout() {
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: 'Item Requests', badge: empReqPending },
       ],
     },
-    {
+    ...(isAdmin(user?.role) ? [{
       title: 'Kitchen',
       items: [
-        { route: '/(manager)/hot-food', icon: (p) => <FlameIcon {...p} />, label: 'Hot Food Orders', badge: hotFoodPending },
-        ...(isAdmin(user?.role) ? [{ route: '/(manager)/hot-food-catalog' as const, icon: (p: any) => <ListIcon {...p} />, label: 'Item Catalog' }] : []),
-      ],
-    },
+        { route: '/(manager)/hot-food',         icon: (p: any) => <FlameIcon {...p} />, label: 'Hot Food Orders', badge: hotFoodPending },
+        { route: '/(manager)/hot-food-catalog', icon: (p: any) => <ListIcon {...p} />,  label: 'Item Catalog' },
+      ] as NavItem[],
+    }] : []),
     {
       title: 'Promotions',
       items: [
