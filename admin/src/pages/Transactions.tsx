@@ -81,7 +81,7 @@ export default function Transactions() {
   if (statusFilter)   allTxParams.status    = statusFilter;
   if (categoryFilter) allTxParams.category  = categoryFilter;
   if (from)           allTxParams.from      = new Date(from).toISOString();
-  if (to)             allTxParams.to        = to;
+  if (to)             allTxParams.to        = new Date(to).toISOString();
 
   const { data: allTxData, isLoading: allTxLoading } = useQuery({
     queryKey: ['all-transactions', allTxParams],

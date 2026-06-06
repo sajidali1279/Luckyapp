@@ -97,12 +97,12 @@ export default function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<DashboardRoute />} />
               <Route path="/transactions" element={<Transactions />} />
-              <Route path="/staff" element={<Staff />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />
               {/* Scheduling accessible to StoreManager+ */}
               <Route path="/scheduling" element={<Scheduling />} />
               <Route element={<SuperAdminOnly />}>
+                <Route path="/staff" element={<Staff />} />
                 <Route path="/hot-food" element={<HotFood />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />

@@ -678,19 +678,6 @@ export default function Offers() {
                           <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
                         ))}
                       </select>
-                      {/* Warning: category not enabled at selected store */}
-                      {storeId && category && category !== '' && (() => {
-                        const selectedStore = stores.find((s: any) => s.id === storeId);
-                        const enabled: string[] = selectedStore?.enabledCategories ?? [];
-                        if (enabled.length > 0 && !enabled.includes(category)) {
-                          return (
-                            <div style={{ marginTop: 8, padding: '10px 14px', background: '#fff8e1', borderRadius: 8, border: '1px solid #ffe082', color: '#b45309', fontSize: 15, fontWeight: 600 }}>
-                              ⚠️ {selectedStore?.name} does not have <strong>{category.replace(/_/g, ' ')}</strong> enabled. This offer will still be created but won't apply to any transactions at this store.
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </>
                   )}
                 </div>

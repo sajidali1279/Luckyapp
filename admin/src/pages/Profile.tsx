@@ -136,6 +136,7 @@ export default function Profile() {
                 placeholder="••••"
                 maxLength={4}
                 inputMode="numeric"
+                autoComplete="current-password"
               />
               <label style={s.label}>New PIN</label>
               <input
@@ -146,6 +147,7 @@ export default function Profile() {
                 placeholder="••••"
                 maxLength={4}
                 inputMode="numeric"
+                autoComplete="new-password"
               />
               <label style={s.label}>Confirm New PIN</label>
               <input
@@ -156,6 +158,7 @@ export default function Profile() {
                 placeholder="••••"
                 maxLength={4}
                 inputMode="numeric"
+                autoComplete="new-password"
               />
               <button style={{ ...s.btn, ...s.btnDanger }} type="submit" disabled={pinLoading}>
                 {pinLoading ? 'Changing…' : 'Change PIN'}

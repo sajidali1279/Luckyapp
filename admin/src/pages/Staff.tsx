@@ -401,6 +401,7 @@ export default function Staff() {
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     maxLength={4}
                     inputMode="numeric"
+                    autoComplete="new-password"
                     placeholder="••••"
                   />
                   <div style={s.pinDots}>
@@ -571,6 +572,7 @@ export default function Staff() {
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   maxLength={4}
                   inputMode="numeric"
+                  autoComplete="new-password"
                   placeholder="••••"
                 />
                 <div style={s.pinDots}>
