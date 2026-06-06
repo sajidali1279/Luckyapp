@@ -782,8 +782,9 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   }
 
   const notifications: {
-    id: string; type: string; title: string; message: string;
+    id: string; type: string; category: string; title: string; message: string;
     createdAt: string; isRead: boolean; severity: string;
+    actionUrl?: string; actionLabel?: string;
     period?: string; totalAmount?: number; paidAt?: string | null;
     requestId?: string; storeId?: string; requestType?: string;
   }[] = [];
@@ -797,11 +798,14 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       notifications.push({
         id: `invoice-paid-${period}`,
         type: 'BILLING',
+        category: 'billing',
         title: `Invoice Paid — ${monthName}`,
         message: `$${total.toFixed(2)} platform fee has been settled. Download your invoice for records.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
         severity: 'success',
+        actionUrl: '/billing',
+        actionLabel: 'View Billing',
         period,
         totalAmount: total,
         paidAt: info.paidAt,
@@ -810,11 +814,14 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       notifications.push({
         id: `invoice-due-${period}`,
         type: 'BILLING',
+        category: 'billing',
         title: `Invoice Due — ${monthName}`,
         message: `$${total.toFixed(2)} in platform fees outstanding (${(devCutRate * 100).toFixed(0)}% dev cut across ${info.storeCount} stores).`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
         severity: 'warning',
+        actionUrl: '/billing',
+        actionLabel: 'Pay Invoice',
         period,
         totalAmount: total,
         paidAt: null,
@@ -827,11 +834,14 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     notifications.push({
       id: `rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
       type: 'TRANSACTION',
+      category: 'transactions',
       title: `${rejectedTx} Transaction${rejectedTx !== 1 ? 's' : ''} Rejected`,
       message: `${rejectedTx} point grant${rejectedTx !== 1 ? 's were' : ' was'} rejected in the last 30 days. Review your transactions page for details.`,
       createdAt: thirtyDaysAgo.toISOString(),
       isRead: false,
       severity: rejectedTx >= 5 ? 'error' : 'info',
+      actionUrl: '/transactions',
+      actionLabel: 'View Rejected Transactions',
     });
   }
 
@@ -844,6 +854,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     notifications.push({
       id: `shift-request-${req.id}`,
       type: 'SCHEDULE',
+      category: 'scheduling',
       title: isTimeOff
         ? `Time Off Request — ${req.employee.name}`
         : `Extra Shift Request — ${req.employee.name}`,
@@ -853,6 +864,8 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       createdAt: req.createdAt.toISOString(),
       isRead: false,
       severity: 'info',
+      actionUrl: '/scheduling',
+      actionLabel: 'Review Request',
       requestId: req.id,
       storeId: req.store.id,
       requestType: req.requestType,
@@ -924,11 +937,14 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       notifications.push({
         id: `dev-paid-${period}`,
         type: 'REVENUE',
+        category: 'billing',
         title: `Payment Received — ${monthName}`,
         message: `$${total.toFixed(2)} subscription revenue collected across ${info.storeCount} store${info.storeCount !== 1 ? 's' : ''}.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
         severity: 'success',
+        actionUrl: '/billing',
+        actionLabel: 'View Revenue',
         period,
         totalAmount: total,
         paidAt: info.paidAt,
@@ -937,11 +953,14 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       notifications.push({
         id: `dev-due-${period}`,
         type: 'REVENUE',
+        category: 'billing',
         title: `Payment Pending — ${monthName}`,
         message: `$${total.toFixed(2)} outstanding from ${info.unpaidCount} store${info.unpaidCount !== 1 ? 's' : ''}. Mark as paid once received.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
         severity: 'warning',
+        actionUrl: '/billing',
+        actionLabel: 'Mark as Paid',
         period,
         totalAmount: total,
         paidAt: null,
@@ -954,11 +973,14 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     notifications.push({
       id: `dev-rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
       type: 'PLATFORM',
+      category: 'transactions',
       title: `${rejectedTx} Rejected Transaction${rejectedTx !== 1 ? 's' : ''} (Last 30 Days)`,
       message: `${rejectedTx} point grant${rejectedTx !== 1 ? 's were' : ' was'} rejected recently. Review the Activity Log for details.`,
       createdAt: now.toISOString(),
       isRead: rejectedTx < 3,
       severity: rejectedTx >= 10 ? 'error' : rejectedTx >= 5 ? 'warning' : 'info',
+      actionUrl: '/activity',
+      actionLabel: 'View Activity Log',
     });
   }
 
@@ -966,11 +988,14 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     notifications.push({
       id: `dev-customers-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
       type: 'PLATFORM',
+      category: 'customers',
       title: `${newCustomers} New Customer${newCustomers !== 1 ? 's' : ''} This Month`,
       message: `${newCustomers} customer${newCustomers !== 1 ? 's have' : ' has'} signed up in the last 30 days across all stores.`,
       createdAt: now.toISOString(),
       isRead: true,
       severity: 'info',
+      actionUrl: '/customers',
+      actionLabel: 'View Customers',
     });
   }
 
@@ -983,12 +1008,15 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     notifications.push({
       id: `shift-request-${req.id}`,
       type: 'SCHEDULE',
+      category: 'scheduling',
       title: isTimeOff ? `Time Off Request — ${req.employee.name}` : `Extra Shift Request — ${req.employee.name}`,
       message: isTimeOff
         ? `${req.employee.name} requested time off for ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`
         : `${req.employee.name} wants to pick up the ${shiftLabel} shift on ${dateStr} at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`,
       createdAt: req.createdAt.toISOString(),
       isRead: false,
+      actionUrl: '/scheduling',
+      actionLabel: 'Review Request',
       severity: 'info',
       requestId: req.id,
       storeId: req.store.id,

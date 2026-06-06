@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -45,6 +46,7 @@ function monthAgoStr() {
 export default function Transactions() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
+  const location = useLocation();
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   // Filters
@@ -54,6 +56,15 @@ export default function Transactions() {
   const [from, setFrom] = useState(monthAgoStr());
   const [to, setTo] = useState(todayStr());
   const [page, setPage] = useState(1);
+
+  // Pre-fill status filter from notification deep-link (e.g. navigate('/transactions', { state: { statusFilter: 'REJECTED' } }))
+  useEffect(() => {
+    const nav = location.state as { statusFilter?: string } | null;
+    if (nav?.statusFilter) {
+      setStatusFilter(nav.statusFilter);
+      window.history.replaceState({}, '');
+    }
+  }, []);
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
