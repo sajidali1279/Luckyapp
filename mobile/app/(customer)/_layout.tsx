@@ -5,7 +5,7 @@ import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
-  BriefcaseIcon, ShoppingBagIcon, BellIcon,
+  BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
 } from '../../components/Icons';
 
 export default function CustomerLayout() {
@@ -25,9 +25,10 @@ export default function CustomerLayout() {
     {
       title: 'Main',
       items: [
-        { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} />,      label: 'Home' },
-        { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} />,      label: 'Rewards' },
-        { route: '/(customer)/history', icon: (p) => <ClockIcon {...p} />,     label: 'History' },
+        { route: '/(customer)/home',     icon: (p) => <HomeIcon {...p} />,   label: 'Home' },
+        { route: '/(customer)/rewards',  icon: (p) => <StarIcon {...p} />,   label: 'Rewards' },
+        { route: '/(customer)/history',  icon: (p) => <ClockIcon {...p} />,  label: 'History' },
+        { route: '/(customer)/hot-food', icon: (p) => <FlameIcon {...p} />,  label: 'Hot Food' },
       ],
     },
     {
@@ -56,6 +57,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="catalog" options={{ href: null }} />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />
+        <Tabs.Screen name="hot-food" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="careers" />

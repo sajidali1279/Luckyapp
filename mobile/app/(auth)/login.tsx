@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { ShieldIcon, UserIcon } from '../../components/Icons';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -203,6 +204,7 @@ export default function LoginScreen() {
   }
 
   const switchTab = useCallback((s: 'login' | 'register') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.spring(tabAnim, {
       toValue: s === 'register' ? 1 : 0,
       tension: 220, friction: 22, useNativeDriver: true,
@@ -233,7 +235,7 @@ export default function LoginScreen() {
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
         <View style={styles.bioOfferCard}>
           <View style={styles.bioIconRing}>
-            <View style={styles.bioIconInner} />
+            <ShieldIcon size={38} color={COLORS.primary} strokeWidth={1.75} />
           </View>
           <Text style={styles.bioOfferTitle}>Enable {bioType}?</Text>
           <Text style={styles.bioOfferDesc}>
@@ -270,13 +272,14 @@ export default function LoginScreen() {
 
           <View style={styles.quickCard}>
             <View style={styles.quickAvatar}>
-              <Text style={styles.quickAvatarText}>{quickLoginPhone ? quickLoginPhone.slice(-4) : '••••'}</Text>
+              <UserIcon size={32} color="rgba(255,255,255,0.9)" strokeWidth={1.75} />
             </View>
             <Text style={styles.quickPhone}>{displayPhone}</Text>
 
             {biometricEnabled && bioAvailable ? (
               <>
                 <TouchableOpacity style={styles.bioBtn} onPress={triggerBiometric} disabled={loading}>
+                  <ShieldIcon size={16} color={COLORS.secondary} strokeWidth={2.5} />
                   <Text style={styles.bioBtnText}>
                     {Platform.OS === 'ios' ? 'Use Face ID / Touch ID' : 'Use Fingerprint'}
                   </Text>
@@ -408,7 +411,10 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>⛽ Lucky Stop</Text>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoMarkText}>LS</Text>
+          </View>
+          <Text style={styles.logo}>Lucky Stop</Text>
           <Text style={styles.tagline}>Earn rewards every visit</Text>
         </View>
 
@@ -596,16 +602,15 @@ const styles = StyleSheet.create({
     shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22, shadowRadius: 10, elevation: 5,
   },
-  quickAvatarText: { color: 'rgba(255,255,255,0.8)', fontSize: 18, fontWeight: '800', letterSpacing: 2 },
   quickPhone: { fontSize: 18, fontWeight: '700', color: COLORS.text },
 
   // Biometric button
   bioBtn: {
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.secondary + '12', borderRadius: 16,
     paddingVertical: 16, paddingHorizontal: 24,
     borderWidth: 1.5, borderColor: COLORS.secondary + '25',
-    width: '100%', justifyContent: 'center',
+    width: '100%',
   },
   bioBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.secondary },
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' },
@@ -628,12 +633,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary + '15',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: COLORS.primary + '30',
-  },
-  bioIconInner: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
   bioOfferTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   bioOfferDesc: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 21 },

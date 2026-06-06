@@ -316,6 +316,7 @@ export const managerApi = {
 };
 
 export const hotFoodApi = {
+  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
   getMenu:        (storeId: string) => api.get(`/hot-food/menu?storeId=${storeId}`),
   placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
     api.post('/hot-food/orders', data),
@@ -324,7 +325,30 @@ export const hotFoodApi = {
   updateStatus:   (orderId: string, status: string, estimatedMinutes?: number) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
   getPendingCount:          (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
-  updateItemAvailability:   (itemId: string, isAvailable: boolean) =>
+  updateItemAvailability: (itemId: string, isAvailable: boolean) =>
     api.patch(`/hot-food/menu/${itemId}`, { isAvailable }),
+  createMenuItem: (storeId: string, data: { name: string; description?: string; price: number; estimatedMinutes?: number; isAvailable?: boolean }) =>
+    api.post('/hot-food/menu', { storeId, ...data }),
+  updateMenuItem: (itemId: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; isAvailable: boolean }>) =>
+    api.patch(`/hot-food/menu/${itemId}`, data),
+  deleteMenuItem: (itemId: string) =>
+    api.delete(`/hot-food/menu/${itemId}`),
+};
+
+// Global hot food catalog — admin manages items + assigns to stores
+export const hotFoodCatalogApi = {
+  getAll: () => api.get('/hot-food/catalog'),
+  create: (formData: FormData) =>
+    api.post('/hot-food/catalog', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null }>) =>
+    api.patch(`/hot-food/catalog/${id}`, data),
+  updateImage: (id: string, formData: FormData) =>
+    api.patch(`/hot-food/catalog/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id: string) => api.delete(`/hot-food/catalog/${id}`),
+  getStoreAssignments: (id: string) => api.get(`/hot-food/catalog/${id}/stores`),
+  assignToStore: (id: string, storeId: string) =>
+    api.post(`/hot-food/catalog/${id}/stores`, { storeId }),
+  removeFromStore: (id: string, storeId: string) =>
+    api.delete(`/hot-food/catalog/${id}/stores/${storeId}`),
 };
 

@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android AAB
 
 on:
   workflow_dispatch:
@@ -27,25 +27,44 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Install dependencies
         working-directory: ./mobile
         run: npm ci
 
+      # Decode google-services.json to project root BEFORE prebuild so the
+      # @react-native-firebase/app Expo plugin picks it up and copies it to
+      # android/app/google-services.json during prebuild.
+      - name: Decode google-services.json
+        working-directory: ./mobile
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 -d > google-services.json
+
       - name: Prebuild Android
         working-directory: ./mobile
-        run: |
-          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
-            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > google-services.json
-          fi
-          npx expo prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
 
+      - name: Remove google-services.json
+        if: always()
+        working-directory: ./mobile
+        run: rm -f google-services.json
+
+      # Decode the release keystore from GitHub Secrets
       - name: Decode release keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > /tmp/release.keystore
 
-      - name: Configure release signing
+      # Write signing properties to gradle.properties
+      - name: Configure release signing properties
         working-directory: ./mobile/android
         run: |
           cat >> gradle.properties << EOF
@@ -55,19 +74,92 @@ jobs:
           MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
+      # Patch the generated build.gradle so the release buildType:
+      #   (a) has its own signingConfig that reads from gradle.properties
+      #   (b) uses signingConfigs.release instead of signingConfigs.debug
+      # Also bump versionCode to the GitHub run number so each upload is unique.
+      - name: Patch build.gradle (release signing + versionCode)
+        working-directory: ./mobile/android/app
+        run: |
+          python3 - << 'PYEOF'
+          import sys, re
+
+          with open('build.gradle', 'r') as f:
+              content = f.read()
+
+          # ── 1. Inject release signingConfig block ──────────────────────────────
+          release_block = (
+              "\n        release {\n"
+              "            storeFile file(MYAPP_UPLOAD_STORE_FILE)\n"
+              "            storePassword MYAPP_UPLOAD_STORE_PASSWORD\n"
+              "            keyAlias MYAPP_UPLOAD_KEY_ALIAS\n"
+              "            keyPassword MYAPP_UPLOAD_KEY_PASSWORD\n"
+              "        }"
+          )
+          # The debug signingConfig ends with "        }\n    }" (closing debug, then signingConfigs).
+          # Insert the release block between them.
+          old_end = "        keyPassword 'android'\n        }\n    }"
+          new_end = "        keyPassword 'android'\n        }" + release_block + "\n    }"
+          if old_end in content:
+              content = content.replace(old_end, new_end, 1)
+              print("Inserted release signingConfig block.")
+          else:
+              print("WARNING: could not find debug signingConfig end — skipping insert.", file=sys.stderr)
+
+          # ── 2. Point release buildType at signingConfigs.release ───────────────
+          # There are exactly two occurrences of "signingConfig signingConfigs.debug":
+          # the first is in buildTypes.debug, the second is in buildTypes.release.
+          needle = 'signingConfig signingConfigs.debug'
+          idx1 = content.find(needle)
+          idx2 = content.find(needle, idx1 + 1) if idx1 != -1 else -1
+          if idx2 != -1:
+              content = (
+                  content[:idx2]
+                  + 'signingConfig signingConfigs.release'
+                  + content[idx2 + len(needle):]
+              )
+              print("Switched release buildType to signingConfigs.release.")
+          else:
+              print("WARNING: second signingConfig signingConfigs.debug not found.", file=sys.stderr)
+
+          # ── 3. Bump versionCode to GitHub run number ───────────────────────────
+          import os
+          run_number = os.environ.get('GITHUB_RUN_NUMBER', '1')
+          content = re.sub(r'versionCode\s+\d+', f'versionCode {run_number}', content)
+          print(f"Set versionCode to {run_number}.")
+
+          with open('build.gradle', 'w') as f:
+              f.write(content)
+
+          print("build.gradle patched successfully.")
+          PYEOF
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+
       - name: Make gradlew executable
         working-directory: ./mobile/android
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      # Build AAB (required format for Play Console)
+      - name: Build Release AAB
         working-directory: ./mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew bundleRelease --no-daemon
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
 
-      - name: Upload APK artifact
+      - name: Verify AAB exists
+        working-directory: ./mobile/android
+        run: |
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          if [ -f "$AAB" ]; then
+            echo "AAB produced successfully: $(du -h $AAB | cut -f1)"
+          else
+            echo "ERROR: AAB not found at $AAB" && exit 1
+          fi
+
+      - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucky-stop-${{ github.run_number }}
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 14
+          name: lucky-stop-aab-${{ github.run_number }}
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
