@@ -336,6 +336,17 @@ export const hotFoodApi = {
 };
 
 // Global hot food catalog — admin manages items + assigns to stores
+export const supportApi = {
+  createThread: (subject: string, message: string, priority?: string, category?: string) =>
+    api.post('/support/threads', { subject, message, priority, category }),
+  getMyThreads: (params?: { status?: string; category?: string; priority?: string; search?: string }) =>
+    api.get('/support/threads', { params }),
+  getThread: (threadId: string) => api.get(`/support/threads/${threadId}`),
+  sendMessage: (threadId: string, body: string) =>
+    api.post(`/support/threads/${threadId}/messages`, { body }),
+  getUnreadCount: () => api.get('/support/unread-count'),
+};
+
 export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>

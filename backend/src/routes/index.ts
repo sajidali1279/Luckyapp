@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import multer from 'multer';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -172,6 +172,7 @@ router.post('/auth/login', login);                                              
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
 router.patch('/auth/profile', authenticate, updateProfile);                       // Update name
 router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploadAvatar); // Upload profile picture
+router.delete('/auth/profile/avatar', authenticate, deleteAvatar);                        // Remove profile picture
 router.post('/auth/push-token', authenticate, registerPushToken);
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email

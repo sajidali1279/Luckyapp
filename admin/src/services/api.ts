@@ -89,7 +89,7 @@ export const offersApi = {
 };
 
 export const bannersApi = {
-  create: (formData: FormData) => api.post('/banners', formData),
+  create: (formData: FormData) => api.post('/banners', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (bannerId: string) => api.delete(`/banners/${bannerId}`),
   getActive: () => api.get('/banners'),
 };
@@ -273,6 +273,12 @@ export const orderListApi = {
   updateItem:       (itemId: string, data: object) => api.patch(`/order-lists/items/${itemId}`, data),
   removeItem:       (itemId: string) => api.delete(`/order-lists/items/${itemId}`),
   updateItemStatus: (itemId: string, status: string) => api.patch(`/order-lists/items/${itemId}/status`, { status }),
+  reorderItems:     (listId: string, items: { id: string; sortOrder: number }[]) =>
+    api.patch(`/order-lists/${listId}/reorder`, { items }),
+  printList:        (listId: string, notes?: string) => api.post(`/order-lists/${listId}/print`, { notes }),
+  getPrintHistory:  (storeId: string, listId: string) => api.get(`/order-lists/store/${storeId}/print-history/${listId}`),
+  restoreItems:     (storeId: string, closedListId: string, itemIds: string[]) =>
+    api.post(`/order-lists/store/${storeId}/restore-items`, { closedListId, itemIds }),
 };
 
 export const orderCategoriesApi = {
@@ -305,7 +311,8 @@ export const hotFoodApi = {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/hot-food/orders/admin${q ? `?${q}` : ''}`);
   },
-  updateStatus:  (orderId: string, status: string) => api.patch(`/hot-food/orders/${orderId}`, { status }),
+  updateStatus:  (orderId: string, status: string, estimatedMinutes?: number) =>
+    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
 };
 
 export const hotFoodCatalogApi = {
@@ -322,6 +329,12 @@ export const hotFoodCatalogApi = {
     api.post(`/hot-food/catalog/${id}/stores`, { storeId }),
   removeFromStore: (id: string, storeId: string) =>
     api.delete(`/hot-food/catalog/${id}/stores/${storeId}`),
+};
+
+export const welcomeBonusApi = {
+  getStatus:       () => api.get('/welcome-bonus'),
+  getForCustomer:  (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`),
+  confirm:         (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
 
 export const inventoryAnalyticsApi = {

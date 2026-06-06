@@ -308,6 +308,17 @@ export async function uploadAvatar(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { avatarUrl: result.secure_url } });
 }
 
+export async function deleteAvatar(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  try {
+    await cloudinary.uploader.destroy(`lucky-stop/avatars/avatar_${user.id}`);
+  } catch {
+    // Non-fatal — may not exist on Cloudinary yet
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { avatarUrl: null } });
+  res.json({ success: true });
+}
+
 // ─── Create Super Admin (DevAdmin only) ───────────────────────────────────────
 
 const createSuperAdminSchema = z.object({
