@@ -205,6 +205,52 @@ export async function markBillingPaid(req: AuthRequest, res: Response) {
   res.json({ success: true, data: record });
 }
 
+// GET /billing/extra-charges — list all CUSTOM charges with optional filters
+export async function getExtraCharges(req: AuthRequest, res: Response) {
+  const { storeId, period, isPaid } = req.query as { storeId?: string; period?: string; isPaid?: string };
+  const records = await (prisma.billingRecord as any).findMany({
+    where: {
+      billingType: 'CUSTOM',
+      ...(storeId && { storeId }),
+      ...(period  && { period }),
+      ...(isPaid !== undefined && { isPaid: isPaid === 'true' }),
+    },
+    include: { store: { select: { id: true, name: true, city: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  // Parse notes JSON to surface description field
+  const data = records.map((r: any) => ({
+    ...r,
+    description: (() => { try { return JSON.parse(r.notes ?? '{}').description ?? ''; } catch { return r.notes ?? ''; } })(),
+  }));
+  res.json({ success: true, data });
+}
+
+// PATCH /billing/records/:recordId — update description/amount of a CUSTOM charge
+export async function updateBillingRecord(req: AuthRequest, res: Response) {
+  const { recordId } = req.params;
+  const { description, amount } = req.body as { description?: string; amount?: number };
+  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Record not found' }); return; }
+  if (existing.billingType !== 'CUSTOM') { res.status(400).json({ success: false, error: 'Only custom charges can be edited' }); return; }
+  const updates: any = {};
+  if (amount !== undefined && !isNaN(amount) && amount > 0) updates.amount = amount;
+  if (description !== undefined) updates.notes = JSON.stringify({ description: description.trim() });
+  const updated = await (prisma.billingRecord as any).update({ where: { id: recordId }, data: updates });
+  res.json({ success: true, data: updated });
+}
+
+// DELETE /billing/records/:recordId — delete a CUSTOM charge only
+export async function deleteBillingRecord(req: AuthRequest, res: Response) {
+  const { recordId } = req.params;
+  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Record not found' }); return; }
+  if (existing.billingType !== 'CUSTOM') { res.status(400).json({ success: false, error: 'Only custom charges can be deleted' }); return; }
+  if (existing.isPaid) { res.status(400).json({ success: false, error: 'Cannot delete a paid charge' }); return; }
+  await (prisma.billingRecord as any).delete({ where: { id: recordId } });
+  res.json({ success: true });
+}
+
 // Mark all billing records for a period as paid (consolidated invoice)
 export async function markPeriodPaid(req: AuthRequest, res: Response) {
   const { period } = req.params;

@@ -155,6 +155,24 @@ export default function Billing() {
   // ── Manual charge state ───────────────────────────────────────────────────────
   const [manualForm, setManualForm] = useState({ storeId: '', amount: '', description: '', period: new Date().toISOString().slice(0, 7) });
   const [manualDone, setManualDone] = useState<any>(null);
+  // Extra charges list filters
+  const [ecStoreFilter, setEcStoreFilter] = useState('');
+  const [ecPeriodFilter, setEcPeriodFilter] = useState('');
+  const [ecPaidFilter, setEcPaidFilter] = useState<'' | 'paid' | 'unpaid'>('');
+  // Inline edit state: recordId → { description, amount }
+  const [editingCharge, setEditingCharge] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ description: '', amount: '' });
+
+  const { data: extraChargesData, isLoading: ecLoading, refetch: refetchCharges } = useQuery({
+    queryKey: ['extra-charges', ecStoreFilter, ecPeriodFilter, ecPaidFilter],
+    queryFn: () => billingApi.getExtraCharges(
+      ecStoreFilter || undefined,
+      ecPeriodFilter || undefined,
+      ecPaidFilter ? ecPaidFilter === 'paid' : undefined,
+    ),
+    enabled: tab === 'manual',
+  });
+  const extraCharges: any[] = extraChargesData?.data?.data ?? [];
 
   const addManualCharge = useMutation({
     mutationFn: () => billingApi.createRecord(manualForm.storeId, {
@@ -164,13 +182,47 @@ export default function Billing() {
       description: manualForm.description.trim(),
     }),
     onSuccess: (res) => {
-      toast.success('Manual charge added');
+      toast.success('Extra charge added');
       setManualDone(res.data?.data);
       setManualForm(f => ({ ...f, storeId: '', amount: '', description: '' }));
       qc.invalidateQueries({ queryKey: ['monthly-records'] });
+      qc.invalidateQueries({ queryKey: ['extra-charges'] });
       qc.invalidateQueries({ queryKey: ['revenue'] });
     },
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to add charge'),
+  });
+
+  const updateCharge = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { description?: string; amount?: number } }) =>
+      billingApi.updateRecord(id, data),
+    onSuccess: () => {
+      toast.success('Charge updated');
+      setEditingCharge(null);
+      qc.invalidateQueries({ queryKey: ['extra-charges'] });
+      qc.invalidateQueries({ queryKey: ['monthly-records'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to update'),
+  });
+
+  const deleteCharge = useMutation({
+    mutationFn: (id: string) => billingApi.deleteRecord(id),
+    onSuccess: () => {
+      toast.success('Charge deleted');
+      qc.invalidateQueries({ queryKey: ['extra-charges'] });
+      qc.invalidateQueries({ queryKey: ['monthly-records'] });
+      qc.invalidateQueries({ queryKey: ['revenue'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to delete'),
+  });
+
+  const markChargePaid = useMutation({
+    mutationFn: (id: string) => billingApi.markPaid(id),
+    onSuccess: () => {
+      toast.success('Marked as paid');
+      qc.invalidateQueries({ queryKey: ['extra-charges'] });
+      qc.invalidateQueries({ queryKey: ['monthly-records'] });
+    },
+    onError: () => toast.error('Failed to mark paid'),
   });
 
   const stores = data?.data?.data || [];
@@ -556,85 +608,242 @@ export default function Billing() {
         />
       )}
 
-      {/* ══════════════════ MANUAL CHARGES TAB ══════════════════ */}
+      {/* ══════════════════ MANUAL / EXTRA CHARGES TAB ══════════════════ */}
       {tab === 'manual' && (() => {
-        const stores: any[] = data?.data?.data ?? [];
+        const allStores: any[] = data?.data?.data ?? [];
         const canSubmit = manualForm.storeId && manualForm.amount && parseFloat(manualForm.amount) > 0 && manualForm.description.trim() && manualForm.period;
+
+        const SERVICE_TEMPLATES = [
+          'Setup & Onboarding Fee',
+          'Custom Feature Development',
+          'Hardware / Printer Setup',
+          'Support Contract',
+          'Training Session',
+          'Emergency Support Call',
+          'Data Migration',
+          'Custom Report',
+        ];
+
+        function startEditCharge(charge: any) {
+          setEditingCharge(charge.id);
+          setEditForm({ description: charge.description ?? '', amount: String(charge.amount) });
+        }
+        function saveEditCharge(id: string) {
+          const amount = parseFloat(editForm.amount);
+          if (!editForm.description.trim()) { toast.error('Description required'); return; }
+          if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount'); return; }
+          updateCharge.mutate({ id, data: { description: editForm.description.trim(), amount } });
+        }
+
         return (
-          <div style={{ padding: '24px 0' }}>
-            <div style={{ background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' }}>Add Manual Charge</h2>
-              <p style={{ fontSize: 15, color: '#6b7280', margin: '0 0 24px' }}>
-                Add a one-time custom charge to a store's billing — for setup fees, custom work, or any extra services.
-              </p>
+          <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-              {/* Store */}
-              <label style={s.fieldLabel}>Store *</label>
-              <select
-                style={s.input}
-                value={manualForm.storeId}
-                onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}
-              >
-                <option value="">— Select a store —</option>
-                {stores.map((st: any) => (
-                  <option key={st.id} value={st.id}>{st.name} — {st.city}</option>
+            {/* ── Add form ── */}
+            <div style={ec.card}>
+              <h2 style={ec.cardTitle}>➕ Add Extra Charge</h2>
+              <p style={ec.cardSub}>One-time charges for setup fees, custom work, extra services, or anything outside the standard billing plan.</p>
+
+              {/* Service templates */}
+              <div style={ec.templateRow}>
+                <span style={ec.templateLabel}>Quick fill:</span>
+                {SERVICE_TEMPLATES.map(t => (
+                  <button
+                    key={t}
+                    style={ec.templateBtn}
+                    onClick={() => setManualForm(f => ({ ...f, description: t }))}
+                  >{t}</button>
                 ))}
-              </select>
+              </div>
 
-              {/* Description */}
-              <label style={s.fieldLabel}>Description *</label>
-              <input
-                style={s.input}
-                placeholder="e.g. Custom feature development, Printer setup fee…"
+              <div style={ec.formGrid}>
+                <div style={ec.formField}>
+                  <label style={s.fieldLabel}>Store *</label>
+                  <select style={s.input} value={manualForm.storeId}
+                    onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}>
+                    <option value="">— Select a store —</option>
+                    {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                  </select>
+                </div>
+                <div style={ec.formField}>
+                  <label style={s.fieldLabel}>Billing Period *</label>
+                  <input style={s.input} type="month" value={manualForm.period}
+                    onChange={e => { setManualForm(f => ({ ...f, period: e.target.value })); setManualDone(null); }} />
+                </div>
+              </div>
+
+              <label style={s.fieldLabel}>Service Description *</label>
+              <input style={s.input} placeholder="e.g. Custom feature development, Printer setup fee…"
                 value={manualForm.description}
-                onChange={e => { setManualForm(f => ({ ...f, description: e.target.value })); setManualDone(null); }}
-              />
+                onChange={e => { setManualForm(f => ({ ...f, description: e.target.value })); setManualDone(null); }} />
 
-              {/* Amount */}
               <label style={s.fieldLabel}>Amount (USD) *</label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontWeight: 700 }}>$</span>
-                <input
-                  style={{ ...s.input, paddingLeft: 26 }}
-                  placeholder="0.00"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
+                <input style={{ ...s.input, paddingLeft: 26 }} placeholder="0.00" type="number" min="0.01" step="0.01"
                   value={manualForm.amount}
-                  onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }}
-                />
+                  onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }} />
               </div>
 
-              {/* Period */}
-              <label style={s.fieldLabel}>Billing Period *</label>
-              <input
-                style={s.input}
-                type="month"
-                value={manualForm.period}
-                onChange={e => { setManualForm(f => ({ ...f, period: e.target.value })); setManualDone(null); }}
-              />
-              <p style={{ fontSize: 13, color: '#9ca3af', margin: '-8px 0 16px' }}>This determines which invoice the charge appears on.</p>
-
               <button
-                style={{ ...s.btn, width: '100%', opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? 'pointer' : 'not-allowed' }}
+                style={{ ...s.btn, marginTop: 8, opacity: canSubmit ? 1 : 0.45, cursor: canSubmit ? 'pointer' : 'not-allowed' }}
                 disabled={!canSubmit || addManualCharge.isPending}
                 onClick={() => addManualCharge.mutate()}
               >
                 {addManualCharge.isPending ? 'Adding…' : '+ Add Charge'}
               </button>
 
-              {/* Success confirmation */}
               {manualDone && (
-                <div style={{ marginTop: 20, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 16 }}>
-                  <div style={{ fontWeight: 800, color: '#166534', marginBottom: 4 }}>✅ Charge added successfully</div>
-                  <div style={{ fontSize: 15, color: '#374151' }}>
-                    <strong>{stores.find((st: any) => st.id === manualDone.storeId)?.name}</strong> —{' '}
-                    ${parseFloat(manualDone.amount).toFixed(2)} for period <strong>{manualDone.period}</strong>
-                  </div>
-                  <div style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>
-                    It will appear on the store's next invoice under Monthly Bills.
-                  </div>
+                <div style={ec.successBox}>
+                  <strong>✅ Charge added</strong> — {allStores.find((st: any) => st.id === manualDone.storeId)?.name},{' '}
+                  {fmt$(parseFloat(manualDone.amount))} for <strong>{manualDone.period}</strong>
                 </div>
+              )}
+            </div>
+
+            {/* ── Existing charges list ── */}
+            <div style={ec.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h2 style={{ ...ec.cardTitle, marginBottom: 2 }}>📋 Existing Extra Charges</h2>
+                  <p style={ec.cardSub}>All custom charges across stores. Paid charges cannot be edited or deleted.</p>
+                </div>
+                <button style={s.editBtn} onClick={() => refetchCharges()}>↻ Refresh</button>
+              </div>
+
+              {/* Filters */}
+              <div style={ec.filterRow}>
+                <select style={ec.filterSelect} value={ecStoreFilter} onChange={e => setEcStoreFilter(e.target.value)}>
+                  <option value="">All Stores</option>
+                  {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                </select>
+                <input style={ec.filterSelect} type="month" value={ecPeriodFilter}
+                  onChange={e => setEcPeriodFilter(e.target.value)}
+                  title="Filter by billing period" />
+                {ecPeriodFilter && <button style={s.cancelBtn} onClick={() => setEcPeriodFilter('')}>✕ Period</button>}
+                <select style={ec.filterSelect} value={ecPaidFilter} onChange={e => setEcPaidFilter(e.target.value as any)}>
+                  <option value="">All Status</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="paid">Paid</option>
+                </select>
+                {(ecStoreFilter || ecPeriodFilter || ecPaidFilter) && (
+                  <button style={s.cancelBtn} onClick={() => { setEcStoreFilter(''); setEcPeriodFilter(''); setEcPaidFilter(''); }}>
+                    ✕ Clear filters
+                  </button>
+                )}
+              </div>
+
+              {ecLoading ? (
+                <div style={s.loading}>Loading charges…</div>
+              ) : extraCharges.length === 0 ? (
+                <div style={ec.emptyBox}>
+                  No extra charges found{ecStoreFilter || ecPeriodFilter || ecPaidFilter ? ' for this filter' : ''}. Add one above.
+                </div>
+              ) : (
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Store</th>
+                      <th style={s.th}>Description</th>
+                      <th style={s.th}>Amount</th>
+                      <th style={s.th}>Period</th>
+                      <th style={s.th}>Status</th>
+                      <th style={s.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extraCharges.map((charge: any) => {
+                      const isEditing = editingCharge === charge.id;
+                      return (
+                        <tr key={charge.id}>
+                          <td style={s.td}>
+                            <strong>{charge.store?.name ?? '—'}</strong>
+                            {charge.store?.city && <div style={s.cityLabel}>{charge.store.city}</div>}
+                          </td>
+                          <td style={s.td}>
+                            {isEditing ? (
+                              <input style={{ ...s.input, margin: 0 }} value={editForm.description}
+                                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                            ) : (
+                              <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: '#9ca3af' }}>No description</em>}</span>
+                            )}
+                          </td>
+                          <td style={s.td}>
+                            {isEditing ? (
+                              <div style={{ position: 'relative', width: 110 }}>
+                                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>$</span>
+                                <input style={{ ...s.input, paddingLeft: 20, margin: 0 }} type="number" min="0.01" step="0.01"
+                                  value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
+                              </div>
+                            ) : (
+                              <strong style={{ color: '#E63946', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
+                            )}
+                          </td>
+                          <td style={s.td}>{charge.period}</td>
+                          <td style={s.td}>
+                            <span style={charge.isPaid ? s.paidBadge : s.unpaidBadge}>
+                              {charge.isPaid ? `✓ Paid` : '⏳ Unpaid'}
+                            </span>
+                            {charge.isPaid && charge.paidAt && (
+                              <div style={s.cityLabel}>{new Date(charge.paidAt).toLocaleDateString()}</div>
+                            )}
+                          </td>
+                          <td style={s.td}>
+                            {isEditing ? (
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button style={s.saveBtn} disabled={updateCharge.isPending}
+                                  onClick={() => saveEditCharge(charge.id)}>
+                                  {updateCharge.isPending ? '…' : 'Save'}
+                                </button>
+                                <button style={s.cancelBtn} onClick={() => setEditingCharge(null)}>Cancel</button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {!charge.isPaid && (
+                                  <>
+                                    <button style={s.editBtn} onClick={() => startEditCharge(charge)}>Edit</button>
+                                    <button style={{ ...s.saveBtn, marginRight: 0 }}
+                                      disabled={markChargePaid.isPending}
+                                      onClick={() => markChargePaid.mutate(charge.id)}>
+                                      Mark Paid
+                                    </button>
+                                    <button
+                                      style={{ ...s.cancelBtn, borderColor: '#fca5a5', color: '#dc2626' }}
+                                      disabled={deleteCharge.isPending}
+                                      onClick={() => {
+                                        if (confirm(`Delete "${charge.description || 'this charge'}" (${fmt$(parseFloat(charge.amount))})?`))
+                                          deleteCharge.mutate(charge.id);
+                                      }}>
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} style={{ ...s.catTd, fontWeight: 800 }}>
+                        Total ({extraCharges.length} charge{extraCharges.length !== 1 ? 's' : ''})
+                      </td>
+                      <td style={{ ...s.catTd, fontWeight: 800, color: '#E63946' }}>
+                        {fmt$(extraCharges.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))}
+                      </td>
+                      <td colSpan={3} style={s.catTd}>
+                        <span style={{ color: '#2DC653', fontWeight: 700 }}>
+                          {fmt$(extraCharges.filter((c: any) => c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} collected
+                        </span>
+                        {' · '}
+                        <span style={{ color: '#f59e0b', fontWeight: 700 }}>
+                          {fmt$(extraCharges.filter((c: any) => !c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} outstanding
+                        </span>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               )}
             </div>
           </div>
@@ -1305,6 +1514,30 @@ const s: Record<string, React.CSSProperties> = {
   infoList: { marginTop: 8 },
   fieldLabel: { display: 'block', fontSize: 15, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 16 },
   btn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 },
+};
+
+// ─── Extra charges tab styles ─────────────────────────────────────────────────
+const ec: Record<string, React.CSSProperties> = {
+  card: { background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' },
+  cardTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' },
+  cardSub: { fontSize: 14, color: '#6b7280', margin: '0 0 20px' },
+
+  templateRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center', padding: '12px 14px', background: '#f8faff', borderRadius: 10, border: '1px solid #e0e7ff' },
+  templateLabel: { fontSize: 13, fontWeight: 700, color: '#4f46e5', marginRight: 4, flexShrink: 0 },
+  templateBtn: {
+    background: '#fff', border: '1.5px solid #c7d2fe', color: '#4338ca',
+    borderRadius: 20, padding: '4px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 },
+  formField: {},
+
+  filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '10px 12px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb' },
+  filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff' },
+
+  successBox: { marginTop: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#166534' },
+  emptyBox: { padding: '32px 0', textAlign: 'center', color: '#6b7280', fontSize: 14 },
 };
 
 // ─── Invoice styles ───────────────────────────────────────────────────────────

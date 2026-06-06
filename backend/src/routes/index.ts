@@ -141,6 +141,9 @@ import {
   createBillingRecord,
   markBillingPaid,
   markPeriodPaid,
+  getExtraCharges,
+  updateBillingRecord,
+  deleteBillingRecord,
   getDevRevenue,
   getAnalytics,
   getCategoryRates,
@@ -256,7 +259,10 @@ router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDev
 router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
+router.get('/billing/extra-charges', authenticate, requireRole(Role.DEV_ADMIN), getExtraCharges);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
+router.patch('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), updateBillingRecord);
+router.delete('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), deleteBillingRecord);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
 router.get('/billing/tier-rates', authenticate, requireRole(Role.EMPLOYEE), getTierRates);
 router.put('/billing/tier-rates/:tier', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRate);

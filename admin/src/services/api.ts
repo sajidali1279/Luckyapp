@@ -67,6 +67,17 @@ export const billingApi = {
     const qs = params.toString();
     return api.get(`/billing/monthly-records${qs ? `?${qs}` : ''}`);
   },
+  getExtraCharges: (storeId?: string, period?: string, isPaid?: boolean) => {
+    const params = new URLSearchParams();
+    if (storeId) params.set('storeId', storeId);
+    if (period)  params.set('period', period);
+    if (isPaid !== undefined) params.set('isPaid', String(isPaid));
+    const qs = params.toString();
+    return api.get(`/billing/extra-charges${qs ? `?${qs}` : ''}`);
+  },
+  updateRecord: (recordId: string, data: { description?: string; amount?: number }) =>
+    api.patch(`/billing/records/${recordId}`, data),
+  deleteRecord: (recordId: string) => api.delete(`/billing/records/${recordId}`),
 };
 
 export const offersApi = {
