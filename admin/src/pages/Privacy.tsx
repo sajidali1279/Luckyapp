@@ -21,7 +21,7 @@
       </div>
 
       <h1 style={s.h1}>Privacy Policy</h1>
-      <p style={s.updated}>Last updated: May 9, 2026</p>
+      <p style={s.updated}>Last updated: June 7, 2026</p>
 
       <p style={s.p}>
         Lucky Stop ("we", "our", or "us") operates the Lucky Stop mobile application.
