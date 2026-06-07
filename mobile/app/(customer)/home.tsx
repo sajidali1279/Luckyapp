@@ -34,12 +34,12 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string; icon: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null }> = {
-  BRONZE:   { color: '#CD7F32', label: 'Bronze',   icon: '🥉', nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000  },
-  SILVER:   { color: '#A8A9AD', label: 'Silver',   icon: '🥈', nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000 },
-  GOLD:     { color: '#FFD700', label: 'Gold',     icon: '🥇', nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000 },
-  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  icon: '💎', nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 60000 },
-  PLATINUM: { color: '#E5E4E2', label: 'Platinum', icon: '👑', nextLabel: null,       thresholdPts: 60000,  nextThresholdPts: null  },
+const TIER_CONFIG: Record<string, { color: string; label: string; icon: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null; benefits: string[] }> = {
+  BRONZE:   { color: '#CD7F32', label: 'Bronze',   icon: '🥉', nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000,  benefits: ['1% cashback on all purchases', 'Access to all 12 Lucky Stop locations', 'Member-only deals & promotions'] },
+  SILVER:   { color: '#A8A9AD', label: 'Silver',   icon: '🥈', nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000, benefits: ['2% cashback (2× Bronze rate)', '7 free fountain refills this period — use any time, bring your own cup', 'Silver-exclusive offers & rewards'] },
+  GOLD:     { color: '#FFD700', label: 'Gold',     icon: '🥇', nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000, benefits: ['3% cashback on all purchases', '1 free fountain refill daily (bring your own cup)', '+5¢ bonus per gallon on gas', 'Gold-exclusive catalog items'] },
+  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  icon: '💎', nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 45000, benefits: ['4% cashback on all purchases', '1 free fountain refill daily (bring your own cup)', '+7¢ bonus per gallon on gas', 'Diamond-exclusive limited drops', 'Early access to new rewards'] },
+  PLATINUM: { color: '#E5E4E2', label: 'Platinum', icon: '👑', nextLabel: null,       thresholdPts: 45000,  nextThresholdPts: null,  benefits: ['5% cashback — maximum rate', '1 free fountain refill daily (bring your own cup)', '+10¢ bonus per gallon on gas', 'Platinum vault — top-tier rewards only', 'Highest loyalty status'] },
 };
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -53,7 +53,7 @@ const AnimatedDot = memo(function AnimatedDot({ active, color }: { active: boole
   useEffect(() => {
     Animated.parallel([
       Animated.spring(width, { toValue: active ? 20 : 7, useNativeDriver: false, bounciness: 10 }),
-      Animated.timing(opacity, { toValue: active ? 1 : 0.35, duration: 200, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: active ? 1 : 0.35, duration: 200, useNativeDriver: false }),
     ]).start();
   }, [active]);
 
@@ -150,103 +150,77 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
   );
 }
 
-/* ─── Featured slideshow (hot food + rewards) ─────────────── */
+/* ─── Promo slideshow ──────────────────────────────────────── */
 const SLIDE_W = SCREEN_W - 32;
 const PLACEHOLDER_COLORS_FS = ['#FFF7ED', '#F0FDF4', '#EFF6FF', '#FEF9C3', '#FDF2F8', '#F0F9FF'];
 
-type SlideItem = {
-  id: string;
-  kind: 'hotfood' | 'reward';
-  name: string;
-  description?: string;
-  price?: number;
-  pointsRequired?: number;
-  imageUrl?: string;
-};
+type PromoKind = 'cashback' | 'rewards' | 'tiers' | 'network';
+type PromoSlide = { id: PromoKind; bg: string; deco: string; eyebrow: string; headline: string; body: string; cta: string | null; route: string | null };
 
-const FeaturedSlideshow = memo(function FeaturedSlideshow({
-  slides,
-  onHotFoodPress,
-}: {
-  slides: SlideItem[];
-  onHotFoodPress: (item: any) => void;
-}) {
+const PROMO_SLIDES: PromoSlide[] = [
+  { id: 'cashback', bg: '#1D3557', deco: '#4DA8DA', eyebrow: 'HOW IT WORKS',      headline: 'Earn 1–5% Back Every Visit',   body: 'Cashback grows as you rise through tiers — Bronze starts at 1%, Platinum earns 5%', cta: 'View Earnings',  route: '/(customer)/history' },
+  { id: 'rewards',  bg: '#C2410C', deco: '#FCD34D', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items — no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
+  { id: 'tiers',   bg: '#5B21B6', deco: '#C4B5FD', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
+  { id: 'network', bg: '#0F766E', deco: '#5EEAD4', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop — shop anywhere',       cta: null,             route: null },
+];
+
+function promoIcon(kind: PromoKind, size: number) {
+  switch (kind) {
+    case 'cashback': return <PercentIcon size={size} color="#fff" strokeWidth={2} />;
+    case 'rewards':  return <GiftIcon    size={size} color="#fff" strokeWidth={2} />;
+    case 'tiers':    return <StarIcon    size={size} color="#fff" strokeWidth={1.75} />;
+    case 'network':  return <MapPinIcon  size={size} color="#fff" strokeWidth={2} />;
+  }
+}
+
+const PromoSlideshow = memo(function PromoSlideshow() {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startTimer = useCallback((idx: number) => {
+  const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setActiveIndex(prev => {
-        const next = (prev + 1) % slides.length;
+        const next = (prev + 1) % PROMO_SLIDES.length;
         flatRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
-    }, 3500);
-  }, [slides.length]);
+    }, 4000);
+  }, []);
 
   useEffect(() => {
-    if (slides.length <= 1) return;
-    startTimer(0);
+    startTimer();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [slides.length, startTimer]);
+  }, [startTimer]);
 
-  const renderSlide = useCallback(({ item }: { item: SlideItem }) => {
-    const placeholderBg = PLACEHOLDER_COLORS_FS[(item.name || '?').charCodeAt(0) % PLACEHOLDER_COLORS_FS.length];
-    const isFood = item.kind === 'hotfood';
-
-    return (
-      <TouchableOpacity
-        style={fs.slide}
-        activeOpacity={0.92}
-        onPress={() => {
-          if (isFood) onHotFoodPress({ id: item.id, name: item.name, description: item.description, price: item.price, imageUrl: item.imageUrl });
-          else router.push('/(customer)/rewards');
-        }}
-      >
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={fs.slideImg} resizeMode="cover" />
-        ) : (
-          <View style={[fs.slideImgPlaceholder, { backgroundColor: placeholderBg }]}>
-            {isFood
-              ? <FlameIcon size={44} color="#EA580C" strokeWidth={1.25} />
-              : <GiftIcon size={44} color={COLORS.primary} strokeWidth={1.25} />
-            }
+  const renderSlide = useCallback(({ item }: { item: PromoSlide }) => (
+    <TouchableOpacity
+      style={[ps.slide, { backgroundColor: item.bg }]}
+      activeOpacity={item.route ? 0.88 : 1}
+      onPress={() => { if (item.route) router.push(item.route as any); }}
+    >
+      <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '22' }]} />
+      <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '33' }]} />
+      <View style={ps.slideInner}>
+        <View style={ps.iconBadge}>{promoIcon(item.id, 22)}</View>
+        <Text style={ps.eyebrow}>{item.eyebrow}</Text>
+        <Text style={ps.headline}>{item.headline}</Text>
+        <Text style={ps.body} numberOfLines={2}>{item.body}</Text>
+        {item.cta && (
+          <View style={[ps.cta, { backgroundColor: item.deco }]}>
+            <Text style={[ps.ctaText, { color: item.bg }]}>{item.cta} →</Text>
           </View>
         )}
-        <View style={fs.overlay}>
-          <View style={[fs.kindChip, { backgroundColor: isFood ? '#EA580C' : COLORS.primary }]}>
-            {isFood
-              ? <FlameIcon size={10} color="#fff" strokeWidth={2.5} />
-              : <GiftIcon size={10} color="#fff" strokeWidth={2.5} />
-            }
-            <Text style={fs.kindChipText}>{isFood ? 'Hot Food' : 'Reward'}</Text>
-          </View>
-          <Text style={fs.slideName} numberOfLines={2}>{item.name}</Text>
-          {item.description ? <Text style={fs.slideDesc} numberOfLines={1}>{item.description}</Text> : null}
-          <View style={fs.slideFooter}>
-            <Text style={fs.slidePrice}>
-              {isFood
-                ? `$${Number(item.price).toFixed(2)}`
-                : `${item.pointsRequired?.toLocaleString()} pts`}
-            </Text>
-            <View style={[fs.ctaChip, { backgroundColor: isFood ? '#EA580C' : COLORS.primary }]}>
-              <Text style={fs.ctaChipText}>{isFood ? 'Order Now' : 'Redeem'}</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [onHotFoodPress]);
-
-  if (slides.length === 0) return null;
+      </View>
+    </TouchableOpacity>
+  ), []);
 
   return (
-    <View style={fs.root}>
+    <View style={ps.root}>
       <FlatList
         ref={flatRef}
-        data={slides}
+        data={PROMO_SLIDES}
         keyExtractor={item => item.id}
         horizontal
         pagingEnabled
@@ -256,18 +230,80 @@ const FeaturedSlideshow = memo(function FeaturedSlideshow({
         onMomentumScrollEnd={e => {
           const idx = Math.round(e.nativeEvent.contentOffset.x / (SLIDE_W + 12));
           setActiveIndex(idx);
-          startTimer(idx);
+          startTimer();
         }}
         getItemLayout={(_, index) => ({ length: SLIDE_W + 12, offset: (SLIDE_W + 12) * index, index })}
         renderItem={renderSlide}
       />
-      {slides.length > 1 && (
-        <View style={fs.dots}>
-          {slides.map((_, i) => (
-            <AnimatedDot key={i} active={i === activeIndex} color={COLORS.primary} />
-          ))}
+      <View style={ps.dots}>
+        {PROMO_SLIDES.map((_, i) => (
+          <AnimatedDot key={i} active={i === activeIndex} color={COLORS.primary} />
+        ))}
+      </View>
+    </View>
+  );
+});
+
+/* ─── Rewards shelf ────────────────────────────────────────── */
+const CAT_DISPLAY: Record<string, { label: string; emoji: string; color: string }> = {
+  IN_STORE:  { label: 'In-Store',  emoji: '🛒', color: '#2A9D8F' },
+  GAS:       { label: 'Gas',       emoji: '⛽', color: '#F4A226' },
+  HOT_FOODS: { label: 'Hot Foods', emoji: '🌮', color: '#E63946' },
+};
+const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
+
+const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any[]; userPts: number }) {
+  if (items.length === 0) return null;
+
+  // Derive category order from actual data so new categories appear automatically
+  const seenKeys: string[] = [];
+  items.forEach((i: any) => { if (i.category && !seenKeys.includes(i.category)) seenKeys.push(i.category); });
+
+  const sections = seenKeys.map((key, idx) => {
+    const cfg = CAT_DISPLAY[key] ?? {
+      label: key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      emoji: '🏷️',
+      color: CAT_FALLBACK_COLORS[idx % CAT_FALLBACK_COLORS.length],
+    };
+    return { key, ...cfg, items: items.filter((i: any) => i.category === key).slice(0, 2) };
+  }).filter(s => s.items.length > 0);
+  if (sections.length === 0) return null;
+  return (
+    <View style={rs.root}>
+      {sections.map(section => (
+        <View key={section.key} style={rs.section}>
+          <View style={[rs.catHeader, { backgroundColor: section.color + '18' }]}>
+            <Text style={rs.catEmoji}>{section.emoji}</Text>
+            <Text style={[rs.catLabel, { color: section.color }]}>{section.label}</Text>
+          </View>
+          <View style={rs.tileRow}>
+            {section.items.map((item: any) => {
+              const canAfford = userPts >= item.pointsCost;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[rs.tile, canAfford && { borderColor: section.color + '55' }]}
+                  onPress={() => router.push('/(customer)/rewards')}
+                  activeOpacity={0.82}
+                >
+                  <View style={[rs.tileIconWrap, { backgroundColor: section.color + '18' }]}>
+                    <Text style={rs.tileEmoji}>{item.emoji || '🎁'}</Text>
+                  </View>
+                  <Text style={rs.tileName} numberOfLines={2}>{item.title}</Text>
+                  <View style={[rs.ptsBadge, canAfford && { backgroundColor: section.color }]}>
+                    <Text style={[rs.ptsText, !canAfford && { color: COLORS.textMuted }]}>
+                      {item.pointsCost.toLocaleString()} pts
+                    </Text>
+                  </View>
+                  {!canAfford && (
+                    <Text style={rs.shortage}>−{(item.pointsCost - userPts).toLocaleString()}</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      )}
+      ))}
     </View>
   );
 });
@@ -298,6 +334,21 @@ export default function CustomerHome() {
       ])
     ).start();
   }, []);
+
+  // Tier track animations
+  const tierPulse = useRef(new Animated.Value(1.3)).current;
+  const tierShine = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(tierPulse, { toValue: 1.47, duration: 1000, useNativeDriver: true }),
+      Animated.timing(tierPulse, { toValue: 1.3, duration: 1000, useNativeDriver: true }),
+    ])).start();
+    Animated.loop(Animated.sequence([
+      Animated.timing(tierShine, { toValue: 0.8, duration: 1600, useNativeDriver: true }),
+      Animated.timing(tierShine, { toValue: 0, duration: 1600, useNativeDriver: true }),
+    ])).start();
+  }, []);
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
 
   const [showQR, setShowQR] = useState(false);
 
@@ -425,42 +476,11 @@ export default function CustomerHome() {
   });
   const catalogItems: any[] = catalogData?.data?.data ?? [];
 
-  // Interleave hot food + rewards for the featured slideshow (max 8 slides)
-  const featuredSlides: SlideItem[] = (() => {
-    const food = hotFoodMenu
-      .filter((i: any) => i?.name)
-      .slice(0, 4)
-      .map((i: any) => ({
-        id: `food-${i.id}`,
-        kind: 'hotfood' as const,
-        name: i.name as string,
-        description: i.description,
-        price: i.price,
-        imageUrl: i.imageUrl,
-      }));
-    const rewards = catalogItems
-      .filter((i: any) => i?.name)
-      .slice(0, 4)
-      .map((i: any) => ({
-        id: `reward-${i.id}`,
-        kind: 'reward' as const,
-        name: i.name as string,
-        description: i.description,
-        pointsRequired: i.pointsRequired,
-        imageUrl: i.imageUrl,
-      }));
-    const result: SlideItem[] = [];
-    const max = Math.max(food.length, rewards.length);
-    for (let i = 0; i < max; i++) {
-      if (food[i]) result.push(food[i]);
-      if (rewards[i]) result.push(rewards[i]);
-    }
-    return result;
-  })();
-
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
-  const promotions = allOffers.filter((o: any) => o.bonusRate || o.gasBonusCentsPerGallon != null);
+  const promotions = allOffers.filter((o: any) => o.bonusRate && o.gasBonusCentsPerGallon == null);
+  const gasOffers  = allOffers.filter((o: any) => o.gasBonusCentsPerGallon != null);
+  const bestGasOffer: any | null = gasOffers[0] ?? null;
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = bannersRefetching || offersRefetching;
   const contentLoading = !locationReady || offersLoading;
@@ -516,7 +536,8 @@ export default function CustomerHome() {
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
-  const periodPts = Math.round(Number(user?.periodPoints || 0) * 100);
+  const userPts   = Math.round(Number(user?.pointsBalance || 0) * 100);
+  const periodPts = Math.round(Number(user?.periodPoints  || 0) * 100);
   const tierProgress = tier.nextThresholdPts != null
     ? Math.min(1, Math.max(0, (periodPts - tier.thresholdPts) / (tier.nextThresholdPts - tier.thresholdPts)))
     : 1;
@@ -603,28 +624,36 @@ export default function CustomerHome() {
 
           {/* Tier track */}
           <View style={styles.tierTrack}>
-            {Object.entries(TIER_CONFIG).map(([key, cfg], i, arr) => {
+            {Object.entries(TIER_CONFIG).map(([key, cfg], i) => {
               const isCurrent = (user?.tier || 'BRONZE') === key;
               const isPast = i < Object.keys(TIER_CONFIG).indexOf(user?.tier || 'BRONZE');
-              const isNext = i === Object.keys(TIER_CONFIG).indexOf(user?.tier || 'BRONZE') + 1;
               return (
                 <View key={key} style={styles.tierTrackItem}>
                   {i > 0 && (
-                    <View style={[styles.tierConnector, { backgroundColor: isPast ? cfg.color : 'rgba(255,255,255,0.15)' }]} />
+                    <View style={[styles.tierConnector, { backgroundColor: isPast ? cfg.color : 'rgba(255,255,255,0.15)' }]}>
+                      {isPast && (
+                        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.38)', opacity: tierShine }]} />
+                      )}
+                    </View>
                   )}
-                  <View style={[
-                    styles.tierBubble,
-                    isCurrent && { backgroundColor: cfg.color + '30', borderColor: cfg.color, transform: [{ scale: 1.3 }] },
-                    isPast && { backgroundColor: cfg.color + '25', borderColor: cfg.color + '60' },
-                    !isCurrent && !isPast && { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)' },
-                  ]}>
-                    <Text style={[
-                      styles.tierBubbleText,
-                      !isCurrent && !isPast && { opacity: 0.4 },
-                    ]}>
-                      {cfg.icon}
-                    </Text>
-                  </View>
+                  <TouchableOpacity onPress={() => setSelectedTier(key)} activeOpacity={0.7}>
+                    {isCurrent ? (
+                      <Animated.View style={[
+                        styles.tierBubble,
+                        { backgroundColor: cfg.color + '30', borderColor: cfg.color, transform: [{ scale: tierPulse }] },
+                      ]}>
+                        <Text style={styles.tierBubbleText}>{cfg.icon}</Text>
+                      </Animated.View>
+                    ) : (
+                      <View style={[
+                        styles.tierBubble,
+                        isPast && { backgroundColor: cfg.color + '25', borderColor: cfg.color + '60' },
+                        !isPast && { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.05)' },
+                      ]}>
+                        <Text style={[styles.tierBubbleText, !isPast && { opacity: 0.4 }]}>{cfg.icon}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
                   {isCurrent && <View style={[styles.tierBubbleDot, { backgroundColor: cfg.color }]} />}
                 </View>
               );
@@ -650,22 +679,30 @@ export default function CustomerHome() {
         <WelcomeBonusCard />
       </Animated.View>
 
-      {/* ── Featured Slideshow (Hot Food + Rewards) ── */}
-      {featuredSlides.length > 0 && (
-        <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-          <View style={styles.section}>
-            <View style={styles.sectionRow}>
-              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label="Featured for You" />
-            </View>
-            <FeaturedSlideshow
-              slides={featuredSlides}
-              onHotFoodPress={item => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
-            />
+      {/* ── Promo Slideshow ── */}
+      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label="Why Lucky Stop?" />
           </View>
-        </Animated.View>
+          <PromoSlideshow />
+        </View>
+      </Animated.View>
+
+      {/* ── Redeem with Points ── */}
+      {catalogItems.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label="Redeem with Points" />
+            <TouchableOpacity onPress={() => router.push('/(customer)/rewards')} activeOpacity={0.7}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          <RewardsShelf items={catalogItems} userPts={userPts} />
+        </View>
       )}
 
-      {/* ── Gas Prices ── */}
+      {/* ── Gas Prices + Active Gas Offers ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
         {contentLoading
           ? (
@@ -673,57 +710,80 @@ export default function CustomerHome() {
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label="Today's Gas Prices" />
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gasPriceRow}>
+              <View style={gp.row}>
                 <SkeletonGasPriceCard />
-                <SkeletonGasPriceCard />
-              </ScrollView>
+              </View>
             </View>
           )
           : gasPrices.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label="Today's Gas Prices" />
+                {bestGasOffer && (
+                  <View style={gp.sectionOfferChip}>
+                    <GasPumpIcon size={10} color="#F4A226" strokeWidth={2.5} />
+                    <Text style={gp.sectionOfferChipText}>Gas offer active</Text>
+                  </View>
+                )}
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gasPriceRow}>
-                {gasPrices.map((store: any) => (
-                  <View key={store.id} style={styles.gasPriceCard}>
-                    <Text style={styles.gasStoreName} numberOfLines={1}>{store.name}</Text>
+              {gasPrices.map((store: any) => (
+                <View key={store.id} style={gp.row}>
+                  {/* ─ Price card ─ */}
+                  <View style={gp.priceCard}>
+                    <Text style={gp.storeName} numberOfLines={1}>{store.name}</Text>
                     {!nearestStore && store.address && (
-                      <Text style={styles.gasStoreAddress} numberOfLines={1}>{store.address}, {store.city}</Text>
+                      <Text style={gp.storeAddr} numberOfLines={1}>{store.address}, {store.city}</Text>
                     )}
                     {!nearestStore && store.phone && (
                       <TouchableOpacity
                         onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`)}
                         activeOpacity={0.7}
-                        style={styles.gasPhoneBtn}
+                        style={{ alignSelf: 'flex-start', marginBottom: 5 }}
                       >
                         <Text style={styles.gasStorePhone}>📞 {store.phone}</Text>
                       </TouchableOpacity>
                     )}
-                    {store.gasPricePerGallon != null && (
-                      <View style={styles.gasPriceLine}>
-                        <GasPumpIcon size={14} color={COLORS.accent} strokeWidth={2} />
-                        <Text style={styles.gasPriceLabel}>Gas</Text>
-                        <Text style={styles.gasPriceValue}>${Number(store.gasPricePerGallon).toFixed(3)}</Text>
-                        <Text style={styles.gasPriceUnit}>/gal</Text>
-                      </View>
-                    )}
-                    {store.dieselPricePerGallon != null && (
-                      <View style={styles.gasPriceLine}>
-                        <TruckIcon size={14} color={COLORS.secondary} strokeWidth={2} />
-                        <Text style={styles.gasPriceLabel}>Diesel</Text>
-                        <Text style={styles.gasPriceValue}>${Number(store.dieselPricePerGallon).toFixed(3)}</Text>
-                        <Text style={styles.gasPriceUnit}>/gal</Text>
-                      </View>
-                    )}
+                    <View style={gp.priceLines}>
+                      {store.gasPricePerGallon != null && (
+                        <View style={gp.priceLine}>
+                          <GasPumpIcon size={13} color={COLORS.accent} strokeWidth={2} />
+                          <Text style={gp.priceLabel}>Gas</Text>
+                          <Text style={gp.priceVal}>${Number(store.gasPricePerGallon).toFixed(3)}</Text>
+                          <Text style={gp.priceUnit}>/gal</Text>
+                        </View>
+                      )}
+                      {store.dieselPricePerGallon != null && (
+                        <View style={gp.priceLine}>
+                          <TruckIcon size={13} color={COLORS.secondary} strokeWidth={2} />
+                          <Text style={gp.priceLabel}>Diesel</Text>
+                          <Text style={gp.priceVal}>${Number(store.dieselPricePerGallon).toFixed(3)}</Text>
+                          <Text style={gp.priceUnit}>/gal</Text>
+                        </View>
+                      )}
+                    </View>
                     {store.gasPriceUpdatedAt && (
-                      <Text style={styles.gasUpdatedAt}>
+                      <Text style={gp.updatedAt}>
                         Updated {new Date(store.gasPriceUpdatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </Text>
                     )}
                   </View>
-                ))}
-              </ScrollView>
+
+                  {/* ─ Gas offer tile ─ */}
+                  {bestGasOffer && (
+                    <TouchableOpacity style={gp.offerCard} onPress={() => setSelectedOffer(bestGasOffer)} activeOpacity={0.85}>
+                      <View style={gp.offerIconWrap}>
+                        <GasPumpIcon size={18} color="#fff" strokeWidth={2} />
+                      </View>
+                      <Text style={gp.offerBonus}>+{bestGasOffer.gasBonusCentsPerGallon}¢</Text>
+                      <Text style={gp.offerUnit}>per gallon</Text>
+                      <Text style={gp.offerTitle} numberOfLines={2}>{bestGasOffer.title}</Text>
+                      <View style={gp.autoAppliedBadge}>
+                        <Text style={gp.autoAppliedText}>Auto-applied</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
             </View>
           )
         }
@@ -1155,6 +1215,59 @@ export default function CustomerHome() {
         </Modal>
       )}
 
+      {/* ── Tier info modal ── */}
+      {selectedTier && (() => {
+        const cfg = TIER_CONFIG[selectedTier];
+        const tierKeys = Object.keys(TIER_CONFIG);
+        const tierIdx = tierKeys.indexOf(selectedTier);
+        const userTierIdx = tierKeys.indexOf(user?.tier || 'BRONZE');
+        const isCurrent = tierIdx === userTierIdx;
+        const isPast = tierIdx < userTierIdx;
+        const ptsAway = Math.max(0, cfg.thresholdPts - periodPts);
+        return (
+          <Modal transparent animationType="fade" onRequestClose={() => setSelectedTier(null)}>
+            <TouchableOpacity style={ti.backdrop} activeOpacity={1} onPress={() => setSelectedTier(null)}>
+              <TouchableOpacity style={ti.card} activeOpacity={1} onPress={() => {}}>
+                <View style={[ti.iconWrap, { backgroundColor: cfg.color + '22' }]}>
+                  <Text style={ti.icon}>{cfg.icon}</Text>
+                </View>
+                <Text style={[ti.tierName, { color: cfg.color }]}>{cfg.label}</Text>
+                {cfg.thresholdPts > 0 && (
+                  <Text style={ti.threshold}>{cfg.thresholdPts.toLocaleString()} pts earned in a period</Text>
+                )}
+                {isCurrent && (
+                  <View style={[ti.badge, { backgroundColor: COLORS.secondary + '18' }]}>
+                    <Text style={[ti.badgeText, { color: COLORS.secondary }]}>Your Current Tier</Text>
+                  </View>
+                )}
+                {isPast && (
+                  <View style={[ti.badge, { backgroundColor: '#E8F5E9' }]}>
+                    <Text style={[ti.badgeText, { color: '#2E7D32' }]}>✓ Achieved</Text>
+                  </View>
+                )}
+                {!isCurrent && !isPast && ptsAway > 0 && (
+                  <View style={[ti.badge, { backgroundColor: '#FFF3E0' }]}>
+                    <Text style={[ti.badgeText, { color: '#E65100' }]}>{ptsAway.toLocaleString()} pts away</Text>
+                  </View>
+                )}
+                <View style={ti.divider} />
+                <View style={ti.benefitsWrap}>
+                  {cfg.benefits.map((b, idx) => (
+                    <View key={idx} style={ti.benefitRow}>
+                      <View style={[ti.dot, { backgroundColor: cfg.color }]} />
+                      <Text style={ti.benefitText}>{b}</Text>
+                    </View>
+                  ))}
+                </View>
+                <TouchableOpacity style={ti.closeBtn} onPress={() => setSelectedTier(null)}>
+                  <Text style={ti.closeBtnText}>Got it</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+        );
+      })()}
+
       </Animated.ScrollView>
 
       {/* ── QR floating button ── */}
@@ -1516,35 +1629,105 @@ const styles = StyleSheet.create({
   scanReceiptSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });
 
-const fs = StyleSheet.create({
-  root: { gap: 10 },
+const ps = StyleSheet.create({
+  root:         { gap: 10 },
   slide: {
-    width: SLIDE_W, marginRight: 12, borderRadius: 20, overflow: 'hidden',
-    height: 200,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
-    backgroundColor: '#fff',
+    width: SLIDE_W, marginRight: 12, borderRadius: 22, overflow: 'hidden',
+    height: 196,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
   },
-  slideImg:           { width: SLIDE_W, height: 200, resizeMode: 'cover' },
-  slideImgPlaceholder:{ width: SLIDE_W, height: 200, alignItems: 'center', justifyContent: 'center' },
-  overlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.52)',
-    padding: 14, gap: 4,
+  decoCircleLg: { position: 'absolute', width: 220, height: 220, borderRadius: 110, top: -70, right: -55 },
+  decoCircleSm: { position: 'absolute', width: 110, height: 110, borderRadius: 55, top: 16, right: 62 },
+  slideInner:   { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, padding: 20, justifyContent: 'flex-end', gap: 5 },
+  iconBadge: {
+    width: 46, height: 46, borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
   },
-  kindChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    alignSelf: 'flex-start', borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 2,
+  eyebrow:  { color: 'rgba(255,255,255,0.58)', fontSize: 10, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  headline: { color: '#fff', fontSize: 20, fontWeight: '900', lineHeight: 25, letterSpacing: -0.4 },
+  body:     { color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 17 },
+  cta:      { alignSelf: 'flex-start', borderRadius: 10, paddingHorizontal: 13, paddingVertical: 6, marginTop: 5 },
+  ctaText:  { fontSize: 12, fontWeight: '800' },
+  dots:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
+});
+
+const rs = StyleSheet.create({
+  root:         { gap: 14 },
+  section:      { gap: 0 },
+  catHeader:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 8, alignSelf: 'flex-start' },
+  catEmoji:     { fontSize: 13 },
+  catLabel:     { fontSize: 12, fontWeight: '800' },
+  tileRow:      { flexDirection: 'row', gap: 10 },
+  tile: {
+    flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 12,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
+    gap: 6,
   },
-  kindChipText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
-  slideName:    { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 20 },
-  slideDesc:    { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 16 },
-  slideFooter:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  slidePrice:   { color: '#fff', fontSize: 18, fontWeight: '900' },
-  ctaChip:      { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
-  ctaChipText:  { color: '#fff', fontSize: 12, fontWeight: '800' },
-  dots:         { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
+  tileIconWrap: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  tileEmoji:    { fontSize: 20 },
+  tileName:     { fontSize: 12, fontWeight: '700', color: COLORS.text, lineHeight: 16 },
+  ptsBadge:     { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.border, alignSelf: 'flex-start' },
+  ptsText:      { fontSize: 11, fontWeight: '800', color: '#fff' },
+  shortage:     { fontSize: 10, fontWeight: '600', color: '#E63946', marginTop: -2 },
+});
+
+const gp = StyleSheet.create({
+  row:               { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  sectionOfferChip:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  sectionOfferChipText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  priceCard: {
+    flex: 1, backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
+    borderTopWidth: 3, borderTopColor: '#f97316',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+  },
+  storeName:   { fontSize: 14, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  storeAddr:   { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
+  priceLines:  { gap: 6, marginBottom: 2 },
+  priceLine:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  priceLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', flex: 1 },
+  priceVal:    { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  priceUnit:   { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  updatedAt:   { fontSize: 10, color: COLORS.border, marginTop: 8, fontWeight: '600' },
+  offerCard: {
+    width: 128, backgroundColor: '#1D3557', borderRadius: 18, padding: 14,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#1D3557', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+    gap: 3,
+  },
+  offerIconWrap:    { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  offerBonus:       { color: '#fff', fontSize: 28, fontWeight: '900', lineHeight: 32 },
+  offerUnit:        { color: 'rgba(255,255,255,0.58)', fontSize: 11, fontWeight: '600' },
+  offerTitle:       { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 4, lineHeight: 14 },
+  autoAppliedBadge: { backgroundColor: '#F4A226', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6 },
+  autoAppliedText:  { color: '#fff', fontSize: 10, fontWeight: '800' },
+});
+
+const ti = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.52)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  card: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 24, width: '100%',
+    alignItems: 'center', gap: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.18, shadowRadius: 28, elevation: 24,
+  },
+  iconWrap: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  icon: { fontSize: 38 },
+  tierName: { fontSize: 23, fontWeight: '900', letterSpacing: -0.4 },
+  threshold: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  badge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, marginTop: 2 },
+  badgeText: { fontSize: 12, fontWeight: '800' },
+  divider: { height: 1, backgroundColor: COLORS.border, width: '100%', marginVertical: 10 },
+  benefitsWrap: { width: '100%', gap: 11 },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
+  benefitText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 20, fontWeight: '500' },
+  closeBtn: { marginTop: 10, backgroundColor: COLORS.background, borderRadius: 14, paddingVertical: 13, width: '100%', alignItems: 'center' },
+  closeBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
 });
 
 const bc = StyleSheet.create({

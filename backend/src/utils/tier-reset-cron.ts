@@ -1,6 +1,7 @@
 /**
  * Tier reset cron — runs on Jan 1 and Jul 1 at 00:01 UTC.
- * Resets periodPoints and tier to BRONZE for all customers.
+ * Falls each customer back one tier (Platinum→Diamond, Diamond→Gold, etc.).
+ * periodPoints reset to 0. Bronze stays Bronze.
  * Notifies affected customers.
  */
 import cron from 'node-cron';
@@ -10,18 +11,38 @@ import { broadcastToCustomers } from './push';
 
 export async function runTierReset() {
   const newPeriod = getCurrentPeriod();
-  console.log(`[tier-reset] Starting tier reset for period ${newPeriod}…`);
+  console.log(`[tier-reset] Starting tier fall-back for period ${newPeriod}…`);
 
-  await prisma.user.updateMany({
-    where: { role: 'CUSTOMER' },
-    data: { periodPoints: 0, tier: 'BRONZE', tierPeriod: newPeriod },
-  });
+  // Execute bottom-to-top so sequential updates don't cascade within the transaction:
+  // each updateMany only sees original tier holders, not users changed in earlier steps.
+  await prisma.$transaction([
+    prisma.user.updateMany({
+      where: { role: 'CUSTOMER', tier: 'BRONZE' },
+      data: { periodPoints: 0, tierPeriod: newPeriod },
+    }),
+    prisma.user.updateMany({
+      where: { role: 'CUSTOMER', tier: 'SILVER' },
+      data: { periodPoints: 0, tier: 'BRONZE', tierPeriod: newPeriod },
+    }),
+    prisma.user.updateMany({
+      where: { role: 'CUSTOMER', tier: 'GOLD' },
+      data: { periodPoints: 0, tier: 'SILVER', tierPeriod: newPeriod },
+    }),
+    prisma.user.updateMany({
+      where: { role: 'CUSTOMER', tier: 'DIAMOND' },
+      data: { periodPoints: 0, tier: 'GOLD', tierPeriod: newPeriod },
+    }),
+    prisma.user.updateMany({
+      where: { role: 'CUSTOMER', tier: 'PLATINUM' },
+      data: { periodPoints: 0, tier: 'DIAMOND', tierPeriod: newPeriod },
+    }),
+  ]);
 
-  console.log('[tier-reset] All customer tiers reset to Bronze.');
+  console.log('[tier-reset] Tier fall-back complete for period', newPeriod);
 
   broadcastToCustomers(
-    '🔄 New Rewards Period Started!',
-    'Your tier has reset for the new period. Start earning points to climb back up!',
+    '🔄 New Rewards Period!',
+    'A new period has started. Your tier has stepped back one level — earn points to climb back and keep your perks!',
     'GENERAL'
   );
 }

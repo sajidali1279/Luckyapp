@@ -26,23 +26,27 @@ const TIER_THRESHOLDS: Record<string, number> = {
 
 const TIER_BENEFITS: Record<string, string[]> = {
   BRONZE:   [],
-  SILVER:   ['30 free fountain drinks this period'],
-  GOLD:     ['1 free drink or coffee per day', '+5 pts per gallon on gas'],
-  DIAMOND:  ['1 free drink or coffee per day', '+7 pts per gallon on gas'],
-  PLATINUM: ['1 free drink or coffee per day', '+10 pts per gallon on gas'],
+  SILVER:   ['7 free fountain refills this period (any time, your own cup)'],
+  GOLD:     ['1 free fountain refill daily (your own cup)', '+5¢ bonus per gallon on gas'],
+  DIAMOND:  ['1 free fountain refill daily (your own cup)', '+7¢ bonus per gallon on gas'],
+  PLATINUM: ['1 free fountain refill daily (your own cup)', '+10¢ bonus per gallon on gas'],
 };
 
 // ─── Catalog config ────────────────────────────────────────────────────────────
-type Category = 'ALL' | 'IN_STORE' | 'GAS' | 'HOT_FOODS';
+const CAT_DISPLAY: Record<string, { label: string; emoji: string; color: string }> = {
+  IN_STORE:  { label: 'In-Store',  emoji: '🛒', color: '#2A9D8F' },
+  GAS:       { label: 'Gas',       emoji: '⛽', color: '#F4A226' },
+  HOT_FOODS: { label: 'Hot Foods', emoji: '🌮', color: '#E63946' },
+};
+const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
 
-const CATEGORIES: { key: Category; label: string; emoji: string; color: string }[] = [
-  { key: 'ALL',       label: 'All',       emoji: '🏷️', color: COLORS.secondary },
-  { key: 'IN_STORE',  label: 'In-Store',  emoji: '🛒', color: '#2A9D8F' },
-  { key: 'GAS',       label: 'Gas',       emoji: '⛽', color: '#F4A226' },
-  { key: 'HOT_FOODS', label: 'Hot Foods', emoji: '🌮', color: '#E63946' },
-];
-
-const CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
+function getCatCfg(key: string, idx = 0): { label: string; emoji: string; color: string } {
+  return CAT_DISPLAY[key] ?? {
+    label: key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+    emoji: '🏷️',
+    color: CAT_FALLBACK_COLORS[idx % CAT_FALLBACK_COLORS.length],
+  };
+}
 
 // ─── Countdown hook ────────────────────────────────────────────────────────────
 function useCountdown(expiresAt: string | null) {
@@ -134,7 +138,7 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
 
 // ─── Catalog tile ──────────────────────────────────────────────────────────────
 function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem: (item: any) => void }) {
-  const catCfg = CAT_MAP[item.category as Category] || CAT_MAP.IN_STORE;
+  const catCfg = getCatCfg(item.category);
   const canAfford = pts >= item.pointsCost;
   const shortage = item.pointsCost - pts;
   return (
@@ -169,7 +173,7 @@ function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem
 function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
   item: any; pts: number; onConfirm: () => void; onClose: () => void; loading: boolean;
 }) {
-  const catCfg = CAT_MAP[item.category as Category] || CAT_MAP.IN_STORE;
+  const catCfg = getCatCfg(item.category);
   const remaining = pts - item.pointsCost;
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -283,7 +287,7 @@ export default function RewardsScreen() {
   const tierCfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
   const benefits = TIER_BENEFITS[tier] || [];
 
-  const [activeCategory, setActiveCategory] = useState<Category>('ALL');
+  const [activeCategory, setActiveCategory] = useState('ALL');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [successData, setSuccessData] = useState<any>(null);
   const [benefitModal, setBenefitModal] = useState(false);
@@ -329,6 +333,14 @@ export default function RewardsScreen() {
   });
 
   const allItems: any[] = catalogData?.data?.data || [];
+
+  // Derive filter tabs from live data — new categories appear automatically
+  const categoryKeys = Array.from(new Set(allItems.map((i: any) => i.category).filter(Boolean))) as string[];
+  const categories = [
+    { key: 'ALL', label: 'All', emoji: '🏷️', color: COLORS.secondary },
+    ...categoryKeys.map((key, idx) => ({ key, ...getCatCfg(key, idx) })),
+  ];
+
   const filtered = activeCategory === 'ALL' ? allItems : allItems.filter(i => i.category === activeCategory);
   const now = new Date();
   const pendingRedemptions: any[] = (redemptionsData?.data?.data || [])
@@ -397,7 +409,7 @@ export default function RewardsScreen() {
                   <Text style={[r.howToUse, { color: tierCfg.color }]}>How to use →</Text>
                 </View>
                 {benefits.map((b, i) => {
-                  const isDaily = b.includes('free drink') || b.includes('free fountain');
+                  const isDaily = b.includes('free fountain') || b.includes('free refill');
                   const available = benefitStatus?.available;
                   const remaining = benefitStatus?.silverRemaining;
                   return (
@@ -432,7 +444,7 @@ export default function RewardsScreen() {
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={r.catRow}>
-              {CATEGORIES.map(cat => {
+              {categories.map(cat => {
                 const active = activeCategory === cat.key;
                 const count = cat.key === 'ALL' ? allItems.length : allItems.filter(i => i.category === cat.key).length;
                 return (
@@ -465,9 +477,9 @@ export default function RewardsScreen() {
         ListEmptyComponent={
           !catalogLoading ? (
             <View style={r.emptyBox}>
-              <Text style={r.emptyEmoji}>{CATEGORIES.find(c => c.key === activeCategory)?.emoji || '🏷️'}</Text>
+              <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory).emoji}</Text>
               <Text style={r.emptyTitle}>
-                {activeCategory === 'ALL' ? 'No rewards yet' : `No ${CATEGORIES.find(c => c.key === activeCategory)?.label} rewards yet`}
+                {activeCategory === 'ALL' ? 'No rewards yet' : `No ${getCatCfg(activeCategory).label} rewards yet`}
               </Text>
               <Text style={r.emptySub}>Check back soon — new rewards are added regularly</Text>
             </View>
@@ -514,8 +526,8 @@ export default function RewardsScreen() {
               <View style={[bm.statusPill, { backgroundColor: benefitStatus.available ? '#E8F5E9' : '#FFF3E0' }]}>
                 <Text style={[bm.statusText, { color: benefitStatus.available ? COLORS.success : '#F4A226' }]}>
                   {tier === 'SILVER'
-                    ? `${benefitStatus.silverRemaining} fountain drinks remaining this period`
-                    : benefitStatus.available ? '✓ Benefit available today' : '✗ Already used today — resets tomorrow'}
+                    ? `${benefitStatus.silverRemaining} refills remaining this period`
+                    : benefitStatus.available ? '✓ Refill available today' : '✗ Refill used today — resets tomorrow'}
                 </Text>
               </View>
             )}
@@ -525,7 +537,7 @@ export default function RewardsScreen() {
               <Text style={bm.stepsTitle}>How to claim at the register</Text>
               {[
                 { n: '1', text: 'Open the app and go to your QR code on the Home tab' },
-                { n: '2', text: 'Show the cashier your QR code and ask for your ' + (tier === 'SILVER' ? 'free fountain drink' : 'free drink or coffee') },
+                { n: '2', text: 'Show the cashier your QR and ask for your free fountain refill — bring your own cup' },
                 { n: '3', text: 'The cashier will scan your QR and apply the benefit — nothing else needed' },
               ].map(step => (
                 <View key={step.n} style={bm.stepRow}>

@@ -8,7 +8,7 @@ import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
-import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
+import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 
 // Employee: initiate a points grant (before receipt upload)
@@ -117,6 +117,18 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   }
 
+  // ── Compound rate cap — hard ceiling to protect against misconfigured category/promo rates ──
+  const rateCappedFlags: string[] = [];
+  if (effectiveCashbackRate > CASHBACK_RATE_CAP) {
+    const uncapped = effectiveCashbackRate;
+    cashbackIssued        = parseFloat((purchaseAmount * CASHBACK_RATE_CAP).toFixed(4));
+    effectiveCashbackRate = CASHBACK_RATE_CAP;
+    rateCappedFlags.push('CASHBACK_RATE_CAPPED');
+    console.warn(`[rate-cap] Rate ${(uncapped * 100).toFixed(2)}% → capped at ${CASHBACK_RATE_CAP * 100}% on $${purchaseAmount} (tier=${customerTier})`);
+  } else if (effectiveCashbackRate > CASHBACK_RATE_WARN) {
+    rateCappedFlags.push('HIGH_CASHBACK_RATE');
+  }
+
   const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
   const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4));
   const pointsAwarded = cashbackIssued;
@@ -157,7 +169,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   }
 
   // Soft flags — create as FLAGGED, hold points for manager review
-  const fraudFlags: string[] = [];
+  const fraudFlags: string[] = [...rateCappedFlags];
   if (purchaseAmount > 500 && !isGasCategory) fraudFlags.push('HIGH_AMOUNT');
   if (purchaseAmount > 800)                   fraudFlags.push('LARGE_PURCHASE');
   if (customerTodayCount >= 4)                fraudFlags.push('CUSTOMER_VELOCITY');
@@ -710,15 +722,15 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
     const used = await prisma.tierBenefitClaim.count({
       where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
     });
-    silverRemaining = Math.max(0, 30 - used);
+    silverRemaining = Math.max(0, 7 - used);
     benefitAvailable = silverRemaining > 0;
     benefitType = 'SILVER_FOUNTAIN';
   } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
     const usedToday = await prisma.tierBenefitClaim.count({
-      where: { userId: customer.id, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+      where: { userId: customer.id, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
     benefitAvailable = usedToday === 0;
-    benefitType = 'DAILY_DRINK';
+    benefitType = 'DAILY_REFILL';
   }
 
   const thresholds = await getStoredThresholds();
@@ -761,15 +773,15 @@ export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
     const used = await prisma.tierBenefitClaim.count({
       where: { userId, period, benefitType: 'SILVER_FOUNTAIN' },
     });
-    silverRemaining = Math.max(0, 30 - used);
+    silverRemaining = Math.max(0, 7 - used);
     available = silverRemaining > 0;
     benefitType = 'SILVER_FOUNTAIN';
   } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
     const usedToday = await prisma.tierBenefitClaim.count({
-      where: { userId, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+      where: { userId, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
     available = usedToday === 0;
-    benefitType = 'DAILY_DRINK';
+    benefitType = 'DAILY_REFILL';
   }
 
   res.json({ success: true, data: { tier, available, benefitType, silverRemaining } });
@@ -801,8 +813,8 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     const used = await prisma.tierBenefitClaim.count({
       where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
     });
-    if (used >= 30) {
-      res.status(400).json({ success: false, error: 'Silver benefit limit reached (30 uses this period)' });
+    if (used >= 7) {
+      res.status(400).json({ success: false, error: 'Silver benefit limit reached (7 refills this period)' });
       return;
     }
     benefitType = 'SILVER_FOUNTAIN';
@@ -810,13 +822,13 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
     const usedToday = await prisma.tierBenefitClaim.count({
-      where: { userId: customer.id, period, benefitType: 'DAILY_DRINK', claimedAt: { gte: todayStart, lte: todayEnd } },
+      where: { userId: customer.id, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
     if (usedToday > 0) {
-      res.status(400).json({ success: false, error: 'Daily benefit already claimed today' });
+      res.status(400).json({ success: false, error: 'Daily refill already claimed today' });
       return;
     }
-    benefitType = 'DAILY_DRINK';
+    benefitType = 'DAILY_REFILL';
   }
 
   await prisma.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });

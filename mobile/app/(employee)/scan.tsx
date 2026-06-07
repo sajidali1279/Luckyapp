@@ -797,16 +797,16 @@ export default function EmployeeScanScreen() {
               activeOpacity={0.85}
             >
               <View style={[s.modeIconBg, { backgroundColor: tierCfg.color + '18' }]}>
-                <Text style={s.modeEmoji}>{benefitType === 'SILVER_FOUNTAIN' ? '🥤' : '☕'}</Text>
+                <Text style={s.modeEmoji}>🥤</Text>
               </View>
               <View style={s.modeBody}>
                 <Text style={[s.modeTitle, { color: tierCfg.color }]}>
-                  {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
+                  {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Refill' : 'Free Daily Refill'}
                 </Text>
                 <Text style={s.modeSub}>
                   {benefitType === 'SILVER_FOUNTAIN'
-                    ? `${silverRemaining} uses left this period`
-                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier — 1 per day`}
+                    ? `${silverRemaining} refills left this period`
+                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier — 1 refill per day`}
                 </Text>
               </View>
               {loading ? (
@@ -1215,13 +1215,13 @@ export default function EmployeeScanScreen() {
       {step === 'benefit-done' && (
         <CelebrationDone
           heading="Benefit Claimed!"
-          amount={benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Drink' : 'Free Drink / Coffee'}
+          amount={benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Refill' : 'Free Daily Refill'}
           amountColor={tierCfg.color}
           sub={cdata?.name || cdata?.phone}
           extraNode={
             <View style={[s.newBalanceCard, { borderColor: tierCfg.color + '40' }]}>
               <Text style={s.newBalanceLabel}>{tierCfg.emoji} {tierCfg.label} Member</Text>
-              {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{silverRemaining - 1} uses remaining</Text>}
+              {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{silverRemaining - 1} refills remaining this period</Text>}
             </View>
           }
           onNext={reset} nextLabel="Scan Next Customer"

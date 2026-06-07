@@ -141,7 +141,7 @@ const SLIDES = [
     key: 'tiers',
     emoji: '👑',
     title: 'Level Up Your\nLoyalty Tier',
-    subtitle: 'From Bronze to Platinum — unlock daily free drinks, gas bonuses, and exclusive perks as you grow.',
+    subtitle: 'From Bronze to Platinum — earn higher cashback, daily free refills, gas bonuses, and exclusive perks as you grow.',
     bg: '#F4A226',
     accent: '#1D3557',
   },

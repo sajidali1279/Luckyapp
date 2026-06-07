@@ -31,7 +31,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '👑',
         title: 'Level Up Your Tier',
-        subtitle: 'Earn more points each period to unlock higher tiers — from Bronze all the way to Platinum. Better tier = better perks like free drinks and gas bonuses.',
+        subtitle: 'Earn more points each period to unlock higher tiers — from Bronze all the way to Platinum. Higher tier = higher cashback rate, free refills, and gas bonuses.',
       },
     ],
   },

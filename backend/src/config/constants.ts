@@ -11,3 +11,8 @@ export const DEFAULT_TIER_RATES: Record<string, number> = {
   DIAMOND:  0.04,
   PLATINUM: 0.05,
 };
+
+// Compound cashback rate guard — prevents misconfigured category/promo rates from over-issuing.
+// Warn flag added above WARN, hard-cap applied at CAP (transaction still processes, just capped).
+export const CASHBACK_RATE_WARN = 0.075; // 7.5% — flag for admin review
+export const CASHBACK_RATE_CAP  = 0.10;  // 10% — hard ceiling, never exceeded
