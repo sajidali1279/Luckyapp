@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Image,
 } from 'react-native';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -263,9 +263,7 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoMarkText}>LS</Text>
-            </View>
+            <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
             <Text style={styles.logo}>Lucky Stop</Text>
             <Text style={styles.tagline}>Welcome back</Text>
           </View>
@@ -344,9 +342,7 @@ export default function LoginScreen() {
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoMarkText}>LS</Text>
-            </View>
+            <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
             <Text style={styles.logo}>Lucky Stop</Text>
             <Text style={styles.tagline}>Verify your number</Text>
           </View>
@@ -545,13 +541,10 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 32, paddingTop: 16 },
   logoMark: {
     width: 64, height: 64, borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
     marginBottom: 14,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
   },
-  logoMarkText: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
   logo: { fontSize: 28, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
   tagline: { fontSize: 14, color: COLORS.textMuted, marginTop: 6, fontWeight: '500' },
 

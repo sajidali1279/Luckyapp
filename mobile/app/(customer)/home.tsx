@@ -1287,7 +1287,7 @@ export default function CustomerHome() {
             <View style={styles.qrModalHeader}>
               <View style={styles.qrModalPill} />
               <View style={styles.qrModalLogoRow}>
-                <View style={styles.qrModalLogo}><Text style={styles.qrModalLogoText}>LS</Text></View>
+                <Image source={require('../../assets/store-icon-512.png')} style={styles.qrModalLogo} />
                 <View>
                   <Text style={styles.qrModalTitle}>Your QR Code</Text>
                   <Text style={styles.qrModalSub}>Show this to the cashier to earn points</Text>
@@ -1370,10 +1370,7 @@ const styles = StyleSheet.create({
   qrModalLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' },
   qrModalLogo: {
     width: 42, height: 42, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center',
   },
-  qrModalLogoText: { color: '#fff', fontSize: 14, fontWeight: '900' },
   qrModalTitle: { fontSize: 17, fontWeight: '900', color: '#fff' },
   qrModalSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   qrModalFrame: {

@@ -147,9 +147,7 @@ export default function ManagerHome() {
 
         <View style={s.headerRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
-            <View style={s.headerLogo}>
-              <Text style={s.headerLogoText}>LS</Text>
-            </View>
+            <Image source={require('../../assets/store-icon-512.png')} style={s.headerLogo} />
             <View>
               <Text style={s.greeting}>{getGreeting()}</Text>
               <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
@@ -433,11 +431,8 @@ const s = StyleSheet.create({
   },
   headerLogo: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  headerLogoText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
   greeting:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500', letterSpacing: 0.3 },
   name:      { fontSize: 24, color: '#FFFFFF', fontWeight: '800', marginTop: 1, letterSpacing: -0.3 },
   storeName: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3, fontWeight: '400' },
