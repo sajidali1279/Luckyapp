@@ -1,11 +1,12 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, StatusBar,
+  Image, ActivityIndicator, RefreshControl, StatusBar, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { offersApi } from '../../services/api';
+import { useRef, useEffect } from 'react';
+import { offersApi, hotFoodApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
@@ -35,6 +36,29 @@ export default function EmployeeHomeScreen() {
     data: bannersData,
     refetch: refetchBanners, isRefetching: bannersRefetching,
   } = useQuery({ queryKey: ['banners', storeId], queryFn: () => offersApi.getBanners(storeId) });
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['hot-food-pending-count', storeId],
+    queryFn: () => hotFoodApi.getPendingCount(storeId!),
+    enabled: !!storeId,
+    refetchInterval: 20_000,
+  });
+  const pendingCount: number = pendingData?.data?.data?.count ?? 0;
+
+  // Pulse animation when there are pending orders
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (pendingCount > 0) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.04, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [pendingCount > 0]);
 
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => !o.dealText);
@@ -121,6 +145,41 @@ export default function EmployeeHomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* ── Hot Food Orders Tile ── */}
+        {storeId && (
+          <Animated.View style={{ transform: [{ scale: pulseAnim }], marginTop: 16, marginBottom: 4 }}>
+            <TouchableOpacity
+              style={[s.hotFoodTile, pendingCount > 0 && s.hotFoodTileActive]}
+              onPress={() => router.push('/(employee)/hot-food')}
+              activeOpacity={0.82}
+            >
+              <View style={s.hotFoodTileLeft}>
+                <View style={[s.hotFoodIconBg, pendingCount > 0 && s.hotFoodIconBgActive]}>
+                  <FlameIcon size={22} color={pendingCount > 0 ? '#fff' : '#EA580C'} strokeWidth={2} />
+                </View>
+                <View>
+                  <Text style={[s.hotFoodTileTitle, pendingCount > 0 && s.hotFoodTileTitleActive]}>
+                    Hot Food Orders
+                  </Text>
+                  <Text style={[s.hotFoodTileSub, pendingCount > 0 && s.hotFoodTileSubActive]}>
+                    {pendingCount > 0
+                      ? `${pendingCount} order${pendingCount > 1 ? 's' : ''} waiting — tap to manage`
+                      : 'No pending orders right now'}
+                  </Text>
+                </View>
+              </View>
+              <View style={s.hotFoodTileRight}>
+                {pendingCount > 0 && (
+                  <View style={s.hotFoodBadge}>
+                    <Text style={s.hotFoodBadgeText}>{pendingCount > 99 ? '99+' : pendingCount}</Text>
+                  </View>
+                )}
+                <ChevronRightIcon size={18} color={pendingCount > 0 ? '#fff' : '#94A3B8'} strokeWidth={2.5} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* ── Active Promotions ── */}
         <View style={s.sectionRow}>
@@ -369,4 +428,34 @@ const s = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   infoIconWrap: { marginTop: 2 },
   infoText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 20 },
+
+  // Hot food orders tile
+  hotFoodTile: {
+    backgroundColor: '#fff', borderRadius: 18,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16, borderWidth: 1.5, borderColor: '#FED7AA',
+    shadowColor: '#EA580C', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+  },
+  hotFoodTileActive: {
+    backgroundColor: '#EA580C', borderColor: '#EA580C',
+    shadowOpacity: 0.28, elevation: 6,
+  },
+  hotFoodTileLeft:  { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+  hotFoodTileRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hotFoodIconBg: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center',
+  },
+  hotFoodIconBgActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  hotFoodTileTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 2 },
+  hotFoodTileTitleActive: { color: '#fff' },
+  hotFoodTileSub:   { fontSize: 12, color: '#6b7280', lineHeight: 16 },
+  hotFoodTileSubActive: { color: 'rgba(255,255,255,0.8)' },
+  hotFoodBadge: {
+    minWidth: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  hotFoodBadgeText: { color: '#EA580C', fontSize: 13, fontWeight: '900' },
 });

@@ -12,13 +12,13 @@ import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import { COLORS } from '../../constants';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
   FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon,
-  PercentIcon,
+  PercentIcon, GiftIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 
@@ -149,6 +149,128 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
     </View>
   );
 }
+
+/* ─── Featured slideshow (hot food + rewards) ─────────────── */
+const SLIDE_W = SCREEN_W - 32;
+const PLACEHOLDER_COLORS_FS = ['#FFF7ED', '#F0FDF4', '#EFF6FF', '#FEF9C3', '#FDF2F8', '#F0F9FF'];
+
+type SlideItem = {
+  id: string;
+  kind: 'hotfood' | 'reward';
+  name: string;
+  description?: string;
+  price?: number;
+  pointsRequired?: number;
+  imageUrl?: string;
+};
+
+const FeaturedSlideshow = memo(function FeaturedSlideshow({
+  slides,
+  onHotFoodPress,
+}: {
+  slides: SlideItem[];
+  onHotFoodPress: (item: any) => void;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatRef = useRef<FlatList>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startTimer = useCallback((idx: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setActiveIndex(prev => {
+        const next = (prev + 1) % slides.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3500);
+  }, [slides.length]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    startTimer(0);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [slides.length, startTimer]);
+
+  const renderSlide = useCallback(({ item }: { item: SlideItem }) => {
+    const placeholderBg = PLACEHOLDER_COLORS_FS[item.name.charCodeAt(0) % PLACEHOLDER_COLORS_FS.length];
+    const isFood = item.kind === 'hotfood';
+
+    return (
+      <TouchableOpacity
+        style={fs.slide}
+        activeOpacity={0.92}
+        onPress={() => {
+          if (isFood) onHotFoodPress({ id: item.id, name: item.name, description: item.description, price: item.price, imageUrl: item.imageUrl });
+          else router.push('/(customer)/rewards');
+        }}
+      >
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={fs.slideImg} resizeMode="cover" />
+        ) : (
+          <View style={[fs.slideImgPlaceholder, { backgroundColor: placeholderBg }]}>
+            {isFood
+              ? <FlameIcon size={44} color="#EA580C" strokeWidth={1.25} />
+              : <GiftIcon size={44} color={COLORS.primary} strokeWidth={1.25} />
+            }
+          </View>
+        )}
+        <View style={fs.overlay}>
+          <View style={[fs.kindChip, { backgroundColor: isFood ? '#EA580C' : COLORS.primary }]}>
+            {isFood
+              ? <FlameIcon size={10} color="#fff" strokeWidth={2.5} />
+              : <GiftIcon size={10} color="#fff" strokeWidth={2.5} />
+            }
+            <Text style={fs.kindChipText}>{isFood ? 'Hot Food' : 'Reward'}</Text>
+          </View>
+          <Text style={fs.slideName} numberOfLines={2}>{item.name}</Text>
+          {item.description ? <Text style={fs.slideDesc} numberOfLines={1}>{item.description}</Text> : null}
+          <View style={fs.slideFooter}>
+            <Text style={fs.slidePrice}>
+              {isFood
+                ? `$${Number(item.price).toFixed(2)}`
+                : `${item.pointsRequired?.toLocaleString()} pts`}
+            </Text>
+            <View style={[fs.ctaChip, { backgroundColor: isFood ? '#EA580C' : COLORS.primary }]}>
+              <Text style={fs.ctaChipText}>{isFood ? 'Order Now' : 'Redeem'}</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }, [onHotFoodPress]);
+
+  if (slides.length === 0) return null;
+
+  return (
+    <View style={fs.root}>
+      <FlatList
+        ref={flatRef}
+        data={slides}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={SLIDE_W + 12}
+        decelerationRate="fast"
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (SLIDE_W + 12));
+          setActiveIndex(idx);
+          startTimer(idx);
+        }}
+        getItemLayout={(_, index) => ({ length: SLIDE_W + 12, offset: (SLIDE_W + 12) * index, index })}
+        renderItem={renderSlide}
+      />
+      {slides.length > 1 && (
+        <View style={fs.dots}>
+          {slides.map((_, i) => (
+            <AnimatedDot key={i} active={i === activeIndex} color={COLORS.primary} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+});
 
 /* ─── Main screen ─────────────────────────────────────────── */
 export default function CustomerHome() {
@@ -289,12 +411,46 @@ export default function CustomerHome() {
   });
 
   const { data: hotFoodData } = useQuery({
-    queryKey: ['hot-food-menu', nearestStore?.id],
-    queryFn: () => hotFoodApi.getMenu(nearestStore!.id),
+    queryKey: ['hot-food-customer-menu', nearestStore?.id],
+    queryFn: () => hotFoodApi.getCustomerMenu(nearestStore!.id),
     enabled: !!nearestStore,
     staleTime: 5 * 60 * 1000,
   });
   const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
+
+  const { data: catalogData } = useQuery({
+    queryKey: ['catalog-active'],
+    queryFn: () => catalogApi.getActive(),
+    staleTime: 10 * 60 * 1000,
+  });
+  const catalogItems: any[] = catalogData?.data?.data ?? [];
+
+  // Interleave hot food + rewards for the featured slideshow (max 8 slides)
+  const featuredSlides: SlideItem[] = (() => {
+    const food = hotFoodMenu.slice(0, 4).map((i: any) => ({
+      id: `food-${i.id}`,
+      kind: 'hotfood' as const,
+      name: i.name,
+      description: i.description,
+      price: i.price,
+      imageUrl: i.imageUrl,
+    }));
+    const rewards = catalogItems.slice(0, 4).map((i: any) => ({
+      id: `reward-${i.id}`,
+      kind: 'reward' as const,
+      name: i.name,
+      description: i.description,
+      pointsRequired: i.pointsRequired,
+      imageUrl: i.imageUrl,
+    }));
+    const result: SlideItem[] = [];
+    const max = Math.max(food.length, rewards.length);
+    for (let i = 0; i < max; i++) {
+      if (food[i]) result.push(food[i]);
+      if (rewards[i]) result.push(rewards[i]);
+    }
+    return result;
+  })();
 
   const banners = bannersData?.data?.data || [];
   const allOffers: any[] = offersData?.data?.data || [];
@@ -487,6 +643,21 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <WelcomeBonusCard />
       </Animated.View>
+
+      {/* ── Featured Slideshow (Hot Food + Rewards) ── */}
+      {featuredSlides.length > 0 && (
+        <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+          <View style={styles.section}>
+            <View style={styles.sectionRow}>
+              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label="Featured for You" />
+            </View>
+            <FeaturedSlideshow
+              slides={featuredSlides}
+              onHotFoodPress={item => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
+            />
+          </View>
+        </Animated.View>
+      )}
 
       {/* ── Gas Prices ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
@@ -1337,6 +1508,37 @@ const styles = StyleSheet.create({
   },
   scanReceiptTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   scanReceiptSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+});
+
+const fs = StyleSheet.create({
+  root: { gap: 10 },
+  slide: {
+    width: SLIDE_W, marginRight: 12, borderRadius: 20, overflow: 'hidden',
+    height: 200,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
+    backgroundColor: '#fff',
+  },
+  slideImg:           { width: SLIDE_W, height: 200, resizeMode: 'cover' },
+  slideImgPlaceholder:{ width: SLIDE_W, height: 200, alignItems: 'center', justifyContent: 'center' },
+  overlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    padding: 14, gap: 4,
+  },
+  kindChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginBottom: 2,
+  },
+  kindChipText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+  slideName:    { color: '#fff', fontSize: 16, fontWeight: '800', lineHeight: 20 },
+  slideDesc:    { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 16 },
+  slideFooter:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  slidePrice:   { color: '#fff', fontSize: 18, fontWeight: '900' },
+  ctaChip:      { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
+  ctaChipText:  { color: '#fff', fontSize: 12, fontWeight: '800' },
+  dots:         { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
 });
 
 const bc = StyleSheet.create({

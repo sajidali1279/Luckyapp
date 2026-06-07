@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
+import { sendPushToStoreStaff } from '../utils/push';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,15 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       items: true,
     },
   });
+
+  // Notify all on-site employees for this store
+  const itemSummary = orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
+  sendPushToStoreStaff(
+    storeId,
+    `🔥 New Order #${order.orderNumber}`,
+    itemSummary,
+    'HOT_FOOD_ORDER',
+  );
 
   res.status(201).json({ success: true, data: order });
 }
