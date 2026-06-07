@@ -76,7 +76,7 @@ export default function ManagerHome() {
     staleTime: 5 * 60 * 1000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
-  const storeId = stores.length === 1 ? stores[0].id : undefined;
+  const storeId = stores[0]?.id;
 
   const { data: activeListData } = useQuery({
     queryKey: ['order-list-active', storeId],
@@ -153,7 +153,12 @@ export default function ManagerHome() {
             <View>
               <Text style={s.greeting}>{getGreeting()}</Text>
               <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
-              {stores.length === 1 && <Text style={s.storeName}>{stores[0].name}</Text>}
+              {stores.length === 1
+                ? <Text style={s.storeName}>{stores[0].name}</Text>
+                : stores.length > 1
+                  ? <Text style={s.storeName}>{stores.length} stores</Text>
+                  : null
+              }
             </View>
           </View>
 
@@ -186,11 +191,6 @@ export default function ManagerHome() {
           </View>
         </View>
 
-        {totalItems > 0 && (
-          <View style={s.headerBadge}>
-            <Text style={s.headerBadgeText}>{totalItems} items tracked</Text>
-          </View>
-        )}
       </View>
 
       <ScrollView
@@ -295,7 +295,7 @@ export default function ManagerHome() {
         <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
           <View style={s.sectionHeader}>
             <TrendingUpIcon size={15} color={COLORS.secondary} />
-            <Text style={s.sectionTitle}>Inventory Intelligence</Text>
+            <Text style={s.sectionTitle}>Order History</Text>
             <View style={s.periodPicker}>
               {PERIODS.map(p => (
                 <TouchableOpacity
@@ -441,13 +441,6 @@ const s = StyleSheet.create({
   greeting:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500', letterSpacing: 0.3 },
   name:      { fontSize: 24, color: '#FFFFFF', fontWeight: '800', marginTop: 1, letterSpacing: -0.3 },
   storeName: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3, fontWeight: '400' },
-  headerBadge: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
-    alignSelf: 'flex-start', marginTop: 10, zIndex: 1,
-  },
-  headerBadgeText: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
-
   // Bell + avatar
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   bellBtn: {
@@ -483,7 +476,7 @@ const s = StyleSheet.create({
     marginTop: -52,
     marginBottom: 10,
   },
-  quickCardWide: { flex: 1 },
+  quickCardWide: { flex: 1.5 },
   quickCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -499,7 +492,7 @@ const s = StyleSheet.create({
   quickTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   quickIconBox:{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   quickLabel:  { fontSize: 10, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-  quickValue:  { fontSize: 30, fontWeight: '800', color: '#111827', lineHeight: 34, letterSpacing: -0.5 },
+  quickValue:  { fontSize: 26, fontWeight: '800', color: '#111827', lineHeight: 30, letterSpacing: -0.5 },
   quickSub:    { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   quickBadge:  {
     alignSelf: 'flex-start', marginTop: 4,
@@ -509,7 +502,7 @@ const s = StyleSheet.create({
   quickBadgeText: { fontSize: 9, fontWeight: '800', color: '#059669', letterSpacing: 0.8 },
   miniPillRow:  { flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 5 },
   miniPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, borderWidth: 1 },
-  miniPillText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
+  miniPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
 
   // ── Alert banner ────────────────────────────────────────────────────────────
   alertCard: {
