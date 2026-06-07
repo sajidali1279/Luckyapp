@@ -169,20 +169,19 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
 
-// GET /hot-food/store/:storeId/menu — available items for a store (legacy + catalog)
+// GET /hot-food/store/:storeId/menu — available items only (customer ordering)
 export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
-  // Legacy per-store or global menu items
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
     select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
     orderBy: { name: 'asc' },
   });
 
-  // Catalog items assigned to this store
+  // Only catalog items that are available at this store
   const catalogAssignments = await prisma.hotFoodCatalogStore.findMany({
-    where: { storeId },
+    where: { storeId, isAvailable: true },
     select: {
       catalogItem: {
         select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
@@ -191,12 +190,76 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   });
   const catalogItems = catalogAssignments.map(a => a.catalogItem);
 
-  // Catalog takes precedence — deduplicate legacy items with same name
   const catalogNames = new Set(catalogItems.map(c => c.name.toLowerCase()));
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
   const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
   res.json({ success: true, data: all });
+}
+
+// GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
+export async function getStoreAllItems(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+
+  const menuItems = await prisma.hotFoodMenuItem.findMany({
+    where: { OR: [{ storeId }, { storeId: null }] },
+    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, isAvailable: true },
+    orderBy: [{ isAvailable: 'desc' }, { name: 'asc' }],
+  });
+
+  const catalogAssignments = await prisma.hotFoodCatalogStore.findMany({
+    where: { storeId },
+    select: {
+      isAvailable: true,
+      catalogItem: {
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+      },
+    },
+  });
+
+  const catalogNames = new Set(catalogAssignments.map(a => a.catalogItem.name.toLowerCase()));
+  const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
+
+  const legacyItems = dedupedMenu.map(m => ({ ...m, source: 'menu' as const }));
+  const catalogItems = catalogAssignments.map(a => ({
+    ...a.catalogItem,
+    isAvailable: a.isAvailable,
+    source: 'catalog' as const,
+  }));
+
+  const all = [...legacyItems, ...catalogItems].sort((a, b) => {
+    if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  res.json({ success: true, data: all });
+}
+
+// PATCH /hot-food/store/:storeId/catalog/:catalogItemId/availability — employee toggles per-store catalog availability
+export async function updateCatalogStoreAvailability(req: AuthRequest, res: Response) {
+  const { storeId, catalogItemId } = req.params;
+  const { isAvailable } = req.body;
+
+  if (typeof isAvailable !== 'boolean') {
+    res.status(400).json({ success: false, error: 'isAvailable must be a boolean' });
+    return;
+  }
+
+  const assignment = await prisma.hotFoodCatalogStore.findUnique({
+    where: { catalogItemId_storeId: { catalogItemId, storeId } },
+  });
+
+  if (!assignment) {
+    res.status(404).json({ success: false, error: 'Item not assigned to this store' });
+    return;
+  }
+
+  const updated = await prisma.hotFoodCatalogStore.update({
+    where: { catalogItemId_storeId: { catalogItemId, storeId } },
+    data: { isAvailable },
+  });
+
+  res.json({ success: true, data: updated });
 }
 
 // ─── Orders (customer / mobile) ───────────────────────────────────────────────

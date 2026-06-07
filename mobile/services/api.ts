@@ -318,15 +318,21 @@ export const managerApi = {
 export const hotFoodApi = {
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
   getMenu:        (storeId: string) => api.get(`/hot-food/menu?storeId=${storeId}`),
+  // Employee management view — legacy + catalog items merged with availability + source
+  getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
   placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
   getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`),
   updateStatus:   (orderId: string, status: string, estimatedMinutes?: number) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
-  getPendingCount:          (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
+  getPendingCount: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
+  // Toggle legacy menu item availability
   updateItemAvailability: (itemId: string, isAvailable: boolean) =>
     api.patch(`/hot-food/menu/${itemId}`, { isAvailable }),
+  // Toggle catalog item availability at a specific store (employee only)
+  updateCatalogItemAvailability: (storeId: string, catalogItemId: string, isAvailable: boolean) =>
+    api.patch(`/hot-food/store/${storeId}/catalog/${catalogItemId}/availability`, { isAvailable }),
   createMenuItem: (storeId: string, data: { name: string; description?: string; price: number; estimatedMinutes?: number; isAvailable?: boolean }) =>
     api.post('/hot-food/menu', { storeId, ...data }),
   updateMenuItem: (itemId: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; isAvailable: boolean }>) =>

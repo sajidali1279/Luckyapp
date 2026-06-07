@@ -34,6 +34,7 @@ interface MenuItem {
   price: number;
   isAvailable: boolean;
   estimatedMinutes?: number;
+  source: 'menu' | 'catalog';
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -177,11 +178,18 @@ function OrderCard({
 
 function MenuItemCard({
   item, onToggle, updating,
-}: { item: MenuItem; onToggle: (id: string, current: boolean) => void; updating: boolean }) {
+}: { item: MenuItem; onToggle: (item: MenuItem) => void; updating: boolean }) {
   return (
     <View style={s.menuCard}>
       <View style={s.menuCardBody}>
-        <Text style={s.menuItemName}>{item.name}</Text>
+        <View style={s.menuItemHeader}>
+          <Text style={s.menuItemName}>{item.name}</Text>
+          {item.source === 'catalog' && (
+            <View style={s.catalogBadge}>
+              <Text style={s.catalogBadgeText}>Catalog</Text>
+            </View>
+          )}
+        </View>
         {item.description ? <Text style={s.menuItemDesc} numberOfLines={1}>{item.description}</Text> : null}
         <View style={s.menuItemMeta}>
           <Text style={s.menuItemPrice}>${Number(item.price).toFixed(2)}</Text>
@@ -195,14 +203,14 @@ function MenuItemCard({
       </View>
       <TouchableOpacity
         style={[s.availBtn, item.isAvailable ? s.availBtnOn : s.availBtnOff, updating && { opacity: 0.5 }]}
-        onPress={() => onToggle(item.id, item.isAvailable)}
+        onPress={() => onToggle(item)}
         disabled={updating}
         activeOpacity={0.8}
       >
         {updating
           ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
           : <Text style={[s.availBtnText, item.isAvailable ? s.availBtnTextOn : s.availBtnTextOff]}>
-              {item.isAvailable ? 'Available' : 'Unavailable'}
+              {item.isAvailable ? 'Available' : 'Sold Out'}
             </Text>
         }
       </TouchableOpacity>
@@ -227,10 +235,10 @@ export default function HotFoodOrders() {
     refetchInterval: 20_000,
   });
 
-  // Menu query (for availability management)
+  // All items (legacy + catalog) for availability management
   const { data: menuData, isLoading: menuLoading } = useQuery({
-    queryKey: ['hot-food-menu-emp', storeId],
-    queryFn: () => hotFoodApi.getMenu(storeId!),
+    queryKey: ['hot-food-all-items', storeId],
+    queryFn: () => hotFoodApi.getStoreAllItems(storeId!),
     enabled: !!storeId,
     refetchInterval: 60_000,
   });
@@ -238,9 +246,9 @@ export default function HotFoodOrders() {
   const allOrders: FoodOrder[] = ordersData?.data?.data ?? [];
   const menuItems: MenuItem[]  = menuData?.data?.data   ?? [];
 
-  const pendingCount    = allOrders.filter(o => o.status === 'PENDING').length;
-  const acceptedCount   = allOrders.filter(o => o.status === 'ACCEPTED').length;
-  const readyCount      = allOrders.filter(o => o.status === 'READY').length;
+  const pendingCount     = allOrders.filter(o => o.status === 'PENDING').length;
+  const acceptedCount    = allOrders.filter(o => o.status === 'ACCEPTED').length;
+  const readyCount       = allOrders.filter(o => o.status === 'READY').length;
   const unavailableCount = menuItems.filter(i => !i.isAvailable).length;
 
   const counts: Record<TabKey, number> = {
@@ -268,12 +276,16 @@ export default function HotFoodOrders() {
     }
   }
 
-  async function handleToggleItem(itemId: string, currentAvail: boolean) {
+  async function handleToggleItem(item: MenuItem) {
     if (updatingId) return;
-    setUpdatingId(itemId);
+    setUpdatingId(item.id);
     try {
-      await hotFoodApi.updateItemAvailability(itemId, !currentAvail);
-      queryClient.invalidateQueries({ queryKey: ['hot-food-menu-emp'] });
+      if (item.source === 'catalog') {
+        await hotFoodApi.updateCatalogItemAvailability(storeId!, item.id, !item.isAvailable);
+      } else {
+        await hotFoodApi.updateItemAvailability(item.id, !item.isAvailable);
+      }
+      queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
     } catch {
       Alert.alert('Error', 'Could not update item availability.');
     } finally {
@@ -462,19 +474,22 @@ const s = StyleSheet.create({
   doneText:          { fontSize: 13, fontWeight: '600', color: '#16A34A' },
 
   // Menu availability card
-  menuCard:       { backgroundColor: '#fff', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  menuCardBody:   { flex: 1 },
-  menuItemName:   { fontSize: 14, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
-  menuItemDesc:   { fontSize: 12, color: '#94A3B8', marginBottom: 4 },
-  menuItemMeta:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  menuItemPrice:  { fontSize: 13, fontWeight: '700', color: '#EA580C' },
-  menuItemEst:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  menuItemEstText:{ fontSize: 11, color: '#94A3B8' },
-  availBtn:       { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, minWidth: 90, alignItems: 'center' },
-  availBtnOn:     { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
-  availBtnOff:    { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  availBtnText:   { fontSize: 12, fontWeight: '700' },
-  availBtnTextOn: { color: '#16A34A' },
+  menuCard:          { backgroundColor: '#fff', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  menuCardBody:      { flex: 1 },
+  menuItemHeader:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  menuItemName:      { fontSize: 14, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
+  catalogBadge:      { backgroundColor: '#EFF6FF', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  catalogBadgeText:  { fontSize: 10, fontWeight: '700', color: '#3B82F6' },
+  menuItemDesc:      { fontSize: 12, color: '#94A3B8', marginBottom: 4 },
+  menuItemMeta:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuItemPrice:     { fontSize: 13, fontWeight: '700', color: '#EA580C' },
+  menuItemEst:       { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  menuItemEstText:   { fontSize: 11, color: '#94A3B8' },
+  availBtn:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, minWidth: 90, alignItems: 'center' },
+  availBtnOn:        { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  availBtnOff:       { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  availBtnText:      { fontSize: 12, fontWeight: '700' },
+  availBtnTextOn:    { color: '#16A34A' },
   availBtnTextOff:{ color: '#EF4444' },
 
   empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40 },

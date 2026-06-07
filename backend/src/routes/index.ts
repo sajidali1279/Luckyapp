@@ -110,6 +110,8 @@ import {
   getAllOrders as getHotFoodOrders,
   updateOrderStatus,
   getStoreMenu,
+  getStoreAllItems,
+  updateCatalogStoreAvailability,
   placeOrder,
   getMyOrders as getMyHotFoodOrders,
   getStoreOrders,
@@ -427,15 +429,18 @@ router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMI
 // Menu — admin CRUD (STORE_MANAGER = read-only, SUPER_ADMIN+ = write)
 router.get('/hot-food/menu',         authenticate, requireRole(Role.STORE_MANAGER), getHotFoodMenu);
 router.post('/hot-food/menu',        authenticate, requireRole(Role.SUPER_ADMIN),   createHotFoodItem);
-router.patch('/hot-food/menu/:id',   authenticate, requireRole(Role.STORE_MANAGER), updateHotFoodItem);
+router.patch('/hot-food/menu/:id',   authenticate, requireRole(Role.EMPLOYEE),     updateHotFoodItem);
 router.delete('/hot-food/menu/:id',  authenticate, requireRole(Role.SUPER_ADMIN),   deleteHotFoodItem);
 // Orders — admin board (specific routes before :id param)
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
-router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.STORE_MANAGER), updateOrderStatus);
-// Orders — mobile (manager/employee per-store board) — specific before generic
-router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getStorePendingCount);
-router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.STORE_MANAGER), getStoreOrders);
+router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
+// Orders — employee per-store board
+router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), getStorePendingCount);
+router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE), getStoreOrders);
+// Employee availability management (all items + catalog availability toggle)
+router.get('/hot-food/store/:storeId/all-items',                                  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreAllItems);
+router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',      authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, updateCatalogStoreAvailability);
 // Menu + orders — customer / mobile
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);

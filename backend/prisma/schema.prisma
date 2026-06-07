@@ -1171,6 +1171,7 @@ model HotFoodCatalogStore {
   id            String   @id @default(uuid())
   catalogItemId String
   storeId       String
+  isAvailable   Boolean  @default(true)
   assignedAt    DateTime @default(now())
 
   catalogItem HotFoodCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
