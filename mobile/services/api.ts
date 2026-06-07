@@ -317,7 +317,6 @@ export const managerApi = {
 
 export const hotFoodApi = {
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
-  getMenu:        (storeId: string) => api.get(`/hot-food/menu?storeId=${storeId}`),
   // Employee management view — legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
   placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
@@ -341,7 +340,6 @@ export const hotFoodApi = {
     api.delete(`/hot-food/menu/${itemId}`),
 };
 
-// Global hot food catalog — admin manages items + assigns to stores
 export const supportApi = {
   createThread: (subject: string, message: string, priority?: string, category?: string) =>
     api.post('/support/threads', { subject, message, priority, category }),

@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
 import { schedulingApi, notificationsApi, hotFoodApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -7,9 +8,11 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, CameraIcon, CalendarIcon, MessageCircleIcon,
   ClipboardIcon, BellIcon, TrophyIcon, PackageIcon, FlameIcon,
+  UserIcon, BookOpenIcon,
 } from '../../components/Icons';
 
 export default function EmployeeLayout() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const storeId = user?.storeIds?.[0];
 
@@ -36,33 +39,35 @@ export default function EmployeeLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const bottomItems: [NavItem, NavItem] = [
-    { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} strokeWidth={2} />,   label: 'Home' },
-    { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} strokeWidth={2} />, label: 'Scan' },
+    { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} strokeWidth={2} />,   label: t('nav.home') },
+    { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} strokeWidth={2} />, label: t('nav.scan') },
   ];
 
   const groups: NavGroup[] = [
     {
       title: 'Main',
       items: [
-        { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} />,   label: 'Home' },
-        { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} />, label: 'Scan & Grant' },
+        { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} />,   label: t('nav.home') },
+        { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} />, label: t('nav.scanGrant') },
       ],
     },
     {
       title: 'Work',
       items: [
-        { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: 'My Schedule', badge: vacancyCount },
-        { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: 'Store Chat' },
-        { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: 'Requests' },
-        { route: '/(employee)/order-list', icon: (p) => <PackageIcon {...p} />,       label: 'Order List' },
-        { route: '/(employee)/hot-food',   icon: (p) => <FlameIcon {...p} />,         label: 'Hot Food Orders', badge: hotFoodCount },
+        { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule'), badge: vacancyCount },
+        { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat') },
+        { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: t('nav.requests') },
+        { route: '/(employee)/order-list', icon: (p) => <PackageIcon {...p} />,       label: t('nav.orderList') },
+        { route: '/(employee)/hot-food',   icon: (p) => <FlameIcon {...p} />,         label: t('nav.hotFoodOrders'), badge: hotFoodCount },
       ],
     },
     {
       title: 'Account',
       items: [
-        { route: '/(employee)/notifications', icon: (p) => <BellIcon {...p} />,   label: 'Alerts', badge: unreadCount },
-        { route: '/(employee)/leaderboard',   icon: (p) => <TrophyIcon {...p} />, label: 'Staff Rankings' },
+        { route: '/(employee)/notifications', icon: (p) => <BellIcon {...p} />,      label: t('nav.alerts'), badge: unreadCount },
+        { route: '/(employee)/leaderboard',   icon: (p) => <TrophyIcon {...p} />,    label: t('nav.staffRankings') },
+        { route: '/(employee)/guide',         icon: (p) => <BookOpenIcon {...p} />,  label: t('nav.guide') },
+        { route: '/(employee)/profile',       icon: (p) => <UserIcon {...p} />,      label: t('nav.profile') },
       ],
     },
   ];
@@ -79,6 +84,7 @@ export default function EmployeeLayout() {
         <Tabs.Screen name="hot-food" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
+        <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
       </Tabs>
     </DrawerShell>

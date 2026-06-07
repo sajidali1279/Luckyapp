@@ -7,6 +7,25 @@ Audience indicators: **Customer** · **Employee** · **Manager** · **Admin** ·
 
 ---
 
+## [1.2] — June 2026
+
+### Added
+- **Customer, Employee, Manager** — Language settings in Profile. Users can switch the app between **English** and **Español**. The chosen language is remembered across sessions. Accessible via Profile → Preferences → Language.
+- **Customer** — Hot Food ordering from the customer app. Customers can browse the Hot Food menu, place orders, and receive push notifications when their order is ready. Accessible via the Hot Food tile on the home screen or the Hot Food tab in the menu.
+- **Customer** — Featured Slideshow on the home screen. Rotating full-width promotional slides with category shortcuts (Hot Food, Deals, etc.) above the quick-action grid.
+- **Employee** — Hot Food order management. Employees can view incoming hot food orders, mark them as in-progress or ready, and complete fulfilled orders. Accessible via Hot Food Orders in the menu.
+- **Customer, Employee, Manager** — Notification bell with live unread badge on the home screen header for at-a-glance visibility without opening the drawer.
+- **All roles** — Avatar photo shown in the app header on home and in the navigation drawer.
+
+### Changed
+- **Customer** — Tiered cashback rates now apply per tier (Bronze 5% → Platinum 9%) with a hard rate cap guard and tier fall-back logic at period reset.
+
+### Fixed
+- Manager home screen: category filter chips now correctly use the string values returned by the API (previously caused a `key` prop warning).
+- Modal warning resolved: removed incompatible `presentationStyle="formSheet"` from the manager requests acknowledgement modal.
+
+---
+
 ## [1.1] — May 2026
 
 ### Added

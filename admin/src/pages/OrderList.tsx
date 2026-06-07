@@ -198,8 +198,70 @@ function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: (
 
 // ─── Order List Detail ────────────────────────────────────────────────────────
 
-function OrderListDetail({ list, canEdit, onBack, onListChanged }: {
-  list: OrderList; canEdit: boolean; onBack: () => void; onListChanged: () => void;
+function printList(list: OrderList) {
+  const visibleItems = list.items?.filter(i => i.status !== 'REMOVED') || [];
+  const grouped = new Map<string, OrderListItem[]>();
+  for (const item of visibleItems) {
+    const key = item.category || 'Uncategorized';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(item);
+  }
+  const pending  = visibleItems.filter(i => i.status === 'PENDING').length;
+  const ordered  = visibleItems.filter(i => i.status === 'ORDERED').length;
+  const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
+
+  const rows = Array.from(grouped.entries()).map(([cat, items]) => `
+    <tr style="background:#F8FAFC"><td colspan="5" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#64748B;border-bottom:1px solid #E2E8F0">${cat}</td></tr>
+    ${items.map(item => `
+      <tr>
+        <td style="padding:10px 12px;font-weight:600;color:#1E293B">${item.name}</td>
+        <td style="padding:10px 12px;color:#64748B">${item.quantity || '—'}</td>
+        <td style="padding:10px 12px;color:#64748B">${item.notes || '—'}</td>
+        <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${PRIORITY_CFG[item.priority].bg};color:${PRIORITY_CFG[item.priority].text}">${PRIORITY_CFG[item.priority].label}</span></td>
+        <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
+      </tr>
+    `).join('')}
+  `).join('');
+
+  const html = `<!DOCTYPE html><html><head><title>${list.name}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1E293B; padding: 32px; }
+    h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
+    .meta { font-size: 14px; color: #64748B; margin-bottom: 8px; }
+    .stats { display: flex; gap: 20px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #E2E8F0; }
+    td { border-bottom: 1px solid #F1F5F9; font-size: 14px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    @media print { body { padding: 16px; } }
+  </style></head><body>
+  <h1>${list.name}</h1>
+  <div class="meta">${list.store.name} &nbsp;·&nbsp; Opened ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} by ${list.openedBy.name}${list.status === 'CLOSED' && list.closedAt ? ` &nbsp;·&nbsp; Closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+  <div class="stats">
+    <span style="color:#D97706">${pending} needed</span>
+    ${ordered  > 0 ? `<span style="color:#059669">${ordered} ordered</span>` : ''}
+    ${received > 0 ? `<span style="color:#16A34A">${received} received</span>` : ''}
+    <span style="color:#94A3B8">${visibleItems.length} total items</span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Item</th><th>Quantity</th><th>Notes</th><th>Priority</th><th>Status</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:32px;font-size:12px;color:#CBD5E1">Printed ${new Date().toLocaleString()}</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
+  list: OrderList; canEdit: boolean; canClose: boolean; onBack: () => void; onListChanged: () => void;
 }) {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
@@ -276,16 +338,19 @@ function OrderListDetail({ list, canEdit, onBack, onListChanged }: {
             {received > 0 && <span style={{ color: '#16A34A', fontWeight: 600 }}>{received} received</span>}
           </div>
         </div>
-        {canEdit && list.status === 'OPEN' && (
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button style={s.printBtn} onClick={() => printList(list)}>🖨 Print List</button>
+          {canEdit && list.status === 'OPEN' && (
             <button style={s.addItemBtn} onClick={() => setShowAdd(true)}>+ Add Item</button>
+          )}
+          {canClose && list.status === 'OPEN' && (
             <button style={s.closeListBtn}
               onClick={() => { if (confirm('Close this list? This means the order has been placed.')) closeMutation.mutate(); }}
               disabled={closeMutation.isPending}>
               {closeMutation.isPending ? 'Closing...' : 'Close List'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Items by category */}
@@ -352,7 +417,7 @@ function OrderListDetail({ list, canEdit, onBack, onListChanged }: {
 
 // ─── Tab: Order Lists ─────────────────────────────────────────────────────────
 
-function OrderListsTab({ canEdit }: { canEdit: boolean }) {
+function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: boolean }) {
   const [filterStoreId, setFilterStoreId] = useState('');
   const [filterStatus,  setFilterStatus]  = useState('');
   const [selectedList,  setSelectedList]  = useState<OrderList | null>(null);
@@ -392,6 +457,7 @@ function OrderListsTab({ canEdit }: { canEdit: boolean }) {
       <OrderListDetail
         list={fullList}
         canEdit={canEdit}
+        canClose={canClose}
         onBack={() => setSelectedList(null)}
         onListChanged={() => { refetch(); refetchFull(); }}
       />
@@ -823,6 +889,7 @@ export default function OrderListPage() {
   const isDevAdmin   = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const canEdit      = isDevAdmin;
+  const canClose     = isDevAdmin || isSuperAdmin;
   const canSeeRequests = isDevAdmin || isSuperAdmin;
 
   return (
@@ -857,7 +924,7 @@ export default function OrderListPage() {
       </div>
 
       <div style={s.tabContent}>
-        {tab === 'lists'    && <OrderListsTab canEdit={canEdit} />}
+        {tab === 'lists'    && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
         {tab === 'requests' && canSeeRequests && <RequestsTab />}
         {tab === 'categories' && isDevAdmin && <CategoriesTab />}
       </div>
@@ -916,6 +983,10 @@ const s: Record<string, React.CSSProperties> = {
   listDetailMeta:   { fontSize: 15, color: '#64748B', marginBottom: 8 },
   listDetailStats:  { display: 'flex', gap: 16, fontSize: 14 },
 
+  printBtn: {
+    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff',
+    color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+  },
   addItemBtn: {
     padding: '8px 16px', borderRadius: 8, border: '2px solid #1D3557', background: '#fff',
     color: '#1D3557', fontWeight: 700, fontSize: 14, cursor: 'pointer',

@@ -124,7 +124,6 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     cashbackIssued        = parseFloat((purchaseAmount * CASHBACK_RATE_CAP).toFixed(4));
     effectiveCashbackRate = CASHBACK_RATE_CAP;
     rateCappedFlags.push('CASHBACK_RATE_CAPPED');
-    console.warn(`[rate-cap] Rate ${(uncapped * 100).toFixed(2)}% → capped at ${CASHBACK_RATE_CAP * 100}% on $${purchaseAmount} (tier=${customerTier})`);
   } else if (effectiveCashbackRate > CASHBACK_RATE_WARN) {
     rateCappedFlags.push('HIGH_CASHBACK_RATE');
   }

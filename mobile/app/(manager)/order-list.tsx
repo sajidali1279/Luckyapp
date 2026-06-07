@@ -202,70 +202,59 @@ interface ItemRowProps {
   onMarkReceived: (item: OrderListItem) => void;
 }
 
-const STATUS_ROW_BG: Record<ItemStatus, string> = {
-  PENDING:  '#FFFFFF',
-  ORDERED:  '#F0FDF4',
-  RECEIVED: '#F0FDF4',
-  REMOVED:  '#F9FAFB',
-};
-
 function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
-  const sc = STATUS_CFG[item.status];
+  const isUrgent = item.priority === 'URGENT' && item.status === 'PENDING';
 
-  const showActions = () => {
-    const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
-    if (item.status === 'PENDING') {
-      buttons.push({ text: 'Mark Ordered',  onPress: () => onMarkOrdered(item) });
-      buttons.push({ text: 'Edit Details',  onPress: () => onEdit(item) });
-      buttons.push({ text: 'Remove',         style: 'destructive', onPress: () => onRemove(item) });
-    } else if (item.status === 'ORDERED') {
-      buttons.push({ text: 'Mark Received', onPress: () => onMarkReceived(item) });
-      buttons.push({ text: 'Edit Details',  onPress: () => onEdit(item) });
+  const showEditMenu = () => {
+    const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [
+      { text: 'Edit Details', onPress: () => onEdit(item) },
+    ];
+    if (item.status !== 'RECEIVED') {
+      buttons.push({ text: 'Remove', style: 'destructive', onPress: () => onRemove(item) });
     }
     buttons.push({ text: 'Cancel', style: 'cancel' });
-    const subtitle = [item.quantity && `Qty: ${item.quantity}`, item.category].filter(Boolean).join(' · ');
-    Alert.alert(item.name, subtitle || undefined, buttons);
+    Alert.alert(item.name, item.quantity ? `Qty: ${item.quantity}` : undefined, buttons);
   };
 
+  const nextAction =
+    item.status === 'PENDING'  ? { label: '→ Ordered',  color: '#059669', bg: '#D1FAE5', onPress: () => onMarkOrdered(item) }  :
+    item.status === 'ORDERED'  ? { label: '✓ Received', color: '#2563EB', bg: '#DBEAFE', onPress: () => onMarkReceived(item) } :
+    null;
+
   return (
-    <TouchableOpacity
-      style={[t.row, { backgroundColor: STATUS_ROW_BG[item.status] }]}
-      onPress={showActions}
-      activeOpacity={0.65}
-    >
-      {/* Name + qty merged */}
-      <View style={t.colName}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 4 }}>
-          <Text style={[t.cellName, item.status === 'RECEIVED' && t.strikethrough]} numberOfLines={1}>
-            {item.name}
+    <View style={[r.row, isUrgent && r.rowUrgent]}>
+      {isUrgent && <View style={r.urgentBar} />}
+
+      <View style={r.body}>
+        <View style={r.topLine}>
+          <Text style={[r.name, item.status === 'RECEIVED' && r.nameStrike]} numberOfLines={1}>
+            {isUrgent ? '⚡ ' : ''}{item.name}
+            {item.quantity ? <Text style={r.qty}>  · {item.quantity}</Text> : null}
           </Text>
-          {item.quantity ? (
-            <Text style={t.cellQtyInline} numberOfLines={1}>· {item.quantity}</Text>
+        </View>
+        <View style={r.metaLine}>
+          {item.category ? (
+            <View style={r.catPill}><Text style={r.catPillText} numberOfLines={1}>{item.category}</Text></View>
           ) : null}
+          {item.source === 'EMPLOYEE_REQUEST' && (
+            <View style={r.staffBadge}><Text style={r.staffBadgeText}>👤 staff</Text></View>
+          )}
         </View>
-        {item.source === 'EMPLOYEE_REQUEST' && (
-          <Text style={t.reqTag}>employee request</Text>
+      </View>
+
+      <View style={r.right}>
+        {nextAction ? (
+          <TouchableOpacity style={[r.actionBtn, { backgroundColor: nextAction.bg }]} onPress={nextAction.onPress} activeOpacity={0.75}>
+            <Text style={[r.actionBtnText, { color: nextAction.color }]}>{nextAction.label}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={r.donePill}><Text style={r.donePillText}>✓ Done</Text></View>
         )}
+        <TouchableOpacity onPress={showEditMenu} style={r.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+          <Text style={r.moreBtnText}>···</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Category */}
-      <View style={t.colCat}>
-        {item.category ? (
-          <View style={[t.catPill, { backgroundColor: item.status === 'RECEIVED' ? '#F3F4F6' : '#EEF2FF' }]}>
-            <Text style={[t.catPillText, { color: item.status === 'RECEIVED' ? '#9CA3AF' : '#4F46E5' }]} numberOfLines={1}>
-              {item.category}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Status */}
-      <View style={t.colAction}>
-        <View style={[t.statusDot, { backgroundColor: sc.bg }]}>
-          <Text style={[t.statusLetter, { color: sc.text }]}>{sc.label[0]}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -1013,13 +1002,11 @@ export default function ManagerOrderListScreen() {
   const activeList: OrderList | null = activeData?.data?.data || null;
   const items: OrderListItem[] = activeList?.items?.filter(i => i.status !== 'REMOVED') || [];
 
-  // Sort: PENDING → ORDERED → RECEIVED, then alphabetical within each status
-  const STATUS_SORT: Record<ItemStatus, number> = { PENDING: 0, ORDERED: 1, RECEIVED: 2, REMOVED: 3 };
-  const sortedItems = [...items].sort((a, b) => {
-    if (STATUS_SORT[a.status] !== STATUS_SORT[b.status])
-      return STATUS_SORT[a.status] - STATUS_SORT[b.status];
-    return a.name.localeCompare(b.name);
-  });
+  // Section groupings: urgent first, then normal pending, ordered, received
+  const urgentItems   = items.filter(i => i.status === 'PENDING' && i.priority === 'URGENT').sort((a, b) => a.name.localeCompare(b.name));
+  const neededItems   = items.filter(i => i.status === 'PENDING' && i.priority !== 'URGENT').sort((a, b) => a.name.localeCompare(b.name));
+  const orderedItems  = items.filter(i => i.status === 'ORDERED').sort((a, b) => a.name.localeCompare(b.name));
+  const receivedItems = items.filter(i => i.status === 'RECEIVED').sort((a, b) => a.name.localeCompare(b.name));
 
   // ── Employee request count ───────────────────────────────────────────────
   const { data: reqData } = useQuery({
@@ -1074,7 +1061,8 @@ export default function ManagerOrderListScreen() {
   const printMutation = useMutation({
     mutationFn: () => orderListApi.printList(activeList!.id),
     onSuccess: async () => {
-      const lines = sortedItems.map((item, idx) => {
+      const allItems: OrderListItem[] = [...urgentItems, ...neededItems, ...orderedItems, ...receivedItems];
+      const lines = allItems.map((item, idx) => {
         let line = `${idx + 1}. ${item.name}`;
         if (item.quantity) line += ` — ${item.quantity}`;
         if (item.category) line += ` [${item.category}]`;
@@ -1104,11 +1092,6 @@ export default function ManagerOrderListScreen() {
       ]
     );
   };
-
-  // ── Counters ─────────────────────────────────────────────────────────────
-  const pendingCount  = items.filter(i => i.status === 'PENDING').length;
-  const orderedCount  = items.filter(i => i.status === 'ORDERED').length;
-  const receivedCount = items.filter(i => i.status === 'RECEIVED').length;
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -1178,40 +1161,47 @@ export default function ManagerOrderListScreen() {
         </View>
       ) : (
         <>
-          {/* List Banner */}
+          {/* Stats + list controls bar */}
           <View style={s.listBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.listName}>{activeList.name}</Text>
-              <View style={s.listStats}>
-                {pendingCount  > 0 && <Text style={[s.statChip, { color: '#D97706' }]}>{pendingCount} needed</Text>}
-                {orderedCount  > 0 && <Text style={[s.statChip, { color: '#059669' }]}>{orderedCount} ordered</Text>}
-                {receivedCount > 0 && <Text style={[s.statChip, { color: '#16A34A' }]}>{receivedCount} received</Text>}
-              </View>
+            <Text style={s.listName} numberOfLines={1}>{activeList.name}</Text>
+            <View style={s.statsRow}>
+              {(urgentItems.length > 0 || neededItems.length > 0) && (
+                <View style={[s.statCard, { borderColor: '#F59E0B' }]}>
+                  <Text style={[s.statNum, { color: '#D97706' }]}>{urgentItems.length + neededItems.length}</Text>
+                  <Text style={s.statLabel}>Needed</Text>
+                </View>
+              )}
+              {orderedItems.length > 0 && (
+                <View style={[s.statCard, { borderColor: '#34D399' }]}>
+                  <Text style={[s.statNum, { color: '#059669' }]}>{orderedItems.length}</Text>
+                  <Text style={s.statLabel}>Ordered</Text>
+                </View>
+              )}
+              {receivedItems.length > 0 && (
+                <View style={[s.statCard, { borderColor: '#86EFAC' }]}>
+                  <Text style={[s.statNum, { color: '#16A34A' }]}>{receivedItems.length}</Text>
+                  <Text style={s.statLabel}>Received</Text>
+                </View>
+              )}
             </View>
-            {/* Print icon */}
-            <TouchableOpacity
-              style={[s.bannerIconBtn, (printMutation.isPending || items.length === 0) && { opacity: 0.35 }]}
-              onPress={() => printMutation.mutate()}
-              disabled={printMutation.isPending || items.length === 0}
-            >
-              {printMutation.isPending
-                ? <ActivityIndicator size="small" color={COLORS.textMuted} />
-                : <PrinterIcon size={19} color={COLORS.textMuted} strokeWidth={2} />
-              }
-            </TouchableOpacity>
-            <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList} disabled={closeListMutation.isPending}>
-              {closeListMutation.isPending
-                ? <ActivityIndicator size="small" color={COLORS.primary} />
-                : <Text style={s.closeListBtnText}>Close List</Text>
-              }
-            </TouchableOpacity>
-          </View>
-
-          {/* Table Header */}
-          <View style={t.tableHeader}>
-            <Text style={[t.colName, t.headerText]}>Item</Text>
-            <Text style={[t.colCat, t.headerText]}>Category</Text>
-            <View style={t.colAction} />
+            <View style={s.bannerActions}>
+              <TouchableOpacity
+                style={[s.bannerIconBtn, (printMutation.isPending || items.length === 0) && { opacity: 0.35 }]}
+                onPress={() => printMutation.mutate()}
+                disabled={printMutation.isPending || items.length === 0}
+              >
+                {printMutation.isPending
+                  ? <ActivityIndicator size="small" color={COLORS.textMuted} />
+                  : <PrinterIcon size={18} color={COLORS.textMuted} strokeWidth={2} />
+                }
+              </TouchableOpacity>
+              <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList} disabled={closeListMutation.isPending}>
+                {closeListMutation.isPending
+                  ? <ActivityIndicator size="small" color={COLORS.primary} />
+                  : <Text style={s.closeListBtnText}>Close List</Text>
+                }
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Rows + pinned Add Row */}
@@ -1230,16 +1220,54 @@ export default function ManagerOrderListScreen() {
                 keyboardShouldPersistTaps="handled"
                 refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
               >
-                {sortedItems.map(item => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    onEdit={setEditingItem}
-                    onRemove={handleRemove}
-                    onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                    onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
-                  />
-                ))}
+                {urgentItems.length > 0 && (
+                  <>
+                    <View style={[r.sectionHeader, { backgroundColor: '#FFF7ED' }]}>
+                      <Text style={[r.sectionLabel, { color: '#C2410C' }]}>⚡ URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    {urgentItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
+                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
+                    ))}
+                  </>
+                )}
+                {neededItems.length > 0 && (
+                  <>
+                    <View style={[r.sectionHeader, { backgroundColor: '#FFFBEB' }]}>
+                      <Text style={[r.sectionLabel, { color: '#92400E' }]}>Needed — {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    {neededItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
+                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
+                    ))}
+                  </>
+                )}
+                {orderedItems.length > 0 && (
+                  <>
+                    <View style={[r.sectionHeader, { backgroundColor: '#F0FDF4' }]}>
+                      <Text style={[r.sectionLabel, { color: '#166534' }]}>Ordered — {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    {orderedItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
+                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
+                    ))}
+                  </>
+                )}
+                {receivedItems.length > 0 && (
+                  <>
+                    <View style={[r.sectionHeader, { backgroundColor: '#F8FAFC' }]}>
+                      <Text style={[r.sectionLabel, { color: '#6B7280' }]}>Received — {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    {receivedItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
+                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
+                    ))}
+                  </>
+                )}
               </ScrollView>
             )}
 
@@ -1317,15 +1345,20 @@ const s = StyleSheet.create({
   storeTabTextActive: { color: '#fff' },
 
   listBanner: {
-    backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 10,
   },
-  listName:  { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  listStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  statChip:  { fontSize: 12, fontWeight: '600' },
-  bannerIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
-  closeListBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.primary },
+  listName:    { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  statsRow:    { flexDirection: 'row', gap: 8 },
+  statCard: {
+    flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12,
+    borderWidth: 1.5, backgroundColor: '#fff',
+  },
+  statNum:   { fontSize: 20, fontWeight: '900', lineHeight: 24 },
+  statLabel: { fontSize: 10, fontWeight: '600', color: COLORS.textMuted, marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.4 },
+  bannerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  bannerIconBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
+  closeListBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.primary },
   closeListBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   openListBtn: {
@@ -1431,6 +1464,56 @@ const s = StyleSheet.create({
   restoreItem:         { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff' },
   restoreItemSelected: { borderColor: COLORS.secondary, backgroundColor: '#EEF2FF' },
   restoreCheckbox:     { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Row & Section Styles ────────────────────────────────────────────────────
+
+const r = StyleSheet.create({
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
+    gap: 10,
+  },
+  rowUrgent: { backgroundColor: '#FFFBF5' },
+  urgentBar: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 3, backgroundColor: '#F97316', borderRadius: 2,
+  },
+  body: { flex: 1, gap: 4 },
+  topLine: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 4 },
+  name:      { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  nameStrike:{ textDecorationLine: 'line-through', color: COLORS.textMuted },
+  qty:       { fontSize: 12, color: COLORS.textMuted, fontWeight: '400' },
+  metaLine:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  catPill: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    backgroundColor: '#EEF2FF',
+  },
+  catPillText: { fontSize: 11, fontWeight: '600', color: '#4F46E5' },
+  staffBadge: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+    backgroundColor: '#F0FDF4',
+  },
+  staffBadgeText: { fontSize: 11, fontWeight: '600', color: '#16A34A' },
+  right: { alignItems: 'flex-end', gap: 6 },
+  actionBtn: {
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8,
+  },
+  actionBtnText: { fontSize: 12, fontWeight: '700' },
+  donePill: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  donePillText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  moreBtn:     { paddingVertical: 2 },
+  moreBtnText: { fontSize: 18, color: COLORS.textMuted, letterSpacing: 1, lineHeight: 18 },
+
+  sectionHeader: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
+  },
+  sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
 });
 
 // ─── Table Styles ─────────────────────────────────────────────────────────────

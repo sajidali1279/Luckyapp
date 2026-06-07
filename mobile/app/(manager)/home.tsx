@@ -1,17 +1,17 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, StatusBar, ActivityIndicator,
+  RefreshControl, StatusBar, ActivityIndicator, Animated, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
-import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi } from '../../services/api';
+import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi, notificationsApi, orderListApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon,
+  PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon, BellIcon,
 } from '../../components/Icons';
 
 const BAR_COLORS = [
@@ -58,6 +58,18 @@ export default function ManagerHome() {
   const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
+  // Staggered entrance — 4 groups fade + slide up on mount
+  const fadeAnims  = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef([...Array(4)].map(() => new Animated.Value(18))).current;
+  useEffect(() => {
+    Animated.stagger(65, fadeAnims.map((anim, i) =>
+      Animated.parallel([
+        Animated.timing(anim,        { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(slideAnims[i], { toValue: 0, duration: 380, useNativeDriver: true }),
+      ])
+    )).start();
+  }, []);
+
   const { data: storesData } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: storesApi.accessible,
@@ -66,12 +78,23 @@ export default function ManagerHome() {
   const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
   const storeId = stores.length === 1 ? stores[0].id : undefined;
 
+  const { data: activeListData } = useQuery({
+    queryKey: ['order-list-active', storeId],
+    queryFn: () => orderListApi.getActive(storeId!),
+    enabled: !!storeId,
+    staleTime: 60000,
+    refetchInterval: 60000,
+  });
+  const activeListItems: { status: string }[] = activeListData?.data?.data?.items ?? [];
+  const neededCount  = activeListItems.filter(i => i.status === 'PENDING').length;
+  const orderedCount = activeListItems.filter(i => i.status === 'ORDERED').length;
+
   const { data: catListData } = useQuery({
     queryKey: ['order-categories-approved'],
     queryFn: () => orderCategoriesApi.getApproved(),
     staleTime: 10 * 60 * 1000,
   });
-  const categoryOptions: { id: string; name: string }[] = catListData?.data?.data ?? [];
+  const categoryOptions: string[] = catListData?.data?.data ?? [];
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['inventory-analytics', storeId, period, category],
@@ -87,6 +110,13 @@ export default function ManagerHome() {
   });
   const pendingCount: number = pendingData?.data?.data?.count ?? analytics?.pendingRequestsCount ?? 0;
 
+  const { data: notifData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = notifData?.data?.data?.count ?? 0;
+
   async function onRefresh() {
     setRefreshing(true);
     await refetch();
@@ -95,14 +125,15 @@ export default function ManagerHome() {
 
   const topItems: { name: string; category: string | null; orderCount: number }[] = analytics?.topItems ?? [];
   const categories: { category: string; count: number; pct: number }[] = analytics?.categoryBreakdown ?? [];
-  const activeList = analytics?.activeListSummary;
   const totalItems: number = analytics?.totalItems ?? 0;
+
+  const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" backgroundColor="#0f1f35" />
 
-      {/* Header with SVG gradient */}
+      {/* ── Header with SVG gradient ── */}
       <View style={s.header}>
         <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
@@ -114,9 +145,8 @@ export default function ManagerHome() {
           <Rect width="100%" height="100%" fill="url(#hg)" />
         </Svg>
 
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', zIndex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            {/* LS logo mark */}
+        <View style={s.headerRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
             <View style={s.headerLogo}>
               <Text style={s.headerLogoText}>LS</Text>
             </View>
@@ -126,12 +156,41 @@ export default function ManagerHome() {
               {stores.length === 1 && <Text style={s.storeName}>{stores[0].name}</Text>}
             </View>
           </View>
-          {totalItems > 0 && (
-            <View style={s.headerBadge}>
-              <Text style={s.headerBadgeText}>{totalItems} tracked</Text>
-            </View>
-          )}
+
+          {/* Bell + avatar */}
+          <View style={s.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/(manager)/notifications')}
+              style={s.bellBtn}
+            >
+              <BellIcon size={20} color="#fff" strokeWidth={2} />
+              {unreadCount > 0 && (
+                <View style={s.bellBadge}>
+                  <Text style={s.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.avatarRing}
+              onPress={() => router.push('/(manager)/profile')}
+              activeOpacity={0.75}
+            >
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
+              ) : (
+                <View style={s.avatarCircle}>
+                  <Text style={s.avatarText}>{initial}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {totalItems > 0 && (
+          <View style={s.headerBadge}>
+            <Text style={s.headerBadgeText}>{totalItems} items tracked</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -140,222 +199,237 @@ export default function ManagerHome() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick stat cards — overlap the header */}
-        <View style={s.quickRow}>
-          <TouchableOpacity style={[s.quickCard, s.quickCardWide]} onPress={() => router.push('/(manager)/order-list')} activeOpacity={0.85}>
-            <View style={s.quickTop}>
-              <View style={[s.quickIconBox, { backgroundColor: COLORS.primary + '15' }]}>
-                <TrendingUpIcon size={20} color={COLORS.primary} />
-              </View>
-              <Text style={[s.quickBadgeText, { color: COLORS.textMuted, fontSize: 10 }]}>
-                {PERIODS.find(p => p.value === period)?.label}
-              </Text>
-            </View>
-            <Text style={s.quickLabel}>Total Orders</Text>
-            <Text style={s.quickValue}>{topItems.reduce((a, b) => a + b.orderCount, 0) || '—'}</Text>
-            <Text style={s.quickSub}>{categories.length} categories</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.quickRow}>
-          <TouchableOpacity
-            style={s.quickCard}
-            onPress={() => router.push('/(manager)/order-list')}
-            activeOpacity={0.85}
-          >
-            <View style={s.quickTop}>
-              <View style={[s.quickIconBox, { backgroundColor: COLORS.secondary + '15' }]}>
-                <PackageIcon size={20} color={COLORS.secondary} />
-              </View>
-              <ChevronRightIcon size={14} color="#ADB5BD" />
-            </View>
-            <Text style={s.quickLabel}>Active List</Text>
-            {activeList ? (
-              <>
-                <Text style={s.quickValue}>{activeList.itemCount}</Text>
-                <View style={s.quickBadge}>
-                  <Text style={s.quickBadgeText}>OPEN</Text>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={s.quickValue}>—</Text>
-                <Text style={s.quickSub}>No open list</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={s.quickCard}
-            onPress={() => router.push('/(manager)/requests')}
-            activeOpacity={0.85}
-          >
-            <View style={s.quickTop}>
-              <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.secondary + '15' }]}>
-                <ClipboardIcon size={20} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
-              </View>
-              <ChevronRightIcon size={14} color="#ADB5BD" />
-            </View>
-            <Text style={s.quickLabel}>Requests</Text>
-            <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
-              {pendingCount}
-            </Text>
-            {pendingCount > 0 ? (
-              <View style={[s.quickBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                <Text style={[s.quickBadgeText, { color: '#C2410C' }]}>REVIEW</Text>
-              </View>
-            ) : (
-              <Text style={s.quickSub}>All clear</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Pending alert banner */}
-        {pendingCount > 0 && (
-          <TouchableOpacity
-            style={s.alertCard}
-            onPress={() => router.push('/(manager)/requests')}
-            activeOpacity={0.8}
-          >
-            <View style={s.alertIcon}>
-              <InboxIcon size={18} color="#C2410C" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.alertTitle}>
-                {pendingCount} pending item {pendingCount === 1 ? 'request' : 'requests'}
-              </Text>
-              <Text style={s.alertSub}>Tap to review and add to order list</Text>
-            </View>
-            <ChevronRightIcon size={16} color="#C2410C" />
-          </TouchableOpacity>
-        )}
-
-        {/* Inventory Intelligence header */}
-        <View style={s.sectionHeader}>
-          <TrendingUpIcon size={15} color={COLORS.secondary} />
-          <Text style={s.sectionTitle}>Inventory Intelligence</Text>
-          <View style={s.periodPicker}>
-            {PERIODS.map(p => (
-              <TouchableOpacity
-                key={p.value}
-                style={[s.periodBtn, period === p.value && s.periodBtnActive]}
-                onPress={() => setPeriod(p.value)}
-              >
-                <Text style={[s.periodBtnText, period === p.value && s.periodBtnTextActive]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Category filter chips */}
-        {categoryOptions.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={s.chipScroll}
-            contentContainerStyle={s.chipRow}
-          >
+        {/* ── Quick stat cards — overlap header ── */}
+        <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
+          <View style={s.quickRow}>
+            {/* Order List — wide card with needed/ordered breakdown */}
             <TouchableOpacity
-              style={[s.chip, category === '' && s.chipActive]}
-              onPress={() => setCategory('')}
+              style={[s.quickCard, s.quickCardWide]}
+              onPress={() => router.push('/(manager)/order-list')}
+              activeOpacity={0.85}
             >
-              <Text style={[s.chipText, category === '' && s.chipTextActive]}>All</Text>
-            </TouchableOpacity>
-            {categoryOptions.map(c => (
-              <TouchableOpacity
-                key={c.id}
-                style={[s.chip, category === c.name && s.chipActive]}
-                onPress={() => setCategory(category === c.name ? '' : c.name)}
-              >
-                <Text style={[s.chipText, category === c.name && s.chipTextActive]} numberOfLines={1}>
-                  {c.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {isLoading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator color={COLORS.secondary} />
-            <Text style={s.loadingText}>Loading analytics…</Text>
-          </View>
-        ) : (
-          <>
-            {/* Top ordered items */}
-            <View style={s.card}>
-              <View style={s.cardHeader}>
-                <Text style={s.cardTitle}>Most Ordered Items</Text>
-                {totalItems > 0 && <Text style={s.cardSub}>{totalItems} total</Text>}
+              <View style={s.quickTop}>
+                <View style={[s.quickIconBox, { backgroundColor: COLORS.secondary + '15' }]}>
+                  <PackageIcon size={20} color={COLORS.secondary} />
+                </View>
+                <ChevronRightIcon size={14} color="#ADB5BD" />
               </View>
-              {topItems.length === 0 ? (
-                <View style={s.emptyBox}>
-                  <View style={s.emptyIcon}><PackageIcon size={28} color={COLORS.border} /></View>
-                  <Text style={s.empty}>No orders yet for this period</Text>
-                  <Text style={s.emptySub}>Orders will appear here as your team logs inventory requests</Text>
+              <Text style={s.quickLabel}>Order List</Text>
+              {activeListItems.length > 0 ? (
+                <>
+                  <Text style={s.quickValue}>{activeListItems.length}</Text>
+                  <View style={s.miniPillRow}>
+                    {neededCount > 0 && (
+                      <View style={[s.miniPill, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                        <Text style={[s.miniPillText, { color: '#C2410C' }]}>{neededCount} needed</Text>
+                      </View>
+                    )}
+                    {orderedCount > 0 && (
+                      <View style={[s.miniPill, { backgroundColor: '#ECFDF5', borderColor: '#6EE7B7' }]}>
+                        <Text style={[s.miniPillText, { color: '#059669' }]}>{orderedCount} ordered</Text>
+                      </View>
+                    )}
+                    {neededCount === 0 && orderedCount === 0 && (
+                      <Text style={s.quickSub}>All received</Text>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={s.quickValue}>—</Text>
+                  <Text style={s.quickSub}>No open list</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Pending employee requests */}
+            <TouchableOpacity
+              style={s.quickCard}
+              onPress={() => router.push('/(manager)/requests')}
+              activeOpacity={0.85}
+            >
+              <View style={s.quickTop}>
+                <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.secondary + '15' }]}>
+                  <ClipboardIcon size={20} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
+                </View>
+                <ChevronRightIcon size={14} color="#ADB5BD" />
+              </View>
+              <Text style={s.quickLabel}>Requests</Text>
+              <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
+                {pendingCount}
+              </Text>
+              {pendingCount > 0 ? (
+                <View style={[s.quickBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                  <Text style={[s.quickBadgeText, { color: '#C2410C' }]}>REVIEW</Text>
                 </View>
               ) : (
-                topItems.slice(0, 10).map((item, i) => {
-                  const rank = RANK[i] ?? null;
-                  return (
-                    <View key={`${item.name}-${i}`} style={[s.itemRow, i === topItems.slice(0, 10).length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={[s.itemRank, rank && { backgroundColor: rank.bg, borderColor: rank.border, borderWidth: 1 }]}>
-                        <Text style={[s.itemRankText, rank && { color: rank.color }]}>{i + 1}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.itemName}>{item.name}</Text>
-                        {item.category && (
-                          <Text style={s.itemCat}>{item.category}</Text>
-                        )}
-                      </View>
-                      <View style={s.itemCountBox}>
-                        <Text style={s.itemCount}>{item.orderCount}</Text>
-                        <Text style={s.itemCountLabel}>orders</Text>
-                      </View>
-                    </View>
-                  );
-                })
+                <Text style={s.quickSub}>All clear</Text>
               )}
-            </View>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
 
-            {/* Category breakdown */}
-            {categories.length > 0 && (
+        {/* ── Pending alert banner ── */}
+        {pendingCount > 0 && (
+          <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
+            <TouchableOpacity
+              style={s.alertCard}
+              onPress={() => router.push('/(manager)/requests')}
+              activeOpacity={0.8}
+            >
+              <View style={s.alertIcon}>
+                <InboxIcon size={18} color="#C2410C" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>
+                  {pendingCount} pending item {pendingCount === 1 ? 'request' : 'requests'}
+                </Text>
+                <Text style={s.alertSub}>Tap to review and add to order list</Text>
+              </View>
+              <ChevronRightIcon size={16} color="#C2410C" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* ── Inventory Intelligence header ── */}
+        <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+          <View style={s.sectionHeader}>
+            <TrendingUpIcon size={15} color={COLORS.secondary} />
+            <Text style={s.sectionTitle}>Inventory Intelligence</Text>
+            <View style={s.periodPicker}>
+              {PERIODS.map(p => (
+                <TouchableOpacity
+                  key={p.value}
+                  style={[s.periodBtn, period === p.value && s.periodBtnActive]}
+                  onPress={() => setPeriod(p.value)}
+                >
+                  <Text style={[s.periodBtnText, period === p.value && s.periodBtnTextActive]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Category filter chips */}
+          {categoryOptions.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={s.chipScroll}
+              contentContainerStyle={s.chipRow}
+            >
+              <TouchableOpacity
+                key="__all__"
+                style={[s.chip, category === '' && s.chipActive]}
+                onPress={() => setCategory('')}
+              >
+                <Text style={[s.chipText, category === '' && s.chipTextActive]}>All</Text>
+              </TouchableOpacity>
+              {categoryOptions.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  style={[s.chip, category === c && s.chipActive]}
+                  onPress={() => setCategory(category === c ? '' : c)}
+                >
+                  <Text style={[s.chipText, category === c && s.chipTextActive]} numberOfLines={1}>
+                    {c}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </Animated.View>
+
+        {/* ── Analytics cards ── */}
+        <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+          {isLoading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator color={COLORS.secondary} />
+              <Text style={s.loadingText}>Loading analytics…</Text>
+            </View>
+          ) : (
+            <>
+              {/* Top ordered items */}
               <View style={s.card}>
                 <View style={s.cardHeader}>
-                  <Text style={s.cardTitle}>By Category</Text>
-                  <Text style={s.cardSub}>{categories.length} categories</Text>
+                  <Text style={s.cardTitle}>Most Ordered Items</Text>
+                  {totalItems > 0 && <Text style={s.cardSub}>{totalItems} total</Text>}
                 </View>
-                {categories.map((cat, i) => (
-                  <CategoryBar
-                    key={cat.category}
-                    name={cat.category}
-                    pct={cat.pct}
-                    count={cat.count}
-                    color={BAR_COLORS[i % BAR_COLORS.length]}
-                  />
-                ))}
+                {topItems.length === 0 ? (
+                  <View style={s.emptyBox}>
+                    <View style={s.emptyIcon}><PackageIcon size={28} color={COLORS.border} /></View>
+                    <Text style={s.empty}>No orders yet for this period</Text>
+                    <Text style={s.emptySub}>Start tracking by logging your first order list</Text>
+                    <TouchableOpacity style={s.emptyAction} onPress={() => router.push('/(manager)/order-list')} activeOpacity={0.75}>
+                      <Text style={s.emptyActionText}>Open order list →</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  topItems.slice(0, 10).map((item, i) => {
+                    const rank = RANK[i] ?? null;
+                    return (
+                      <View key={`${item.name}-${i}`} style={[s.itemRow, i === topItems.slice(0, 10).length - 1 && { borderBottomWidth: 0 }]}>
+                        <View style={[s.itemRank, rank && { backgroundColor: rank.bg, borderColor: rank.border, borderWidth: 1 }]}>
+                          <Text style={[s.itemRankText, rank && { color: rank.color }]}>{i + 1}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.itemName}>{item.name}</Text>
+                          {item.category && (
+                            <Text style={s.itemCat}>{item.category}</Text>
+                          )}
+                        </View>
+                        <View style={s.itemCountBox}>
+                          <Text style={s.itemCount}>{item.orderCount}</Text>
+                          <Text style={s.itemCountLabel}>orders</Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
               </View>
-            )}
-          </>
-        )}
+
+              {/* Category breakdown */}
+              {categories.length > 0 && (
+                <View style={s.card}>
+                  <View style={s.cardHeader}>
+                    <Text style={s.cardTitle}>By Category</Text>
+                    <Text style={s.cardSub}>{categories.length} categories</Text>
+                  </View>
+                  {categories.map((cat, i) => (
+                    <CategoryBar
+                      key={cat.category}
+                      name={cat.category}
+                      pct={cat.pct}
+                      count={cat.count}
+                      color={BAR_COLORS[i % BAR_COLORS.length]}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: '#F1F3F5' },
+  safe:   { flex: 1, backgroundColor: '#EDF1F7' },
   scroll: { flex: 1 },
   content: { paddingTop: 0, paddingHorizontal: 16, paddingBottom: 48 },
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingTop: 14,
     paddingBottom: 64,
     overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    justifyContent: 'space-between', zIndex: 1,
   },
   headerLogo: {
     width: 44, height: 44, borderRadius: 12,
@@ -370,9 +444,37 @@ const s = StyleSheet.create({
   headerBadge: {
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
-    alignSelf: 'flex-start', marginTop: 4,
+    alignSelf: 'flex-start', marginTop: 10, zIndex: 1,
   },
   headerBadgeText: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+
+  // Bell + avatar
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute', top: 4, right: 4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  avatarRing: {
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+  },
+  avatarPhoto: { width: 44, height: 44, borderRadius: 22 },
+  avatarCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#2DC653',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: '900' },
 
   // ── Quick cards (overlap header) ─────────────────────────────────────────────
   quickRow: {
@@ -405,6 +507,9 @@ const s = StyleSheet.create({
     backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#6EE7B7',
   },
   quickBadgeText: { fontSize: 9, fontWeight: '800', color: '#059669', letterSpacing: 0.8 },
+  miniPillRow:  { flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 5 },
+  miniPill:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, borderWidth: 1 },
+  miniPillText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
 
   // ── Alert banner ────────────────────────────────────────────────────────────
   alertCard: {
@@ -455,6 +560,8 @@ const s = StyleSheet.create({
   emptyIcon:  { width: 56, height: 56, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   empty:      { fontSize: 14, color: '#9CA3AF', textAlign: 'center', fontWeight: '600' },
   emptySub:   { fontSize: 12, color: '#D1D5DB', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 },
+  emptyAction:     { marginTop: 6, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.secondary + '18' },
+  emptyActionText: { fontSize: 13, color: COLORS.secondary, fontWeight: '700' },
 
   // ── Loading ────────────────────────────────────────────────────────────────
   loadingBox:  { alignItems: 'center', paddingVertical: 48, gap: 10 },

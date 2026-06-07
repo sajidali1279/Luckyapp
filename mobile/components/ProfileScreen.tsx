@@ -7,8 +7,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
+import Constants from 'expo-constants';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { authApi, promotionsApi, leaderboardApi, disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -16,8 +18,10 @@ import {
   EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
   CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon, CameraIcon,
+  GlobeIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
+import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -29,8 +33,11 @@ interface Props {
 }
 
 export default function ProfileScreen({ isCustomer = false }: Props) {
+  const { t } = useTranslation();
   const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled } = useAuthStore();
   const [bioAvailable, setBioAvailable] = useState(false);
+  const [showLangModal, setShowLangModal] = useState(false);
+  const [selectedLang, setSelectedLang] = useState<LanguageCode>(getLanguage());
 
   useEffect(() => {
     LocalAuthentication.hasHardwareAsync().then(async (hw) => {
@@ -225,6 +232,11 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
   const headerBg = isCustomer ? COLORS.primary : COLORS.secondary;
 
+  async function handleSaveLanguage() {
+    await setLanguage(selectedLang);
+    setShowLangModal(false);
+  }
+
   async function handleUpdateName() {
     if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name cannot be empty' }); return; }
     setLoading(true);
@@ -268,15 +280,16 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     } finally { setLoading(false); }
   }
 
+  const storeCount = user?.storeIds?.length ?? 0;
   const staffInfoRows: InfoRowDef[] = [
-    { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Store', value: user?.storeIds?.length ? `${user.storeIds.length} store(s) assigned` : 'No store assigned' },
+    { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Store', value: storeCount > 0 ? t('profile.storeCount', { count: storeCount }) : t('profile.noStoreAssigned') },
     { icon: <ShieldIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Role', value: roleLabel },
     { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Phone', value: user?.phone || '—' },
   ];
 
   const customerInfoRows: InfoRowDef[] = [
-    { icon: <GiftIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Redeem', value: 'Use points at any location' },
-    { icon: <MapPinIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Locations', value: 'All Lucky Stop stores' },
+    { icon: <GiftIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Redeem', value: t('profile.redeem') },
+    { icon: <MapPinIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Locations', value: t('profile.locations') },
   ];
 
   const infoRows = isCustomer ? customerInfoRows : staffInfoRows;
@@ -327,7 +340,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
       <ScrollView style={s.fill} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
         {/* ── Account Settings ── */}
-        <Text style={s.sectionLabel}>Account Settings</Text>
+        <Text style={s.sectionLabel}>{t('profile.accountSettings')}</Text>
 
         {/* Update Name */}
         <TouchableOpacity style={s.settingRow} onPress={() => setPanel(panel === 'name' ? null : 'name')} activeOpacity={0.8}>
@@ -335,8 +348,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <EditIcon size={20} color={COLORS.primary} strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>Update Name</Text>
-            <Text style={s.settingValue}>{user?.name || 'Not set'}</Text>
+            <Text style={s.settingTitle}>{t('profile.updateName')}</Text>
+            <Text style={s.settingValue}>{user?.name || t('profile.notSet')}</Text>
           </View>
           {panel === 'name'
             ? <ChevronDownIcon size={18} color={COLORS.primary} strokeWidth={2} />
@@ -346,14 +359,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
         {panel === 'name' && (
           <View style={s.panelCard}>
-            <Text style={s.panelLabel}>Display Name</Text>
+            <Text style={s.panelLabel}>{t('profile.displayName')}</Text>
             <TextInput
               style={s.panelInput} value={name} onChangeText={setName}
-              placeholder="Your full name" placeholderTextColor={COLORS.textMuted}
+              placeholder={t('profile.yourFullName')} placeholderTextColor={COLORS.textMuted}
               autoCapitalize="words" autoFocus
             />
             <TouchableOpacity style={s.panelBtn} onPress={handleUpdateName} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Save Name</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.saveName')}</Text>}
             </TouchableOpacity>
           </View>
         )}
@@ -364,7 +377,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <LockClosedIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>Change PIN</Text>
+            <Text style={s.settingTitle}>{t('profile.changePin')}</Text>
             <Text style={s.settingValue}>••••</Text>
           </View>
           {panel === 'pin'
@@ -375,29 +388,44 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
         {panel === 'pin' && (
           <View style={s.panelCard}>
-            <Text style={s.panelLabel}>Current PIN</Text>
+            <Text style={s.panelLabel}>{t('profile.currentPin')}</Text>
             <TextInput
               style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
               value={currentPin} onChangeText={setCurrentPin}
               placeholder="••••" placeholderTextColor={COLORS.textMuted} autoFocus
             />
-            <Text style={s.panelLabel}>New PIN</Text>
+            <Text style={s.panelLabel}>{t('profile.newPin')}</Text>
             <TextInput
               style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
               value={newPin} onChangeText={setNewPin}
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
-            <Text style={s.panelLabel}>Confirm New PIN</Text>
+            <Text style={s.panelLabel}>{t('profile.confirmNewPin')}</Text>
             <TextInput
               style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
               value={confirmPin} onChangeText={setConfirmPin}
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
             <TouchableOpacity style={s.panelBtn} onPress={handleChangePin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Change PIN</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.changePinAction')}</Text>}
             </TouchableOpacity>
           </View>
         )}
+
+        {/* ── Preferences ── */}
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.preferences')}</Text>
+
+        {/* Language */}
+        <TouchableOpacity style={s.settingRow} onPress={() => { setSelectedLang(getLanguage()); setShowLangModal(true); }} activeOpacity={0.8}>
+          <View style={[s.settingIconBg, { backgroundColor: '#0EA5E918' }]}>
+            <GlobeIcon size={20} color="#0EA5E9" strokeWidth={1.75} />
+          </View>
+          <View style={s.settingBody}>
+            <Text style={s.settingTitle}>{t('profile.language')}</Text>
+            <Text style={s.settingValue}>{t('profile.languageCurrent')}</Text>
+          </View>
+          <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+        </TouchableOpacity>
 
         {/* Recovery Email — customers only */}
         {isCustomer && (
@@ -407,8 +435,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <MailIcon size={20} color="#00B4D8" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
-                <Text style={s.settingTitle}>Recovery Email</Text>
-                <Text style={s.settingValue}>{email || 'Not set — add for PIN recovery'}</Text>
+                <Text style={s.settingTitle}>{t('profile.recoveryEmail')}</Text>
+                <Text style={s.settingValue}>{email || t('profile.notSetAddForRecovery')}</Text>
               </View>
               {panel === 'email'
                 ? <ChevronDownIcon size={18} color={COLORS.primary} strokeWidth={2} />
@@ -418,15 +446,15 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
             {panel === 'email' && (
               <View style={s.panelCard}>
-                <Text style={s.panelLabel}>Email Address</Text>
+                <Text style={s.panelLabel}>{t('profile.emailAddress')}</Text>
                 <TextInput
                   style={s.panelInput} value={email} onChangeText={setEmail}
                   keyboardType="email-address" autoCapitalize="none"
                   placeholder="your@email.com" placeholderTextColor={COLORS.textMuted} autoFocus
                 />
-                <Text style={s.emailHint}>Used to recover your account if you forget your PIN.</Text>
+                <Text style={s.emailHint}>{t('profile.emailHint')}</Text>
                 <TouchableOpacity style={s.panelBtn} onPress={handleUpdateEmail} disabled={loading}>
-                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>Save Email</Text>}
+                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.saveEmail')}</Text>}
                 </TouchableOpacity>
               </View>
             )}
@@ -436,7 +464,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         {/* Promote Your Business — customers only */}
         {isCustomer && (
           <>
-            <Text style={[s.sectionLabel, { marginTop: 8 }]}>Advertising</Text>
+            <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.advertising')}</Text>
             <TouchableOpacity
               style={s.settingRow}
               onPress={() => setPromoModalVisible(true)}
@@ -446,21 +474,21 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <MegaphoneIcon size={20} color="#f97316" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
-                <Text style={s.settingTitle}>Promote Your Business</Text>
+                <Text style={s.settingTitle}>{t('profile.promoteYourBusiness')}</Text>
                 <Text style={s.settingValue}>
                   {myPromo?.status === 'PENDING'
-                    ? 'Request submitted — under review'
+                    ? t('profile.promoStatusPending')
                     : myPromo?.status === 'APPROVED'
-                    ? 'Your ad is live!'
+                    ? t('profile.promoStatusApproved')
                     : myPromo?.status === 'REJECTED'
-                    ? 'Request not approved — tap to reapply'
-                    : 'Advertise to Lucky Stop customers'}
+                    ? t('profile.promoStatusRejected')
+                    : t('profile.promoStatusNone')}
                 </Text>
               </View>
               {myPromo?.status === 'APPROVED'
                 ? <CheckCircleIcon size={18} color="#2DC653" strokeWidth={2.5} />
                 : myPromo?.status === 'PENDING'
-                ? <Text style={s.pendingText}>Pending</Text>
+                ? <Text style={s.pendingText}>{t('profile.pending')}</Text>
                 : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
               }
             </TouchableOpacity>
@@ -474,8 +502,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               <ShieldIcon size={20} color="#6C5CE7" strokeWidth={1.75} />
             </View>
             <View style={s.settingBody}>
-              <Text style={s.settingTitle}>Biometric Login</Text>
-              <Text style={s.settingValue}>{biometricEnabled ? 'Enabled' : 'Disabled'}</Text>
+              <Text style={s.settingTitle}>{t('profile.biometricLogin')}</Text>
+              <Text style={s.settingValue}>{biometricEnabled ? t('profile.enabled') : t('profile.disabled')}</Text>
             </View>
             <Switch
               value={biometricEnabled}
@@ -494,7 +522,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         )}
 
         {/* ── Leaderboard ── */}
-        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Community</Text>
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.community')}</Text>
         <TouchableOpacity
           style={s.settingRow}
           onPress={() => {
@@ -508,20 +536,20 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <TrophyIcon size={20} color="#b8860b" strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>{isCustomer ? 'Customer Leaderboard' : 'Staff Rankings'}</Text>
+            <Text style={s.settingTitle}>{isCustomer ? t('profile.customerLeaderboard') : t('profile.staffRankings')}</Text>
             <Text style={s.settingValue}>
               {isCustomer
-                ? 'See how you rank among all Lucky Stop customers'
+                ? t('profile.customerLeaderboardSub')
                 : myRating?.allTime?.count
                   ? `${myRating.allTime.avg.toFixed(1)} ★ avg · ${myRating.allTime.count} review${myRating.allTime.count !== 1 ? 's' : ''}`
-                  : 'See employee rankings at your store'}
+                  : t('profile.staffRankingsSub')}
             </Text>
           </View>
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
         {/* ── Info Card ── */}
-        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{isCustomer ? 'Rewards Info' : 'App Info'}</Text>
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{isCustomer ? t('profile.rewardsInfo') : t('profile.appInfo')}</Text>
         <View style={s.infoCard}>
           {infoRows.map((row, i) => (
             <View key={row.label}>
@@ -532,7 +560,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </View>
 
         {/* ── Help & Guide ── */}
-        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Support</Text>
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.support')}</Text>
         <TouchableOpacity
           style={s.settingRow}
           onPress={() => {
@@ -546,13 +574,13 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <BookOpenIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>Help & Guide</Text>
+            <Text style={s.settingTitle}>{t('profile.helpGuide')}</Text>
             <Text style={s.settingValue}>
               {isCustomer
-                ? 'Customer guide, FAQs, and rewards info'
+                ? t('profile.helpGuideCustomer')
                 : user?.role === 'STORE_MANAGER'
-                ? 'Store manager manual and procedures'
-                : 'Employee manual and transaction guide'}
+                ? t('profile.helpGuideManager')
+                : t('profile.helpGuideEmployee')}
             </Text>
           </View>
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
@@ -566,8 +594,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
-                <Text style={s.settingTitle}>Report Missing Points</Text>
-                <Text style={s.settingValue}>Didn't receive your cashback? Let us know</Text>
+                <Text style={s.settingTitle}>{t('profile.reportMissingPoints')}</Text>
+                <Text style={s.settingValue}>{t('profile.reportMissingPointsSub')}</Text>
               </View>
               <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
             </TouchableOpacity>
@@ -576,8 +604,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <CheckCircleIcon size={20} color="#16a34a" strokeWidth={1.75} />
               </View>
               <View style={s.settingBody}>
-                <Text style={s.settingTitle}>My Reports</Text>
-                <Text style={s.settingValue}>Track status of missing-points reports</Text>
+                <Text style={s.settingTitle}>{t('profile.myReports')}</Text>
+                <Text style={s.settingValue}>{t('profile.myReportsSub')}</Text>
               </View>
               <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
             </TouchableOpacity>
@@ -585,14 +613,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         )}
 
         {/* ── Legal ── */}
-        <Text style={[s.sectionLabel, { marginTop: 8 }]}>Legal</Text>
+        <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.legal')}</Text>
         <TouchableOpacity style={s.settingRow} onPress={() => setLegalDoc('terms')} activeOpacity={0.8}>
           <View style={[s.settingIconBg, { backgroundColor: '#eff6ff' }]}>
             <BookOpenIcon size={20} color="#1D3557" strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>Terms of Service</Text>
-            <Text style={s.settingValue}>Your rights, program rules, and conditions</Text>
+            <Text style={s.settingTitle}>{t('profile.termsOfService')}</Text>
+            <Text style={s.settingValue}>{t('profile.termsOfServiceSub')}</Text>
           </View>
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
@@ -601,25 +629,36 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <ShieldIcon size={20} color="#157A6E" strokeWidth={1.75} />
           </View>
           <View style={s.settingBody}>
-            <Text style={s.settingTitle}>Privacy Policy</Text>
-            <Text style={s.settingValue}>What data we collect and how we use it</Text>
+            <Text style={s.settingTitle}>{t('profile.privacyPolicy')}</Text>
+            <Text style={s.settingValue}>{t('profile.privacyPolicySub')}</Text>
           </View>
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
         {/* ── Sign Out ── */}
         <TouchableOpacity style={s.signOutBtn} onPress={() => logout()} activeOpacity={0.85}>
-          <Text style={s.signOutText}>Sign Out</Text>
+          <Text style={s.signOutText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
 
         {/* ── Delete Account — customers only ── */}
         {isCustomer && (
           <TouchableOpacity style={s.deleteAccountBtn} onPress={() => setShowDeleteModal(true)} activeOpacity={0.85}>
-            <Text style={s.deleteAccountText}>Delete My Account</Text>
+            <Text style={s.deleteAccountText}>{t('profile.deleteMyAccount')}</Text>
           </TouchableOpacity>
         )}
 
-        <View style={{ height: 16 }} />
+        {/* ── App version & copyright footer ── */}
+        <View style={s.appFooter}>
+          <Text style={s.appFooterVersion}>
+            Lucky Stop v{Constants.expoConfig?.version ?? '1.2.0'}
+          </Text>
+          <Text style={s.appFooterCopy}>
+            © {new Date().getFullYear()} Cliff Industries. All rights reserved.
+          </Text>
+          <Text style={s.appFooterTrade}>
+            Lucky Stop™ is a trademark of Lucky Stop Inc.
+          </Text>
+        </View>
       </ScrollView>
 
       {/* ── Delete Account confirmation modal ── */}
@@ -630,21 +669,18 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               <View style={s.deleteIconWrap}>
                 <Trash2Icon size={28} color="#fff" strokeWidth={2} />
               </View>
-              <Text style={s.deleteTitle}>Delete My Account?</Text>
-              <Text style={s.deleteBody}>
-                This will permanently delete your account, points balance, transaction history, and all personal data.{'\n\n'}
-                This action cannot be undone.
-              </Text>
+              <Text style={s.deleteTitle}>{t('deleteModal.title')}</Text>
+              <Text style={s.deleteBody}>{t('deleteModal.body')}</Text>
               <TouchableOpacity
                 style={[s.deleteConfirmBtn, deletingAccount && { opacity: 0.6 }]}
                 onPress={handleDeleteAccount}
                 disabled={deletingAccount}
                 activeOpacity={0.85}
               >
-                <Text style={s.deleteConfirmText}>{deletingAccount ? 'Deleting…' : 'Yes, delete my account'}</Text>
+                <Text style={s.deleteConfirmText}>{deletingAccount ? t('deleteModal.deleting') : t('deleteModal.confirm')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.deleteCancelBtn} onPress={() => setShowDeleteModal(false)} activeOpacity={0.7}>
-                <Text style={s.deleteCancelText}>Keep my account</Text>
+                <Text style={s.deleteCancelText}>{t('deleteModal.cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -656,33 +692,33 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalRoot}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Promote Your Business</Text>
+              <Text style={s.modalTitle}>{t('promoModal.title')}</Text>
               <TouchableOpacity onPress={() => setPromoModalVisible(false)} style={s.modalClose}>
                 <Text style={s.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
-            <Text style={s.modalSubtitle}>Tell us about your business and we'll be in touch to set up your advertisement.</Text>
+            <Text style={s.modalSubtitle}>{t('promoModal.subtitle')}</Text>
             <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
-              <Text style={s.panelLabel}>Your Name</Text>
-              <TextInput style={s.panelInput} value={promoName} onChangeText={setPromoName} placeholder="Full name" placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
-              <Text style={s.panelLabel}>Contact Phone</Text>
-              <TextInput style={s.panelInput} value={promoPhone} onChangeText={setPromoPhone} placeholder="Phone number" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
-              <Text style={s.panelLabel}>Business Name *</Text>
-              <TextInput style={s.panelInput} value={promoBusinessName} onChangeText={setPromoBusinessName} placeholder="Your business name" placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
-              <Text style={s.panelLabel}>Business Description *</Text>
+              <Text style={s.panelLabel}>{t('promoModal.yourName')}</Text>
+              <TextInput style={s.panelInput} value={promoName} onChangeText={setPromoName} placeholder={t('promoModal.fullNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
+              <Text style={s.panelLabel}>{t('promoModal.contactPhone')}</Text>
+              <TextInput style={s.panelInput} value={promoPhone} onChangeText={setPromoPhone} placeholder={t('promoModal.phonePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
+              <Text style={s.panelLabel}>{t('promoModal.businessName')}</Text>
+              <TextInput style={s.panelInput} value={promoBusinessName} onChangeText={setPromoBusinessName} placeholder={t('promoModal.businessNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
+              <Text style={s.panelLabel}>{t('promoModal.businessDesc')}</Text>
               <TextInput
                 style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
                 value={promoDesc}
                 onChangeText={setPromoDesc}
-                placeholder="What does your business do? Products, services, location..."
+                placeholder={t('promoModal.businessDescPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 multiline
                 numberOfLines={4}
               />
-              <Text style={s.panelLabel}>Website (optional)</Text>
-              <TextInput style={s.panelInput} value={promoWebsite} onChangeText={setPromoWebsite} placeholder="https://yourbusiness.com" placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
+              <Text style={s.panelLabel}>{t('promoModal.website')}</Text>
+              <TextInput style={s.panelInput} value={promoWebsite} onChangeText={setPromoWebsite} placeholder={t('promoModal.websitePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
 
-              <Text style={s.panelLabel}>Business Image / Logo (optional)</Text>
+              <Text style={s.panelLabel}>{t('promoModal.businessImage')}</Text>
               {promoImageUri ? (
                 <View style={s.promoImgWrap}>
                   <Image source={{ uri: promoImageUri }} style={s.promoImgPreview} resizeMode="cover" />
@@ -690,13 +726,13 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                     <TouchableOpacity style={s.promoImgBtn} onPress={pickPromoImage} activeOpacity={0.8}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <RefreshIcon size={14} color={COLORS.textMuted} strokeWidth={2.5} />
-                        <Text style={s.promoImgBtnText}>Change</Text>
+                        <Text style={s.promoImgBtnText}>{t('promoModal.change')}</Text>
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={[s.promoImgBtn, { borderColor: COLORS.error + '60' }]} onPress={() => setPromoImageUri(null)} activeOpacity={0.8}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <Trash2Icon size={14} color={COLORS.error} strokeWidth={2.5} />
-                        <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>Remove</Text>
+                        <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>{t('promoModal.remove')}</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -704,12 +740,12 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               ) : (
                 <TouchableOpacity style={s.promoImgPicker} onPress={pickPromoImage} activeOpacity={0.8}>
                   <ImageIcon size={28} color={COLORS.textMuted} strokeWidth={1.5} />
-                  <Text style={s.promoImgPickerText}>Tap to add a photo or logo</Text>
-                  <Text style={s.promoImgPickerSub}>Shown with your ad — JPG, PNG</Text>
+                  <Text style={s.promoImgPickerText}>{t('promoModal.tapToAdd')}</Text>
+                  <Text style={s.promoImgPickerSub}>{t('promoModal.supportedFormats')}</Text>
                 </TouchableOpacity>
               )}
 
-              <Text style={s.emailHint}>Our team will review your request and reach out with pricing and details. You can also visit any Lucky Stop location to speak with the manager.</Text>
+              <Text style={s.emailHint}>{t('promoModal.hint')}</Text>
               <TouchableOpacity
                 style={[s.panelBtn, { marginTop: 4, backgroundColor: '#f97316' }]}
                 onPress={() => submitPromoMutation.mutate()}
@@ -717,7 +753,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               >
                 {submitPromoMutation.isPending
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.panelBtnText}>Submit Request</Text>
+                  : <Text style={s.panelBtnText}>{t('promoModal.submitRequest')}</Text>
                 }
               </TouchableOpacity>
               <View style={{ height: 16 }} />
@@ -731,17 +767,17 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={s.modalRoot}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Report Missing Points</Text>
+              <Text style={s.modalTitle}>{t('disputeModal.title')}</Text>
               <TouchableOpacity onPress={() => setShowDisputeModal(false)} style={s.modalClose}>
                 <Text style={s.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
-            <Text style={s.modalSubtitle}>If your cashback didn't appear after a purchase, let us know and we'll look into it.</Text>
+            <Text style={s.modalSubtitle}>{t('disputeModal.subtitle')}</Text>
             <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
-              <Text style={s.panelLabel}>Store *</Text>
+              <Text style={s.panelLabel}>{t('disputeModal.store')}</Text>
               <View style={s.disputePickerWrap}>
                 {allStores.length === 0 ? (
-                  <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>Loading stores…</Text>
+                  <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>{t('disputeModal.loadingStores')}</Text>
                 ) : (
                   allStores.map((st: any) => (
                     <TouchableOpacity
@@ -756,23 +792,23 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 )}
               </View>
 
-              <Text style={s.panelLabel}>What happened? *</Text>
+              <Text style={s.panelLabel}>{t('disputeModal.whatHappened')}</Text>
               <TextInput
                 style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
                 value={disputeDesc}
                 onChangeText={setDisputeDesc}
-                placeholder="Describe your purchase — what you bought, approximate time, why points are missing..."
+                placeholder={t('disputeModal.descPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 multiline
                 numberOfLines={4}
               />
 
-              <Text style={s.panelLabel}>Purchase Amount (optional)</Text>
+              <Text style={s.panelLabel}>{t('disputeModal.purchaseAmount')}</Text>
               <TextInput
                 style={s.panelInput}
                 value={disputeEstAmt}
                 onChangeText={setDisputeEstAmt}
-                placeholder="e.g. 24.50"
+                placeholder={t('disputeModal.amountPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="decimal-pad"
               />
@@ -785,7 +821,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               >
                 {submitDisputeMutation.isPending
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.panelBtnText}>Submit Report</Text>
+                  : <Text style={s.panelBtnText}>{t('disputeModal.submitReport')}</Text>
                 }
               </TouchableOpacity>
               <View style={{ height: 16 }} />
@@ -816,14 +852,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               <View style={[s.avatarModalOptionIcon, { backgroundColor: '#eff6ff' }]}>
                 <ImageIcon size={20} color="#1D3557" strokeWidth={1.75} />
               </View>
-              <Text style={s.avatarModalOptionText}>Choose from Library</Text>
+              <Text style={s.avatarModalOptionText}>{t('avatarModal.chooseFromLibrary')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={s.avatarModalOption} onPress={handleTakePhoto} activeOpacity={0.7}>
               <View style={[s.avatarModalOptionIcon, { backgroundColor: '#f0fdf4' }]}>
                 <CameraIcon size={20} color="#16a34a" strokeWidth={1.75} />
               </View>
-              <Text style={s.avatarModalOptionText}>Take Photo</Text>
+              <Text style={s.avatarModalOptionText}>{t('avatarModal.takePhoto')}</Text>
             </TouchableOpacity>
 
             {user?.avatarUrl && (
@@ -831,12 +867,42 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <View style={[s.avatarModalOptionIcon, { backgroundColor: '#fff5f5' }]}>
                   <Trash2Icon size={20} color={COLORS.error} strokeWidth={1.75} />
                 </View>
-                <Text style={[s.avatarModalOptionText, { color: COLORS.error }]}>Remove Photo</Text>
+                <Text style={[s.avatarModalOptionText, { color: COLORS.error }]}>{t('avatarModal.removePhoto')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={s.avatarModalCancel} onPress={() => setShowAvatarModal(false)} activeOpacity={0.7}>
-              <Text style={s.avatarModalCancelText}>Cancel</Text>
+              <Text style={s.avatarModalCancelText}>{t('avatarModal.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Language picker modal ── */}
+      <Modal visible={showLangModal} transparent animationType="fade" onRequestClose={() => setShowLangModal(false)}>
+        <TouchableOpacity style={s.deleteOverlay} activeOpacity={1} onPress={() => setShowLangModal(false)}>
+          <View style={s.langModalCard} onStartShouldSetResponder={() => true}>
+            <Text style={s.langModalTitle}>{t('langModal.title')}</Text>
+            <Text style={s.langModalSubtitle}>{t('langModal.subtitle')}</Text>
+            <View style={s.langOptions}>
+              {LANGUAGES.map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[s.langOption, selectedLang === lang.code && s.langOptionActive]}
+                  onPress={() => setSelectedLang(lang.code)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.langOptionText, selectedLang === lang.code && s.langOptionTextActive]}>
+                    {lang.nativeLabel}
+                  </Text>
+                  {selectedLang === lang.code && (
+                    <CheckCircleIcon size={18} color={COLORS.primary} strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={s.langSaveBtn} onPress={handleSaveLanguage} activeOpacity={0.85}>
+              <Text style={s.langSaveBtnText}>{t('langModal.save')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1081,5 +1147,51 @@ const s = StyleSheet.create({
   },
   avatarModalCancelText: {
     fontSize: 15, fontWeight: '700', color: COLORS.textMuted,
+  },
+
+  // Language modal
+  langModalCard: {
+    backgroundColor: '#fff', borderRadius: 24, padding: 28,
+    width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25, shadowRadius: 24, elevation: 20,
+  },
+  langModalTitle: {
+    fontSize: 20, fontWeight: '900', color: COLORS.text,
+    textAlign: 'center', marginBottom: 6,
+  },
+  langModalSubtitle: {
+    fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginBottom: 20,
+  },
+  langOptions: { gap: 10, marginBottom: 20 },
+  langOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 18,
+    borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: '#f8fafc',
+  },
+  langOptionActive: {
+    borderColor: COLORS.primary, backgroundColor: COLORS.primary + '0D',
+  },
+  langOptionText: { fontSize: 16, fontWeight: '600', color: COLORS.text },
+  langOptionTextActive: { color: COLORS.primary, fontWeight: '800' },
+  langSaveBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center',
+  },
+  langSaveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+
+  // App footer
+  appFooter: {
+    alignItems: 'center', paddingVertical: 28, gap: 4,
+  },
+  appFooterVersion: {
+    fontSize: 13, fontWeight: '700', color: COLORS.textMuted,
+  },
+  appFooterCopy: {
+    fontSize: 11, color: COLORS.textMuted, opacity: 0.7,
+  },
+  appFooterTrade: {
+    fontSize: 11, color: COLORS.textMuted, opacity: 0.55,
   },
 });

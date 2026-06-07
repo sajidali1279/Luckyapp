@@ -609,7 +609,6 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     await prisma.pushToken.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });
   } catch (err: any) {
-    console.error('[deleteUser] Failed:', err?.message);
     res.status(500).json({ success: false, error: `Delete failed: ${err?.message ?? 'unknown error'}` });
     return;
   }

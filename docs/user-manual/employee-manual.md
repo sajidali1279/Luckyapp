@@ -3,7 +3,7 @@
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only — transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.0 | Last Updated: May 30, 2026
+**Version:** 1.2 | Last Updated: June 7, 2026
 
 ---
 
@@ -26,9 +26,10 @@
 15. [Notifications](#15-notifications)
 16. [Your Leaderboard Ranking](#16-your-leaderboard-ranking)
 17. [Profile and Account Settings](#17-profile-and-account-settings)
-18. [Critical Rules — Read These Carefully](#18-critical-rules--read-these-carefully)
-19. [Common Situations — Quick Reference](#19-common-situations--quick-reference)
-20. [Troubleshooting](#20-troubleshooting)
+18. [Hot Food Orders](#18-hot-food-orders)
+19. [Critical Rules — Read These Carefully](#19-critical-rules--read-these-carefully)
+20. [Common Situations — Quick Reference](#20-common-situations--quick-reference)
+21. [Troubleshooting](#21-troubleshooting)
 
 ---
 
@@ -539,13 +540,46 @@ Tap your avatar at the top of the profile screen → select a photo from your li
 
 Profile → **Biometric Login** → toggle on → confirm with your fingerprint or face. Next time you open the app, you can log in with biometrics instead of your PIN.
 
-### 17.7 Sign Out
+### 17.7 Language
+
+Profile → **Preferences** → **Language** → select English or Español → **Save**.
+The app switches to your chosen language immediately and remembers it across sessions.
+
+### 17.8 Sign Out
 
 Profile → **Sign Out** (at the bottom of the screen).
 
 ---
 
-## 18. Critical Rules — Read These Carefully
+## 18. Hot Food Orders
+
+If your store has an active hot food menu, customers can place orders through the app. You will see incoming orders and are responsible for fulfilling them.
+
+### 18.1 Accessing Hot Food Orders
+
+Tap **Hot Food Orders** in the menu (or use the Hot Food tab if visible on your home screen).
+
+### 18.2 Order Workflow
+
+Orders appear with the customer's name, the item(s) they ordered, and the time the order was placed.
+
+**To process an order:**
+1. Tap the order to open it.
+2. Tap **Mark In Progress** once you start preparing it.
+3. Tap **Ready** when the item is done and waiting for pickup.
+4. When the customer picks it up at the counter, tap **Complete** to close the order.
+
+The customer receives a push notification when their order is marked Ready.
+
+### 18.3 Things to Know
+
+- Hot food orders are paid at the counter — not through the app. Process the payment and loyalty points as a normal transaction when the customer picks up.
+- If an item runs out mid-shift, notify your manager. You cannot cancel a customer order yourself — contact your manager to void it.
+- Keep an eye on the notification badge on the Hot Food Orders tab so orders don't sit unnoticed.
+
+---
+
+## 19. Critical Rules — Read These Carefully
 
 These rules are not negotiable. Violating them can result in disciplinary action or termination.
 
@@ -580,7 +614,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 
 ---
 
-## 19. Common Situations — Quick Reference
+## 20. Common Situations — Quick Reference
 
 | Situation | What to Do |
 |---|---|
@@ -599,7 +633,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 
 ---
 
-## 20. Troubleshooting
+## 21. Troubleshooting
 
 **Problem: The app won't open or keeps crashing.**
 - Force-close the app and reopen it.

@@ -1,10 +1,11 @@
 import {
   View, Text, TouchableOpacity, Animated, StyleSheet,
-  Dimensions, Pressable,
+  Dimensions, Pressable, Image, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
 import { useRef, useState, ReactNode, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import { MenuIcon, XIcon, LogOutIcon } from './Icons';
@@ -33,6 +34,7 @@ interface Props {
 
 export default function DrawerShell({ children, bottomItems, groups, headerColor }: Props) {
   const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -60,6 +62,14 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const bgColor = headerColor || COLORS.secondary;
+
+  const roleLabel = user?.role
+    ? user.role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : null;
+
+  const storeLabel = user?.storeIds?.length === 1
+    ? null  // store name not available here; role chip is enough
+    : null;
 
   function isActive(route: string) {
     return pathname.endsWith(route.replace(/^\//, '')) || pathname === route;
@@ -98,7 +108,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
           <View style={s.bottomIconWrap}>
             <MenuIcon size={22} color={COLORS.textMuted} strokeWidth={2} />
           </View>
-          <Text style={s.bottomLabel}>Menu</Text>
+          <Text style={s.bottomLabel}>{t('nav.menu')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -113,12 +123,25 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
             {/* Drawer header */}
             <View style={[s.drawerHeader, { backgroundColor: bgColor, paddingTop: insets.top + 16 }]}>
               <TouchableOpacity style={s.drawerHeaderLeft} onPress={() => navigate('profile')} activeOpacity={0.75}>
-                <View style={s.drawerAvatar}>
-                  <Text style={s.drawerAvatarText}>{initial}</Text>
-                </View>
+                {/* Avatar — photo or initial */}
+                {user?.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl, cache: 'reload' }}
+                    style={s.drawerAvatarPhoto}
+                  />
+                ) : (
+                  <View style={s.drawerAvatar}>
+                    <Text style={s.drawerAvatarText}>{initial}</Text>
+                  </View>
+                )}
                 <View style={s.drawerUserInfo}>
-                  <Text style={s.drawerName} numberOfLines={1}>{user?.name || 'No name set'}</Text>
+                  <Text style={s.drawerName} numberOfLines={1}>{user?.name || t('drawer.noName')}</Text>
                   <Text style={s.drawerPhone}>{user?.phone}</Text>
+                  {roleLabel && (
+                    <View style={s.roleChip}>
+                      <Text style={s.roleChipText}>{roleLabel}</Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => closeDrawer()} style={s.drawerClose}>
@@ -126,11 +149,16 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               </TouchableOpacity>
             </View>
 
-            {/* Nav groups */}
-            <View style={s.drawerBody}>
+            {/* Nav groups — scrollable */}
+            <ScrollView
+              style={s.drawerBody}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 8 }}
+              bounces={false}
+            >
               {groups.map((group, gi) => (
                 <View key={gi} style={s.navGroup}>
-                  {group.title && <Text style={s.navGroupTitle}>{group.title}</Text>}
+                  {group.title && <Text style={s.navGroupTitle}>{t(`navGroup.${group.title.toLowerCase()}`, group.title)}</Text>}
                   {group.items.map((item) => {
                     const active = isActive(item.route);
                     return (
@@ -157,7 +185,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                   })}
                 </View>
               ))}
-            </View>
+            </ScrollView>
 
             {/* Sign out */}
             <TouchableOpacity
@@ -166,7 +194,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               activeOpacity={0.8}
             >
               <LogOutIcon size={20} color="#E63946" strokeWidth={2} />
-              <Text style={s.signOutText}>Sign Out</Text>
+              <Text style={s.signOutText}>{t('drawer.signOut')}</Text>
             </TouchableOpacity>
           </Animated.View>
         </>
@@ -228,6 +256,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingBottom: 22,
   },
   drawerHeaderLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  drawerAvatarPhoto: {
+    width: 46, height: 46, borderRadius: 23,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
+  },
   drawerAvatar: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: 'rgba(255,255,255,0.25)',
@@ -238,6 +270,12 @@ const s = StyleSheet.create({
   drawerUserInfo: { flex: 1 },
   drawerName: { color: '#fff', fontSize: 15, fontWeight: '800' },
   drawerPhone: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginTop: 2 },
+  roleChip: {
+    alignSelf: 'flex-start', marginTop: 5,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  roleChipText: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700' },
   drawerClose: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.18)',

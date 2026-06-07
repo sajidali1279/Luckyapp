@@ -268,7 +268,6 @@ export default function ManagerRequestsScreen() {
       <Modal
         visible={!!ackTarget}
         animationType="slide"
-        presentationStyle="formSheet"
         transparent
         onRequestClose={() => setAckTarget(null)}
       >

@@ -3,7 +3,7 @@
 **Role:** Super Admin (Lucky Stop HQ)
 **Access Level:** All stores, all features (except billing management)
 **Platform:** Web Admin Portal (admin.luckystop.cliffindus.com) + Mobile App
-**Version:** 1.0 | Last Updated: May 30, 2026
+**Version:** 1.2 | Last Updated: June 7, 2026
 
 ---
 
@@ -72,6 +72,8 @@ Super Admins also have access to the mobile app for on-the-go review. Download t
 - Basic dashboard access.
 
 Most administrative functions are only available through the web portal.
+
+**Language settings:** The mobile app supports English and Español. To change your language: Profile → Preferences → Language → select your language → Save. The chosen language is remembered across sessions.
 
 ### 2.3 Session Security
 

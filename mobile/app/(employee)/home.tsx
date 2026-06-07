@@ -6,12 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect } from 'react';
-import { offersApi, hotFoodApi } from '../../services/api';
+import { offersApi, hotFoodApi, notificationsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
   QrCodeScanIcon, GiftIcon, MegaphoneIcon, TagIcon, ImageIcon,
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
+  BellIcon,
 } from '../../components/Icons';
 
 function getGreeting() {
@@ -26,6 +27,18 @@ export default function EmployeeHomeScreen() {
   const firstName = user?.name?.split(' ')[0] || 'there';
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const storeId = user?.storeIds?.[0];
+
+  // Staggered entrance — 6 sections fade + slide up on mount
+  const fadeAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef([...Array(6)].map(() => new Animated.Value(18))).current;
+  useEffect(() => {
+    Animated.stagger(60, fadeAnims.map((anim, i) =>
+      Animated.parallel([
+        Animated.timing(anim, { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(slideAnims[i], { toValue: 0, duration: 380, useNativeDriver: true }),
+      ])
+    )).start();
+  }, []);
 
   const {
     data: offersData, isLoading: offersLoading,
@@ -44,6 +57,13 @@ export default function EmployeeHomeScreen() {
     refetchInterval: 20_000,
   });
   const pendingCount: number = pendingData?.data?.data?.count ?? 0;
+
+  const { data: notifData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationsApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   // Pulse animation when there are pending orders
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -71,34 +91,53 @@ export default function EmployeeHomeScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.storeLine}>LUCKY STOP STAFF</Text>
-            <Text style={s.greeting}>{getGreeting()},</Text>
-            <Text style={s.greetingName}>{firstName}!</Text>
-          </View>
-          <TouchableOpacity style={s.avatarRing} onPress={() => router.push('/(employee)/profile')} activeOpacity={0.75}>
-            <View style={s.avatarCircle}>
-              <Text style={s.avatarText}>{initial}</Text>
+      <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
+        <SafeAreaView style={s.headerBg} edges={['top']}>
+          <View style={s.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.storeLine}>LUCKY STOP STAFF</Text>
+              <Text style={s.greeting}>{getGreeting()},</Text>
+              <Text style={s.greetingName}>{firstName}!</Text>
             </View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.statusPill}>
-          <View style={s.statusDot} />
-          <Text style={s.statusText}>On Duty · {user?.role?.replace(/_/g, ' ')}</Text>
-        </View>
-
-        {promotions.length > 0 && (
-          <View style={s.promoStrip}>
-            <FlameIcon size={16} color="#fff" strokeWidth={2} />
-            <Text style={s.promoStripText}>
-              {promotions.length} promo{promotions.length > 1 ? 's' : ''} active — bonus cashback applied automatically
-            </Text>
+            <View style={s.headerRight}>
+              <TouchableOpacity
+                onPress={() => router.push('/(employee)/notifications')}
+                style={s.bellBtn}
+              >
+                <BellIcon size={20} color="#fff" strokeWidth={2} />
+                {unreadCount > 0 && (
+                  <View style={s.bellBadge}>
+                    <Text style={s.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={s.avatarRing} onPress={() => router.push('/(employee)/profile')} activeOpacity={0.75}>
+                {user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
+                ) : (
+                  <View style={s.avatarCircle}>
+                    <Text style={s.avatarText}>{initial}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-      </SafeAreaView>
+
+          <View style={s.statusPill}>
+            <View style={s.statusDot} />
+            <Text style={s.statusText}>On Duty · {user?.role?.replace(/_/g, ' ')}</Text>
+          </View>
+
+          {promotions.length > 0 && (
+            <View style={s.promoStrip}>
+              <FlameIcon size={16} color="#fff" strokeWidth={2} />
+              <Text style={s.promoStripText}>
+                {promotions.length} promo{promotions.length > 1 ? 's' : ''} active — bonus cashback applied automatically
+              </Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </Animated.View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -113,42 +152,47 @@ export default function EmployeeHomeScreen() {
         }
       >
         {/* ── Quick Actions ── */}
-        <Text style={s.sectionLabel}>Quick Actions</Text>
-        <View style={s.actionsRow}>
-          <TouchableOpacity
-            style={[s.actionCard, { backgroundColor: '#1D3557' }]}
-            onPress={() => router.push('/(employee)/scan')}
-            activeOpacity={0.82}
-          >
-            <View style={s.actionIconBg}>
-              <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
-            </View>
-            <Text style={s.actionTitle}>Grant Points</Text>
-            <Text style={s.actionSub}>Scan QR · Enter amount · Upload receipt</Text>
-            <View style={s.actionArrow}>
-              <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
-            </View>
-          </TouchableOpacity>
+        <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
+          <Text style={s.sectionLabel}>Quick Actions</Text>
+          <View style={s.actionsRow}>
+            <TouchableOpacity
+              style={[s.actionCard, { backgroundColor: '#1D3557' }]}
+              onPress={() => router.push('/(employee)/scan')}
+              activeOpacity={0.82}
+            >
+              <View style={s.actionIconBg}>
+                <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
+              </View>
+              <Text style={s.actionTitle}>Grant Points</Text>
+              <Text style={s.actionSub}>Scan QR · Enter amount · Upload receipt</Text>
+              <View style={s.actionArrow}>
+                <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
+              </View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[s.actionCard, { backgroundColor: '#b45309' }]}
-            onPress={() => router.push('/(employee)/scan')}
-            activeOpacity={0.82}
-          >
-            <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-              <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
-            </View>
-            <Text style={s.actionTitle}>Redeem Credits</Text>
-            <Text style={s.actionSub}>Scan customer QR to apply credits</Text>
-            <View style={s.actionArrow}>
-              <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
-            </View>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[s.actionCard, { backgroundColor: '#b45309' }]}
+              onPress={() => router.push('/(employee)/scan')}
+              activeOpacity={0.82}
+            >
+              <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
+              </View>
+              <Text style={s.actionTitle}>Redeem Credits</Text>
+              <Text style={s.actionSub}>Scan customer QR to apply credits</Text>
+              <View style={s.actionArrow}>
+                <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
 
         {/* ── Hot Food Orders Tile ── */}
         {storeId && (
-          <Animated.View style={{ transform: [{ scale: pulseAnim }], marginTop: 16, marginBottom: 4 }}>
+          <Animated.View style={[
+            { transform: [{ scale: pulseAnim }], marginTop: 16, marginBottom: 4 },
+            { opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }, { scale: pulseAnim }] },
+          ]}>
             <TouchableOpacity
               style={[s.hotFoodTile, pendingCount > 0 && s.hotFoodTileActive]}
               onPress={() => router.push('/(employee)/hot-food')}
@@ -182,53 +226,55 @@ export default function EmployeeHomeScreen() {
         )}
 
         {/* ── Active Promotions ── */}
-        <View style={s.sectionRow}>
-          <MegaphoneIcon size={13} color="#6b7280" strokeWidth={2} />
-          <Text style={s.sectionLabel}>Active Promotions</Text>
-        </View>
-
-        {offersLoading ? (
-          <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
-        ) : promotions.length === 0 ? (
-          <View style={s.emptyCard}>
-            <View style={s.emptyIconWrap}>
-              <InboxIcon size={38} color="#D1D5DB" strokeWidth={1.5} />
-            </View>
-            <Text style={s.emptyTitle}>No active promotions</Text>
-            <Text style={s.emptySub}>Standard 5% cashback applies to all purchases</Text>
+        <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+          <View style={s.sectionRow}>
+            <MegaphoneIcon size={13} color="#6b7280" strokeWidth={2} />
+            <Text style={s.sectionLabel}>Active Promotions</Text>
           </View>
-        ) : (
-          promotions.map((p: any) => (
-            <View key={p.id} style={s.promoCard}>
-              <View style={s.promoInfo}>
-                <Text style={s.promoTitle}>{p.title}</Text>
-                {p.description ? <Text style={s.promoDesc} numberOfLines={2}>{p.description}</Text> : null}
-                {p.category ? (
-                  <View style={s.promoTag}>
-                    <Text style={s.promoTagText}>{p.category.replace(/_/g, ' ')}</Text>
-                  </View>
-                ) : null}
+
+          {offersLoading ? (
+            <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
+          ) : promotions.length === 0 ? (
+            <View style={s.emptyCard}>
+              <View style={s.emptyIconWrap}>
+                <InboxIcon size={38} color="#D1D5DB" strokeWidth={1.5} />
               </View>
-              <View style={s.promoBadge}>
-                {p.gasBonusCentsPerGallon != null && p.bonusRate == null ? (
-                  <>
-                    <Text style={[s.promoBadgeRate, { fontSize: 16 }]}>+{p.gasBonusCentsPerGallon}¢</Text>
-                    <Text style={s.promoBadgePct}>/gal</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={s.promoBadgeRate}>{Math.round((p.bonusRate ?? 0) * 100)}</Text>
-                    <Text style={s.promoBadgePct}>%</Text>
-                  </>
-                )}
-              </View>
+              <Text style={s.emptyTitle}>No active promotions</Text>
+              <Text style={s.emptySub}>Standard 5% cashback applies to all purchases</Text>
             </View>
-          ))
-        )}
+          ) : (
+            promotions.map((p: any) => (
+              <View key={p.id} style={s.promoCard}>
+                <View style={s.promoInfo}>
+                  <Text style={s.promoTitle}>{p.title}</Text>
+                  {p.description ? <Text style={s.promoDesc} numberOfLines={2}>{p.description}</Text> : null}
+                  {p.category ? (
+                    <View style={s.promoTag}>
+                      <Text style={s.promoTagText}>{p.category.replace(/_/g, ' ')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View style={s.promoBadge}>
+                  {p.gasBonusCentsPerGallon != null && p.bonusRate == null ? (
+                    <>
+                      <Text style={[s.promoBadgeRate, { fontSize: 16 }]}>+{p.gasBonusCentsPerGallon}¢</Text>
+                      <Text style={s.promoBadgePct}>/gal</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={s.promoBadgeRate}>{Math.round((p.bonusRate ?? 0) * 100)}</Text>
+                      <Text style={s.promoBadgePct}>%</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </Animated.View>
 
         {/* ── Today's Deals ── */}
         {deals.length > 0 && (
-          <>
+          <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
             <View style={[s.sectionRow, { marginTop: 28 }]}>
               <TagIcon size={13} color="#6b7280" strokeWidth={2} />
               <Text style={s.sectionLabel}>Today's Deals</Text>
@@ -247,12 +293,12 @@ export default function EmployeeHomeScreen() {
                 </View>
               </View>
             ))}
-          </>
+          </Animated.View>
         )}
 
         {/* ── Store Banners ── */}
         {banners.length > 0 && (
-          <>
+          <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
             <View style={[s.sectionRow, { marginTop: 28 }]}>
               <ImageIcon size={13} color="#6b7280" strokeWidth={2} />
               <Text style={s.sectionLabel}>Store Banners</Text>
@@ -274,22 +320,24 @@ export default function EmployeeHomeScreen() {
                 </View>
               ))}
             </ScrollView>
-          </>
+          </Animated.View>
         )}
 
         {/* ── Info Footer ── */}
-        <View style={s.infoFooter}>
-          {[
-            { icon: <DollarSignIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Standard cashback: 5¢ per $1 spent' },
-            { icon: <ReceiptIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Always upload a receipt to complete the transaction' },
-            ...(promotions.length > 0 ? [{ icon: <FlameIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Active promotions apply automatically' }] : []),
-          ].map((row, i) => (
-            <View key={i} style={s.infoRow}>
-              <View style={s.infoIconWrap}>{row.icon}</View>
-              <Text style={s.infoText}>{row.text}</Text>
-            </View>
-          ))}
-        </View>
+        <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
+          <View style={s.infoFooter}>
+            {[
+              { icon: <DollarSignIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Standard cashback: 5¢ per $1 spent' },
+              { icon: <ReceiptIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Always upload a receipt to complete the transaction' },
+              ...(promotions.length > 0 ? [{ icon: <FlameIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Active promotions apply automatically' }] : []),
+            ].map((row, i) => (
+              <View key={i} style={s.infoRow}>
+                <View style={s.infoIconWrap}>{row.icon}</View>
+                <Text style={s.infoText}>{row.text}</Text>
+              </View>
+            ))}
+          </View>
+        </Animated.View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -298,7 +346,7 @@ export default function EmployeeHomeScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f8fafc' },
+  root: { flex: 1, backgroundColor: '#EDF1F7' },
 
   // Header
   headerBg: { backgroundColor: '#1D3557' },
@@ -312,11 +360,27 @@ const s = StyleSheet.create({
   },
   greeting: { color: 'rgba(255,255,255,0.75)', fontSize: 16, fontWeight: '600' },
   greetingName: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: -2 },
-  avatarRing: {
-    width: 52, height: 52, borderRadius: 26,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center', marginTop: 4,
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
+  bellBadge: {
+    position: 'absolute', top: 4, right: 4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  avatarRing: {
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarPhoto: { width: 44, height: 44, borderRadius: 22 },
   avatarCircle: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: '#F4A261',
@@ -348,7 +412,7 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8,
   },
 
-  // Action cards — full width tiles
+  // Action cards
   actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 0 },
   actionCard: {
     flex: 1, borderRadius: 20, padding: 18,

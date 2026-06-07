@@ -10,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../services/api';
 import AppLoader from '../components/AppLoader';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { loadSavedLanguage } from '../i18n';
 
 // Hold the splash until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -55,6 +57,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     loadFromStorage();
+    loadSavedLanguage();
   }, []);
 
   // Hide splash + navigate once auth state is resolved
@@ -101,10 +104,12 @@ export default function RootLayout() {
   }, [user?.id]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }} />
-      {isLoading && <AppLoader />}
-      <Toast />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Stack screenOptions={{ headerShown: false }} />
+        {isLoading && <AppLoader />}
+        <Toast />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

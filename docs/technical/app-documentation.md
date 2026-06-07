@@ -1,7 +1,7 @@
 # Lucky Stop Loyalty Platform — Technical Documentation
 
-**Version:** 1.0
-**Last Updated:** May 30, 2026
+**Version:** 1.2
+**Last Updated:** June 7, 2026
 **Maintained By:** Cliff Industries (sksajidali1279@gmail.com)
 
 ---
@@ -927,11 +927,16 @@ mobile/
 │   ├── ManagerRequestsScreen.tsx
 │   ├── WelcomeBonusCard.tsx
 │   ├── DrawerShell.tsx       # Side drawer navigation shell
+│   ├── ErrorBoundary.tsx     # React class Error Boundary (global crash safety net)
 │   ├── Icons.tsx             # SVG icon library
 │   ├── EmptyState.tsx
 │   ├── SkeletonLoader.tsx
 │   ├── AppLoader.tsx
 │   └── PageLoader.tsx
+├── i18n/
+│   ├── index.ts              # i18next init + loadSavedLanguage / setLanguage helpers
+│   ├── en.json               # English translation strings
+│   └── es.json               # Spanish translation strings
 ├── store/
 │   └── authStore.ts          # Zustand auth state
 ├── services/
@@ -974,6 +979,48 @@ const mutation = useMutation({
   onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-transactions'] }),
 })
 ```
+
+### 12.5 Internationalization (i18n)
+
+The app uses **i18next** with **react-i18next** for English/Spanish support.
+
+**Library:** `i18next`, `react-i18next`
+**Persistence:** `@react-native-async-storage/async-storage` (key: `app_language`)
+
+**Initialization** (`mobile/i18n/index.ts`):
+- i18next is initialized synchronously with English as the default language so the app renders immediately without a language flash.
+- `loadSavedLanguage()` is called on app startup (alongside `loadFromStorage()` in `_layout.tsx`) to apply any previously-saved language preference asynchronously.
+
+**Exported helpers:**
+```typescript
+loadSavedLanguage(): Promise<void>   // reads AsyncStorage and calls i18n.changeLanguage()
+setLanguage(code: LanguageCode): Promise<void>  // writes AsyncStorage + changes language
+getLanguage(): string                // returns current i18n.language
+LANGUAGES: { code, label, nativeLabel }[]
+type LanguageCode = 'en' | 'es'
+```
+
+**Usage in components:**
+```typescript
+import { useTranslation } from 'react-i18next';
+const { t } = useTranslation();
+// t('nav.home'), t('profile.storeCount', { count: n })
+```
+
+Translation keys are defined in `mobile/i18n/en.json` and `mobile/i18n/es.json` across namespaces: `nav`, `navGroup`, `drawer`, `profile`, `promoModal`, `disputeModal`, `deleteModal`, `avatarModal`, `langModal`.
+
+Pluralization uses the i18next `_one` / `_other` suffix convention (e.g., `storeCount_one`, `storeCount_other`).
+
+### 12.6 Error Boundary
+
+`mobile/components/ErrorBoundary.tsx` is a React class component that wraps the entire app tree in `_layout.tsx`. It catches any unhandled JavaScript errors that would otherwise produce a blank/white screen.
+
+**Behavior on error:**
+- Renders a fallback screen with a warning icon, "Something went wrong", "Your account and points are safe.", and a "Try Again" button.
+- The "Try Again" button resets boundary state (`hasError: false`), allowing the app to re-render without requiring a full restart.
+- `componentDidCatch` logs the error to `console.error` — replace with `Sentry.captureException(error)` when crash reporting is added.
+
+**Placement:** `<ErrorBoundary>` wraps `<QueryClientProvider>` in `_layout.tsx`, so it catches errors from any screen across all roles.
 
 ---
 

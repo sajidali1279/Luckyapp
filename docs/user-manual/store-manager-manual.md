@@ -3,7 +3,7 @@
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.0 | Last Updated: May 30, 2026
+**Version:** 1.2 | Last Updated: June 7, 2026
 
 ---
 
@@ -20,13 +20,14 @@
 9. [Transactions — Reviewing Store Activity](#9-transactions--reviewing-store-activity)
 10. [Scheduling — Staff Schedule Management](#10-scheduling--staff-schedule-management)
 11. [Store Chat](#11-store-chat)
-12. [Customer Product Requests](#12-customer-product-requests)
-13. [Leaderboard — Employee Performance](#13-leaderboard--employee-performance)
-14. [Notifications](#14-notifications)
-15. [Profile and Account Settings](#15-profile-and-account-settings)
-16. [Web Admin Portal for Managers](#16-web-admin-portal-for-managers)
-17. [Common Tasks — Quick Reference](#17-common-tasks--quick-reference)
-18. [Troubleshooting](#18-troubleshooting)
+12. [Hot Food Management](#12-hot-food-management)
+13. [Customer Product Requests](#13-customer-product-requests)
+14. [Leaderboard — Employee Performance](#14-leaderboard--employee-performance)
+15. [Notifications](#15-notifications)
+16. [Profile and Account Settings](#16-profile-and-account-settings)
+17. [Web Admin Portal for Managers](#17-web-admin-portal-for-managers)
+18. [Common Tasks — Quick Reference](#18-common-tasks--quick-reference)
+19. [Troubleshooting](#19-troubleshooting)
 
 ---
 
@@ -495,11 +496,39 @@ Navigate to **Chat** in the bottom navigation.
 
 ---
 
-## 12. Customer Product Requests
+## 12. Hot Food Management
+
+If your store has a hot food program, you can manage the available menu items and monitor live orders through the app.
+
+### 12.1 Accessing Hot Food
+
+Tap **Hot Food** in the menu. This section is only visible to Admin-level roles and is only active if your store has hot food enabled.
+
+### 12.2 Hot Food Catalog
+
+The catalog lists all items that can appear on the customer-facing menu. For each item you can:
+- **Enable or disable** it at your store — disabled items do not show to customers.
+- Set the **estimated preparation time** (shown to customers when ordering).
+
+### 12.3 Live Orders
+
+Open **Hot Food Orders** to see all pending customer orders in real time. Orders display the customer name, item(s), and time placed.
+
+Your employees manage the order states (In Progress → Ready → Complete), but you can monitor and intervene if needed.
+
+### 12.4 Things to Note
+
+- If you run out of an item, disable it in the catalog immediately to prevent new orders.
+- Customers pay at the counter when picking up — hot food orders are not prepaid in the app.
+- Hot food purchases earn loyalty points on the transaction like any other purchase.
+
+---
+
+## 13. Customer Product Requests
 
 Customers can submit requests for specific products to be stocked at your store. These appear in your Requests section.
 
-### 12.1 Viewing Product Requests
+### 13.1 Viewing Product Requests
 
 Navigate to **Requests** → **Customer Requests** tab.
 
@@ -508,7 +537,7 @@ You will see each request with:
 - Description from the customer.
 - Date submitted.
 
-### 12.2 Responding to a Product Request
+### 13.2 Responding to a Product Request
 
 1. Tap the request.
 2. Choose:
@@ -520,7 +549,7 @@ Customer product requests are good feedback for store inventory decisions. Consi
 
 ---
 
-## 13. Leaderboard — Employee Performance
+## 14. Leaderboard — Employee Performance
 
 ### 13.1 Viewing Employee Performance
 
@@ -542,7 +571,7 @@ After each qualifying transaction, customers may be prompted to rate the employe
 
 ---
 
-## 14. Notifications
+## 15. Notifications
 
 ### 14.1 Accessing Notifications
 
@@ -564,47 +593,52 @@ Tap the **bell icon** in the app. A badge shows unread notifications.
 
 ---
 
-## 15. Profile and Account Settings
+## 16. Profile and Account Settings
 
-### 15.1 Accessing Profile
+### 16.1 Accessing Profile
 
 Tap **Profile** in the bottom navigation.
 
-### 15.2 Updating Your Name
+### 16.2 Updating Your Name
 
 Profile → **Update Name** → enter your name → **Save Name**.
 
-### 15.3 Changing Your PIN
+### 16.3 Changing Your PIN
 
 Profile → **Change PIN** → enter current PIN → enter new PIN → confirm → **Change PIN**.
 - PIN must be 4 digits.
 - Your PIN history is tracked — you cannot reuse recent PINs.
 
-### 15.4 Recovery Email
+### 16.4 Recovery Email
 
 Profile → **Recovery Email** → enter your email address → **Save Email**.
 This email is used if you ever need to recover access to your account.
 
-### 15.5 Profile Photo
+### 16.5 Profile Photo
 
 Tap your avatar image at the top of the Profile screen → select a photo from your library → photo uploads automatically.
 
-### 15.6 Biometric Login
+### 16.6 Biometric Login
 
 Enable Face ID / Touch ID / device biometric for faster login.
 Profile → **Biometric Login** → toggle on → confirm with biometric.
 
-### 15.7 Sign Out
+### 16.7 Language
+
+Profile → **Preferences** → **Language** → select English or Español → **Save**.
+The app switches to your chosen language immediately and remembers it across sessions.
+
+### 16.8 Sign Out
 
 Profile → **Sign Out** (at the bottom). You will need to log in again with your phone number, OTP, and PIN.
 
 ---
 
-## 16. Web Admin Portal for Managers
+## 17. Web Admin Portal for Managers
 
 The web admin portal at **admin.luckystop.cliffindus.com** provides a larger-screen experience for detailed reporting and management.
 
-### 16.1 What Managers Can Access in the Portal
+### 17.1 What Managers Can Access in the Portal
 
 - **Store Manager Dashboard:** Your store's performance metrics with charts.
 - **Transactions:** Full transaction history with filtering and export.
@@ -620,7 +654,7 @@ The web admin portal at **admin.luckystop.cliffindus.com** provides a larger-scr
 - **Notifications:** View and manage notifications.
 - **Profile:** Your account settings.
 
-### 16.2 Inventory Analytics — Detailed View
+### 17.2 Inventory Analytics — Detailed View
 
 The web portal provides richer inventory analytics than the mobile app:
 - **Top Items chart:** Bar chart of most-ordered items by frequency.
@@ -632,7 +666,7 @@ Use this data in your monthly planning to anticipate order volumes and identify 
 
 ---
 
-## 17. Common Tasks — Quick Reference
+## 18. Common Tasks — Quick Reference
 
 | Task | Where | Steps |
 |---|---|---|
@@ -654,7 +688,7 @@ Use this data in your monthly planning to anticipate order volumes and identify 
 
 ---
 
-## 18. Troubleshooting
+## 19. Troubleshooting
 
 **Problem: I can't see my order list.**
 - Ensure you are logged in to the correct store account.

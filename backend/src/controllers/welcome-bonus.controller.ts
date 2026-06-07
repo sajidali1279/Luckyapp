@@ -63,7 +63,6 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 }
@@ -129,7 +128,6 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 }
@@ -171,7 +169,6 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
       },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 }
@@ -197,7 +194,6 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
       data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day: confirmed.day },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 }
