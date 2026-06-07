@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Modal, TextInput, ActivityIndicator,
+  Modal, TextInput, ActivityIndicator, Image,
   RefreshControl, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,12 +81,22 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
 function MenuCard({ item, qty, onAdd, onRemove }: {
   item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void;
 }) {
+  const [imgErr, setImgErr] = useState(false);
+
   return (
     <View style={mc.card}>
       <View style={mc.left}>
-        <View style={mc.iconRing}>
-          <FlameIcon size={22} color={COLORS.primary} />
-        </View>
+        {item.imageUrl && !imgErr ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={mc.itemImage}
+            onError={() => setImgErr(true)}
+          />
+        ) : (
+          <View style={mc.iconRing}>
+            <FlameIcon size={22} color={COLORS.primary} />
+          </View>
+        )}
       </View>
       <View style={mc.info}>
         <Text style={mc.name}>{item.name}</Text>
@@ -669,6 +679,9 @@ const mc = StyleSheet.create({
   iconRing: {
     width: 48, height: 48, borderRadius: 14,
     backgroundColor: '#FFF1F0', alignItems: 'center', justifyContent: 'center',
+  },
+  itemImage: {
+    width: 48, height: 48, borderRadius: 14,
   },
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: '800', color: COLORS.text, marginBottom: 3 },
