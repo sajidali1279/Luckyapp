@@ -193,7 +193,7 @@ const FeaturedSlideshow = memo(function FeaturedSlideshow({
   }, [slides.length, startTimer]);
 
   const renderSlide = useCallback(({ item }: { item: SlideItem }) => {
-    const placeholderBg = PLACEHOLDER_COLORS_FS[item.name.charCodeAt(0) % PLACEHOLDER_COLORS_FS.length];
+    const placeholderBg = PLACEHOLDER_COLORS_FS[(item.name || '?').charCodeAt(0) % PLACEHOLDER_COLORS_FS.length];
     const isFood = item.kind === 'hotfood';
 
     return (
@@ -427,22 +427,28 @@ export default function CustomerHome() {
 
   // Interleave hot food + rewards for the featured slideshow (max 8 slides)
   const featuredSlides: SlideItem[] = (() => {
-    const food = hotFoodMenu.slice(0, 4).map((i: any) => ({
-      id: `food-${i.id}`,
-      kind: 'hotfood' as const,
-      name: i.name,
-      description: i.description,
-      price: i.price,
-      imageUrl: i.imageUrl,
-    }));
-    const rewards = catalogItems.slice(0, 4).map((i: any) => ({
-      id: `reward-${i.id}`,
-      kind: 'reward' as const,
-      name: i.name,
-      description: i.description,
-      pointsRequired: i.pointsRequired,
-      imageUrl: i.imageUrl,
-    }));
+    const food = hotFoodMenu
+      .filter((i: any) => i?.name)
+      .slice(0, 4)
+      .map((i: any) => ({
+        id: `food-${i.id}`,
+        kind: 'hotfood' as const,
+        name: i.name as string,
+        description: i.description,
+        price: i.price,
+        imageUrl: i.imageUrl,
+      }));
+    const rewards = catalogItems
+      .filter((i: any) => i?.name)
+      .slice(0, 4)
+      .map((i: any) => ({
+        id: `reward-${i.id}`,
+        kind: 'reward' as const,
+        name: i.name as string,
+        description: i.description,
+        pointsRequired: i.pointsRequired,
+        imageUrl: i.imageUrl,
+      }));
     const result: SlideItem[] = [];
     const max = Math.max(food.length, rewards.length);
     for (let i = 0; i < max; i++) {
