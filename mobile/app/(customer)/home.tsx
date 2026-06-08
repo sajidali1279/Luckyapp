@@ -158,7 +158,7 @@ type PromoKind = 'cashback' | 'rewards' | 'tiers' | 'network';
 type PromoSlide = { id: PromoKind; bg: string; deco: string; eyebrow: string; headline: string; body: string; cta: string | null; route: string | null };
 
 const PROMO_SLIDES: PromoSlide[] = [
-  { id: 'cashback', bg: '#1D3557', deco: '#4DA8DA', eyebrow: 'HOW IT WORKS',      headline: 'Earn 1–5% Back Every Visit',   body: 'Cashback grows as you rise through tiers — Bronze starts at 1%, Platinum earns 5%', cta: 'View Earnings',  route: '/(customer)/history' },
+  { id: 'cashback', bg: '#B91C1C', deco: '#FDE68A', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase — automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
   { id: 'rewards',  bg: '#C2410C', deco: '#FCD34D', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items — no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
   { id: 'tiers',   bg: '#5B21B6', deco: '#C4B5FD', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
   { id: 'network', bg: '#0F766E', deco: '#5EEAD4', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop — shop anywhere',       cta: null,             route: null },
