@@ -407,9 +407,7 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoMarkText}>LS</Text>
-          </View>
+          <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
           <Text style={styles.logo}>Lucky Stop</Text>
           <Text style={styles.tagline}>Earn rewards every visit</Text>
         </View>
@@ -541,9 +539,9 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 32, paddingTop: 16 },
   logoMark: {
     width: 64, height: 64, borderRadius: 18,
-    marginBottom: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15, shadowRadius: 14, elevation: 8,
+    marginBottom: 14, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
   logo: { fontSize: 28, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
   tagline: { fontSize: 14, color: COLORS.textMuted, marginTop: 6, fontWeight: '500' },
