@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android AAB
 
 on:
   workflow_dispatch:
@@ -140,25 +140,25 @@ jobs:
         working-directory: ./mobile/android
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Build Release AAB
         working-directory: ./mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew bundleRelease --no-daemon
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
 
-      - name: Verify APK exists
+      - name: Verify AAB exists
         working-directory: ./mobile/android
         run: |
-          APK=app/build/outputs/apk/release/app-release.apk
-          if [ -f "$APK" ]; then
-            echo "APK produced successfully: $(du -h $APK | cut -f1)"
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          if [ -f "$AAB" ]; then
+            echo "AAB produced successfully: $(du -h $AAB | cut -f1)"
           else
-            echo "ERROR: APK not found at $APK" && exit 1
+            echo "ERROR: AAB not found at $AAB" && exit 1
           fi
 
-      - name: Upload APK artifact
+      - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucky-stop-apk-${{ github.run_number }}
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          name: lucky-stop-aab-${{ github.run_number }}
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
