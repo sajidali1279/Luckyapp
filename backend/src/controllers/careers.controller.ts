@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { notifyNewApplication, notifyApplicationStatusChange } from '../utils/email';
 
 export const POSITIONS = [
   'CASHIER', 'ASSISTANT_MANAGER', 'STORE_MANAGER',
@@ -49,6 +50,10 @@ export async function submitApplication(req: AuthRequest, res: Response) {
     return;
   }
 
+  const store = storeId
+    ? await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } })
+    : null;
+
   const application = await prisma.jobApplication.create({
     data: {
       name,
@@ -62,6 +67,8 @@ export async function submitApplication(req: AuthRequest, res: Response) {
       customerId: (req as AuthRequest).user?.id ?? null,
     },
   });
+
+  notifyNewApplication({ name, phone, email, position, storeName: store?.name }).catch(() => {});
 
   res.status(201).json({ success: true, data: { id: application.id } });
 }
@@ -119,6 +126,15 @@ export async function updateApplication(req: AuthRequest, res: Response) {
     data: { ...(parsed.data.status ? { status: parsed.data.status as any } : {}), ...(parsed.data.reviewNotes !== undefined ? { reviewNotes: parsed.data.reviewNotes } : {}) },
     include: { store: { select: { name: true, city: true } } },
   });
+
+  if (parsed.data.status && app.email) {
+    notifyApplicationStatusChange({
+      applicantEmail: app.email,
+      applicantName: app.name,
+      position: app.position,
+      status: parsed.data.status,
+    }).catch(() => {});
+  }
 
   res.json({ success: true, data: app });
 }

@@ -7,6 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
+import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -701,6 +702,24 @@ export async function sendBillingReport(req: AuthRequest, res: Response) {
   let sent = 0;
   for (const admin of superAdmins) {
     try { await sendPushToUser(admin.id, title, body); sent++; } catch { /* skip if no push token */ }
+
+    // Email each super admin their store's unpaid invoice(s)
+    if (admin.email) {
+      const adminStores = await (prisma.userStoreRole as any).findMany({
+        where: { userId: admin.id },
+        select: { storeId: true },
+      });
+      const adminStoreIds = new Set(adminStores.map((s: any) => s.storeId));
+      const adminRecords = records.filter((r: any) => adminStoreIds.has(r.storeId));
+      for (const record of adminRecords) {
+        sendBillingInvoiceEmail(admin.email, {
+          period,
+          storeName: record.store.name,
+          amount: record.amount,
+          isPaid: record.isPaid,
+        }).catch(() => {});
+      }
+    }
   }
 
   res.json({
