@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -54,6 +54,7 @@ async function registerPushToken() {
 
 export default function RootLayout() {
   const { loadFromStorage, user, isLoading } = useAuthStore();
+  const [showLoader, setShowLoader] = useState(true);
 
   useEffect(() => {
     loadFromStorage();
@@ -65,6 +66,8 @@ export default function RootLayout() {
     if (isLoading) return;
 
     SplashScreen.hideAsync().catch(() => {});
+    // Keep loader visible for at least 1.2 s so the animation plays through
+    setTimeout(() => setShowLoader(false), 1200);
 
     async function navigate() {
       if (!user) {
@@ -107,7 +110,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false }} />
-        {isLoading && <AppLoader />}
+        {(isLoading || showLoader) && <AppLoader />}
         <Toast />
       </QueryClientProvider>
     </ErrorBoundary>
