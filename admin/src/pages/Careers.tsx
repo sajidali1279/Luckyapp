@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { careersApi, storesApi } from '../services/api';
+import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 const POSITION_LABELS: Record<string, string> = {
@@ -55,16 +55,48 @@ function timeAgo(dateStr: string) {
 
 const STATUS_TABS = ['ALL', 'NEW', 'REVIEWED', 'INTERVIEW', 'HIRED', 'REJECTED'];
 
+const POSITIONS = [
+  { value: 'CASHIER', label: 'Cashier' },
+  { value: 'FUEL_ATTENDANT', label: 'Fuel Attendant' },
+  { value: 'FOOD_PREP', label: 'Food Prep / Cook' },
+  { value: 'NIGHT_SHIFT', label: 'Night Shift Attendant' },
+  { value: 'ASSISTANT_MANAGER', label: 'Assistant Manager' },
+  { value: 'STORE_MANAGER', label: 'Store Manager' },
+];
+
+interface JobOpening {
+  id: string;
+  title: string;
+  position: string;
+  storeId: string | null;
+  description: string | null;
+  requirements: string | null;
+  payRange: string | null;
+  employType: string;
+  isActive: boolean;
+  createdAt: string;
+  store: { name: string; city: string } | null;
+  createdBy: { name: string };
+}
+
+const emptyForm = { title: '', position: 'CASHIER', storeId: '', description: '', requirements: '', payRange: '', employType: 'BOTH', isActive: true };
+
 export default function Careers() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
 
+  const [mainTab, setMainTab] = useState<'openings' | 'applications'>('openings');
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedPosition, setSelectedPosition] = useState('');
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editNotes, setEditNotes] = useState('');
+
+  // Openings state
+  const [showOpeningForm, setShowOpeningForm] = useState(false);
+  const [editingOpening, setEditingOpening] = useState<JobOpening | null>(null);
+  const [openingForm, setOpeningForm] = useState(emptyForm);
 
   const params: Record<string, string> = {};
   if (activeTab !== 'ALL') params.status = activeTab;
@@ -81,9 +113,15 @@ export default function Careers() {
     queryFn: storesApi.getAll,
   });
 
+  const { data: openingsData, isLoading: openingsLoading } = useQuery({
+    queryKey: ['job-openings-admin'],
+    queryFn: jobOpeningsApi.getAll,
+  });
+
   const applications: Application[] = data?.data?.data?.applications ?? [];
   const total: number = data?.data?.data?.total ?? 0;
   const stores = storesData?.data?.data ?? [];
+  const openings: JobOpening[] = openingsData?.data?.data ?? [];
 
   const updateMut = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: { status?: string; reviewNotes?: string } }) =>
@@ -108,6 +146,36 @@ export default function Careers() {
     onError: () => toast.error('Failed to delete'),
   });
 
+  const createOpeningMut = useMutation({
+    mutationFn: (data: object) => jobOpeningsApi.create(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); setShowOpeningForm(false); setOpeningForm(emptyForm); toast.success('Opening posted'); },
+    onError: () => toast.error('Failed to post opening'),
+  });
+
+  const updateOpeningMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: object }) => jobOpeningsApi.update(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); setEditingOpening(null); setShowOpeningForm(false); toast.success('Opening updated'); },
+    onError: () => toast.error('Failed to update opening'),
+  });
+
+  const deleteOpeningMut = useMutation({
+    mutationFn: (id: string) => jobOpeningsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); toast.success('Opening deleted'); },
+    onError: () => toast.error('Failed to delete opening'),
+  });
+
+  function startEditOpening(op: JobOpening) {
+    setEditingOpening(op);
+    setOpeningForm({ title: op.title, position: op.position, storeId: op.storeId ?? '', description: op.description ?? '', requirements: op.requirements ?? '', payRange: op.payRange ?? '', employType: op.employType, isActive: op.isActive });
+    setShowOpeningForm(true);
+  }
+
+  function submitOpeningForm() {
+    const payload = { ...openingForm, storeId: openingForm.storeId || null, description: openingForm.description || null, requirements: openingForm.requirements || null, payRange: openingForm.payRange || null };
+    if (editingOpening) updateOpeningMut.mutate({ id: editingOpening.id, data: payload });
+    else createOpeningMut.mutate(payload);
+  }
+
   function openApp(app: Application) {
     setSelectedApp(app);
     setEditNotes(app.reviewNotes ?? '');
@@ -121,10 +189,62 @@ export default function Careers() {
       {/* Header */}
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>💼 Job Applications</h1>
-          <p style={s.subtitle}>{total} total application{total !== 1 ? 's' : ''}</p>
+          <h1 style={s.title}>💼 Careers</h1>
+          <p style={s.subtitle}>{openings.length} opening{openings.length !== 1 ? 's' : ''} · {total} application{total !== 1 ? 's' : ''}</p>
         </div>
+        {mainTab === 'openings' && (
+          <button style={s.postBtn} onClick={() => { setEditingOpening(null); setOpeningForm(emptyForm); setShowOpeningForm(true); }}>
+            + Post Opening
+          </button>
+        )}
       </div>
+
+      {/* Main Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        {(['openings', 'applications'] as const).map(tab => (
+          <button key={tab} style={{ ...s.tab, ...(mainTab === tab ? s.tabActive : {}), fontSize: 16, padding: '9px 22px' }}
+            onClick={() => setMainTab(tab)}>
+            {tab === 'openings' ? '📋 Job Openings' : '📩 Applications'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── OPENINGS PANEL ── */}
+      {mainTab === 'openings' && (
+        openingsLoading ? <div style={s.empty}>Loading…</div> :
+        openings.length === 0 ? <div style={s.empty}>No openings posted yet. Click "Post Opening" to add one.</div> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {openings.map(op => (
+              <div key={op.id} style={{ ...s.opCard, opacity: op.isActive ? 1 : 0.55 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={s.opTitle}>{op.title}</span>
+                      <span style={{ ...s.badge, ...(op.isActive ? { color: '#166534', background: '#f0fdf4' } : { color: '#888', background: '#f5f5f5' }) }}>
+                        {op.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div style={s.opMeta}>
+                      {POSITION_LABELS[op.position] ?? op.position}
+                      {op.store ? ` · ${op.store.name} — ${op.store.city}` : ' · Any Location'}
+                      {op.payRange ? ` · ${op.payRange}` : ''}
+                      {op.employType !== 'BOTH' ? ` · ${op.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}` : ''}
+                    </div>
+                    {op.description && <div style={s.opDesc}>{op.description}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 16 }}>
+                    <button style={s.editBtn} onClick={() => startEditOpening(op)}>Edit</button>
+                    <button style={s.deleteBtn} onClick={() => { if (confirm('Delete this opening?')) deleteOpeningMut.mutate(op.id); }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── APPLICATIONS PANEL ── */}
+      {mainTab === 'applications' && <>
 
       {/* Status Tabs */}
       <div style={s.tabs}>
@@ -193,6 +313,69 @@ export default function Careers() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      </>}
+
+      {/* Opening Form Modal */}
+      {showOpeningForm && (
+        <div style={s.overlay} onClick={() => setShowOpeningForm(false)}>
+          <div style={{ ...s.modal, width: 520 }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 20px', fontSize: 20, color: '#1D3557' }}>{editingOpening ? 'Edit Opening' : 'Post Job Opening'}</h2>
+
+            <label style={s.label}>Job Title *</label>
+            <input style={s.input} value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Cashier Needed – North Location" />
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={s.label}>Position *</label>
+                <select style={s.input} value={openingForm.position} onChange={e => setOpeningForm(f => ({ ...f, position: e.target.value }))}>
+                  {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={s.label}>Employment Type</label>
+                <select style={s.input} value={openingForm.employType} onChange={e => setOpeningForm(f => ({ ...f, employType: e.target.value }))}>
+                  <option value="BOTH">Full-time or Part-time</option>
+                  <option value="FULL_TIME">Full-time only</option>
+                  <option value="PART_TIME">Part-time only</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={s.label}>Store (optional)</label>
+                <select style={s.input} value={openingForm.storeId} onChange={e => setOpeningForm(f => ({ ...f, storeId: e.target.value }))}>
+                  <option value="">Any Location</option>
+                  {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={s.label}>Pay Range (optional)</label>
+                <input style={s.input} value={openingForm.payRange} onChange={e => setOpeningForm(f => ({ ...f, payRange: e.target.value }))} placeholder="e.g. $15–$18/hr" />
+              </div>
+            </div>
+
+            <label style={s.label}>Description (optional)</label>
+            <textarea style={{ ...s.input, minHeight: 80, resize: 'vertical' } as any} value={openingForm.description} onChange={e => setOpeningForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the role, responsibilities…" />
+
+            <label style={s.label}>Requirements (optional)</label>
+            <textarea style={{ ...s.input, minHeight: 60, resize: 'vertical' } as any} value={openingForm.requirements} onChange={e => setOpeningForm(f => ({ ...f, requirements: e.target.value }))} placeholder="Experience, certifications, etc." />
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0', cursor: 'pointer', fontSize: 15 }}>
+              <input type="checkbox" checked={openingForm.isActive} onChange={e => setOpeningForm(f => ({ ...f, isActive: e.target.checked }))} />
+              Active (visible to customers)
+            </label>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+              <button style={s.cancelBtn} onClick={() => setShowOpeningForm(false)}>Cancel</button>
+              <button style={s.saveBtn} onClick={submitOpeningForm} disabled={!openingForm.title}>
+                {editingOpening ? 'Save Changes' : 'Post Opening'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -348,4 +531,17 @@ const s: Record<string, React.CSSProperties> = {
   metaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   metaText: { fontSize: 14, color: '#aaa' },
   deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E63946', background: '#fff', color: '#E63946', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+
+  // Openings
+  postBtn: { padding: '10px 20px', borderRadius: 10, border: 'none', background: '#CC2936', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  opCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e0e0e0' },
+  opTitle: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
+  opMeta: { fontSize: 14, color: '#666', margin: '4px 0 6px' },
+  opDesc: { fontSize: 14, color: '#444', lineHeight: 1.5 },
+  editBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#fff', color: '#1D3557', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+
+  // Form
+  label: { fontSize: 13, fontWeight: 700, color: '#1D3557', display: 'block', marginBottom: 5, marginTop: 14 },
+  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' },
+  cancelBtn: { padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e0e0e0', background: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#555' },
 };

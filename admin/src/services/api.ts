@@ -243,6 +243,13 @@ export const careersApi = {
   delete: (id: string) => api.delete(`/careers/applications/${id}`),
 };
 
+export const jobOpeningsApi = {
+  getAll:  () => api.get('/careers/openings/all'),
+  create:  (data: object) => api.post('/careers/openings', data),
+  update:  (id: string, data: object) => api.patch(`/careers/openings/${id}`, data),
+  delete:  (id: string) => api.delete(`/careers/openings/${id}`),
+};
+
 export const productRequestApi = {
   getStoreRequests: (storeId: string, status?: string) =>
     api.get(`/product-requests/store/${storeId}${status ? `?status=${status}` : ''}`),

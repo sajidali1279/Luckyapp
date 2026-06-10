@@ -192,6 +192,10 @@ export const productRequestApi = {
   getMine: () => api.get('/product-requests/mine'),
 };
 
+export const jobOpeningsApi = {
+  getActive: () => api.get('/careers/openings'),
+};
+
 export const careersApi = {
   apply: (data: {
     name: string; phone: string; email?: string; position: string;

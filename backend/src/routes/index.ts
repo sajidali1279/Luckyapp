@@ -101,6 +101,13 @@ import {
   updateApplication,
   deleteApplication,
 } from '../controllers/careers.controller';
+import {
+  getActiveOpenings,
+  getAllOpenings,
+  createOpening,
+  updateOpening,
+  deleteOpening,
+} from '../controllers/jobOpenings.controller';
 import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, resolveDispute } from '../controllers/dispute.controller';
 import {
   getMenu as getHotFoodMenu,
@@ -363,11 +370,18 @@ router.get('/ratings/pending', authenticate, requireRole(Role.CUSTOMER), getPend
 router.get('/ratings/my/:storeId', authenticate, requireRole(Role.EMPLOYEE), getMyRatingSummary);                     // Employee: own rating summary
 
 // ─── Careers ─────────────────────────────────────────────────────────────────
-router.post('/careers/apply', authenticate, requireRole(Role.CUSTOMER), submitApplication);              // Customer submits job application
-router.get('/careers/applications', authenticate, requireRole(Role.SUPER_ADMIN), getApplications);       // Admin views all applications
-router.get('/careers/applications/new-count', authenticate, requireRole(Role.SUPER_ADMIN), getNewApplicationCount); // Badge count
-router.patch('/careers/applications/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateApplication);          // Update status / notes
-router.delete('/careers/applications/:id', authenticate, requireRole(Role.DEV_ADMIN), deleteApplication);            // Delete application
+router.post('/careers/apply', authenticate, requireRole(Role.CUSTOMER), submitApplication);
+router.get('/careers/applications', authenticate, requireRole(Role.SUPER_ADMIN), getApplications);
+router.get('/careers/applications/new-count', authenticate, requireRole(Role.SUPER_ADMIN), getNewApplicationCount);
+router.patch('/careers/applications/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateApplication);
+router.delete('/careers/applications/:id', authenticate, requireRole(Role.DEV_ADMIN), deleteApplication);
+
+// ─── Job Openings ─────────────────────────────────────────────────────────────
+router.get('/careers/openings', authenticate, getActiveOpenings);                                        // All authenticated — customers see active openings
+router.get('/careers/openings/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllOpenings);        // Admin — all openings incl. inactive
+router.post('/careers/openings', authenticate, requireRole(Role.SUPER_ADMIN), createOpening);            // Admin creates opening
+router.patch('/careers/openings/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateOpening);       // Admin edits opening
+router.delete('/careers/openings/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteOpening);      // Admin deletes opening
 
 // ─── Welcome / Joining Bonus ─────────────────────────────────────────────────
 router.get('/welcome-bonus',                    authenticate, requireRole(Role.CUSTOMER),  getWelcomeBonusStatus);

@@ -249,6 +249,7 @@ model User {
   submittedItemRequests EmployeeItemRequest[] @relation("EmployeeRequestsSubmitted")
   reviewedItemRequests  EmployeeItemRequest[] @relation("EmployeeRequestsReviewed")
   hotFoodOrders         HotFoodOrder[]        @relation("HotFoodOrdersPlaced")
+  jobOpenings           JobOpening[]
 
   @@map("users")
 }
@@ -307,6 +308,7 @@ model Store {
   employeeRatings    EmployeeRating[]
   keywordMappings    StoreKeywordMapping[]
   jobApplications    JobApplication[]
+  jobOpenings        JobOpening[]
   productRequests    ProductRequest[]
   orderLists         OrderList[]
   printJobs          PrintJob[]
@@ -872,6 +874,30 @@ model JobApplication {
   @@index([phone])
   @@index([createdAt])
   @@map("job_applications")
+}
+
+// ─── Job Openings (posted by admins, visible to customers) ──────────────────
+
+model JobOpening {
+  id           String   @id @default(uuid())
+  title        String
+  position     String   // CASHIER | ASSISTANT_MANAGER | STORE_MANAGER | FOOD_PREP | NIGHT_SHIFT | FUEL_ATTENDANT
+  storeId      String?  // null = chain-wide / any location
+  description  String?
+  requirements String?
+  payRange     String?  // e.g. "$15–$18/hr"
+  employType   String   @default("BOTH") // FULL_TIME | PART_TIME | BOTH
+  isActive     Boolean  @default(true)
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store     Store? @relation(fields: [storeId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("job_openings")
 }
 
 // ─── Welcome / Joining Bonus Claims ──────────────────────────────────────────

@@ -4,20 +4,36 @@ import {
   StatusBar, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMutation } from '@tanstack/react-query';
-import { careersApi } from '../../services/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { careersApi, jobOpeningsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircleIcon } from '../../components/Icons';
 
-const POSITIONS = [
-  { value: 'CASHIER',           label: 'Cashier',                 emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
-  { value: 'FUEL_ATTENDANT',    label: 'Fuel Attendant',          emoji: '⛽', desc: 'Assist customers at fuel pumps, ensure safety protocols.' },
-  { value: 'FOOD_PREP',         label: 'Food Prep / Cook',        emoji: '🌮', desc: 'Prepare hot foods, maintain kitchen cleanliness and food safety.' },
-  { value: 'NIGHT_SHIFT',       label: 'Night Shift Attendant',   emoji: '🌙', desc: 'Overnight operations, restocking, customer service during late hours.' },
-  { value: 'ASSISTANT_MANAGER', label: 'Assistant Manager',       emoji: '📋', desc: 'Support store manager, supervise staff, handle daily operations.' },
-  { value: 'STORE_MANAGER',     label: 'Store Manager',           emoji: '🏪', desc: 'Full store management, staff scheduling, inventory, reporting.' },
-];
+const POSITION_META: Record<string, { emoji: string; desc: string }> = {
+  CASHIER:           { emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
+  FUEL_ATTENDANT:    { emoji: '⛽', desc: 'Assist customers at fuel pumps, ensure safety protocols.' },
+  FOOD_PREP:         { emoji: '🌮', desc: 'Prepare hot foods, maintain kitchen cleanliness and food safety.' },
+  NIGHT_SHIFT:       { emoji: '🌙', desc: 'Overnight operations, restocking, customer service during late hours.' },
+  ASSISTANT_MANAGER: { emoji: '📋', desc: 'Support store manager, supervise staff, handle daily operations.' },
+  STORE_MANAGER:     { emoji: '🏪', desc: 'Full store management, staff scheduling, inventory, reporting.' },
+};
+
+const POSITION_LABELS: Record<string, string> = {
+  CASHIER: 'Cashier', FUEL_ATTENDANT: 'Fuel Attendant', FOOD_PREP: 'Food Prep / Cook',
+  NIGHT_SHIFT: 'Night Shift Attendant', ASSISTANT_MANAGER: 'Assistant Manager', STORE_MANAGER: 'Store Manager',
+};
+
+interface JobOpening {
+  id: string;
+  title: string;
+  position: string;
+  description: string | null;
+  requirements: string | null;
+  payRange: string | null;
+  employType: string;
+  store: { name: string; city: string } | null;
+}
 
 const SHIFTS = [
   { value: 'MORNINGS',   label: 'Mornings (6am–2pm)'   },
@@ -53,8 +69,15 @@ interface FormState {
 export default function CareersScreen() {
   const { user } = useAuthStore();
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+  const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const { data: openingsData, isLoading: openingsLoading } = useQuery({
+    queryKey: ['job-openings'],
+    queryFn: () => jobOpeningsApi.getActive(),
+  });
+  const openings: JobOpening[] = openingsData?.data?.data ?? [];
 
   const [form, setForm] = useState<FormState>({
     name: user?.name ?? '',
@@ -88,8 +111,9 @@ export default function CareersScreen() {
     },
   });
 
-  function openForm(positionValue: string) {
+  function openForm(positionValue: string, openingId?: string) {
     setSelectedPosition(positionValue);
+    setSelectedOpeningId(openingId ?? null);
     setSubmitted(false);
     setShowForm(true);
   }
@@ -146,20 +170,45 @@ export default function CareersScreen() {
 
         {/* Open Positions */}
         <Text style={st.sectionTitle}>Open Positions</Text>
-        {POSITIONS.map(pos => (
-          <View key={pos.value} style={st.posCard}>
-            <View style={st.posTop}>
-              <Text style={st.posEmoji}>{pos.emoji}</Text>
-              <View style={st.posInfo}>
-                <Text style={st.posLabel}>{pos.label}</Text>
-                <Text style={st.posDesc}>{pos.desc}</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={st.applyBtn} onPress={() => openForm(pos.value)}>
-              <Text style={st.applyBtnText}>Apply Now</Text>
-            </TouchableOpacity>
+        {openingsLoading ? (
+          <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 24 }} />
+        ) : openings.length === 0 ? (
+          <View style={st.emptyCard}>
+            <Text style={st.emptyText}>No openings posted yet.</Text>
+            <Text style={st.emptySubText}>Check back soon — we're always growing!</Text>
           </View>
-        ))}
+        ) : (
+          openings.map(opening => {
+            const meta = POSITION_META[opening.position] ?? { emoji: '💼', desc: '' };
+            const location = opening.store ? `${opening.store.name} — ${opening.store.city}` : 'Any Location';
+            return (
+              <View key={opening.id} style={st.posCard}>
+                <View style={st.posTop}>
+                  <Text style={st.posEmoji}>{meta.emoji}</Text>
+                  <View style={st.posInfo}>
+                    <Text style={st.posLabel}>{opening.title}</Text>
+                    <Text style={st.posRole}>{POSITION_LABELS[opening.position] ?? opening.position}</Text>
+                    {opening.description ? (
+                      <Text style={st.posDesc}>{opening.description}</Text>
+                    ) : (
+                      <Text style={st.posDesc}>{meta.desc}</Text>
+                    )}
+                  </View>
+                </View>
+                <View style={st.posTagRow}>
+                  <View style={st.posTag}><Text style={st.posTagText}>{location}</Text></View>
+                  {opening.payRange ? <View style={st.posTag}><Text style={st.posTagText}>{opening.payRange}</Text></View> : null}
+                  {opening.employType !== 'BOTH' ? (
+                    <View style={st.posTag}><Text style={st.posTagText}>{opening.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</Text></View>
+                  ) : null}
+                </View>
+                <TouchableOpacity style={st.applyBtn} onPress={() => openForm(opening.position, opening.id)}>
+                  <Text style={st.applyBtnText}>Apply Now</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -283,11 +332,18 @@ const st = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1D3557', marginBottom: 12 },
 
   posCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  posTop: { flexDirection: 'row', gap: 14, marginBottom: 14 },
+  posTop: { flexDirection: 'row', gap: 14, marginBottom: 10 },
   posEmoji: { fontSize: 32, marginTop: 2 },
   posInfo: { flex: 1 },
-  posLabel: { fontSize: 16, fontWeight: '800', color: '#1D3557', marginBottom: 4 },
+  posLabel: { fontSize: 16, fontWeight: '800', color: '#1D3557', marginBottom: 2 },
+  posRole: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   posDesc: { fontSize: 13, color: '#666', lineHeight: 18 },
+  posTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  posTag: { backgroundColor: '#f1f5f9', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  posTagText: { fontSize: 12, color: '#555', fontWeight: '600' },
+  emptyCard: { backgroundColor: '#fff', borderRadius: 14, padding: 32, alignItems: 'center', marginBottom: 12 },
+  emptyText: { fontSize: 16, fontWeight: '700', color: '#1D3557', marginBottom: 6 },
+  emptySubText: { fontSize: 13, color: '#999', textAlign: 'center' },
   applyBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   applyBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
