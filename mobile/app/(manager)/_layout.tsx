@@ -30,7 +30,7 @@ export default function ManagerLayout() {
 
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: t('nav.dashboard') },
-    { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />, label: t('nav.orders') },
+    { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />, label: t('nav.orderList') },
   ];
 
   const groups: NavGroup[] = [

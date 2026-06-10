@@ -5,9 +5,9 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
 const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock',
+  LOW_STOCK: 'Low Stock Alert',
   STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Request',
+  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
   WORK_ORDER: 'Work Order',
 };
 
@@ -243,10 +243,10 @@ export default function StoreRequests() {
               {/* Tab switcher */}
               <div style={s.tabRow}>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'employee' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('employee')}>
-                  👷 Employee
+                  🔔 Store Alerts
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'product' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('product')}>
-                  🛍️ Products
+                  🛍️ Product Requests
                   {prPending.length > 0 && <span style={s.tabBadge}>{prPending.length}</span>}
                 </button>
               </div>
@@ -279,7 +279,7 @@ export default function StoreRequests() {
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>{statusFilter === 'PENDING' ? '✅' : '📭'}</div>
                     <div style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</div>
-                    <div style={s.emptySub}>No employee requests in this category</div>
+                    <div style={s.emptySub}>No store alerts in this category</div>
                   </div>
                 ) : (
                   <div style={s.list}>

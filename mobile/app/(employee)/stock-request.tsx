@@ -20,6 +20,12 @@ type RequestType = 'LOW_STOCK' | 'CUSTOMER_REQUEST';
 
 interface Suggestion { name: string; category: string | null; count: number }
 
+interface OrderListItemStatus {
+  status: 'PENDING' | 'ORDERED' | 'RECEIVED' | 'REMOVED';
+  orderedAt?: string | null;
+  receivedAt?: string | null;
+}
+
 interface RequestLine {
   id: string;
   name: string;
@@ -29,6 +35,7 @@ interface RequestLine {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   rejectionReason?: string;
   rejectionNote?: string;
+  listItem?: OrderListItemStatus | null;
 }
 
 interface MyRequest {
@@ -44,6 +51,13 @@ type GroupedItems = Record<string, { key: string; name: string; qty: string }[]>
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const ORDER_LIST_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  PENDING:  { label: 'On order list',   color: '#16A34A', bg: '#DCFCE7' },
+  ORDERED:  { label: 'Ordered',         color: '#1D4ED8', bg: '#DBEAFE' },
+  RECEIVED: { label: 'Received ✓',      color: '#065F46', bg: '#D1FAE5' },
+  REMOVED:  { label: 'Removed',         color: '#6B7280', bg: '#F3F4F6' },
+};
+
 const REJECTION_LABELS: Record<string, string> = {
   NO_SUPPLIER:   'No supplier available',
   OUT_OF_BUDGET: 'Out of budget',
@@ -53,8 +67,8 @@ const REJECTION_LABELS: Record<string, string> = {
 };
 
 const REQUEST_TYPES: { value: RequestType; label: string; hint: string }[] = [
-  { value: 'LOW_STOCK',        label: 'Low Stock',        hint: 'Items that are running low and need restocking' },
-  { value: 'CUSTOMER_REQUEST', label: 'Customer Request',  hint: 'Items customers have asked for' },
+  { value: 'LOW_STOCK',        label: 'Low / Out of Stock', hint: 'Items running low or completely out — need restocking' },
+  { value: 'CUSTOMER_REQUEST', label: 'Customer Asked For It', hint: 'A customer wanted something we don\'t carry or is out' },
 ];
 
 function makeKey() { return `${Date.now()}-${Math.random()}`; }
@@ -204,7 +218,7 @@ function RequestForm({ categories, onSubmitted }: RequestFormProps) {
       });
     },
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Request submitted', text2: 'Your manager will review it soon' });
+      Toast.show({ type: 'success', text1: 'Stock request submitted', text2: 'Your manager will review and add items to the order list' });
       setRequestType(null);
       setGroups({});
       setActiveName(''); setActiveCategory(''); setActiveQty('');
@@ -219,8 +233,8 @@ function RequestForm({ categories, onSubmitted }: RequestFormProps) {
   if (!requestType) {
     return (
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 12 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.typePrompt}>What are you requesting?</Text>
-        <Text style={s.typeHint}>Helps your manager understand the context.</Text>
+        <Text style={s.typePrompt}>Why are you requesting these items?</Text>
+        <Text style={s.typeHint}>Helps your manager prioritize the order.</Text>
         {REQUEST_TYPES.map(t => (
           <TouchableOpacity key={t.value} style={s.typeCard} onPress={() => setRequestType(t.value)} activeOpacity={0.75}>
             <View style={{ flex: 1 }}>
@@ -444,7 +458,7 @@ function MyRequests() {
       <View style={s.center}>
         <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
         <Text style={s.emptyTitle}>No requests yet</Text>
-        <Text style={s.emptyText}>Submit your first request using the "New Request" tab.</Text>
+        <Text style={s.emptyText}>Use "New Request" to ask your manager to add items to the store order.</Text>
       </View>
     );
   }
@@ -529,24 +543,31 @@ function MyRequests() {
                             </Text>
                           )}
                         </View>
-                        <View style={[
-                          s.lineStatus,
-                          line.status === 'ACCEPTED' && { backgroundColor: '#DCFCE7' },
-                          line.status === 'REJECTED' && { backgroundColor: '#FEE2E2' },
-                          line.status === 'PENDING'  && { backgroundColor: '#FEF3C7' },
-                        ]}>
-                          {line.status === 'ACCEPTED' && <CheckCircleIcon size={14} color="#16A34A" strokeWidth={2.5} />}
-                          {line.status === 'REJECTED' && <XIcon size={14} color="#DC2626" strokeWidth={2.5} />}
-                          {line.status === 'PENDING'  && <AlertTriangleIcon size={14} color="#D97706" strokeWidth={2.5} />}
-                          <Text style={[
-                            s.lineStatusText,
-                            line.status === 'ACCEPTED' && { color: '#16A34A' },
-                            line.status === 'REJECTED' && { color: '#DC2626' },
-                            line.status === 'PENDING'  && { color: '#D97706' },
-                          ]}>
-                            {line.status === 'ACCEPTED' ? 'Added' : line.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                          </Text>
-                        </View>
+                        {line.status === 'ACCEPTED' && (() => {
+                          const olStatus = line.listItem?.status ?? 'PENDING';
+                          const cfg = ORDER_LIST_STATUS[olStatus] ?? ORDER_LIST_STATUS.PENDING;
+                          return (
+                            <View style={[s.lineStatus, { backgroundColor: cfg.bg }]}>
+                              {olStatus === 'RECEIVED'
+                                ? <CheckCircleIcon size={14} color={cfg.color} strokeWidth={2.5} />
+                                : <PackageIcon size={14} color={cfg.color} strokeWidth={2.5} />
+                              }
+                              <Text style={[s.lineStatusText, { color: cfg.color }]}>{cfg.label}</Text>
+                            </View>
+                          );
+                        })()}
+                        {line.status === 'REJECTED' && (
+                          <View style={[s.lineStatus, { backgroundColor: '#FEE2E2' }]}>
+                            <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
+                            <Text style={[s.lineStatusText, { color: '#DC2626' }]}>Declined</Text>
+                          </View>
+                        )}
+                        {line.status === 'PENDING' && (
+                          <View style={[s.lineStatus, { backgroundColor: '#FEF3C7' }]}>
+                            <AlertTriangleIcon size={14} color="#D97706" strokeWidth={2.5} />
+                            <Text style={[s.lineStatusText, { color: '#D97706' }]}>Pending</Text>
+                          </View>
+                        )}
                       </View>
                     ))}
                   </View>
@@ -562,7 +583,7 @@ function MyRequests() {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function EmployeeOrderListScreen() {
+export default function StockRequestScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'new' | 'mine'>('new');
@@ -593,9 +614,9 @@ export default function EmployeeOrderListScreen() {
       <View style={s.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PackageIcon size={20} color="#fff" strokeWidth={2} />
-          <Text style={s.headerTitle}>Request Items</Text>
+          <Text style={s.headerTitle}>Stock Request</Text>
         </View>
-        <Text style={s.headerSub}>Ask your manager to order something</Text>
+        <Text style={s.headerSub}>Request items to be added to the store's order list</Text>
       </View>
 
       <View style={s.tabs}>

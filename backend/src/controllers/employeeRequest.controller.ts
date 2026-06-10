@@ -109,7 +109,14 @@ export async function adminGetAllRequests(req: AuthRequest, res: Response) {
 export async function getMyRequests(req: AuthRequest, res: Response) {
   const requests = await prisma.employeeItemRequest.findMany({
     where: { submittedById: req.user!.id },
-    include: { lines: true, reviewedBy: { select: { id: true, name: true } } },
+    include: {
+      lines: {
+        include: {
+          listItem: { select: { status: true, orderedAt: true, receivedAt: true } },
+        },
+      },
+      reviewedBy: { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: 'desc' }, take: 30,
   });
   res.json({ success: true, data: requests });

@@ -9,10 +9,10 @@ import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
 
 const REQUEST_TYPES = [
-  { value: 'LOW_STOCK',                  label: 'Low Stock',        icon: '📦', desc: 'Product running low',         bg: '#eff6ff', color: '#1D3557' },
-  { value: 'STORE_SUPPLIES',             label: 'Store Supplies',   icon: '🧹', desc: 'Cleaning, bags, etc.',        bg: '#fefce8', color: '#b45309' },
-  { value: 'CUSTOMER_REQUESTED_PRODUCT', label: 'Customer Request', icon: '🛍️', desc: 'Item a customer asked for',   bg: '#f0fdf4', color: '#16a34a' },
-  { value: 'WORK_ORDER',                 label: 'Work Order',       icon: '🔧', desc: 'Equipment or maintenance',    bg: '#fdf4ff', color: '#7c3aed' },
+  { value: 'LOW_STOCK',                  label: 'Low Stock Alert',  icon: '📦', desc: 'A section or product is running very low', bg: '#eff6ff', color: '#1D3557' },
+  { value: 'STORE_SUPPLIES',             label: 'Store Supplies',   icon: '🧹', desc: 'Bags, cleaning supplies, etc.',             bg: '#fefce8', color: '#b45309' },
+  { value: 'CUSTOMER_REQUESTED_PRODUCT', label: 'Customer Asking',  icon: '🛍️', desc: 'Customer wants something we don\'t have',   bg: '#f0fdf4', color: '#16a34a' },
+  { value: 'WORK_ORDER',                 label: 'Work Order',       icon: '🔧', desc: 'Equipment broken or needs maintenance',      bg: '#fdf4ff', color: '#7c3aed' },
 ];
 
 const PRIORITIES = [
@@ -26,9 +26,9 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock',
+  LOW_STOCK: 'Low Stock Alert',
   STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Request',
+  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
   WORK_ORDER: 'Work Order',
 };
 
@@ -98,7 +98,7 @@ export default function EmployeeRequestsScreen() {
       setSelectedType(null);
       setSelectedPriority(null);
       setNotes('');
-      Alert.alert('Request Sent', 'Your request has been sent to your manager.');
+      Alert.alert('Alert Sent', 'Your store alert has been sent to your manager.');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.error || err?.message || 'Something went wrong. Please try again.';
@@ -166,11 +166,11 @@ export default function EmployeeRequestsScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>📋 STORE REQUESTS</Text>
-            <Text style={s.headerTitle}>My Requests</Text>
+            <Text style={s.headerEyebrow}>🔔 STORE ALERTS</Text>
+            <Text style={s.headerTitle}>My Alerts</Text>
           </View>
           <TouchableOpacity style={s.newBtn} onPress={() => setShowForm(true)}>
-            <Text style={s.newBtnText}>+ New</Text>
+            <Text style={s.newBtnText}>+ New Alert</Text>
           </TouchableOpacity>
         </View>
 
@@ -198,7 +198,7 @@ export default function EmployeeRequestsScreen() {
         <View style={s.centered}>
           <Text style={s.emptyEmoji}>📭</Text>
           <Text style={s.emptyTitle}>No requests yet</Text>
-          <Text style={s.emptySub}>Tap "+ New" to send a request to your manager</Text>
+          <Text style={s.emptySub}>Tap "+ New" to alert your manager about a store issue</Text>
           <TouchableOpacity style={s.emptyBtn} onPress={() => setShowForm(true)}>
             <Text style={s.emptyBtnText}>Create First Request</Text>
           </TouchableOpacity>
@@ -221,8 +221,8 @@ export default function EmployeeRequestsScreen() {
             <View style={s.modalHeaderDrag} />
             <View style={s.modalHeaderRow}>
               <View>
-                <Text style={s.modalHeaderTitle}>New Request</Text>
-                <Text style={s.modalHeaderSub}>Send to your store manager</Text>
+                <Text style={s.modalHeaderTitle}>New Store Alert</Text>
+                <Text style={s.modalHeaderSub}>Notify your manager of a store issue</Text>
               </View>
               <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowForm(false)}>
                 <Text style={s.modalCloseText}>✕</Text>
@@ -336,7 +336,7 @@ export default function EmployeeRequestsScreen() {
             >
               {submitMutation.isPending
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.submitBtnText}>Send Request →</Text>
+                : <Text style={s.submitBtnText}>Send Alert →</Text>
               }
             </TouchableOpacity>
 

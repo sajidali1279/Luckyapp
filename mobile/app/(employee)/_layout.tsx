@@ -57,7 +57,7 @@ export default function EmployeeLayout() {
         { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule'), badge: vacancyCount },
         { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat') },
         { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: t('nav.requests') },
-        { route: '/(employee)/order-list', icon: (p) => <PackageIcon {...p} />,       label: t('nav.orderList') },
+        { route: '/(employee)/stock-request', icon: (p) => <PackageIcon {...p} />,       label: t('nav.stockRequest') },
         { route: '/(employee)/hot-food',   icon: (p) => <FlameIcon {...p} />,         label: t('nav.hotFoodOrders'), badge: hotFoodCount },
       ],
     },
@@ -80,7 +80,7 @@ export default function EmployeeLayout() {
         <Tabs.Screen name="schedule" />
         <Tabs.Screen name="chat" />
         <Tabs.Screen name="requests" />
-        <Tabs.Screen name="order-list" />
+        <Tabs.Screen name="stock-request" />
         <Tabs.Screen name="hot-food" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />

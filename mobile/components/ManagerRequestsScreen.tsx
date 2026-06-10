@@ -9,9 +9,9 @@ import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
 
 const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock',
+  LOW_STOCK: 'Low Stock Alert',
   STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Request',
+  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
   WORK_ORDER: 'Work Order',
 };
 
@@ -180,8 +180,8 @@ export default function ManagerRequestsScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>STORE REQUESTS</Text>
-            <Text style={s.headerTitle}>Incoming Requests</Text>
+            <Text style={s.headerEyebrow}>🔔 STORE ALERTS</Text>
+            <Text style={s.headerTitle}>Store Alerts</Text>
           </View>
           {pending.length > 0 && (
             <View style={s.pendingBadge}>
