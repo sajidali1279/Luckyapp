@@ -39,6 +39,12 @@ export async function markAllRead(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
+// DELETE /notifications/my — permanently clears all of the caller's notifications
+export async function clearAllNotifications(req: AuthRequest, res: Response) {
+  await prisma.userNotification.deleteMany({ where: { userId: req.user!.id } });
+  res.json({ success: true });
+}
+
 // PATCH /notifications/:id/read
 export async function markOneRead(req: AuthRequest, res: Response) {
   const { id } = req.params;

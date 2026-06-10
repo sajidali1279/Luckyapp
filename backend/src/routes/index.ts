@@ -35,10 +35,10 @@ import {
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
-import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
+import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, clearAllNotifications, broadcastNotification } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
-import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest } from '../controllers/productRequest.controller';
+import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount } from '../controllers/productRequest.controller';
 import {
   getActiveList, getListHistory, getListById, openList, closeList,
   addItem, updateItem, removeItem, updateItemStatus, reorderItems,
@@ -301,6 +301,7 @@ router.post('/notifications/broadcast', authenticate, requireRole(Role.SUPER_ADM
 router.get('/notifications/my', authenticate, getMyNotifications);
 router.get('/notifications/unread-count', authenticate, getUnreadCount);
 router.patch('/notifications/mark-all-read', authenticate, markAllRead);
+router.delete('/notifications/my', authenticate, clearAllNotifications);
 router.patch('/notifications/:id/read', authenticate, markOneRead);
 
 // ─── Audit Log ───────────────────────────────────────────────────────────────
@@ -399,6 +400,7 @@ router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole
 // ─── Product Requests (Customer) ─────────────────────────────────────────────
 router.post('/product-requests', authenticate, requireRole(Role.CUSTOMER), submitProductRequest);
 router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), getMyProductRequests);
+router.get('/product-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingProductRequestCount);
 router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 

@@ -15,6 +15,19 @@ const STATUS_CONFIG = {
   DECLINED: { label: 'Declined', color: '#9f1239', bg: '#fff1f2', border: '#fecaca', dot: '#ef4444' },
 };
 
+const CATEGORIES = [
+  { key: 'Groceries',     emoji: '🛒' },
+  { key: 'Frozen Foods',  emoji: '🧊' },
+  { key: 'Fresh Foods',   emoji: '🥗' },
+  { key: 'Beverages',     emoji: '🥤' },
+  { key: 'Snacks',        emoji: '🍫' },
+  { key: 'Hot Foods',     emoji: '🔥' },
+  { key: 'Gas',           emoji: '⛽' },
+  { key: 'Diesel',        emoji: '🚛' },
+  { key: 'Tobacco/Vapes', emoji: '🚬' },
+  { key: 'Other',         emoji: '📦' },
+];
+
 function daysLeft(expiresAt: string) {
   const diff = new Date(expiresAt).getTime() - Date.now();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
@@ -30,7 +43,7 @@ function timeAgo(iso: string) {
 
 interface Store { id: string; name: string; city: string; state: string }
 interface ProductRequest {
-  id: string; productName: string; description: string | null;
+  id: string; productName: string; category: string | null; description: string | null;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   responseNote: string | null;
   expiresAt: string; createdAt: string;
@@ -43,6 +56,7 @@ export default function RequestProductScreen() {
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [productName, setProductName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -64,12 +78,14 @@ export default function RequestProductScreen() {
     mutationFn: () => productRequestApi.submit({
       storeId: selectedStore!.id,
       productName: productName.trim(),
+      category: selectedCategory || undefined,
       description: description.trim() || undefined,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-product-requests'] });
       setSubmitted(true);
       setProductName('');
+      setSelectedCategory(null);
       setDescription('');
       setSelectedStore(null);
     },
@@ -177,6 +193,27 @@ export default function RequestProductScreen() {
                   returnKeyType="next"
                 />
 
+                {/* Category */}
+                <Text style={styles.fieldLabel}>Category <Text style={styles.optional}>(optional)</Text></Text>
+                <View style={styles.categoryGrid}>
+                  {CATEGORIES.map((cat) => {
+                    const active = selectedCategory === cat.key;
+                    return (
+                      <TouchableOpacity
+                        key={cat.key}
+                        style={[styles.categoryChip, active && styles.categoryChipActive]}
+                        onPress={() => setSelectedCategory(active ? null : cat.key)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
+                        <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                          {cat.key}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
                 {/* Description */}
                 <Text style={styles.fieldLabel}>More Details <Text style={styles.optional}>(optional)</Text></Text>
                 <TextInput
@@ -259,6 +296,13 @@ function RequestCard({ request }: { request: ProductRequest }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.productName}>{request.productName}</Text>
             <Text style={styles.storeName}>{request.store.name} · {request.store.city}</Text>
+            {request.category ? (
+              <View style={styles.categoryTag}>
+                <Text style={styles.categoryTagText}>
+                  {CATEGORIES.find(c => c.key === request.category)?.emoji ?? '📦'} {request.category}
+                </Text>
+              </View>
+            ) : null}
           </View>
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
             <View style={[styles.statusDot, { backgroundColor: cfg.dot }]} />
@@ -403,6 +447,30 @@ const styles = StyleSheet.create({
   successSub: { fontSize: 14, color: '#6c757d', textAlign: 'center', lineHeight: 20, marginBottom: 32 },
   doneBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
   doneBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  // Category picker
+  categoryGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4,
+  },
+  categoryChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20,
+    borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#fafafa',
+  },
+  categoryChipActive: {
+    borderColor: COLORS.primary, backgroundColor: '#f0fdf4',
+  },
+  categoryEmoji: { fontSize: 14 },
+  categoryLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  categoryLabelActive: { color: COLORS.primary },
+
+  // Category tag on card
+  categoryTag: {
+    alignSelf: 'flex-start', marginTop: 4,
+    backgroundColor: '#f0fdf4', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2,
+    borderWidth: 1, borderColor: '#bbf7d0',
+  },
+  categoryTagText: { fontSize: 11, fontWeight: '600', color: '#16a34a' },
 
   // Store picker list
   storeOption: {

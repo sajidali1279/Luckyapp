@@ -3,7 +3,8 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
 import { hasMinRole } from '../middleware/auth';
-import { Role } from '@prisma/client';
+import { Role, OrderItemSource } from '@prisma/client';
+import { generateListName } from './orderList.controller';
 
 const DECLINE_MESSAGE =
   'Product supply unavailable with current set of vendors but request is identified, validated, stored for future references.';
@@ -12,9 +13,10 @@ const DECLINE_MESSAGE =
 
 export async function submitProductRequest(req: AuthRequest, res: Response) {
   const user = req.user!;
-  const { storeId, productName, description } = req.body as {
+  const { storeId, productName, category, description } = req.body as {
     storeId: string;
     productName: string;
+    category?: string;
     description?: string;
   };
 
@@ -52,11 +54,24 @@ export async function submitProductRequest(req: AuthRequest, res: Response) {
       customerId: user.id,
       storeId,
       productName: productName.trim(),
+      category: category?.trim() || null,
       description: description?.trim() || null,
       expiresAt,
     },
     include: { store: { select: { name: true } } },
   });
+
+  // Push to store managers so their badge + notification tab updates
+  const assignments = await prisma.userStoreRole.findMany({
+    where: { storeId },
+    select: { userId: true, user: { select: { role: true } } },
+  });
+  const managerIds = assignments
+    .filter((a) => a.user.role === Role.STORE_MANAGER)
+    .map((a) => a.userId);
+  managerIds.forEach((id) =>
+    sendPushToUser(id, '🛍️ New Product Request', `A customer is requesting "${request.productName}" at ${request.store.name}`, 'PRODUCT_REQUEST')
+  );
 
   res.status(201).json({ success: true, data: request });
 }
@@ -153,6 +168,35 @@ export async function respondToProductRequest(req: AuthRequest, res: Response) {
     },
   });
 
+  // When accepted, auto-add to the store's active order list
+  if (status === 'ACCEPTED') {
+    let openList = await prisma.orderList.findFirst({
+      where: { storeId: request.storeId, status: 'OPEN' },
+    });
+    if (!openList) {
+      const name = await generateListName(request.storeId);
+      openList = await prisma.orderList.create({
+        data: { storeId: request.storeId, name, openedById: req.user!.id },
+      });
+    }
+    const maxOrder = await prisma.orderListItem.aggregate({
+      where: { listId: openList.id },
+      _max: { sortOrder: true },
+    });
+    await prisma.orderListItem.create({
+      data: {
+        listId: openList.id,
+        name: request.productName,
+        category: request.category || null,
+        notes: request.description ? `Customer note: ${request.description}` : null,
+        source: OrderItemSource.CUSTOMER_REQUEST,
+        addedById: req.user!.id,
+        sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
+        productRequestId: request.id,
+      },
+    });
+  }
+
   const notifTitle = status === 'ACCEPTED'
     ? '🎉 Product Request Accepted!'
     : '📦 Product Request Update';
@@ -160,7 +204,35 @@ export async function respondToProductRequest(req: AuthRequest, res: Response) {
     ? `Great news! Your request for "${request.productName}" at ${request.store.name} has been accepted. We'll work on getting it in stock!`
     : DECLINE_MESSAGE;
 
-  await sendPushToUser(request.customerId, notifTitle, notifBody, 'PRODUCT_REQUEST');
+  sendPushToUser(request.customerId, notifTitle, notifBody, 'PRODUCT_REQUEST');
 
   res.json({ success: true, data: updated });
+}
+
+// ─── GET /product-requests/pending-count  (StoreManager+) ────────────────────
+
+export async function getPendingProductRequestCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  let storeIds: string[];
+  if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
+    storeIds = stores.map((s) => s.id);
+  } else {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { userId: user.id },
+      select: { storeId: true },
+    });
+    storeIds = storeRoles.map((sr) => sr.storeId);
+  }
+
+  const count = await prisma.productRequest.count({
+    where: {
+      storeId: { in: storeIds },
+      status: 'PENDING',
+      expiresAt: { gte: new Date() },
+    },
+  });
+
+  res.json({ success: true, data: { count } });
 }

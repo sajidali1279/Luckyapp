@@ -41,6 +41,7 @@ interface RequestLine {
 interface MyRequest {
   id: string;
   status: 'PENDING' | 'REVIEWED';
+  requestType: string;
   note?: string;
   createdAt: string;
   lines: RequestLine[];
@@ -476,9 +477,12 @@ function MyRequests() {
         const accepted   = req.lines.filter(l => l.status === 'ACCEPTED').length;
         const rejected   = req.lines.filter(l => l.status === 'REJECTED').length;
 
-        const typeMatch  = req.note?.match(/^\[([^\]]+)\]/);
-        const typeLabel  = typeMatch ? typeMatch[1] : null;
-        const noteBody   = typeLabel ? req.note?.replace(/^\[[^\]]+\]\s*/, '') : req.note;
+        const TYPE_LABEL: Record<string, string> = {
+          LOW_STOCK: 'Low / Out of Stock',
+          CUSTOMER_REQUEST: 'Customer Asked',
+        };
+        const typeLabel = TYPE_LABEL[req.requestType] ?? req.requestType;
+        const noteBody  = req.note;
 
         // Group lines by category for display
         const linesByCat: Record<string, RequestLine[]> = {};
@@ -502,7 +506,7 @@ function MyRequests() {
                       {isPending ? 'Pending' : 'Reviewed'}
                     </Text>
                   </View>
-                  {typeLabel && <View style={s.typeLabelBadge}><Text style={s.typeLabelText}>{typeLabel}</Text></View>}
+                  <View style={s.typeLabelBadge}><Text style={s.typeLabelText}>{typeLabel}</Text></View>
                 </View>
                 <Text style={s.reqCardMeta}>
                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}

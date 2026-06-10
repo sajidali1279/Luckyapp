@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType, Role } from '@prisma/client';
 import { generateListName } from './orderList.controller';
+import { sendPushToUser } from '../utils/push';
 
 // ─── GET /employee-requests/suggestions ──────────────────────────────────────
 //
@@ -63,8 +64,20 @@ export async function submitRequest(req: AuthRequest, res: Response) {
       requestType: parsed.data.requestType as EmployeeRequestType,
       lines: { create: parsed.data.lines.map((l: any) => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) },
     },
-    include: { submittedBy: { select: { id: true, name: true } }, lines: true },
+    include: { submittedBy: { select: { id: true, name: true } }, lines: true, store: { select: { name: true } } },
   });
+
+  // Notify store managers
+  const assignments = await prisma.userStoreRole.findMany({
+    where: { storeId: storeRole.storeId },
+    select: { userId: true, user: { select: { role: true } } },
+  });
+  const managerIds = assignments.filter(a => a.user.role === Role.STORE_MANAGER).map(a => a.userId);
+  const itemCount = parsed.data.lines.length;
+  managerIds.forEach(id =>
+    sendPushToUser(id, '📦 New Stock Request', `${user.name || 'An employee'} requested ${itemCount} item${itemCount !== 1 ? 's' : ''} for restocking`, 'STOCK_REQUEST')
+  );
+
   res.status(201).json({ success: true, data: request });
 }
 
@@ -241,6 +254,16 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
     });
     return results;
   });
+
+  const acceptedCount = updates.filter(r => r.action === 'ACCEPTED').length;
+  const total = updates.length;
+  const notifTitle = acceptedCount === total ? '✅ Stock Request Approved!'
+    : acceptedCount === 0 ? '❌ Stock Request Declined'
+    : '📦 Stock Request Reviewed';
+  const notifBody = acceptedCount === total
+    ? `All ${total} item${total !== 1 ? 's' : ''} accepted and added to the order list!`
+    : `${acceptedCount} of ${total} item${total !== 1 ? 's' : ''} accepted for ordering.`;
+  sendPushToUser(request.submittedById, notifTitle, notifBody, 'STOCK_REQUEST');
 
   res.json({ success: true, data: { requestId, results: updates, listId: targetListId } });
 }

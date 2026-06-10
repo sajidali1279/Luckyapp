@@ -169,6 +169,7 @@ export const notificationsApi = {
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markAllRead: () => api.patch('/notifications/mark-all-read'),
   markOneRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  clearAll: () => api.delete('/notifications/my'),
 };
 
 export const storesApi = {
@@ -187,9 +188,14 @@ export const welcomeBonusApi = {
 };
 
 export const productRequestApi = {
-  submit: (data: { storeId: string; productName: string; description?: string }) =>
+  submit: (data: { storeId: string; productName: string; category?: string; description?: string }) =>
     api.post('/product-requests', data),
   getMine: () => api.get('/product-requests/mine'),
+  getPendingCount: () => api.get('/product-requests/pending-count'),
+  getStoreRequests: (storeId: string) =>
+    api.get(`/product-requests/store/${storeId}`),
+  respond: (id: string, status: 'ACCEPTED' | 'DECLINED', responseNote?: string) =>
+    api.patch(`/product-requests/${id}/respond`, { status, responseNote }),
 };
 
 export const jobOpeningsApi = {

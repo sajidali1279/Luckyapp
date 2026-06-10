@@ -6,7 +6,7 @@ import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
-import { sendPushToUser, sendPushToStoreStaff, saveNotificationMany } from '../utils/push';
+import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -1272,8 +1272,8 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   if (dieselPricePerGallon !== undefined) parts.push(`Diesel $${dieselPricePerGallon.toFixed(3)}/gal`);
   const priceText = parts.join(' · ');
 
-  // Push + in-app → store staff only (they must update pump displays immediately)
-  sendPushToStoreStaff(
+  // Push + in-app → employees only (they update pump displays; managers don't need push)
+  sendPushToStoreEmployees(
     storeId,
     `⛽ Gas Prices Updated — ${store.name}`,
     `${priceText} — update pump display now`,

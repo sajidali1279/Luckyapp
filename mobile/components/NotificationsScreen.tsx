@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity, Alert,
   StyleSheet, StatusBar, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
-  CalendarIcon, ClockIcon, ClipboardIcon,
+  CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
 } from './Icons';
 
 function getNotifRoute(type: string, role?: string): string | null {
@@ -29,36 +29,46 @@ function getNotifRoute(type: string, role?: string): string | null {
     if (type === 'STORE_REQUEST') return '/(employee)/requests';
   }
   if (role === 'STORE_MANAGER') {
-    if (type === 'STORE_REQUEST') return '/(manager)/requests';
-    if (type === 'SCHEDULE') return '/(manager)/schedule';
-    if (type === 'SHIFT_REQUEST') return '/(manager)/requests';
-    if (type === 'GAS_PRICE_UPDATE') return '/(manager)/home';
+    if (type === 'STOCK_REQUEST')     return '/(manager)/requests';
+    if (type === 'PRODUCT_REQUEST')   return '/(manager)/requests';
+    if (type === 'ALERT')             return '/(manager)/home';
+    if (type === 'DISPUTE_SUBMITTED') return '/(manager)/home';
   }
   return null;
 }
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
-  GAS_PRICE_UPDATE: { color: '#f97316' },
-  OFFER:         { color: '#F4A261' },
-  POINTS:        { color: '#2DC653' },
-  REDEMPTION:    { color: '#a78bfa' },
-  SCHEDULE:      { color: '#60a5fa' },
-  SHIFT_REQUEST: { color: '#f472b6' },
-  STORE_REQUEST: { color: '#fb923c' },
-  GENERAL:       { color: COLORS.primary },
+  GAS_PRICE_UPDATE:  { color: '#f97316' },
+  OFFER:             { color: '#F4A261' },
+  POINTS:            { color: '#2DC653' },
+  REDEMPTION:        { color: '#a78bfa' },
+  SCHEDULE:          { color: '#60a5fa' },
+  SHIFT_REQUEST:     { color: '#f472b6' },
+  STORE_REQUEST:     { color: '#fb923c' },
+  STOCK_REQUEST:     { color: '#2563eb' },
+  PRODUCT_REQUEST:   { color: '#7c3aed' },
+  ALERT:             { color: '#E63946' },
+  DISPUTE_SUBMITTED: { color: '#f59e0b' },
+  HOT_FOOD_ORDER:    { color: '#ea580c' },
+  GENERAL:           { color: COLORS.primary },
 };
 
 function NotifIcon({ type, color }: { type: string; color: string }) {
   const p = { size: 22, color, strokeWidth: 1.75 };
   switch (type) {
-    case 'GAS_PRICE_UPDATE': return <GasPumpIcon {...p} />;
-    case 'OFFER':            return <TagIcon {...p} />;
-    case 'POINTS':           return <DollarSignIcon {...p} />;
-    case 'REDEMPTION':       return <GiftIcon {...p} />;
-    case 'SCHEDULE':         return <CalendarIcon {...p} />;
-    case 'SHIFT_REQUEST':    return <ClockIcon {...p} />;
-    case 'STORE_REQUEST':    return <ClipboardIcon {...p} />;
-    default:                 return <BellIcon {...p} />;
+    case 'GAS_PRICE_UPDATE':  return <GasPumpIcon {...p} />;
+    case 'OFFER':             return <TagIcon {...p} />;
+    case 'POINTS':            return <DollarSignIcon {...p} />;
+    case 'REDEMPTION':        return <GiftIcon {...p} />;
+    case 'SCHEDULE':          return <CalendarIcon {...p} />;
+    case 'SHIFT_REQUEST':     return <ClockIcon {...p} />;
+    case 'STORE_REQUEST':     return <ClipboardIcon {...p} />;
+    case 'STOCK_REQUEST':     return <PackageIcon {...p} />;
+    case 'PRODUCT_REQUEST':   return <TagIcon {...p} />;
+    case 'ALERT':             return <AlertTriangleIcon {...p} />;
+    case 'DISPUTE_SUBMITTED': return <ClipboardIcon {...p} />;
+    case 'HOT_FOOD_ORDER':    return <ClipboardIcon {...p} />;
+    default:                  return <BellIcon {...p} />;
   }
 }
 
@@ -107,6 +117,25 @@ export default function NotificationsScreen() {
     },
   });
 
+  const clearAllMutation = useMutation({
+    mutationFn: () => notificationsApi.clearAll(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-notifications'] });
+      qc.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+
+  function confirmClearAll() {
+    Alert.alert(
+      'Clear all notifications?',
+      'This permanently removes every notification in your inbox.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear All', style: 'destructive', onPress: () => clearAllMutation.mutate() },
+      ],
+    );
+  }
+
   const markOneMutation = useMutation({
     mutationFn: (id: string) => notificationsApi.markOneRead(id),
     onSuccess: () => {
@@ -126,9 +155,9 @@ export default function NotificationsScreen() {
 
   const rawNotifications: Notification[] = data?.data?.data?.notifications ?? [];
   const unreadCount: number = data?.data?.data?.unreadCount ?? 0;
-  const isStaff = user?.role === 'EMPLOYEE' || user?.role === 'STORE_MANAGER';
-  // For staff: unread gas price alerts always float to the top
-  const notifications = isStaff
+  // Only employees need gas price alerts pinned (they update the pump display)
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const notifications = isEmployee
     ? [...rawNotifications].sort((a, b) => {
         const aPin = a.type === 'GAS_PRICE_UPDATE' && !a.isRead ? -1 : 0;
         const bPin = b.type === 'GAS_PRICE_UPDATE' && !b.isRead ? -1 : 0;
@@ -139,7 +168,7 @@ export default function NotificationsScreen() {
   function renderItem({ item }: { item: Notification }) {
     const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.GENERAL;
     const route = getNotifRoute(item.type, user?.role);
-    const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isStaff && !item.isRead;
+    const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isEmployee && !item.isRead;
     return (
       <TouchableOpacity
         style={[s.card, !item.isRead && s.cardUnread, isGasAlert && s.cardGasAlert]}
@@ -177,15 +206,26 @@ export default function NotificationsScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={s.header}>
         <Text style={s.headerTitle}>Notifications</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={s.markAllBtn}
-            onPress={() => markAllMutation.mutate()}
-            disabled={markAllMutation.isPending}
-          >
-            <Text style={s.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={s.headerBtn}
+              onPress={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+            >
+              <Text style={s.headerBtnText}>Mark read</Text>
+            </TouchableOpacity>
+          )}
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              style={[s.headerBtn, s.headerBtnClear]}
+              onPress={confirmClearAll}
+              disabled={clearAllMutation.isPending}
+            >
+              <Text style={[s.headerBtnText, s.headerBtnClearText]}>Clear all</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </SafeAreaView>
 
       {isLoading ? (
@@ -223,13 +263,15 @@ const s = StyleSheet.create({
     paddingBottom: 16,
   },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '900' },
-  markAllBtn: {
+  headerBtn: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  markAllText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  headerBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  headerBtnClear: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  headerBtnClearText: { color: 'rgba(255,255,255,0.55)' },
 
   list: { padding: 16, gap: 0 },
 

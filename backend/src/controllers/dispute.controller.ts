@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { Role } from '@prisma/client';
-import { sendPushToUser, sendPushToStoreStaff } from '../utils/push';
+import { sendPushToUser, sendPushToStoreEmployees } from '../utils/push';
 
 const submitSchema = z.object({
   storeId:      z.string().uuid(),
@@ -29,8 +29,8 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     data: { customerId: req.user!.id, storeId, description, estimatedAmt },
   });
 
-  // Notify store staff so they can review promptly
-  sendPushToStoreStaff(
+  // Notify employees only — cashiers handled the transaction and can escalate
+  sendPushToStoreEmployees(
     storeId,
     'New Missing-Points Report',
     `A customer reported missing cashback at ${store.name}. Review in the admin portal.`,

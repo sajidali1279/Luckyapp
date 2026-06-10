@@ -1,4 +1,5 @@
 import prisma from '../config/prisma';
+import { Role } from '@prisma/client';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -19,9 +20,18 @@ export async function saveNotificationMany(userIds: string[], title: string, bod
 
 /** Send push + in-app notification to all staff (employees + managers) of a specific store. */
 export async function sendPushToStoreStaff(storeId: string, title: string, body: string, type = 'GENERAL'): Promise<void> {
+  return sendPushToStoreByRole(storeId, title, body, type);
+}
+
+/** Send push + in-app notification to employees only (excludes store managers). */
+export async function sendPushToStoreEmployees(storeId: string, title: string, body: string, type = 'GENERAL'): Promise<void> {
+  return sendPushToStoreByRole(storeId, title, body, type, Role.EMPLOYEE);
+}
+
+async function sendPushToStoreByRole(storeId: string, title: string, body: string, type: string, role?: Role): Promise<void> {
   try {
     const storeRoles = await prisma.userStoreRole.findMany({
-      where: { storeId },
+      where: { storeId, ...(role ? { role } : {}) },
       include: { user: { include: { pushTokens: { select: { token: true } } } } },
     });
     if (storeRoles.length === 0) return;

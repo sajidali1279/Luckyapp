@@ -313,7 +313,7 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
     storeId, storeName: request.store.name,
   });
 
-  // FILL_IN: notify store managers + all super admins
+  // FILL_IN: notify super admins only (store managers handle inventory, not scheduling)
   if (requestType === ShiftRequestType.FILL_IN) {
     const empName = request.employee.name || request.employee.phone || 'An employee';
     const storeName = request.store.name;
@@ -321,14 +321,6 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
     const title = '🙋 Fill-In Request';
     const body = `${empName} is requesting to fill the ${SHIFT_LABELS[shiftType]} shift on ${dateStr} at ${storeName}.`;
 
-    // Store managers for this store
-    const storeMgrs = await prisma.userStoreRole.findMany({
-      where: { storeId, role: Role.STORE_MANAGER },
-      select: { userId: true },
-    });
-    for (const m of storeMgrs) sendPushToUser(m.userId, title, body, 'SHIFT_REQUEST');
-
-    // All super admins
     const superAdmins = await prisma.user.findMany({
       where: { role: Role.SUPER_ADMIN, isActive: true },
       select: { id: true },

@@ -2,7 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
-import { sendPushToStoreStaff } from '../utils/push';
+import { sendPushToStoreEmployees } from '../utils/push';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -341,9 +341,9 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     },
   });
 
-  // Notify all on-site employees for this store
+  // Notify employees only — hot food is an employee task, not an inventory item
   const itemSummary = orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
-  sendPushToStoreStaff(
+  sendPushToStoreEmployees(
     storeId,
     `🔥 New Order #${order.orderNumber}`,
     itemSummary,

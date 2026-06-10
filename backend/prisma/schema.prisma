@@ -127,6 +127,7 @@ enum OrderListItemStatus {
 enum OrderItemSource {
   MANAGER           // Added directly by manager
   EMPLOYEE_REQUEST  // Accepted from an employee request
+  CUSTOMER_REQUEST  // Auto-added when manager accepts a customer product request
 }
 
 enum EmployeeRequestStatus {
@@ -928,6 +929,7 @@ model ProductRequest {
   customerId    String
   storeId       String
   productName   String
+  category      String?              // customer-selected category (e.g. "Groceries", "Frozen Foods")
   description   String?
   status        ProductRequestStatus @default(PENDING)
   responseNote  String?
@@ -937,9 +939,10 @@ model ProductRequest {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
-  customer    User  @relation("CustomerProductRequests", fields: [customerId], references: [id], onDelete: Cascade)
-  store       Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  respondedBy User? @relation("ProductRequestResponder", fields: [respondedById], references: [id])
+  customer      User           @relation("CustomerProductRequests", fields: [customerId], references: [id], onDelete: Cascade)
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  respondedBy   User?          @relation("ProductRequestResponder", fields: [respondedById], references: [id])
+  orderListItem OrderListItem?
 
   @@index([customerId])
   @@index([storeId])
@@ -1005,18 +1008,20 @@ model OrderListItem {
   priority      OrderItemPriority   @default(NORMAL)
   sortOrder     Int                 @default(0)
   status        OrderListItemStatus @default(PENDING)
-  source        OrderItemSource     @default(MANAGER)
-  requestLineId String?             @unique  // set when accepted from employee request
-  addedById     String
+  source           OrderItemSource     @default(MANAGER)
+  requestLineId    String?             @unique  // set when accepted from employee request
+  productRequestId String?             @unique  // set when accepted from customer product request
+  addedById        String
   orderedAt     DateTime?
   receivedAt    DateTime?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  list        OrderList            @relation(fields: [listId], references: [id], onDelete: Cascade)
-  addedBy     User                 @relation("OrderListItemsAdded", fields: [addedById], references: [id])
-  requestLine EmployeeRequestLine? @relation(fields: [requestLineId], references: [id])
-  printItems  PrintJobItem[]
+  list           OrderList            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  addedBy        User                 @relation("OrderListItemsAdded", fields: [addedById], references: [id])
+  requestLine    EmployeeRequestLine? @relation(fields: [requestLineId], references: [id])
+  productRequest ProductRequest?      @relation(fields: [productRequestId], references: [id])
+  printItems     PrintJobItem[]
 
   @@index([listId, status])
   @@index([listId, category])

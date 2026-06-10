@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
-import { notificationsApi, employeeRequestApi } from '../../services/api';
+import { notificationsApi, employeeRequestApi, productRequestApi } from '../../services/api';
 import { useAuthStore, isAdmin } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
@@ -28,6 +28,13 @@ export default function ManagerLayout() {
   });
   const empReqPending: number = empReqData?.data?.data?.count ?? 0;
 
+  const { data: productReqData } = useQuery({
+    queryKey: ['product-requests-pending-count'],
+    queryFn: () => productRequestApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const productReqPending: number = productReqData?.data?.data?.count ?? 0;
+
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: t('nav.dashboard') },
     { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />, label: t('nav.orderList') },
@@ -39,7 +46,7 @@ export default function ManagerLayout() {
       items: [
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
-        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending },
+        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending },
       ],
     },
     {
