@@ -132,7 +132,7 @@ export default function CareersScreen() {
     applyMut.mutate();
   }
 
-  const positionLabel = POSITIONS.find(p => p.value === selectedPosition)?.label ?? '';
+  const positionLabel = selectedPosition ? (POSITION_LABELS[selectedPosition] ?? selectedPosition) : '';
 
   return (
     <SafeAreaView style={st.safe}>
