@@ -398,23 +398,23 @@ export default function Careers() {
               {/* Contact */}
               <div style={s.section}>
                 <div style={s.sectionTitle}>Contact</div>
-                <div style={s.row}><span style={s.label}>Phone</span><span>{app.phone}</span></div>
-                {app.email && <div style={s.row}><span style={s.label}>Email</span><span>{app.email}</span></div>}
+                <div style={s.row}><span style={s.rowLabel}>Phone</span><span>{app.phone}</span></div>
+                {app.email && <div style={s.row}><span style={s.rowLabel}>Email</span><span>{app.email}</span></div>}
               </div>
 
               {/* Preferred Store */}
               <div style={s.section}>
                 <div style={s.sectionTitle}>Preferences</div>
                 <div style={s.row}>
-                  <span style={s.label}>Store</span>
+                  <span style={s.rowLabel}>Store</span>
                   <span>{app.store ? `${app.store.name} — ${app.store.city}` : 'Any location'}</span>
                 </div>
                 <div style={s.row}>
-                  <span style={s.label}>Type</span>
+                  <span style={s.rowLabel}>Type</span>
                   <span>{avail.type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</span>
                 </div>
                 <div style={s.row}>
-                  <span style={s.label}>Shifts</span>
+                  <span style={s.rowLabel}>Shifts</span>
                   <span>{avail.shifts.map((sh: string) => SHIFT_LABELS[sh] ?? sh).join(', ')}</span>
                 </div>
               </div>
@@ -520,7 +520,7 @@ const s: Record<string, React.CSSProperties> = {
   section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
   row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#333' },
-  label: { fontWeight: 600, color: '#888', minWidth: 70 },
+  rowLabel: { fontWeight: 600, color: '#888', minWidth: 70 },
   text: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
 
   statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#555' },
