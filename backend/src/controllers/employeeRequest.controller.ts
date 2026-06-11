@@ -89,7 +89,13 @@ export async function getStoreRequests(req: AuthRequest, res: Response) {
   const where: Record<string, unknown> = { storeId };
   if (status === 'PENDING' || status === 'REVIEWED') where.status = status;
   const requests = await prisma.employeeItemRequest.findMany({
-    where, include: { submittedBy: { select: { id: true, name: true, role: true } }, reviewedBy: { select: { id: true, name: true } }, lines: true },
+    where,
+    include: {
+      submittedBy: { select: { id: true, name: true, role: true } },
+      reviewedBy:  { select: { id: true, name: true } },
+      lines: true,
+      store: { select: { id: true, name: true } },
+    },
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
   });
   res.json({ success: true, data: requests });

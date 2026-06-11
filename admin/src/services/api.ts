@@ -300,6 +300,8 @@ export const employeeRequestApi = {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/employee-requests/admin/all${q ? `?${q}` : ''}`);
   },
+  getForStore: (storeId: string, status?: string) =>
+    api.get(`/employee-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
   reviewRequest: (requestId: string, data: { lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
     api.patch(`/employee-requests/${requestId}/review`, data),
   getPendingCount: () => api.get('/employee-requests/pending-count'),
