@@ -89,6 +89,13 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
 app.listen(PORT, () => {
   console.log(`Lucky Stop API running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
