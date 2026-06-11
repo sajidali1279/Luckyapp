@@ -899,8 +899,8 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
   if (category) where.category = category;
   if (from || to) {
     const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = new Date(from);
-    if (to)   dateFilter.lte = new Date(to + 'T23:59:59');
+    if (from) dateFilter.gte = new Date(from.slice(0, 10) + 'T00:00:00');
+    if (to)   dateFilter.lte = new Date(to.slice(0, 10)   + 'T23:59:59');
     where.createdAt = dateFilter;
   }
 
@@ -955,8 +955,8 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
   if (category) where.category = category;
   if (from || to) {
     const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = new Date(from);
-    if (to)   dateFilter.lte = new Date(to + 'T23:59:59');
+    if (from) dateFilter.gte = new Date(from.slice(0, 10) + 'T00:00:00');
+    if (to)   dateFilter.lte = new Date(to.slice(0, 10)   + 'T23:59:59');
     where.createdAt = dateFilter;
   }
 

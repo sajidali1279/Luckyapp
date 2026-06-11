@@ -1140,8 +1140,8 @@ export async function getDevRevenue(_req: AuthRequest, res: Response) {
 export async function getAnalytics(req: AuthRequest, res: Response) {
   const { from, to } = req.query as { from?: string; to?: string };
 
-  const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const toDate = to ? new Date(to + 'T23:59:59') : new Date();
+  const fromDate = from ? new Date(from.slice(0, 10) + 'T00:00:00') : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate   = to   ? new Date(to.slice(0, 10)   + 'T23:59:59') : new Date();
 
   if (fromDate >= toDate) {
     res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
