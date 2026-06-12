@@ -42,7 +42,7 @@ import { submitProductRequest, getMyProductRequests, getStoreProductRequests, re
 import {
   getActiveList, getListHistory, getListById, openList, closeList,
   addItem, updateItem, removeItem, updateItemStatus, reorderItems,
-  printList, getPrintHistory, restoreItems, getItemSuggestions, adminGetAllLists,
+  printList, getPrintHistory, restoreItems, getItemSuggestions, adminGetAllLists, getQuickAddItems,
 } from '../controllers/orderList.controller';
 import {
   submitRequest as submitItemRequest,
@@ -62,6 +62,7 @@ import {
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
+import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -407,6 +408,7 @@ router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STO
 // ─── Order Lists (Procurement Ticketing) ─────────────────────────────────────
 router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), getItemSuggestions);                    // Item name autocomplete — all stores combined, no store filter needed
 router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllLists);                          // All lists across stores
+router.get('/order-lists/store/:storeId/quick-add',             authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getQuickAddItems);       // Top 16 items for Quick Pad
 router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
 router.get('/order-lists/store/:storeId/history',               authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getListHistory);         // Closed lists (paginated)
 router.get('/order-lists/store/:storeId/print-history/:listId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getPrintHistory);        // Print jobs for a list
@@ -430,6 +432,12 @@ router.get('/employee-requests/mine',                            authenticate, r
 router.get('/employee-requests/store/:storeId',                  authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreItemRequests);   // Manager views store requests
 router.get('/employee-requests/store/:storeId/rejected',         authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getRejectedLines);        // Rejection log for a store
 router.patch('/employee-requests/:requestId/review',             authenticate, requireRole(Role.STORE_MANAGER), reviewRequest);                        // Accept/reject each line → adds to list
+
+// ─── Scanned Product Catalog ──────────────────────────────────────────────────
+router.get   ('/scanned-products/barcode/:barcode', authenticate, requireRole(Role.EMPLOYEE),  lookupBarcode);  // Look up by barcode (employee + manager)
+router.post  ('/scanned-products',                  authenticate, requireRole(Role.EMPLOYEE),  saveProduct);    // Save/upsert a barcode→name mapping
+router.get   ('/scanned-products',                  authenticate, requireRole(Role.DEV_ADMIN), listProducts);   // Browse catalog (DevAdmin only)
+router.delete('/scanned-products/:id',              authenticate, requireRole(Role.DEV_ADMIN), deleteProduct);  // Remove bad entry (DevAdmin only)
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison

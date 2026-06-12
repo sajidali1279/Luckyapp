@@ -284,10 +284,17 @@ export const orderListApi = {
   getPrintHistory:(storeId: string, listId: string) => api.get(`/order-lists/store/${storeId}/print-history/${listId}`),
   restoreItems:   (storeId: string, closedListId: string, itemIds: string[]) =>
     api.post(`/order-lists/store/${storeId}/restore-items`, { closedListId, itemIds }),
+  getQuickItems:  (storeId: string) => api.get(`/order-lists/store/${storeId}/quick-add`),
   adminGetAll:    (params?: { storeId?: string; status?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/order-lists/admin/all${q ? `?${q}` : ''}`);
   },
+};
+
+export const scannedProductApi = {
+  lookup: (barcode: string) => api.get(`/scanned-products/barcode/${encodeURIComponent(barcode)}`),
+  save:   (data: { barcode: string; name: string; category?: string; brand?: string; source: 'manual' | 'openfoodfacts' }) =>
+    api.post('/scanned-products', data),
 };
 
 export const employeeRequestApi = {

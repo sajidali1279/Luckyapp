@@ -58,6 +58,24 @@ export async function getItemSuggestions(req: AuthRequest, res: Response) {
   res.json({ success: true, data: [...seen.values()].slice(0, 8) });
 }
 
+// ─── GET /order-lists/store/:storeId/quick-add ───────────────────────────────
+// Top 16 most frequently ordered items for this store — powers the Quick Pad tiles
+
+export async function getQuickAddItems(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const results = await prisma.$queryRaw<{ name: string; category: string | null; count: bigint }[]>`
+    SELECT oli.name, oli.category, COUNT(*) AS count
+    FROM order_list_items oli
+    JOIN order_lists ol ON ol.id = oli.list_id
+    WHERE ol.store_id = ${storeId}
+      AND oli.status != 'REMOVED'
+    GROUP BY oli.name, oli.category
+    ORDER BY count DESC
+    LIMIT 16
+  `;
+  res.json({ success: true, data: results.map(r => ({ name: r.name, category: r.category, count: Number(r.count) })) });
+}
+
 // ─── GET /order-lists/store/:storeId/active ───────────────────────────────────
 
 export async function getActiveList(req: AuthRequest, res: Response) {

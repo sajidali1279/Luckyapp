@@ -11,14 +11,24 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
   ClipboardIcon, PlusIcon, CheckCircleIcon,
-  XIcon, AlertTriangleIcon, PackageIcon, Trash2Icon, ChevronDownIcon,
+  XIcon, AlertTriangleIcon, PackageIcon, QrCodeScanIcon,
 } from '../../components/Icons';
+import BarcodeScannerModal from '../../components/BarcodeScannerModal';
+import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type RequestType = 'LOW_STOCK' | 'CUSTOMER_REQUEST';
 
 interface Suggestion { name: string; category: string | null; count: number }
+
+interface CartItem {
+  key: string;
+  name: string;
+  quantity: string;
+  category: string;
+  notes: string;
+}
 
 interface OrderListItemStatus {
   status: 'PENDING' | 'ORDERED' | 'RECEIVED' | 'REMOVED';
@@ -27,36 +37,25 @@ interface OrderListItemStatus {
 }
 
 interface RequestLine {
-  id: string;
-  name: string;
-  quantity?: string;
-  category?: string;
-  notes?: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-  rejectionReason?: string;
-  rejectionNote?: string;
+  id: string; name: string; quantity?: string; category?: string;
+  notes?: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  rejectionReason?: string; rejectionNote?: string;
   listItem?: OrderListItemStatus | null;
 }
 
 interface MyRequest {
-  id: string;
-  status: 'PENDING' | 'REVIEWED';
-  requestType: string;
-  note?: string;
-  createdAt: string;
-  lines: RequestLine[];
+  id: string; status: 'PENDING' | 'REVIEWED'; requestType: string;
+  note?: string; createdAt: string; lines: RequestLine[];
   reviewedBy?: { id: string; name: string };
 }
 
-type GroupedItems = Record<string, { key: string; name: string; qty: string }[]>;
+// ─── Config ───────────────────────────────────────────────────────────────────
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const ORDER_LIST_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:  { label: 'On order list',   color: '#16A34A', bg: '#DCFCE7' },
-  ORDERED:  { label: 'Ordered',         color: '#1D4ED8', bg: '#DBEAFE' },
-  RECEIVED: { label: 'Received ✓',      color: '#065F46', bg: '#D1FAE5' },
-  REMOVED:  { label: 'Removed',         color: '#6B7280', bg: '#F3F4F6' },
+const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  PENDING:  { label: 'On order list', color: '#16A34A', bg: '#DCFCE7' },
+  ORDERED:  { label: 'Ordered',       color: '#1D4ED8', bg: '#DBEAFE' },
+  RECEIVED: { label: 'Received ✓',   color: '#065F46', bg: '#D1FAE5' },
+  REMOVED:  { label: 'Removed',       color: '#6B7280', bg: '#F3F4F6' },
 };
 
 const REJECTION_LABELS: Record<string, string> = {
@@ -67,374 +66,281 @@ const REJECTION_LABELS: Record<string, string> = {
   OTHER:         'Other reason',
 };
 
-const REQUEST_TYPES: { value: RequestType; label: string; hint: string }[] = [
-  { value: 'LOW_STOCK',        label: 'Low / Out of Stock', hint: 'Items running low or completely out — need restocking' },
-  { value: 'CUSTOMER_REQUEST', label: 'Customer Asked For It', hint: 'A customer wanted something we don\'t carry or is out' },
-];
-
 function makeKey() { return `${Date.now()}-${Math.random()}`; }
 
-// ─── Request Form ─────────────────────────────────────────────────────────────
+// ─── New Request Form ─────────────────────────────────────────────────────────
 
-interface RequestFormProps {
-  categories: string[];
-  onSubmitted: () => void;
-}
-
-function RequestForm({ categories, onSubmitted }: RequestFormProps) {
-  // ── Step 1: type ──────────────────────────────────────────────────────────
-  const [requestType, setRequestType] = useState<RequestType | null>(null);
-
-  // ── Active entry ──────────────────────────────────────────────────────────
-  const [activeCategory, setActiveCategory] = useState('');
-  const [activeName,     setActiveName]     = useState('');
-  const [activeQty,      setActiveQty]      = useState('');
-
-  // ── Suggestions ───────────────────────────────────────────────────────────
-  const [nameSuggestions,  setNameSuggestions]  = useState<Suggestion[]>([]);
-  const [showNameSugg,     setShowNameSugg]     = useState(false);
-  const [catSuggestions,   setCatSuggestions]   = useState<string[]>([]);
-  const [showCatSugg,      setShowCatSugg]      = useState(false);
-  const suggTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Grouped committed list { [category]: items[] } ────────────────────────
-  const [groups, setGroups] = useState<GroupedItems>({});
-
-  // ── Overall note ──────────────────────────────────────────────────────────
-  const [overallNote, setOverallNote] = useState('');
-
-  const catRef  = useRef<TextInput>(null);
+function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onSubmitted: () => void }) {
+  const [requestType, setRequestType] = useState<RequestType>('LOW_STOCK');
+  const [search,      setSearch]      = useState('');
+  const [debSearch,   setDebSearch]   = useState('');
+  const [showSugg,    setShowSugg]    = useState(false);
+  const [cart,        setCart]        = useState<CartItem[]>([]);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [note,        setNote]        = useState('');
+  const [showScanner, setShowScanner] = useState(false);
   const nameRef = useRef<TextInput>(null);
-  const qtyRef  = useRef<TextInput>(null);
-
-  // ── Category suggestions — filter approved + already-used categories ──────
-  const allCats = [...new Set([...categories, ...Object.keys(groups).filter(c => c !== '__none__')])];
 
   useEffect(() => {
-    if (!activeCategory.trim()) { setCatSuggestions([]); return; }
-    const q = activeCategory.toLowerCase();
-    const filtered = allCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5);
-    setCatSuggestions(filtered);
-    setShowCatSugg(filtered.length > 0);
-  }, [activeCategory, categories, groups]);
+    const t = setTimeout(() => setDebSearch(search), 220);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  // ── Item name suggestions — debounced API call ────────────────────────────
-  useEffect(() => {
-    if (suggTimer.current) clearTimeout(suggTimer.current);
-    if (activeName.length < 2) { setNameSuggestions([]); setShowNameSugg(false); return; }
-    suggTimer.current = setTimeout(async () => {
-      try {
-        const res = await employeeRequestApi.getSuggestions(activeName);
-        const data: Suggestion[] = res.data?.data || [];
-        setNameSuggestions(data);
-        setShowNameSugg(data.length > 0);
-      } catch { /* suggestions are best-effort */ }
-    }, 220);
-    return () => { if (suggTimer.current) clearTimeout(suggTimer.current); };
-  }, [activeName]);
+  const { data: suggData } = useQuery({
+    queryKey: ['emp-name-sugg', debSearch],
+    queryFn: () => employeeRequestApi.getSuggestions(debSearch),
+    enabled: debSearch.trim().length >= 2,
+    staleTime: 60_000,
+  });
+  const suggestions: Suggestion[] = suggData?.data?.data || [];
 
-  // ── Add item to group ─────────────────────────────────────────────────────
-  const handleAddItem = useCallback(() => {
-    const name = activeName.trim();
-    if (!name) { Toast.show({ type: 'error', text1: 'Enter an item name' }); return; }
-    const cat = activeCategory.trim() || '__none__';
-    setGroups(prev => ({
-      ...prev,
-      [cat]: [...(prev[cat] || []), { key: makeKey(), name, qty: activeQty.trim() }],
-    }));
-    setActiveName('');
-    setActiveQty('');
-    setNameSuggestions([]);
-    setShowNameSugg(false);
-    setTimeout(() => nameRef.current?.focus(), 50);
-  }, [activeName, activeQty, activeCategory]);
-
-  const handleSelectNameSugg = (s: Suggestion) => {
-    setActiveName(s.name);
-    setShowNameSugg(false);
-    setNameSuggestions([]);
-    // Auto-set category from suggestion only if the user hasn't typed one yet
-    if (!activeCategory.trim() && s.category) {
-      setActiveCategory(s.category);
+  function handleScanResult(result: BarcodeResult) {
+    setShowScanner(false);
+    const name = result.name.trim() || result.barcode;
+    if (cart.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+      Toast.show({ type: 'info', text1: `"${name}" already in list` });
+      return;
     }
-    setTimeout(() => qtyRef.current?.focus(), 50);
+    const key = makeKey();
+    setCart(prev => [...prev, { key, name, quantity: result.quantity || '', category: result.category || '', notes: '' }]);
+    setExpandedKey(key);
+  }
+
+  const addItem = useCallback((name: string, category = '') => {
+    if (cart.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+      Toast.show({ type: 'info', text1: `"${name}" already in list` });
+      setSearch('');
+      return;
+    }
+    const key = makeKey();
+    setCart(prev => [...prev, { key, name, quantity: '', category, notes: '' }]);
+    setSearch('');
+    setShowSugg(false);
+    setTimeout(() => nameRef.current?.focus(), 40);
+  }, [cart]);
+
+  const addManual = () => {
+    const name = search.trim();
+    if (!name) return;
+    // Auto-fill category from first suggestion if name matches
+    const found = suggestions.find(s => s.name.toLowerCase() === name.toLowerCase());
+    addItem(name, found?.category || '');
   };
 
-  const handleSelectCatSugg = (cat: string) => {
-    setActiveCategory(cat);
-    setShowCatSugg(false);
-    setTimeout(() => nameRef.current?.focus(), 50);
+  const pickSugg = (sg: Suggestion) => addItem(sg.name, sg.category || '');
+
+  const updateCart = (key: string, field: keyof CartItem, value: string) =>
+    setCart(prev => prev.map(c => c.key === key ? { ...c, [field]: value } : c));
+
+  const removeItem = (key: string) => setCart(prev => prev.filter(c => c.key !== key));
+
+  // Silently submit new categories for approval
+  const autoSubmitNewCats = (usedCats: string[]) => {
+    const approvedLower = categories.map(c => c.toLowerCase());
+    const newCats = usedCats.filter(c => c && !approvedLower.includes(c.toLowerCase()));
+    newCats.forEach(cat => orderCategoriesApi.submitNew(cat).catch(() => {}));
   };
 
-  const handleNewCategory = () => {
-    setActiveCategory('');
-    setCatSuggestions([]);
-    setShowCatSugg(false);
-    setTimeout(() => catRef.current?.focus(), 50);
-  };
-
-  const handleRemoveItem = (cat: string, key: string) => {
-    setGroups(prev => {
-      const updated = (prev[cat] || []).filter(i => i.key !== key);
-      if (updated.length === 0) {
-        const { [cat]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [cat]: updated };
-    });
-  };
-
-  // ── Total item count (committed + active if named) ────────────────────────
-  const committedCount = Object.values(groups).reduce((n, arr) => n + arr.length, 0);
-  const totalCount = committedCount + (activeName.trim() ? 1 : 0);
-
-  // ── Submit ────────────────────────────────────────────────────────────────
-  const submitMutation = useMutation({
+  const submitMut = useMutation({
     mutationFn: () => {
-      // Merge active tile into groups if it has a name
-      const finalGroups: GroupedItems = { ...groups };
-      if (activeName.trim()) {
-        const cat = activeCategory.trim() || '__none__';
-        finalGroups[cat] = [...(finalGroups[cat] || []), { key: makeKey(), name: activeName.trim(), qty: activeQty.trim() }];
-      }
-
-      // Flatten to line array
-      const lines = Object.entries(finalGroups).flatMap(([cat, items]) =>
-        items.map(item => ({
-          name:     item.name,
-          quantity: item.qty || undefined,
-          category: cat !== '__none__' ? cat : undefined,
-        }))
-      );
-
-      // Silently submit new categories for DevAdmin approval (fire & forget)
-      const usedCats = Object.keys(finalGroups).filter(c => c !== '__none__');
-      const newCats  = usedCats.filter(c => !categories.map(a => a.toLowerCase()).includes(c.toLowerCase()));
-      newCats.forEach(cat => orderCategoriesApi.submitNew(cat).catch(() => {}));
-
-      return employeeRequestApi.submit({
-        requestType: requestType!,
-        note: overallNote.trim() || undefined,
-        lines,
-      });
+      const lines = cart.map(c => ({
+        name:     c.name,
+        quantity: c.quantity.trim() || undefined,
+        category: c.category.trim() || undefined,
+        notes:    c.notes.trim() || undefined,
+      }));
+      autoSubmitNewCats(cart.map(c => c.category));
+      return employeeRequestApi.submit({ requestType, note: note.trim() || undefined, lines });
     },
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Stock request submitted', text2: 'Your manager will review and add items to the order list' });
-      setRequestType(null);
-      setGroups({});
-      setActiveName(''); setActiveCategory(''); setActiveQty('');
-      setOverallNote('');
+      Toast.show({ type: 'success', text1: 'Request submitted!', text2: 'Your manager will review it shortly.' });
+      setCart([]); setSearch(''); setNote('');
       onSubmitted();
     },
     onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit' }),
   });
 
-  // ── Type picker ───────────────────────────────────────────────────────────
-
-  if (!requestType) {
-    return (
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 12 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.typePrompt}>Why are you requesting these items?</Text>
-        <Text style={s.typeHint}>Helps your manager prioritize the order.</Text>
-        {REQUEST_TYPES.map(t => (
-          <TouchableOpacity key={t.value} style={s.typeCard} onPress={() => setRequestType(t.value)} activeOpacity={0.75}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.typeCardLabel}>{t.label}</Text>
-              <Text style={s.typeCardHint}>{t.hint}</Text>
-            </View>
-            <Text style={s.typeChevron}>›</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    );
-  }
-
-  // ── Item entry ────────────────────────────────────────────────────────────
-
-  const typeConfig = REQUEST_TYPES.find(t => t.value === requestType)!;
-  const catDisplay = activeCategory.trim() || 'No category';
+  const canSubmit = cart.length > 0 && !submitMut.isPending;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Type badge */}
-        <View style={s.typeBadgeRow}>
-          <View style={s.typeBadge}><Text style={s.typeBadgeText}>{typeConfig.label}</Text></View>
-          <TouchableOpacity onPress={() => { setRequestType(null); setGroups({}); setActiveName(''); setActiveCategory(''); setActiveQty(''); }}>
-            <Text style={s.typeChangeBtn}>Change</Text>
+        {/* Type chips */}
+        <View style={f.typeRow}>
+          <TouchableOpacity
+            style={[f.typeChip, requestType === 'LOW_STOCK' && f.typeChipActive]}
+            onPress={() => setRequestType('LOW_STOCK')}
+          >
+            <Text style={[f.typeChipText, requestType === 'LOW_STOCK' && f.typeChipTextActive]}>📉 Low Stock</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[f.typeChip, requestType === 'CUSTOMER_REQUEST' && f.typeChipActive]}
+            onPress={() => setRequestType('CUSTOMER_REQUEST')}
+          >
+            <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>🙋 Customer Ask</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Entry tile ─────────────────────────────────────────────────── */}
-        <View style={s.entryTile}>
+        {/* Search / add input */}
+        <View style={f.searchWrapper}>
+          <View style={f.searchRow}>
+            {/* Scan button */}
+            <TouchableOpacity style={f.scanBtn} onPress={() => setShowScanner(true)} activeOpacity={0.8}>
+              <QrCodeScanIcon size={22} color="#fff" strokeWidth={2} />
+            </TouchableOpacity>
 
-          {/* Category row */}
-          <View style={s.catRow}>
-            <View style={{ flex: 1 }}>
-              <TextInput
-                ref={catRef}
-                style={s.catInput}
-                value={activeCategory}
-                onChangeText={v => { setActiveCategory(v); setShowCatSugg(true); }}
-                onFocus={() => setShowCatSugg(catSuggestions.length > 0)}
-                onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
-                placeholder="Category  (optional)"
-                placeholderTextColor="#B0B8C4"
-                maxLength={80}
-                autoCapitalize="words"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => nameRef.current?.focus()}
-              />
-              {showCatSugg && catSuggestions.length > 0 && (
-                <View style={s.suggestBox}>
-                  {catSuggestions.map(c => (
-                    <TouchableOpacity key={c} style={s.suggestRow} onPress={() => handleSelectCatSugg(c)}>
-                      <Text style={s.suggestText}>{c}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-            {activeCategory.trim() && (
-              <TouchableOpacity style={s.newCatBtn} onPress={handleNewCategory}>
-                <Text style={s.newCatBtnText}>New category</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={s.entryDivider} />
-
-          {/* Item name + qty row */}
-          <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 8 }}>
-            <View style={{ position: 'relative' }}>
+            <View style={{ flex: 1, position: 'relative' }}>
               <TextInput
                 ref={nameRef}
-                style={s.nameInput}
-                value={activeName}
-                onChangeText={v => { setActiveName(v); setShowNameSugg(true); }}
-                onFocus={() => setShowNameSugg(nameSuggestions.length > 0)}
-                onBlur={() => setTimeout(() => setShowNameSugg(false), 130)}
-                placeholder="Item name…"
+                style={f.searchInput}
+                value={search}
+                onChangeText={v => { setSearch(v); setShowSugg(true); }}
+                onFocus={() => setShowSugg(true)}
+                onBlur={() => setTimeout(() => setShowSugg(false), 140)}
+                onSubmitEditing={() => { if (suggestions.length > 0 && showSugg) pickSugg(suggestions[0]); else addManual(); }}
+                placeholder="Search item name…"
                 placeholderTextColor="#B0B8C4"
-                maxLength={120}
-                autoCapitalize="sentences"
+                returnKeyType="done"
+                blurOnSubmit={false}
                 autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => qtyRef.current?.focus()}
+                autoCapitalize="sentences"
+                maxLength={120}
               />
-              {showNameSugg && nameSuggestions.length > 0 && (
-                <View style={s.suggestBox}>
-                  {nameSuggestions.map(sg => (
-                    <TouchableOpacity key={sg.name} style={s.suggestRow} onPress={() => handleSelectNameSugg(sg)}>
-                      <Text style={s.suggestText}>{sg.name}</Text>
-                      {sg.category && <Text style={s.suggestCat}>{sg.category}</Text>}
+              {/* Suggestions dropdown */}
+              {showSugg && suggestions.length > 0 && (
+                <View style={f.suggBox}>
+                  {suggestions.map(sg => (
+                    <TouchableOpacity key={sg.name} style={f.suggRow} onPress={() => pickSugg(sg)}>
+                      <Text style={f.suggName}>{sg.name}</Text>
+                      {sg.category ? <Text style={f.suggCat}>{sg.category}</Text> : null}
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
-
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput
-                ref={qtyRef}
-                style={[s.nameInput, { flex: 1 }]}
-                value={activeQty}
-                onChangeText={setActiveQty}
-                placeholder="Qty / amount  (optional)"
-                placeholderTextColor="#B0B8C4"
-                maxLength={60}
-                returnKeyType="done"
-                onSubmitEditing={handleAddItem}
-              />
-              <TouchableOpacity
-                style={[s.addItemBtn, !activeName.trim() && s.addItemBtnDim]}
-                onPress={handleAddItem}
-                disabled={!activeName.trim()}
-                activeOpacity={0.8}
-              >
-                <PlusIcon size={20} color="#fff" strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={s.currentCatLabelText}>
-              Adding to: <Text style={{ color: COLORS.secondary, fontWeight: '700' }}>{catDisplay}</Text>
-            </Text>
+            <TouchableOpacity
+              style={[f.addBtn, !search.trim() && f.addBtnDim]}
+              onPress={addManual}
+              disabled={!search.trim()}
+              activeOpacity={0.8}
+            >
+              <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
+            </TouchableOpacity>
           </View>
+          <Text style={f.searchHint}>Type to search from order history, or add any item manually.</Text>
         </View>
 
-        {/* ── Grouped committed list ──────────────────────────────────────── */}
-        {Object.keys(groups).length > 0 && (
-          <View style={s.groupsSection}>
-            {Object.entries(groups).map(([cat, items]) => (
-              <View key={cat} style={s.group}>
-                <View style={s.groupHeader}>
-                  <Text style={s.groupHeaderText}>
-                    {cat === '__none__' ? 'No category' : cat.toUpperCase()}
-                  </Text>
-                  <Text style={s.groupCount}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
-                  {/* Tap header to switch back to this category */}
-                  <TouchableOpacity
-                    style={s.groupAddMoreBtn}
-                    onPress={() => {
-                      setActiveCategory(cat === '__none__' ? '' : cat);
-                      setTimeout(() => nameRef.current?.focus(), 80);
-                    }}
-                  >
-                    <Text style={s.groupAddMoreText}>+ add more</Text>
-                  </TouchableOpacity>
-                </View>
-                {items.map(item => (
-                  <View key={item.key} style={s.groupRow}>
-                    <Text style={s.groupRowName} numberOfLines={1}>
-                      {item.name}
-                      {item.qty ? <Text style={s.groupRowQty}>  ·  {item.qty}</Text> : null}
-                    </Text>
-                    <TouchableOpacity onPress={() => handleRemoveItem(cat, item.key)} style={s.removeBtn}>
-                      <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
-                    </TouchableOpacity>
+        {/* Cart */}
+        {cart.length > 0 && (
+          <View style={f.cartSection}>
+            <Text style={f.cartLabel}>{cart.length} item{cart.length !== 1 ? 's' : ''} to request</Text>
+            {cart.map(item => {
+              const isExpanded = expandedKey === item.key;
+              return (
+                <View key={item.key} style={f.cartItem}>
+                  <View style={f.cartItemTop}>
+                    <Text style={f.cartItemName} numberOfLines={1}>{item.name}</Text>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <TouchableOpacity
+                        style={f.editDetailBtn}
+                        onPress={() => setExpandedKey(isExpanded ? null : item.key)}
+                      >
+                        <Text style={f.editDetailBtnText}>{isExpanded ? 'Done' : 'Details'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={f.removeBtn} onPress={() => removeItem(item.key)}>
+                        <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                ))}
-              </View>
-            ))}
+
+                  {/* Quick meta preview */}
+                  {!isExpanded && (item.quantity || item.category) && (
+                    <Text style={f.cartMeta}>
+                      {[item.quantity, item.category].filter(Boolean).join(' · ')}
+                    </Text>
+                  )}
+
+                  {/* Expanded detail fields */}
+                  {isExpanded && (
+                    <View style={f.detailFields}>
+                      <TextInput
+                        style={f.detailInput}
+                        value={item.quantity}
+                        onChangeText={v => updateCart(item.key, 'quantity', v)}
+                        placeholder="Qty / amount  (e.g. 2 cases)"
+                        placeholderTextColor="#B0B8C4"
+                        maxLength={60}
+                      />
+                      <TextInput
+                        style={f.detailInput}
+                        value={item.category}
+                        onChangeText={v => updateCart(item.key, 'category', v)}
+                        placeholder="Category  (optional)"
+                        placeholderTextColor="#B0B8C4"
+                        autoCapitalize="words"
+                        maxLength={80}
+                      />
+                      <TextInput
+                        style={[f.detailInput, { minHeight: 52, textAlignVertical: 'top', paddingTop: 10 }]}
+                        value={item.notes}
+                        onChangeText={v => updateCart(item.key, 'notes', v)}
+                        placeholder="Notes for manager  (optional)"
+                        placeholderTextColor="#B0B8C4"
+                        maxLength={300}
+                        multiline
+                      />
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
 
-        {/* Overall note */}
-        <View style={s.overallNoteCard}>
-          <Text style={s.overallNoteLabel}>Note for manager  <Text style={{ fontWeight: '400' }}>(optional)</Text></Text>
+        {/* Note for manager */}
+        <View style={f.noteCard}>
+          <Text style={f.noteLabel}>Note for manager  <Text style={{ fontWeight: '400' }}>(optional)</Text></Text>
           <TextInput
-            style={[s.nameInput, s.textArea]}
-            value={overallNote}
-            onChangeText={setOverallNote}
-            placeholder="Any context…"
+            style={[f.detailInput, { minHeight: 56, textAlignVertical: 'top', paddingTop: 10 }]}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Any context — e.g. running low since Monday"
             placeholderTextColor="#B0B8C4"
             maxLength={300}
             multiline
-            numberOfLines={3}
-            textAlignVertical="top"
           />
         </View>
 
         {/* Submit */}
         <TouchableOpacity
-          style={[s.submitBtn, (submitMutation.isPending || totalCount === 0) && { opacity: 0.5 }]}
-          onPress={() => submitMutation.mutate()}
-          disabled={submitMutation.isPending || totalCount === 0}
+          style={[f.submitBtn, !canSubmit && f.submitBtnDim]}
+          onPress={() => submitMut.mutate()}
+          disabled={!canSubmit}
+          activeOpacity={0.85}
         >
-          {submitMutation.isPending
+          {submitMut.isPending
             ? <ActivityIndicator color="#fff" />
-            : <Text style={s.submitBtnText}>
-                Submit{totalCount > 0 ? ` (${totalCount} item${totalCount !== 1 ? 's' : ''})` : ''}
+            : <Text style={f.submitBtnText}>
+                Submit Request{cart.length > 0 ? ` (${cart.length})` : ''}
               </Text>
           }
         </TouchableOpacity>
+
+        {cart.length === 0 && (
+          <Text style={f.emptyHint}>Add at least one item above to submit.</Text>
+        )}
       </ScrollView>
+
+      <BarcodeScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onResult={handleScanResult}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -447,9 +353,8 @@ function MyRequests() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['my-item-requests'],
     queryFn: employeeRequestApi.mine,
-    refetchInterval: 60000,
+    refetchInterval: 60_000,
   });
-
   const requests: MyRequest[] = data?.data?.data || [];
 
   if (isLoading) return <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>;
@@ -476,106 +381,84 @@ function MyRequests() {
         const isPending  = req.status === 'PENDING';
         const accepted   = req.lines.filter(l => l.status === 'ACCEPTED').length;
         const rejected   = req.lines.filter(l => l.status === 'REJECTED').length;
-
-        const TYPE_LABEL: Record<string, string> = {
-          LOW_STOCK: 'Low / Out of Stock',
-          CUSTOMER_REQUEST: 'Customer Asked',
-        };
-        const typeLabel = TYPE_LABEL[req.requestType] ?? req.requestType;
-        const noteBody  = req.note;
-
-        // Group lines by category for display
-        const linesByCat: Record<string, RequestLine[]> = {};
-        for (const l of req.lines) {
-          const k = l.category || 'No category';
-          if (!linesByCat[k]) linesByCat[k] = [];
-          linesByCat[k].push(l);
-        }
+        const typeLabel  = req.requestType === 'CUSTOMER_REQUEST' ? '🙋 Customer Ask' : '📉 Low Stock';
 
         return (
-          <View key={req.id} style={s.reqCard}>
-            <TouchableOpacity style={s.reqCardHeader} onPress={() => setExpandedId(isExpanded ? null : req.id)}>
+          <View key={req.id} style={m.card}>
+            <TouchableOpacity
+              style={m.cardHead}
+              onPress={() => setExpandedId(isExpanded ? null : req.id)}
+              activeOpacity={0.75}
+            >
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <View style={[s.statusDot, { backgroundColor: isPending ? '#F59E0B' : '#22C55E' }]} />
-                  <Text style={s.reqCardDate}>
+                <View style={m.cardTitleRow}>
+                  <Text style={m.cardTitle}>
                     {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
-                  <View style={[s.statusBadge, isPending ? s.statusBadgePending : s.statusBadgeDone]}>
-                    <Text style={[s.statusBadgeText, { color: isPending ? '#D97706' : '#16A34A' }]}>
+                  <View style={[m.badge, isPending ? m.badgePending : m.badgeDone]}>
+                    <Text style={[m.badgeText, { color: isPending ? '#D97706' : '#16A34A' }]}>
                       {isPending ? 'Pending' : 'Reviewed'}
                     </Text>
                   </View>
-                  <View style={s.typeLabelBadge}><Text style={s.typeLabelText}>{typeLabel}</Text></View>
+                  <View style={m.typeBadge}><Text style={m.typeBadgeText}>{typeLabel}</Text></View>
                 </View>
-                <Text style={s.reqCardMeta}>
+                <Text style={m.cardMeta}>
                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
                   {!isPending && ` · ${accepted} accepted, ${rejected} rejected`}
                   {isPending && ' · Waiting for review'}
                 </Text>
-                {req.reviewedBy && <Text style={s.reqCardMeta}>Reviewed by {req.reviewedBy.name}</Text>}
+                {req.reviewedBy && <Text style={m.cardMeta}>Reviewed by {req.reviewedBy.name}</Text>}
+                {req.note && <Text style={m.cardNote}>"{req.note}"</Text>}
               </View>
-              <Text style={{ fontSize: 18, color: COLORS.textMuted }}>{isExpanded ? '−' : '+'}</Text>
+              <Text style={{ fontSize: 18, color: COLORS.textMuted, marginLeft: 8 }}>{isExpanded ? '−' : '+'}</Text>
             </TouchableOpacity>
 
             {isExpanded && (
-              <View style={s.reqLines}>
-                {noteBody ? (
-                  <View style={s.reqNoteBox}>
-                    <Text style={s.reqNoteLabel}>Your note</Text>
-                    <Text style={s.reqNoteText}>{noteBody}</Text>
-                  </View>
-                ) : null}
-
-                {Object.entries(linesByCat).map(([cat, lines]) => (
-                  <View key={cat} style={{ marginBottom: 8 }}>
-                    <Text style={s.histCatHeader}>{cat}</Text>
-                    {lines.map(line => (
-                      <View key={line.id} style={[
-                        s.lineItem,
-                        line.status === 'ACCEPTED' && s.lineItemAccepted,
-                        line.status === 'REJECTED' && s.lineItemRejected,
-                      ]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.lineItemName}>{line.name}</Text>
-                          {line.quantity && <Text style={s.lineItemMeta}>Qty: {line.quantity}</Text>}
-                          {line.notes && <Text style={s.lineItemNote}>{line.notes}</Text>}
-                          {line.status === 'REJECTED' && line.rejectionReason && (
-                            <Text style={s.rejectionText}>
-                              {REJECTION_LABELS[line.rejectionReason] || line.rejectionReason}
-                              {line.rejectionNote ? ` — ${line.rejectionNote}` : ''}
-                            </Text>
-                          )}
-                        </View>
-                        {line.status === 'ACCEPTED' && (() => {
-                          const olStatus = line.listItem?.status ?? 'PENDING';
-                          const cfg = ORDER_LIST_STATUS[olStatus] ?? ORDER_LIST_STATUS.PENDING;
-                          return (
-                            <View style={[s.lineStatus, { backgroundColor: cfg.bg }]}>
-                              {olStatus === 'RECEIVED'
-                                ? <CheckCircleIcon size={14} color={cfg.color} strokeWidth={2.5} />
-                                : <PackageIcon size={14} color={cfg.color} strokeWidth={2.5} />
-                              }
-                              <Text style={[s.lineStatusText, { color: cfg.color }]}>{cfg.label}</Text>
-                            </View>
-                          );
-                        })()}
-                        {line.status === 'REJECTED' && (
-                          <View style={[s.lineStatus, { backgroundColor: '#FEE2E2' }]}>
-                            <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
-                            <Text style={[s.lineStatusText, { color: '#DC2626' }]}>Declined</Text>
-                          </View>
-                        )}
-                        {line.status === 'PENDING' && (
-                          <View style={[s.lineStatus, { backgroundColor: '#FEF3C7' }]}>
-                            <AlertTriangleIcon size={14} color="#D97706" strokeWidth={2.5} />
-                            <Text style={[s.lineStatusText, { color: '#D97706' }]}>Pending</Text>
-                          </View>
+              <View style={m.lines}>
+                {req.lines.map(line => {
+                  const olStatus = line.listItem?.status ?? 'PENDING';
+                  const oc = line.status === 'ACCEPTED' ? ORDER_STATUS[olStatus] : null;
+                  return (
+                    <View key={line.id} style={[
+                      m.line,
+                      line.status === 'ACCEPTED' && m.lineAccepted,
+                      line.status === 'REJECTED' && m.lineRejected,
+                    ]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={m.lineName}>{line.name}</Text>
+                        {line.quantity && <Text style={m.lineMeta}>Qty: {line.quantity}</Text>}
+                        {line.category && <Text style={m.lineMeta}>{line.category}</Text>}
+                        {line.status === 'REJECTED' && line.rejectionReason && (
+                          <Text style={m.rejText}>
+                            {REJECTION_LABELS[line.rejectionReason] || line.rejectionReason}
+                            {line.rejectionNote ? ` — ${line.rejectionNote}` : ''}
+                          </Text>
                         )}
                       </View>
-                    ))}
-                  </View>
-                ))}
+                      {line.status === 'PENDING' && (
+                        <View style={[m.lineStatus, { backgroundColor: '#FEF3C7' }]}>
+                          <AlertTriangleIcon size={13} color="#D97706" strokeWidth={2.5} />
+                          <Text style={[m.lineStatusText, { color: '#D97706' }]}>Pending</Text>
+                        </View>
+                      )}
+                      {oc && (
+                        <View style={[m.lineStatus, { backgroundColor: oc.bg }]}>
+                          {olStatus === 'RECEIVED'
+                            ? <CheckCircleIcon size={13} color={oc.color} strokeWidth={2.5} />
+                            : <PackageIcon size={13} color={oc.color} strokeWidth={2.5} />
+                          }
+                          <Text style={[m.lineStatusText, { color: oc.color }]}>{oc.label}</Text>
+                        </View>
+                      )}
+                      {line.status === 'REJECTED' && (
+                        <View style={[m.lineStatus, { backgroundColor: '#FEE2E2' }]}>
+                          <XIcon size={13} color="#DC2626" strokeWidth={2.5} />
+                          <Text style={[m.lineStatusText, { color: '#DC2626' }]}>Declined</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             )}
           </View>
@@ -615,17 +498,19 @@ export default function StockRequestScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
 
+      {/* Header */}
       <View style={s.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PackageIcon size={20} color="#fff" strokeWidth={2} />
           <Text style={s.headerTitle}>Stock Request</Text>
         </View>
-        <Text style={s.headerSub}>Request items to be added to the store's order list</Text>
+        <Text style={s.headerSub}>Request items for the store's order list</Text>
       </View>
 
+      {/* Tabs */}
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, activeTab === 'new' && s.tabActive]} onPress={() => setActiveTab('new')}>
-          <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>New Request</Text>
+          <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>+ New Request</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, activeTab === 'mine' && s.tabActive]} onPress={() => setActiveTab('mine')}>
           <Text style={[s.tabText, activeTab === 'mine' && s.tabTextActive]}>My Requests</Text>
@@ -633,7 +518,7 @@ export default function StockRequestScreen() {
       </View>
 
       {activeTab === 'new' ? (
-        <RequestForm
+        <NewRequestForm
           categories={categories}
           onSubmitted={() => { qc.invalidateQueries({ queryKey: ['my-item-requests'] }); setActiveTab('mine'); }}
         />
@@ -644,7 +529,7 @@ export default function StockRequestScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
@@ -653,10 +538,9 @@ const s = StyleSheet.create({
   header: {
     backgroundColor: COLORS.secondary,
     paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.65)' },
+  headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
 
   tabs:          { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   tab:           { flex: 1, paddingVertical: 13, alignItems: 'center' },
@@ -664,171 +548,124 @@ const s = StyleSheet.create({
   tabText:       { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
   tabTextActive: { color: COLORS.secondary, fontWeight: '700' },
 
-  // ── Type picker ──────────────────────────────────────────────────────────
-  typePrompt: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  typeHint:   { fontSize: 14, color: COLORS.textMuted, marginBottom: 8, lineHeight: 20 },
-  typeCard: {
-    backgroundColor: '#fff', borderRadius: 16,
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
+  emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
+});
+
+// Form styles
+const f = StyleSheet.create({
+  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  typeChip: {
+    flex: 1, paddingVertical: 10, borderRadius: 12,
     borderWidth: 1.5, borderColor: COLORS.border,
-    padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', alignItems: 'center',
   },
-  typeCardLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
-  typeCardHint:  { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
-  typeChevron:   { fontSize: 22, color: COLORS.textMuted, fontWeight: '300' },
+  typeChipActive: { borderColor: COLORS.secondary, backgroundColor: '#EEF4FF' },
+  typeChipText:       { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+  typeChipTextActive: { color: COLORS.secondary, fontWeight: '700' },
 
-  // ── Entry tile ───────────────────────────────────────────────────────────
-  typeBadgeRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  typeBadge:     { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: COLORS.secondary },
-  typeBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  typeChangeBtn: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
-
-  entryTile: {
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1.5, borderColor: COLORS.secondary,
-    overflow: 'visible',
-    marginBottom: 14,
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 8, elevation: 3,
-  },
-
-  // Category section
-  catRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, paddingTop: 12, paddingBottom: 10,
-  },
-  catInput: {
-    flex: 1,
-    fontSize: 14, fontWeight: '600', color: COLORS.text,
-    paddingVertical: 8, paddingHorizontal: 2,
-    borderBottomWidth: 1.5, borderBottomColor: COLORS.border,
-  },
-  newCatBtn: {
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#EEF2FF',
-  },
-  newCatBtnText: { fontSize: 11, fontWeight: '700', color: '#4F46E5' },
-
-  entryDivider: { height: 1, backgroundColor: '#F0F4F8', marginHorizontal: 12 },
-
-  // Name + qty
-  nameInput: {
-    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+  searchWrapper: { marginBottom: 16 },
+  searchRow: { flexDirection: 'row', gap: 8 },
+  searchInput: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: COLORS.text,
   },
-  textArea: { minHeight: 64, textAlignVertical: 'top', paddingTop: 10 },
-
-  addItemBtn: {
-    width: 44, height: 44, borderRadius: 12,
+  scanBtn: {
+    width: 48, height: 48, borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 5, elevation: 4,
+  },
+  addBtn: {
+    width: 48, height: 48, borderRadius: 12,
     backgroundColor: COLORS.secondary,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3, shadowRadius: 5, elevation: 4,
   },
-  addItemBtnDim: { opacity: 0.35, shadowOpacity: 0, elevation: 0 },
+  addBtnDim:  { opacity: 0.35, shadowOpacity: 0, elevation: 0 },
+  searchHint: { fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
 
-  currentCatLabel: {
-    paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10,
-  },
-  currentCatLabelText: { fontSize: 12, color: COLORS.textMuted },
-
-  // Entry sub-section padding
-  // (name+qty live in a padded area)
-  // We wrap them in a view inside the tile with padding
-  entryFields: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-
-  // ── Suggestions dropdown ─────────────────────────────────────────────────
-  suggestBox: {
+  suggBox: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
-    backgroundColor: '#fff',
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 10, marginTop: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 8, elevation: 8,
-    overflow: 'hidden',
+    shadowOpacity: 0.1, shadowRadius: 8, elevation: 8, overflow: 'hidden',
   },
-  suggestRow: {
+  suggRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 14, paddingVertical: 11,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
   },
-  suggestText: { fontSize: 14, color: COLORS.text, flex: 1 },
-  suggestCat:  { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginLeft: 8 },
+  suggName: { fontSize: 14, fontWeight: '600', color: COLORS.text, flex: 1 },
+  suggCat:  { fontSize: 12, color: COLORS.textMuted, marginLeft: 8, fontStyle: 'italic' },
 
-  // ── Grouped committed list ───────────────────────────────────────────────
-  groupsSection: { marginBottom: 14, gap: 8 },
-  group: {
-    backgroundColor: '#fff', borderRadius: 14,
-    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+  cartSection: { marginBottom: 16 },
+  cartLabel:   { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  cartItem: {
+    backgroundColor: '#fff', borderRadius: 12,
+    borderWidth: 1, borderColor: COLORS.border,
+    padding: 12, marginBottom: 8,
   },
-  groupHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 12, paddingVertical: 9,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  groupHeaderText: { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 0.6, textTransform: 'uppercase', flex: 1 },
-  groupCount:      { fontSize: 11, color: COLORS.textMuted, fontWeight: '500' },
-  groupAddMoreBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: '#EEF2FF' },
-  groupAddMoreText: { fontSize: 11, fontWeight: '700', color: '#4F46E5' },
-  groupRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F5F5F5',
-  },
-  groupRowName: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text },
-  groupRowQty:  { fontSize: 13, color: COLORS.textMuted, fontWeight: '400' },
-  removeBtn:    { padding: 4 },
+  cartItemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cartItemName: { fontSize: 15, fontWeight: '700', color: COLORS.text, flex: 1 },
+  cartMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  editDetailBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: '#EEF2FF' },
+  editDetailBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+  removeBtn: { padding: 4 },
 
-  // ── Overall note ─────────────────────────────────────────────────────────
-  overallNoteCard:  { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
-  overallNoteLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  detailFields: { marginTop: 10, gap: 8 },
+  detailInput: {
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 14, color: COLORS.text,
+  },
 
-  // ── Submit ───────────────────────────────────────────────────────────────
-  submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  noteCard:  { backgroundColor: '#fff', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
+  noteLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  submitBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginBottom: 8,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+  },
+  submitBtnDim: { opacity: 0.4, shadowOpacity: 0, elevation: 0 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  emptyHint: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
+});
 
-  // ── Shared ───────────────────────────────────────────────────────────────
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
-  emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
+// My Requests styles
+const m = StyleSheet.create({
+  card:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  cardHead:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  cardTitle:  { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  cardMeta:   { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  cardNote:   { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 3 },
 
-  // ── My Requests history ──────────────────────────────────────────────────
-  reqCard:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  reqCardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
-  reqCardDate:   { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  reqCardMeta:   { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  statusDot:     { width: 8, height: 8, borderRadius: 4 },
-  statusBadge:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  statusBadgePending: { backgroundColor: '#FEF3C7' },
-  statusBadgeDone:    { backgroundColor: '#DCFCE7' },
-  statusBadgeText:    { fontSize: 11, fontWeight: '700' },
-  typeLabelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: '#EEF2FF' },
-  typeLabelText:  { fontSize: 11, fontWeight: '600', color: '#4F46E5' },
+  badge:        { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+  badgePending: { backgroundColor: '#FEF3C7' },
+  badgeDone:    { backgroundColor: '#DCFCE7' },
+  badgeText:    { fontSize: 11, fontWeight: '700' },
+  typeBadge:    { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20, backgroundColor: '#EEF2FF' },
+  typeBadgeText:{ fontSize: 11, fontWeight: '600', color: '#4F46E5' },
 
-  reqLines:     { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12 },
-  reqNoteBox:   { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, marginBottom: 10 },
-  reqNoteLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
-  reqNoteText:  { fontSize: 13, color: COLORS.text },
-
-  histCatHeader: {
-    fontSize: 10, fontWeight: '800', color: COLORS.textMuted,
-    letterSpacing: 0.6, textTransform: 'uppercase',
-    marginBottom: 4, marginTop: 6,
-  },
-  lineItem: {
+  lines: { borderTopWidth: 1, borderTopColor: COLORS.border, padding: 12, gap: 8 },
+  line: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     padding: 10, borderRadius: 10, backgroundColor: COLORS.background,
-    borderWidth: 1, borderColor: COLORS.border, marginBottom: 6,
+    borderWidth: 1, borderColor: COLORS.border,
   },
-  lineItemAccepted: { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' },
-  lineItemRejected: { borderColor: '#FECACA', backgroundColor: '#FFF5F5' },
-  lineItemName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  lineItemMeta: { fontSize: 12, color: COLORS.textMuted },
-  lineItemNote: { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
-  rejectionText: { fontSize: 12, color: '#DC2626', marginTop: 4 },
-  lineStatus: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8,
-  },
+  lineAccepted: { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' },
+  lineRejected: { borderColor: '#FECACA', backgroundColor: '#FFF5F5' },
+  lineName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  lineMeta: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  rejText:  { fontSize: 12, color: '#DC2626', marginTop: 4 },
+
+  lineStatus: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
   lineStatusText: { fontSize: 11, fontWeight: '700' },
 });

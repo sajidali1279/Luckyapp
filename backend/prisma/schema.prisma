@@ -1241,3 +1241,22 @@ model PointsDispute {
   @@index([customerId])
   @@map("points_disputes")
 }
+
+
+// ─── Scanned Product Catalog ──────────────────────────────────────────────────
+
+model ScannedProduct {
+  id            String   @id @default(uuid())
+  barcode       String   @unique
+  name          String
+  category      String?
+  brand         String?
+  source        String   @default("manual")   // "manual" | "openfoodfacts"
+  scanCount     Int      @default(1)
+  lastScannedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([barcode])
+  @@map("scanned_products")
+}

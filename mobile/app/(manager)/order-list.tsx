@@ -12,8 +12,10 @@ import { COLORS } from '../../constants';
 import {
   PackageIcon, PrinterIcon, CheckCircleIcon,
   PlusIcon, XIcon, ClipboardIcon,
-  ListIcon, ChevronDownIcon,
+  ListIcon, ChevronDownIcon, QrCodeScanIcon,
 } from '../../components/Icons';
+import BarcodeScannerModal from '../../components/BarcodeScannerModal';
+import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -281,6 +283,8 @@ function parseInput(raw: string): { name: string; quantity?: string } {
   return { name: trimmed };
 }
 
+interface QuickItem { name: string; category: string | null; count: number }
+
 interface QuickAddBarProps {
   listId: string;
   storeId: string;
@@ -296,7 +300,16 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const [showItemSugg,  setShowItemSugg]  = useState(false);
   const [showCatSugg,   setShowCatSugg]   = useState(false);
   const [showNewCat,    setShowNewCat]    = useState(false);
+  const [showScanner,   setShowScanner]   = useState(false);
   const inputRef = useRef<any>(null);
+
+  // Quick Pad — top-16 most ordered items for this store
+  const { data: quickData } = useQuery({
+    queryKey: ['quick-items-mobile', storeId],
+    queryFn: () => orderListApi.getQuickItems(storeId),
+    staleTime: 5 * 60 * 1000,
+  });
+  const quickItems: QuickItem[] = quickData?.data?.data || [];
 
   // Debounce item name for API call (300ms)
   useEffect(() => {
@@ -343,10 +356,26 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
   });
 
+  const handleScanResult = (result: BarcodeResult) => {
+    setShowScanner(false);
+    const name = result.name.trim() || result.barcode;
+    if (result.category) { setCategory(result.category); setCatSearch(result.category); }
+    if (name && name !== result.barcode) {
+      addMutation.mutate({ name, quantity: result.quantity || undefined, category: result.category || undefined, priority: 'NORMAL' });
+    } else {
+      setText(name);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
   const handleAdd = () => {
     const { name, quantity } = parseInput(text);
     if (!name) return;
     addMutation.mutate({ name, quantity, category: category || undefined, priority: 'NORMAL' });
+  };
+
+  const quickAdd = (item: QuickItem) => {
+    addMutation.mutate({ name: item.name, quantity: undefined, category: item.category || undefined, priority: 'NORMAL' });
   };
 
   const ready = text.trim().length > 0 && !addMutation.isPending;
@@ -436,6 +465,15 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           autoCapitalize="sentences"
         />
         <TouchableOpacity
+          style={qa.scanBtn}
+          onPress={() => setShowScanner(true)}
+          activeOpacity={0.8}
+          accessibilityLabel="Scan barcode"
+          accessibilityRole="button"
+        >
+          <QrCodeScanIcon size={20} color="#fff" strokeWidth={2} />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[qa.addBtn, !ready && qa.addBtnDim]}
           onPress={handleAdd}
           disabled={!ready}
@@ -449,6 +487,34 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           }
         </TouchableOpacity>
       </View>
+
+      {/* Quick Pad tiles */}
+      {quickItems.length > 0 && (
+        <View style={qa.quickPad}>
+          <Text style={qa.quickPadLabel}>Quick Add</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
+            {quickItems.map(item => (
+              <TouchableOpacity
+                key={item.name}
+                style={qa.quickTile}
+                onPress={() => quickAdd(item)}
+                disabled={addMutation.isPending}
+                activeOpacity={0.75}
+              >
+                <Text style={qa.quickTileName} numberOfLines={1}>{item.name}</Text>
+                {item.category ? <Text style={qa.quickTileCat} numberOfLines={1}>{item.category}</Text> : null}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Barcode Scanner */}
+      <BarcodeScannerModal
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onResult={handleScanResult}
+      />
 
       {/* New Category Submission Modal */}
       <CategoryPicker
@@ -1204,6 +1270,21 @@ export default function ManagerOrderListScreen() {
             </View>
           </View>
 
+          {/* Inline employee requests banner */}
+          {pendingRequestCount > 0 && (
+            <TouchableOpacity
+              style={s.reqBanner}
+              onPress={() => setShowReview(true)}
+              activeOpacity={0.8}
+            >
+              <ClipboardIcon size={16} color="#fff" strokeWidth={2.5} />
+              <Text style={s.reqBannerText}>
+                {pendingRequestCount} employee request{pendingRequestCount !== 1 ? 's' : ''} waiting — tap to review
+              </Text>
+              <Text style={s.reqBannerArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Rows + pinned Add Row */}
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {items.length === 0 ? (
@@ -1369,6 +1450,15 @@ const s = StyleSheet.create({
 
   emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 16, textAlign: 'center' },
   emptyText:  { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
+
+  // Inline employee requests banner
+  reqBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  reqBannerText:  { flex: 1, fontSize: 13, fontWeight: '700', color: '#fff' },
+  reqBannerArrow: { fontSize: 18, color: 'rgba(255,255,255,0.8)', fontWeight: '300' },
 
   // Modal / sheet
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
@@ -1644,6 +1734,13 @@ const qa = StyleSheet.create({
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
     fontSize: 15, color: COLORS.text,
   },
+  scanBtn: {
+    width: 40, height: 44, borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+  },
   addBtn: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: COLORS.secondary,
@@ -1652,4 +1749,15 @@ const qa = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 6, elevation: 5,
   },
   addBtnDim: { opacity: 0.4 },
+
+  // Quick Pad
+  quickPad: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, borderTopWidth: 1, borderTopColor: '#F1F3F5' },
+  quickPadLabel: { fontSize: 10, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+  quickTile: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#F8FAFC',
+    maxWidth: 130,
+  },
+  quickTileName: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  quickTileCat:  { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
 });

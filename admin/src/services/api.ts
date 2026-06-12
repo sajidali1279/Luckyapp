@@ -274,6 +274,7 @@ export const orderListApi = {
   getById:          (listId: string) => api.get(`/order-lists/${listId}`),
   getActive:        (storeId: string) => api.get(`/order-lists/store/${storeId}/active`),
   getHistory:       (storeId: string, page = 1) => api.get(`/order-lists/store/${storeId}/history?page=${page}`),
+  getQuickItems:    (storeId: string) => api.get(`/order-lists/store/${storeId}/quick-add`),
   openList:         (storeId: string) => api.post(`/order-lists/store/${storeId}`, {}),
   closeList:        (listId: string, notes?: string) => api.patch(`/order-lists/${listId}/close`, { notes }),
   addItem:          (listId: string, data: object) => api.post(`/order-lists/${listId}/items`, data),
@@ -302,6 +303,10 @@ export const employeeRequestApi = {
   },
   getForStore: (storeId: string, status?: string) =>
     api.get(`/employee-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
+  submit: (data: { requestType: string; note?: string; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
+    api.post('/employee-requests', data),
+  getMine: () => api.get('/employee-requests/mine'),
+  getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
   reviewRequest: (requestId: string, data: { lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
     api.patch(`/employee-requests/${requestId}/review`, data),
   getPendingCount: () => api.get('/employee-requests/pending-count'),

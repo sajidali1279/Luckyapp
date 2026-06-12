@@ -42,15 +42,17 @@ const Documents              = lazy(() => import('./pages/Documents'));
 const HotFood                = lazy(() => import('./pages/HotFood'));
 const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
 const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
+const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 
 const queryClient = new QueryClient();
 
-const ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'];
+const ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER', 'EMPLOYEE'];
 
 function ProtectedLayout() {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
+  if (user.role === 'EMPLOYEE') return <Navigate to="/employee-portal" replace />;
   return (
     <TooltipProvider delayDuration={0}>
       <SidebarProvider>
@@ -70,8 +72,20 @@ function ProtectedLayout() {
 
 function DashboardRoute() {
   const { user } = useAuthStore();
+  if (user?.role === 'EMPLOYEE') return <Navigate to="/employee-portal" replace />;
   if (user?.role === 'STORE_MANAGER') return <StoreManagerDashboard />;
   return <Dashboard />;
+}
+
+function EmployeeLayout() {
+  const { user } = useAuthStore();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
+  return (
+    <div style={{ minHeight: '100vh', background: '#F8FAFC' }}>
+      <Outlet />
+    </div>
+  );
 }
 
 function DevAdminOnly() {
@@ -129,6 +143,9 @@ export default function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/promotions" element={<BusinessPromotions />} />
               </Route>
+            </Route>
+            <Route element={<EmployeeLayout />}>
+              <Route path="/employee-portal" element={<EmployeePortal />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

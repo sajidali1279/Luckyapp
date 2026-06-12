@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
@@ -35,28 +35,38 @@ interface OrderList {
 }
 
 interface OrderCategory {
-  id: string;
-  name: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  usageCount: number;
-  storeId: string | null;
-  approvedAt?: string;
-  approvedBy?: { id: string; name: string };
+  id: string; name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  usageCount: number; storeId: string | null;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface ReqLine {
+  id: string; name: string; quantity?: string; category?: string;
+  notes?: string; status: string; rejectionReason?: string; rejectionNote?: string;
+}
+
+interface EmpRequest {
+  id: string; status: string; note?: string; requestType: string; createdAt: string;
+  submittedBy: { id: string; name: string; role: string };
+  reviewedBy?: { id: string; name: string };
+  store: { id: string; name: string };
+  lines: ReqLine[];
+}
+
+interface QuickItem { name: string; category: string | null; count: number }
+
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const PRIORITY_CFG = {
   URGENT: { label: 'Urgent', bg: '#FEE2E2', text: '#DC2626' },
-  NORMAL: { label: 'Normal', bg: '#F3F4F6', text: '#4B5563' },
-  LOW:    { label: 'Low',    bg: '#EFF6FF', text: '#2563EB' },
+  NORMAL: { label: 'Normal', bg: '#F1F5F9', text: '#64748B' },
+  LOW:    { label: 'Low',    bg: '#F0FDF4', text: '#16A34A' },
 };
 
 const ITEM_STATUS_CFG = {
-  PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706' },
-  ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669' },
-  RECEIVED: { label: 'Received', bg: '#DCFCE7', text: '#16A34A' },
-  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#9CA3AF' },
+  PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' },
+  ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669', border: '#6EE7B7' },
+  RECEIVED: { label: 'Received', bg: '#EDE9FE', text: '#7C3AED', border: '#C4B5FD' },
+  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#9CA3AF', border: '#E5E7EB' },
 };
 
 const CAT_STATUS_CFG = {
@@ -65,138 +75,15 @@ const CAT_STATUS_CFG = {
   REJECTED: { label: 'Rejected', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
 };
 
-// ─── Add Item Modal (DevAdmin passive helper) ─────────────────────────────────
+const REJECTION_REASONS = [
+  { value: 'NO_SUPPLIER',   label: 'No supplier' },
+  { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
+  { value: 'IN_STOCK',      label: 'In stock' },
+  { value: 'DUPLICATE',     label: 'Duplicate' },
+  { value: 'OTHER',         label: 'Other' },
+];
 
-function AddItemModal({ listId, onClose, onSaved }: { listId: string; onClose: () => void; onSaved: () => void }) {
-  const [name,          setName]          = useState('');
-  const [debouncedName, setDebouncedName] = useState('');
-  const [showNameDrop,  setShowNameDrop]  = useState(false);
-  const [quantity,      setQuantity]      = useState('');
-  const [category,      setCategory]      = useState('');
-  const [catSearch,     setCatSearch]     = useState('');
-  const [showCatDrop,   setShowCatDrop]   = useState(false);
-  const [notes,         setNotes]         = useState('');
-  const qc = useQueryClient();
-
-  // Debounce name for item suggestions
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedName(name), 300);
-    return () => clearTimeout(t);
-  }, [name]);
-
-  // Item name suggestions
-  const { data: nameSuggData } = useQuery({
-    queryKey: ['item-suggestions-admin', debouncedName, category],
-    queryFn: () => inventoryAnalyticsApi.getItemSuggestions({ q: debouncedName, category: category || undefined }),
-    enabled: debouncedName.trim().length >= 2,
-    staleTime: 5 * 60 * 1000,
-  });
-  const nameSuggestions: { name: string; count: number }[] = (nameSuggData as any)?.data?.data || [];
-
-  const { data: catData } = useQuery({
-    queryKey: ['order-categories-approved'],
-    queryFn: () => orderCategoriesApi.getApproved(),
-    staleTime: 10 * 60 * 1000,
-  });
-  const allCats: string[] = (catData?.data?.data || []).map((c: { name: string }) => c.name);
-  const catSuggestions = catSearch.trim()
-    ? allCats.filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
-    : allCats;
-
-  const addMutation = useMutation({
-    mutationFn: () => orderListApi.addItem(listId, {
-      name: name.trim(), quantity: quantity.trim() || undefined,
-      category: category.trim() || undefined, notes: notes.trim() || undefined,
-    }),
-    onSuccess: () => {
-      toast.success('Item added');
-      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
-      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', listId] });
-      onSaved();
-    },
-    onError: () => toast.error('Failed to add item'),
-  });
-
-  return (
-    <div style={m.backdrop} onClick={onClose}>
-      <div style={m.modal} onClick={e => e.stopPropagation()}>
-        <div style={m.modalHeader}>
-          <span style={m.modalTitle}>Add Item (DevAdmin)</span>
-          <button style={m.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <div style={m.field}>
-          <label style={m.label}>Item Name *</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              style={m.input}
-              value={name}
-              onChange={e => { setName(e.target.value); setShowNameDrop(true); }}
-              onFocus={() => setShowNameDrop(true)}
-              onBlur={() => setTimeout(() => setShowNameDrop(false), 150)}
-              placeholder="e.g. Whole Milk 2%"
-              maxLength={120}
-              autoComplete="off"
-            />
-            {showNameDrop && nameSuggestions.length > 0 && (
-              <div style={m.catDrop}>
-                {nameSuggestions.map(sug => (
-                  <div
-                    key={sug.name}
-                    style={{ ...m.catDropRow, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    onMouseDown={() => { setName(sug.name); setDebouncedName(sug.name); setShowNameDrop(false); }}
-                  >
-                    <span>{sug.name}</span>
-                    <span style={{ fontSize: 13, color: '#94A3B8' }}>{sug.count}×</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={m.field}><label style={m.label}>Quantity</label>
-          <input style={m.input} value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="e.g. 2 cases" maxLength={60} />
-        </div>
-        <div style={m.field}>
-          <label style={m.label}>Category</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              style={m.input}
-              value={catSearch}
-              onChange={e => { setCatSearch(e.target.value); setCategory(''); setShowCatDrop(true); }}
-              onFocus={() => setShowCatDrop(true)}
-              onBlur={() => setTimeout(() => setShowCatDrop(false), 150)}
-              placeholder="Search category…"
-              maxLength={80}
-              autoComplete="off"
-            />
-            {showCatDrop && catSuggestions.length > 0 && (
-              <div style={m.catDrop}>
-                {catSuggestions.map(cat => (
-                  <div
-                    key={cat}
-                    style={{ ...m.catDropRow, ...(category === cat ? m.catDropRowActive : {}) }}
-                    onMouseDown={() => { setCategory(cat); setCatSearch(cat); setShowCatDrop(false); }}
-                  >
-                    {cat}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={m.field}><label style={m.label}>Notes</label>
-          <textarea style={m.textarea} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." maxLength={300} rows={3} />
-        </div>
-        <button style={{ ...m.primaryBtn, opacity: addMutation.isPending ? 0.6 : 1 }}
-          onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !name.trim()}>
-          {addMutation.isPending ? 'Adding...' : 'Add Item'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Order List Detail ────────────────────────────────────────────────────────
+// ─── Print helper ─────────────────────────────────────────────────────────────
 
 function printList(list: OrderList) {
   const visibleItems = list.items?.filter(i => i.status !== 'REMOVED') || [];
@@ -211,13 +98,12 @@ function printList(list: OrderList) {
   const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
 
   const rows = Array.from(grouped.entries()).map(([cat, items]) => `
-    <tr style="background:#F8FAFC"><td colspan="5" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#64748B;border-bottom:1px solid #E2E8F0">${cat}</td></tr>
+    <tr style="background:#F8FAFC"><td colspan="4" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#64748B;border-bottom:1px solid #E2E8F0">${cat}</td></tr>
     ${items.map(item => `
       <tr>
         <td style="padding:10px 12px;font-weight:600;color:#1E293B">${item.name}</td>
         <td style="padding:10px 12px;color:#64748B">${item.quantity || '—'}</td>
         <td style="padding:10px 12px;color:#64748B">${item.notes || '—'}</td>
-        <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${PRIORITY_CFG[item.priority].bg};color:${PRIORITY_CFG[item.priority].text}">${PRIORITY_CFG[item.priority].label}</span></td>
         <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
       </tr>
     `).join('')}
@@ -232,21 +118,18 @@ function printList(list: OrderList) {
     table { width: 100%; border-collapse: collapse; }
     th { padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #E2E8F0; }
     td { border-bottom: 1px solid #F1F5F9; font-size: 14px; vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
     @media print { body { padding: 16px; } }
   </style></head><body>
   <h1>${list.name}</h1>
-  <div class="meta">${list.store.name} &nbsp;·&nbsp; Opened ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} by ${list.openedBy.name}${list.status === 'CLOSED' && list.closedAt ? ` &nbsp;·&nbsp; Closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</div>
+  <div class="meta">${list.store.name} &nbsp;·&nbsp; ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · by ${list.openedBy.name}</div>
   <div class="stats">
     <span style="color:#D97706">${pending} needed</span>
     ${ordered  > 0 ? `<span style="color:#059669">${ordered} ordered</span>` : ''}
-    ${received > 0 ? `<span style="color:#16A34A">${received} received</span>` : ''}
-    <span style="color:#94A3B8">${visibleItems.length} total items</span>
+    ${received > 0 ? `<span style="color:#7C3AED">${received} received</span>` : ''}
+    <span style="color:#94A3B8">${visibleItems.length} total</span>
   </div>
   <table>
-    <thead><tr>
-      <th>Item</th><th>Quantity</th><th>Notes</th><th>Priority</th><th>Status</th>
-    </tr></thead>
+    <thead><tr><th>Item</th><th>Quantity</th><th>Notes</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div style="margin-top:32px;font-size:12px;color:#CBD5E1">Printed ${new Date().toLocaleString()}</div>
@@ -260,11 +143,276 @@ function printList(list: OrderList) {
   win.print();
 }
 
+// ─── Quick Add Panel (right column) ──────────────────────────────────────────
+
+function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, canEdit }: {
+  list: OrderList;
+  onItemAdded: () => void;
+  pendingRequests: EmpRequest[];
+  onRequestReviewed: () => void;
+  canEdit: boolean;
+}) {
+  const qc = useQueryClient();
+  const [name, setName]           = useState('');
+  const [qty, setQty]             = useState('');
+  const [debName, setDebName]     = useState('');
+  const [showSugg, setShowSugg]   = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [lineActions, setLineActions] = useState<Record<string, 'ACCEPT' | 'REJECT' | null>>({});
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebName(name), 250);
+    return () => clearTimeout(t);
+  }, [name]);
+
+  const { data: suggData } = useQuery({
+    queryKey: ['order-sugg-panel', debName],
+    queryFn: () => inventoryAnalyticsApi.getItemSuggestions({ q: debName }),
+    enabled: debName.trim().length >= 2,
+    staleTime: 60_000,
+  });
+  const suggs: { name: string; category: string | null }[] = (suggData as any)?.data?.data || [];
+
+  const { data: quickData } = useQuery({
+    queryKey: ['quick-items', list.store.id],
+    queryFn: () => orderListApi.getQuickItems(list.store.id),
+    staleTime: 5 * 60_000,
+    enabled: canEdit,
+  });
+  const quickItems: QuickItem[] = (quickData as any)?.data?.data || [];
+
+  const addMut = useMutation({
+    mutationFn: (data: { name: string; quantity?: string; category?: string }) =>
+      orderListApi.addItem(list.id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      qc.invalidateQueries({ queryKey: ['quick-items', list.store.id] });
+      toast.success('Item added');
+      onItemAdded();
+    },
+    onError: () => toast.error('Failed to add item'),
+  });
+
+  const reviewMut = useMutation({
+    mutationFn: (vars: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT' }[] }) =>
+      employeeRequestApi.reviewRequest(vars.requestId, { lines: vars.lines }),
+    onSuccess: () => {
+      toast.success('Done — accepted items added to list');
+      setLineActions({});
+      setExpandedId(null);
+      onRequestReviewed();
+    },
+    onError: () => toast.error('Failed to submit review'),
+  });
+
+  function doAdd() {
+    const n = name.trim();
+    if (!n) return;
+    const found = suggs.find(s => s.name.toLowerCase() === n.toLowerCase());
+    addMut.mutate({ name: n, quantity: qty.trim() || undefined, category: found?.category || undefined });
+    setName(''); setQty('');
+    setTimeout(() => nameRef.current?.focus(), 50);
+  }
+
+  function quickAdd(item: QuickItem) {
+    addMut.mutate({ name: item.name, quantity: '1', category: item.category || undefined });
+  }
+
+  function acceptAll(req: EmpRequest) {
+    const lines = req.lines.filter(l => l.status === 'PENDING').map(l => ({ id: l.id, action: 'ACCEPT' as const }));
+    if (lines.length) reviewMut.mutate({ requestId: req.id, lines });
+  }
+
+  const pending = pendingRequests.filter(r => r.status === 'PENDING');
+
+  return (
+    <div style={p.panel}>
+
+      {/* ── Inline Add Bar ──────────────────────────────────── */}
+      {canEdit && (
+        <div style={p.section}>
+          <div style={p.sectionLabel}>+ Add Item</div>
+          <div style={{ position: 'relative' }}>
+            <input
+              ref={nameRef}
+              style={p.nameInput}
+              value={name}
+              onChange={e => { setName(e.target.value); setShowSugg(true); }}
+              onFocus={() => setShowSugg(true)}
+              onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+              onKeyDown={e => { if (e.key === 'Enter' && !showSugg) doAdd(); }}
+              placeholder="Item name…"
+              maxLength={120}
+              autoComplete="off"
+            />
+            {showSugg && suggs.length > 0 && (
+              <div style={p.sugg}>
+                {suggs.map((sg: any) => (
+                  <div key={sg.name} style={p.suggRow}
+                    onMouseDown={() => { setName(sg.name); setShowSugg(false); }}>
+                    <span style={{ fontWeight: 600 }}>{sg.name}</span>
+                    {sg.category && <span style={p.suggCat}>{sg.category}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <input
+              style={p.qtyInput}
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') doAdd(); }}
+              placeholder="Qty (e.g. 2 cases)"
+              maxLength={40}
+            />
+            <button
+              style={{ ...p.addBtn, ...(!name.trim() || addMut.isPending ? p.addBtnDim : {}) }}
+              onClick={doAdd}
+              disabled={!name.trim() || addMut.isPending}
+            >
+              {addMut.isPending ? '…' : 'Add →'}
+            </button>
+          </div>
+          <div style={p.hint}>Tab to qty · Enter to add · name autocompletes from history</div>
+        </div>
+      )}
+
+      {/* ── Quick Pad ───────────────────────────────────────── */}
+      {canEdit && quickItems.length > 0 && (
+        <div style={p.section}>
+          <div style={p.sectionLabel}>Quick Add</div>
+          <div style={p.quickGrid}>
+            {quickItems.map(item => (
+              <button
+                key={item.name}
+                style={p.quickTile}
+                onClick={() => quickAdd(item)}
+                disabled={addMut.isPending}
+                title={`Add ${item.name}${item.category ? ' — ' + item.category : ''}`}
+              >
+                <span style={p.tileName}>{item.name}</span>
+                {item.category && <span style={p.tileCat}>{item.category}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {canEdit && quickItems.length === 0 && (
+        <div style={p.section}>
+          <div style={p.sectionLabel}>Quick Add</div>
+          <div style={{ fontSize: 13, color: '#94A3B8', padding: '12px 0' }}>
+            Quick Add tiles appear here after items have been ordered. Start adding items manually to build your history.
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending Employee Requests ────────────────────────── */}
+      {pending.length > 0 && (
+        <div style={p.section}>
+          <div style={p.sectionLabel}>
+            Employee Requests
+            <span style={p.badge}>{pending.length}</span>
+          </div>
+          {pending.map(req => {
+            const isOpen   = expandedId === req.id;
+            const pLines   = req.lines.filter(l => l.status === 'PENDING');
+            return (
+              <div key={req.id} style={{ ...p.reqCard, marginBottom: 8 }}>
+                <div style={p.reqHead} onClick={() => setExpandedId(isOpen ? null : req.id)}>
+                  <div style={{ flex: 1 }}>
+                    <div style={p.reqName}>{req.submittedBy.name}</div>
+                    <div style={p.reqMeta}>
+                      {pLines.length} item{pLines.length !== 1 ? 's' : ''} ·{' '}
+                      {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {req.note && ` · "${req.note}"`}
+                    </div>
+                  </div>
+                  <button
+                    style={p.acceptAllBtn}
+                    onClick={e => { e.stopPropagation(); acceptAll(req); }}
+                    disabled={reviewMut.isPending}
+                  >
+                    ✓ Accept All
+                  </button>
+                  <span style={{ color: '#94A3B8', marginLeft: 8, fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+
+                {isOpen && (
+                  <div style={p.reqLines}>
+                    {pLines.map(line => {
+                      const act = lineActions[line.id] ?? null;
+                      return (
+                        <div key={line.id} style={p.reqLine}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: '#1E293B' }}>{line.name}</div>
+                          {(line.quantity || line.category) && (
+                            <div style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                              {line.quantity && <span>Qty: {line.quantity} </span>}
+                              {line.category && <span>{line.category}</span>}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                            <button
+                              style={{ ...p.lineBtn, ...(act === 'ACCEPT' ? p.lineBtnAccept : {}) }}
+                              onClick={() => setLineActions(prev => ({ ...prev, [line.id]: act === 'ACCEPT' ? null : 'ACCEPT' }))}
+                            >✓ Accept</button>
+                            <button
+                              style={{ ...p.lineBtn, ...(act === 'REJECT' ? p.lineBtnReject : {}) }}
+                              onClick={() => setLineActions(prev => ({ ...prev, [line.id]: act === 'REJECT' ? null : 'REJECT' }))}
+                            >✗ Skip</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {Object.values(lineActions).some(a => a) && (
+                      <button
+                        style={p.submitReviewBtn}
+                        disabled={reviewMut.isPending}
+                        onClick={() => {
+                          const lines = pLines
+                            .filter(l => lineActions[l.id])
+                            .map(l => ({ id: l.id, action: lineActions[l.id]! }));
+                          reviewMut.mutate({ requestId: req.id, lines });
+                        }}
+                      >
+                        {reviewMut.isPending ? 'Submitting…' : 'Submit Review'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!canEdit && pending.length === 0 && (
+        <div style={{ padding: '20px 16px', color: '#94A3B8', fontSize: 13, textAlign: 'center' }}>
+          {list.status === 'CLOSED' ? 'This list is closed.' : 'No pending requests.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Order List Detail (two-column layout) ────────────────────────────────────
+
 function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   list: OrderList; canEdit: boolean; canClose: boolean; onBack: () => void; onListChanged: () => void;
 }) {
   const qc = useQueryClient();
-  const [showAdd, setShowAdd] = useState(false);
+  const [editingQtyId, setEditingQtyId] = useState<string | null>(null);
+  const [editingQty,   setEditingQty]   = useState('');
+
+  const { data: reqData, refetch: refetchReqs } = useQuery({
+    queryKey: ['pending-reqs-panel', list.store.id],
+    queryFn: () => employeeRequestApi.getForStore(list.store.id, 'PENDING'),
+    refetchInterval: 30_000,
+  });
+  const pendingRequests: EmpRequest[] = reqData?.data?.data || [];
 
   const closeMutation = useMutation({
     mutationFn: () => orderListApi.closeList(list.id),
@@ -280,18 +428,25 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => orderListApi.updateItemStatus(id, status),
     onSuccess: () => {
-      toast.success('Item updated');
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       onListChanged();
     },
-    onError: () => toast.error('Failed to update'),
+    onError: () => toast.error('Failed to update status'),
+  });
+
+  const updateQtyMutation = useMutation({
+    mutationFn: ({ id, quantity }: { id: string; quantity: string }) =>
+      orderListApi.updateItem(id, { quantity: quantity || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
+      setEditingQtyId(null);
+    },
+    onError: () => toast.error('Failed to update quantity'),
   });
 
   const removeMutation = useMutation({
     mutationFn: (itemId: string) => orderListApi.removeItem(itemId),
     onSuccess: () => {
-      toast.success('Item removed');
-      // Invalidate grid so card count updates immediately
       qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       onListChanged();
@@ -314,6 +469,23 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const ordered  = visibleItems.filter(i => i.status === 'ORDERED').length;
   const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
 
+  function nextStatus(status: string): string | null {
+    if (status === 'PENDING')  return 'ORDERED';
+    if (status === 'ORDERED')  return 'RECEIVED';
+    return null;
+  }
+
+  function saveQty(item: OrderListItem) {
+    const val = editingQty.trim();
+    if (val !== (item.quantity || '')) {
+      updateQtyMutation.mutate({ id: item.id, quantity: val });
+    } else {
+      setEditingQtyId(null);
+    }
+  }
+
+  const isOpen = list.status === 'OPEN';
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -323,94 +495,145 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
         <span style={s.breadcrumbCur}>{list.name}</span>
       </div>
 
-      {/* List header */}
+      {/* Header */}
       <div style={s.listDetailHeader}>
         <div>
           <div style={s.listDetailTitle}>{list.name}</div>
           <div style={s.listDetailMeta}>
-            {list.store.name} · Opened {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            {' by '}{list.openedBy.name}
+            {list.store.name} · opened {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} by {list.openedBy.name}
             {list.status === 'CLOSED' && list.closedAt && ` · Closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
           </div>
           <div style={s.listDetailStats}>
             <span style={{ color: '#D97706', fontWeight: 600 }}>{pending} needed</span>
             {ordered  > 0 && <span style={{ color: '#059669', fontWeight: 600 }}>{ordered} ordered</span>}
-            {received > 0 && <span style={{ color: '#16A34A', fontWeight: 600 }}>{received} received</span>}
+            {received > 0 && <span style={{ color: '#7C3AED', fontWeight: 600 }}>{received} received</span>}
+            <span style={{ color: '#94A3B8' }}>{visibleItems.length} total</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={s.printBtn} onClick={() => printList(list)}>🖨 Print List</button>
-          {canEdit && list.status === 'OPEN' && (
-            <button style={s.addItemBtn} onClick={() => setShowAdd(true)}>+ Add Item</button>
-          )}
-          {canClose && list.status === 'OPEN' && (
+          <button style={s.printBtn} onClick={() => printList(list)}>🖨 Print</button>
+          {canClose && isOpen && (
             <button style={s.closeListBtn}
               onClick={() => { if (confirm('Close this list? This means the order has been placed.')) closeMutation.mutate(); }}
               disabled={closeMutation.isPending}>
-              {closeMutation.isPending ? 'Closing...' : 'Close List'}
+              {closeMutation.isPending ? 'Closing…' : 'Close List'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Items by category */}
-      {grouped.length === 0 ? (
-        <div style={s.empty}>No items on this list.</div>
-      ) : (
-        grouped.map(([cat, catItems]) => (
-          <div key={cat} style={s.catSection}>
-            <div style={s.catHeader}>{cat}</div>
-            <div style={s.itemsGrid}>
-              {catItems.map(item => {
-                const pc = PRIORITY_CFG[item.priority];
-                const sc = ITEM_STATUS_CFG[item.status];
-                return (
-                  <div key={item.id} style={s.itemCard}>
-                    <div style={s.itemCardTop}>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ ...s.badge, background: pc.bg, color: pc.text }}>{pc.label}</span>
-                        <span style={{ ...s.badge, background: sc.bg, color: sc.text }}>{sc.label}</span>
-                        {item.source === 'EMPLOYEE_REQUEST' && (
-                          <span style={{ ...s.badge, background: '#F0FDF4', color: '#16A34A' }}>Request</span>
-                        )}
-                      </div>
-                      {canEdit && list.status === 'OPEN' && (
-                        <button style={s.removeBtn} onClick={() => { if (confirm(`Remove "${item.name}"?`)) removeMutation.mutate(item.id); }}>✕</button>
-                      )}
-                    </div>
-                    <div style={s.itemName}>{item.name}</div>
-                    {item.quantity && <div style={s.itemMeta}>Qty: {item.quantity}</div>}
-                    {item.notes && <div style={s.itemNote}>{item.notes}</div>}
-                    <div style={s.itemBy}>Added by {item.addedBy?.name}</div>
-                    {canEdit && list.status === 'OPEN' && (
-                      <div style={s.itemActions}>
-                        {item.status === 'PENDING' && (
-                          <button style={s.statusBtnGreen} onClick={() => statusMutation.mutate({ id: item.id, status: 'ORDERED' })}>
-                            Mark Ordered
-                          </button>
-                        )}
-                        {item.status === 'ORDERED' && (
-                          <button style={s.statusBtnPurple} onClick={() => statusMutation.mutate({ id: item.id, status: 'RECEIVED' })}>
-                            Mark Received
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))
-      )}
+      {/* Two-column body */}
+      <div style={s.detailBody}>
 
-      {showAdd && (
-        <AddItemModal
-          listId={list.id}
-          onClose={() => setShowAdd(false)}
-          onSaved={() => { setShowAdd(false); onListChanged(); }}
-        />
-      )}
+        {/* Left: item list */}
+        <div style={s.itemsCol}>
+          {grouped.length === 0 ? (
+            <div style={s.empty}>
+              No items yet.{canEdit && isOpen ? ' Use the panel on the right to add items.' : ''}
+            </div>
+          ) : (
+            grouped.map(([cat, catItems]) => (
+              <div key={cat} style={{ marginBottom: 20 }}>
+                <div style={s.catHeader}>{cat}</div>
+                <div style={s.itemList}>
+                  {catItems.map(item => {
+                    const pc = PRIORITY_CFG[item.priority];
+                    const sc = ITEM_STATUS_CFG[item.status];
+                    const canAdvance = canEdit && isOpen && !!nextStatus(item.status);
+                    const isEditingQty = editingQtyId === item.id;
+                    return (
+                      <div key={item.id} style={s.itemRow}>
+                        <div style={s.itemRowMain}>
+                          {/* Status chip — click to advance */}
+                          <button
+                            style={{
+                              ...s.statusChip,
+                              background: sc.bg, color: sc.text,
+                              border: `1px solid ${sc.border || 'transparent'}`,
+                              cursor: canAdvance ? 'pointer' : 'default',
+                            }}
+                            onClick={() => {
+                              if (!canAdvance) return;
+                              const next = nextStatus(item.status);
+                              if (next) statusMutation.mutate({ id: item.id, status: next });
+                            }}
+                            title={canAdvance ? `Click → mark ${nextStatus(item.status)?.toLowerCase()}` : undefined}
+                          >
+                            {sc.label}
+                          </button>
+
+                          {/* Item name */}
+                          <span style={s.itemRowName}>{item.name}</span>
+
+                          {/* Priority dot */}
+                          <span style={{ ...s.priorityDot, background: pc.text }} title={pc.label} />
+
+                          {/* Qty — click to edit inline */}
+                          {isEditingQty ? (
+                            <input
+                              style={s.qtyEditInput}
+                              value={editingQty}
+                              onChange={e => setEditingQty(e.target.value)}
+                              onBlur={() => saveQty(item)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveQty(item);
+                                if (e.key === 'Escape') setEditingQtyId(null);
+                              }}
+                              autoFocus
+                              maxLength={40}
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                ...s.qtyChip,
+                                cursor: canEdit && isOpen ? 'pointer' : 'default',
+                                color: item.quantity ? '#1E293B' : '#CBD5E1',
+                              }}
+                              onClick={canEdit && isOpen ? () => { setEditingQtyId(item.id); setEditingQty(item.quantity || ''); } : undefined}
+                              title={canEdit && isOpen ? 'Click to edit quantity' : undefined}
+                            >
+                              {item.quantity || 'qty?'}
+                            </span>
+                          )}
+
+                          {/* Remove */}
+                          {canEdit && isOpen && (
+                            <button style={s.removeBtn}
+                              onClick={() => { if (confirm(`Remove "${item.name}"?`)) removeMutation.mutate(item.id); }}>
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Sub-row: notes + source */}
+                        {(item.notes || item.source === 'EMPLOYEE_REQUEST') && (
+                          <div style={s.itemRowSub}>
+                            {item.notes && <span>{item.notes}</span>}
+                            {item.source === 'EMPLOYEE_REQUEST' && (
+                              <span style={s.sourceBadge}>📋 Employee request</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Right: Quick Add Panel */}
+        <div style={s.addCol}>
+          <QuickAddPanel
+            list={list}
+            onItemAdded={onListChanged}
+            pendingRequests={pendingRequests}
+            onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
+            canEdit={canEdit && isOpen}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -440,7 +663,6 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   });
   const lists: OrderList[] = data?.data?.data?.lists || [];
 
-  // Full list (with items) fetched on demand when a card is clicked
   const { data: fullListData, isLoading: fullListLoading, refetch: refetchFull } = useQuery({
     queryKey: ['admin-order-list-detail', selectedList?.id],
     queryFn: () => orderListApi.getById(selectedList!.id),
@@ -468,7 +690,6 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
   return (
     <div>
-      {/* Filters */}
       <div style={s.filters}>
         <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
           <option value="">All Stores</option>
@@ -489,10 +710,10 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
       ) : (
         <div style={s.listsGrid}>
           {lists.map(list => {
-            const isOpen     = list.status === 'OPEN';
-            const itemCount  = list._count?.items ?? list.items?.length ?? 0;
-            const pending    = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
-            const received   = list.items?.filter(i => i.status === 'RECEIVED').length ?? 0;
+            const isOpen    = list.status === 'OPEN';
+            const itemCount = list._count?.items ?? list.items?.length ?? 0;
+            const pending   = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
+            const received  = list.items?.filter(i => i.status === 'RECEIVED').length ?? 0;
             return (
               <div key={list.id} style={{ ...s.listCard, background: isOpen ? '#fff' : '#FAFAFA' }}
                 onClick={() => setSelectedList(list)}
@@ -512,7 +733,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                 <div style={s.listCardStats}>
                   <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
                   {pending   > 0 && <span style={{ color: '#D97706' }}>{pending} needed</span>}
-                  {received  > 0 && <span style={{ color: '#16A34A' }}>{received} received</span>}
+                  {received  > 0 && <span style={{ color: '#7C3AED' }}>{received} received</span>}
                 </div>
               </div>
             );
@@ -527,7 +748,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
 function CategoriesTab() {
   const qc = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState('PENDING'); // default to pending
+  const [filterStatus, setFilterStatus] = useState('PENDING');
   const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editName,     setEditName]     = useState('');
   const [approvingId,  setApprovingId]  = useState<string | null>(null);
@@ -558,7 +779,6 @@ function CategoriesTab() {
   });
 
   const pendingCount = categories.filter(c => c.status === 'PENDING').length;
-  const allPendingCount = (data?.data?.data as any[])?.filter?.((c: any) => c.status === 'PENDING').length || pendingCount;
 
   const openApprove = (cat: OrderCategory) => {
     setApprovingId(cat.id);
@@ -610,24 +830,16 @@ function CategoriesTab() {
             const isEditing   = editingId === cat.id;
             return (
               <div key={cat.id} style={{ ...s.catTableRow, ...(cat.status === 'PENDING' ? { background: '#FFFBEB' } : {}) }}>
-                {/* Name column */}
                 {isApproving ? (
                   <div style={s.editRow}>
-                    <input
-                      style={{ ...s.input, flex: 1, borderColor: '#10B981' }}
-                      value={approveEdit}
-                      onChange={e => setApproveEdit(e.target.value)}
-                      maxLength={80}
-                      autoFocus
-                    />
+                    <input style={{ ...s.input, flex: 1, borderColor: '#10B981' }}
+                      value={approveEdit} onChange={e => setApproveEdit(e.target.value)} maxLength={80} autoFocus />
                   </div>
                 ) : isEditing ? (
                   <div style={s.editRow}>
                     <input style={{ ...s.input, flex: 1 }} value={editName} onChange={e => setEditName(e.target.value)} maxLength={80} autoFocus />
                     <button style={s.saveBtnSm} onClick={() => updateMutation.mutate({ id: cat.id, data: { name: editName } })}
-                      disabled={updateMutation.isPending || !editName.trim()}>
-                      Save
-                    </button>
+                      disabled={updateMutation.isPending || !editName.trim()}>Save</button>
                     <button style={s.cancelBtnSm} onClick={() => setEditingId(null)}>Cancel</button>
                   </div>
                 ) : (
@@ -642,15 +854,11 @@ function CategoriesTab() {
                   {cfg.label}
                 </span>
 
-                {/* Actions */}
                 <div style={s.catActions}>
                   {isApproving ? (
                     <>
-                      <button
-                        style={s.approveBtn}
-                        onClick={() => confirmApprove(cat.id)}
-                        disabled={updateMutation.isPending || !approveEdit.trim()}
-                      >
+                      <button style={s.approveBtn} onClick={() => confirmApprove(cat.id)}
+                        disabled={updateMutation.isPending || !approveEdit.trim()}>
                         {updateMutation.isPending ? '…' : approveEdit.trim() !== cat.name ? 'Approve & Rename' : 'Approve'}
                       </button>
                       <button style={s.cancelBtnSm} onClick={() => setApprovingId(null)}>Cancel</button>
@@ -665,9 +873,7 @@ function CategoriesTab() {
                       {cat.status !== 'REJECTED' && (
                         <button style={s.rejectBtnSm}
                           onClick={() => updateMutation.mutate({ id: cat.id, data: { status: 'REJECTED' } })}
-                          disabled={updateMutation.isPending}>
-                          Reject
-                        </button>
+                          disabled={updateMutation.isPending}>Reject</button>
                       )}
                       <button style={s.editBtnSm}
                         onClick={() => { setEditingId(cat.id); setEditName(cat.name); setApprovingId(null); }}>
@@ -675,9 +881,7 @@ function CategoriesTab() {
                       </button>
                       <button style={s.deleteBtnSm}
                         onClick={() => { if (confirm(`Delete category "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
-                        disabled={deleteMutation.isPending}>
-                        Delete
-                      </button>
+                        disabled={deleteMutation.isPending}>Delete</button>
                     </>
                   )}
                 </div>
@@ -691,23 +895,6 @@ function CategoriesTab() {
 }
 
 // ─── Tab: Employee Requests ───────────────────────────────────────────────────
-
-const REJECTION_REASONS = [
-  { value: 'NO_SUPPLIER',   label: 'No supplier' },
-  { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
-  { value: 'IN_STOCK',      label: 'In stock' },
-  { value: 'DUPLICATE',     label: 'Duplicate' },
-  { value: 'OTHER',         label: 'Other' },
-];
-
-interface ReqLine { id: string; name: string; quantity?: string; category?: string; notes?: string; status: string; rejectionReason?: string; rejectionNote?: string }
-interface EmpRequest {
-  id: string; status: string; note?: string; requestType: string; createdAt: string;
-  submittedBy: { id: string; name: string; role: string };
-  reviewedBy?: { id: string; name: string };
-  store: { id: string; name: string };
-  lines: ReqLine[];
-}
 
 function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
   const qc = useQueryClient();
@@ -790,7 +977,6 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
             const pendingLines = req.lines.filter(l => l.status === 'PENDING');
             return (
               <div key={req.id} style={{ ...r.card, borderColor: isPending ? '#FDE68A' : '#E2E8F0', background: isPending ? '#FFFBEB' : '#fff' }}>
-                {/* Header */}
                 <div style={r.cardHead} onClick={() => setExpandedId(isExpanded ? null : req.id)}
                   role="button" tabIndex={0} aria-expanded={isExpanded}
                   onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setExpandedId(isExpanded ? null : req.id)}>
@@ -813,7 +999,6 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
                   <span style={{ color: '#94A3B8', fontSize: 18 }}>{isExpanded ? '▲' : '▼'}</span>
                 </div>
 
-                {/* Expanded lines */}
                 {isExpanded && (
                   <div style={r.lines}>
                     {req.lines.map(line => {
@@ -837,13 +1022,9 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
                             <div style={{ marginTop: 8 }}>
                               <div style={r.actionRow}>
                                 <button style={{ ...r.actionBtn, ...(st.action === 'ACCEPT' ? r.acceptActive : {}) }}
-                                  onClick={() => setLine(line.id, 'action', 'ACCEPT')}>
-                                  ✓ Accept
-                                </button>
+                                  onClick={() => setLine(line.id, 'action', 'ACCEPT')}>✓ Accept</button>
                                 <button style={{ ...r.actionBtn, ...(st.action === 'REJECT' ? r.rejectActive : {}) }}
-                                  onClick={() => setLine(line.id, 'action', 'REJECT')}>
-                                  ✕ Reject
-                                </button>
+                                  onClick={() => setLine(line.id, 'action', 'REJECT')}>✕ Reject</button>
                               </div>
                               {st.action === 'REJECT' && (
                                 <div style={{ marginTop: 8 }}>
@@ -868,7 +1049,7 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
 
                     {isPending && pendingLines.length > 0 && (
                       <button
-                        style={{ ...m.primaryBtn, marginTop: 12, opacity: reviewMutation.isPending ? 0.6 : 1 }}
+                        style={{ ...s.approveBtn, marginTop: 12, padding: '10px 20px', fontSize: 15, opacity: reviewMutation.isPending ? 0.6 : 1 }}
                         onClick={() => handleReview(req)}
                         disabled={reviewMutation.isPending}
                       >
@@ -892,29 +1073,27 @@ export default function OrderListPage() {
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'lists' | 'categories' | 'requests'>('lists');
 
-  const isDevAdmin   = user?.role === 'DEV_ADMIN';
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const canEdit      = isDevAdmin;
-  const canClose     = isDevAdmin || isSuperAdmin;
+  const isDevAdmin     = user?.role === 'DEV_ADMIN';
+  const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
+  const canEdit        = isDevAdmin || isStoreManager;
+  const canClose       = isDevAdmin || isSuperAdmin || isStoreManager;
   const canSeeRequests = isDevAdmin || isSuperAdmin || isStoreManager;
   const managerStoreId = isStoreManager ? user?.storeIds?.[0] : undefined;
 
   return (
     <div style={s.page}>
-      {/* Page header */}
       <div style={s.pageHeader}>
         <div>
           <h1 style={s.pageTitle}>📦 Order Lists</h1>
           <p style={s.pageSubtitle}>
             {isDevAdmin
-              ? 'View and manage all store order lists, employee requests, and categories.'
-              : 'View all store order lists and review employee item requests.'}
+              ? 'Manage all store order lists, employee requests, and categories.'
+              : 'Build and manage your store\'s order list — add items, review employee requests.'}
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={s.tabs}>
         <button style={{ ...s.tab, ...(tab === 'lists' && s.tabActive) }} onClick={() => setTab('lists')}>
           Order Lists
@@ -932,8 +1111,8 @@ export default function OrderListPage() {
       </div>
 
       <div style={s.tabContent}>
-        {tab === 'lists'    && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
-        {tab === 'requests' && canSeeRequests && <RequestsTab managerStoreId={managerStoreId} />}
+        {tab === 'lists'      && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
+        {tab === 'requests'   && canSeeRequests && <RequestsTab managerStoreId={managerStoreId} />}
         {tab === 'categories' && isDevAdmin && <CategoriesTab />}
       </div>
     </div>
@@ -948,37 +1127,29 @@ const s: Record<string, React.CSSProperties> = {
   pageTitle:  { fontSize: 24, fontWeight: 800, color: '#1E293B', margin: 0 },
   pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
 
-  tabs:       { display: 'flex', gap: 4, borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
-  tab:        { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
-  tabActive:  { color: '#1D3557', borderBottomColor: '#1D3557' },
+  tabs:      { display: 'flex', gap: 4, borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
+  tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
+  tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
   tabContent: {},
 
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },
   filterSelect: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer' },
-  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 15, color: '#64748B', background: '#fff', cursor: 'pointer' },
-  pendingBadge:  { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 15, fontWeight: 700 },
-  approveHint: {
-    background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10,
-    padding: '10px 16px', fontSize: 15, color: '#065F46', marginBottom: 16, lineHeight: 1.5,
-  },
+  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#64748B', background: '#fff', cursor: 'pointer' },
+  pendingBadge: { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 14, fontWeight: 700 },
+  approveHint:  { background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10, padding: '10px 16px', fontSize: 14, color: '#065F46', marginBottom: 16, lineHeight: 1.5 },
 
-  loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 15 },
-  empty:   { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 15 },
+  loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
+  empty:   { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
 
   // Lists grid
-  listsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
-  listCard: {
-    background: '#fff', borderRadius: 12, padding: 16,
-    cursor: 'pointer', transition: 'box-shadow 0.2s, transform 0.15s',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0',
-  },
-  listCardTop:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  listCardName:  { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
-  listCardStore: { fontSize: 15, color: '#64748B', marginBottom: 8 },
-  listCardDate:  { fontSize: 14, color: '#94A3B8' },
-  listCardStats: { display: 'flex', gap: 12, fontSize: 15, flexWrap: 'wrap' },
-
-  statusPill: { padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 600 },
+  listsGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
+  listCard:     { background: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'box-shadow 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0' },
+  listCardTop:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  listCardName: { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
+  listCardStore:{ fontSize: 14, color: '#64748B', marginBottom: 8 },
+  listCardDate: { fontSize: 13, color: '#94A3B8' },
+  listCardStats:{ display: 'flex', gap: 12, fontSize: 14, flexWrap: 'wrap' },
+  statusPill:   { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 },
 
   // Detail view
   breadcrumb:    { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 },
@@ -988,97 +1159,105 @@ const s: Record<string, React.CSSProperties> = {
 
   listDetailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24, padding: '20px', background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #E2E8F0' },
   listDetailTitle:  { fontSize: 20, fontWeight: 800, color: '#1E293B', marginBottom: 4 },
-  listDetailMeta:   { fontSize: 15, color: '#64748B', marginBottom: 8 },
+  listDetailMeta:   { fontSize: 14, color: '#64748B', marginBottom: 8 },
   listDetailStats:  { display: 'flex', gap: 16, fontSize: 14 },
 
-  printBtn: {
-    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff',
-    color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-  },
-  addItemBtn: {
-    padding: '8px 16px', borderRadius: 8, border: '2px solid #1D3557', background: '#fff',
-    color: '#1D3557', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-  },
-  closeListBtn: {
-    padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none',
-    color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-  },
+  printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
+  closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
 
-  catSection: { marginBottom: 24 },
-  catHeader:  { fontSize: 14, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, paddingLeft: 4 },
-  itemsGrid:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 },
+  // Two-column detail layout
+  detailBody: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' },
+  itemsCol:   { minWidth: 0 },
+  addCol:     { position: 'sticky' as const, top: 20 },
 
-  itemCard:    { background: '#fff', borderRadius: 10, padding: 14, border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  itemCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 6 },
-  badge:       { padding: '2px 8px', borderRadius: 12, fontSize: 13, fontWeight: 600 },
-  itemName:    { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
-  itemMeta:    { fontSize: 14, color: '#64748B', marginBottom: 2 },
-  itemNote:    { fontSize: 14, color: '#94A3B8', fontStyle: 'italic', marginBottom: 4 },
-  itemBy:      { fontSize: 13, color: '#CBD5E1', marginTop: 4 },
-  itemActions: { marginTop: 10, display: 'flex', gap: 6 },
-  removeBtn:   { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px', borderRadius: 4 },
+  // Item list
+  catHeader: { fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, paddingLeft: 4 },
+  itemList:  { display: 'flex', flexDirection: 'column', gap: 4 },
+  itemRow:   { background: '#fff', borderRadius: 8, padding: '10px 12px', border: '1px solid #E2E8F0' },
+  itemRowMain: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
+  itemRowSub:  { display: 'flex', gap: 10, marginTop: 4, paddingLeft: 4, fontSize: 12, color: '#94A3B8', flexWrap: 'wrap' as const },
+  itemRowName: { flex: 1, fontSize: 14, fontWeight: 600, color: '#1E293B', minWidth: 80 },
 
-  statusBtnGreen:  { padding: '6px 12px', borderRadius: 8, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  statusBtnPurple: { padding: '6px 12px', borderRadius: 8, background: '#EDE9FE', color: '#7C3AED', border: '1px solid #C4B5FD', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
+  qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#F8FAFC', border: '1px solid #E2E8F0', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #3B82F6', fontSize: 13, outline: 'none' },
+  priorityDot:  { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  removeBtn:    { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
+  sourceBadge:  { fontSize: 11, color: '#059669', background: '#D1FAE5', padding: '1px 6px', borderRadius: 10 },
 
   // Category table
   catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
-  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#F8FAFC', fontSize: 14, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E2E8F0' },
+  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#F8FAFC', fontSize: 13, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E2E8F0' },
   catTableRow:  { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', borderBottom: '1px solid #F1F5F9', alignItems: 'center' },
   catName:      { fontSize: 14, fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 8 },
   catUses:      { fontSize: 14, color: '#64748B' },
   catActions:   { display: 'flex', gap: 6, flexWrap: 'wrap' },
   storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: '#94A3B8', fontWeight: 500 },
 
-  editRow: { display: 'flex', alignItems: 'center', gap: 8 },
-  approveBtn:   { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  rejectBtnSm:  { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  editBtnSm:    { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  deleteBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  saveBtnSm:    { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  cancelBtnSm:  { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
+  editRow:     { display: 'flex', alignItems: 'center', gap: 8 },
+  approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
+
+  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const },
 };
 
 // Request tab styles
 const r: Record<string, React.CSSProperties> = {
-  card:      { borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
-  cardHead:  { display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', gap: 8 },
-  cardTitle: { fontSize: 15, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
-  cardMeta:  { fontSize: 14, color: '#64748B', marginTop: 2 },
-  lines:     { borderTop: '1px solid #E2E8F0', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#F8FAFC' },
-  line:      { background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', padding: 12 },
-  lineName:  { fontSize: 14, fontWeight: 600, color: '#1E293B' },
-  lineMeta:  { fontSize: 14, color: '#64748B', marginTop: 2 },
-  actionRow: { display: 'flex', gap: 8, marginTop: 6 },
-  actionBtn: { flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151' },
-  acceptActive: { background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
-  rejectActive: { background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
-  chipBtn:   { padding: '4px 12px', borderRadius: 16, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 14, color: '#64748B' },
+  card:        { borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
+  cardHead:    { display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', gap: 8 },
+  cardTitle:   { fontSize: 15, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
+  cardMeta:    { fontSize: 13, color: '#64748B', marginTop: 2 },
+  lines:       { borderTop: '1px solid #E2E8F0', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#F8FAFC' },
+  line:        { background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', padding: 12 },
+  lineName:    { fontSize: 14, fontWeight: 600, color: '#1E293B' },
+  lineMeta:    { fontSize: 13, color: '#64748B', marginTop: 2 },
+  actionRow:   { display: 'flex', gap: 8, marginTop: 6 },
+  actionBtn:   { flex: 1, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' },
+  acceptActive:{ background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
+  rejectActive:{ background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
+  chipBtn:     { padding: '4px 12px', borderRadius: 16, border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748B' },
 };
 
-// Modal styles
-const m: Record<string, React.CSSProperties> = {
-  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modal:    { background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle:  { fontSize: 18, fontWeight: 800, color: '#1E293B' },
-  closeBtn:    { background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer', lineHeight: 1 },
-  field:  { marginBottom: 14 },
-  label:  { display: 'block', fontSize: 14, fontWeight: 700, color: '#64748B', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' },
-  input:  { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box', resize: 'vertical' },
-  primaryBtn: { width: '100%', padding: '13px 0', borderRadius: 10, background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer', marginTop: 8 },
+// Quick Add Panel styles
+const p: Record<string, React.CSSProperties> = {
+  panel:       { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
+  section:     { padding: '16px', borderBottom: '1px solid #F1F5F9' },
+  sectionLabel:{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
 
-  // Category autocomplete dropdown
-  catDrop: {
-    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-    background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 8, marginTop: 4,
-    maxHeight: 220, overflowY: 'auto',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+  nameInput:   { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' },
+  qtyInput:    { flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', outline: 'none', minWidth: 0 },
+  addBtn:      { padding: '10px 18px', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'opacity 0.15s' },
+  addBtnDim:   { opacity: 0.4, cursor: 'not-allowed' },
+  hint:        { fontSize: 11, color: '#CBD5E1', marginTop: 8 },
+
+  sugg:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 8px 8px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' },
+  suggRow:     { padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid #F8FAFC', transition: 'background 0.1s' },
+  suggCat:     { fontSize: 12, color: '#94A3B8', marginLeft: 8 },
+
+  quickGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
+  quickTile:   {
+    padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC',
+    cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s',
+    display: 'flex', flexDirection: 'column', gap: 2, fontSize: 13,
   },
-  catDropRow: {
-    padding: '9px 14px', fontSize: 14, color: '#1E293B', cursor: 'pointer',
-    borderBottom: '1px solid #F1F5F9',
-  },
-  catDropRowActive: { background: '#EEF2FF', color: '#1D3557', fontWeight: 700 },
+  tileName:    { fontWeight: 700, color: '#1E293B', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  tileCat:     { fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+
+  badge:       { padding: '2px 8px', borderRadius: 10, background: '#FEF3C7', color: '#D97706', fontSize: 12, fontWeight: 700 },
+
+  reqCard:     { borderRadius: 8, border: '1px solid #FDE68A', background: '#FFFBEB', overflow: 'hidden' },
+  reqHead:     { display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer', gap: 8 },
+  reqName:     { fontSize: 14, fontWeight: 700, color: '#1E293B' },
+  reqMeta:     { fontSize: 12, color: '#64748B', marginTop: 2 },
+  acceptAllBtn:{ padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  reqLines:    { padding: '10px 14px', borderTop: '1px solid #FDE68A', display: 'flex', flexDirection: 'column', gap: 8 },
+  reqLine:     { background: '#fff', borderRadius: 6, border: '1px solid #E2E8F0', padding: '10px 12px' },
+  lineBtn:     { flex: 1, padding: '6px 0', borderRadius: 6, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  lineBtnAccept:{ background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
+  lineBtnReject:{ background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
+  submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };
