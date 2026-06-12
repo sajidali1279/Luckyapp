@@ -2,7 +2,17 @@ import { Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { AuthRequest } from '../types';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Lazy — only instantiated on first request so a missing key doesn't crash startup
+let _client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!_client) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not configured — add it in Render Environment Variables');
+    }
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _client;
+}
 
 const PROMPT = `This is a page from a wholesale/distributor product catalog book.
 Extract every product visible on this page.
@@ -28,7 +38,7 @@ export async function extractFromPhoto(req: AuthRequest, res: Response) {
   const mediaType = (req.file.mimetype || 'image/jpeg') as MediaType;
 
   try {
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 2048,
       messages: [{
