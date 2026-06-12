@@ -2,12 +2,13 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
   RefreshControl, StatusBar, Modal, Alert, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Share,
+  Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi, managerApi } from '../../services/api';
+import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi, managerApi, scannedProductApi } from '../../services/api';
+import { printOrderList } from '../../utils/printOrderList';
 import { COLORS } from '../../constants';
 import {
   PackageIcon, PrinterIcon, CheckCircleIcon,
@@ -1042,6 +1043,7 @@ export default function ManagerOrderListScreen() {
   const [editingItem,     setEditingItem]      = useState<OrderListItem | null>(null);
   const [showReview,      setShowReview]       = useState(false);
   const [showHistory,     setShowHistory]      = useState(false);
+  const [isPrinting,      setIsPrinting]       = useState(false);
 
   // ── Stores ───────────────────────────────────────────────────────────────
   const { data: storesData } = useQuery({
@@ -1124,22 +1126,34 @@ export default function ManagerOrderListScreen() {
   });
 
 
-  const printMutation = useMutation({
-    mutationFn: () => orderListApi.printList(activeList!.id),
-    onSuccess: async () => {
-      const allItems: OrderListItem[] = [...urgentItems, ...neededItems, ...orderedItems, ...receivedItems];
-      const lines = allItems.map((item, idx) => {
-        let line = `${idx + 1}. ${item.name}`;
-        if (item.quantity) line += ` — ${item.quantity}`;
-        if (item.category) line += ` [${item.category}]`;
-        if (item.priority === 'URGENT') line += ' *** URGENT ***';
-        return line;
-      }).join('\n');
-      const text = `${activeList?.name}\n${'─'.repeat(40)}\n${lines}`;
-      await Share.share({ message: text, title: activeList?.name });
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to print list' }),
-  });
+  const doPrint = async (shareAsPdf: boolean) => {
+    if (!activeList || items.length === 0 || isPrinting) return;
+    setIsPrinting(true);
+    try {
+      const catRes = await scannedProductApi.list();
+      const catalog = catRes?.data?.data || [];
+      await printOrderList({
+        listName: activeList.name,
+        storeName: selectedStore?.name || 'Store',
+        items: [...urgentItems, ...neededItems, ...orderedItems, ...receivedItems],
+        catalog,
+        shareAsPdf,
+      });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: e?.message });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const showPrintOptions = () => {
+    if (!activeList || items.length === 0) return;
+    Alert.alert('Print Order List', 'Choose how to export:', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Print directly', onPress: () => doPrint(false) },
+      { text: 'Share as PDF', onPress: () => doPrint(true) },
+    ]);
+  };
 
   const handleRemove = (item: OrderListItem) => {
     Alert.alert('Remove Item', `Remove "${item.name}" from the list?`, [
@@ -1252,11 +1266,11 @@ export default function ManagerOrderListScreen() {
             </View>
             <View style={s.bannerActions}>
               <TouchableOpacity
-                style={[s.bannerIconBtn, (printMutation.isPending || items.length === 0) && { opacity: 0.35 }]}
-                onPress={() => printMutation.mutate()}
-                disabled={printMutation.isPending || items.length === 0}
+                style={[s.bannerIconBtn, (isPrinting || items.length === 0) && { opacity: 0.35 }]}
+                onPress={showPrintOptions}
+                disabled={isPrinting || items.length === 0}
               >
-                {printMutation.isPending
+                {isPrinting
                   ? <ActivityIndicator size="small" color={COLORS.textMuted} />
                   : <PrinterIcon size={18} color={COLORS.textMuted} strokeWidth={2} />
                 }
