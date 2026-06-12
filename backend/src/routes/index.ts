@@ -63,6 +63,7 @@ import {
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
+import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -438,6 +439,7 @@ router.get   ('/scanned-products/barcode/:barcode', authenticate, requireRole(Ro
 router.post  ('/scanned-products',                  authenticate, requireRole(Role.EMPLOYEE),  saveProduct);    // Save/upsert a barcode→name mapping
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
+router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison

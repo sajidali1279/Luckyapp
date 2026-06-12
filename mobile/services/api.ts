@@ -300,6 +300,15 @@ export const scannedProductApi = {
     return api.get(`/scanned-products${qs}`);
   },
   delete: (id: string) => api.delete(`/scanned-products/${id}`),
+  extractFromPhoto: (imageUri: string, mimeType = 'image/jpeg') => {
+    const fd = new FormData();
+    const filename = imageUri.split('/').pop() ?? 'photo.jpg';
+    (fd as any).append('image', { uri: imageUri, name: filename, type: mimeType });
+    return api.post('/scanned-products/extract-from-photo', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
 };
 
 export const employeeRequestApi = {

@@ -2,19 +2,20 @@ import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, RefreshControl,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { COLORS } from '../../constants';
 import { scannedProductApi, orderCategoriesApi } from '../../services/api';
 import {
   QrCodeScanIcon, PlusIcon, ListIcon,
-  CheckCircleIcon, Trash2Icon, PackageIcon,
+  CheckCircleIcon, Trash2Icon, PackageIcon, CameraIcon, XIcon,
 } from '../../components/Icons';
 
-type Tab       = 'scan' | 'manual' | 'browse';
+type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
 
 function mapOFFCategory(tags: string[]): string | null {
@@ -38,6 +39,7 @@ export default function CatalogScreen() {
     { key: 'scan',   label: 'Rapid Scan', Icon: QrCodeScanIcon },
     { key: 'manual', label: 'Manual Add', Icon: PlusIcon },
     { key: 'browse', label: 'Browse',     Icon: ListIcon },
+    { key: 'photo',  label: 'Photo',      Icon: CameraIcon },
   ];
 
   return (
@@ -66,6 +68,7 @@ export default function CatalogScreen() {
       {tab === 'scan'   && <ScanTab />}
       {tab === 'manual' && <ManualTab />}
       {tab === 'browse' && <BrowseTab />}
+      {tab === 'photo'  && <PhotoTab />}
     </SafeAreaView>
   );
 }
@@ -533,6 +536,174 @@ function BrowseTab() {
   );
 }
 
+// ─── Photo Import Tab ─────────────────────────────────────────────────────────
+
+type ExtractedItem = { name: string; barcode: string | null; category: string | null; selected: boolean };
+
+function PhotoTab() {
+  const [imageUri,   setImageUri]   = useState<string | null>(null);
+  const [analyzing,  setAnalyzing]  = useState(false);
+  const [items,      setItems]      = useState<ExtractedItem[]>([]);
+  const [saving,     setSaving]     = useState(false);
+  const [savedCount, setSavedCount] = useState<number | null>(null);
+  const qc = useQueryClient();
+
+  async function pickImage(useCamera: boolean) {
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    setImageUri(uri);
+    setItems([]);
+    setSavedCount(null);
+  }
+
+  async function analyze() {
+    if (!imageUri || analyzing) return;
+    setAnalyzing(true);
+    setItems([]);
+    setSavedCount(null);
+    try {
+      const res = await scannedProductApi.extractFromPhoto(imageUri);
+      const extracted: ExtractedItem[] = (res.data?.data?.items || []).map((item: any) => ({
+        ...item,
+        selected: true,
+      }));
+      if (extracted.length === 0) {
+        Alert.alert('No products found', 'The AI could not read any products from this image. Try a clearer, well-lit photo with the page flat.');
+      }
+      setItems(extracted);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Processing failed';
+      Alert.alert('Error', msg);
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  async function saveSelected() {
+    const selected = items.filter(i => i.selected);
+    if (!selected.length || saving) return;
+    setSaving(true);
+    let saved = 0;
+    for (const item of selected) {
+      try {
+        const bc = item.barcode || `NOBARCODE_${item.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+        await scannedProductApi.save({ barcode: bc, name: item.name, category: item.category ?? undefined, source: 'manual' });
+        saved++;
+      } catch { /* skip failed items */ }
+    }
+    setSavedCount(saved);
+    setSaving(false);
+    qc.invalidateQueries({ queryKey: ['catalog-list'] });
+    // Deselect saved items
+    setItems(prev => prev.map(i => i.selected ? { ...i, selected: false } : i));
+  }
+
+  const selectedCount = items.filter(i => i.selected).length;
+
+  return (
+    <ScrollView
+      style={s.flex}
+      contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Instructions */}
+      <Text style={s.photoHint}>
+        Take a photo of any page from your product book. AI will read all product names and barcodes at once.
+      </Text>
+
+      {/* Image picker buttons */}
+      <View style={s.photoPickRow}>
+        <TouchableOpacity style={s.photoPickBtn} onPress={() => pickImage(true)} activeOpacity={0.8}>
+          <CameraIcon size={20} color={COLORS.secondary} strokeWidth={2} />
+          <Text style={s.photoPickLabel}>Take Photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.photoPickBtn} onPress={() => pickImage(false)} activeOpacity={0.8}>
+          <ListIcon size={20} color={COLORS.secondary} strokeWidth={2} />
+          <Text style={s.photoPickLabel}>Choose from Gallery</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Preview */}
+      {imageUri && (
+        <View style={s.previewWrap}>
+          <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="contain" />
+          <TouchableOpacity
+            style={[s.analyzeBtn, analyzing && { opacity: 0.6 }]}
+            onPress={analyze}
+            disabled={analyzing}
+            activeOpacity={0.85}
+          >
+            {analyzing ? (
+              <><ActivityIndicator color="#fff" size="small" /><Text style={s.analyzeBtnText}>Reading page…</Text></>
+            ) : (
+              <><CameraIcon size={18} color="#fff" strokeWidth={2} /><Text style={s.analyzeBtnText}>Analyze Page</Text></>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Results */}
+      {items.length > 0 && (
+        <View style={{ marginTop: 20 }}>
+          <View style={s.resultsHeader}>
+            <Text style={s.resultsTitle}>Found {items.length} product{items.length !== 1 ? 's' : ''}</Text>
+            <TouchableOpacity onPress={() => setItems(prev => prev.map(i => ({ ...i, selected: !prev.every(x => x.selected) })))}>
+              <Text style={s.selectAllText}>{items.every(i => i.selected) ? 'Deselect all' : 'Select all'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {items.map((item, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={[s.extractedRow, item.selected && s.extractedRowSelected]}
+              onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, selected: !x.selected } : x))}
+              activeOpacity={0.75}
+            >
+              <View style={[s.checkbox, item.selected && s.checkboxChecked]}>
+                {item.selected && <CheckCircleIcon size={14} color="#fff" strokeWidth={2.5} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.extractedName} numberOfLines={2}>{item.name}</Text>
+                <Text style={s.extractedMeta}>
+                  {item.category ?? 'No category'}
+                  {item.barcode ? `  ·  ${item.barcode}` : '  ·  no barcode'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+
+          {savedCount !== null && (
+            <View style={s.savedBanner}>
+              <CheckCircleIcon size={16} color="#16A34A" strokeWidth={2.5} />
+              <Text style={s.savedBannerText}>{savedCount} item{savedCount !== 1 ? 's' : ''} added to catalog</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[s.saveAllBtn, (!selectedCount || saving) && { opacity: 0.4 }]}
+            onPress={saveSelected}
+            disabled={!selectedCount || saving}
+            activeOpacity={0.85}
+          >
+            {saving
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={s.saveAllBtnText}>Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} to Catalog</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={{ alignItems: 'center', marginTop: 12, padding: 8 }} onPress={() => { setImageUri(null); setItems([]); setSavedCount(null); }}>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Scan another page</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const DARK       = 'rgba(0,0,0,0.52)';
@@ -625,4 +796,27 @@ const s = StyleSheet.create({
   itemName:    { fontSize: 14, fontWeight: '600', color: COLORS.text },
   itemMeta:    { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   delBtn:      { paddingLeft: 12, paddingVertical: 4 },
+
+  // Photo tab
+  photoHint:     { fontSize: 13, color: COLORS.textMuted, lineHeight: 19, marginBottom: 18 },
+  photoPickRow:  { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  photoPickBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 14 },
+  photoPickLabel:{ fontSize: 13, fontWeight: '600', color: COLORS.secondary },
+  previewWrap:   { borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 4 },
+  previewImg:    { width: '100%', height: 220 },
+  analyzeBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, paddingVertical: 14 },
+  analyzeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '700' },
+  resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  resultsTitle:  { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  selectAllText: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
+  extractedRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1.5, borderColor: COLORS.border },
+  extractedRowSelected: { borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}08` },
+  checkbox:      { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked:{ backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  extractedName: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  extractedMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  savedBanner:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, marginTop: 10, marginBottom: 6 },
+  savedBannerText:{ fontSize: 13, fontWeight: '600', color: '#15803D' },
+  saveAllBtn:    { backgroundColor: COLORS.secondary, borderRadius: 13, paddingVertical: 15, alignItems: 'center', marginTop: 14, shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 },
+  saveAllBtnText:{ color: '#fff', fontSize: 15, fontWeight: '700' },
 });
