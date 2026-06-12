@@ -436,8 +436,8 @@ router.patch('/employee-requests/:requestId/review',             authenticate, r
 // ─── Scanned Product Catalog ──────────────────────────────────────────────────
 router.get   ('/scanned-products/barcode/:barcode', authenticate, requireRole(Role.EMPLOYEE),  lookupBarcode);  // Look up by barcode (employee + manager)
 router.post  ('/scanned-products',                  authenticate, requireRole(Role.EMPLOYEE),  saveProduct);    // Save/upsert a barcode→name mapping
-router.get   ('/scanned-products',                  authenticate, requireRole(Role.DEV_ADMIN), listProducts);   // Browse catalog (DevAdmin only)
-router.delete('/scanned-products/:id',              authenticate, requireRole(Role.DEV_ADMIN), deleteProduct);  // Remove bad entry (DevAdmin only)
+router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
+router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison

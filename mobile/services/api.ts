@@ -295,6 +295,11 @@ export const scannedProductApi = {
   lookup: (barcode: string) => api.get(`/scanned-products/barcode/${encodeURIComponent(barcode)}`),
   save:   (data: { barcode: string; name: string; category?: string; brand?: string; source: 'manual' | 'openfoodfacts' }) =>
     api.post('/scanned-products', data),
+  list:   (params?: { q?: string }) => {
+    const qs = params?.q ? `?q=${encodeURIComponent(params.q)}` : '';
+    return api.get(`/scanned-products${qs}`);
+  },
+  delete: (id: string) => api.delete(`/scanned-products/${id}`),
 };
 
 export const employeeRequestApi = {

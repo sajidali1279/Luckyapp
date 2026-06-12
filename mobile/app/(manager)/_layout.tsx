@@ -7,7 +7,7 @@ import { useAuthStore, isAdmin } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
-  TagIcon, ImageIcon, MessageCircleIcon, CalendarIcon, TrophyIcon, BookOpenIcon,
+  TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
   HeadphonesIcon,
 } from '../../components/Icons';
 
@@ -46,6 +46,7 @@ export default function ManagerLayout() {
       items: [
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
+        { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: 'Store Catalog' },
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending },
       ],
     },
@@ -59,8 +60,7 @@ export default function ManagerLayout() {
     {
       title: 'Team',
       items: [
-        { route: '/(manager)/chat',     icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.teamChat') },
-        { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} />,      label: t('nav.teamSchedule') },
+        { route: '/(manager)/chat', icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.teamChat') },
       ],
     },
     {
@@ -87,7 +87,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="offers" />
         <Tabs.Screen name="banners" />
         <Tabs.Screen name="chat" />
-        <Tabs.Screen name="schedule" />
+        <Tabs.Screen name="catalog" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="guide" />
       </Tabs>
