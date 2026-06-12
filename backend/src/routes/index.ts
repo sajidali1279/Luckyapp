@@ -116,6 +116,7 @@ import {
   createItem as createHotFoodItem,
   updateItem as updateHotFoodItem,
   deleteItem as deleteHotFoodItem,
+  getMenuCategories as getHotFoodMenuCategories,
   getAllOrders as getHotFoodOrders,
   updateOrderStatus,
   getStoreMenu,
@@ -453,10 +454,11 @@ router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMI
 
 // ─── Hot Food ─────────────────────────────────────────────────────────────────
 // Menu — admin CRUD (STORE_MANAGER = read-only, SUPER_ADMIN+ = write)
-router.get('/hot-food/menu',         authenticate, requireRole(Role.STORE_MANAGER), getHotFoodMenu);
-router.post('/hot-food/menu',        authenticate, requireRole(Role.SUPER_ADMIN),   createHotFoodItem);
-router.patch('/hot-food/menu/:id',   authenticate, requireRole(Role.EMPLOYEE),     updateHotFoodItem);
-router.delete('/hot-food/menu/:id',  authenticate, requireRole(Role.SUPER_ADMIN),   deleteHotFoodItem);
+router.get('/hot-food/menu/categories', authenticate, requireRole(Role.EMPLOYEE),      getHotFoodMenuCategories);
+router.get('/hot-food/menu',            authenticate, requireRole(Role.STORE_MANAGER), getHotFoodMenu);
+router.post('/hot-food/menu',           authenticate, requireRole(Role.EMPLOYEE),      upload.single('image'), createHotFoodItem);
+router.patch('/hot-food/menu/:id',      authenticate, requireRole(Role.EMPLOYEE),      upload.single('image'), updateHotFoodItem);
+router.delete('/hot-food/menu/:id',     authenticate, requireRole(Role.EMPLOYEE),      deleteHotFoodItem);
 // Orders — admin board (specific routes before :id param)
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);

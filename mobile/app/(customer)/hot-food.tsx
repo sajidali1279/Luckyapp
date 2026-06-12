@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Modal, TextInput, ActivityIndicator, Image,
+  Modal, ActivityIndicator, Image,
   RefreshControl, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -199,7 +199,6 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
   onClose: () => void;
   onOrderPlaced: () => void;
 }) {
-  const [note, setNote] = useState('');
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qc = useQueryClient();
 
@@ -207,7 +206,6 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
     mutationFn: () => hotFoodApi.placeOrder({
       storeId,
       items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
-      note: note.trim() || undefined,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
@@ -244,19 +242,6 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
             <View style={cs.totalRow}>
               <Text style={cs.totalLabel}>Total</Text>
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
-            </View>
-
-            <View style={cs.noteSection}>
-              <Text style={cs.noteLabel}>Add a note (optional)</Text>
-              <TextInput
-                style={cs.noteInput}
-                placeholder="e.g. no onions, extra sauce…"
-                placeholderTextColor={COLORS.textMuted}
-                value={note}
-                onChangeText={setNote}
-                multiline
-                maxLength={200}
-              />
             </View>
 
             <View style={cs.infoBox}>
@@ -773,13 +758,6 @@ const cs = StyleSheet.create({
   },
   totalLabel: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
   totalVal: { fontSize: 18, fontWeight: '900', color: COLORS.text },
-  noteSection: { marginBottom: 16 },
-  noteLabel: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted, marginBottom: 6 },
-  noteInput: {
-    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
-    padding: 12, fontSize: 14, color: COLORS.text,
-    minHeight: 70, textAlignVertical: 'top',
-  },
   infoBox: {
     backgroundColor: '#F8F9FA', borderRadius: 12, padding: 12, marginBottom: 20,
   },

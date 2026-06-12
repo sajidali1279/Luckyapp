@@ -30,7 +30,7 @@ export async function getMenu(req: AuthRequest, res: Response) {
 
 // POST /hot-food/menu
 export async function createItem(req: AuthRequest, res: Response) {
-  const { name, description, price, storeId, estimatedMinutes, isAvailable, imageUrl } = req.body;
+  const { name, description, category, price, estimatedMinutes, isAvailable } = req.body;
   if (!name?.trim()) {
     res.status(400).json({ success: false, error: 'name is required' });
     return;
@@ -40,15 +40,29 @@ export async function createItem(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'price must be a non-negative number' });
     return;
   }
+
+  // Employees are scoped to their own store
+  const user = req.user!;
+  const storeId: string | null =
+    (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER')
+      ? ((user as any).storeIds?.[0] ?? req.body.storeId ?? null)
+      : (req.body.storeId ?? null);
+
+  let imageUrl: string | null = null;
+  if (req.file) {
+    imageUrl = await uploadToCloudinary(req.file.buffer);
+  }
+
   const item = await prisma.hotFoodMenuItem.create({
     data: {
       name: name.trim(),
       description: description?.trim() || null,
+      category: category?.trim() || null,
       price: parsedPrice,
-      storeId: storeId || null,
+      storeId,
       estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
-      isAvailable: isAvailable !== false,
-      imageUrl: imageUrl || null,
+      isAvailable: isAvailable !== false && isAvailable !== 'false',
+      imageUrl,
     },
     include: { store: { select: { id: true, name: true } } },
   });
@@ -58,7 +72,7 @@ export async function createItem(req: AuthRequest, res: Response) {
 // PATCH /hot-food/menu/:id
 export async function updateItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { name, description, price, storeId, estimatedMinutes, isAvailable, imageUrl } = req.body;
+  const { name, description, category, price, estimatedMinutes, isAvailable } = req.body;
 
   const existing = await prisma.hotFoodMenuItem.findUnique({ where: { id } });
   if (!existing) {
@@ -66,17 +80,31 @@ export async function updateItem(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Employees may only edit items belonging to their store
+  const user = req.user!;
+  if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
+    const employeeStoreId = (user as any).storeIds?.[0];
+    if (existing.storeId && employeeStoreId && existing.storeId !== employeeStoreId) {
+      res.status(403).json({ success: false, error: 'Cannot edit items from other stores' });
+      return;
+    }
+  }
+
   const data: any = {};
   if (name !== undefined) data.name = name.trim();
   if (description !== undefined) data.description = description?.trim() || null;
+  if (category !== undefined) data.category = category?.trim() || null;
   if (price !== undefined) {
     const p = parseFloat(price);
     if (!isNaN(p)) data.price = p;
   }
-  if (storeId !== undefined) data.storeId = storeId || null;
   if (estimatedMinutes !== undefined) data.estimatedMinutes = estimatedMinutes ? parseInt(estimatedMinutes) : null;
-  if (isAvailable !== undefined) data.isAvailable = Boolean(isAvailable);
-  if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
+  if (isAvailable !== undefined) data.isAvailable = isAvailable === true || isAvailable === 'true';
+
+  // Image file uploaded — replace via Cloudinary
+  if (req.file) {
+    data.imageUrl = await uploadToCloudinary(req.file.buffer);
+  }
 
   const item = await prisma.hotFoodMenuItem.update({
     where: { id },
@@ -94,8 +122,35 @@ export async function deleteItem(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Menu item not found' });
     return;
   }
+
+  // Employees may only delete items belonging to their store
+  const user = req.user!;
+  if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
+    const employeeStoreId = (user as any).storeIds?.[0];
+    if (existing.storeId && employeeStoreId && existing.storeId !== employeeStoreId) {
+      res.status(403).json({ success: false, error: 'Cannot delete items from other stores' });
+      return;
+    }
+  }
+
   await prisma.hotFoodMenuItem.delete({ where: { id } });
   res.json({ success: true });
+}
+
+// GET /hot-food/menu/categories — distinct category values for autocomplete
+export async function getMenuCategories(req: AuthRequest, res: Response) {
+  const { storeId } = req.query as { storeId?: string };
+  const items = await prisma.hotFoodMenuItem.findMany({
+    where: {
+      category: { not: null },
+      ...(storeId ? { OR: [{ storeId }, { storeId: null }] } : {}),
+    },
+    select: { category: true },
+    distinct: ['category'],
+    orderBy: { category: 'asc' },
+  });
+  const categories = items.map(i => i.category).filter(Boolean) as string[];
+  res.json({ success: true, data: categories });
 }
 
 // ─── Orders (admin) ───────────────────────────────────────────────────────────
@@ -204,7 +259,7 @@ export async function getStoreAllItems(req: AuthRequest, res: Response) {
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { OR: [{ storeId }, { storeId: null }] },
-    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, isAvailable: true },
+    select: { id: true, name: true, description: true, category: true, price: true, estimatedMinutes: true, imageUrl: true, isAvailable: true },
     orderBy: [{ isAvailable: 'desc' }, { name: 'asc' }],
   });
 

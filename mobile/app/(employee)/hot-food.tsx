@@ -1,15 +1,19 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, ActivityIndicator,
+  RefreshControl, Alert, ActivityIndicator, Modal,
+  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
 import { hotFoodApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import {
   FlameIcon, ClockIcon, CheckCircleIcon, XIcon, InboxIcon,
+  PlusIcon, EditIcon,
 } from '../../components/Icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,9 +35,11 @@ interface MenuItem {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   price: number;
   isAvailable: boolean;
   estimatedMinutes?: number;
+  imageUrl?: string;
   source: 'menu' | 'catalog';
 }
 
@@ -60,6 +66,277 @@ function timeAgo(dateStr: string) {
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
   return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+}
+
+// ─── Add / Edit Item Sheet ────────────────────────────────────────────────────
+
+interface ItemSheetProps {
+  visible: boolean;
+  storeId: string;
+  item?: MenuItem;         // undefined = add mode
+  categories: string[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: ItemSheetProps) {
+  const isEdit = !!item;
+
+  const [name,       setName]       = useState(item?.name       ?? '');
+  const [category,   setCategory]   = useState(item?.category   ?? '');
+  const [price,      setPrice]      = useState(item?.price != null ? String(item.price) : '');
+  const [estMins,    setEstMins]    = useState(item?.estimatedMinutes != null ? String(item.estimatedMinutes) : '');
+  const [desc,       setDesc]       = useState(item?.description ?? '');
+  const [imageUri,   setImageUri]   = useState<string | null>(item?.imageUrl ?? null);
+  const [showCatSug, setShowCatSug] = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+
+  // Reset when sheet opens with new item
+  const prevItemId = useRef<string | undefined>(undefined);
+  if (visible && item?.id !== prevItemId.current) {
+    prevItemId.current = item?.id;
+    setName(item?.name ?? '');
+    setCategory(item?.category ?? '');
+    setPrice(item?.price != null ? String(item.price) : '');
+    setEstMins(item?.estimatedMinutes != null ? String(item.estimatedMinutes) : '');
+    setDesc(item?.description ?? '');
+    setImageUri(item?.imageUrl ?? null);
+  }
+  if (!visible && prevItemId.current !== undefined) {
+    prevItemId.current = undefined;
+  }
+
+  const catSuggestions = category.trim()
+    ? categories.filter(c => c.toLowerCase().includes(category.toLowerCase()) && c.toLowerCase() !== category.toLowerCase())
+    : categories;
+
+  async function pickImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  }
+
+  async function takePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') { Toast.show({ type: 'error', text1: 'Camera permission denied' }); return; }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  }
+
+  function showPhotoOptions() {
+    Alert.alert('Item Photo', undefined, [
+      { text: 'Take Photo',        onPress: takePhoto },
+      { text: 'Choose from Library', onPress: pickImage },
+      ...(imageUri ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name is required' }); return; }
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice < 0) { Toast.show({ type: 'error', text1: 'Enter a valid price' }); return; }
+
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('storeId', storeId);
+      fd.append('name', name.trim());
+      fd.append('price', String(parsedPrice));
+      if (category.trim()) fd.append('category', category.trim());
+      if (desc.trim()) fd.append('description', desc.trim());
+      if (estMins.trim()) fd.append('estimatedMinutes', estMins.trim());
+
+      // Attach image if it's a local URI (new pick)
+      if (imageUri && !imageUri.startsWith('http')) {
+        const filename = imageUri.split('/').pop() ?? 'photo.jpg';
+        const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        (fd as any).append('image', { uri: imageUri, name: filename, type: mime });
+      }
+
+      if (isEdit && item) {
+        await hotFoodApi.updateMenuItem(item.id, fd);
+      } else {
+        await hotFoodApi.createMenuItem(fd);
+      }
+
+      Toast.show({ type: 'success', text1: isEdit ? 'Item updated' : 'Item added' });
+      onSaved();
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to save item' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!item) return;
+    Alert.alert('Delete Item', `Remove "${item.name}" from the menu?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          setDeleting(true);
+          try {
+            await hotFoodApi.deleteMenuItem(item.id);
+            Toast.show({ type: 'success', text1: 'Item removed' });
+            onSaved();
+          } catch (e: any) {
+            Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to delete item' });
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={sh.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={sh.sheet}>
+          <View style={sh.handle} />
+
+          {/* Header */}
+          <View style={sh.header}>
+            <Text style={sh.title}>{isEdit ? 'Edit Item' : 'Add Menu Item'}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <XIcon size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Photo area */}
+            <TouchableOpacity style={sh.photoArea} onPress={showPhotoOptions} activeOpacity={0.8}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={sh.photo} />
+              ) : (
+                <View style={sh.photoPlaceholder}>
+                  <FlameIcon size={28} color="#CBD5E1" />
+                  <Text style={sh.photoPlaceholderText}>Tap to add photo</Text>
+                </View>
+              )}
+              <View style={sh.photoBadge}>
+                <Text style={sh.photoBadgeText}>{imageUri ? 'Change' : 'Add'} Photo</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Name */}
+            <Text style={sh.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <TextInput
+              style={sh.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Cheese Hot Dog"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={80}
+              autoCapitalize="words"
+            />
+
+            {/* Category */}
+            <Text style={sh.label}>Category</Text>
+            <TextInput
+              style={sh.input}
+              value={category}
+              onChangeText={v => { setCategory(v); setShowCatSug(true); }}
+              onFocus={() => setShowCatSug(true)}
+              onBlur={() => setTimeout(() => setShowCatSug(false), 150)}
+              placeholder="e.g. Roller Grill, Pizza, Sandwiches…"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={50}
+              autoCapitalize="words"
+            />
+            {showCatSug && catSuggestions.length > 0 && (
+              <View style={sh.catSuggest}>
+                {catSuggestions.slice(0, 5).map(c => (
+                  <TouchableOpacity key={c} style={sh.catSuggestRow} onPress={() => { setCategory(c); setShowCatSug(false); }}>
+                    <Text style={sh.catSuggestText}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Price */}
+            <Text style={sh.label}>Price <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <TextInput
+              style={sh.input}
+              value={price}
+              onChangeText={setPrice}
+              placeholder="e.g. 1.99"
+              placeholderTextColor={COLORS.textMuted}
+              keyboardType="decimal-pad"
+              maxLength={8}
+            />
+
+            {/* Estimated time */}
+            <Text style={sh.label}>Estimated Time (minutes)</Text>
+            <TextInput
+              style={sh.input}
+              value={estMins}
+              onChangeText={setEstMins}
+              placeholder="e.g. 3"
+              placeholderTextColor={COLORS.textMuted}
+              keyboardType="number-pad"
+              maxLength={3}
+            />
+
+            {/* Description */}
+            <Text style={sh.label}>Description (optional)</Text>
+            <TextInput
+              style={[sh.input, { minHeight: 70, textAlignVertical: 'top' }]}
+              value={desc}
+              onChangeText={setDesc}
+              placeholder="Short description shown to customers"
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              maxLength={200}
+            />
+
+            {/* Save */}
+            <TouchableOpacity
+              style={[sh.saveBtn, saving && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={saving || deleting}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={sh.saveBtnText}>{isEdit ? 'Save Changes' : 'Add to Menu'}</Text>
+              }
+            </TouchableOpacity>
+
+            {/* Delete (edit mode only) */}
+            {isEdit && (
+              <TouchableOpacity
+                style={[sh.deleteBtn, deleting && { opacity: 0.6 }]}
+                onPress={handleDelete}
+                disabled={saving || deleting}
+              >
+                {deleting
+                  ? <ActivityIndicator color="#EF4444" />
+                  : <Text style={sh.deleteBtnText}>Remove from Menu</Text>
+                }
+              </TouchableOpacity>
+            )}
+
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 }
 
 // ─── Order card ───────────────────────────────────────────────────────────────
@@ -102,13 +379,6 @@ function OrderCard({
         <Text style={s.totalLabel}>Total</Text>
         <Text style={s.totalValue}>${total.toFixed(2)}</Text>
       </View>
-
-      {order.note ? (
-        <View style={s.noteBox}>
-          <Text style={s.noteLabel}>Note</Text>
-          <Text style={s.noteText}>{order.note}</Text>
-        </View>
-      ) : null}
 
       {order.status === 'PENDING' && (
         <TouchableOpacity
@@ -174,23 +444,32 @@ function OrderCard({
   );
 }
 
-// ─── Menu item availability card (employee only — no add/edit/delete) ─────────
+// ─── Menu item card ───────────────────────────────────────────────────────────
 
 function MenuItemCard({
-  item, onToggle, updating,
-}: { item: MenuItem; onToggle: (item: MenuItem) => void; updating: boolean }) {
+  item, onToggle, onEdit, updating,
+}: { item: MenuItem; onToggle: (item: MenuItem) => void; onEdit: (item: MenuItem) => void; updating: boolean }) {
+  const [imgErr, setImgErr] = useState(false);
+
   return (
     <View style={s.menuCard}>
+      {/* Photo thumbnail */}
+      {item.imageUrl && !imgErr ? (
+        <Image source={{ uri: item.imageUrl }} style={s.menuThumb} onError={() => setImgErr(true)} />
+      ) : (
+        <View style={[s.menuThumb, s.menuThumbPlaceholder]}>
+          <FlameIcon size={18} color="#CBD5E1" />
+        </View>
+      )}
+
       <View style={s.menuCardBody}>
         <View style={s.menuItemHeader}>
-          <Text style={s.menuItemName}>{item.name}</Text>
+          <Text style={s.menuItemName} numberOfLines={1}>{item.name}</Text>
           {item.source === 'catalog' && (
-            <View style={s.catalogBadge}>
-              <Text style={s.catalogBadgeText}>Catalog</Text>
-            </View>
+            <View style={s.catalogBadge}><Text style={s.catalogBadgeText}>Catalog</Text></View>
           )}
         </View>
-        {item.description ? <Text style={s.menuItemDesc} numberOfLines={1}>{item.description}</Text> : null}
+        {item.category ? <Text style={s.menuItemCat}>{item.category}</Text> : null}
         <View style={s.menuItemMeta}>
           <Text style={s.menuItemPrice}>${Number(item.price).toFixed(2)}</Text>
           {item.estimatedMinutes ? (
@@ -201,19 +480,28 @@ function MenuItemCard({
           ) : null}
         </View>
       </View>
-      <TouchableOpacity
-        style={[s.availBtn, item.isAvailable ? s.availBtnOn : s.availBtnOff, updating && { opacity: 0.5 }]}
-        onPress={() => onToggle(item)}
-        disabled={updating}
-        activeOpacity={0.8}
-      >
-        {updating
-          ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
-          : <Text style={[s.availBtnText, item.isAvailable ? s.availBtnTextOn : s.availBtnTextOff]}>
-              {item.isAvailable ? 'Available' : 'Sold Out'}
-            </Text>
-        }
-      </TouchableOpacity>
+
+      <View style={s.menuCardRight}>
+        {/* Edit button — only for store-specific items */}
+        {item.source === 'menu' && (
+          <TouchableOpacity style={s.editBtn} onPress={() => onEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <EditIcon size={15} color={COLORS.secondary} strokeWidth={2} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[s.availBtn, item.isAvailable ? s.availBtnOn : s.availBtnOff, updating && { opacity: 0.5 }]}
+          onPress={() => onToggle(item)}
+          disabled={updating}
+          activeOpacity={0.8}
+        >
+          {updating
+            ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
+            : <Text style={[s.availBtnText, item.isAvailable ? s.availBtnTextOn : s.availBtnTextOff]}>
+                {item.isAvailable ? 'Available' : 'Sold Out'}
+              </Text>
+          }
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -223,11 +511,13 @@ function MenuItemCard({
 export default function HotFoodOrders() {
   const { user } = useAuthStore();
   const storeId  = user?.storeIds?.[0];
-  const [activeTab,  setActiveTab]  = useState<TabKey>('PENDING');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeTab,    setActiveTab]    = useState<TabKey>('PENDING');
+  const [updatingId,   setUpdatingId]   = useState<string | null>(null);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [editingItem,  setEditingItem]  = useState<MenuItem | null>(null);
   const queryClient = useQueryClient();
 
-  // Orders query
+  // Orders
   const { data: ordersData, isLoading: ordersLoading, isRefetching, refetch } = useQuery({
     queryKey: ['hot-food-orders', storeId],
     queryFn: () => hotFoodApi.getStoreOrders(storeId!),
@@ -235,13 +525,22 @@ export default function HotFoodOrders() {
     refetchInterval: 20_000,
   });
 
-  // All items (legacy + catalog) for availability management
-  const { data: menuData, isLoading: menuLoading } = useQuery({
+  // All items (menu + catalog)
+  const { data: menuData, isLoading: menuLoading, refetch: refetchMenu } = useQuery({
     queryKey: ['hot-food-all-items', storeId],
     queryFn: () => hotFoodApi.getStoreAllItems(storeId!),
     enabled: !!storeId,
     refetchInterval: 60_000,
   });
+
+  // Category suggestions
+  const { data: catData } = useQuery({
+    queryKey: ['hot-food-menu-categories', storeId],
+    queryFn: () => hotFoodApi.getMenuCategories(storeId),
+    enabled: !!storeId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categoryList: string[] = catData?.data?.data ?? [];
 
   const allOrders: FoodOrder[] = ordersData?.data?.data ?? [];
   const menuItems: MenuItem[]  = menuData?.data?.data   ?? [];
@@ -293,6 +592,14 @@ export default function HotFoodOrders() {
     }
   }
 
+  function handleSaved() {
+    setShowAddSheet(false);
+    setEditingItem(null);
+    queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
+    queryClient.invalidateQueries({ queryKey: ['hot-food-menu-categories'] });
+    refetchMenu();
+  }
+
   if (!storeId) {
     return (
       <SafeAreaView style={s.container}>
@@ -311,15 +618,25 @@ export default function HotFoodOrders() {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <View style={s.headerIcon}>
-          <FlameIcon size={20} color="#fff" strokeWidth={2} />
+        <View style={s.headerLeft}>
+          <View style={s.headerIcon}>
+            <FlameIcon size={20} color="#fff" strokeWidth={2} />
+          </View>
+          <View>
+            <Text style={s.headerTitle}>Hot Food Orders</Text>
+            {pendingCount > 0 && (
+              <Text style={s.headerSub}>{pendingCount} pending · needs attention</Text>
+            )}
+          </View>
         </View>
-        <View>
-          <Text style={s.headerTitle}>Hot Food Orders</Text>
-          {pendingCount > 0 && (
-            <Text style={s.headerSub}>{pendingCount} pending · needs attention</Text>
-          )}
-        </View>
+
+        {/* Add item button — only visible on MENU tab */}
+        {activeTab === 'MENU' && (
+          <TouchableOpacity style={s.addItemBtn} onPress={() => setShowAddSheet(true)} activeOpacity={0.8}>
+            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+            <Text style={s.addItemBtnText}>Add Item</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Tabs */}
@@ -346,10 +663,12 @@ export default function HotFoodOrders() {
         })}
       </View>
 
-      {/* Menu availability note */}
+      {/* Menu note */}
       {activeTab === 'MENU' && (
         <View style={s.menuNote}>
-          <Text style={s.menuNoteText}>Tap an item to mark it unavailable when sold out — customers won't see it until you re-enable it.</Text>
+          <Text style={s.menuNoteText}>
+            Toggle items sold out/available. Tap the pencil icon to edit or remove a store item. Catalog items can only be toggled.
+          </Text>
         </View>
       )}
 
@@ -364,17 +683,19 @@ export default function HotFoodOrders() {
           keyExtractor={item => item.id}
           contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} />}
           renderItem={({ item }) => (
             <MenuItemCard
               item={item}
               onToggle={handleToggleItem}
+              onEdit={setEditingItem}
               updating={updatingId === item.id}
             />
           )}
           ListEmptyComponent={
             <View style={s.empty}>
               <InboxIcon size={48} color="#D1D5DB" />
-              <Text style={s.emptyText}>No menu items for your store yet.</Text>
+              <Text style={s.emptyText}>No menu items yet — tap "Add Item" to get started.</Text>
             </View>
           }
         />
@@ -402,6 +723,27 @@ export default function HotFoodOrders() {
           }
         />
       )}
+
+      {/* Add Item Sheet */}
+      <ItemSheet
+        visible={showAddSheet}
+        storeId={storeId}
+        categories={categoryList}
+        onClose={() => setShowAddSheet(false)}
+        onSaved={handleSaved}
+      />
+
+      {/* Edit Item Sheet */}
+      {editingItem && (
+        <ItemSheet
+          visible={true}
+          storeId={storeId}
+          item={editingItem}
+          categories={categoryList}
+          onClose={() => setEditingItem(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -412,9 +754,10 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.secondary, paddingHorizontal: 20, paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.secondary, paddingHorizontal: 16, paddingVertical: 14, gap: 10,
   },
+  headerLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   headerIcon: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
@@ -422,19 +765,26 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
   headerSub:   { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 1 },
 
+  addItemBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  addItemBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
   tabs: {
     flexDirection: 'row', gap: 6, paddingHorizontal: 14, paddingVertical: 10,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
     flexWrap: 'wrap',
   },
-  tab:              { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9' },
-  tabActive:        { backgroundColor: COLORS.primary },
-  tabActiveMenu:    { backgroundColor: '#EA580C' },
-  tabText:          { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  tabTextActive:    { color: '#fff' },
-  tabBadge:         { backgroundColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
-  tabBadgeActive:   { backgroundColor: 'rgba(255,255,255,0.25)' },
-  tabBadgeText:     { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  tab:               { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9' },
+  tabActive:         { backgroundColor: COLORS.primary },
+  tabActiveMenu:     { backgroundColor: '#EA580C' },
+  tabText:           { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  tabTextActive:     { color: '#fff' },
+  tabBadge:          { backgroundColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
+  tabBadgeActive:    { backgroundColor: 'rgba(255,255,255,0.25)' },
+  tabBadgeText:      { fontSize: 11, fontWeight: '700', color: '#64748B' },
   tabBadgeTextActive:{ color: '#fff' },
 
   menuNote: { backgroundColor: '#FFF7ED', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#FED7AA' },
@@ -462,9 +812,6 @@ const s = StyleSheet.create({
   totalRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginBottom: 12 },
   totalLabel:     { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
   totalValue:     { fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  noteBox:        { backgroundColor: '#FFFBEB', borderRadius: 10, padding: 10, marginBottom: 12 },
-  noteLabel:      { fontSize: 11, fontWeight: '700', color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  noteText:       { fontSize: 13, color: '#78350F', lineHeight: 18 },
   actionBtn:         { borderRadius: 12, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   actionBtnDisabled: { opacity: 0.6 },
   actionBtnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
@@ -473,25 +820,89 @@ const s = StyleSheet.create({
   doneBadge:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 10 },
   doneText:          { fontSize: 13, fontWeight: '600', color: '#16A34A' },
 
-  // Menu availability card
-  menuCard:          { backgroundColor: '#fff', borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  menuCardBody:      { flex: 1 },
-  menuItemHeader:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  menuItemName:      { fontSize: 14, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
-  catalogBadge:      { backgroundColor: '#EFF6FF', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
-  catalogBadgeText:  { fontSize: 10, fontWeight: '700', color: '#3B82F6' },
-  menuItemDesc:      { fontSize: 12, color: '#94A3B8', marginBottom: 4 },
-  menuItemMeta:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  menuItemPrice:     { fontSize: 13, fontWeight: '700', color: '#EA580C' },
-  menuItemEst:       { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  menuItemEstText:   { fontSize: 11, color: '#94A3B8' },
-  availBtn:          { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, minWidth: 90, alignItems: 'center' },
-  availBtnOn:        { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
-  availBtnOff:       { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  availBtnText:      { fontSize: 12, fontWeight: '700' },
-  availBtnTextOn:    { color: '#16A34A' },
-  availBtnTextOff:{ color: '#EF4444' },
+  // Menu item card
+  menuCard: {
+    backgroundColor: '#fff', borderRadius: 14, padding: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  menuThumb:            { width: 52, height: 52, borderRadius: 10, flexShrink: 0 },
+  menuThumbPlaceholder: { backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  menuCardBody:         { flex: 1, minWidth: 0 },
+  menuCardRight:        { alignItems: 'flex-end', gap: 8, flexShrink: 0 },
+  menuItemHeader:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' },
+  menuItemName:         { fontSize: 14, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
+  menuItemCat:          { fontSize: 11, color: COLORS.secondary, fontWeight: '600', marginBottom: 3 },
+  catalogBadge:         { backgroundColor: '#EFF6FF', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  catalogBadgeText:     { fontSize: 10, fontWeight: '700', color: '#3B82F6' },
+  menuItemMeta:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuItemPrice:        { fontSize: 13, fontWeight: '700', color: '#EA580C' },
+  menuItemEst:          { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  menuItemEstText:      { fontSize: 11, color: '#94A3B8' },
+  editBtn:              { padding: 4 },
+  availBtn:             { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5, minWidth: 80, alignItems: 'center' },
+  availBtnOn:           { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  availBtnOff:          { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  availBtnText:         { fontSize: 11, fontWeight: '700' },
+  availBtnTextOn:       { color: '#16A34A' },
+  availBtnTextOff:      { color: '#EF4444' },
 
   empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40 },
   emptyText: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
+});
+
+// ─── Sheet styles ─────────────────────────────────────────────────────────────
+
+const sh = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, maxHeight: '92%',
+  },
+  handle: { width: 40, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title:  { fontSize: 18, fontWeight: '800', color: COLORS.text },
+
+  photoArea: {
+    height: 140, borderRadius: 14, borderWidth: 1.5, borderColor: '#E5E7EB',
+    borderStyle: 'dashed', overflow: 'hidden', marginBottom: 16,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC',
+  },
+  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photoPlaceholder: { alignItems: 'center', gap: 6 },
+  photoPlaceholderText: { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
+  photoBadge: {
+    position: 'absolute', bottom: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  photoBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
+
+  label: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 6, marginTop: 12 },
+  input: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: COLORS.text,
+  },
+
+  catSuggest: {
+    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
+    backgroundColor: '#fff', marginTop: 2, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 4,
+  },
+  catSuggestRow: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
+  catSuggestText: { fontSize: 14, color: COLORS.text },
+
+  saveBtn: {
+    backgroundColor: COLORS.secondary, borderRadius: 14,
+    paddingVertical: 15, alignItems: 'center', marginTop: 20,
+  },
+  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+
+  deleteBtn: {
+    borderWidth: 1.5, borderColor: '#EF4444', borderRadius: 14,
+    paddingVertical: 13, alignItems: 'center', marginTop: 10,
+  },
+  deleteBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
 });

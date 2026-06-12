@@ -1131,6 +1131,7 @@ model HotFoodMenuItem {
   storeId          String?  // null = available at all hot-food-enabled stores
   name             String
   description      String?
+  category         String?
   price            Float
   isAvailable      Boolean  @default(true)
   estimatedMinutes Int?

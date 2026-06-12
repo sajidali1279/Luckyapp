@@ -363,12 +363,14 @@ export const hotFoodApi = {
   // Toggle catalog item availability at a specific store (employee only)
   updateCatalogItemAvailability: (storeId: string, catalogItemId: string, isAvailable: boolean) =>
     api.patch(`/hot-food/store/${storeId}/catalog/${catalogItemId}/availability`, { isAvailable }),
-  createMenuItem: (storeId: string, data: { name: string; description?: string; price: number; estimatedMinutes?: number; isAvailable?: boolean }) =>
-    api.post('/hot-food/menu', { storeId, ...data }),
-  updateMenuItem: (itemId: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; isAvailable: boolean }>) =>
-    api.patch(`/hot-food/menu/${itemId}`, data),
+  createMenuItem: (formData: FormData) =>
+    api.post('/hot-food/menu', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updateMenuItem: (itemId: string, formData: FormData) =>
+    api.patch(`/hot-food/menu/${itemId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteMenuItem: (itemId: string) =>
     api.delete(`/hot-food/menu/${itemId}`),
+  getMenuCategories: (storeId?: string) =>
+    api.get(`/hot-food/menu/categories${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ''}`),
 };
 
 export const supportApi = {
