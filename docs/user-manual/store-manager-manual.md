@@ -3,7 +3,7 @@
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.2 | Last Updated: June 7, 2026
+**Version:** 1.3 | Last Updated: June 12, 2026
 
 ---
 
@@ -174,13 +174,20 @@ Long-press any item to enter drag-reorder mode. Drag items to rearrange them in 
 
 ### 4.8 Printing the Order List
 
-To create a snapshot of the current order list for external use (e.g., email to a supplier):
-1. Tap **Print / Snapshot** at the top of the order list.
-2. Optionally add notes for the print snapshot.
-3. Tap **Generate Snapshot**.
-4. A print record is saved in the list's print history.
+Tap the **Print** button (printer icon) at the top of the active order list to generate a formatted PDF of everything on the list.
 
-View previous print snapshots: tap **Print History** on any list.
+The PDF includes:
+- Lucky Stop header with store name, list name, and the date printed.
+- Items grouped by status: **Urgent**, **Needed**, **Ordered**, **Received** — each with a checkbox column for paper mark-off.
+- A barcode under each item that has a matching product in your store's catalog, so you can scan directly off the printout at the supplier.
+- A summary count at the top (total items, how many in each status group).
+
+**Two output options appear when you tap Print:**
+
+- **Print Directly** — opens the device's native print dialog (AirPrint on iPhone, system print on Android). Send straight to a connected or wireless printer.
+- **Share as PDF** — saves the PDF and opens the share sheet so you can send it via email, WhatsApp, Messages, or save to Files.
+
+> No internet connection is needed to share the PDF once it's generated — useful if you're in a back office with poor signal.
 
 ### 4.9 Closing a List
 

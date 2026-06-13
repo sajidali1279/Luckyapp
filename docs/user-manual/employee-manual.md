@@ -3,7 +3,7 @@
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only — transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.2 | Last Updated: June 7, 2026
+**Version:** 1.3 | Last Updated: June 12, 2026
 
 ---
 
@@ -26,7 +26,7 @@
 15. [Notifications](#15-notifications)
 16. [Your Leaderboard Ranking](#16-your-leaderboard-ranking)
 17. [Profile and Account Settings](#17-profile-and-account-settings)
-18. [Hot Food Orders](#18-hot-food-orders)
+18. [Hot Food — Orders and Menu Management](#18-hot-food--orders-and-menu-management)
 19. [Critical Rules — Read These Carefully](#19-critical-rules--read-these-carefully)
 20. [Common Situations — Quick Reference](#20-common-situations--quick-reference)
 21. [Troubleshooting](#21-troubleshooting)
@@ -551,31 +551,51 @@ Profile → **Sign Out** (at the bottom of the screen).
 
 ---
 
-## 18. Hot Food Orders
+## 18. Hot Food — Orders and Menu Management
 
-If your store has an active hot food menu, customers can place orders through the app. You will see incoming orders and are responsible for fulfilling them.
+If your store has an active hot food menu, you have two responsibilities: fulfilling customer orders and keeping the menu up to date.
 
-### 18.1 Accessing Hot Food Orders
+Tap **Hot Food Orders** in the menu (or the Hot Food tab on your home screen). The screen has five tabs at the top: **Pending**, **Preparing**, **Ready**, **All**, and **Menu**.
 
-Tap **Hot Food Orders** in the menu (or use the Hot Food tab if visible on your home screen).
+### 18.1 Fulfilling Orders (Pending / Preparing / Ready tabs)
 
-### 18.2 Order Workflow
+Orders appear with the customer's name, items ordered, total, and how long ago the order was placed.
 
-Orders appear with the customer's name, the item(s) they ordered, and the time the order was placed.
+**Order flow:**
+1. A new order arrives in **Pending** — tap **Accept Order** once you start preparing it.
+2. When the food is ready, tap **Mark Ready** — the customer gets a push notification to come pick it up.
+3. When the customer arrives and picks up at the counter, tap **Complete**.
+4. Payment and loyalty points are handled at the register as a normal transaction — not through the app.
 
-**To process an order:**
-1. Tap the order to open it.
-2. Tap **Mark In Progress** once you start preparing it.
-3. Tap **Ready** when the item is done and waiting for pickup.
-4. When the customer picks it up at the counter, tap **Complete** to close the order.
+If an order needs to be cancelled after it is marked Ready, tap the red X button next to Complete and confirm. Use this sparingly — contact your manager for any recurring issues.
 
-The customer receives a push notification when their order is marked Ready.
+Keep an eye on the notification badge on the Hot Food tab so orders don't sit unnoticed.
+
+### 18.2 Managing the Menu (Menu tab)
+
+Tap the **Menu** tab to see every item currently on your store's hot food menu. From here you can:
+
+**Toggle availability:** Each item has an **Available / Sold Out** button. Tap it to flip an item's status in real time — customers immediately stop seeing sold-out items in the order screen. Use this whenever an item runs out mid-shift.
+
+**Add a new item:**
+1. Tap **+ Add Item** in the top-right corner.
+2. Tap the photo area to take a photo or pick one from your library (optional but recommended).
+3. Fill in the item name, category (e.g. Roller Grill, Pizza, Sandwiches), price, estimated preparation time, and an optional short description.
+4. As you type the category, suggestions from existing categories appear — tap one to reuse it, or type your own.
+5. Tap **Add to Menu**. The item is live immediately.
+
+**Edit or remove an item:**
+1. Tap the pencil icon on any store-created item.
+2. Update any field or swap the photo.
+3. Tap **Save Changes** — or tap **Remove from Menu** at the bottom to delete the item entirely (requires confirmation).
+
+> Items marked **Catalog** come from the shared Lucky Stop catalog managed centrally. These can be toggled available/sold out but cannot be edited or deleted at the store level.
 
 ### 18.3 Things to Know
 
-- Hot food orders are paid at the counter — not through the app. Process the payment and loyalty points as a normal transaction when the customer picks up.
-- If an item runs out mid-shift, notify your manager. You cannot cancel a customer order yourself — contact your manager to void it.
-- Keep an eye on the notification badge on the Hot Food Orders tab so orders don't sit unnoticed.
+- Always keep the menu accurate — if an item is unavailable, mark it Sold Out right away rather than letting customers order something you can't make.
+- Category names are shared across your store's menu. Use consistent names (capitalise the same way each time) so items group cleanly.
+- Pricing changes take effect immediately for new orders — existing open orders are not affected.
 
 ---
 

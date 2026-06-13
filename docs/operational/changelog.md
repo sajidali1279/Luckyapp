@@ -7,6 +7,26 @@ Audience indicators: **Customer** · **Employee** · **Manager** · **Admin** ·
 
 ---
 
+## [1.3] — June 2026
+
+### Added
+- **Employee** — Full hot food menu management. Employees can now add, edit, and remove items from their store's hot food menu directly from the app. Each item supports a photo, category, price, estimated prep time, and description. Categories autocomplete from existing entries. Accessed via Hot Food Orders → Menu tab → **+ Add Item** or the pencil icon on any store item.
+- **Employee** — Item availability toggling on hot food catalog items. Items assigned from the shared catalog can be marked Sold Out or Available per shift without needing admin involvement.
+- **Manager** — Order list PDF printing with barcodes. The Print button on the active order list generates a formatted PDF grouped by status (Urgent / Needed / Ordered / Received) with product barcodes for any items matched in the store catalog. Two modes: Print Directly (native print dialog / AirPrint) or Share as PDF (email, WhatsApp, Files, etc.).
+- **Employee, Manager** — Inventory notifications. Employees receive notifications when a manager acts on their item requests. Managers receive notifications when new requests arrive.
+- **Customer** — Job openings / Careers. Customers can browse open positions posted by store admins and submit an application directly through the app. Accessible via the Careers section in the menu.
+
+### Changed
+- **Customer** — Hot food cart no longer accepts an order note. Payment and any special instructions are handled at the counter.
+- **All roles** — App loading screen replaced with an animated Lucky Stop loader (was a static splash image).
+
+### Fixed
+- Employee item requests and manager order flows now use consistent terminology throughout the app.
+- Careers screen: resolved a crash caused by a reference to a removed positions list.
+- Inventory manager notifications: stock request status updates now correctly trigger push notifications.
+
+---
+
 ## [1.2] — June 2026
 
 ### Added
