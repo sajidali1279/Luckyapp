@@ -18,7 +18,7 @@ export async function getStoreById(req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      enabledCategories: true,
+      enabledCategories: true, hotFoodEnabled: true,
     },
   });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
@@ -33,7 +33,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      enabledCategories: true,
+      enabledCategories: true, hotFoodEnabled: true,
     },
     orderBy: { name: 'asc' },
   });
@@ -81,6 +81,7 @@ const updateStoreSchema = z.object({
   longitude: z.number().min(-180).max(180).nullable().optional(),
   shiftsPerDay: z.number().int().min(2).max(3).optional(),
   enabledCategories: z.array(z.nativeEnum(ProductCategory)).optional(),
+  hotFoodEnabled: z.boolean().optional(),
 });
 
 export async function updateStore(req: AuthRequest, res: Response) {
@@ -93,7 +94,7 @@ export async function updateStore(req: AuthRequest, res: Response) {
   const store = await prisma.store.update({
     where: { id: storeId },
     data: parsed.data,
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true },
+    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true },
   });
   res.json({ success: true, data: store });
 }
@@ -1304,7 +1305,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
     select: {
       id: true, name: true, address: true, city: true, state: true, phone: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      latitude: true, longitude: true, enabledCategories: true, minimumAge: true,
+      latitude: true, longitude: true, enabledCategories: true, minimumAge: true, hotFoodEnabled: true,
     },
     orderBy: { name: 'asc' },
   });

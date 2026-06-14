@@ -249,6 +249,12 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true } });
+  if (!store?.hotFoodEnabled) {
+    res.json({ success: true, data: [], hotFoodEnabled: false });
+    return;
+  }
+
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
     select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
@@ -347,6 +353,12 @@ export async function placeOrder(req: AuthRequest, res: Response) {
 
   if (!storeId || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ success: false, error: 'storeId and items[] are required' });
+    return;
+  }
+
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true } });
+  if (!store?.hotFoodEnabled) {
+    res.status(403).json({ success: false, error: 'Hot food ordering is not available at this location' });
     return;
   }
 

@@ -356,7 +356,7 @@ export default function CustomerHotFoodScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Location-based store detection
-  const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
+  const [nearestStore, setNearestStore] = useState<{ id: string; name: string; hotFoodEnabled: boolean } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
 
   const { data: storesData } = useQuery({
@@ -383,7 +383,7 @@ export default function CustomerHotFoodScreen() {
           if (d < closestDist) { closestDist = d; closest = s; }
         }
         if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
-          setNearestStore({ id: closest.id, name: closest.name });
+          setNearestStore({ id: closest.id, name: closest.name, hotFoodEnabled: closest.hotFoodEnabled !== false });
           setLocationStatus('found');
         } else if (!cancelled) {
           setLocationStatus('none');
@@ -515,6 +515,12 @@ export default function CustomerHotFoodScreen() {
               <Text style={s.emptyEmoji}>📍</Text>
               <Text style={s.emptyTitle}>No store nearby</Text>
               <Text style={s.emptySub}>Visit a Lucky Stop location to browse and order hot food.</Text>
+            </View>
+          ) : nearestStore && !nearestStore.hotFoodEnabled ? (
+            <View style={s.emptyBox}>
+              <Text style={s.emptyEmoji}>🍽️</Text>
+              <Text style={s.emptyTitle}>Not available here</Text>
+              <Text style={s.emptySub}>{nearestStore.name} doesn't offer hot food ordering. Check another Lucky Stop location.</Text>
             </View>
           ) : menuLoading ? (
             <View style={s.loadingBox}>
