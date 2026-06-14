@@ -351,6 +351,16 @@ export const welcomeBonusApi = {
   confirm:         (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
 
+export const dailyReportApi = {
+  getByDate: (storeId?: string, date?: string) => {
+    const params = new URLSearchParams();
+    if (storeId) params.set('storeId', storeId);
+    if (date) params.set('date', date);
+    const qs = params.toString();
+    return api.get(`/daily-reports${qs ? `?${qs}` : ''}`);
+  },
+};
+
 export const inventoryAnalyticsApi = {
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');

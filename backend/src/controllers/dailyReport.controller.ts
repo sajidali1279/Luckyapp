@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
+import { sendPushToStoreManagers } from '../utils/push';
 
 async function uploadImage(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,6 +51,9 @@ export async function createReport(req: AuthRequest, res: Response) {
     },
     include: { submittedBy: { select: { id: true, name: true, phone: true } } },
   });
+
+  const submitterName = report.submittedBy.name || report.submittedBy.phone || 'An employee';
+  sendPushToStoreManagers(storeId, '📋 Daily Report Submitted', `${submitterName} submitted a daily report for ${reportDate}`);
 
   res.status(201).json({ success: true, data: report });
 }

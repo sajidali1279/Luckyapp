@@ -43,6 +43,7 @@ const HotFood                = lazy(() => import('./pages/HotFood'));
 const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
 const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
 const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
+const DailyReports           = lazy(() => import('./pages/DailyReports'));
 
 const queryClient = new QueryClient();
 
@@ -136,6 +137,7 @@ export default function App() {
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               <Route path="/hot-food/menu" element={<HotFoodMenu />} />
               <Route path="/hot-food/orders" element={<HotFoodOrders />} />
+              <Route path="/daily-reports" element={<DailyReports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>

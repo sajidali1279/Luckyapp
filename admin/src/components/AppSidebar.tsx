@@ -39,6 +39,7 @@ import {
   Bell,
   Headphones,
   FileText,
+  ClipboardCheck,
   LogOut,
   Fuel,
   Flame,
@@ -281,6 +282,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" />
+              <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
                   <SidebarNavItem to="/rates" icon={<Trophy size={16} />} label="Tier Rates" />

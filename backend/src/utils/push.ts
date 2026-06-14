@@ -28,6 +28,11 @@ export async function sendPushToStoreEmployees(storeId: string, title: string, b
   return sendPushToStoreByRole(storeId, title, body, type, Role.EMPLOYEE);
 }
 
+/** Send push + in-app notification to store managers only (excludes employees). */
+export async function sendPushToStoreManagers(storeId: string, title: string, body: string, type = 'GENERAL'): Promise<void> {
+  return sendPushToStoreByRole(storeId, title, body, type, Role.STORE_MANAGER);
+}
+
 async function sendPushToStoreByRole(storeId: string, title: string, body: string, type: string, role?: Role): Promise<void> {
   try {
     const storeRoles = await prisma.userStoreRole.findMany({
