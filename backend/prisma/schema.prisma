@@ -251,6 +251,7 @@ model User {
   reviewedItemRequests  EmployeeItemRequest[] @relation("EmployeeRequestsReviewed")
   hotFoodOrders         HotFoodOrder[]        @relation("HotFoodOrdersPlaced")
   jobOpenings           JobOpening[]
+  dailyReports          DailyReport[]         @relation("DailyReportsSubmitted")
 
   @@map("users")
 }
@@ -321,6 +322,7 @@ model Store {
   hotFoodMenuItems      HotFoodMenuItem[]
   hotFoodOrders         HotFoodOrder[]
   hotFoodCatalogStores  HotFoodCatalogStore[]
+  dailyReports          DailyReport[]
 
   @@map("stores")
 }
@@ -1263,4 +1265,35 @@ model ScannedProduct {
 
   @@index([barcode])
   @@map("scanned_products")
+}
+
+// ─── Daily Report ─────────────────────────────────────────────────────────────
+
+model DailyReport {
+  id            String  @id @default(uuid())
+  storeId       String
+  submittedById String
+  reportDate    String  // YYYY-MM-DD local date
+
+  // Prices
+  gasPrice      Float?
+  dieselPrice   Float?
+
+  // Inventory
+  regGasGal      Float?
+  midGradeGasGal Float?
+  premiumGasGal  Float?
+  cigsCount      Int?
+
+  // Extras
+  imageUrl  String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  store       Store @relation(fields: [storeId], references: [id])
+  submittedBy User  @relation("DailyReportsSubmitted", fields: [submittedById], references: [id])
+
+  @@index([storeId, reportDate])
+  @@map("daily_reports")
 }

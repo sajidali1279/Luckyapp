@@ -142,6 +142,7 @@ import {
   getPendingRatings,
   getMyRatingSummary,
 } from '../controllers/leaderboard.controller';
+import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import {
   updateStoreBilling,
   getAllStoresBilling,
@@ -481,6 +482,11 @@ router.delete('/hot-food/catalog/:id',                  authenticate, requireRol
 router.get('/hot-food/catalog/:id/stores',              authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalogItemStores);
 router.post('/hot-food/catalog/:id/stores',             authenticate, requireRole(Role.SUPER_ADMIN),   assignHotFoodCatalogItemToStore);
 router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRole(Role.SUPER_ADMIN),   removeHotFoodCatalogItemFromStore);
+
+// ─── Daily Reports ────────────────────────────────────────────────────────────
+router.post('/daily-reports',       authenticate, requireRole(Role.EMPLOYEE), upload.single('image'), createReport);
+router.get('/daily-reports/today',  authenticate, requireRole(Role.EMPLOYEE), getTodayReports);
+router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER), getReportsByDate);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);

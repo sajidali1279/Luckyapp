@@ -332,6 +332,13 @@ export const orderCategoriesApi = {
   adminDelete: (id: string) => api.delete(`/order-categories/${id}`),
 };
 
+export const dailyReportApi = {
+  submit: (data: FormData) =>
+    api.post('/daily-reports', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getToday: (storeId: string, date: string) =>
+    api.get('/daily-reports/today', { params: { storeId, date } }),
+};
+
 export const managerApi = {
   getStoreStats: (storeId: string) =>
     api.get(`/points/store/${storeId}/summary`),
