@@ -11,7 +11,7 @@ interface Store { id: string; name: string; storeNumber?: string }
 interface DailyReport {
   id: string;
   storeId: string;
-  store: { id: string; name: string };
+  store?: { id: string; name: string };
   reportDate: string;
   gasPrice: number | null;
   dieselPrice: number | null;
@@ -56,7 +56,7 @@ function ReportCard({ report, showStore }: { report: DailyReport; showStore: boo
           <div>
             <div style={s.submitterName}>{report.submittedBy.name || report.submittedBy.phone}</div>
             <div style={s.submittedAt}>
-              {showStore && <span style={s.storeBadge}>{report.store.name}</span>}
+              {showStore && report.store?.name && <span style={s.storeBadge}>{report.store.name}</span>}
               Submitted at {fmtTime(report.createdAt)}
             </div>
           </div>
