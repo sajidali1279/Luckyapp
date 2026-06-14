@@ -69,6 +69,13 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
 }
 
+function orderAgeColor(dateStr: string): string {
+  const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  if (mins >= 10) return '#EF4444';
+  if (mins >= 5)  return '#F97316';
+  return '#94A3B8';
+}
+
 // ─── Add / Edit Item Sheet ────────────────────────────────────────────────────
 
 interface ItemSheetProps {
@@ -345,8 +352,9 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 function OrderCard({
   order, onUpdateStatus, updating,
 }: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus) => void; updating: boolean }) {
-  const cfg   = STATUS_CONFIG[order.status];
-  const total = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const cfg      = STATUS_CONFIG[order.status];
+  const total    = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const ageColor = ['PENDING', 'ACCEPTED'].includes(order.status) ? orderAgeColor(order.createdAt) : '#94A3B8';
 
   return (
     <View style={s.card}>
@@ -354,8 +362,8 @@ function OrderCard({
         <View style={s.cardHeaderLeft}>
           <Text style={s.orderNum}>#{order.orderNumber}</Text>
           <View style={s.timePill}>
-            <ClockIcon size={11} color={COLORS.textMuted} strokeWidth={2} />
-            <Text style={s.timeText}>{timeAgo(order.createdAt)}</Text>
+            <ClockIcon size={11} color={ageColor} strokeWidth={2} />
+            <Text style={[s.timeText, { color: ageColor }]}>{timeAgo(order.createdAt)}</Text>
           </View>
         </View>
         <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
@@ -365,6 +373,13 @@ function OrderCard({
 
       <Text style={s.customerName}>{order.customer.name}</Text>
       <Text style={s.customerPhone}>{order.customer.phone}</Text>
+
+      {order.note ? (
+        <View style={s.noteBox}>
+          <Text style={s.noteBoxLabel}>Note: </Text>
+          <Text style={s.noteBoxText}>{order.note}</Text>
+        </View>
+      ) : null}
 
       <View style={s.itemsList}>
         {order.items.map((item, idx) => (
@@ -534,7 +549,7 @@ export default function HotFoodOrders() {
     queryKey: ['hot-food-orders', storeId],
     queryFn: () => hotFoodApi.getStoreOrders(storeId!),
     enabled: !!storeId,
-    refetchInterval: 20_000,
+    refetchInterval: 10_000,
   });
 
   // All items (menu + catalog)
@@ -815,7 +830,10 @@ const s = StyleSheet.create({
   statusPill:     { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statusText:     { fontSize: 12, fontWeight: '700' },
   customerName:   { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
-  customerPhone:  { fontSize: 12, color: '#94A3B8', marginBottom: 12 },
+  customerPhone:  { fontSize: 12, color: '#94A3B8', marginBottom: 8 },
+  noteBox:        { flexDirection: 'row', backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 10, flexWrap: 'wrap' },
+  noteBoxLabel:   { fontSize: 12, fontWeight: '800', color: '#92400E' },
+  noteBoxText:    { fontSize: 12, color: '#78350F', flex: 1 },
   itemsList:      { gap: 6, marginBottom: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   itemRow:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
   itemQty:        { fontSize: 13, fontWeight: '700', color: COLORS.primary, width: 24 },

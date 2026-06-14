@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   Modal, ActivityIndicator, Image,
-  RefreshControl, ScrollView,
+  RefreshControl, ScrollView, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -201,11 +201,13 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
 }) {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qc = useQueryClient();
+  const [note, setNote] = useState('');
 
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId,
       items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
+      ...(note.trim() ? { note: note.trim() } : {}),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
@@ -242,6 +244,21 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
             <View style={cs.totalRow}>
               <Text style={cs.totalLabel}>Total</Text>
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
+            </View>
+
+            <View style={cs.noteSection}>
+              <Text style={cs.noteLabel}>Special instructions (optional)</Text>
+              <TextInput
+                style={cs.noteInput}
+                value={note}
+                onChangeText={setNote}
+                placeholder="e.g. no onions, extra sauce…"
+                placeholderTextColor="#94A3B8"
+                multiline
+                maxLength={120}
+                returnKeyType="done"
+                blurOnSubmit
+              />
             </View>
 
             <View style={cs.infoBox}>
@@ -758,6 +775,13 @@ const cs = StyleSheet.create({
   },
   totalLabel: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
   totalVal: { fontSize: 18, fontWeight: '900', color: COLORS.text },
+  noteSection: { marginBottom: 14 },
+  noteLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 6 },
+  noteInput: {
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 14, color: COLORS.text, minHeight: 60, textAlignVertical: 'top',
+  },
   infoBox: {
     backgroundColor: '#F8F9FA', borderRadius: 12, padding: 12, marginBottom: 20,
   },
