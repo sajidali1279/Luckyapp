@@ -15,16 +15,11 @@ import {
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
 } from './Icons';
 
-function getNotifRoute(type: string, role?: string): string | null {
-  if (role === 'CUSTOMER') {
-    if (type === 'OFFER') return '/(customer)/home';
-    if (type === 'POINTS') return '/(customer)/history';
-    if (type === 'REDEMPTION') return '/(customer)/rewards';
-    if (type === 'GAS_PRICE_UPDATE') return '/(customer)/home';
-  }
+// Returns a simple route string for employee/manager notifications only.
+function getStaffRoute(type: string, role?: string): string | null {
   if (role === 'EMPLOYEE') {
     if (type === 'SHIFT_REQUEST') return '/(employee)/requests';
-    if (type === 'SCHEDULE') return '/(employee)/schedule';
+    if (type === 'SCHEDULE')      return '/(employee)/schedule';
     if (type === 'GAS_PRICE_UPDATE') return '/(employee)/scan';
     if (type === 'STORE_REQUEST') return '/(employee)/requests';
   }
@@ -35,6 +30,11 @@ function getNotifRoute(type: string, role?: string): string | null {
     if (type === 'DISPUTE_SUBMITTED') return '/(manager)/home';
   }
   return null;
+}
+
+// Whether a customer notification has a navigable action.
+function customerHasAction(type: string): boolean {
+  return ['OFFER', 'GAS_PRICE_UPDATE', 'POINTS', 'REDEMPTION'].includes(type);
 }
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
@@ -91,6 +91,7 @@ interface Notification {
   type: string;
   isRead: boolean;
   createdAt: string;
+  expiresAt?: string;
 }
 
 export default function NotificationsScreen() {
@@ -104,10 +105,19 @@ export default function NotificationsScreen() {
     refetchInterval: 30000,
   });
 
-  // Invalidate badge count the moment this screen comes into focus
+  // When the customer opens this screen, silently mark everything read so the
+  // badge clears immediately — no need to open each notification individually.
   useFocusEffect(useCallback(() => {
     qc.invalidateQueries({ queryKey: ['unread-count'] });
-  }, []));
+    if (user?.role === 'CUSTOMER') {
+      notificationsApi.markAllRead()
+        .then(() => {
+          qc.invalidateQueries({ queryKey: ['my-notifications'] });
+          qc.invalidateQueries({ queryKey: ['unread-count'] });
+        })
+        .catch(() => {});
+    }
+  }, [user?.role]));
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
@@ -165,36 +175,79 @@ export default function NotificationsScreen() {
       })
     : rawNotifications;
 
+  function handlePress(item: Notification) {
+    if (!item.isRead) markOneMutation.mutate(item.id);
+
+    if (user?.role === 'CUSTOMER') {
+      switch (item.type) {
+        case 'OFFER': {
+          const expired = item.expiresAt && new Date(item.expiresAt) < new Date();
+          if (expired) {
+            Alert.alert(
+              'Offer Ended',
+              `"${item.title}" has expired and is no longer available.`,
+              [{ text: 'Got it' }],
+            );
+            return;
+          }
+          router.push({ pathname: '/(customer)/home', params: { scrollTo: 'offers' } } as any);
+          return;
+        }
+        case 'GAS_PRICE_UPDATE':
+          router.push({ pathname: '/(customer)/home', params: { scrollTo: 'gas' } } as any);
+          return;
+        case 'POINTS':
+          router.push('/(customer)/history');
+          return;
+        case 'REDEMPTION':
+          router.push('/(customer)/rewards');
+          return;
+        default:
+          return;
+      }
+    }
+
+    // Employee / Manager
+    const route = getStaffRoute(item.type, user?.role);
+    if (route) router.push(route as any);
+  }
+
   function renderItem({ item }: { item: Notification }) {
     const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.GENERAL;
-    const route = getNotifRoute(item.type, user?.role);
     const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isEmployee && !item.isRead;
+
+    const isExpiredOffer = item.type === 'OFFER' && !!item.expiresAt && new Date(item.expiresAt) < new Date();
+    const isCustomer = user?.role === 'CUSTOMER';
+    const hasAction = isCustomer ? customerHasAction(item.type) : !!getStaffRoute(item.type, user?.role);
+    const actionLabel = isExpiredOffer ? 'Expired' : hasAction ? 'View →' : null;
+
     return (
       <TouchableOpacity
-        style={[s.card, !item.isRead && s.cardUnread, isGasAlert && s.cardGasAlert]}
-        onPress={() => {
-          if (!item.isRead) markOneMutation.mutate(item.id);
-          if (route) router.push(route as any);
-        }}
+        style={[s.card, !item.isRead && s.cardUnread, isGasAlert && s.cardGasAlert, isExpiredOffer && s.cardExpired]}
+        onPress={() => handlePress(item)}
         activeOpacity={0.75}
       >
-        <View style={[s.iconWrap, { backgroundColor: cfg.color + '18' }]}>
-          <NotifIcon type={item.type} color={cfg.color} />
+        <View style={[s.iconWrap, { backgroundColor: cfg.color + (isExpiredOffer ? '0C' : '18') }]}>
+          <NotifIcon type={item.type} color={isExpiredOffer ? cfg.color + '70' : cfg.color} />
         </View>
         <View style={s.cardBody}>
           <View style={s.cardTop}>
-            <Text style={[s.cardTitle, !item.isRead && s.cardTitleUnread]} numberOfLines={1}>
+            <Text style={[s.cardTitle, !item.isRead && s.cardTitleUnread, isExpiredOffer && s.cardTitleExpired]} numberOfLines={1}>
               {item.title}
             </Text>
             {isGasAlert
               ? <View style={s.actionBadge}><Text style={s.actionBadgeText}>Update pumps</Text></View>
-              : !item.isRead && <View style={[s.dot, { backgroundColor: cfg.color }]} />
+              : !item.isRead && !isExpiredOffer && <View style={[s.dot, { backgroundColor: cfg.color }]} />
             }
           </View>
-          <Text style={s.cardText} numberOfLines={2}>{item.body}</Text>
+          <Text style={[s.cardText, isExpiredOffer && { opacity: 0.5 }]} numberOfLines={2}>{item.body}</Text>
           <View style={s.cardBottom}>
             <Text style={s.cardTime}>{timeAgo(item.createdAt)}</Text>
-            {route && <Text style={[s.cardAction, { color: cfg.color }]}>View →</Text>}
+            {actionLabel && (
+              <Text style={[s.cardAction, { color: isExpiredOffer ? COLORS.border : cfg.color }]}>
+                {actionLabel}
+              </Text>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -317,6 +370,14 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#f9731640',
     backgroundColor: '#fff7f0',
+  },
+  cardExpired: {
+    opacity: 0.65,
+  },
+  cardTitleExpired: {
+    color: COLORS.textMuted,
+    fontWeight: '500',
+    textDecorationLine: 'line-through',
   },
   actionBadge: {
     backgroundColor: '#f9731618',

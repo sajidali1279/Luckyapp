@@ -6,9 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
-import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -352,6 +351,30 @@ export default function CustomerHome() {
 
   const [showQR, setShowQR] = useState(false);
 
+  // Scroll-to-section support (triggered from notification taps)
+  const scrollViewRef = useRef<ScrollView>(null);
+  const gasSectionRef = useRef<View>(null);
+  const offersSectionRef = useRef<View>(null);
+  const { scrollTo } = useLocalSearchParams<{ scrollTo?: string }>();
+
+  useFocusEffect(useCallback(() => {
+    if (!scrollTo) return;
+    const sectionRef = scrollTo === 'gas' ? gasSectionRef : scrollTo === 'offers' ? offersSectionRef : null;
+    if (!sectionRef) return;
+    const t = setTimeout(() => {
+      sectionRef.current?.measureLayout(
+        scrollViewRef.current as any,
+        (_x: number, y: number) => {
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        },
+        () => {},
+      );
+      // Clear the param so back-navigation doesn't re-trigger scroll
+      router.setParams({ scrollTo: '' });
+    }, 380);
+    return () => clearTimeout(t);
+  }, [scrollTo]));
+
   // Hot food order state
   const [selectedFoodItem, setSelectedFoodItem] = useState<any>(null);
   const [foodQty, setFoodQty] = useState(1);
@@ -592,6 +615,7 @@ export default function CustomerHome() {
 
       {/* ── Scrollable content ── */}
       <Animated.ScrollView
+        ref={scrollViewRef as any}
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
@@ -716,7 +740,7 @@ export default function CustomerHome() {
             </View>
           )
           : gasPrices.length > 0 && (
-            <View style={styles.section}>
+            <View ref={gasSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label="Today's Gas Prices" />
                 {bestGasOffer && (
@@ -802,7 +826,7 @@ export default function CustomerHome() {
             </View>
           )
           : promotions.length > 0 && (
-            <View style={styles.section}>
+            <View ref={offersSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label="Active Promotions" />
                 {promotions.length > 2 && (
