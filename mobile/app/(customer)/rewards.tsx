@@ -8,17 +8,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
 import { catalogApi, pointsApi } from '../../services/api';
-import { COLORS } from '../../constants';
+import { COLORS, TIER_CONFIG } from '../../constants';
 import { StarIcon, TagIcon, ClockIcon } from '../../components/Icons';
 
-// ─── Tier config ───────────────────────────────────────────────────────────────
-const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string; next?: string }> = {
-  BRONZE:   { label: 'Bronze',   color: '#CD7F32', emoji: '🥉', next: 'SILVER' },
-  SILVER:   { label: 'Silver',   color: '#A0A0B0', emoji: '🥈', next: 'GOLD' },
-  GOLD:     { label: 'Gold',     color: '#F4A226', emoji: '🥇', next: 'DIAMOND' },
-  DIAMOND:  { label: 'Diamond',  color: '#00B4D8', emoji: '💎', next: 'PLATINUM' },
-  PLATINUM: { label: 'Platinum', color: '#9B5DE5', emoji: '👑' },
-};
 
 const TIER_THRESHOLDS: Record<string, number> = {
   BRONZE: 0, SILVER: 5000, GOLD: 15000, DIAMOND: 30000, PLATINUM: 45000,

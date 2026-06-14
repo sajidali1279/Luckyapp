@@ -13,7 +13,7 @@ import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
-import { COLORS } from '../../constants';
+import { COLORS, TIER_CONFIG } from '../../constants';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
   FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon,
@@ -33,13 +33,6 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const TIER_CONFIG: Record<string, { color: string; label: string; icon: string; nextLabel: string | null; thresholdPts: number; nextThresholdPts: number | null; benefits: string[] }> = {
-  BRONZE:   { color: '#CD7F32', label: 'Bronze',   icon: '🥉', nextLabel: 'Silver',   thresholdPts: 0,      nextThresholdPts: 5000,  benefits: ['1% cashback on all purchases', 'Access to all 12 Lucky Stop locations', 'Member-only deals & promotions'] },
-  SILVER:   { color: '#A8A9AD', label: 'Silver',   icon: '🥈', nextLabel: 'Gold',     thresholdPts: 5000,   nextThresholdPts: 15000, benefits: ['2% cashback (2× Bronze rate)', '7 free fountain refills this period — use any time, bring your own cup', 'Silver-exclusive offers & rewards'] },
-  GOLD:     { color: '#FFD700', label: 'Gold',     icon: '🥇', nextLabel: 'Diamond',  thresholdPts: 15000,  nextThresholdPts: 30000, benefits: ['3% cashback on all purchases', '1 free fountain refill daily (bring your own cup)', '+5¢ bonus per gallon on gas', 'Gold-exclusive catalog items'] },
-  DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  icon: '💎', nextLabel: 'Platinum', thresholdPts: 30000,  nextThresholdPts: 45000, benefits: ['4% cashback on all purchases', '1 free fountain refill daily (bring your own cup)', '+7¢ bonus per gallon on gas', 'Diamond-exclusive limited drops', 'Early access to new rewards'] },
-  PLATINUM: { color: '#E5E4E2', label: 'Platinum', icon: '👑', nextLabel: null,       thresholdPts: 45000,  nextThresholdPts: null,  benefits: ['5% cashback — maximum rate', '1 free fountain refill daily (bring your own cup)', '+10¢ bonus per gallon on gas', 'Platinum vault — top-tier rewards only', 'Highest loyalty status'] },
-};
 
 const SCREEN_W = Dimensions.get('window').width;
 const BANNER_W = SCREEN_W - 32;
@@ -1136,7 +1129,7 @@ export default function CustomerHome() {
 
       {/* ── 21+ age gate modal ── */}
       {show21Gate && pendingAgeGateStore && (
-        <Modal transparent animationType="fade" onRequestClose={() => {}}>
+        <Modal transparent animationType="fade" onRequestClose={() => { setPendingAgeGateStore(null); setShow21Gate(false); setLocationStatus('none'); }}>
           <View style={ag.overlay}>
             <View style={ag.card}>
               <View style={ag.badge}>

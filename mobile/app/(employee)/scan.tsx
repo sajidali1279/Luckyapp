@@ -11,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { pointsApi, catalogApi, storesApi, welcomeBonusApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS } from '../../constants';
+import { COLORS, TIER_CONFIG } from '../../constants';
 import {
   CameraIcon, XIcon, ReceiptIcon, CreditCardIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
@@ -51,13 +51,6 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
 // Fallback multiplier — overridden by live tier rates fetched on mount
 const TIER_PTS_MULT_FALLBACK: Record<string, number> = { BRONZE: 1, SILVER: 2, GOLD: 3, DIAMOND: 4, PLATINUM: 5 };
 
-const TIER_CONFIG: Record<string, { label: string; color: string; emoji: string }> = {
-  BRONZE:   { label: 'Bronze',   color: '#CD7F32', emoji: '🥉' },
-  SILVER:   { label: 'Silver',   color: '#A0A0B0', emoji: '🥈' },
-  GOLD:     { label: 'Gold',     color: '#F4A226', emoji: '🥇' },
-  DIAMOND:  { label: 'Diamond',  color: '#00B4D8', emoji: '💎' },
-  PLATINUM: { label: 'Platinum', color: '#9B5DE5', emoji: '👑' },
-};
 
 // ─── Corner Bracket Camera Overlay ────────────────────────────────────────────
 
