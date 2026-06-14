@@ -1157,7 +1157,7 @@ const s: Record<string, React.CSSProperties> = {
   pageTitle:  { fontSize: 26, fontWeight: 800, color: '#1E293B', margin: 0 },
   pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
 
-  tabs:      { display: 'flex', gap: 4, borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
+  tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
   tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
   tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
   tabContent: {},

@@ -529,7 +529,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   tabRow: {
-    display: 'flex', gap: 4, flexWrap: 'wrap',
+    display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-end',
     marginBottom: 24, borderBottom: '2px solid #e5e7eb', paddingBottom: 0,
   },
   tab: {
