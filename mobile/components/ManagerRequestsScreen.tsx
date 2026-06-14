@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
+import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
 import { COLORS } from '../constants';
@@ -100,6 +101,15 @@ export default function ManagerRequestsScreen() {
 
   // ── Main tab ────────────────────────────────────────────────────────────────
   const [mainTab, setMainTab] = useState<MainTab>('alerts');
+
+  // Switch to the requested tab when arriving from a notification tap
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  useFocusEffect(useCallback(() => {
+    if (tab && ['alerts', 'stock', 'products'].includes(tab)) {
+      setMainTab(tab as MainTab);
+      router.setParams({ tab: '' });
+    }
+  }, [tab]));
 
   // ── Store picker ────────────────────────────────────────────────────────────
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);

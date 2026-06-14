@@ -32,9 +32,14 @@ function getStaffRoute(type: string, role?: string): string | null {
   return null;
 }
 
-// Whether a customer notification has a navigable action.
 function customerHasAction(type: string): boolean {
   return ['OFFER', 'GAS_PRICE_UPDATE', 'POINTS', 'REDEMPTION'].includes(type);
+}
+function employeeHasAction(type: string): boolean {
+  return ['HOT_FOOD_ORDER', 'GAS_PRICE_UPDATE', 'SHIFT_REQUEST', 'STORE_REQUEST', 'SCHEDULE'].includes(type);
+}
+function managerHasAction(type: string): boolean {
+  return ['STOCK_REQUEST', 'PRODUCT_REQUEST', 'ALERT', 'DISPUTE_SUBMITTED'].includes(type);
 }
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
@@ -105,11 +110,14 @@ export default function NotificationsScreen() {
     refetchInterval: 30000,
   });
 
-  // When the customer opens this screen, silently mark everything read so the
-  // badge clears immediately — no need to open each notification individually.
+  // Badge behaviour on focus:
+  //   Customers + Managers → auto mark-all-read, badge clears immediately.
+  //   Employees → don't auto-mark (gas price alerts need the "Update pumps"
+  //               indicator to stay until the employee explicitly reads them).
   useFocusEffect(useCallback(() => {
     qc.invalidateQueries({ queryKey: ['unread-count'] });
-    if (user?.role === 'CUSTOMER') {
+    const autoMark = user?.role === 'CUSTOMER' || user?.role === 'STORE_MANAGER';
+    if (autoMark) {
       notificationsApi.markAllRead()
         .then(() => {
           qc.invalidateQueries({ queryKey: ['my-notifications'] });
@@ -183,11 +191,7 @@ export default function NotificationsScreen() {
         case 'OFFER': {
           const expired = item.expiresAt && new Date(item.expiresAt) < new Date();
           if (expired) {
-            Alert.alert(
-              'Offer Ended',
-              `"${item.title}" has expired and is no longer available.`,
-              [{ text: 'Got it' }],
-            );
+            Alert.alert('Offer Ended', `"${item.title}" has expired and is no longer available.`, [{ text: 'Got it' }]);
             return;
           }
           router.push({ pathname: '/(customer)/home', params: { scrollTo: 'offers' } } as any);
@@ -196,20 +200,38 @@ export default function NotificationsScreen() {
         case 'GAS_PRICE_UPDATE':
           router.push({ pathname: '/(customer)/home', params: { scrollTo: 'gas' } } as any);
           return;
-        case 'POINTS':
-          router.push('/(customer)/history');
-          return;
-        case 'REDEMPTION':
-          router.push('/(customer)/rewards');
-          return;
-        default:
-          return;
+        case 'POINTS':     router.push('/(customer)/history'); return;
+        case 'REDEMPTION': router.push('/(customer)/rewards'); return;
+        default: return;
       }
     }
 
-    // Employee / Manager
-    const route = getStaffRoute(item.type, user?.role);
-    if (route) router.push(route as any);
+    if (user?.role === 'EMPLOYEE') {
+      switch (item.type) {
+        case 'HOT_FOOD_ORDER':
+          router.push({ pathname: '/(employee)/hot-food', params: { tab: 'PENDING' } } as any);
+          return;
+        case 'GAS_PRICE_UPDATE': router.push('/(employee)/scan');     return;
+        case 'SHIFT_REQUEST':
+        case 'STORE_REQUEST':    router.push('/(employee)/requests'); return;
+        case 'SCHEDULE':         router.push('/(employee)/schedule'); return;
+        default: return;
+      }
+    }
+
+    if (user?.role === 'STORE_MANAGER') {
+      switch (item.type) {
+        case 'STOCK_REQUEST':
+          router.push({ pathname: '/(manager)/requests', params: { tab: 'stock' } } as any);
+          return;
+        case 'PRODUCT_REQUEST':
+          router.push({ pathname: '/(manager)/requests', params: { tab: 'products' } } as any);
+          return;
+        case 'ALERT':
+        case 'DISPUTE_SUBMITTED': router.push('/(manager)/home'); return;
+        default: return;
+      }
+    }
   }
 
   function renderItem({ item }: { item: Notification }) {
@@ -217,8 +239,11 @@ export default function NotificationsScreen() {
     const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isEmployee && !item.isRead;
 
     const isExpiredOffer = item.type === 'OFFER' && !!item.expiresAt && new Date(item.expiresAt) < new Date();
-    const isCustomer = user?.role === 'CUSTOMER';
-    const hasAction = isCustomer ? customerHasAction(item.type) : !!getStaffRoute(item.type, user?.role);
+    const role = user?.role;
+    const hasAction = role === 'CUSTOMER'      ? customerHasAction(item.type)
+                    : role === 'EMPLOYEE'      ? employeeHasAction(item.type)
+                    : role === 'STORE_MANAGER' ? managerHasAction(item.type)
+                    : false;
     const actionLabel = isExpiredOffer ? 'Expired' : hasAction ? 'View →' : null;
 
     return (

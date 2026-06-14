@@ -4,8 +4,9 @@ import {
   TextInput, ScrollView, Image, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
@@ -508,6 +509,8 @@ function MenuItemCard({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
+const VALID_TABS: TabKey[] = ['PENDING', 'ACCEPTED', 'READY', 'ALL', 'MENU'];
+
 export default function HotFoodOrders() {
   const { user } = useAuthStore();
   const storeId  = user?.storeIds?.[0];
@@ -516,6 +519,15 @@ export default function HotFoodOrders() {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [editingItem,  setEditingItem]  = useState<MenuItem | null>(null);
   const queryClient = useQueryClient();
+
+  // Switch to the requested tab when arriving from a notification tap
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  useFocusEffect(useCallback(() => {
+    if (tab && VALID_TABS.includes(tab as TabKey)) {
+      setActiveTab(tab as TabKey);
+      router.setParams({ tab: '' });
+    }
+  }, [tab]));
 
   // Orders
   const { data: ordersData, isLoading: ordersLoading, isRefetching, refetch } = useQuery({
