@@ -32,6 +32,14 @@
       "expo-router",
       "expo-camera",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1D3557",
+          "image": "./assets/splash.png",
+          "resizeMode": "cover"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "sounds": []
