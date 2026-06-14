@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   Modal, ActivityIndicator, Image,
@@ -35,6 +35,7 @@ interface FoodOrder {
   note?: string;
   estimatedMinutes?: number;
   createdAt: string;
+  updatedAt: string;
   store: { name: string };
   items: { name: string; quantity: number; price: number }[];
 }
@@ -134,10 +135,39 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
   );
 }
 
+// ─── ETA Countdown ────────────────────────────────────────────────────────────
+
+function useEtaCountdown(order: FoodOrder): string | null {
+  const getRemaining = () => {
+    if (order.status !== 'ACCEPTED' || !order.estimatedMinutes) return null;
+    const acceptedAt = new Date(order.updatedAt).getTime();
+    const eta = acceptedAt + order.estimatedMinutes * 60_000;
+    const remaining = Math.ceil((eta - Date.now()) / 60_000);
+    return remaining > 0 ? `~${remaining} min left` : 'Almost ready!';
+  };
+
+  const [label, setLabel] = useState<string | null>(getRemaining);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (order.status !== 'ACCEPTED' || !order.estimatedMinutes) {
+      setLabel(null);
+      return;
+    }
+    setLabel(getRemaining());
+    timerRef.current = setInterval(() => setLabel(getRemaining()), 30_000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.status, order.estimatedMinutes, order.updatedAt]);
+
+  return label;
+}
+
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
 function OrderCard({ order }: { order: FoodOrder }) {
   const cfg = STATUS[order.status];
+  const etaLabel = useEtaCountdown(order);
   const [expanded, setExpanded] = useState(order.status === 'READY');
 
   return (
@@ -161,6 +191,13 @@ function OrderCard({ order }: { order: FoodOrder }) {
 
       <Text style={oc.detail}>{cfg.detail}</Text>
 
+      {etaLabel ? (
+        <View style={oc.etaBadge}>
+          <ClockIcon size={12} color="#3B82F6" />
+          <Text style={oc.etaBadgeText}>{etaLabel}</Text>
+        </View>
+      ) : null}
+
       {expanded && (
         <View style={oc.body}>
           <View style={oc.divider} />
@@ -181,8 +218,8 @@ function OrderCard({ order }: { order: FoodOrder }) {
               <Text style={oc.noteText}>{order.note}</Text>
             </View>
           ) : null}
-          {order.estimatedMinutes && order.status === 'ACCEPTED' ? (
-            <Text style={oc.eta}>Estimated time: ~{order.estimatedMinutes} min</Text>
+          {etaLabel ? (
+            <Text style={oc.eta}>{etaLabel}</Text>
           ) : null}
           <Text style={oc.time}>{timeAgo(order.createdAt)}</Text>
         </View>
@@ -742,6 +779,8 @@ const oc = StyleSheet.create({
   noteRow: { flexDirection: 'row', marginBottom: 4 },
   noteLabel: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted },
   noteText: { fontSize: 12, color: COLORS.textMuted, flex: 1 },
+  etaBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
+  etaBadgeText: { fontSize: 13, color: '#3B82F6', fontWeight: '800' },
   eta: { fontSize: 12, color: '#3B82F6', fontWeight: '700', marginBottom: 4 },
   time: { fontSize: 11, color: COLORS.textMuted, textAlign: 'right', marginTop: 4 },
 });

@@ -2,7 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
-import { sendPushToStoreEmployees } from '../utils/push';
+import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ export async function getAllOrders(req: AuthRequest, res: Response) {
 // PATCH /hot-food/orders/:id — update status
 export async function updateOrderStatus(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, estimatedMinutes } = req.body;
 
   const validStatuses = ['PENDING', 'ACCEPTED', 'READY', 'COMPLETED', 'CANCELLED'];
   if (!validStatuses.includes(status)) {
@@ -205,21 +205,41 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     return;
   }
 
-  const order = await prisma.hotFoodOrder.findUnique({ where: { id } });
+  const order = await prisma.hotFoodOrder.findUnique({
+    where: { id },
+    include: { store: { select: { id: true, name: true } } },
+  });
   if (!order) {
     res.status(404).json({ success: false, error: 'Order not found' });
     return;
   }
 
+  const updateData: any = { status };
+  if (status === 'ACCEPTED' && estimatedMinutes != null) {
+    const mins = parseInt(estimatedMinutes);
+    if (!isNaN(mins) && mins > 0) updateData.estimatedMinutes = mins;
+  }
+
   const updated = await prisma.hotFoodOrder.update({
     where: { id },
-    data: { status },
+    data: updateData,
     include: {
       store: { select: { id: true, name: true } },
       customer: { select: { id: true, name: true, phone: true } },
       items: true,
     },
   });
+
+  // Push to customer when their order is ready for pickup
+  if (status === 'READY') {
+    sendPushToUser(
+      order.customerId,
+      '✅ Your food is ready!',
+      `Order #${order.orderNumber} is ready — head to the counter at ${order.store.name}`,
+      'HOT_FOOD_ORDER',
+    );
+  }
+
   res.json({ success: true, data: updated });
 }
 
@@ -413,9 +433,12 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
   const customerId = req.user!.id;
   const orders = await prisma.hotFoodOrder.findMany({
     where: { customerId },
-    include: {
+    select: {
+      id: true, orderNumber: true, status: true, totalAmount: true,
+      note: true, estimatedMinutes: true,
+      createdAt: true, updatedAt: true,
       store: { select: { id: true, name: true } },
-      items: true,
+      items: { select: { name: true, quantity: true, price: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 50,

@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../../store/authStore';
@@ -572,6 +573,16 @@ export default function HotFoodOrders() {
   const allOrders: FoodOrder[] = ordersData?.data?.data ?? [];
   const menuItems: MenuItem[]  = menuData?.data?.data   ?? [];
 
+  // Haptic feedback when a new PENDING order arrives while screen is open
+  const prevPendingCount = useRef<number | null>(null);
+  useEffect(() => {
+    const current = allOrders.filter(o => o.status === 'PENDING').length;
+    if (prevPendingCount.current !== null && current > prevPendingCount.current) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+    prevPendingCount.current = current;
+  }, [allOrders]);
+
   const pendingCount     = allOrders.filter(o => o.status === 'PENDING').length;
   const acceptedCount    = allOrders.filter(o => o.status === 'ACCEPTED').length;
   const readyCount       = allOrders.filter(o => o.status === 'READY').length;
@@ -588,17 +599,36 @@ export default function HotFoodOrders() {
     return allOrders.filter(o => o.status === activeTab);
   }, [allOrders, activeTab]);
 
-  async function handleUpdateStatus(orderId: string, status: OrderStatus) {
-    if (updatingId) return;
+  async function doUpdateStatus(orderId: string, status: OrderStatus, estimatedMinutes?: number) {
     setUpdatingId(orderId);
     try {
-      await hotFoodApi.updateStatus(orderId, status);
+      await hotFoodApi.updateStatus(orderId, status, estimatedMinutes);
       queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
       queryClient.invalidateQueries({ queryKey: ['hot-food-pending-count'] });
     } catch {
       Alert.alert('Error', 'Could not update order status. Try again.');
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  function handleUpdateStatus(orderId: string, status: OrderStatus) {
+    if (updatingId) return;
+    if (status === 'ACCEPTED') {
+      Alert.alert(
+        'Accept Order',
+        'How long until this order is ready?',
+        [
+          { text: '5 min',  onPress: () => doUpdateStatus(orderId, status, 5)  },
+          { text: '10 min', onPress: () => doUpdateStatus(orderId, status, 10) },
+          { text: '15 min', onPress: () => doUpdateStatus(orderId, status, 15) },
+          { text: '20 min', onPress: () => doUpdateStatus(orderId, status, 20) },
+          { text: 'Skip',   onPress: () => doUpdateStatus(orderId, status)     },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+    } else {
+      doUpdateStatus(orderId, status);
     }
   }
 
