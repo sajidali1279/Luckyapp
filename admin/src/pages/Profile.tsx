@@ -187,7 +187,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontWeight: 900, fontSize: 24,
   },
-  title: { fontSize: 24, fontWeight: 800, color: '#111827', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 },
   meta: { display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 },
   role: {
     background: '#EEF2FF', color: '#4f46e5',

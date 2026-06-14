@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import ErrorState from '../components/ErrorState';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
@@ -58,7 +59,7 @@ export default function InventoryAnalytics() {
   const categories: { id: string; name: string }[] = catData?.data?.data || [];
 
   // Inventory analytics
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventory-analytics-admin', storeId, period, category],
     queryFn: () => inventoryAnalyticsApi.get({
       storeId: storeId || undefined,
@@ -130,7 +131,9 @@ export default function InventoryAnalytics() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.loading}>Loading analytics…</div>
       ) : (
         <div style={s.grid}>
@@ -246,7 +249,7 @@ export default function InventoryAnalytics() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '24px 32px' },
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
-  title:  { margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' },
+  title:  { margin: 0, fontSize: 26, fontWeight: 700, color: '#111827' },
   sub:    { margin: '4px 0 0', fontSize: 15, color: '#6B7280' },
   refreshBtn: {
     padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',

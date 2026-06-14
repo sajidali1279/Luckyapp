@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 const POSITION_LABELS: Record<string, string> = {
   CASHIER: 'Cashier',
@@ -92,6 +94,8 @@ export default function Careers() {
   const [selectedStore, setSelectedStore] = useState('');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editNotes, setEditNotes] = useState('');
+  const [confirmDeleteOpening, setConfirmDeleteOpening] = useState<string | null>(null);
+  const [confirmDeleteApp, setConfirmDeleteApp] = useState<string | null>(null);
 
   // Openings state
   const [showOpeningForm, setShowOpeningForm] = useState(false);
@@ -103,7 +107,7 @@ export default function Careers() {
   if (selectedPosition) params.position = selectedPosition;
   if (selectedStore) params.storeId = selectedStore;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['careers-applications', params],
     queryFn: () => careersApi.getApplications(params),
   });
@@ -179,13 +183,28 @@ export default function Careers() {
   function openApp(app: Application) {
     setSelectedApp(app);
     setEditNotes(app.reviewNotes ?? '');
-    if (app.status === 'NEW') {
-      updateMut.mutate({ id: app.id, updates: { status: 'REVIEWED' } });
-    }
   }
 
   return (
     <div style={s.page}>
+      <ConfirmModal
+        open={!!confirmDeleteOpening}
+        title="Delete Opening"
+        message="This job opening will be permanently removed. Applicants already submitted won't be affected."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteOpening) deleteOpeningMut.mutate(confirmDeleteOpening); setConfirmDeleteOpening(null); }}
+        onCancel={() => setConfirmDeleteOpening(null)}
+      />
+      <ConfirmModal
+        open={!!confirmDeleteApp}
+        title="Delete Application"
+        message="This application will be permanently deleted and cannot be recovered."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteApp) deleteMut.mutate(confirmDeleteApp); setConfirmDeleteApp(null); }}
+        onCancel={() => setConfirmDeleteApp(null)}
+      />
       {/* Header */}
       <div style={s.header}>
         <div>
@@ -234,7 +253,7 @@ export default function Careers() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 16 }}>
                     <button style={s.editBtn} onClick={() => startEditOpening(op)}>Edit</button>
-                    <button style={s.deleteBtn} onClick={() => { if (confirm('Delete this opening?')) deleteOpeningMut.mutate(op.id); }}>Delete</button>
+                    <button style={s.deleteBtn} onClick={() => setConfirmDeleteOpening(op.id)}>Delete</button>
                   </div>
                 </div>
               </div>
@@ -273,7 +292,9 @@ export default function Careers() {
       </div>
 
       {/* Table */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.empty}>Loading…</div>
       ) : applications.length === 0 ? (
         <div style={s.empty}>No applications found.</div>
@@ -471,7 +492,7 @@ export default function Careers() {
                 <span style={s.metaText}>Applied {new Date(app.createdAt).toLocaleString()}</span>
                 {isDevAdmin && (
                   <button style={s.deleteBtn}
-                    onClick={() => { if (confirm('Delete this application?')) deleteMut.mutate(app.id); }}>
+                    onClick={() => setConfirmDeleteApp(app.id)}>
                     Delete
                   </button>
                 )}

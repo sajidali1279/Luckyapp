@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { hotFoodApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 import { Flame, Clock, CheckCircle, X, RefreshCw, ChevronDown } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ export default function HotFoodOrders() {
   });
   const stores = (storesData?.data?.data ?? []) as { id: string; name: string }[];
 
-  const { data, isLoading, isRefetching, refetch } = useQuery({
+  const { data, isLoading, isError, isRefetching, refetch } = useQuery({
     queryKey: ['hot-food-orders-admin', filterStore],
     queryFn: () => hotFoodApi.getAllOrders(filterStore ? { storeId: filterStore } : undefined),
     refetchInterval: 20_000,
@@ -234,7 +235,9 @@ export default function HotFoodOrders() {
       </div>
 
       {/* Order grid */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={pg.empty}>Loading orders…</div>
       ) : filtered.length === 0 ? (
         <div style={pg.empty}>
@@ -260,7 +263,7 @@ const pg: Record<string, React.CSSProperties> = {
   container:  { padding: '24px 28px' },
   header:     { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   iconWrap:   { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  title:      { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
+  title:      { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   sub:        { fontSize: 15, color: '#6B7280', marginTop: 2 },
   refreshBtn: { display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 15, cursor: 'pointer', color: '#374151' },
   toolbar:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { offersApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -131,7 +133,9 @@ export default function Offers() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
   const { data: historyData } = useQuery({
     queryKey: ['offers-history'], queryFn: () => offersApi.getHistory(), enabled: showHistory,
   });
@@ -323,8 +327,19 @@ export default function Offers() {
     resetDealForm();
   }
 
+  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load offers." onRetry={refetch} /></div>;
+
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title="Delete Offer"
+        message="This offer will be removed and customers will no longer see it. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteId) deleteMutation.mutate(confirmDeleteId); setConfirmDeleteId(null); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
       {/* Header */}
       <div style={s.header}>
         <div>
@@ -716,7 +731,7 @@ export default function Offers() {
               <h2 style={s.sectionHead}>Active Promotions ({promotionOffers.length})</h2>
               <div style={s.grid}>
                 {promotionOffers.map((offer: any) => (
-                  <OfferCard key={offer.id} offer={offer} onDelete={() => deleteMutation.mutate(offer.id)} onReuse={() => reuseOffer(offer)} />
+                  <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} />
                 ))}
               </div>
             </>
@@ -816,7 +831,7 @@ export default function Offers() {
               <h2 style={s.sectionHead}>Active Deals ({dealOffers.length})</h2>
               <div style={s.grid}>
                 {dealOffers.map((offer: any) => (
-                  <DealCard key={offer.id} offer={offer} onDelete={() => deleteMutation.mutate(offer.id)} />
+                  <DealCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} />
                 ))}
               </div>
             </>

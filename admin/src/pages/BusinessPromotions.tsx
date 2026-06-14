@@ -2,6 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 interface PromoRequest {
   id: string;
@@ -168,8 +170,10 @@ export default function BusinessPromotions() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [publishTarget, setPublishTarget] = useState<PromoRequest | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PromoRequest | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PromoRequest | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['promo-requests', statusFilter],
     queryFn: () => promotionsApi.getRequests(statusFilter || undefined),
   });
@@ -200,8 +204,31 @@ export default function BusinessPromotions() {
     REJECTED: requests.filter(r => r.status === 'REJECTED').length,
   };
 
+  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load promotion requests." onRetry={refetch} /></div>;
+
   return (
     <div style={s.page}>
+      <ConfirmModal
+        open={!!rejectTarget}
+        title="Reject Request"
+        message={`Reject the promotion request from ${rejectTarget?.businessName ?? ''}?`}
+        confirmLabel="Reject"
+        danger
+        withInput
+        inputLabel="Reason (shown to requester)"
+        inputPlaceholder="Explain why this request was rejected…"
+        onConfirm={(note) => { if (rejectTarget) rejectMutation.mutate({ id: rejectTarget.id, note: note || undefined }); setRejectTarget(null); }}
+        onCancel={() => setRejectTarget(null)}
+      />
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete Promotion"
+        message={`Permanently delete the request from ${deleteTarget?.businessName ?? ''}? This cannot be undone.`}
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <div style={s.topBar}>
         <div>
           <h1 style={s.title}>Business Promotions</h1>
@@ -318,10 +345,7 @@ export default function BusinessPromotions() {
                           </button>
                           <button
                             style={s.rejectBtn}
-                            onClick={() => {
-                              const note = window.prompt('Rejection reason (optional):') ?? '';
-                              rejectMutation.mutate({ id: req.id, note: note || undefined });
-                            }}
+                            onClick={() => setRejectTarget(req)}
                             disabled={rejectMutation.isPending}
                           >
                             ✕ Reject
@@ -346,11 +370,7 @@ export default function BusinessPromotions() {
                       )}
                       <button
                         style={s.deleteBtn}
-                        onClick={() => {
-                          if (window.confirm(`Delete promotion request from ${req.businessName}?`)) {
-                            deleteMutation.mutate(req.id);
-                          }
-                        }}
+                        onClick={() => setDeleteTarget(req)}
                         disabled={deleteMutation.isPending}
                       >
                         🗑️ Delete
@@ -377,7 +397,7 @@ export default function BusinessPromotions() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   topBar: { marginBottom: 24 },
-  title: { margin: 0, fontSize: 24, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
   subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },
 
   statsRow: { display: 'flex', gap: 12, marginBottom: 20 },

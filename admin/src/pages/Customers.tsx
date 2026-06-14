@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { customersApi, disputesApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 import { format } from 'date-fns';
 
 function fmt$(n: number) {
@@ -49,7 +50,7 @@ export default function Customers() {
     }
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['customers', search, page],
     queryFn: () => customersApi.list(search, page),
   });
@@ -219,7 +220,9 @@ export default function Customers() {
       </form>
 
       {/* ── Content ── */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.emptyState}>
           <div style={{ fontSize: 32 }}>⏳</div>
           <div style={s.emptyTitle}>Loading customers…</div>

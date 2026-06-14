@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { catalogApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 interface CatalogItem {
   id: string;
@@ -18,9 +20,12 @@ interface CatalogItem {
 }
 
 const CATEGORY_OPTIONS = [
-  { value: 'IN_STORE',  label: '🛒 In-Store',  desc: 'General in-store items' },
-  { value: 'GAS',       label: '⛽ Gas',        desc: 'Fuel & pump rewards' },
-  { value: 'HOT_FOODS', label: '🌮 Hot Foods',  desc: 'Hot food items (select locations)' },
+  { value: 'IN_STORE',     label: '🛒 In-Store',     desc: 'General in-store items' },
+  { value: 'GAS',          label: '⛽ Gas',           desc: 'Fuel & pump rewards' },
+  { value: 'HOT_FOODS',    label: '🌮 Hot Foods',     desc: 'Hot food items (select locations)' },
+  { value: 'GROCERIES',    label: '🛍️ Groceries',    desc: 'Grocery & packaged goods' },
+  { value: 'FROZEN_FOODS', label: '🧊 Frozen Foods',  desc: 'Frozen food items' },
+  { value: 'FRESH_FOODS',  label: '🥗 Fresh Foods',   desc: 'Fresh produce & deli items' },
 ];
 
 const KNOWN_CHAINS = ['Lucky Stop'];
@@ -296,8 +301,9 @@ export default function CatalogPage() {
   const [modalItem, setModalItem] = useState<CatalogItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmItem, setConfirmItem] = useState<CatalogItem | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['catalog-all'],
     queryFn: () => catalogApi.getAll(),
   });
@@ -330,9 +336,7 @@ export default function CatalogPage() {
   function openCreate() { setModalItem(null); setShowModal(true); }
   function openEdit(item: CatalogItem) { setModalItem(item); setShowModal(true); }
   function handleDelete(item: CatalogItem) {
-    if (!window.confirm(`Deactivate "${item.title}"?`)) return;
-    setDeletingId(item.id);
-    deleteMutation.mutate(item.id);
+    setConfirmItem(item);
   }
   function handleSave(formData: Partial<CatalogItem>) {
     if (modalItem) {
@@ -347,8 +351,19 @@ export default function CatalogPage() {
   const visibleItems = items.filter(i => isDevAdmin || i.chain === 'Lucky Stop');
   const activeCount = visibleItems.filter(i => i.isActive).length;
 
+  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load catalog." onRetry={refetch} /></div>;
+
   return (
     <div style={s.page}>
+      <ConfirmModal
+        open={!!confirmItem}
+        title="Deactivate Item"
+        message={`Deactivate "${confirmItem?.title}"? It will be hidden from customers but not permanently deleted.`}
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={() => { if (confirmItem) { setDeletingId(confirmItem.id); deleteMutation.mutate(confirmItem.id); } setConfirmItem(null); }}
+        onCancel={() => setConfirmItem(null)}
+      />
       <div style={s.inner}>
 
         {/* Header */}
@@ -451,7 +466,7 @@ const s: Record<string, React.CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
   pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
   createBtn: {
     background: '#1D3557', color: '#fff', border: 'none',
@@ -547,7 +562,7 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
-    background: '#fff', borderRadius: 18, width: '100%',
+    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 520,
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
     maxHeight: '90vh', overflowY: 'auto',
   },

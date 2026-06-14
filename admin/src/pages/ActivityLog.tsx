@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { auditApi, storesApi } from '../services/api';
+import ErrorState from '../components/ErrorState';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -111,10 +112,10 @@ export default function ActivityLog() {
   if (from)      params.from      = new Date(from).toISOString();
   if (to)        params.to        = new Date(to + 'T23:59:59').toISOString();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['audit-logs', params],
     queryFn: () => auditApi.getLogs(params),
-    refetchInterval: 30000, // auto-refresh every 30s
+    refetchInterval: 30000,
   });
 
   const { data: statsData } = useQuery({
@@ -231,7 +232,9 @@ export default function ActivityLog() {
       </div>
 
       {/* Log table */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.empty}>Loading...</div>
       ) : logs.length === 0 ? (
         <div style={s.empty}>No activity found for the selected filters.</div>
@@ -289,7 +292,7 @@ export default function ActivityLog() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4, fontSize: 14 },
   refreshBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 

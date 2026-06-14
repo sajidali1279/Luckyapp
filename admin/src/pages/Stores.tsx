@@ -1,8 +1,11 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { storesApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
@@ -53,6 +56,7 @@ function storeAvatar(idx: number) { return AVATAR_PALETTE[idx % AVATAR_PALETTE.l
 
 export default function Stores() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [editStore, setEditStore] = useState<Store | null>(null);
@@ -70,7 +74,9 @@ export default function Stores() {
   const [kwForm, setKwForm] = useState({ keyword: '', category: 'GROCERIES' });
   const [kwSaving, setKwSaving] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const [confirmRegenId, setConfirmRegenId] = useState<string | null>(null);
+
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['stores'],
     queryFn: () => storesApi.getAll(),
   });
@@ -171,7 +177,6 @@ export default function Stores() {
   }
 
   async function regenApiKey(storeId: string) {
-    if (!confirm('Regenerate API key? The old key will stop working immediately — update config.json on that store\'s PC.')) return;
     try {
       const res = await storesApi.regenerateApiKey(storeId);
       const key = res.data.data.apiKey;
@@ -284,6 +289,15 @@ export default function Stores() {
 
   return (
     <div style={s.page}>
+      <ConfirmModal
+        open={!!confirmRegenId}
+        title="Regenerate API Key"
+        message="The old key stops working immediately. You must update config.json on that store's POS device before it can process transactions again."
+        confirmLabel="Regenerate"
+        danger
+        onConfirm={() => { if (confirmRegenId) { regenApiKey(confirmRegenId); } setConfirmRegenId(null); }}
+        onCancel={() => setConfirmRegenId(null)}
+      />
       {/* Header */}
       <div style={s.header}>
         <div>
@@ -295,6 +309,8 @@ export default function Stores() {
 
       {isLoading ? (
         <div style={s.empty}>Loading stores…</div>
+      ) : isError ? (
+        <ErrorState message="Failed to load stores." onRetry={refetch} />
       ) : (
         <div style={s.grid}>
           {stores.map((store, idx) => {
@@ -427,7 +443,7 @@ export default function Stores() {
                           <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
-                            <button style={{ ...s.apiKeyBtn, color: '#E63946', borderColor: '#fca5a5' }} onClick={() => regenApiKey(store.id)}>🔄 Regenerate</button>
+                            <button style={{ ...s.apiKeyBtn, color: '#E63946', borderColor: '#fca5a5' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
                             <button style={{ ...s.apiKeyBtn, color: '#6c757d' }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
                           </div>
                         </div>
@@ -450,9 +466,9 @@ export default function Stores() {
                     <span style={s.disputeBannerText}>
                       {pendingDisputesByStore[store.id]} pending dispute{pendingDisputesByStore[store.id] > 1 ? 's' : ''}
                     </span>
-                    <a href="/customers?tab=disputes" style={s.disputeBannerLink} onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.location.href = '/customers'; }}>
+                    <button style={{ ...s.disputeBannerLink, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate('/customers')}>
                       Review →
-                    </a>
+                    </button>
                   </div>
                 )}
 
@@ -685,7 +701,7 @@ const s: Record<string, React.CSSProperties> = {
   gasLabel: { fontSize: 13, fontWeight: 600, color: '#555' },
   gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
   gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#adb5bd', fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
-  gasUpdateBtnActive: { background: '#e8532a', color: '#fff', cursor: 'pointer' },
+  gasUpdateBtnActive: { background: '#1D3557', color: '#fff', cursor: 'pointer' },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
@@ -760,5 +776,5 @@ const s: Record<string, React.CSSProperties> = {
 
   modalActions: { display: 'flex', gap: 10, marginTop: 22 },
   cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: '#6c757d', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  saveBtn: { flex: 2, padding: '11px 0', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  saveBtn: { flex: 2, padding: '11px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { authApi, storesApi, staffApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 
 type Tab = 'list' | 'create';
 
@@ -60,7 +61,7 @@ export default function Staff() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; role: string } | null>(null);
 
   const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll(), enabled: isSuperAdmin });
-  const { data: staffData, isLoading } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list(), enabled: isSuperAdmin });
+  const { data: staffData, isLoading, isError, refetch } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list(), enabled: isSuperAdmin });
 
   const stores: any[] = storesData?.data?.data || [];
   const staffList: any[] = staffData?.data?.data || [];
@@ -216,7 +217,9 @@ export default function Staff() {
 
       {/* ── Staff List ── */}
       {tab === 'list' && (
-        isLoading ? (
+        isError ? (
+          <ErrorState onRetry={refetch} />
+        ) : isLoading ? (
           <div style={s.emptyState}>
             <div style={{ fontSize: 32 }}>⏳</div>
             <div style={s.emptyTitle}>Loading staff…</div>
@@ -605,7 +608,7 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 28, gap: 20, flexWrap: 'wrap',
   },
   pageHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 10 },
-  pageTitle: { fontSize: 24, fontWeight: 800, color: '#111827' },
+  pageTitle: { fontSize: 26, fontWeight: 800, color: '#111827' },
   pageSubRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   statChip: {
     display: 'inline-flex', alignItems: 'center', gap: 5,

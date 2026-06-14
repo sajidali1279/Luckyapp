@@ -288,7 +288,7 @@ function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button onClick={handlePrint} style={rs.printBtn}>
-              🖨️ Download PDF
+              🖨️ Print
             </button>
             <button onClick={onClose} style={rs.closeBtn}>✕</button>
           </div>

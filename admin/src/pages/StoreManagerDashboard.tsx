@@ -1,8 +1,11 @@
-﻿import { useQuery } from '@tanstack/react-query';
+﻿import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { pointsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 function greeting() {
   const h = new Date().getHours();
@@ -14,32 +17,34 @@ function greeting() {
 export default function StoreManagerDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const storeId = user?.storeIds?.[0];
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['store-summary', storeId],
     queryFn: () => pointsApi.getStoreSummary(storeId!),
     enabled: !!storeId,
   });
 
-  const { data: pendingData, refetch: refetchPending } = useQuery({
+  const { data: pendingData } = useQuery({
     queryKey: ['store-pending', storeId],
     queryFn: () => pointsApi.getStoreTransactions(storeId!, 'PENDING'),
     enabled: !!storeId,
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: (txId: string) => pointsApi.reject(txId),
+    onSuccess: () => {
+      toast.success('Transaction rejected');
+      qc.invalidateQueries({ queryKey: ['store-pending', storeId] });
+      qc.invalidateQueries({ queryKey: ['store-summary', storeId] });
+    },
+    onError: () => toast.error('Failed to reject transaction'),
+  });
+
   const summary = data?.data?.data;
   const pendingList = pendingData?.data?.data?.transactions || [];
-
-  async function handleReject(txId: string) {
-    try {
-      await pointsApi.reject(txId);
-      toast.success('Transaction rejected');
-      refetchPending();
-    } catch {
-      toast.error('Failed to reject transaction');
-    }
-  }
 
   if (!storeId) {
     return (
@@ -53,8 +58,23 @@ export default function StoreManagerDashboard() {
     );
   }
 
+  if (isError) return (
+    <div style={s.container}>
+      <ErrorState message="Failed to load store data." onRetry={refetch} />
+    </div>
+  );
+
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={!!confirmRejectId}
+        title="Reject Transaction"
+        message="This transaction will be rejected and the customer will not receive points for it."
+        confirmLabel="Reject"
+        danger
+        onConfirm={() => { if (confirmRejectId) rejectMutation.mutate(confirmRejectId); setConfirmRejectId(null); }}
+        onCancel={() => setConfirmRejectId(null)}
+      />
       {/* Welcome Header */}
       <div style={s.welcomeCard}>
         <div>
@@ -88,30 +108,23 @@ export default function StoreManagerDashboard() {
       {/* Quick Actions */}
       <h2 style={s.sectionTitle}>Quick Actions</h2>
       <div style={s.actionGrid}>
-        <button style={s.actionCard} onClick={() => navigate('/transactions')}>
-          <div style={{ ...s.actionIcon, background: '#F4A261' + '18', color: '#F4A261' }}>🧾</div>
-          <div>
-            <div style={s.actionTitle}>View Transactions</div>
-            <div style={s.actionDesc}>All store transactions with receipts</div>
-          </div>
-          <span style={s.arrow}>›</span>
-        </button>
-        <button style={s.actionCard} onClick={() => navigate('/offers')}>
-          <div style={{ ...s.actionIcon, background: '#E6394618', color: '#E63946' }}>📢</div>
-          <div>
-            <div style={s.actionTitle}>Manage Offers</div>
-            <div style={s.actionDesc}>Create promotions & deals for your store</div>
-          </div>
-          <span style={s.arrow}>›</span>
-        </button>
-        <button style={s.actionCard} onClick={() => navigate('/banners')}>
-          <div style={{ ...s.actionIcon, background: '#2DC65318', color: '#2DC653' }}>🖼️</div>
-          <div>
-            <div style={s.actionTitle}>Manage Banners</div>
-            <div style={s.actionDesc}>Upload promotional images for your store</div>
-          </div>
-          <span style={s.arrow}>›</span>
-        </button>
+        {[
+          { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#F4A261' },
+          { icon: '📢', label: 'Offers', desc: 'Create promotions & deals for your store', to: '/offers', color: '#E63946' },
+          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#2DC653' },
+          { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#7C3AED' },
+          { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#0369a1' },
+          { icon: '📋', label: 'Order Lists', desc: 'Inventory order lists and requests', to: '/order-list', color: '#b45309' },
+        ].map((a) => (
+          <button key={a.to} style={s.actionCard} onClick={() => navigate(a.to)}>
+            <div style={{ ...s.actionIcon, background: a.color + '18', color: a.color }}>{a.icon}</div>
+            <div>
+              <div style={s.actionTitle}>{a.label}</div>
+              <div style={s.actionDesc}>{a.desc}</div>
+            </div>
+            <span style={s.arrow}>›</span>
+          </button>
+        ))}
       </div>
 
       {/* Pending Transactions */}
@@ -134,7 +147,7 @@ export default function StoreManagerDashboard() {
                   {tx.receiptImageUrl && (
                     <a href={tx.receiptImageUrl} target="_blank" rel="noreferrer" style={s.receiptLink}>📄 Receipt</a>
                   )}
-                  <button style={s.rejectBtn} onClick={() => handleReject(tx.id)}>Reject</button>
+                  <button style={s.rejectBtn} onClick={() => setConfirmRejectId(tx.id)} disabled={rejectMutation.isPending}>Reject</button>
                 </div>
               </div>
             ))}
@@ -185,10 +198,10 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
 
   welcomeCard: {
-    background: 'linear-gradient(135deg, #2a6049 0%, #3d8a69 100%)',
+    background: 'linear-gradient(135deg, #12202f 0%, #1D3557 55%, #2a4a73 100%)',
     borderRadius: 16, padding: '28px 32px', marginBottom: 36,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    boxShadow: '0 4px 20px rgba(42,96,73,0.25)',
+    boxShadow: '0 4px 20px rgba(29,53,87,0.28)',
   },
   welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 800, margin: 0 },
   welcomeSub: { color: 'rgba(255,255,255,0.7)', marginTop: 6, fontSize: 14 },

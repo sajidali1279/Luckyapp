@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, productRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -112,6 +114,7 @@ export default function StoreRequests() {
   const [prStatusFilter, setPrStatusFilter] = useState<string>('');
   const [respondTarget, setRespondTarget] = useState<ProductRequest | null>(null);
   const [respondNote, setRespondNote] = useState('');
+  const [confirmAcceptTarget, setConfirmAcceptTarget] = useState<ProductRequest | null>(null);
 
   const { data: storesData } = useQuery({
     queryKey: ['chat-stores'],
@@ -123,7 +126,7 @@ export default function StoreRequests() {
     ? stores[0]?.id
     : selectedStoreId;
 
-  const { data: requestsData, isLoading } = useQuery({
+  const { data: requestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['store-requests', effectiveStoreId, statusFilter],
     queryFn: () => storeRequestApi.getStoreRequests(effectiveStoreId!, statusFilter || undefined),
     enabled: !!effectiveStoreId,
@@ -178,6 +181,14 @@ export default function StoreRequests() {
 
   return (
     <div style={s.page}>
+      <ConfirmModal
+        open={!!confirmAcceptTarget}
+        title="Accept Request"
+        message={`Accept the product request for "${confirmAcceptTarget?.productName}"? The employee who submitted it will be notified.`}
+        confirmLabel="Accept"
+        onConfirm={() => { if (confirmAcceptTarget) respondMutation.mutate({ id: confirmAcceptTarget.id, status: 'ACCEPTED', note: '' }); setConfirmAcceptTarget(null); }}
+        onCancel={() => setConfirmAcceptTarget(null)}
+      />
       {/* ── Sidebar (Chat style) ── */}
       {!isStoreManager && (
         <div style={s.sidebar}>
@@ -273,7 +284,9 @@ export default function StoreRequests() {
                 </div>
 
                 {/* ── Employee List ── */}
-                {isLoading ? (
+                {isError ? (
+                  <ErrorState onRetry={refetch} />
+                ) : isLoading ? (
                   <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptySub}>Loading…</div></div>
                 ) : displayed.length === 0 ? (
                   <div style={s.emptyState}>
@@ -427,7 +440,7 @@ export default function StoreRequests() {
                               <div style={s.prActionRow}>
                                 <button
                                   style={s.prAcceptBtn}
-                                  onClick={() => { if (window.confirm(`Accept request for "${pr.productName}"?`)) respondMutation.mutate({ id: pr.id, status: 'ACCEPTED', note: '' }); }}
+                                  onClick={() => setConfirmAcceptTarget(pr)}
                                   disabled={respondMutation.isPending}
                                 >
                                   ✅ Accept

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -406,6 +407,8 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const qc = useQueryClient();
   const [editingQtyId, setEditingQtyId] = useState<string | null>(null);
   const [editingQty,   setEditingQty]   = useState('');
+  const [confirmCloseList, setConfirmCloseList] = useState(false);
+  const [confirmRemoveItemId, setConfirmRemoveItemId] = useState<string | null>(null);
 
   const { data: reqData, refetch: refetchReqs } = useQuery({
     queryKey: ['pending-reqs-panel', list.store.id],
@@ -488,6 +491,23 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
 
   return (
     <div>
+      <ConfirmModal
+        open={confirmCloseList}
+        title="Close List"
+        message="Close this list? This means the order has been placed and the list will be locked."
+        confirmLabel="Close List"
+        onConfirm={() => { closeMutation.mutate(); setConfirmCloseList(false); }}
+        onCancel={() => setConfirmCloseList(false)}
+      />
+      <ConfirmModal
+        open={!!confirmRemoveItemId}
+        title="Remove Item"
+        message="Remove this item from the order list?"
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => { if (confirmRemoveItemId) removeMutation.mutate(confirmRemoveItemId); setConfirmRemoveItemId(null); }}
+        onCancel={() => setConfirmRemoveItemId(null)}
+      />
       {/* Breadcrumb */}
       <div style={s.breadcrumb}>
         <button style={s.breadcrumbBtn} onClick={onBack}>← All Lists</button>
@@ -514,7 +534,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           <button style={s.printBtn} onClick={() => printList(list)}>🖨 Print</button>
           {canClose && isOpen && (
             <button style={s.closeListBtn}
-              onClick={() => { if (confirm('Close this list? This means the order has been placed.')) closeMutation.mutate(); }}
+              onClick={() => setConfirmCloseList(true)}
               disabled={closeMutation.isPending}>
               {closeMutation.isPending ? 'Closing…' : 'Close List'}
             </button>
@@ -599,7 +619,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           {/* Remove */}
                           {canEdit && isOpen && (
                             <button style={s.removeBtn}
-                              onClick={() => { if (confirm(`Remove "${item.name}"?`)) removeMutation.mutate(item.id); }}>
+                              onClick={() => setConfirmRemoveItemId(item.id)}>
                               ✕
                             </button>
                           )}
@@ -753,6 +773,7 @@ function CategoriesTab() {
   const [editName,     setEditName]     = useState('');
   const [approvingId,  setApprovingId]  = useState<string | null>(null);
   const [approveEdit,  setApproveEdit]  = useState('');
+  const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['order-categories-admin', filterStatus],
@@ -793,6 +814,15 @@ function CategoriesTab() {
 
   return (
     <div>
+      <ConfirmModal
+        open={!!confirmDeleteCatId}
+        title="Delete Category"
+        message="This category will be permanently removed."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteCatId) deleteMutation.mutate(confirmDeleteCatId); setConfirmDeleteCatId(null); }}
+        onCancel={() => setConfirmDeleteCatId(null)}
+      />
       <div style={s.filters}>
         <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">All Statuses</option>
@@ -880,7 +910,7 @@ function CategoriesTab() {
                         Rename
                       </button>
                       <button style={s.deleteBtnSm}
-                        onClick={() => { if (confirm(`Delete category "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
+                        onClick={() => setConfirmDeleteCatId(cat.id)}
                         disabled={deleteMutation.isPending}>Delete</button>
                     </>
                   )}
@@ -1124,7 +1154,7 @@ export default function OrderListPage() {
 const s: Record<string, React.CSSProperties> = {
   page:       { padding: '24px 20px' },
   pageHeader: { marginBottom: 24 },
-  pageTitle:  { fontSize: 24, fontWeight: 800, color: '#1E293B', margin: 0 },
+  pageTitle:  { fontSize: 26, fontWeight: 800, color: '#1E293B', margin: 0 },
   pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
 
   tabs:      { display: 'flex', gap: 4, borderBottom: '2px solid #E2E8F0', marginBottom: 24 },

@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface BillNotes {
   txCount: number; purchaseVolume: number;
@@ -45,6 +46,8 @@ function downloadBillsCSV(invoices: any[]) {
 export default function Billing() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('stores');
+  const [showSeedConfirm, setShowSeedConfirm] = useState(false);
+  const [confirmDeleteChargeId, setConfirmDeleteChargeId] = useState<string | null>(null);
 
   // ── Store billing state ──────────────────────────────────────────────────────
   const [editingStore, setEditingStore] = useState<string | null>(null);
@@ -281,6 +284,24 @@ export default function Billing() {
 
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={showSeedConfirm}
+        title="Seed Test Data"
+        message="This will add 90 days of random test transactions to the live database. Only use this in a development environment. This cannot be undone."
+        confirmLabel="Seed Data"
+        danger
+        onConfirm={() => { seedData.mutate(); setShowSeedConfirm(false); }}
+        onCancel={() => setShowSeedConfirm(false)}
+      />
+      <ConfirmModal
+        open={!!confirmDeleteChargeId}
+        title="Delete Charge"
+        message="This charge will be permanently removed."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteChargeId) deleteCharge.mutate(confirmDeleteChargeId); setConfirmDeleteChargeId(null); }}
+        onCancel={() => setConfirmDeleteChargeId(null)}
+      />
       <h1 style={s.title}>💳 Billing</h1>
 
       {/* ── Revenue summary ─────────────────────────────────────────────────── */}
@@ -449,7 +470,7 @@ export default function Billing() {
               <button style={s.sendBtn} onClick={() => sendReport.mutate()} disabled={sendReport.isPending}>
                 {sendReport.isPending ? '⏳ Sending…' : '📨 Notify Super Admin'}
               </button>
-              <button style={s.clearBtn} onClick={() => { if (confirm('Seed 90 days of random test transactions? This adds data to the DB.')) seedData.mutate(); }} disabled={seedData.isPending}>
+              <button style={s.clearBtn} onClick={() => setShowSeedConfirm(true)} disabled={seedData.isPending}>
                 {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
               </button>
             </div>
@@ -809,10 +830,7 @@ export default function Billing() {
                                     <button
                                       style={{ ...s.cancelBtn, borderColor: '#fca5a5', color: '#dc2626' }}
                                       disabled={deleteCharge.isPending}
-                                      onClick={() => {
-                                        if (confirm(`Delete "${charge.description || 'this charge'}" (${fmt$(parseFloat(charge.amount))})?`))
-                                          deleteCharge.mutate(charge.id);
-                                      }}>
+                                      onClick={() => setConfirmDeleteChargeId(charge.id)}>
                                       Delete
                                     </button>
                                   </>
@@ -1435,7 +1453,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
 
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: '0 0 20px' },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: '0 0 20px' },
   loading: { padding: 32, textAlign: 'center', color: '#6c757d' },
 
   // Revenue summary

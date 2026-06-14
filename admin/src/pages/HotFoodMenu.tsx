@@ -1,9 +1,10 @@
 ﻿import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { hotFoodApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { Flame, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,10 +137,11 @@ export default function HotFoodMenu() {
   const storeId = isManager ? user?.storeIds?.[0] : undefined;
 
   const [filterStore, setFilterStore] = useState(storeId ?? '');
-  const [editItem, setEditItem]       = useState<MenuItem | null | 'new'>('new' as any);
+  const [editItem, setEditItem]       = useState<MenuItem | null>(null);
   const [showModal, setShowModal]     = useState(false);
   const [deletingId, setDeletingId]   = useState<string | null>(null);
   const [togglingId, setTogglingId]   = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
@@ -169,22 +171,23 @@ export default function HotFoodMenu() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this menu item? This cannot be undone.')) return;
-    setDeletingId(id);
-    try {
-      await hotFoodApi.deleteItem(id);
-      qc.invalidateQueries({ queryKey: ['hot-food-menu-admin'] });
-      toast.success('Item deleted');
-    } catch {
-      toast.error('Failed to delete');
-    } finally {
-      setDeletingId(null);
-    }
-  }
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => hotFoodApi.deleteItem(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hot-food-menu-admin'] }); toast.success('Item deleted'); setDeletingId(null); },
+    onError: () => { toast.error('Failed to delete'); setDeletingId(null); },
+  });
 
   return (
     <div style={pg.container}>
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title="Delete Menu Item"
+        message="This item will be permanently removed from the menu. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmDeleteId) { setDeletingId(confirmDeleteId); deleteMutation.mutate(confirmDeleteId); } setConfirmDeleteId(null); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
       {/* Page header */}
       <div style={pg.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -270,7 +273,7 @@ export default function HotFoodMenu() {
                         </button>
                         <button
                           style={{ ...tbl.iconBtn, color: '#EF4444', opacity: deletingId === item.id ? 0.5 : 1 }}
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => setConfirmDeleteId(item.id)}
                           disabled={deletingId === item.id}
                           title="Delete"
                         >
@@ -305,7 +308,7 @@ const pg: Record<string, React.CSSProperties> = {
   container: { padding: '24px 28px' },
   header:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   iconWrap:  { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  title:     { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
+  title:     { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   sub:       { fontSize: 15, color: '#6B7280', marginTop: 2 },
   addBtn:    { display: 'flex', alignItems: 'center', gap: 6, background: '#EA580C', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' },
   filterBar: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },

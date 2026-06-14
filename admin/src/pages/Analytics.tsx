@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import ErrorState from '../components/ErrorState';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
@@ -44,7 +45,7 @@ export default function Analytics() {
     ? { from: customFrom, to: customTo }
     : rangeToDateStr(range);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['analytics', from, to],
     queryFn: () => billingApi.getAnalytics(from, to),
     enabled: !!(from && to),
@@ -98,7 +99,9 @@ export default function Analytics() {
         </div>
       )}
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.loading}>Loading analytics...</div>
       ) : !analytics ? (
         <div style={s.loading}>No data available.</div>
@@ -251,7 +254,7 @@ function SummaryCard({ icon, label, value, green }: { icon: string; label: strin
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4 },
 
   rangeControls: { display: 'flex', gap: 8, flexWrap: 'wrap' },

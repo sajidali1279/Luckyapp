@@ -31,6 +31,7 @@ import {
   ShoppingCart,
   Briefcase,
   Trophy,
+  Percent,
   Megaphone,
   Receipt,
   Activity,
@@ -285,8 +286,8 @@ export function AppSidebar() {
               <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
-                  <SidebarNavItem to="/rates" icon={<Trophy size={16} />} label="Tier Rates" />
-                  <SidebarNavItem to="/leaderboard" icon={<Activity size={16} />} label="Leaderboard" />
+                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Tier Rates" />
+                  <SidebarNavItem to="/leaderboard" icon={<Trophy size={16} />} label="Leaderboard" />
                 </>
               )}
               {isDevAdmin && (

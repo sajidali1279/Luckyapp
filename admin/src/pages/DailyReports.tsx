@@ -2,6 +2,7 @@ import { useState, useMemo, CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { dailyReportApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -162,7 +163,7 @@ export default function DailyReports() {
   // Store managers use their own store
   const storeId = isManager ? (user as any)?.storeIds?.[0] : selectedStoreId;
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['daily-reports', storeId, date],
     queryFn: () => dailyReportApi.getByDate(storeId || undefined, date),
     enabled: !!date,
@@ -216,7 +217,9 @@ export default function DailyReports() {
       )}
 
       {/* Content */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.empty}>Loading reports…</div>
       ) : reports.length === 0 ? (
         <div style={s.emptyState}>
@@ -257,7 +260,7 @@ const s: Record<string, CSSProperties> = {
     width: 42,
     height: 42,
     borderRadius: 11,
-    background: 'oklch(0.50 0.22 27)',
+    background: '#C0392B',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -265,7 +268,7 @@ const s: Record<string, CSSProperties> = {
   },
   title: {
     margin: 0,
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 700,
     color: '#111827',
     lineHeight: 1.2,
@@ -352,7 +355,7 @@ const s: Record<string, CSSProperties> = {
     width: 34,
     height: 34,
     borderRadius: '50%',
-    background: 'oklch(0.50 0.22 27)',
+    background: '#C0392B',
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
@@ -378,8 +381,8 @@ const s: Record<string, CSSProperties> = {
   },
   storeBadge: {
     display: 'inline-block',
-    background: 'oklch(0.50 0.22 27 / 0.1)',
-    color: 'oklch(0.50 0.22 27)',
+    background: '#FDECEA',
+    color: '#C0392B',
     fontSize: 11,
     fontWeight: 700,
     padding: '1px 7px',

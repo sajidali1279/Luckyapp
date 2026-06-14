@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { leaderboardApi, storesApi } from '../services/api';
+import ErrorState from '../components/ErrorState';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -26,7 +27,7 @@ export default function LeaderboardPage() {
   });
   const stores: Store[] = storesData?.data?.data || [];
 
-  const { data: custData, isLoading: custLoading } = useQuery({
+  const { data: custData, isLoading: custLoading, isError: custError, refetch: refetchCust } = useQuery({
     queryKey: ['leaderboard-customers', customerStoreId],
     queryFn: () => leaderboardApi.getCustomers(customerStoreId || undefined),
     staleTime: 2 * 60 * 1000,
@@ -76,7 +77,9 @@ export default function LeaderboardPage() {
               </select>
             </div>
 
-            {custLoading ? (
+            {custError ? (
+              <ErrorState onRetry={refetchCust} />
+            ) : custLoading ? (
               <div style={s.loading}>Loading…</div>
             ) : customers.length === 0 ? (
               <div style={s.empty}>
@@ -220,7 +223,7 @@ const s: Record<string, React.CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
   pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
 
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 },

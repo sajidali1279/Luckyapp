@@ -7,6 +7,7 @@ import {
   Flame, Clock, CheckCircle, X, RefreshCw, ChevronDown,
   Plus, Pencil, Trash2, Building2, Search, ImageIcon,
 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -279,6 +280,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
 }) {
   const [localSelected, setLocalSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const qc = useQueryClient();
 
   const { data: assignData, isLoading: assignLoading } = useQuery({
@@ -331,7 +333,6 @@ function AssignModal({ item, stores, onClose, onEdit }: {
   }
 
   async function handleDelete() {
-    if (!confirm(`Remove "${item.name}" from the catalog? It will be unassigned from all stores.`)) return;
     try {
       await hotFoodCatalogApi.delete(item.id);
       qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
@@ -347,6 +348,15 @@ function AssignModal({ item, stores, onClose, onEdit }: {
 
   return (
     <div style={md.overlay} onClick={onClose}>
+      <ConfirmModal
+        open={confirmDelete}
+        title="Remove from Catalog"
+        message={`Remove "${item.name}" from the catalog? It will be unassigned from all stores.`}
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => { setConfirmDelete(false); handleDelete(); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
       <div style={{ ...md.panel, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
         {/* Item row */}
         <div style={am.itemRow}>
@@ -369,7 +379,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             <button style={am.iconBtn} onClick={onEdit} title="Edit item"><Pencil size={14} color="#1D4ED8" /></button>
-            <button style={{ ...am.iconBtn, background: '#FEF2F2' }} onClick={handleDelete} title="Delete item"><Trash2 size={14} color="#EF4444" /></button>
+            <button style={{ ...am.iconBtn, background: '#FEF2F2' }} onClick={() => setConfirmDelete(true)} title="Delete item"><Trash2 size={14} color="#EF4444" /></button>
           </div>
         </div>
 
@@ -702,7 +712,7 @@ const pg: Record<string, React.CSSProperties> = {
   container:    { padding: '24px 28px', minHeight: '100%' },
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
   iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  title:        { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
+  title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   sub:          { fontSize: 13, color: '#6B7280', marginTop: 2 },
 
   toggle:       { display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 3, gap: 2 },

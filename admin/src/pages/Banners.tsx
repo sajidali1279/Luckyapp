@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { bannersApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 export default function Banners() {
   const qc = useQueryClient();
@@ -14,8 +16,9 @@ export default function Banners() {
   const [storeId, setStoreId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['banners'],
     queryFn: () => bannersApi.getActive(),
   });
@@ -57,9 +60,19 @@ export default function Banners() {
   }
 
   const banners = data?.data?.data || [];
+  const storeMap: Record<string, string> = Object.fromEntries(stores.map((st: any) => [st.id, st.name]));
 
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={!!confirmId}
+        title="Delete Banner"
+        message="This banner will be removed from the app immediately. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => { if (confirmId) deleteMutation.mutate(confirmId); setConfirmId(null); }}
+        onCancel={() => setConfirmId(null)}
+      />
       <div style={s.header}>
         <div>
           <h1 style={s.title}>Banners</h1>
@@ -113,6 +126,8 @@ export default function Banners() {
 
       {isLoading ? (
         <div style={s.empty}>Loading...</div>
+      ) : isError ? (
+        <ErrorState message="Failed to load banners." onRetry={refetch} />
       ) : banners.length === 0 ? (
         <div style={s.empty}>No active banners. Upload one above.</div>
       ) : (
@@ -123,11 +138,13 @@ export default function Banners() {
               <div style={s.cardInfo}>
                 <h3 style={s.cardTitle}>{banner.title}</h3>
                 <span style={banner.storeId ? s.tagStore : s.tagAll}>
-                  {banner.storeId ? '📍 Specific Store' : '🌐 All Stores'}
+                  {banner.storeId
+                    ? `📍 ${storeMap[banner.storeId] || 'Specific Store'}`
+                    : '🌐 All Stores'}
                 </span>
                 <p style={s.cardDate}>Added {new Date(banner.createdAt).toLocaleDateString()}</p>
               </div>
-              <button style={s.deleteBtn} onClick={() => deleteMutation.mutate(banner.id)}>Delete</button>
+              <button style={s.deleteBtn} onClick={() => setConfirmId(banner.id)}>Delete</button>
             </div>
           ))}
         </div>
@@ -150,7 +167,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
-  saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
+  saveBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
 
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {

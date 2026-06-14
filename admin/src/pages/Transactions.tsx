@@ -6,6 +6,8 @@ import { pointsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import api from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -48,6 +50,8 @@ export default function Transactions() {
   const qc = useQueryClient();
   const location = useLocation();
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
 
   // Filters
   const [selectedStore, setSelectedStore] = useState<string>('');
@@ -94,14 +98,14 @@ export default function Transactions() {
   if (from)           allTxParams.from      = new Date(from).toISOString();
   if (to)             allTxParams.to        = new Date(to).toISOString();
 
-  const { data: allTxData, isLoading: allTxLoading } = useQuery({
+  const { data: allTxData, isLoading: allTxLoading, isError: allTxError, refetch: refetchAll } = useQuery({
     queryKey: ['all-transactions', allTxParams],
     queryFn: () => pointsApi.getAllTransactions(allTxParams),
     enabled: isSuperAdmin,
   });
 
   // StoreManager: use per-store endpoint
-  const { data: storeTxData, isLoading: storeTxLoading } = useQuery({
+  const { data: storeTxData, isLoading: storeTxLoading, isError: storeTxError, refetch: refetchStore } = useQuery({
     queryKey: ['transactions', selectedStore, statusFilter, page],
     queryFn: () => pointsApi.getStoreTransactions(selectedStore, statusFilter || undefined, page),
     enabled: !isSuperAdmin && !!selectedStore,
@@ -140,6 +144,8 @@ export default function Transactions() {
   const limit = isSuperAdmin ? 25 : (storeTxData?.data?.data?.limit || 20);
   const totalPages = Math.ceil(total / limit);
   const isLoading = isSuperAdmin ? allTxLoading : storeTxLoading;
+  const isError = isSuperAdmin ? allTxError : storeTxError;
+  const refetch = isSuperAdmin ? refetchAll : refetchStore;
   const summary = allTxData?.data?.data?.summary;
 
   function resetFilters() {
@@ -175,6 +181,15 @@ export default function Transactions() {
 
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={!!confirmRejectId}
+        title="Reject Transaction"
+        message="This transaction will be marked as rejected and the customer will not receive points for it."
+        confirmLabel="Reject"
+        danger
+        onConfirm={() => { if (confirmRejectId) rejectMutation.mutate(confirmRejectId); setConfirmRejectId(null); }}
+        onCancel={() => setConfirmRejectId(null)}
+      />
       <div style={s.header}>
         <div>
           <h1 style={s.title}>🧾 Transactions</h1>
@@ -256,6 +271,8 @@ export default function Transactions() {
       {/* ── Table ── */}
       {!isSuperAdmin && !selectedStore ? (
         <div style={s.empty}>Select a store to view transactions.</div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} />
       ) : isLoading ? (
         <div style={s.empty}>Loading...</div>
       ) : transactions.length === 0 ? (
@@ -320,7 +337,7 @@ export default function Transactions() {
                   </td>
                   <td style={s.td}>
                     {tx.status === 'PENDING' && (
-                      <button style={s.rejectBtn} onClick={() => rejectMutation.mutate(tx.id)}>Reject</button>
+                      <button style={s.rejectBtn} onClick={() => setConfirmRejectId(tx.id)}>Reject</button>
                     )}
                     {tx.status === 'FLAGGED' && (
                       <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
@@ -353,7 +370,7 @@ export default function Transactions() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  title: { fontSize: 28, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
   sub: { color: '#6c757d', marginTop: 4, marginBottom: 0 },
   totalBadge: { fontSize: 15, color: '#6c757d', fontWeight: 600, alignSelf: 'center' },
 
