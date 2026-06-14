@@ -8,7 +8,7 @@
     "icon": "./assets/store-icon-512.png",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#1D3557"
     },
     "ios": {
