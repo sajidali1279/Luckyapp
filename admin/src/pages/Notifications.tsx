@@ -529,8 +529,8 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   tabRow: {
-    display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-end',
-    marginBottom: 24, borderBottom: '2px solid #e5e7eb', paddingBottom: 0,
+    display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'flex-end',
+    overflowX: 'auto', marginBottom: 24, borderBottom: '2px solid #e5e7eb', paddingBottom: 0,
   },
   tab: {
     background: 'none', border: 'none', padding: '9px 16px',

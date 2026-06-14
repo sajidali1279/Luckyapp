@@ -475,7 +475,7 @@ const s: Record<string, React.CSSProperties> = {
   emptySub: { fontSize: 15, color: '#9ca3af' },
 
   // Tabs
-  tabs: { display: 'flex', gap: 4, alignItems: 'flex-end', marginBottom: 24, borderBottom: '2px solid #f0f1f2', paddingBottom: 0 },
+  tabs: { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', marginBottom: 24, borderBottom: '2px solid #f0f1f2', paddingBottom: 0 },
   tab: {
     padding: '10px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
     fontSize: 14, fontWeight: 600, color: '#9ca3af', borderBottom: '2px solid transparent', marginBottom: -2,
