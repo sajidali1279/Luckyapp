@@ -16,7 +16,7 @@ async function uploadImage(buffer: Buffer): Promise<string> {
 // POST /daily-reports
 export async function createReport(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
-  const storeId = (req.user as any).storeIds?.[0] ?? req.body.storeId;
+  const storeId = req.body.storeId || (req.user as any).storeIds?.[0];
 
   if (!storeId) {
     res.status(400).json({ success: false, error: 'No store assigned to your account' });
@@ -49,7 +49,10 @@ export async function createReport(req: AuthRequest, res: Response) {
       notes:         notes?.trim() || null,
       imageUrl,
     },
-    include: { submittedBy: { select: { id: true, name: true, phone: true } } },
+    include: {
+      submittedBy: { select: { id: true, name: true, phone: true } },
+      store:       { select: { id: true, name: true } },
+    },
   });
 
   const submitterName = report.submittedBy.name || report.submittedBy.phone || 'An employee';
@@ -71,7 +74,10 @@ export async function getTodayReports(req: AuthRequest, res: Response) {
 
   const reports = await prisma.dailyReport.findMany({
     where: { storeId, reportDate: date },
-    include: { submittedBy: { select: { id: true, name: true, phone: true } } },
+    include: {
+      submittedBy: { select: { id: true, name: true, phone: true } },
+      store:       { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -88,7 +94,10 @@ export async function getReportsByDate(req: AuthRequest, res: Response) {
 
   const reports = await prisma.dailyReport.findMany({
     where,
-    include: { submittedBy: { select: { id: true, name: true, phone: true } } },
+    include: {
+      submittedBy: { select: { id: true, name: true, phone: true } },
+      store:       { select: { id: true, name: true } },
+    },
     orderBy: { createdAt: 'desc' },
     take: 200,
   });

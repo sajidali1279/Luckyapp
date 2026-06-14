@@ -11,6 +11,7 @@ interface Store { id: string; name: string; storeNumber?: string }
 interface DailyReport {
   id: string;
   storeId: string;
+  store: { id: string; name: string };
   reportDate: string;
   gasPrice: number | null;
   dieselPrice: number | null;
@@ -42,7 +43,7 @@ function fmtDate(dateStr: string) {
 
 // ─── Report Card ──────────────────────────────────────────────────────────────
 
-function ReportCard({ report }: { report: DailyReport }) {
+function ReportCard({ report, showStore }: { report: DailyReport; showStore: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const initials = (report.submittedBy.name || report.submittedBy.phone || '?').slice(0, 2).toUpperCase();
 
@@ -54,7 +55,10 @@ function ReportCard({ report }: { report: DailyReport }) {
           <div style={s.avatar}>{initials}</div>
           <div>
             <div style={s.submitterName}>{report.submittedBy.name || report.submittedBy.phone}</div>
-            <div style={s.submittedAt}>Submitted at {fmtTime(report.createdAt)}</div>
+            <div style={s.submittedAt}>
+              {showStore && <span style={s.storeBadge}>{report.store.name}</span>}
+              Submitted at {fmtTime(report.createdAt)}
+            </div>
           </div>
         </div>
         <div style={s.pillRow}>
@@ -220,7 +224,7 @@ export default function DailyReports() {
       ) : (
         <div style={s.reportList}>
           <div style={s.reportCount}>{reports.length} report{reports.length !== 1 ? 's' : ''}</div>
-          {reports.map(r => <ReportCard key={r.id} report={r} />)}
+          {reports.map(r => <ReportCard key={r.id} report={r} showStore={!storeId} />)}
         </div>
       )}
     </div>
@@ -365,6 +369,18 @@ const s: Record<string, CSSProperties> = {
     color: '#9CA3AF',
     textAlign: 'left' as const,
     marginTop: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+  },
+  storeBadge: {
+    display: 'inline-block',
+    background: 'oklch(0.50 0.22 27 / 0.1)',
+    color: 'oklch(0.50 0.22 27)',
+    fontSize: 11,
+    fontWeight: 700,
+    padding: '1px 7px',
+    borderRadius: 20,
   },
   pillRow: {
     display: 'flex',

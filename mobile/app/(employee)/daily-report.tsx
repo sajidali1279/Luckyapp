@@ -176,20 +176,26 @@ function ReportCard({ report }: { report: DailyReport }) {
 
 // ─── Submit Form Sheet ────────────────────────────────────────────────────────
 
+interface StoreOption { id: string; name: string; gasPricePerGallon?: number | null; dieselPricePerGallon?: number | null }
+
 interface FormSheetProps {
   visible: boolean;
-  storeName: string;
-  storeGasPrice?: number | null;
-  storeDieselPrice?: number | null;
+  stores: StoreOption[];
+  defaultStoreId?: string;
   onClose: () => void;
   onSubmitted: () => void;
 }
 
-function FormSheet({ visible, storeName, storeGasPrice, storeDieselPrice, onClose, onSubmitted }: FormSheetProps) {
+function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: FormSheetProps) {
   const now = new Date();
 
-  const [gasPrice,       setGasPrice]       = useState(storeGasPrice != null ? storeGasPrice.toFixed(3) : '');
-  const [dieselPrice,    setDieselPrice]    = useState(storeDieselPrice != null ? storeDieselPrice.toFixed(3) : '');
+  const [selectedStoreId, setSelectedStoreId] = useState(defaultStoreId || stores[0]?.id || '');
+  const [showStorePicker,  setShowStorePicker] = useState(false);
+
+  const selectedStore = stores.find(s => s.id === selectedStoreId) ?? stores[0];
+
+  const [gasPrice,       setGasPrice]       = useState(selectedStore?.gasPricePerGallon != null ? selectedStore.gasPricePerGallon.toFixed(3) : '');
+  const [dieselPrice,    setDieselPrice]    = useState(selectedStore?.dieselPricePerGallon != null ? selectedStore.dieselPricePerGallon.toFixed(3) : '');
   const [regGasGal,      setRegGasGal]      = useState('');
   const [midGradeGasGal, setMidGradeGasGal] = useState('');
   const [premiumGasGal,  setPremiumGasGal]  = useState('');
@@ -199,8 +205,8 @@ function FormSheet({ visible, storeName, storeGasPrice, storeDieselPrice, onClos
   const [submitting,     setSubmitting]     = useState(false);
 
   function resetForm() {
-    setGasPrice(storeGasPrice != null ? storeGasPrice.toFixed(3) : '');
-    setDieselPrice(storeDieselPrice != null ? storeDieselPrice.toFixed(3) : '');
+    setGasPrice(selectedStore?.gasPricePerGallon != null ? selectedStore.gasPricePerGallon.toFixed(3) : '');
+    setDieselPrice(selectedStore?.dieselPricePerGallon != null ? selectedStore.dieselPricePerGallon.toFixed(3) : '');
     setRegGasGal(''); setMidGradeGasGal(''); setPremiumGasGal('');
     setCigsCount(''); setNotes(''); setImageUri(null);
   }
@@ -235,6 +241,7 @@ function FormSheet({ visible, storeName, storeGasPrice, storeDieselPrice, onClos
     try {
       const fd = new FormData();
       fd.append('reportDate', todayStr());
+      if (selectedStoreId) fd.append('storeId', selectedStoreId);
       if (gasPrice.trim())       fd.append('gasPrice',       gasPrice.trim());
       if (dieselPrice.trim())    fd.append('dieselPrice',    dieselPrice.trim());
       if (regGasGal.trim())      fd.append('regGasGal',      regGasGal.trim());
@@ -277,10 +284,43 @@ function FormSheet({ visible, storeName, storeGasPrice, storeDieselPrice, onClos
 
             {/* ── Auto-fill info ── */}
             <View style={fs.infoBlock}>
-              <View style={fs.infoRow}>
+              {/* Store picker row */}
+              <TouchableOpacity
+                style={fs.infoRow}
+                onPress={() => setShowStorePicker(v => !v)}
+                activeOpacity={0.75}
+              >
                 <Text style={fs.infoLabel}>Store</Text>
-                <Text style={fs.infoVal}>{storeName}</Text>
-              </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[fs.infoVal, { color: COLORS.secondary }]}>{selectedStore?.name || 'Select store'}</Text>
+                  <Text style={{ fontSize: 10, color: COLORS.secondary }}>{showStorePicker ? '▲' : '▼'}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Inline store list */}
+              {showStorePicker && (
+                <View style={fs.storePicker}>
+                  {stores.map(store => (
+                    <TouchableOpacity
+                      key={store.id}
+                      style={[fs.storeOption, store.id === selectedStoreId && fs.storeOptionSelected]}
+                      onPress={() => {
+                        setSelectedStoreId(store.id);
+                        setGasPrice(store.gasPricePerGallon != null ? store.gasPricePerGallon.toFixed(3) : '');
+                        setDieselPrice(store.dieselPricePerGallon != null ? store.dieselPricePerGallon.toFixed(3) : '');
+                        setShowStorePicker(false);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[fs.storeOptionText, store.id === selectedStoreId && fs.storeOptionTextSelected]}>
+                        {store.name}
+                      </Text>
+                      {store.id === selectedStoreId && <Text style={{ fontSize: 12, color: COLORS.secondary }}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <View style={fs.infoRow}>
                 <Text style={fs.infoLabel}>Date</Text>
                 <Text style={fs.infoVal}>{now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
@@ -445,9 +485,7 @@ export default function DailyReportScreen() {
     queryFn: storesApi.getGasPrices,
     staleTime: 5 * 60 * 1000,
   });
-  const allStores: any[] = storesData?.data?.data || [];
-  const myStore = allStores.find((s: any) => s.id === storeId);
-  const storeName = myStore?.name || 'My Store';
+  const allStores: StoreOption[] = storesData?.data?.data || [];
 
   // Today's reports
   const { data: reportData, isLoading, refetch } = useQuery({
@@ -506,7 +544,7 @@ export default function DailyReportScreen() {
           <View style={s.emptyBox}>
             <Text style={s.emptyEmoji}>📋</Text>
             <Text style={s.emptyTitle}>No reports yet today</Text>
-            <Text style={s.emptySub}>Submit the first daily report for {storeName}.</Text>
+            <Text style={s.emptySub}>Submit the first daily report for today.</Text>
           </View>
         )}
 
@@ -520,9 +558,8 @@ export default function DailyReportScreen() {
 
       <FormSheet
         visible={showForm}
-        storeName={storeName}
-        storeGasPrice={myStore?.gasPricePerGallon}
-        storeDieselPrice={myStore?.dieselPricePerGallon}
+        stores={allStores}
+        defaultStoreId={storeId}
         onClose={() => setShowForm(false)}
         onSubmitted={handleSubmitted}
       />
@@ -667,6 +704,19 @@ const fs = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
   },
   photoBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
+
+  storePicker: {
+    backgroundColor: '#F8FAFC', borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+  storeOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
+  },
+  storeOptionSelected: { backgroundColor: '#EFF6FF' },
+  storeOptionText: { fontSize: 13.5, color: '#374151', fontWeight: '500' },
+  storeOptionTextSelected: { color: COLORS.secondary, fontWeight: '700' },
 
   notesInput: { minHeight: 80, textAlignVertical: 'top', marginBottom: 20 },
 
