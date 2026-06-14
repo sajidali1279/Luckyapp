@@ -7,8 +7,6 @@
     "userInterfaceStyle": "light",
     "icon": "./assets/store-icon-512.png",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
       "backgroundColor": "#1D3557"
     },
     "ios": {
@@ -34,9 +32,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1D3557",
-          "image": "./assets/splash.png",
-          "resizeMode": "cover"
+          "backgroundColor": "#1D3557"
         }
       ],
       [
