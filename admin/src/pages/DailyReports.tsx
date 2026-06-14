@@ -1,4 +1,4 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useMemo, CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { dailyReportApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -43,7 +43,7 @@ function fmtDate(dateStr: string) {
 
 // ─── Report Card ──────────────────────────────────────────────────────────────
 
-function ReportCard({ report, showStore }: { report: DailyReport; showStore: boolean }) {
+function ReportCard({ report, showStore, storeMap }: { report: DailyReport; showStore: boolean; storeMap: Record<string, string> }) {
   const [expanded, setExpanded] = useState(false);
   const initials = (report.submittedBy.name || report.submittedBy.phone || '?').slice(0, 2).toUpperCase();
 
@@ -56,7 +56,9 @@ function ReportCard({ report, showStore }: { report: DailyReport; showStore: boo
           <div>
             <div style={s.submitterName}>{report.submittedBy.name || report.submittedBy.phone}</div>
             <div style={s.submittedAt}>
-              {showStore && report.store?.name && <span style={s.storeBadge}>{report.store.name}</span>}
+              {showStore && (report.store?.name || storeMap[report.storeId]) && (
+                <span style={s.storeBadge}>{report.store?.name ?? storeMap[report.storeId]}</span>
+              )}
               Submitted at {fmtTime(report.createdAt)}
             </div>
           </div>
@@ -155,6 +157,7 @@ export default function DailyReports() {
     enabled: !isManager,
   });
   const stores: Store[] = storesData?.data?.data ?? [];
+  const storeMap = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s.name])), [stores]);
 
   // Store managers use their own store
   const storeId = isManager ? (user as any)?.storeIds?.[0] : selectedStoreId;
@@ -224,7 +227,7 @@ export default function DailyReports() {
       ) : (
         <div style={s.reportList}>
           <div style={s.reportCount}>{reports.length} report{reports.length !== 1 ? 's' : ''}</div>
-          {reports.map(r => <ReportCard key={r.id} report={r} showStore={!storeId} />)}
+          {reports.map(r => <ReportCard key={r.id} report={r} showStore={!storeId} storeMap={storeMap} />)}
         </div>
       )}
     </div>
