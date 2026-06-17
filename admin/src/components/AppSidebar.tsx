@@ -284,8 +284,12 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" />
-              <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
-              <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
+              {!isStoreManager && (
+                <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
+              )}
+              {!isStoreManager && (
+                <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
+              )}
               {(isDevAdmin || isSuperAdmin) && (
                 <>
                   <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Tier Rates" />

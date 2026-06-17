@@ -487,11 +487,11 @@ router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRol
 // ─── Daily Reports ────────────────────────────────────────────────────────────
 router.post('/daily-reports',       authenticate, requireRole(Role.EMPLOYEE), upload.single('image'), createReport);
 router.get('/daily-reports/today',  authenticate, requireRole(Role.EMPLOYEE), getTodayReports);
-router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER), getReportsByDate);
+router.get('/daily-reports',        authenticate, requireRole(Role.SUPER_ADMIN), getReportsByDate);
 
 // ─── Daily Tasks ──────────────────────────────────────────────────────────────
 router.get('/daily-tasks',               authenticate, getTasks);
-router.get('/admin/daily-tasks',         authenticate, requireRole(Role.STORE_MANAGER), adminGetTasks);
+router.get('/admin/daily-tasks',         authenticate, requireRole(Role.SUPER_ADMIN), adminGetTasks);
 router.post('/admin/daily-tasks/seed',   authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
 router.post('/admin/daily-tasks',        authenticate, requireRole(Role.SUPER_ADMIN), createTask);
 router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.SUPER_ADMIN), updateTask);
