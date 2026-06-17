@@ -490,12 +490,12 @@ router.get('/daily-reports/today',  authenticate, requireRole(Role.EMPLOYEE), ge
 router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER), getReportsByDate);
 
 // ─── Daily Tasks ──────────────────────────────────────────────────────────────
-router.get('/daily-tasks',                    authenticate, getTasks);
-router.get('/admin/daily-tasks',              authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN, Role.STORE_MANAGER), adminGetTasks);
-router.post('/admin/daily-tasks/seed',        authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
-router.post('/admin/daily-tasks',             authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), createTask);
-router.patch('/admin/daily-tasks/:id',        authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), updateTask);
-router.delete('/admin/daily-tasks/:id',       authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), deleteTask);
+router.get('/daily-tasks',               authenticate, getTasks);
+router.get('/admin/daily-tasks',         authenticate, requireRole(Role.STORE_MANAGER), adminGetTasks);
+router.post('/admin/daily-tasks/seed',   authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
+router.post('/admin/daily-tasks',        authenticate, requireRole(Role.SUPER_ADMIN), createTask);
+router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.SUPER_ADMIN), updateTask);
+router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteTask);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
