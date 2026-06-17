@@ -556,3 +556,29 @@ export function FileCheckIcon({ size = 24, color = '#212529', strokeWidth = 1.75
     </Svg>
   );
 }
+
+export function ListChecksIcon({ size = 24, color = '#212529', strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 6h.01M3 12h.01M3 18h.01" stroke={color} strokeWidth={strokeWidth + 0.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8 6h13M8 12h13M8 18h13" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="m5 6-1 1-1-1" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ChevronUpIcon({ size = 24, color = '#212529', strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="m18 15-6-6-6 6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CircleIcon({ size = 24, color = '#212529', strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}

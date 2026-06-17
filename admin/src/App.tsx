@@ -44,6 +44,7 @@ const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
 const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
 const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 const DailyReports           = lazy(() => import('./pages/DailyReports'));
+const DailyTasks             = lazy(() => import('./pages/DailyTasks'));
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,7 @@ export default function App() {
               <Route path="/hot-food/menu" element={<HotFoodMenu />} />
               <Route path="/hot-food/orders" element={<HotFoodOrders />} />
               <Route path="/daily-reports" element={<DailyReports />} />
+              <Route path="/daily-tasks" element={<DailyTasks />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>

@@ -8,7 +8,7 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, CameraIcon, CalendarIcon, MessageCircleIcon,
   ClipboardIcon, BellIcon, TrophyIcon, PackageIcon, FlameIcon,
-  UserIcon, BookOpenIcon, FileCheckIcon,
+  UserIcon, BookOpenIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
 
 export default function EmployeeLayout() {
@@ -60,6 +60,7 @@ export default function EmployeeLayout() {
         { route: '/(employee)/stock-request', icon: (p) => <PackageIcon {...p} />,       label: t('nav.stockRequest') },
         { route: '/(employee)/hot-food',      icon: (p) => <FlameIcon {...p} />,         label: t('nav.hotFoodOrders'), badge: hotFoodCount },
         { route: '/(employee)/daily-report',  icon: (p) => <FileCheckIcon {...p} />,     label: 'Daily Report' },
+        { route: '/(employee)/daily-tasks',   icon: (p) => <ListChecksIcon {...p} />,    label: 'Daily Tasks' },
       ],
     },
     {
@@ -84,6 +85,7 @@ export default function EmployeeLayout() {
         <Tabs.Screen name="stock-request" />
         <Tabs.Screen name="hot-food" />
         <Tabs.Screen name="daily-report" />
+        <Tabs.Screen name="daily-tasks" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="guide" />

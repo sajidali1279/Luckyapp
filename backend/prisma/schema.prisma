@@ -323,6 +323,7 @@ model Store {
   hotFoodOrders         HotFoodOrder[]
   hotFoodCatalogStores  HotFoodCatalogStore[]
   dailyReports          DailyReport[]
+  dailyTasks            DailyTask[]
 
   @@map("stores")
 }
@@ -1265,6 +1266,26 @@ model ScannedProduct {
 
   @@index([barcode])
   @@map("scanned_products")
+}
+
+// ─── Daily Tasks (checklists for employees per shift) ────────────────────────
+
+model DailyTask {
+  id          String    @id @default(uuid())
+  shift       ShiftType
+  title       String
+  description String?
+  storeId     String?   // null = chain-wide
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  store Store? @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([shift, isActive])
+  @@index([storeId])
+  @@map("daily_tasks")
 }
 
 // ─── Daily Report ─────────────────────────────────────────────────────────────

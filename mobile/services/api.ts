@@ -339,6 +339,11 @@ export const dailyReportApi = {
     api.get('/daily-reports/today', { params: { storeId, date } }),
 };
 
+export const dailyTaskApi = {
+  getTasks: (storeId?: string) =>
+    api.get('/daily-tasks', { params: storeId ? { storeId } : {} }),
+};
+
 export const managerApi = {
   getStoreStats: (storeId: string) =>
     api.get(`/points/store/${storeId}/summary`),

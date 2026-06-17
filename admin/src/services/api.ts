@@ -361,6 +361,19 @@ export const dailyReportApi = {
   },
 };
 
+export const dailyTaskApi = {
+  getAll: (storeId?: string) => {
+    const q = storeId ? `?storeId=${encodeURIComponent(storeId)}` : '';
+    return api.get(`/admin/daily-tasks${q}`);
+  },
+  create: (data: { shift: string; title: string; description?: string; storeId?: string; sortOrder?: number }) =>
+    api.post('/admin/daily-tasks', data),
+  update: (id: string, data: Partial<{ shift: string; title: string; description: string | null; storeId: string | null; sortOrder: number; isActive: boolean }>) =>
+    api.patch(`/admin/daily-tasks/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/daily-tasks/${id}`),
+  seedDefaults: () => api.post('/admin/daily-tasks/seed'),
+};
+
 export const inventoryAnalyticsApi = {
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');

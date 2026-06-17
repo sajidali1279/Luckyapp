@@ -143,6 +143,7 @@ import {
   getMyRatingSummary,
 } from '../controllers/leaderboard.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
+import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
 import {
   updateStoreBilling,
   getAllStoresBilling,
@@ -487,6 +488,14 @@ router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRol
 router.post('/daily-reports',       authenticate, requireRole(Role.EMPLOYEE), upload.single('image'), createReport);
 router.get('/daily-reports/today',  authenticate, requireRole(Role.EMPLOYEE), getTodayReports);
 router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER), getReportsByDate);
+
+// ─── Daily Tasks ──────────────────────────────────────────────────────────────
+router.get('/daily-tasks',                    authenticate, getTasks);
+router.get('/admin/daily-tasks',              authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN, Role.STORE_MANAGER), adminGetTasks);
+router.post('/admin/daily-tasks/seed',        authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
+router.post('/admin/daily-tasks',             authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), createTask);
+router.patch('/admin/daily-tasks/:id',        authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), updateTask);
+router.delete('/admin/daily-tasks/:id',       authenticate, requireRole(Role.DEV_ADMIN, Role.SUPER_ADMIN), deleteTask);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
