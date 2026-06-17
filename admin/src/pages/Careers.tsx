@@ -513,7 +513,7 @@ const s: Record<string, React.CSSProperties> = {
 
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
-  tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  tabActive: { background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557' },
 
   filters: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
   select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, background: '#fff', cursor: 'pointer', minWidth: 180 },
