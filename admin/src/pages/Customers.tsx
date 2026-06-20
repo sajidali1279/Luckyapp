@@ -19,11 +19,13 @@ export default function Customers() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+  const isDevAdmin = user?.role === 'DEV_ADMIN';
 
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [fraudNote, setFraudNote] = useState('');
   const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>('customers');
   const [disputeStore, setDisputeStore] = useState('');
@@ -80,6 +82,16 @@ export default function Customers() {
       setFraudNote('');
     },
     onError: () => toast.error('Failed to update account'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => customersApi.delete(id),
+    onSuccess: () => {
+      toast.success('Account deleted');
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      setDeleteTarget(null);
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to delete account'),
   });
 
   const resolveMutation = useMutation({
@@ -289,6 +301,16 @@ export default function Customers() {
                   >
                     {c.isActive ? '🚫 Restrict Account' : '✅ Restore Account'}
                   </button>
+
+                  {isDevAdmin && (
+                    <button
+                      style={{ ...s.actionBtn, ...s.actionBtnDelete }}
+                      onClick={() => setDeleteTarget({ id: c.id, name: c.name || c.phone })}
+                      disabled={deleteMutation.isPending}
+                    >
+                      🗑 Delete Account
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -343,6 +365,30 @@ export default function Customers() {
                 disabled={toggleMutation.isPending}
               >
                 {toggleMutation.isPending ? 'Updating…' : confirmTarget.isActive ? 'Restrict' : 'Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Account Modal ── */}
+      {deleteTarget && (
+        <div style={s.backdrop} onClick={() => setDeleteTarget(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.dragHandle} />
+            <div style={{ ...s.modalIcon, background: '#fff1f2' }}>🗑</div>
+            <div style={s.modalTitle}>Permanently Delete Account?</div>
+            <div style={s.modalSub}>
+              Permanently delete {deleteTarget.name}? This erases their points balance, transaction history, and redemptions. This cannot be undone.
+            </div>
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button
+                style={{ ...s.confirmBtn, background: '#7f1d1d' }}
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
@@ -462,6 +508,7 @@ const s: Record<string, React.CSSProperties> = {
   actionBtn: { width: '100%', padding: '9px 0', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
   actionBtnRestrict: { background: '#fff1f2', color: '#E63946' },
   actionBtnRestore: { background: '#f0fdf4', color: '#16a34a' },
+  actionBtnDelete: { background: '#7f1d1d', color: '#fff', marginTop: 8 },
 
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 8 },
   pageBtn: {

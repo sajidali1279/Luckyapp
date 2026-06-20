@@ -109,6 +109,7 @@ export const customersApi = {
   list: (search = '', page = 1) => api.get(`/users/customers?search=${encodeURIComponent(search)}&page=${page}`),
   toggleActive: (userId: string, fraudNote?: string) =>
     api.patch(`/users/${userId}/toggle-active`, fraudNote ? { fraudNote } : {}),
+  delete: (userId: string) => api.delete(`/users/${userId}`),
   exportCsv: (search = '', isActive?: boolean) => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);

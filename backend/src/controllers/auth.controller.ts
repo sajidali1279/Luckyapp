@@ -605,6 +605,10 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     await prisma.creditRedemption.deleteMany({ where: { customerId: userId } });
     await prisma.creditRedemption.deleteMany({ where: { processedBy: userId } });
     await prisma.redemption.deleteMany({ where: { customerId: userId } });
+    await prisma.catalogRedemption.deleteMany({ where: { customerId: userId } });
+    await prisma.catalogRedemption.deleteMany({ where: { processedById: userId } });
+    await prisma.employeeRating.deleteMany({ where: { OR: [{ customerId: userId }, { employeeId: userId }] } });
+    await prisma.hotFoodOrder.deleteMany({ where: { customerId: userId } });
     await prisma.userStoreRole.deleteMany({ where: { userId } });
     await prisma.pushToken.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });
