@@ -640,14 +640,14 @@ export default function Rates() {
             Leave blank to use the cashback % for gas too.
           </p>
           <div style={s.calcBox}>
-            <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>12 gal</span></div>
+            <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>10 gal</span></div>
             <div style={s.calcRow}>
               <span>{highestGasTier ? `${TIER_META[highestGasTier.tier as TierKey].emoji} ${highestGasTier.tier[0] + highestGasTier.tier.slice(1).toLowerCase()} flat rate` : 'Flat rate'}</span>
               <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : '—'}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(12 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
+              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(10 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
             </div>
           </div>
         </div>
