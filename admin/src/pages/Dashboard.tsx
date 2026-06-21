@@ -8,6 +8,7 @@ import {
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { handleGlowMove, TRANSITION_TRANSFORM } from '../lib/motion';
 
 function greeting() {
   const h = new Date().getHours();
@@ -41,21 +42,20 @@ const STAT_BG: Record<string, string> = {
 function StatCard({ icon, label, value, valueColor = '#111827', to }: {
   icon: string; label: string; value: any; valueColor?: string; to?: string;
 }) {
-  const [hov, setHov] = useState(false);
   const navigate = useNavigate();
   const bg = STAT_BG[icon] || '#f8fafc';
   return (
     <div
-      style={{ ...s.statCard, ...(hov ? s.statCardHov : {}), cursor: to ? 'pointer' : 'default' }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      className="dash-card"
+      style={{ ...s.statCard, cursor: to ? 'pointer' : 'default' }}
+      onMouseMove={handleGlowMove}
       onClick={() => to && navigate(to)}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ ...s.statIconWrap, background: bg }}>
           <span style={s.statIcon}>{icon}</span>
         </div>
-        {to && <span style={{ ...s.statArrow, opacity: hov ? 1 : 0 }}>→</span>}
+        {to && <span className="dash-stat-arrow" style={s.statArrow}>→</span>}
       </div>
       <div style={s.statLabel}>{label}</div>
       <div style={{ ...s.statValue, color: valueColor }}>{value}</div>
@@ -727,19 +727,14 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', borderRadius: 16, padding: '18px 16px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
     display: 'flex', flexDirection: 'column', gap: 8,
-    border: '1px solid #f0f1f2', transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
-  },
-  statCardHov: {
-    transform: 'translateY(-3px)',
-    boxShadow: '0 8px 28px rgba(0,0,0,0.1)',
-    border: '1px solid #dde3f0',
+    border: '1px solid #f0f1f2', transition: TRANSITION_TRANSFORM,
   },
   statIconWrap: {
     width: 42, height: 42, borderRadius: 12,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   statIcon: { fontSize: 20 },
-  statArrow: { fontSize: 15, color: '#9ca3af', fontWeight: 700, transition: 'opacity 0.15s ease' },
+  statArrow: { fontSize: 15, color: '#9ca3af', fontWeight: 700 },
   statLabel: { color: '#6b7280', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
 
