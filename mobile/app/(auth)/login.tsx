@@ -120,6 +120,7 @@ export default function LoginScreen() {
       if (biometricEnabled) await saveBiometricPin(pin); // keep saved PIN in sync
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
