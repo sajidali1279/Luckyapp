@@ -140,7 +140,7 @@ export default function ForgotPinScreen() {
         <View style={{ width: 44 }} />
       </SafeAreaView>
 
-      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
           {/* Step indicator — 3 steps */}
