@@ -199,6 +199,10 @@ export default function Rates() {
     setDirty(p => { const n = new Set(p); n.delete(tier); return n; });
   }
 
+  const highestTier = tiers.length > 0
+    ? tiers.reduce((max, t) => (t.cashbackRate > max.cashbackRate ? t : max), tiers[0])
+    : null;
+
   return (
     <div style={s.page}>
       <div style={s.headerRow}>
@@ -605,14 +609,17 @@ export default function Rates() {
         <div style={s.infoCard}>
           <div style={s.infoCardTitle}>📐 How rates apply</div>
           <p style={s.infoCardText}>
-            When an employee grants points, the customer's tier rate is used automatically.
-            If an active promo exists, its bonus adds on top.
+            When an employee grants points, the customer's tier rate is used automatically,
+            plus any category bonus for that purchase (see the table above).
           </p>
           <div style={s.calcBox}>
-            <div style={s.calcRow}><span>Gold tier base rate</span><span style={{ color: '#F4A226', fontWeight: 700 }}>3.0%</span></div>
-            <div style={s.calcRow}><span>Active promo</span><span style={{ color: '#2DC653', fontWeight: 700 }}>+ 2.0%</span></div>
+            <div style={s.calcRow}>
+              <span>{highestTier ? `${TIER_META[highestTier.tier as TierKey].emoji} ${highestTier.tier[0] + highestTier.tier.slice(1).toLowerCase()} tier base rate` : 'Tier base rate'}</span>
+              <span style={{ color: '#F4A226', fontWeight: 700 }}>{highestTier ? fmtPct(highestTier.cashbackRate) : '—'}</span>
+            </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
-              <span>Customer earns on $50</span><span style={{ fontWeight: 800 }}>= $2.50</span>
+              <span>Customer earns on $50</span>
+              <span style={{ fontWeight: 800 }}>{highestTier ? `= $${(50 * highestTier.cashbackRate).toFixed(2)}` : '—'}</span>
             </div>
           </div>
         </div>
