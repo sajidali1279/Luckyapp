@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator, StatusBar,
+  ScrollView, ActivityIndicator, StatusBar, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
@@ -177,6 +177,7 @@ export default function ForgotPinScreen() {
                 placeholder="(555) 000-0000"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
+                returnKeyType="done"
               />
 
               <TouchableOpacity
