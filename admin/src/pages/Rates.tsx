@@ -250,8 +250,8 @@ export default function Rates() {
                   <div style={s.thSub}>optional — overrides % for gas & diesel</div>
                 </th>
                 <th style={s.th}>
-                  Min pts to reach tier
-                  <div style={s.thSub}>period earnings threshold</div>
+                  Min $ earned to reach tier
+                  <div style={s.thSub}>period earnings threshold (cashback dollars)</div>
                 </th>
                 <th style={{ ...s.th, width: 80 }}></th>
               </tr>
@@ -274,7 +274,7 @@ export default function Rates() {
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
                           <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `${r.pointsThreshold?.toLocaleString() ?? '—'} pts+`}
+                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? '—'}+ earned`}
                           </div>
                         </div>
                       </div>
@@ -322,17 +322,17 @@ export default function Rates() {
                         <span style={{ fontSize: 14, color: '#adb5bd' }}>Starting tier</span>
                       ) : (
                         <div style={s.inputGroup}>
+                          <span style={s.suffix}>$</span>
                           <input
                             type="number"
-                            min="0" step="100"
+                            min="0" step="10"
                             value={row?.pointsThreshold ?? ''}
                             onChange={e => handleChange(tierKey, 'pointsThreshold', e.target.value)}
                             style={{ ...s.input, width: 100, ...(isDirty ? s.inputDirty : {}) }}
-                            placeholder="e.g. 5000"
+                            placeholder="e.g. 50"
                           />
-                          <span style={s.suffix}>pts</span>
                           {row?.pointsThreshold && !isNaN(parseInt(row.pointsThreshold)) && (
-                            <span style={s.preview}>${(parseInt(row.pointsThreshold) / 100).toFixed(0)} earned</span>
+                            <span style={s.preview}>= {(parseInt(row.pointsThreshold) * 100).toLocaleString()} pts in-app</span>
                           )}
                         </div>
                       )}
@@ -569,7 +569,7 @@ export default function Rates() {
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
                           <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `${r.pointsThreshold?.toLocaleString() ?? '—'} pts+`}
+                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? '—'}+ earned`}
                           </div>
                         </div>
                       </div>
