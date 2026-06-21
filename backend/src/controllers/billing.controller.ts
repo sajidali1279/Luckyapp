@@ -572,7 +572,7 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
         await (prisma.billingRecord as any).create({
           data: {
             storeId: store.id, billingType: store.billingType as BillingType,
-            amount: bill.amount, period, notes: JSON.stringify(bill.notes),
+            amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }),
             isPaid: existing.isPaid, paidAt: existing.paidAt,
           },
         });
@@ -581,7 +581,7 @@ export async function generateAllMissingBills(_req: AuthRequest, res: Response) 
       } else {
         if (!bill) { skipped++; continue; }
         await (prisma.billingRecord as any).create({
-          data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
+          data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
         });
         results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
         created++;
