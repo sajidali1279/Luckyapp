@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Image,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Image, Keyboard,
 } from 'react-native';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ export default function LoginScreen() {
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [tabsWidth, setTabsWidth] = useState(0);
   const tabAnim = useRef(new Animated.Value(screen === 'register' ? 1 : 0)).current;
+  const quickPinRef = useRef<TextInput>(null);
   // Phone OTP state
   const [confirmation, setConfirmation] = useState<any>(null);
   const [otp, setOtp] = useState('');
@@ -54,6 +55,14 @@ export default function LoginScreen() {
       triggerBiometric();
     }
   }, [screen, biometricEnabled, bioAvailable]);
+
+  // Auto-submit quick-login PIN once 4 digits are entered
+  useEffect(() => {
+    if (screen === 'quick' && pin.length === 4 && !loading) {
+      Keyboard.dismiss();
+      handleQuickLogin();
+    }
+  }, [pin]);
 
   async function checkBiometrics() {
     const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -292,6 +301,7 @@ export default function LoginScreen() {
 
             <Text style={styles.label}>4-Digit PIN</Text>
             <TextInput
+              ref={quickPinRef}
               style={[styles.input, styles.pinInput, focusedInput === 'quickPin' && styles.inputFocused]}
               placeholder="••••"
               placeholderTextColor={COLORS.textMuted}
@@ -301,6 +311,7 @@ export default function LoginScreen() {
               onChangeText={setPin}
               maxLength={4}
               autoFocus={!biometricEnabled}
+              returnKeyType="done"
               onFocus={() => setFocusedInput('quickPin')}
               onBlur={() => setFocusedInput(null)}
             />
