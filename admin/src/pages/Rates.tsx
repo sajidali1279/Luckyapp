@@ -351,8 +351,9 @@ export default function Rates() {
         <div>
           <h2 style={s.sectionTitle}>📦 Category Bonus Rates</h2>
           <p style={s.sectionSubtitle}>
-            Add an extra cashback % on top of the tier base rate for specific product categories.
-            Set to 0% to use only the tier rate for that category.
+            This bonus adds to the tier base rate on every purchase in this category — it's not a
+            promotion, it's a permanent part of the rate. The columns to the right show the
+            resulting total cashback % for each tier.
           </p>
         </div>
         {catDirty.size > 0 && (
