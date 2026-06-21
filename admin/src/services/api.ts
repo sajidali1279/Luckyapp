@@ -42,6 +42,7 @@ export const billingApi = {
   getRevenue: () => api.get('/billing/revenue'),
   getAnalytics: (from?: string, to?: string) =>
     api.get(`/billing/analytics${from ? `?from=${from}&to=${to}` : ''}`),
+  getCashbackHealth: () => api.get('/billing/cashback-health'),
   updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
   markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),

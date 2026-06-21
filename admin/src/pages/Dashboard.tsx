@@ -176,6 +176,94 @@ function LiveRateCard({ r, bronzeBase }: { r: any; bronzeBase: number }) {
   );
 }
 
+type CashbackCategoryHealth = {
+  category: string; cashbackIssued: number; purchaseVolume: number; ratio: number;
+  status: 'ok' | 'warn' | 'critical';
+};
+type CashbackStoreHealth = {
+  storeId: string; storeName: string; cashbackIssued: number; purchaseVolume: number;
+  ratio: number; status: 'ok' | 'warn' | 'critical'; categories: CashbackCategoryHealth[];
+};
+
+const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; color: string; bg: string; border: string }> = {
+  ok:       { label: '✅ OK',       color: '#1a7a3a', bg: '#f0fdf4', border: '#bbf7d0' },
+  warn:     { label: '⚠️ Warn',     color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
+  critical: { label: '🚨 Critical', color: '#991b1b', bg: '#fef2f2', border: '#fecaca' },
+};
+
+function CashbackHealthCard() {
+  const [expandedStore, setExpandedStore] = useState<string | null>(null);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['cashback-health'],
+    queryFn: () => billingApi.getCashbackHealth(),
+    staleTime: 5 * 60_000,
+  });
+
+  // Quietly hide on error — this is a passive health indicator, not a critical-path
+  // feature; a failed fetch shouldn't show a scary error box on the main Dashboard.
+  if (isError) return null;
+
+  const stores: CashbackStoreHealth[] = data?.data?.data ?? [];
+  const problemStores = stores
+    .filter(s => s.status !== 'ok' || s.categories.some(c => c.status !== 'ok'))
+    .sort((a, b) => b.ratio - a.ratio);
+
+  return (
+    <div>
+      <SectionHeader title="Cashback Health" subtitle="Cashback paid out vs. sales, trailing 30 days" />
+      {isLoading ? (
+        <div style={s.healthLoading}>Checking cashback health…</div>
+      ) : problemStores.length === 0 ? (
+        <div style={s.healthOk}>✅ All stores within cashback target</div>
+      ) : (
+        <div style={s.healthList}>
+          {problemStores.map(store => {
+            const meta = HEALTH_STATUS_META[store.status];
+            const isOpen = expandedStore === store.storeId;
+            return (
+              <div
+                key={store.storeId}
+                className="dash-card"
+                style={{ ...s.healthRow, borderColor: meta.border, background: meta.bg }}
+                onMouseMove={handleGlowMove}
+              >
+                <div style={s.healthRowHeader} onClick={() => setExpandedStore(isOpen ? null : store.storeId)}>
+                  <div style={s.healthRowName}>{isOpen ? '▾' : '▸'} {store.storeName}</div>
+                  <div style={s.healthRowStats}>
+                    <span style={s.healthStat}>{fmt$(store.purchaseVolume)} sold</span>
+                    <span style={s.healthStat}>{fmt$(store.cashbackIssued)} cashback</span>
+                    <span style={{ ...s.healthPill, color: meta.color, borderColor: meta.border }}>
+                      {meta.label} · {(store.ratio * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div style={s.healthCategoryList}>
+                    {store.categories.map(cat => {
+                      const catMeta = HEALTH_STATUS_META[cat.status];
+                      return (
+                        <div key={cat.category} style={s.healthCategoryRow}>
+                          <span style={s.healthCategoryName}>{cat.category.replace(/_/g, ' ')}</span>
+                          <span style={s.healthStat}>{fmt$(cat.purchaseVolume)} sold</span>
+                          <span style={s.healthStat}>{fmt$(cat.cashbackIssued)} cashback</span>
+                          <span style={{ color: catMeta.color, fontWeight: 700, fontSize: 13 }}>
+                            {catMeta.label} · {(cat.ratio * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AttentionBanner({ pending, disputes }: { pending: number; disputes: number }) {
   const navigate = useNavigate();
   const items = [];
@@ -424,6 +512,13 @@ export default function Dashboard() {
             <StatCard icon="💰" label="Dev Cut (cashback)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
             <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
           </div>
+        </div>
+      )}
+
+      {/* ── Cashback Health (DevAdmin only) ── */}
+      {isDevAdmin && (
+        <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
+          <CashbackHealthCard />
         </div>
       )}
 
@@ -733,6 +828,37 @@ const s: Record<string, React.CSSProperties> = {
   statArrow: { fontSize: 15, color: '#9ca3af', fontWeight: 700 },
   statLabel: { color: '#6b7280', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
+
+  healthLoading: { color: '#9ca3af', fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
+  healthOk: {
+    color: '#1a7a3a', fontSize: 14, fontWeight: 600, background: '#f0fdf4',
+    border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
+  },
+  healthList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 },
+  healthRow: {
+    borderRadius: 14, border: '1px solid', padding: '14px 18px',
+    transition: TRANSITION_TRANSFORM,
+  },
+  healthRowHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    cursor: 'pointer', flexWrap: 'wrap' as const, gap: 10,
+  },
+  healthRowName: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
+  healthRowStats: { display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const },
+  healthStat: { fontSize: 13, color: '#6b7280' },
+  healthPill: {
+    fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+    border: '1px solid', background: '#fff', transition: TRANSITION_FAST,
+  },
+  healthCategoryList: {
+    marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.06)',
+    display: 'flex', flexDirection: 'column', gap: 8,
+  },
+  healthCategoryRow: {
+    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const,
+    fontSize: 13, paddingLeft: 8,
+  },
+  healthCategoryName: { fontWeight: 600, color: '#374151', minWidth: 110 },
 
   storeTable: {
     background: '#fff', borderRadius: 16, overflow: 'hidden',
