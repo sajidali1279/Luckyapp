@@ -10,27 +10,27 @@ This feature adds an aggregate, sales-relative view: is a store's cashback-to-sa
 
 ## Design
 
-### 1. Backend — rolling 30-day cashback ratio per store
+### 1. Backend — rolling 30-day cashback ratio per store, with category breakdown
 
-New query (in `backend/src/controllers/billing.controller.ts`, alongside the existing billing aggregation logic): for each active store, over the trailing 30 days (`createdAt >= now - 30 days`, `status: 'APPROVED'`), aggregate `PointsTransaction`:
-- `cashbackIssued = sum(pointsAwarded)`
-- `purchaseVolume = sum(purchaseAmount)`
-- `ratio = purchaseVolume > 0 ? cashbackIssued / purchaseVolume : 0`
+New query (in `backend/src/controllers/billing.controller.ts`, alongside the existing billing aggregation logic): for each active store, over the trailing 30 days (`createdAt >= now - 30 days`, `status: 'APPROVED'`), aggregate `PointsTransaction` **grouped by category** (same `groupBy(['category'])` pattern already used in `buildBillForPeriod`), then also roll up a store-level total:
+- Per category: `cashbackIssued = sum(pointsAwarded)`, `purchaseVolume = sum(purchaseAmount)`, `ratio = purchaseVolume > 0 ? cashbackIssued / purchaseVolume : 0`
+- Per store (rolled up across all its categories): same three fields, summed/recomputed from the category rows.
 
-Classify each store's ratio:
+Classify every ratio (both store-level and each category-level) using the same bands:
 - `ok`: ratio ≤ 0.075 (7.5%)
 - `warn`: 0.075 < ratio ≤ 0.09 (9%)
 - `critical`: ratio > 0.09
 
-New endpoint: `GET /billing/cashback-health` — DevAdmin-only (`requireRole(Role.DEV_ADMIN)`), matching the existing gating convention for all other billing routes (`backend/src/routes/index.ts:273-296`). Returns an array of `{ storeId, storeName, cashbackIssued, purchaseVolume, ratio, status }`, one entry per active store, regardless of status (the frontend filters for display — see below).
+New endpoint: `GET /billing/cashback-health` — DevAdmin-only (`requireRole(Role.DEV_ADMIN)`), matching the existing gating convention for all other billing routes (`backend/src/routes/index.ts:273-296`). Returns an array of `{ storeId, storeName, cashbackIssued, purchaseVolume, ratio, status, categories: [{ category, cashbackIssued, purchaseVolume, ratio, status }] }`, one entry per active store, regardless of status (the frontend filters for display — see below). A store's `status` reflects its rolled-up blended ratio; a category can independently be `warn`/`critical` even if the store's blended ratio is `ok` (e.g. one bad category diluted by several healthy ones).
 
 This is read-only and does not affect any existing grant-time logic, billing generation, or stored rates — it's a new, independent reporting query.
 
 ### 2. Dashboard UI — new card
 
 A new card on the DevAdmin Dashboard (`admin/src/pages/Dashboard.tsx`), positioned near the existing "Needs your attention" `AttentionBanner` component (same place users already look for problems-that-need-action). Behavior:
-- If no store is `warn` or `critical`: render a quiet, low-emphasis "✅ All stores within cashback target" line — not a big always-visible table when everything's healthy.
-- If one or more stores are `warn`/`critical`: render a compact list, worst-first (sorted by ratio descending), each row showing: store name, ratio (formatted as %), 30-day purchase volume, cashback issued, and a colored status pill (amber for `warn`, red for `critical`).
+- If no store is `warn` or `critical` (by its blended ratio OR any individual category): render a quiet, low-emphasis "✅ All stores within cashback target" line — not a big always-visible table when everything's healthy.
+- If one or more stores (or categories within an otherwise-`ok` store) are `warn`/`critical`: render a compact list, worst-first (sorted by store ratio descending), each row showing: store name, blended ratio (formatted as %), 30-day purchase volume, cashback issued, and a colored status pill (amber for `warn`, red for `critical`).
+- Each row is expandable (clicking it, matching the existing expand pattern already used in `admin/src/pages/Billing.tsx`'s per-store breakdown) to reveal the category-level rows — same columns, one per category, so a category-specific problem is visible even when the store's blended ratio looks `ok`. Only categories with `purchaseVolume > 0` in the window are shown.
 
 This follows the existing Dashboard pattern of conditional, attention-grabbing-only-when-needed banners rather than permanent dashboard clutter.
 
@@ -42,7 +42,7 @@ Since this project has no test framework, validate the classification logic with
 - Clearly bad ratios (~12%+, should land in `critical`)
 - Edge cases: `purchaseVolume = 0` (must not divide by zero), ratio exactly at the 7.5%/9% boundaries
 
-Run each through the actual classification function and confirm it lands in the expected bucket. Delete the script after use — it's a logic check, not a permanent test suite.
+Run each through the actual classification function and confirm it lands in the expected bucket. Also include a mixed-category scenario: one store with several `ok` categories and one `critical` category, confirming the store's blended ratio comes out `ok`-ish while the individual category still correctly classifies as `critical` — this is the exact "diluted by other categories" scenario the category breakdown exists to catch. Delete the script after use — it's a logic check, not a permanent test suite.
 
 ## Out of scope
 
