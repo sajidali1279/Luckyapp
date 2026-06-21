@@ -34,6 +34,10 @@ type CatEditState = Record<string, string>;
 
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
 
+function tierRateFor(tierKey: TierKey, tiers: RateRow[]): number {
+  return tiers.find(t => t.tier === tierKey)?.cashbackRate ?? 0;
+}
+
 export default function Rates() {
   const qc = useQueryClient();
   const [form, setForm] = useState<EditState>({});
@@ -368,16 +372,18 @@ export default function Rates() {
           <table style={s.table}>
             <thead>
               <tr style={s.thead}>
-                <th style={{ ...s.th, width: 200 }}>Category</th>
+                <th style={{ ...s.th, width: 180 }}>Category</th>
                 <th style={s.th}>
                   Bonus %
                   <div style={s.thSub}>added on top of tier base rate</div>
                 </th>
-                <th style={s.th}>
-                  Example (Bronze 1% base)
-                  <div style={s.thSub}>effective rate for a Bronze customer</div>
-                </th>
-                <th style={{ ...s.th, width: 100 }}></th>
+                {TIERS.map(tierKey => (
+                  <th key={tierKey} style={{ ...s.th, textAlign: 'center' as const }}>
+                    {TIER_META[tierKey].emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}
+                    <div style={s.thSub}>total cashback %</div>
+                  </th>
+                ))}
+                <th style={{ ...s.th, width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -388,7 +394,7 @@ export default function Rates() {
                 const isSaving = catSaving === cat;
                 const rawVal = catForm[cat] ?? '0';
                 const numVal = parseFloat(rawVal);
-                const effective = !isNaN(numVal) ? 1 + numVal : 1;
+                const bonusFraction = !isNaN(numVal) ? numVal / 100 : 0;
 
                 // GAS/DIESEL in ¢/gallon mode — show redirect badge, no editable %
                 if (isGasDiesel && showPerGallon) {
@@ -403,7 +409,7 @@ export default function Rates() {
                           </div>
                         </div>
                       </td>
-                      <td style={s.td} colSpan={3}>
+                      <td style={s.td} colSpan={7}>
                         <span style={s.perGallonBadge}>⛽ ¢/gallon mode — configure per-tier rates below</span>
                       </td>
                     </tr>
@@ -440,11 +446,11 @@ export default function Rates() {
                         )}
                       </div>
                     </td>
-                    <td style={s.td}>
-                      {!isNaN(numVal) ? (
-                        <span style={s.effectiveTag}>{effective.toFixed(1)}% effective</span>
-                      ) : null}
-                    </td>
+                    {TIERS.map(tierKey => (
+                      <td key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}>
+                        <span style={s.effectiveTag}>{fmtPct(tierRateFor(tierKey, tiers) + bonusFraction)}</span>
+                      </td>
+                    ))}
                     <td style={{ ...s.td, textAlign: 'right' }}>
                       {isDirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
