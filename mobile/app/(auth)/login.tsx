@@ -64,6 +64,14 @@ export default function LoginScreen() {
     }
   }, [pin]);
 
+  // Auto-verify OTP once 6 digits are entered
+  useEffect(() => {
+    if (screen === 'verify-phone' && otp.length === 6 && !loading) {
+      Keyboard.dismiss();
+      handleVerifyAndCreate();
+    }
+  }, [otp]);
+
   async function checkBiometrics() {
     const compatible = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
@@ -185,6 +193,7 @@ export default function LoginScreen() {
       await setAuth(data.data.user, data.data.token);
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
     } catch (err: any) {
+      setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
         Toast.show({ type: 'error', text1: 'Wrong code — try again' });
@@ -375,6 +384,7 @@ export default function LoginScreen() {
               onChangeText={setOtp}
               maxLength={6}
               autoFocus
+              returnKeyType="done"
               onFocus={() => setFocusedInput('otp')}
               onBlur={() => setFocusedInput(null)}
             />
