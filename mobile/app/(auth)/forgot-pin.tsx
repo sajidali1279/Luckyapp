@@ -33,6 +33,14 @@ export default function ForgotPinScreen() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
+  // Auto-verify OTP once 6 digits are entered
+  useEffect(() => {
+    if (step === 'verify' && otp.length === 6 && !loading) {
+      Keyboard.dismiss();
+      handleVerifyOtp();
+    }
+  }, [otp]);
+
   function rawPhone() {
     return phone.replace(/\D/g, '');
   }
@@ -92,6 +100,7 @@ export default function ForgotPinScreen() {
       setResetToken(res.data.resetToken);
       setStep('reset');
     } catch (err: any) {
+      setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
         Toast.show({ type: 'error', text1: 'Wrong code — try again' });
@@ -213,6 +222,7 @@ export default function ForgotPinScreen() {
                 placeholder="••••••"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
+                returnKeyType="done"
               />
 
               <TouchableOpacity
