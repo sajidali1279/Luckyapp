@@ -203,6 +203,11 @@ export default function Rates() {
     ? tiers.reduce((max, t) => (t.cashbackRate > max.cashbackRate ? t : max), tiers[0])
     : null;
 
+  const tiersWithGasCpg = tiers.filter(t => t.gasCentsPerGallon != null);
+  const highestGasTier = tiersWithGasCpg.length > 0
+    ? tiersWithGasCpg.reduce((max, t) => (t.gasCentsPerGallon! > max.gasCentsPerGallon! ? t : max), tiersWithGasCpg[0])
+    : null;
+
   return (
     <div style={s.page}>
       <div style={s.headerRow}>
@@ -636,9 +641,13 @@ export default function Rates() {
           </p>
           <div style={s.calcBox}>
             <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>12 gal</span></div>
-            <div style={s.calcRow}><span>Gold flat rate</span><span style={{ color: '#F4A261', fontWeight: 700 }}>3¢/gal</span></div>
+            <div style={s.calcRow}>
+              <span>{highestGasTier ? `${TIER_META[highestGasTier.tier as TierKey].emoji} ${highestGasTier.tier[0] + highestGasTier.tier.slice(1).toLowerCase()} flat rate` : 'Flat rate'}</span>
+              <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : '—'}</span>
+            </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
-              <span>Customer earns</span><span style={{ fontWeight: 800 }}>= $0.36</span>
+              <span>Customer earns</span>
+              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(12 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
             </div>
           </div>
         </div>
