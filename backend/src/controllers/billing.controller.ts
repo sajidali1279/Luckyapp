@@ -396,7 +396,7 @@ function periodBounds(period: string): { start: Date; end: Date } {
   };
 }
 
-function toPeriod(date: Date): string {
+export function toPeriod(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -440,7 +440,7 @@ interface BillNotes {
   periodEnd: string;
 }
 
-async function buildBillForPeriod(
+export async function buildBillForPeriod(
   store: { id: string; billingType: string; subscriptionPrice: number; transactionFeeRate: number },
   period: string,
 ): Promise<{ amount: number; notes: BillNotes } | null> {
@@ -526,7 +526,7 @@ export async function generateMonthlyBilling(req: AuthRequest, res: Response) {
     const bill = await buildBillForPeriod(store, period);
     if (!bill) { skipped++; continue; }
     await (prisma.billingRecord as any).create({
-      data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify(bill.notes) },
+      data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
     });
     created++;
   }
