@@ -1314,6 +1314,9 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
 
 // ─── Cashback-to-Sales Health (DevAdmin only) ──────────────────────────────────
 
+// Same value as CASHBACK_RATE_WARN (config/constants.ts) by coincidence, not by reference —
+// that one caps a single transaction at grant time; this one flags a 30-day aggregate trend.
+// Keep them as separate constants even if one changes.
 const CASHBACK_HEALTH_WARN = 0.075;
 const CASHBACK_HEALTH_CRITICAL = 0.09;
 
@@ -1327,7 +1330,8 @@ export function classifyCashbackRatio(ratio: number): 'ok' | 'warn' | 'critical'
 // Catches a systemic rate misconfiguration that no single transaction would look
 // anomalous for (every transaction using the same wrong rate looks "consistent").
 export async function getCashbackHealth(_req: AuthRequest, res: Response) {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const [stores, categoryStats] = await Promise.all([
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
