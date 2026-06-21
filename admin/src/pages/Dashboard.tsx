@@ -186,9 +186,9 @@ type CashbackStoreHealth = {
 };
 
 const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; color: string; bg: string; border: string }> = {
-  ok:       { label: '✅ OK',       color: '#1a7a3a', bg: '#f0fdf4', border: '#bbf7d0' },
-  warn:     { label: '⚠️ Warn',     color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-  critical: { label: '🚨 Critical', color: '#991b1b', bg: '#fef2f2', border: '#fecaca' },
+  ok:       { label: '✅ OK',       color: '#2DC653', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
+  warn:     { label: '⚠️ Warn',     color: '#F4A261', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
+  critical: { label: '🚨 Critical', color: '#E63946', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
 };
 
 function CashbackHealthCard() {
@@ -831,8 +831,8 @@ const s: Record<string, React.CSSProperties> = {
 
   healthLoading: { color: '#9ca3af', fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
   healthOk: {
-    color: '#1a7a3a', fontSize: 14, fontWeight: 600, background: '#f0fdf4',
-    border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
+    color: '#2DC653', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
+    border: '1px solid rgba(45,198,83,0.3)', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
   },
   healthList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 },
   healthRow: {
