@@ -204,6 +204,14 @@
   box-shadow: 0 4px 14px rgba(29, 53, 87, 0.22);
   transform: translateY(-1px);
 }
+.dash-quick-btn:focus-visible {
+  background: #1D3557;
+  color: #fff;
+  border-color: #1D3557;
+  box-shadow: 0 4px 14px rgba(29, 53, 87, 0.22);
+  outline: 2px solid #1D3557;
+  outline-offset: 2px;
+}
 .dash-quick-btn:hover::before {
   opacity: 1;
 }
@@ -215,4 +223,11 @@
   background: #1D3557;
   color: #fff;
   border-color: #1D3557;
+}
+.dash-section-link:focus-visible {
+  background: #1D3557;
+  color: #fff;
+  border-color: #1D3557;
+  outline: 2px solid #1D3557;
+  outline-offset: 2px;
 }
