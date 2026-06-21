@@ -26,6 +26,8 @@ export default function ForgotPinScreen() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const newPinRef = useRef<TextInput>(null);
+  const confirmPinRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -40,6 +42,14 @@ export default function ForgotPinScreen() {
       handleVerifyOtp();
     }
   }, [otp]);
+
+  // Auto-submit reset once both New PIN and Confirm PIN reach 4 digits
+  useEffect(() => {
+    if (step === 'reset' && newPin.length === 4 && confirmPin.length === 4 && !loading) {
+      Keyboard.dismiss();
+      handleResetPin();
+    }
+  }, [newPin, confirmPin]);
 
   function rawPhone() {
     return phone.replace(/\D/g, '');
@@ -121,6 +131,7 @@ export default function ForgotPinScreen() {
     }
     if (newPin !== confirmPin) {
       Toast.show({ type: 'error', text1: 'PINs do not match' });
+      setConfirmPin('');
       return;
     }
     setLoading(true);
@@ -260,6 +271,7 @@ export default function ForgotPinScreen() {
 
               <Text style={s.label}>New PIN</Text>
               <TextInput
+                ref={newPinRef}
                 style={[s.input, s.pinInput]}
                 value={newPin}
                 onChangeText={setNewPin}
@@ -269,10 +281,13 @@ export default function ForgotPinScreen() {
                 placeholder="••••"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
+                returnKeyType="next"
+                onSubmitEditing={() => confirmPinRef.current?.focus()}
               />
 
               <Text style={s.label}>Confirm New PIN</Text>
               <TextInput
+                ref={confirmPinRef}
                 style={[s.input, s.pinInput]}
                 value={confirmPin}
                 onChangeText={setConfirmPin}
@@ -281,6 +296,7 @@ export default function ForgotPinScreen() {
                 secureTextEntry
                 placeholder="••••"
                 placeholderTextColor={COLORS.textMuted}
+                returnKeyType="done"
               />
 
               <TouchableOpacity
