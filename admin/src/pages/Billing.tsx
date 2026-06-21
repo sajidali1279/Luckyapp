@@ -11,6 +11,7 @@ interface BillNotes {
   categories: { category: string; txCount: number; purchaseVolume: number; cashbackIssued: number; devCutEarned: number; customerCashback: number }[];
   subscriptionFee: number; transactionFeeRate: number; transactionFee: number;
   cashbackFee: number; totalAmountOwed: number; periodStart: string; periodEnd: string;
+  generatedBy?: 'cron' | 'manual';
 }
 
 type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
@@ -563,6 +564,12 @@ export default function Billing() {
                                           <td style={s.catTd}>
                                             <strong>{r.store?.name}</strong>
                                             <div style={s.cityLabel}>{r.store?.city}</div>
+                                            {n?.generatedBy === 'cron' && (
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2ff', color: '#4338ca', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>🤖 Auto</span>
+                                            )}
+                                            {n?.generatedBy === 'manual' && (
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#f0fdf4', color: '#166534', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
+                                            )}
                                           </td>
                                           <td style={s.catTd}>{n?.txCount ?? 0}</td>
                                           <td style={s.catTd}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
