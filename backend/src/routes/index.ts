@@ -161,6 +161,7 @@ import {
   deleteBillingRecord,
   getDevRevenue,
   getAnalytics,
+  getCashbackHealth,
   getCategoryRates,
   updateCategoryRate,
   getDevCutRate,
@@ -273,6 +274,7 @@ router.delete('/stores/:storeId/keyword-mappings/:id', authenticate, requireRole
 router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllStoresBilling);
 router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDevRevenue);
 router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
+router.get('/billing/cashback-health', authenticate, requireRole(Role.DEV_ADMIN), getCashbackHealth);
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.get('/billing/extra-charges', authenticate, requireRole(Role.DEV_ADMIN), getExtraCharges);
