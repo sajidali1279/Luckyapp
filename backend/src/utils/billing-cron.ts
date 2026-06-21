@@ -1,36 +1,28 @@
 /**
  * Monthly billing cron — runs on the 1st of every month at 00:05 UTC.
- * Creates a BillingRecord for each active store based on their billing type:
- *   MONTHLY_SUBSCRIPTION  → flat subscriptionPrice
- *   PER_TRANSACTION       → prior-month transaction count × transactionFeeRate × avg purchase
- *   HYBRID                → subscription + per-transaction fees
+ * Bills each active store for LAST month's activity, using the same
+ * buildBillForPeriod logic the manual "Generate Monthly Billing" admin
+ * route uses — so the cron and manual paths can never disagree on what
+ * a store owes.
  *
  * Safe to run multiple times — skips stores that already have a record for the period.
  */
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { BillingType } from '@prisma/client';
+import { buildBillForPeriod, toPeriod } from '../controllers/billing.controller';
 
-function currentPeriod(): string {
+function lastMonthPeriod(): string {
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-}
-
-function lastMonthRange(): { from: Date; to: Date } {
-  const now = new Date();
-  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const to   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  return { from, to };
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return toPeriod(lastMonth);
 }
 
 export async function runMonthlyBilling() {
-  const period = currentPeriod();
+  const period = lastMonthPeriod();
   console.log(`[billing-cron] Running monthly billing for period ${period}…`);
 
   const stores = await prisma.store.findMany({ where: { isActive: true } });
-  const { from, to } = lastMonthRange();
 
   let created = 0;
   let skipped = 0;
@@ -42,39 +34,21 @@ export async function runMonthlyBilling() {
     });
     if (existing) { skipped++; continue; }
 
-    let amount = 0;
+    const bill = await buildBillForPeriod(store, period);
+    if (!bill) { skipped++; continue; }
 
-    if (store.billingType === BillingType.MONTHLY_SUBSCRIPTION) {
-      amount = Number(store.subscriptionPrice);
-
-    } else if (store.billingType === BillingType.PER_TRANSACTION) {
-      const stats = await prisma.pointsTransaction.aggregate({
-        where: { storeId: store.id, status: 'APPROVED', createdAt: { gte: from, lt: to } },
-        _sum: { purchaseAmount: true },
-      });
-      amount = parseFloat(((stats._sum.purchaseAmount ?? 0) * Number(store.transactionFeeRate)).toFixed(2));
-
-    } else {
-      // HYBRID: flat fee + per-transaction fees on last month's volume
-      const stats = await prisma.pointsTransaction.aggregate({
-        where: { storeId: store.id, status: 'APPROVED', createdAt: { gte: from, lt: to } },
-        _sum: { purchaseAmount: true },
-      });
-      const txFees = parseFloat(((stats._sum.purchaseAmount ?? 0) * Number(store.transactionFeeRate)).toFixed(2));
-      amount = parseFloat((Number(store.subscriptionPrice) + txFees).toFixed(2));
-    }
-
-    await prisma.billingRecord.create({
+    await (prisma.billingRecord as any).create({
       data: {
         storeId: store.id,
-        billingType: store.billingType,
-        amount,
+        billingType: store.billingType as BillingType,
+        amount: bill.amount,
         period,
-        isPaid: false,  // pending payment
+        notes: JSON.stringify({ ...bill.notes, generatedBy: 'cron' }),
+        isPaid: false,
       },
     });
     created++;
-    console.log(`[billing-cron]   ✅ ${store.name} — $${amount.toFixed(2)} (${store.billingType})`);
+    console.log(`[billing-cron]   ✅ ${store.name} — $${bill.amount.toFixed(2)} (${store.billingType})`);
   }
 
   console.log(`[billing-cron] Done. Created: ${created}, Skipped: ${skipped}`);
