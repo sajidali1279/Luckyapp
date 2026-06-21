@@ -219,6 +219,10 @@ export default function Rates() {
         )}
       </div>
 
+      <div style={s.storeCostNote}>
+        💡 Store cost = cashback paid out × (1 + that store's dev cut rate). Dev cut rate is set per-store on the Stores page, not here.
+      </div>
+
       {isLoading && <div style={s.loading}>Loading rates…</div>}
       {isError  && <div style={s.error}>Could not load rates. Check your connection.</div>}
 
@@ -659,6 +663,11 @@ const s: Record<string, React.CSSProperties> = {
 
   loading: { textAlign: 'center' as const, color: '#6c757d', padding: 60, fontSize: 15 },
   error: { textAlign: 'center' as const, color: '#E63946', padding: 40, background: '#fff5f5', borderRadius: 10 },
+
+  storeCostNote: {
+    background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
+    padding: '10px 16px', fontSize: 14, color: '#1d4ed8', marginBottom: 24,
+  },
 
   tableWrap: {
     background: '#fff', borderRadius: 12,
