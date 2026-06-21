@@ -102,7 +102,6 @@ function SectionHeader({ title, subtitle, action }: {
   title: string; subtitle?: string; action?: { label: string; to: string };
 }) {
   const navigate = useNavigate();
-  const [hov, setHov] = useState(false);
   return (
     <div style={s.sectionHeader}>
       <div>
@@ -111,9 +110,8 @@ function SectionHeader({ title, subtitle, action }: {
       </div>
       {action && (
         <button
-          style={{ ...s.sectionLink, ...(hov ? s.sectionLinkHov : {}) }}
-          onMouseEnter={() => setHov(true)}
-          onMouseLeave={() => setHov(false)}
+          className="dash-section-link"
+          style={s.sectionLink}
           onClick={() => navigate(action.to)}
         >
           {action.label} →
@@ -646,10 +644,9 @@ const s: Record<string, React.CSSProperties> = {
   sectionLink: {
     background: 'none', border: '1px solid #dee2e6', borderRadius: 8,
     padding: '5px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-    color: '#6c757d', transition: 'all 0.15s ease', whiteSpace: 'nowrap' as const,
+    color: '#6c757d', transition: TRANSITION_FAST, whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
   },
-  sectionLinkHov: { background: '#1D3557', color: '#fff', border: '1px solid #1D3557' },
 
   attnBanner: {
     display: 'flex', alignItems: 'flex-start', gap: 14,
