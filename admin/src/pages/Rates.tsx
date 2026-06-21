@@ -544,7 +544,7 @@ export default function Rates() {
                   <div style={s.thSub}>applies to GAS & DIESEL</div>
                 </th>
                 <th style={s.th}>
-                  Example (10 gal)
+                  Example (1 gal)
                   <div style={s.thSub}>cashback earned</div>
                 </th>
                 <th style={{ ...s.th, width: 100 }}></th>
@@ -588,7 +588,7 @@ export default function Rates() {
                     </td>
                     <td style={s.td}>
                       {!isNaN(cpgNum) && cpgNum > 0 ? (
-                        <span style={s.effectiveTag}>${(10 * cpgNum / 100).toFixed(2)} cashback</span>
+                        <span style={s.effectiveTag}>${(1 * cpgNum / 100).toFixed(2)} cashback</span>
                       ) : (
                         <span style={{ fontSize: 14, color: '#adb5bd' }}>enter rate above</span>
                       )}
@@ -640,14 +640,14 @@ export default function Rates() {
             Leave blank to use the cashback % for gas too.
           </p>
           <div style={s.calcBox}>
-            <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>10 gal</span></div>
+            <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>1 gal</span></div>
             <div style={s.calcRow}>
               <span>{highestGasTier ? `${TIER_META[highestGasTier.tier as TierKey].emoji} ${highestGasTier.tier[0] + highestGasTier.tier.slice(1).toLowerCase()} flat rate` : 'Flat rate'}</span>
               <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : '—'}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(10 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
+              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(1 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
             </div>
           </div>
         </div>
