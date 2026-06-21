@@ -135,3 +135,84 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Dashboard polish (pilot) ───────────────────────────────────────────── */
+
+:root {
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dash-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dash-fade-in {
+  animation: dash-fade-in 0.5s var(--ease-premium) both;
+}
+
+.dash-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s var(--ease-premium), box-shadow 0.18s var(--ease-premium), border-color 0.18s var(--ease-premium);
+}
+.dash-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle 120px at var(--mx, 50%) var(--my, 50%), rgba(29, 53, 87, 0.08), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.dash-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+  border-color: #dde3f0;
+}
+.dash-card:hover::before {
+  opacity: 1;
+}
+.dash-stat-arrow {
+  opacity: 0;
+  transition: opacity 0.18s var(--ease-premium);
+}
+.dash-card:hover .dash-stat-arrow {
+  opacity: 1;
+}
+
+.dash-quick-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s var(--ease-premium), box-shadow 0.18s var(--ease-premium),
+    background-color 0.18s var(--ease-premium), color 0.18s var(--ease-premium), border-color 0.18s var(--ease-premium);
+}
+.dash-quick-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle 80px at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.35), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.dash-quick-btn:hover {
+  background: #1D3557;
+  color: #fff;
+  border-color: #1D3557;
+  box-shadow: 0 4px 14px rgba(29, 53, 87, 0.22);
+  transform: translateY(-1px);
+}
+.dash-quick-btn:hover::before {
+  opacity: 1;
+}
+
+.dash-section-link {
+  transition: background-color 0.18s var(--ease-premium), color 0.18s var(--ease-premium), border-color 0.18s var(--ease-premium);
+}
+.dash-section-link:hover {
+  background: #1D3557;
+  color: #fff;
+  border-color: #1D3557;
+}
