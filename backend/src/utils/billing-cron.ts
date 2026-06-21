@@ -10,12 +10,22 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { BillingType } from '@prisma/client';
-import { buildBillForPeriod, toPeriod } from '../controllers/billing.controller';
+import { buildBillForPeriod } from '../controllers/billing.controller';
 
+/**
+ * "Last month" as a "YYYY-MM" string, computed in UTC — the cron itself
+ * runs on a UTC schedule ({ timezone: 'UTC' }), so this must use UTC date
+ * components rather than the server process's local timezone to avoid
+ * mislabeling the bill by a month if the server's local time ever differs
+ * from UTC at the exact moment the cron fires.
+ */
 function lastMonthPeriod(): string {
   const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return toPeriod(lastMonth);
+  let year = now.getUTCFullYear();
+  let month = now.getUTCMonth(); // 0-11, current month
+  month -= 1;
+  if (month < 0) { month = 11; year -= 1; }
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
 export async function runMonthlyBilling() {
