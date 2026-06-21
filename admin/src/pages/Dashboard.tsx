@@ -8,7 +8,7 @@ import {
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
-import { handleGlowMove, TRANSITION_TRANSFORM } from '../lib/motion';
+import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
 
 function greeting() {
   const h = new Date().getHours();
@@ -65,7 +65,6 @@ function StatCard({ icon, label, value, valueColor = '#111827', to }: {
 
 function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
   const navigate = useNavigate();
-  const [hov, setHov] = useState<string | null>(null);
   const actions = isDevAdmin ? [
     { icon: '📢', label: 'Offers', to: '/offers' },
     { icon: '🧾', label: 'Transactions', to: '/transactions' },
@@ -86,9 +85,9 @@ function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
       {actions.map(a => (
         <button
           key={a.to}
-          style={{ ...s.quickBtn, ...(hov === a.to ? s.quickBtnHov : {}) }}
-          onMouseEnter={() => setHov(a.to)}
-          onMouseLeave={() => setHov(null)}
+          className="dash-quick-btn"
+          style={s.quickBtn}
+          onMouseMove={handleGlowMove}
           onClick={() => navigate(a.to)}
         >
           <span style={{ fontSize: 15 }}>{a.icon}</span>
@@ -633,11 +632,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, padding: '8px 16px',
     fontSize: 15, fontWeight: 600, color: '#374151',
     cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-    transition: 'all 0.15s ease',
-  },
-  quickBtnHov: {
-    background: '#1D3557', color: '#fff', border: '1px solid #1D3557',
-    boxShadow: '0 4px 14px rgba(29,53,87,0.22)', transform: 'translateY(-1px)',
+    transition: TRANSITION_FAST,
   },
 
   sectionHeader: {
