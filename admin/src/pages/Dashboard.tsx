@@ -388,7 +388,7 @@ export default function Dashboard() {
     <div style={s.container}>
 
       {/* ── Welcome ── */}
-      <div style={s.welcomeCard}>
+      <div className="dash-fade-in" style={{ ...s.welcomeCard, animationDelay: '0ms' }}>
         <div>
           <div style={s.welcomeDate}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -406,11 +406,15 @@ export default function Dashboard() {
       </div>
 
       {/* ── Quick Actions ── */}
-      {isSuperAdmin && <QuickActions isDevAdmin={isDevAdmin} />}
+      {isSuperAdmin && (
+        <div className="dash-fade-in" style={{ animationDelay: '60ms' }}>
+          <QuickActions isDevAdmin={isDevAdmin} />
+        </div>
+      )}
 
       {/* ── Revenue (DevAdmin only) ── */}
       {isDevAdmin && revenue && (
-        <>
+        <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
           <SectionHeader title="Revenue Overview" action={{ label: 'View Billing', to: '/billing' }} />
           <div style={s.statsGrid}>
             <StatCard icon="🧾" label="Transactions" value={revenue.totalTransactions} to="/transactions" />
@@ -420,12 +424,12 @@ export default function Dashboard() {
             <StatCard icon="💰" label="Dev Cut (cashback)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
             <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
           </div>
-        </>
+        </div>
       )}
 
       {/* ── SuperAdmin sections ── */}
       {isSuperAdmin && !isDevAdmin && (
-        <>
+        <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
           {/* Attention banner */}
           {((platform?.pending ?? 0) > 0 || pendingDisputesCount > 0) && (
             <AttentionBanner pending={platform?.pending ?? 0} disputes={pendingDisputesCount} />
@@ -511,12 +515,12 @@ export default function Dashboard() {
             <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
             <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Analytics Charts (DevAdmin only) ── */}
       {isDevAdmin && analytics && (
-        <>
+        <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
           <SectionHeader title="Last 30 Days — Activity" action={{ label: 'Full Analytics', to: '/analytics' }} />
           <div style={s.chartsRow}>
             <div style={s.chartBox}>
@@ -577,12 +581,12 @@ export default function Dashboard() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       {/* ── Live Cashback Rates (DevAdmin only) ── */}
       {isDevAdmin && liveRates.length > 0 && (
-        <>
+        <div className="dash-fade-in" style={{ animationDelay: '240ms' }}>
           <SectionHeader
             title="Live Cashback Rates Today"
             subtitle="Effective rate each Bronze customer earns per category right now — tier base + category bonus + active promotions."
@@ -591,7 +595,7 @@ export default function Dashboard() {
           <div style={s.ratesGrid}>
             {liveRates.map((r) => <LiveRateCard key={r.category} r={r} bronzeBase={bronzeBase} />)}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
