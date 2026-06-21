@@ -32,6 +32,10 @@ export default function LoginScreen() {
   const [tabsWidth, setTabsWidth] = useState(0);
   const tabAnim = useRef(new Animated.Value(screen === 'register' ? 1 : 0)).current;
   const quickPinRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const mainPinRef = useRef<TextInput>(null);
+  const confirmPinRef = useRef<TextInput>(null);
   // Phone OTP state
   const [confirmation, setConfirmation] = useState<any>(null);
   const [otp, setOtp] = useState('');
@@ -71,6 +75,22 @@ export default function LoginScreen() {
       handleVerifyAndCreate();
     }
   }, [otp]);
+
+  // Auto-submit login PIN once 4 digits are entered (login mode only — register mode has Confirm PIN after it)
+  useEffect(() => {
+    if (screen === 'login' && pin.length === 4 && !loading) {
+      Keyboard.dismiss();
+      handleLogin();
+    }
+  }, [pin]);
+
+  // Auto-submit register form once Confirm PIN reaches 4 digits (register mode only)
+  useEffect(() => {
+    if (screen === 'register' && confirmPin.length === 4 && !sendingOtp) {
+      Keyboard.dismiss();
+      handleRegister();
+    }
+  }, [confirmPin]);
 
   async function checkBiometrics() {
     const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -154,6 +174,7 @@ export default function LoginScreen() {
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
       else if (bioAvailable && biometricEnabled) await saveBiometricPin(pin); // refresh saved PIN
     } catch (err: any) {
+      setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
     } finally {
@@ -460,12 +481,15 @@ export default function LoginScreen() {
             <>
               <Text style={styles.label}>Your Name</Text>
               <TextInput
+                ref={nameRef}
                 style={[styles.input, focusedInput === 'name' && styles.inputFocused]}
                 placeholder="John Smith"
                 placeholderTextColor={COLORS.textMuted}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                returnKeyType="next"
+                onSubmitEditing={() => phoneRef.current?.focus()}
                 onFocus={() => setFocusedInput('name')}
                 onBlur={() => setFocusedInput(null)}
               />
@@ -474,18 +498,22 @@ export default function LoginScreen() {
 
           <Text style={styles.label}>Phone Number</Text>
           <TextInput
+            ref={phoneRef}
             style={[styles.input, focusedInput === 'phone' && styles.inputFocused]}
             placeholder="(555) 000-0000"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="phone-pad"
             value={phone}
             onChangeText={(t) => setPhone(formatPhone(t))}
+            returnKeyType="next"
+            onSubmitEditing={() => mainPinRef.current?.focus()}
             onFocus={() => setFocusedInput('phone')}
             onBlur={() => setFocusedInput(null)}
           />
 
           <Text style={styles.label}>4-Digit PIN</Text>
           <TextInput
+            ref={mainPinRef}
             style={[styles.input, styles.pinInput, focusedInput === 'pin' && styles.inputFocused]}
             placeholder="••••"
             placeholderTextColor={COLORS.textMuted}
@@ -494,6 +522,8 @@ export default function LoginScreen() {
             value={pin}
             onChangeText={setPin}
             maxLength={4}
+            returnKeyType={screen === 'register' ? 'next' : 'done'}
+            onSubmitEditing={() => { if (screen === 'register') confirmPinRef.current?.focus(); }}
             onFocus={() => setFocusedInput('pin')}
             onBlur={() => setFocusedInput(null)}
           />
@@ -502,6 +532,7 @@ export default function LoginScreen() {
             <>
               <Text style={styles.label}>Confirm PIN</Text>
               <TextInput
+                ref={confirmPinRef}
                 style={[styles.input, styles.pinInput, focusedInput === 'confirmPin' && styles.inputFocused]}
                 placeholder="••••"
                 placeholderTextColor={COLORS.textMuted}
@@ -510,6 +541,7 @@ export default function LoginScreen() {
                 value={confirmPin}
                 onChangeText={setConfirmPin}
                 maxLength={4}
+                returnKeyType="done"
                 onFocus={() => setFocusedInput('confirmPin')}
                 onBlur={() => setFocusedInput(null)}
               />
