@@ -292,7 +292,7 @@ function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }:
   label: string; value: string | number; sub?: string; color?: string; bg?: string; icon: string;
 }) {
   return (
-    <div style={{ ...s.kpiCard, borderTop: `3px solid ${color}` }}>
+    <div className="dash-card" style={{ ...s.kpiCard, borderTop: `3px solid ${color}` }} onMouseMove={handleGlowMove}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div style={{ ...s.kpiIconWrap, background: bg }}>
           <span style={{ fontSize: 18 }}>{icon}</span>
