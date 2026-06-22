@@ -126,7 +126,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
   return (
     <div
       className="dash-table-row"
-      style={{ ...s.storeTableRow, background: i % 2 === 0 ? '#fff' : '#fafbfc', cursor: 'pointer' }}
+      style={{ ...s.storeTableRow, cursor: 'pointer', '--row-bg': i % 2 === 0 ? '#fff' : '#fafbfc' } as React.CSSProperties}
       onClick={() => navigate('/leaderboard')}
     >
       <span style={s.storeColName}>

@@ -233,6 +233,7 @@
 }
 
 .dash-table-row {
+  background: var(--row-bg, #fff);
   transition: background-color 0.18s var(--ease-premium);
 }
 .dash-table-row:hover {
