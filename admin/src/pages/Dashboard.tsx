@@ -420,7 +420,7 @@ export default function Dashboard() {
   const { data: disputesRaw } = useQuery({
     queryKey: ['sa-disputes-pending'],
     queryFn: () => disputesApi.getAll({ status: 'PENDING' }),
-    enabled: isSuperAdmin && !isDevAdmin,
+    enabled: isSuperAdmin,
     refetchInterval: 60_000,
   });
 
@@ -500,6 +500,13 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Attention banner (shared: DevAdmin + SuperAdmin) ── */}
+      {isSuperAdmin && ((platform?.pending ?? 0) > 0 || pendingDisputesCount > 0) && (
+        <div className="dash-fade-in" style={{ animationDelay: '90ms' }}>
+          <AttentionBanner pending={platform?.pending ?? 0} disputes={pendingDisputesCount} />
+        </div>
+      )}
+
       {/* ── Revenue (DevAdmin only) ── */}
       {isDevAdmin && revenue && (
         <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
@@ -525,11 +532,6 @@ export default function Dashboard() {
       {/* ── SuperAdmin sections ── */}
       {isSuperAdmin && !isDevAdmin && (
         <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
-          {/* Attention banner */}
-          {((platform?.pending ?? 0) > 0 || pendingDisputesCount > 0) && (
-            <AttentionBanner pending={platform?.pending ?? 0} disputes={pendingDisputesCount} />
-          )}
-
           {/* KPI row */}
           {platform && (
             <>
