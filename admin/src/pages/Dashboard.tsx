@@ -531,10 +531,10 @@ export default function Dashboard() {
 
       {/* ── SuperAdmin sections ── */}
       {isSuperAdmin && !isDevAdmin && (
-        <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
+        <>
           {/* KPI row */}
           {platform && (
-            <>
+            <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
               <SectionHeader title="Today's Activity" action={{ label: 'View Transactions', to: '/transactions' }} />
               <div style={s.kpiGrid}>
                 <KPICard icon="🧾" label="Transactions" value={platform.today.transactions} sub="Today" color="#1D3557" bg="#eff6ff" />
@@ -549,12 +549,12 @@ export default function Dashboard() {
                 />
                 <KPICard icon="💰" label="Credits Outstanding" value={fmt$(platform.totalCreditsOutstanding)} sub="Unredeemed" color="#0369a1" bg="#f0f9ff" />
               </div>
-            </>
+            </div>
           )}
 
           {/* 30-day trend chart */}
           {trend30.length > 0 && (
-            <>
+            <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
               <SectionHeader title="30-Day Purchase Volume" subtitle="Daily volume across all stores" />
               <div style={s.chartBoxFull}>
                 <ResponsiveContainer width="100%" height={220}>
@@ -573,12 +573,12 @@ export default function Dashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </>
+            </div>
           )}
 
           {/* Store performance */}
           {platform?.storeRanking?.length > 0 && (
-            <>
+            <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
               <SectionHeader title="Store Performance — This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
               <div style={s.storeTable}>
                 <div style={s.storeTableHeader}>
@@ -594,25 +594,29 @@ export default function Dashboard() {
                   return <StoreRow key={store.id} store={store} i={i} barWidth={barWidth} color={storeColor(i)} />;
                 })}
               </div>
-            </>
+            </div>
           )}
 
           {/* Active promotions + recent transactions side by side */}
-          <div style={s.twoColRow}>
-            <ActiveOffersPanel offers={activeOffersList} banners={bannersData?.data?.data || []} />
-            <RecentTransactions txs={recentTxs} />
+          <div className="dash-fade-in" style={{ animationDelay: '210ms' }}>
+            <div style={s.twoColRow}>
+              <ActiveOffersPanel offers={activeOffersList} banners={bannersData?.data?.data || []} />
+              <RecentTransactions txs={recentTxs} />
+            </div>
           </div>
 
           {/* Platform overview */}
-          <SectionHeader title="Platform Overview" />
-          <div style={s.statsGrid}>
-            <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} to="/stores" />
-            <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} to="/customers" />
-            <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
-            <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
-            <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
+          <div className="dash-fade-in" style={{ animationDelay: '240ms' }}>
+            <SectionHeader title="Platform Overview" />
+            <div style={s.statsGrid}>
+              <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} to="/stores" />
+              <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} to="/customers" />
+              <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
+              <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
+              <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ── Analytics Charts (DevAdmin only) ── */}
