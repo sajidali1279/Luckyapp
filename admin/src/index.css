@@ -231,3 +231,10 @@
   outline: 2px solid #1D3557;
   outline-offset: 2px;
 }
+
+.dash-table-row {
+  transition: background-color 0.18s var(--ease-premium);
+}
+.dash-table-row:hover {
+  background: #f0f4ff;
+}

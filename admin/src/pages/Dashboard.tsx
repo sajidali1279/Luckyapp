@@ -122,13 +122,11 @@ function SectionHeader({ title, subtitle, action }: {
 }
 
 function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWidth: number; color: string }) {
-  const [hov, setHov] = useState(false);
   const navigate = useNavigate();
   return (
     <div
-      style={{ ...s.storeTableRow, background: hov ? '#f0f4ff' : (i % 2 === 0 ? '#fff' : '#fafbfc'), cursor: 'pointer' }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      className="dash-table-row"
+      style={{ ...s.storeTableRow, background: i % 2 === 0 ? '#fff' : '#fafbfc', cursor: 'pointer' }}
       onClick={() => navigate('/leaderboard')}
     >
       <span style={s.storeColName}>
