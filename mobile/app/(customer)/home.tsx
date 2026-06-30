@@ -972,9 +972,11 @@ export default function CustomerHome() {
                     )
                   }
                   <View style={styles.offerContent}>
-                    <Text style={styles.dealText}>{offer.dealText}</Text>
-                    <Text style={styles.offerTitle}>{offer.title}</Text>
-                    {offer.description ? <Text style={styles.offerDesc}>{offer.description}</Text> : null}
+                    <Text style={styles.offerTitle} numberOfLines={1}>{offer.title}</Text>
+                    <View style={styles.dealBadgePill}>
+                      <TagIcon size={10} color="#fff" strokeWidth={2.5} />
+                      <Text style={styles.dealBadgeText} numberOfLines={1}>{offer.dealText}</Text>
+                    </View>
                   </View>
                   <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
                 </TouchableOpacity>
@@ -986,15 +988,18 @@ export default function CustomerHome() {
                     {offer.imageUrl
                       ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                       : (
-                        <View style={[styles.offerSlidePlaceholder, { backgroundColor: COLORS.accent + '15' }]}>
-                          <TagIcon size={32} color={COLORS.accent} strokeWidth={1.5} />
+                        <View style={[styles.offerSlidePlaceholder, styles.dealSlidePlaceholder]}>
+                          <TagIcon size={14} color={COLORS.accent} strokeWidth={2.5} />
+                          <Text style={styles.dealSlidePlaceholderText} numberOfLines={1}>{offer.dealText}</Text>
                         </View>
                       )
                     }
                     <View style={styles.offerSlideContent}>
-                      <Text style={styles.dealText}>{offer.dealText}</Text>
-                      <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
-                      {offer.description ? <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text> : null}
+                      <Text style={styles.offerTitle} numberOfLines={1}>{offer.title}</Text>
+                      <View style={[styles.dealBadgePill, { alignSelf: 'flex-start' }]}>
+                        <TagIcon size={10} color="#fff" strokeWidth={2.5} />
+                        <Text style={styles.dealBadgeText} numberOfLines={1}>{offer.dealText}</Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -1184,10 +1189,16 @@ export default function CustomerHome() {
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
           <View style={om.overlay}>
             <View style={om.sheet}>
-              {selectedOffer.imageUrl && (
+              {selectedOffer.dealText && !selectedOffer.imageUrl ? (
+                <View style={om.dealHeader}>
+                  <TagIcon size={18} color="#fff" strokeWidth={2} />
+                  <Text style={om.dealHeaderText} numberOfLines={1}>{selectedOffer.dealText}</Text>
+                </View>
+              ) : null}
+              {selectedOffer.imageUrl ? (
                 <Image source={{ uri: selectedOffer.imageUrl }} style={om.image} />
-              )}
-              <View style={om.body}>
+              ) : null}
+              <ScrollView style={om.bodyScroll} contentContainerStyle={om.bodyContent} showsVerticalScrollIndicator={false}>
                 {selectedOffer.gasBonusCentsPerGallon != null ? (
                   <View style={om.badgeRow}>
                     <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
@@ -1202,7 +1213,7 @@ export default function CustomerHome() {
                       <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback — auto-applied</Text>
                     </View>
                   </View>
-                ) : selectedOffer.dealText ? (
+                ) : selectedOffer.dealText && selectedOffer.imageUrl ? (
                   <Text style={om.dealText}>{selectedOffer.dealText}</Text>
                 ) : null}
                 <Text style={om.title}>{selectedOffer.title}</Text>
@@ -1226,7 +1237,7 @@ export default function CustomerHome() {
                 <TouchableOpacity style={om.closeBtn} onPress={() => setSelectedOffer(null)}>
                   <Text style={om.closeBtnText}>Got it</Text>
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1601,6 +1612,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   dealText: { fontSize: 20, fontWeight: '900', color: COLORS.accent, marginBottom: 2, letterSpacing: -0.5 },
+  dealBadgePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.accent, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4, marginTop: 4, alignSelf: 'flex-start',
+  },
+  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 0.2 },
+  dealSlidePlaceholder: {
+    backgroundColor: COLORS.accent + '12',
+    justifyContent: 'center', alignItems: 'center', gap: 6,
+  },
+  dealSlidePlaceholderText: {
+    fontSize: 22, fontWeight: '900', color: COLORS.accent,
+    letterSpacing: -0.5, paddingHorizontal: 16, textAlign: 'center',
+  },
 
   gasPriceRow: { gap: 10, paddingBottom: 4, paddingTop: 8 },
   gasPriceCard: {
@@ -1779,10 +1804,17 @@ const om = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: COLORS.white, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    overflow: 'hidden',
+    overflow: 'hidden', maxHeight: '88%',
   },
   image: { width: '100%', height: 190, resizeMode: 'cover' },
+  dealHeader: {
+    backgroundColor: COLORS.accent, flexDirection: 'row', alignItems: 'center',
+    gap: 10, paddingHorizontal: 24, paddingVertical: 16,
+  },
+  dealHeaderText: { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5, flex: 1 },
   body: { padding: 24, gap: 10 },
+  bodyScroll: { flex: 1 },
+  bodyContent: { padding: 24, gap: 10, paddingBottom: 20 },
   badgeRow: { flexDirection: 'row' },
   badge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
