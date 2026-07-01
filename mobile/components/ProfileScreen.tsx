@@ -90,7 +90,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   const { data: storesData } = useQuery({
     queryKey: ['all-stores'],
-    queryFn: () => storesApi.getAll(),
+    queryFn: () => storesApi.getGasPrices(),
     enabled: isCustomer,
   });
   const allStores: any[] = storesData?.data?.data || [];
