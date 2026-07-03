@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/store-icon-512.png",
+    "icon": "./assets/icon-appstore.png",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "cover",
@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.luckystop.app"
+      "bundleIdentifier": "com.luckystop.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +33,12 @@
     "plugins": [
       "@react-native-firebase/app",
       "expo-router",
-      "expo-camera",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Lucky Stop uses your camera to scan customer QR codes and take receipt photos."
+        }
+      ],
       [
         "expo-splash-screen",
         {
