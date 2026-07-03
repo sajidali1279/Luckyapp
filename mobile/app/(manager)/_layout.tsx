@@ -2,18 +2,19 @@ import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
-import { notificationsApi, employeeRequestApi, productRequestApi, storeRequestApi, chatApi, supportApi, schedulingApi } from '../../services/api';
+import { notificationsApi, employeeRequestApi, productRequestApi, storeRequestApi, chatApi, supportApi, schedulingApi, disputeApi } from '../../services/api';
 import { useAuthStore, isAdmin } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
-  HeadphonesIcon, CalendarIcon,
+  HeadphonesIcon, CalendarIcon, AlertTriangleIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const storeId = user?.storeIds?.[0];
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
@@ -64,6 +65,14 @@ export default function ManagerLayout() {
   });
   const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
 
+  const { data: disputesCountData } = useQuery({
+    queryKey: ['disputes-pending-count', storeId],
+    queryFn: () => disputeApi.getPendingCount(storeId!),
+    enabled: !!storeId,
+    refetchInterval: 60000,
+  });
+  const disputesPending: number = disputesCountData?.data?.data?.count ?? 0;
+
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: t('nav.dashboard') },
     { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />, label: t('nav.orderList') },
@@ -77,6 +86,7 @@ export default function ManagerLayout() {
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
         { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: 'Store Catalog' },
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending + storeReqPending },
+        { route: '/(manager)/disputes',   icon: (p) => <AlertTriangleIcon {...p} />, label: t('nav.disputes'), badge: disputesPending },
       ],
     },
     {
@@ -111,6 +121,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="home" />
         <Tabs.Screen name="order-list" />
         <Tabs.Screen name="requests" />
+        <Tabs.Screen name="disputes" />
         <Tabs.Screen name="support" />
         <Tabs.Screen name="notifications" />
         <Tabs.Screen name="profile" />

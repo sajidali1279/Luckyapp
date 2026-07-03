@@ -151,6 +151,12 @@ export const disputeApi = {
   submit: (data: { storeId: string; description: string; estimatedAmt?: number }) =>
     api.post('/disputes', data),
   getMine: () => api.get('/disputes/mine'),
+  // Manager
+  getForStore: (storeId: string, status?: string) =>
+    api.get(`/disputes/store/${storeId}${status ? `?status=${status}` : ''}`),
+  getPendingCount: (storeId: string) => api.get(`/disputes/store/${storeId}/pending-count`),
+  resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
+    api.patch(`/disputes/${id}/resolve`, data),
 };
 
 export const storeRequestApi = {
