@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi, devAdminApi, supportApi, careersApi } from '../services/api';
+import { superAdminApi, devAdminApi, supportApi, careersApi, storeRequestApi, productRequestApi, employeeRequestApi, disputesApi, chatApi } from '../services/api';
 import {
   Sidebar,
   SidebarContent,
@@ -137,7 +137,7 @@ export function AppSidebar() {
   const { data: supportUnreadData } = useQuery({
     queryKey: ['support-unread'],
     queryFn: supportApi.getUnreadCount,
-    enabled: isDevAdmin,
+    enabled: isDevAdmin || isSuperAdmin,
     refetchInterval: 30_000,
     retry: false,
   });
@@ -151,6 +151,50 @@ export function AppSidebar() {
     retry: false,
   });
   const careersNewCount: number = careersCountData?.data?.data?.count ?? 0;
+
+  // "Requests" nav = store-alert requests + product requests (both tabs of the Requests page)
+  const { data: storeRequestsCountData } = useQuery({
+    queryKey: ['store-requests-pending-count'],
+    queryFn: storeRequestApi.getPendingCount,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const { data: productRequestsCountData } = useQuery({
+    queryKey: ['product-requests-pending-count'],
+    queryFn: productRequestApi.getPendingCount,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const requestsPendingCount: number =
+    (storeRequestsCountData?.data?.data?.count ?? 0) + (productRequestsCountData?.data?.data?.count ?? 0);
+
+  // "Order List" nav — employee item requests awaiting review
+  const { data: itemRequestsCountData } = useQuery({
+    queryKey: ['employee-requests-pending-count'],
+    queryFn: employeeRequestApi.getPendingCount,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const itemRequestsPendingCount: number = itemRequestsCountData?.data?.data?.count ?? 0;
+
+  // "Customers" nav — pending missing-points disputes
+  const { data: disputesCountData } = useQuery({
+    queryKey: ['disputes-pending-count'],
+    queryFn: disputesApi.getPendingCount,
+    enabled: isSuperAdmin || isDevAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const disputesPendingCount: number = disputesCountData?.data?.data?.count ?? 0;
+
+  // "Chat" nav — unread store-chat messages across accessible stores
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread-count'],
+    queryFn: chatApi.getUnreadCount,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const chatUnreadCount: number = chatUnreadData?.data?.data?.count ?? 0;
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -259,16 +303,16 @@ export function AppSidebar() {
           <SidebarGroupLabel>People</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/chat" icon={<MessageSquare size={16} />} label="Chat" />
+              <SidebarNavItem to="/chat" icon={<MessageSquare size={16} />} label="Chat" badge={chatUnreadCount} />
               <SidebarNavItem to="/scheduling" icon={<Calendar size={16} />} label="Scheduling" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/staff" icon={<Users size={16} />} label="Staff" />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" />
+                <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
               )}
-              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" />
+              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
+              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={itemRequestsPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}
@@ -324,11 +368,8 @@ export function AppSidebar() {
                     label="Notifications"
                     badge={unreadCount}
                   />
-                  {isDevAdmin && (
+                  {(isDevAdmin || isSuperAdmin) && (
                     <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" badge={supportUnread} />
-                  )}
-                  {isSuperAdmin && (
-                    <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" />
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>

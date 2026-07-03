@@ -129,6 +129,7 @@ export const disputesApi = {
   },
   resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
     api.patch(`/disputes/${id}/resolve`, data),
+  getPendingCount: () => api.get('/disputes/pending-count'),
 };
 
 export const storesApi = {
@@ -188,6 +189,7 @@ export const chatApi = {
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   sendMessage: (storeId: string, text: string) =>
     api.post(`/chat/${storeId}/messages`, { text }),
+  getUnreadCount: () => api.get('/chat/unread-count'),
 };
 
 export const catalogApi = {
@@ -257,6 +259,7 @@ export const productRequestApi = {
     api.get(`/product-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
   respond: (id: string, status: 'ACCEPTED' | 'DECLINED', responseNote?: string) =>
     api.patch(`/product-requests/${id}/respond`, { status, responseNote }),
+  getPendingCount: () => api.get('/product-requests/pending-count'),
 };
 
 export const storeRequestApi = {
