@@ -135,6 +135,7 @@ export const schedulingApi = {
   getDayRoster: (storeId: string, date: string) =>
     api.get(`/schedule/store/${storeId}/day?date=${encodeURIComponent(date)}`),
   getVacancies: () => api.get('/schedule/vacancies'),
+  getPendingCount: () => api.get('/schedule/requests/pending-count'),
 };
 
 export const chatApi = {
@@ -143,6 +144,7 @@ export const chatApi = {
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   sendMessage: (storeId: string, text: string) =>
     api.post(`/chat/${storeId}/messages`, { text }),
+  getUnreadCount: () => api.get('/chat/unread-count'),
 };
 
 export const disputeApi = {

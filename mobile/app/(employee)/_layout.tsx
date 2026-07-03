@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
-import { schedulingApi, notificationsApi, hotFoodApi } from '../../services/api';
+import { schedulingApi, notificationsApi, hotFoodApi, chatApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
@@ -38,6 +38,13 @@ export default function EmployeeLayout() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread-count'],
+    queryFn: () => chatApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const chatUnread: number = chatUnreadData?.data?.data?.count ?? 0;
+
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} strokeWidth={2} />,   label: t('nav.home') },
     { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} strokeWidth={2} />, label: t('nav.scan') },
@@ -55,7 +62,7 @@ export default function EmployeeLayout() {
       title: 'Work',
       items: [
         { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule'), badge: vacancyCount },
-        { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat') },
+        { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat'), badge: chatUnread },
         { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: t('nav.requests') },
         { route: '/(employee)/stock-request', icon: (p) => <PackageIcon {...p} />,       label: t('nav.stockRequest') },
         { route: '/(employee)/hot-food',      icon: (p) => <FlameIcon {...p} />,         label: t('nav.hotFoodOrders'), badge: hotFoodCount },

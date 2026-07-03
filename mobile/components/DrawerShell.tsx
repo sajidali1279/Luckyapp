@@ -60,6 +60,11 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
     closeDrawer(() => router.navigate(route as any));
   }
 
+  const drawerBadgeTotal = groups.reduce(
+    (sum, g) => sum + g.items.reduce((s, item) => s + (item.badge ?? 0), 0),
+    0
+  );
+
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const bgColor = headerColor || COLORS.secondary;
 
@@ -107,6 +112,9 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
         <TouchableOpacity style={s.bottomBtn} onPress={openDrawer} activeOpacity={0.7}>
           <View style={s.bottomIconWrap}>
             <MenuIcon size={22} color={COLORS.textMuted} strokeWidth={2} />
+            {drawerBadgeTotal > 0 && (
+              <View style={s.badge}><Text style={s.badgeText}>{drawerBadgeTotal > 99 ? '99+' : drawerBadgeTotal}</Text></View>
+            )}
           </View>
           <Text style={s.bottomLabel}>{t('nav.menu')}</Text>
         </TouchableOpacity>

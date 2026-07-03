@@ -2,13 +2,13 @@ import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
-import { notificationsApi, employeeRequestApi, productRequestApi } from '../../services/api';
+import { notificationsApi, employeeRequestApi, productRequestApi, storeRequestApi, chatApi, supportApi, schedulingApi } from '../../services/api';
 import { useAuthStore, isAdmin } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
-  HeadphonesIcon,
+  HeadphonesIcon, CalendarIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -35,6 +35,35 @@ export default function ManagerLayout() {
   });
   const productReqPending: number = productReqData?.data?.data?.count ?? 0;
 
+  const { data: storeReqData } = useQuery({
+    queryKey: ['store-requests-pending-count'],
+    queryFn: () => storeRequestApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const storeReqPending: number = storeReqData?.data?.data?.count ?? 0;
+
+  const { data: chatUnreadData } = useQuery({
+    queryKey: ['chat-unread-count'],
+    queryFn: () => chatApi.getUnreadCount(),
+    refetchInterval: 30000,
+  });
+  const chatUnread: number = chatUnreadData?.data?.data?.count ?? 0;
+
+  const { data: scheduleReqData } = useQuery({
+    queryKey: ['scheduling-pending-count'],
+    queryFn: () => schedulingApi.getPendingCount(),
+    refetchInterval: 60000,
+  });
+  const scheduleReqPending: number = scheduleReqData?.data?.data?.count ?? 0;
+
+  const { data: supportUnreadData } = useQuery({
+    queryKey: ['support-unread'],
+    queryFn: () => supportApi.getUnreadCount(),
+    enabled: isAdmin(user?.role),
+    refetchInterval: 30000,
+  });
+  const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
+
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} strokeWidth={2} />,    label: t('nav.dashboard') },
     { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} strokeWidth={2} />, label: t('nav.orderList') },
@@ -47,7 +76,7 @@ export default function ManagerLayout() {
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
         { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: 'Store Catalog' },
-        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending },
+        { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending + storeReqPending },
       ],
     },
     {
@@ -60,7 +89,8 @@ export default function ManagerLayout() {
     {
       title: 'Team',
       items: [
-        { route: '/(manager)/chat', icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.teamChat') },
+        { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} />,      label: t('nav.teamSchedule'), badge: scheduleReqPending },
+        { route: '/(manager)/chat',     icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.teamChat'), badge: chatUnread },
       ],
     },
     {
@@ -68,7 +98,7 @@ export default function ManagerLayout() {
       items: [
         { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />,        label: t('nav.alerts'), badge: unreadCount },
         { route: '/(manager)/leaderboard',   icon: (p) => <TrophyIcon {...p} />,     label: t('nav.staffRankings') },
-        ...(isAdmin(user?.role) ? [{ route: '/(manager)/support', icon: (p: any) => <HeadphonesIcon {...p} />, label: t('nav.support') } as NavItem] : []),
+        ...(isAdmin(user?.role) ? [{ route: '/(manager)/support', icon: (p: any) => <HeadphonesIcon {...p} />, label: t('nav.support'), badge: supportUnread } as NavItem] : []),
         { route: '/(manager)/guide',         icon: (p) => <BookOpenIcon {...p} />,   label: t('nav.guide') },
         { route: '/(manager)/profile',       icon: (p) => <UserIcon {...p} />,       label: t('nav.profile') },
       ],
@@ -87,6 +117,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="offers" />
         <Tabs.Screen name="banners" />
         <Tabs.Screen name="chat" />
+        <Tabs.Screen name="schedule" />
         <Tabs.Screen name="catalog" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="guide" />
