@@ -79,6 +79,7 @@ export const billingApi = {
   updateRecord: (recordId: string, data: { description?: string; amount?: number }) =>
     api.patch(`/billing/records/${recordId}`, data),
   deleteRecord: (recordId: string) => api.delete(`/billing/records/${recordId}`),
+  getPendingCount: () => api.get('/billing/pending-count'),
 };
 
 export const offersApi = {

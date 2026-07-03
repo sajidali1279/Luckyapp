@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi, devAdminApi, supportApi, careersApi, storeRequestApi, productRequestApi, employeeRequestApi, disputesApi, chatApi, pointsApi, schedulingApi, promotionsApi, hotFoodApi, orderCategoriesApi } from '../services/api';
+import { superAdminApi, devAdminApi, supportApi, careersApi, storeRequestApi, productRequestApi, employeeRequestApi, disputesApi, chatApi, pointsApi, schedulingApi, promotionsApi, hotFoodApi, orderCategoriesApi, billingApi } from '../services/api';
 import {
   Sidebar,
   SidebarContent,
@@ -244,6 +244,16 @@ export function AppSidebar() {
   });
   const categoriesPendingCount: number = categoriesCountData?.data?.data?.count ?? 0;
 
+  // "Billing" nav — periods with at least one unpaid record (same data for DevAdmin + SuperAdmin)
+  const { data: billingCountData } = useQuery({
+    queryKey: ['billing-pending-count'],
+    queryFn: billingApi.getPendingCount,
+    enabled: isDevAdmin || isSuperAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const billingPendingCount: number = billingCountData?.data?.data?.count ?? 0;
+
   function handleLogout() { logout(); navigate('/login'); }
 
   return (
@@ -405,10 +415,10 @@ export function AppSidebar() {
                 <SidebarMenu>
                   <SidebarNavItem to="/stores" icon={<Store size={16} />} label="Stores" />
                   {isDevAdmin && (
-                    <SidebarNavItem to="/billing" icon={<CreditCard size={16} />} label="Billing" />
+                    <SidebarNavItem to="/billing" icon={<CreditCard size={16} />} label="Billing" badge={billingPendingCount} />
                   )}
                   {isSuperAdmin && (
-                    <SidebarNavItem to="/my-billing" icon={<CreditCard size={16} />} label="Billing" />
+                    <SidebarNavItem to="/my-billing" icon={<CreditCard size={16} />} label="Billing" badge={billingPendingCount} />
                   )}
                   <SidebarNavItem
                     to="/notifications"
