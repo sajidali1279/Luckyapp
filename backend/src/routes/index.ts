@@ -179,6 +179,7 @@ import {
   seedTestTransactions,
   sendBillingReport,
   getSuperAdminInvoices,
+  getBillingPendingCount,
   getSuperAdminNotifications,
   getDevAdminNotifications,
 } from '../controllers/billing.controller';
@@ -305,6 +306,7 @@ router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, require
 
 // ─── SuperAdmin — invoices & notifications ────────────────────────────────────
 router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
+router.get('/billing/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getBillingPendingCount); // Badge count
 router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
 
 // ─── Push Broadcast (SuperAdmin+) ────────────────────────────────────────────

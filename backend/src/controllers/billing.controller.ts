@@ -793,6 +793,18 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: invoices });
 }
 
+// GET /billing/pending-count — badge count: billing periods with at least one unpaid record.
+// Same underlying data for DevAdmin's /billing and SuperAdmin's /my-billing — both consolidate
+// the same BillingRecord rows, just grouped differently.
+export async function getBillingPendingCount(_req: AuthRequest, res: Response) {
+  const unpaidPeriods = await prisma.billingRecord.findMany({
+    where: { isPaid: false },
+    select: { period: true },
+    distinct: ['period'],
+  });
+  res.json({ success: true, data: { count: unpaidPeriods.length } });
+}
+
 // SuperAdmin — derived notification feed (no DB table needed)
 export async function getSuperAdminNotifications(_req: AuthRequest, res: Response) {
   const now = new Date();
