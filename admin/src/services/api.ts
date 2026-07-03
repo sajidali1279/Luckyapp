@@ -104,6 +104,7 @@ export const pointsApi = {
   getPlatformSummary: () => api.get('/points/platform-summary'),
   getAllTransactions: (params: Record<string, string>) =>
     api.get('/points/all', { params }),
+  getPendingCount: () => api.get('/points/pending-count'),
 };
 
 export const customersApi = {
@@ -181,6 +182,7 @@ export const schedulingApi = {
   updateRequest: (requestId: string, status: string) => api.patch(`/schedule/requests/${requestId}`, { status }),
   getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
   getVacancies: () => api.get('/schedule/vacancies'),
+  getPendingCount: () => api.get('/schedule/requests/pending-count'),
 };
 
 export const chatApi = {
@@ -206,6 +208,7 @@ export const promotionsApi = {
   reject: (id: string, devAdminNote?: string) =>
     api.patch(`/promotions/${id}/reject`, { devAdminNote }),
   delete: (id: string) => api.delete(`/promotions/${id}`),
+  getPendingCount: () => api.get('/promotions/requests/pending-count'),
 };
 
 export const supportApi = {
@@ -299,6 +302,7 @@ export const orderCategoriesApi = {
   adminGetAll:    (status?: string) => api.get(`/order-categories/admin${status ? `?status=${status}` : ''}`),
   adminUpdate:    (id: string, data: { name?: string; status?: string }) => api.patch(`/order-categories/${id}`, data),
   adminDelete:    (id: string) => api.delete(`/order-categories/${id}`),
+  getPendingCount: () => api.get('/order-categories/admin/pending-count'),
 };
 
 export const employeeRequestApi = {
@@ -332,6 +336,7 @@ export const hotFoodApi = {
   },
   updateStatus:  (orderId: string, status: string, estimatedMinutes?: number) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
+  getAdminPendingCount: () => api.get('/hot-food/orders/admin/pending-count'),
 };
 
 export const hotFoodCatalogApi = {

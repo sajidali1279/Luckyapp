@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { superAdminApi, devAdminApi, supportApi, careersApi, storeRequestApi, productRequestApi, employeeRequestApi, disputesApi, chatApi } from '../services/api';
+import { superAdminApi, devAdminApi, supportApi, careersApi, storeRequestApi, productRequestApi, employeeRequestApi, disputesApi, chatApi, pointsApi, schedulingApi, promotionsApi, hotFoodApi, orderCategoriesApi } from '../services/api';
 import {
   Sidebar,
   SidebarContent,
@@ -196,6 +196,54 @@ export function AppSidebar() {
   });
   const chatUnreadCount: number = chatUnreadData?.data?.data?.count ?? 0;
 
+  // "Transactions" nav — transactions with an action waiting (PENDING + FLAGGED)
+  const { data: transactionsCountData } = useQuery({
+    queryKey: ['transactions-pending-count'],
+    queryFn: pointsApi.getPendingCount,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const transactionsPendingCount: number = transactionsCountData?.data?.data?.count ?? 0;
+
+  // "Scheduling" nav — time-off / fill-in requests awaiting manager approval
+  const { data: schedulingCountData } = useQuery({
+    queryKey: ['scheduling-pending-count'],
+    queryFn: schedulingApi.getPendingCount,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const schedulingPendingCount: number = schedulingCountData?.data?.data?.count ?? 0;
+
+  // "Promotions" nav — business promo requests awaiting DevAdmin review
+  const { data: promotionsCountData } = useQuery({
+    queryKey: ['promotions-pending-count'],
+    queryFn: promotionsApi.getPendingCount,
+    enabled: isDevAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const promotionsPendingCount: number = promotionsCountData?.data?.data?.count ?? 0;
+
+  // "Hot Food" nav — orders awaiting store acceptance, across all stores
+  const { data: hotFoodCountData } = useQuery({
+    queryKey: ['hot-food-pending-count'],
+    queryFn: hotFoodApi.getAdminPendingCount,
+    enabled: isDevAdmin || isSuperAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const hotFoodPendingCount: number = hotFoodCountData?.data?.data?.count ?? 0;
+
+  // "Order List" nav (cont'd) — custom categories awaiting DevAdmin review
+  const { data: categoriesCountData } = useQuery({
+    queryKey: ['order-categories-pending-count'],
+    queryFn: orderCategoriesApi.getPendingCount,
+    enabled: isDevAdmin,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const categoriesPendingCount: number = categoriesCountData?.data?.data?.count ?? 0;
+
   function handleLogout() { logout(); navigate('/login'); }
 
   return (
@@ -287,10 +335,10 @@ export function AppSidebar() {
                 <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" />
+                <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" badge={promotionsPendingCount} />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" />
+                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" badge={hotFoodPendingCount} />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -304,7 +352,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/chat" icon={<MessageSquare size={16} />} label="Chat" badge={chatUnreadCount} />
-              <SidebarNavItem to="/scheduling" icon={<Calendar size={16} />} label="Scheduling" />
+              <SidebarNavItem to="/scheduling" icon={<Calendar size={16} />} label="Scheduling" badge={schedulingPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/staff" icon={<Users size={16} />} label="Staff" />
               )}
@@ -312,7 +360,7 @@ export function AppSidebar() {
                 <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={itemRequestsPendingCount} />
+              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={itemRequestsPendingCount + categoriesPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}
@@ -327,7 +375,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Reports</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" />
+              <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" badge={transactionsPendingCount} />
               {!isStoreManager && (
                 <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
               )}
