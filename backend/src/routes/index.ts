@@ -114,7 +114,7 @@ import {
   updateOpening,
   deleteOpening,
 } from '../controllers/jobOpenings.controller';
-import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, getPendingDisputeCount, resolveDispute } from '../controllers/dispute.controller';
+import { submitDispute, getMyDisputes, getStoreDisputes, getStorePendingDisputeCount, getAllDisputes, getPendingDisputeCount, resolveDispute } from '../controllers/dispute.controller';
 import {
   getMenu as getHotFoodMenu,
   createItem as createHotFoodItem,
@@ -514,6 +514,7 @@ router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.SUPER_AD
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
 router.get('/disputes/mine',                      authenticate, requireRole(Role.CUSTOMER),     getMyDisputes);
 router.get('/disputes/store/:storeId',            authenticate, requireRole(Role.STORE_MANAGER), getStoreDisputes);
+router.get('/disputes/store/:storeId/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getStorePendingDisputeCount); // Badge count
 router.get('/disputes/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   getAllDisputes);
 router.get('/disputes/pending-count',              authenticate, requireRole(Role.SUPER_ADMIN),   getPendingDisputeCount);
 router.patch('/disputes/:id/resolve',             authenticate, requireRole(Role.STORE_MANAGER), resolveDispute);

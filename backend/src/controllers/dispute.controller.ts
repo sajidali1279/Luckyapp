@@ -70,6 +70,20 @@ export async function getStoreDisputes(req: AuthRequest, res: Response) {
   res.json({ success: true, data: disputes });
 }
 
+// GET /disputes/store/:storeId/pending-count — badge count for mobile manager nav
+export async function getStorePendingDisputeCount(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+
+  const user = req.user!;
+  if (user.role === Role.STORE_MANAGER && !user.storeIds?.includes(storeId)) {
+    res.status(403).json({ success: false, error: 'Not authorized for this store' });
+    return;
+  }
+
+  const count = await prisma.pointsDispute.count({ where: { storeId, status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 export async function getAllDisputes(req: AuthRequest, res: Response) {
   const { status, storeId } = req.query as { status?: string; storeId?: string };
   const disputes = await prisma.pointsDispute.findMany({
