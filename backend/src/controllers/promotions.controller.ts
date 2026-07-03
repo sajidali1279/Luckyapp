@@ -101,6 +101,12 @@ export async function getAllPromotionRequests(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promos });
 }
 
+// GET /promotions/requests/pending-count — badge count for DevAdmin
+export async function getPendingPromotionCount(req: AuthRequest, res: Response) {
+  const count = await prisma.businessPromotion.count({ where: { status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 // POST /promotions/:id/publish — DevAdmin approves and publishes an ad
 export async function publishPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;

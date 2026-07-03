@@ -693,6 +693,26 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   });
 }
 
+// GET /points/pending-count — badge count: transactions with an action waiting (PENDING + FLAGGED).
+// All stores for platform admins, own stores for manager.
+export async function getTransactionsPendingCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  const storeIds = hasMinRole(user.role, Role.SUPER_ADMIN)
+    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
+    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: { count: 0 } });
+    return;
+  }
+
+  const count = await prisma.pointsTransaction.count({
+    where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } },
+  });
+  res.json({ success: true, data: { count } });
+}
+
 // GET /points/customer-info/:qrCode — cashier fetches customer tier + benefit status before choosing action
 export async function getCustomerInfo(req: AuthRequest, res: Response) {
   const { qrCode } = req.params;

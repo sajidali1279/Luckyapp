@@ -354,6 +354,28 @@ export async function getStoreRequests(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { requests, grouped } });
 }
 
+// ─── GET /schedule/requests/pending-count ─────────────────────────────────────
+// Badge count — all stores for platform admins, own stores for manager
+
+export async function getRequestsPendingCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  const storeIds = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)
+    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
+    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: { count: 0 } });
+    return;
+  }
+
+  const count = await prisma.shiftRequest.count({
+    where: { storeId: { in: storeIds }, status: RequestStatus.PENDING },
+  });
+
+  res.json({ success: true, data: { count } });
+}
+
 // ─── PATCH /schedule/requests/:requestId ──────────────────────────────────────
 
 const updateRequestSchema = z.object({

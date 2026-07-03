@@ -485,6 +485,12 @@ export async function getStorePendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
+// GET /hot-food/orders/admin/pending-count — badge count for DevAdmin/SuperAdmin, all stores
+export async function getAdminPendingCount(req: AuthRequest, res: Response) {
+  const count = await prisma.hotFoodOrder.count({ where: { status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 // ─── Catalog (admin) ──────────────────────────────────────────────────────────
 
 async function uploadToCloudinary(buffer: Buffer): Promise<string> {

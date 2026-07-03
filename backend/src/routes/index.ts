@@ -12,6 +12,7 @@ import {
   rejectTransaction,
   getStoreTransactions,
   getStoreSummary,
+  getTransactionsPendingCount,
   redeemCredits,
   getPlatformSummary,
   getAllTransactions,
@@ -58,6 +59,7 @@ import {
   getCategories as getOrderCategories,
   submitCategory,
   adminGetCategories,
+  getPendingCategoryCount,
   adminUpdateCategory,
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
@@ -73,6 +75,7 @@ import {
   getMySchedule,
   createShiftRequest,
   getStoreRequests,
+  getRequestsPendingCount as getShiftRequestsPendingCount,
   updateShiftRequest,
   getStoreEmployees,
   getVacancies,
@@ -86,6 +89,7 @@ import {
   getPublishedPromotions,
   getMyPromotionRequest,
   getAllPromotionRequests,
+  getPendingPromotionCount,
   publishPromotion,
   rejectPromotion,
   deletePromotion,
@@ -126,6 +130,7 @@ import {
   getMyOrders as getMyHotFoodOrders,
   getStoreOrders,
   getStorePendingCount,
+  getAdminPendingCount as getHotFoodAdminPendingCount,
   getCatalog as getHotFoodCatalog,
   createCatalogItem as createHotFoodCatalogItem,
   updateCatalogItem as updateHotFoodCatalogItem,
@@ -236,6 +241,7 @@ router.post(
 );
 
 // ─── Points (Admin) ───────────────────────────────────────────────────────────
+router.get('/points/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getTransactionsPendingCount);           // Badge count
 router.get('/points/store/:storeId/summary', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreSummary);
 router.get('/points/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreTransactions);
 router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STORE_MANAGER), rejectTransaction);
@@ -325,6 +331,7 @@ router.delete('/schedule/shifts/:shiftId', authenticate, requireRole(Role.STORE_
 router.get('/schedule/store/:storeId/day', authenticate, requireRole(Role.EMPLOYEE), getDayRoster);
 router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
+router.get('/schedule/requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getShiftRequestsPendingCount); // Badge count
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
 router.get('/schedule/vacancies', authenticate, getVacancies);                                       // Vacant shift slots (all roles)
 
@@ -353,6 +360,7 @@ router.post('/promotions/request', authenticate, requireRole(Role.CUSTOMER), upl
 router.get('/promotions', authenticate, getPublishedPromotions);                                                                  // All authenticated — see published ads
 router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyPromotionRequest);                                    // Customer checks their own request
 router.get('/promotions/requests', authenticate, requireRole(Role.DEV_ADMIN), getAllPromotionRequests);                           // DevAdmin sees all requests
+router.get('/promotions/requests/pending-count', authenticate, requireRole(Role.DEV_ADMIN), getPendingPromotionCount);            // Badge count
 router.post('/promotions/:id/publish', authenticate, requireRole(Role.DEV_ADMIN), upload.single('image'), publishPromotion);     // DevAdmin publishes (optional banner image)
 router.patch('/promotions/:id/reject', authenticate, requireRole(Role.DEV_ADMIN), rejectPromotion);                              // DevAdmin rejects
 router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), deletePromotion);                                    // DevAdmin deletes
@@ -454,6 +462,7 @@ router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_
 router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown
 router.post('/order-categories/submit',  authenticate, requireRole(Role.EMPLOYEE), submitCategory);            // Employee/Manager submits new → DevAdmin notified
 router.get('/order-categories/admin',    authenticate, requireRole(Role.DEV_ADMIN),    adminGetCategories);    // All categories with status filter
+router.get('/order-categories/admin/pending-count', authenticate, requireRole(Role.DEV_ADMIN), getPendingCategoryCount); // Badge count
 router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMIN),    adminUpdateCategory);   // Approve / edit name (cascades to items) / reject
 router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete
 
@@ -465,6 +474,7 @@ router.post('/hot-food/menu',           authenticate, requireRole(Role.EMPLOYEE)
 router.patch('/hot-food/menu/:id',      authenticate, requireRole(Role.EMPLOYEE),      upload.single('image'), updateHotFoodItem);
 router.delete('/hot-food/menu/:id',     authenticate, requireRole(Role.EMPLOYEE),      deleteHotFoodItem);
 // Orders — admin board (specific routes before :id param)
+router.get('/hot-food/orders/admin/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodAdminPendingCount); // Badge count, all stores
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);

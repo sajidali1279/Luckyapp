@@ -23,6 +23,12 @@ export async function adminGetCategories(req: AuthRequest, res: Response) {
   res.json({ success: true, data: cats });
 }
 
+// GET /order-categories/admin/pending-count — badge count for DevAdmin
+export async function getPendingCategoryCount(_req: AuthRequest, res: Response) {
+  const count = await prisma.orderCategory.count({ where: { status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 // Manager submits a new category for DevAdmin approval
 export async function submitCategory(req: AuthRequest, res: Response) {
   const { name } = req.body;
