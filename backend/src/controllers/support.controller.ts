@@ -180,9 +180,16 @@ export async function updatePriority(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /support/unread-count ────────────────────────────────────────────────
+// DevAdmin: unread replies across the whole inbox (from anyone but themself).
+// SuperAdmin: unread replies from DevAdmin on threads they personally opened.
 export async function getUnreadCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  const isDevAdmin = user.role === 'DEV_ADMIN';
+
   const count = await prisma.supportMessage.count({
-    where: { isRead: false, senderRole: { not: 'DEV_ADMIN' } },
+    where: isDevAdmin
+      ? { isRead: false, senderRole: { not: 'DEV_ADMIN' } }
+      : { isRead: false, senderRole: 'DEV_ADMIN', thread: { fromUserId: user.id } },
   });
   res.json({ success: true, data: { count } });
 }

@@ -53,17 +53,58 @@ export async function getMessages(req: AuthRequest, res: Response) {
     });
     res.json({ success: true, data: messages });
   } else {
-    // Initial load: last 50 messages
-    const messages = await prisma.chatMessage.findMany({
-      where: {
-        storeId,
-        ...(before ? { createdAt: { lt: new Date(before) } } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    // Initial load: last 50 messages — this is when the user is actually looking
+    // at the room, so mark it read up to now
+    const [messages] = await Promise.all([
+      prisma.chatMessage.findMany({
+        where: {
+          storeId,
+          ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.chatRead.upsert({
+        where: { userId_storeId: { userId: user.id, storeId } },
+        update: { lastReadAt: new Date() },
+        create: { userId: user.id, storeId, lastReadAt: new Date() },
+      }),
+    ]);
     res.json({ success: true, data: messages.reverse() });
   }
+}
+
+// ─── GET /chat/unread-count ───────────────────────────────────────────────────
+
+export async function getUnreadCount(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  const storeIds = PLATFORM_ADMIN_ROLES.includes(user.role)
+    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
+    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: { count: 0 } });
+    return;
+  }
+
+  const reads = await prisma.chatRead.findMany({
+    where: { userId: user.id, storeId: { in: storeIds } },
+    select: { storeId: true, lastReadAt: true },
+  });
+  const readMap = new Map(reads.map((r) => [r.storeId, r.lastReadAt]));
+
+  const count = await prisma.chatMessage.count({
+    where: {
+      userId: { not: user.id },
+      OR: storeIds.map((storeId) => ({
+        storeId,
+        createdAt: { gt: readMap.get(storeId) ?? new Date(0) },
+      })),
+    },
+  });
+
+  res.json({ success: true, data: { count } });
 }
 
 // ─── POST /chat/:storeId/messages ─────────────────────────────────────────────

@@ -36,7 +36,7 @@ import {
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, clearAllNotifications, broadcastNotification } from '../controllers/notifications.controller';
-import { getMyChatStores, getMessages, sendMessage } from '../controllers/chat.controller';
+import { getMyChatStores, getMessages, sendMessage, getUnreadCount as getChatUnreadCount } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount } from '../controllers/productRequest.controller';
 import {
@@ -110,7 +110,7 @@ import {
   updateOpening,
   deleteOpening,
 } from '../controllers/jobOpenings.controller';
-import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, resolveDispute } from '../controllers/dispute.controller';
+import { submitDispute, getMyDisputes, getStoreDisputes, getAllDisputes, getPendingDisputeCount, resolveDispute } from '../controllers/dispute.controller';
 import {
   getMenu as getHotFoodMenu,
   createItem as createHotFoodItem,
@@ -330,6 +330,7 @@ router.get('/schedule/vacancies', authenticate, getVacancies);                  
 
 // ─── Store Chat ───────────────────────────────────────────────────────────────
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
+router.get('/chat/unread-count', authenticate, getChatUnreadCount);                                  // Badge count across accessible stores
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
 
@@ -359,7 +360,7 @@ router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), dele
 // ─── Support (SuperAdmin → DevAdmin) ─────────────────────────────────────────
 router.post('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), createThread);
 router.get('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), getThreads);
-router.get('/support/unread-count', authenticate, requireRole(Role.DEV_ADMIN), getSupportUnreadCount);
+router.get('/support/unread-count', authenticate, requireRole(Role.SUPER_ADMIN), getSupportUnreadCount);
 router.get('/support/threads/:threadId', authenticate, requireRole(Role.SUPER_ADMIN), getThread);
 router.post('/support/threads/:threadId/messages', authenticate, requireRole(Role.SUPER_ADMIN), sendSupportMessage);
 router.patch('/support/threads/:threadId/resolve', authenticate, requireRole(Role.DEV_ADMIN), resolveThread);
@@ -504,6 +505,7 @@ router.post('/disputes',                          authenticate, requireRole(Role
 router.get('/disputes/mine',                      authenticate, requireRole(Role.CUSTOMER),     getMyDisputes);
 router.get('/disputes/store/:storeId',            authenticate, requireRole(Role.STORE_MANAGER), getStoreDisputes);
 router.get('/disputes/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   getAllDisputes);
+router.get('/disputes/pending-count',              authenticate, requireRole(Role.SUPER_ADMIN),   getPendingDisputeCount);
 router.patch('/disputes/:id/resolve',             authenticate, requireRole(Role.STORE_MANAGER), resolveDispute);
 
 export default router;

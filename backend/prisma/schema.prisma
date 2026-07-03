@@ -233,6 +233,7 @@ model User {
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   chatMessages         ChatMessage[]
+  chatReads            ChatRead[]
   submittedStoreRequests StoreRequest[]
   productRequests        ProductRequest[] @relation("CustomerProductRequests")
   respondedProductRequests ProductRequest[] @relation("ProductRequestResponder")
@@ -308,6 +309,7 @@ model Store {
   shiftTemplates    ShiftTemplate[]
   shiftRequests     ShiftRequest[]
   chatMessages      ChatMessage[]
+  chatReads         ChatRead[]
   storeRequests     StoreRequest[]
   catalogRedemptions CatalogRedemption[]
   employeeRatings    EmployeeRating[]
@@ -648,6 +650,19 @@ model ChatMessage {
 
   @@index([storeId, createdAt])
   @@map("chat_messages")
+}
+
+model ChatRead {
+  id         String   @id @default(uuid())
+  userId     String
+  storeId    String
+  lastReadAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@map("chat_reads")
 }
 
 // ─── Store Requests ───────────────────────────────────────────────────────────

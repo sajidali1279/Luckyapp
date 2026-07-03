@@ -86,6 +86,12 @@ export async function getAllDisputes(req: AuthRequest, res: Response) {
   res.json({ success: true, data: disputes });
 }
 
+// ─── GET /disputes/pending-count ──────────────────────────────────────────────
+export async function getPendingDisputeCount(req: AuthRequest, res: Response) {
+  const count = await prisma.pointsDispute.count({ where: { status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 const DISPUTE_CREDIT_HARD_CAP = 50; // $50 max credit per dispute
 
 const resolveSchema = z.object({
