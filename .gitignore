@@ -25,3 +25,7 @@ GoogleService-Info.plist
 # Android signing keystore — NEVER commit
 *.jks
 *.keystore
+
+# Apple App Store Connect API key — NEVER commit
+*.p8
+mobile/credentials/

@@ -26,8 +26,11 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "YOUR_APPLE_ID",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID"
+        "ascAppId": "6787270736",
+        "appleTeamId": "QD878CRNXU",
+        "ascApiKeyPath": "./credentials/AuthKey_UGRJP9ZLM7.p8",
+        "ascApiKeyId": "UGRJP9ZLM7",
+        "ascApiKeyIssuerId": "0e35298b-c2e4-4477-ab48-a086240266c2"
       }
     }
   }
