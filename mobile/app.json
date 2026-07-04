@@ -33,7 +33,7 @@
     "plugins": [
       "@react-native-firebase/app",
       "expo-router",
-      "./plugins/withPodfileModularHeaders",
+      "./plugins/withPodfileStaticFrameworks",
       [
         "expo-camera",
         {
