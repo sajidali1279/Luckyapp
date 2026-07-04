@@ -1,0 +1,145 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      # Decode GoogleService-Info.plist to project root BEFORE prebuild so the
+      # @react-native-firebase/app Expo plugin picks it up during prebuild.
+      - name: Decode GoogleService-Info.plist
+        working-directory: ./mobile
+        run: echo "${{ secrets.GOOGLE_SERVICES_INFO_PLIST_B64 }}" | base64 -d > GoogleService-Info.plist
+
+      - name: Prebuild iOS
+        working-directory: ./mobile
+        run: npx expo prebuild --platform ios --clean
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Remove GoogleService-Info.plist
+        if: always()
+        working-directory: ./mobile
+        run: rm -f GoogleService-Info.plist
+
+      # Bump CFBundleVersion to the GitHub run number so each upload to
+      # App Store Connect is unique (mirrors the Android versionCode patch).
+      - name: Set CFBundleVersion
+        working-directory: ./mobile
+        run: |
+          PLIST=$(find ios -name Info.plist -not -path "*/Pods/*" | head -1)
+          echo "Patching $PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
+
+      # ── Code signing setup ──────────────────────────────────────────────────
+      - name: Create signing keychain
+        run: |
+          KEYCHAIN_PWD=$(openssl rand -base64 24)
+          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          echo "KEYCHAIN_PWD=$KEYCHAIN_PWD" >> "$GITHUB_ENV"
+
+      - name: Import distribution certificate
+        run: |
+          echo "${{ secrets.IOS_DISTRIBUTION_P12_B64 }}" | base64 -d > /tmp/distribution.p12
+          security import /tmp/distribution.p12 -k build.keychain -P "${{ secrets.IOS_P12_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
+          rm -f /tmp/distribution.p12
+          security list-keychains -d user -s build.keychain login.keychain
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/lucky_stop_app_store.mobileprovision
+
+      - name: Write ExportOptions.plist
+        working-directory: ./mobile
+        run: |
+          cat > ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>QD878CRNXU</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.luckystop.app</key>
+              <string>Lucky Stop App Store</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+      # ── Build ────────────────────────────────────────────────────────────────
+      - name: Discover workspace and scheme
+        working-directory: ./mobile
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme: $SCHEME"
+          echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+
+      - name: Archive
+        working-directory: ./mobile
+        run: |
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -archivePath build/App.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Lucky Stop App Store" \
+            DEVELOPMENT_TEAM=QD878CRNXU \
+            archive
+
+      - name: Export IPA
+        working-directory: ./mobile
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist ExportOptions.plist
+
+      - name: Verify IPA exists
+        working-directory: ./mobile
+        run: |
+          IPA=$(find build/ipa -name "*.ipa" | head -1)
+          if [ -n "$IPA" ]; then
+            echo "IPA produced successfully: $(du -h "$IPA" | cut -f1)"
+          else
+            echo "ERROR: no .ipa found in build/ipa" && exit 1
+          fi
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lucky-stop-ipa-${{ github.run_number }}
+          path: mobile/build/ipa/*.ipa
+          retention-days: 30
