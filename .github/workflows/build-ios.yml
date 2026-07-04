@@ -101,7 +101,16 @@ jobs:
         working-directory: ./mobile
         run: |
           WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import json,sys; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          APP_NAME=$(basename "$WORKSPACE" .xcworkspace)
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | APP_NAME="$APP_NAME" python3 -c "
+          import json, os, sys
+          data = json.load(sys.stdin)
+          schemes = data['workspace']['schemes']
+          app_name = os.environ['APP_NAME']
+          # The real app scheme matches the project name — everything else in this
+          # list (EXApplication, ExpoModulesCore, etc.) is a per-pod library scheme.
+          print(app_name if app_name in schemes else schemes[0])
+          ")
           echo "Workspace: $WORKSPACE"
           echo "Scheme: $SCHEME"
           echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
