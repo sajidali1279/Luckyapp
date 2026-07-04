@@ -81,6 +81,8 @@ jobs:
           <dict>
             <key>method</key>
             <string>app-store-connect</string>
+            <key>destination</key>
+            <string>export</string>
             <key>teamID</key>
             <string>QD878CRNXU</string>
             <key>signingStyle</key>
@@ -126,6 +128,18 @@ jobs:
             -archivePath build/App.xcarchive \
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
+
+      # Diagnostic only — if the export above failed, an empty/invalid plist
+      # sometimes makes Xcode's validator print the *actual* list of valid
+      # values instead of the "expected one {}" placeholder bug. Doesn't fail
+      # the job either way; just gives us real info for the next fix.
+      - name: Diagnose export options (only if export failed)
+        if: failure()
+        working-directory: ./mobile
+        continue-on-error: true
+        run: |
+          echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\"><plist version=\"1.0\"><dict></dict></plist>" > /tmp/empty.plist
+          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath /tmp/diag-export -exportOptionsPlist /tmp/empty.plist || true
 
       - name: Verify IPA exists
         working-directory: ./mobile
