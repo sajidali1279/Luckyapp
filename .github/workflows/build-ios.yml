@@ -172,3 +172,55 @@ jobs:
           name: lucky-stop-ipa-${{ github.run_number }}
           path: mobile/build/ipa/*.ipa
           retention-days: 30
+
+      # ── Deliver to App Store Connect ────────────────────────────────────────
+      # Re-exports the same archive a second time with destination=upload, which
+      # has xcodebuild deliver the IPA straight to App Store Connect/TestFlight
+      # using an API key instead of requiring Transporter on a Mac.
+      - name: Decode App Store Connect API key
+        run: |
+          mkdir -p /tmp/private_keys
+          echo "${{ secrets.ASC_API_KEY_P8_B64 }}" | base64 -d > /tmp/private_keys/AuthKey_UGRJP9ZLM7.p8
+
+      - name: Write ExportOptions-Upload.plist
+        working-directory: ./mobile
+        run: |
+          cat > ExportOptionsUpload.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>teamID</key>
+            <string>QD878CRNXU</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.luckystop.app</key>
+              <string>Lucky Stop App Store</string>
+            </dict>
+            <key>authenticationKeyPath</key>
+            <string>/tmp/private_keys/AuthKey_UGRJP9ZLM7.p8</string>
+            <key>authenticationKeyID</key>
+            <string>UGRJP9ZLM7</string>
+            <key>authenticationKeyIssuerID</key>
+            <string>0e35298b-c2e4-4477-ab48-a086240266c2</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Upload to App Store Connect
+        working-directory: ./mobile
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/upload \
+            -exportOptionsPlist ExportOptionsUpload.plist
+
+      - name: Remove App Store Connect API key
+        if: always()
+        run: rm -rf /tmp/private_keys
