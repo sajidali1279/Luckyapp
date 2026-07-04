@@ -34,9 +34,18 @@ module.exports = function withPodfileStaticFrameworks(config) {
         // bundle. This has to live in the same post_install hook the
         // template already declares — a second post_install block would
         // silently replace it (CocoaPods only keeps the last one).
+        //
+        // Frameworks also break RNFBApp: its headers pull in React-Core
+        // headers (RCTConvert.h, RCTBridgeModule.h, ...) via non-modular
+        // #import. Expo's autolinking deliberately keeps React-Core's own
+        // modulemap "non-framework" for compatibility reasons, so from
+        // Clang's point of view RNFBApp (a real framework module) is
+        // including a non-modular header, which -Werror rejects by default
+        // ("include of non-modular header inside framework module"). The
+        // standard use_frameworks! + RN workaround is to allow that.
         contents = contents.replace(
           'post_install do |installer|',
-          `post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      target.build_configurations.each do |config|\n        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n      end\n    end\n`
+          `post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      target.build_configurations.each do |config|\n        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'\n      end\n    end\n`
         );
 
         fs.writeFileSync(podfilePath, contents, 'utf8');
