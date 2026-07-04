@@ -39,6 +39,12 @@ jobs:
         working-directory: ./mobile
         run: rm -f GoogleService-Info.plist
 
+      # Temporary diagnostic — confirm the withPodfileStaticFrameworks plugin
+      # actually injected use_frameworks! before we get to pod install.
+      - name: Print Podfile head
+        working-directory: ./mobile
+        run: head -20 ios/Podfile
+
       # Bump CFBundleVersion to the GitHub run number so each upload to
       # App Store Connect is unique (mirrors the Android versionCode patch).
       - name: Set CFBundleVersion

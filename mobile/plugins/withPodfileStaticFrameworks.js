@@ -19,8 +19,13 @@ module.exports = function withPodfileStaticFrameworks(config) {
     async (config) => {
       const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
       const contents = fs.readFileSync(podfilePath, 'utf8');
-      if (!contents.includes('use_frameworks!')) {
-        fs.writeFileSync(podfilePath, `use_frameworks! :linkage => :static\n${contents}`, 'utf8');
+      const marker = '# withPodfileStaticFrameworks';
+      if (!contents.includes(marker)) {
+        fs.writeFileSync(
+          podfilePath,
+          `${marker}\nuse_frameworks! :linkage => :static\n${contents}`,
+          'utf8'
+        );
       }
       return config;
     },
