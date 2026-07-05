@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import api from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import DataTablePagination from '../components/DataTablePagination';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -279,44 +281,44 @@ export default function Transactions() {
         <div style={s.empty}>No transactions found.</div>
       ) : (
         <>
-          <table style={s.table}>
-            <thead>
-              <tr>
-                <th style={s.th}>Date</th>
-                <th style={s.th}>Customer</th>
-                <th style={s.th}>Amount</th>
-                <th style={s.th}>Cashback</th>
-                {isSuperAdmin && <th style={s.th}>Store</th>}
-                <th style={s.th}>Category</th>
-                <th style={s.th}>Employee</th>
-                <th style={s.th}>Status</th>
-                <th style={s.th}>Receipt</th>
-                <th style={s.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={s.th}>Date</TableHead>
+                <TableHead style={s.th}>Customer</TableHead>
+                <TableHead style={s.th}>Amount</TableHead>
+                <TableHead style={s.th}>Cashback</TableHead>
+                {isSuperAdmin && <TableHead style={s.th}>Store</TableHead>}
+                <TableHead style={s.th}>Category</TableHead>
+                <TableHead style={s.th}>Employee</TableHead>
+                <TableHead style={s.th}>Status</TableHead>
+                <TableHead style={s.th}>Receipt</TableHead>
+                <TableHead style={s.th}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {transactions.map((tx: any) => {
                 const flags: string[] = tx.fraudFlags ? JSON.parse(tx.fraudFlags) : [];
                 return (
-                <tr key={tx.id} style={{ opacity: tx.status === 'REJECTED' ? 0.55 : 1, background: tx.status === 'FLAGGED' ? '#fff5f5' : undefined }}>
-                  <td style={s.td}>
+                <TableRow key={tx.id} style={{ opacity: tx.status === 'REJECTED' ? 0.55 : 1, background: tx.status === 'FLAGGED' ? '#fff5f5' : undefined }}>
+                  <TableCell style={s.td}>
                     <div>{format(new Date(tx.createdAt), 'MMM d')}</div>
                     <div style={{ fontSize: 13, color: '#adb5bd' }}>{format(new Date(tx.createdAt), 'h:mm a')}</div>
-                  </td>
-                  <td style={s.td}>
+                  </TableCell>
+                  <TableCell style={s.td}>
                     <div style={{ fontWeight: 600 }}>{tx.customer?.name || '—'}</div>
                     <div style={{ fontSize: 13, color: '#adb5bd' }}>{tx.customer?.phone}</div>
-                  </td>
-                  <td style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></td>
-                  <td style={s.td}><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></td>
+                  </TableCell>
+                  <TableCell style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></TableCell>
+                  <TableCell style={s.td}><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></TableCell>
                   {isSuperAdmin && (
-                    <td style={s.td}><span style={{ fontSize: 15, color: '#1D3557', fontWeight: 600 }}>{tx.store?.name || '—'}</span></td>
+                    <TableCell style={s.td}><span style={{ fontSize: 15, color: '#1D3557', fontWeight: 600 }}>{tx.store?.name || '—'}</span></TableCell>
                   )}
-                  <td style={s.td}>
+                  <TableCell style={s.td}>
                     <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || '—'}</span>
-                  </td>
-                  <td style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || '—'}</td>
-                  <td style={s.td}>
+                  </TableCell>
+                  <TableCell style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || '—'}</TableCell>
+                  <TableCell style={s.td}>
                     <div>
                       <span style={{ ...s.badge, background: STATUS_COLORS[tx.status] || '#dee2e6' }}>
                         {tx.status === 'FLAGGED' ? '🚨 FLAGGED' : tx.status}
@@ -329,13 +331,13 @@ export default function Transactions() {
                         ))}
                       </div>
                     )}
-                  </td>
-                  <td style={s.td}>
+                  </TableCell>
+                  <TableCell style={s.td}>
                     {tx.receiptImageUrl ? (
                       <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
                     ) : '—'}
-                  </td>
-                  <td style={s.td}>
+                  </TableCell>
+                  <TableCell style={s.td}>
                     {tx.status === 'PENDING' && (
                       <button style={s.rejectBtn} onClick={() => setConfirmRejectId(tx.id)}>Reject</button>
                     )}
@@ -345,22 +347,19 @@ export default function Transactions() {
                         <button style={s.rejectBtn} onClick={() => reviewMutation.mutate({ id: tx.id, action: 'REJECT' })}>✕ Reject</button>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
 
-          {totalPages > 1 && (
-            <div style={s.pagination}>
-              <button style={{ ...s.pageBtn, ...(page === 1 ? s.pageBtnDisabled : {}) }}
-                onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>← Prev</button>
-              <span style={s.pageInfo}>Page {page} of {totalPages}</span>
-              <button style={{ ...s.pageBtn, ...(page === totalPages ? s.pageBtnDisabled : {}) }}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next →</button>
-            </div>
-          )}
+          <DataTablePagination
+            page={page}
+            totalPages={totalPages}
+            onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
         </>
       )}
     </div>
@@ -402,8 +401,4 @@ const s: Record<string, React.CSSProperties> = {
   link: { color: '#1D3557', fontWeight: 600, fontSize: 15 },
   rejectBtn: { background: 'none', border: '1px solid #E63946', color: '#E63946', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 },
   empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
-  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 24 },
-  pageBtn: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '8px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#1D3557' },
-  pageBtnDisabled: { opacity: 0.4, cursor: 'not-allowed' },
-  pageInfo: { fontSize: 14, color: '#6c757d', fontWeight: 500 },
 };
