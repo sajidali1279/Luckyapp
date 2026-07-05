@@ -9,6 +9,7 @@ import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
+import FadeSlideIn from '../../components/FadeSlideIn';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon } from '../../components/Icons';
 
 interface Ad {
@@ -118,15 +119,17 @@ export default function AdsScreen() {
           subtitle="Local business advertisements will appear here. Check back soon!"
         />
       ) : (
-        <FlatList
-          data={ads}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={s.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-          }
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={ads}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={s.list}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+            }
+          />
+        </FadeSlideIn>
       )}
     </View>
   );

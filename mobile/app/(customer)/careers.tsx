@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircleIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 const POSITION_META: Record<string, { emoji: string; desc: string }> = {
   CASHIER:           { emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
@@ -145,6 +146,7 @@ export default function CareersScreen() {
         <Text style={st.headerSub}>Join the Lucky Stop team</Text>
       </View>
 
+      <FadeSlideIn style={{ flex: 1 }}>
       <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
 
         {/* Hero */}
@@ -221,6 +223,7 @@ export default function CareersScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </FadeSlideIn>
 
       {/* Success Banner */}
       {submitted && (

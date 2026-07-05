@@ -10,6 +10,7 @@ import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
+import FadeSlideIn from './FadeSlideIn';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
@@ -318,19 +319,23 @@ export default function NotificationsScreen() {
         <View style={s.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
-      ) : notifications.length === 0 ? (
-        <EmptyState icon={<BellIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
       ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={s.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-          }
-          ItemSeparatorComponent={() => <View style={s.separator} />}
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          {notifications.length === 0 ? (
+            <EmptyState icon={<BellIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
+          ) : (
+            <FlatList
+              data={notifications}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={s.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+              }
+              ItemSeparatorComponent={() => <View style={s.separator} />}
+            />
+          )}
+        </FadeSlideIn>
       )}
     </View>
   );

@@ -8,6 +8,7 @@ import { COLORS } from '../../constants';
 import { TrophyIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import BackButton from '../../components/BackButton';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -153,24 +154,26 @@ export default function CustomerLeaderboardScreen() {
           <Text style={st.emptySub}>Be the first to earn points!</Text>
         </View>
       ) : (
-        <FlatList
-          data={entries}
-          keyExtractor={(item) => item.customerId}
-          contentContainerStyle={st.list}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <View style={st.podium}>
-              {entries.slice(0, 3).map((e: any) => (
-                <View key={e.customerId} style={[st.podiumCol, e.rank === 1 && st.podiumColFirst]}>
-                  <Text style={st.podiumIcon}>{TIER_ICONS[e.rank]}</Text>
-                  <Text style={st.podiumName} numberOfLines={1}>{e.firstName}</Text>
-                  <Text style={st.podiumPts}>{(e.totalPoints / 1000).toFixed(1)}k</Text>
-                </View>
-              ))}
-            </View>
-          }
-          renderItem={renderItem}
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={entries}
+            keyExtractor={(item) => item.customerId}
+            contentContainerStyle={st.list}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <View style={st.podium}>
+                {entries.slice(0, 3).map((e: any) => (
+                  <View key={e.customerId} style={[st.podiumCol, e.rank === 1 && st.podiumColFirst]}>
+                    <Text style={st.podiumIcon}>{TIER_ICONS[e.rank]}</Text>
+                    <Text style={st.podiumName} numberOfLines={1}>{e.firstName}</Text>
+                    <Text style={st.podiumPts}>{(e.totalPoints / 1000).toFixed(1)}k</Text>
+                  </View>
+                ))}
+              </View>
+            }
+            renderItem={renderItem}
+          />
+        </FadeSlideIn>
       )}
     </View>
   );

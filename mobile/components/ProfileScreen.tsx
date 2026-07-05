@@ -21,6 +21,7 @@ import {
   GlobeIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
+import FadeSlideIn from './FadeSlideIn';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 
 type Panel = null | 'name' | 'pin' | 'email';
@@ -345,6 +346,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       </SafeAreaView>
 
       <ScrollView style={s.fill} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        <FadeSlideIn>
         {/* ── Account Settings ── */}
         <Text style={s.sectionLabel}>{t('profile.accountSettings')}</Text>
 
@@ -750,6 +752,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             Lucky Stop™ is a trademark of Lucky Stop Inc.
           </Text>
         </View>
+        </FadeSlideIn>
       </ScrollView>
 
       {/* ── Delete Account confirmation modal ── */}

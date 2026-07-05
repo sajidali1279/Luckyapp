@@ -10,6 +10,7 @@ import { COLORS } from '../../constants';
 import { ShoppingBagIcon, CheckCircleIcon, ChevronRightIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 const STATUS_CONFIG = {
   PENDING:  { label: 'Pending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -130,27 +131,39 @@ export default function RequestProductScreen() {
           {isLoading ? (
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : isError ? (
-            <ErrorState message="Failed to load your requests." onRetry={() => refetch()} />
+            <FadeSlideIn>
+              <ErrorState message="Failed to load your requests." onRetry={() => refetch()} />
+            </FadeSlideIn>
           ) : myRequests.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <View style={styles.emptyIconWrap}>
-                <ShoppingBagIcon size={40} color="#D1D5DB" strokeWidth={1.5} />
+            <FadeSlideIn>
+              <View style={styles.emptyWrap}>
+                <View style={styles.emptyIconWrap}>
+                  <ShoppingBagIcon size={40} color="#D1D5DB" strokeWidth={1.5} />
+                </View>
+                <Text style={styles.emptyTitle}>No requests yet</Text>
+                <Text style={styles.emptySub}>Tap "+ New" to request a product you'd like to see in a Lucky Stop store.</Text>
               </View>
-              <Text style={styles.emptyTitle}>No requests yet</Text>
-              <Text style={styles.emptySub}>Tap "+ New" to request a product you'd like to see in a Lucky Stop store.</Text>
-            </View>
+            </FadeSlideIn>
           ) : (
             <>
               {pending.length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Active Requests</Text>
-                  {pending.map((r) => <RequestCard key={r.id} request={r} />)}
+                  {pending.map((r, i) => (
+                    <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
+                      <RequestCard request={r} />
+                    </FadeSlideIn>
+                  ))}
                 </>
               )}
               {resolved.length > 0 && (
                 <>
                   <Text style={styles.sectionLabel}>Past Requests</Text>
-                  {resolved.map((r) => <RequestCard key={r.id} request={r} />)}
+                  {resolved.map((r, i) => (
+                    <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
+                      <RequestCard request={r} />
+                    </FadeSlideIn>
+                  ))}
                 </>
               )}
             </>

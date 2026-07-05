@@ -13,6 +13,7 @@ import { COLORS } from '../../constants';
 import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -584,23 +585,25 @@ export default function CustomerHotFoodScreen() {
               <Text style={s.emptySub}>Hot food isn't available at this store right now — check back later.</Text>
             </View>
           ) : (
-            <FlatList
-              data={menuItems}
-              keyExtractor={item => item.id}
-              contentContainerStyle={s.menuList}
-              refreshControl={
-                <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} />
-              }
-              renderItem={({ item }) => (
-                <MenuCard
-                  item={item}
-                  qty={getQty(item.id)}
-                  onAdd={() => addToCart(item)}
-                  onRemove={() => removeFromCart(item)}
-                />
-              )}
-              ListFooterComponent={<View style={{ height: cartCount > 0 ? 110 : 32 }} />}
-            />
+            <FadeSlideIn style={{ flex: 1 }}>
+              <FlatList
+                data={menuItems}
+                keyExtractor={item => item.id}
+                contentContainerStyle={s.menuList}
+                refreshControl={
+                  <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} />
+                }
+                renderItem={({ item }) => (
+                  <MenuCard
+                    item={item}
+                    qty={getQty(item.id)}
+                    onAdd={() => addToCart(item)}
+                    onRemove={() => removeFromCart(item)}
+                  />
+                )}
+                ListFooterComponent={<View style={{ height: cartCount > 0 ? 110 : 32 }} />}
+              />
+            </FadeSlideIn>
           )}
 
           {/* Floating cart button */}
@@ -624,52 +627,54 @@ export default function CustomerHotFoodScreen() {
 
       {/* ── ORDERS TAB ── */}
       {tab === 'orders' && (
-        <FlatList
-          data={[...activeOrders, ...pastOrders]}
-          keyExtractor={o => o.id}
-          contentContainerStyle={s.ordersList}
-          refreshControl={
-            <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} />
-          }
-          ListEmptyComponent={
-            ordersLoading ? (
-              <View style={s.loadingBox}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-              </View>
-            ) : ordersIsError ? (
-              <ErrorState message="Failed to load your orders." onRetry={() => refetchOrders()} />
-            ) : (
-              <View style={s.emptyBox}>
-                <Text style={s.emptyEmoji}>📋</Text>
-                <Text style={s.emptyTitle}>No orders yet</Text>
-                <Text style={s.emptySub}>Head to the Menu tab to order hot food from the kitchen.</Text>
-                <TouchableOpacity
-                  style={s.goMenuBtn}
-                  onPress={() => setTab('menu')}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Browse menu"
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Text style={s.goMenuBtnText}>Browse Menu</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          }
-          ListHeaderComponent={
-            activeOrders.length > 0 ? (
-              <Text style={s.sectionLabel}>Active Orders</Text>
-            ) : null
-          }
-          renderItem={({ item, index }) => (
-            <>
-              {index === activeOrders.length && pastOrders.length > 0 && (
-                <Text style={[s.sectionLabel, { marginTop: 20 }]}>Past Orders</Text>
-              )}
-              <OrderCard order={item} />
-            </>
-          )}
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={[...activeOrders, ...pastOrders]}
+            keyExtractor={o => o.id}
+            contentContainerStyle={s.ordersList}
+            refreshControl={
+              <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} />
+            }
+            ListEmptyComponent={
+              ordersLoading ? (
+                <View style={s.loadingBox}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+              ) : ordersIsError ? (
+                <ErrorState message="Failed to load your orders." onRetry={() => refetchOrders()} />
+              ) : (
+                <View style={s.emptyBox}>
+                  <Text style={s.emptyEmoji}>📋</Text>
+                  <Text style={s.emptyTitle}>No orders yet</Text>
+                  <Text style={s.emptySub}>Head to the Menu tab to order hot food from the kitchen.</Text>
+                  <TouchableOpacity
+                    style={s.goMenuBtn}
+                    onPress={() => setTab('menu')}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Browse menu"
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Text style={s.goMenuBtnText}>Browse Menu</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            }
+            ListHeaderComponent={
+              activeOrders.length > 0 ? (
+                <Text style={s.sectionLabel}>Active Orders</Text>
+              ) : null
+            }
+            renderItem={({ item, index }) => (
+              <>
+                {index === activeOrders.length && pastOrders.length > 0 && (
+                  <Text style={[s.sectionLabel, { marginTop: 20 }]}>Past Orders</Text>
+                )}
+                <OrderCard order={item} />
+              </>
+            )}
+          />
+        </FadeSlideIn>
       )}
 
       {/* Cart sheet */}

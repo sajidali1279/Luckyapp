@@ -5,6 +5,7 @@ import { disputeApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import ErrorState from '../../components/ErrorState';
 import BackButton from '../../components/BackButton';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 function StatusPill({ status }: { status: string }) {
   const cfg = {
@@ -42,26 +43,28 @@ export default function MyDisputesScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-          {disputes.map((d) => (
-            <View key={d.id} style={s.card}>
-              <View style={s.cardTop}>
-                <Text style={s.storeName}>{d.store?.name ?? 'Unknown store'}</Text>
-                <StatusPill status={d.status} />
+          {disputes.map((d, index) => (
+            <FadeSlideIn key={d.id} delay={Math.min(index * 40, 200)}>
+              <View style={s.card}>
+                <View style={s.cardTop}>
+                  <Text style={s.storeName}>{d.store?.name ?? 'Unknown store'}</Text>
+                  <StatusPill status={d.status} />
+                </View>
+                <Text style={s.desc}>{d.description}</Text>
+                {d.estimatedAmt != null && (
+                  <Text style={s.meta}>Claimed purchase: ${Number(d.estimatedAmt).toFixed(2)}</Text>
+                )}
+                {d.resolvedNote ? (
+                  <Text style={[s.meta, s.note]}>Note: {d.resolvedNote}</Text>
+                ) : null}
+                {d.creditedAmt != null && d.status === 'APPROVED' && (
+                  <Text style={s.credited}>+${Number(d.creditedAmt).toFixed(2)} credited</Text>
+                )}
+                <Text style={s.date}>
+                  Submitted {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </Text>
               </View>
-              <Text style={s.desc}>{d.description}</Text>
-              {d.estimatedAmt != null && (
-                <Text style={s.meta}>Claimed purchase: ${Number(d.estimatedAmt).toFixed(2)}</Text>
-              )}
-              {d.resolvedNote ? (
-                <Text style={[s.meta, s.note]}>Note: {d.resolvedNote}</Text>
-              ) : null}
-              {d.creditedAmt != null && d.status === 'APPROVED' && (
-                <Text style={s.credited}>+${Number(d.creditedAmt).toFixed(2)} credited</Text>
-              )}
-              <Text style={s.date}>
-                Submitted {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </Text>
-            </View>
+            </FadeSlideIn>
           ))}
         </ScrollView>
       )}

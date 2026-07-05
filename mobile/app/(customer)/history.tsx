@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
+import FadeSlideIn from '../../components/FadeSlideIn';
 import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/Icons';
 import { format } from 'date-fns';
 
@@ -51,6 +52,7 @@ export default function HistoryScreen() {
           <Text style={s.loadingText}>Loading history…</Text>
         </View>
       ) : (
+        <FadeSlideIn style={{ flex: 1 }}>
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.id}
@@ -103,6 +105,7 @@ export default function HistoryScreen() {
             );
           }}
         />
+        </FadeSlideIn>
       )}
 
       {/* ── Transaction Detail Modal ── */}
