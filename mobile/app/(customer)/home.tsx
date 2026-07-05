@@ -1488,6 +1488,15 @@ export default function CustomerHome() {
             )}
             <Text style={styles.qrHint}>🔒 Unique to your account</Text>
             <TouchableOpacity
+              style={styles.scanReceiptLink}
+              onPress={() => { setShowQR(false); router.push('/(customer)/scan-receipt'); }}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Scan a receipt QR code instead to claim points automatically"
+            >
+              <Text style={styles.scanReceiptLinkText}>Got a receipt instead? Scan it →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.qrModalClose}
               onPress={() => setShowQR(false)}
               activeOpacity={0.8}
@@ -1560,10 +1569,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   qrModalClose: {
-    marginTop: 20, paddingVertical: 14, paddingHorizontal: 48,
+    marginTop: 12, paddingVertical: 14, paddingHorizontal: 48,
     backgroundColor: '#f1f5f9', borderRadius: 16,
   },
   qrModalCloseText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
+  scanReceiptLink: { marginTop: 20, paddingVertical: 4 },
+  scanReceiptLinkText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: COLORS.primary,
