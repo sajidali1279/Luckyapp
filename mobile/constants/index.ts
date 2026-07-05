@@ -11,6 +11,19 @@ export const COLORS = {
   success: '#2DC653',
   error: '#A01020',        // Distinct darker red — NOT the same as primary
   border: '#DEE2E6',
+  // Status tokens (pending/accepted/declined) — text/bg/border/dot shades
+  statusPendingText: '#b45309',
+  statusPendingBg: '#fffbeb',
+  statusPendingBorder: '#fde68a',
+  statusPendingDot: '#f59e0b',
+  statusAcceptedText: '#065f46',
+  statusAcceptedBg: '#f0fdf4',
+  statusAcceptedBorder: '#86efac',
+  statusAcceptedDot: '#22c55e',
+  statusDeclinedText: '#9f1239',
+  statusDeclinedBg: '#fff1f2',
+  statusDeclinedBorder: '#fecaca',
+  statusDeclinedDot: '#ef4444',
 };
 
 export const CASHBACK_RATE = 0.05; // 5% shown to customers

@@ -7,13 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productRequestApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
-import { ShoppingBagIcon, CheckCircleIcon, XIcon, ChevronRightIcon } from '../../components/Icons';
+import { ShoppingBagIcon, CheckCircleIcon, ChevronRightIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import ModalCloseButton from '../../components/ModalCloseButton';
 
 const STATUS_CONFIG = {
-  PENDING:  { label: 'Pending',  color: '#b45309', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
-  ACCEPTED: { label: 'Accepted', color: '#065f46', bg: '#f0fdf4', border: '#86efac', dot: '#22c55e' },
-  DECLINED: { label: 'Declined', color: '#9f1239', bg: '#fff1f2', border: '#fecaca', dot: '#ef4444' },
+  PENDING:  { label: 'Pending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
+  ACCEPTED: { label: 'Accepted', color: COLORS.statusAcceptedText, bg: COLORS.statusAcceptedBg, border: COLORS.statusAcceptedBorder, dot: COLORS.statusAcceptedDot },
+  DECLINED: { label: 'Declined', color: COLORS.statusDeclinedText, bg: COLORS.statusDeclinedBg, border: COLORS.statusDeclinedBorder, dot: COLORS.statusDeclinedDot },
 };
 
 const CATEGORIES = [
@@ -161,15 +162,12 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Product Request</Text>
-              <TouchableOpacity
+              <ModalCloseButton
                 onPress={() => { setShowForm(false); setSubmitted(false); }}
                 style={styles.modalCloseBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Close new product request form"
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <XIcon size={18} color="#6c757d" strokeWidth={2} />
-              </TouchableOpacity>
+                label="Close new product request form"
+                color={COLORS.textMuted}
+              />
             </View>
 
             {submitted ? (
@@ -270,7 +268,7 @@ export default function RequestProductScreen() {
                   accessibilityLabel="Submit product request"
                 >
                   {submitMut.isPending
-                    ? <ActivityIndicator color="#fff" />
+                    ? <ActivityIndicator color={COLORS.white} />
                     : <Text style={styles.submitBtnText}>Submit Request</Text>
                   }
                 </TouchableOpacity>
@@ -284,15 +282,12 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select a Store</Text>
-              <TouchableOpacity
+              <ModalCloseButton
                 onPress={() => setShowStorePicker(false)}
                 style={styles.modalCloseBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Close store picker"
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <XIcon size={18} color="#6c757d" strokeWidth={2} />
-              </TouchableOpacity>
+                label="Close store picker"
+                color={COLORS.textMuted}
+              />
             </View>
             <ScrollView>
               {stores.map((store) => (
@@ -379,13 +374,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   headerTextWrap: { flex: 1, paddingRight: 12 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3 },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
   newBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
   },
-  newBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  newBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 13 },
 
   scroll: { flex: 1 },
   sectionLabel: {
@@ -397,11 +392,11 @@ const styles = StyleSheet.create({
   emptyWrap: { alignItems: 'center', padding: 40, marginTop: 20 },
   emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a2e', marginBottom: 6 },
-  emptySub: { fontSize: 13, color: '#6c757d', textAlign: 'center', lineHeight: 19 },
+  emptySub: { fontSize: 13, color: COLORS.textMuted, textAlign: 'center', lineHeight: 19 },
 
   // Card
   card: {
-    backgroundColor: '#fff', borderRadius: 16,
+    backgroundColor: COLORS.white, borderRadius: 16,
     marginHorizontal: 16, marginBottom: 10,
     borderWidth: 1.5, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
@@ -437,7 +432,7 @@ const styles = StyleSheet.create({
   responseText: { fontSize: 12, lineHeight: 17 },
 
   // Modal
-  modalSafe: { flex: 1, backgroundColor: '#fff' },
+  modalSafe: { flex: 1, backgroundColor: COLORS.white },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 16,
@@ -476,15 +471,15 @@ const styles = StyleSheet.create({
     paddingVertical: 15, alignItems: 'center', marginTop: 20, marginBottom: 20,
   },
   submitBtnDisabled: { opacity: 0.4 },
-  submitBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  submitBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 15 },
 
   // Success
   successWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   successIconWrap: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a2e', marginBottom: 8 },
-  successSub: { fontSize: 14, color: '#6c757d', textAlign: 'center', lineHeight: 20, marginBottom: 32 },
+  successSub: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
   doneBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
-  doneBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  doneBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 15 },
 
   // Category picker
   categoryGrid: {
@@ -520,7 +515,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 12,
     backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
   },
-  storeOptionInitial: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  storeOptionInitial: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
   storeOptionName: { fontSize: 15, fontWeight: '700', color: '#1a1a2e' },
   storeOptionCity: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
 });
