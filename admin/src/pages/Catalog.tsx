@@ -5,6 +5,7 @@ import { catalogApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 interface CatalogItem {
   id: string;
@@ -240,37 +241,37 @@ function ChainSection({
         <div style={cs.emptyChain}>No items in this company yet</div>
       ) : (
         <div style={cs.tableWrap}>
-          <table style={cs.table}>
-            <thead>
-              <tr>
+          <Table style={cs.table}>
+            <TableHeader>
+              <TableRow>
                 {['', 'Title', 'Category', 'Description', 'Points Cost', 'Value', 'Status', 'Actions'].map(h => (
-                  <th key={h} style={cs.th}>{h}</th>
+                  <TableHead key={h} style={cs.th}>{h}</TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((item, i) => (
-                <tr key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                  <td style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</td>
-                  <td style={cs.td}><span style={cs.itemTitle}>{item.title}</span></td>
-                  <td style={cs.td}>
+                <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                  <TableCell style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</TableCell>
+                  <TableCell style={cs.td}><span style={cs.itemTitle}>{item.title}</span></TableCell>
+                  <TableCell style={cs.td}>
                     <span style={cs.catBadge}>
                       {{ IN_STORE: '🛒 In-Store', GAS: '⛽ Gas', HOT_FOODS: '🌮 Hot Foods' }[item.category as string] || item.category}
                     </span>
-                  </td>
-                  <td style={cs.td}><span style={cs.itemDesc}>{item.description || '—'}</span></td>
-                  <td style={cs.td}>
+                  </TableCell>
+                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || '—'}</span></TableCell>
+                  <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
-                  </td>
-                  <td style={cs.td}>
+                  </TableCell>
+                  <TableCell style={cs.td}>
                     <span style={cs.valueBadge}>${(item.pointsCost / 100).toFixed(2)}</span>
-                  </td>
-                  <td style={cs.td}>
+                  </TableCell>
+                  <TableCell style={cs.td}>
                     <span style={{ ...cs.statusBadge, ...(item.isActive ? cs.statusActive : cs.statusInactive) }}>
                       {item.isActive ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td style={cs.td}>
+                  </TableCell>
+                  <TableCell style={cs.td}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button style={cs.editBtn} onClick={() => onEdit(item)}>Edit</button>
                       <button
@@ -281,11 +282,11 @@ function ChainSection({
                         {deletingId === item.id ? '…' : 'Deactivate'}
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

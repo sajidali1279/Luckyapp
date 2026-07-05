@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
@@ -192,29 +193,29 @@ export default function InventoryAnalytics() {
           {/* Top Items Table */}
           <div style={s.card}>
             <h2 style={s.cardTitle}>Top Items (Detail)</h2>
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  <th style={s.th}>#</th>
-                  <th style={s.th}>Item</th>
-                  <th style={s.th}>Category</th>
-                  <th style={{ ...s.th, textAlign: 'right' }}>Orders</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table style={s.table}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={s.th}>#</TableHead>
+                  <TableHead style={s.th}>Item</TableHead>
+                  <TableHead style={s.th}>Category</TableHead>
+                  <TableHead style={{ ...s.th, textAlign: 'right' }}>Orders</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {topItems.map((item, idx) => (
-                  <tr key={`${item.name}-${idx}`} style={idx % 2 === 0 ? {} : s.rowAlt}>
-                    <td style={s.td}>{idx + 1}</td>
-                    <td style={s.td}>{item.name}</td>
-                    <td style={{ ...s.td, color: '#5a6472' }}>{item.category || '—'}</td>
-                    <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{item.orderCount}</td>
-                  </tr>
+                  <TableRow key={`${item.name}-${idx}`} style={idx % 2 === 0 ? {} : s.rowAlt}>
+                    <TableCell style={s.td}>{idx + 1}</TableCell>
+                    <TableCell style={s.td}>{item.name}</TableCell>
+                    <TableCell style={{ ...s.td, color: '#5a6472' }}>{item.category || '—'}</TableCell>
+                    <TableCell style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{item.orderCount}</TableCell>
+                  </TableRow>
                 ))}
                 {topItems.length === 0 && (
-                  <tr><td colSpan={4} style={{ ...s.td, textAlign: 'center', color: '#5a6472' }}>No data</td></tr>
+                  <TableRow><TableCell colSpan={4} style={{ ...s.td, textAlign: 'center', color: '#5a6472' }}>No data</TableCell></TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Store Breakdown (admin only) */}

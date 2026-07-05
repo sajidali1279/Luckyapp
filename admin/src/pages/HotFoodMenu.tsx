@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { Flame, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,34 +233,34 @@ export default function HotFoodMenu() {
             <p style={{ color: '#5a6472', marginTop: 8 }}>No menu items yet. Add one to get started.</p>
           </div>
         ) : (
-          <table style={tbl.table}>
-            <thead>
-              <tr>
-                <th style={tbl.th}>Item</th>
-                <th style={tbl.th}>Price</th>
-                <th style={tbl.th}>Store</th>
-                <th style={tbl.th}>Wait</th>
-                <th style={tbl.th}>Status</th>
-                {canWrite && <th style={tbl.th}></th>}
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={tbl.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={tbl.th}>Item</TableHead>
+                <TableHead style={tbl.th}>Price</TableHead>
+                <TableHead style={tbl.th}>Store</TableHead>
+                <TableHead style={tbl.th}>Wait</TableHead>
+                <TableHead style={tbl.th}>Status</TableHead>
+                {canWrite && <TableHead style={tbl.th}></TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map(item => (
-                <tr key={item.id} style={tbl.tr}>
-                  <td style={tbl.td}>
+                <TableRow key={item.id} style={tbl.tr}>
+                  <TableCell style={tbl.td}>
                     <div style={{ fontWeight: 600, color: '#111827' }}>{item.name}</div>
                     {item.description && <div style={{ fontSize: 14, color: '#5a6472', marginTop: 2 }}>{item.description}</div>}
-                  </td>
-                  <td style={tbl.td}>
+                  </TableCell>
+                  <TableCell style={tbl.td}>
                     <span style={{ fontWeight: 700, color: '#111827' }}>${Number(item.price).toFixed(2)}</span>
-                  </td>
-                  <td style={tbl.td}>
+                  </TableCell>
+                  <TableCell style={tbl.td}>
                     <span style={tbl.pill}>{item.store?.name ?? 'All Stores'}</span>
-                  </td>
-                  <td style={tbl.td}>
+                  </TableCell>
+                  <TableCell style={tbl.td}>
                     {item.estimatedMinutes ? `${item.estimatedMinutes} min` : <span style={{ color: '#D1D5DB' }}>—</span>}
-                  </td>
-                  <td style={tbl.td}>
+                  </TableCell>
+                  <TableCell style={tbl.td}>
                     <button
                       style={{ background: 'none', border: 'none', cursor: togglingId === item.id ? 'wait' : 'pointer', padding: 0, color: item.isAvailable ? '#16A34A' : '#D1D5DB' }}
                       onClick={() => handleToggle(item)}
@@ -267,9 +268,9 @@ export default function HotFoodMenu() {
                     >
                       {item.isAvailable ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                     </button>
-                  </td>
+                  </TableCell>
                   {canWrite && (
-                    <td style={{ ...tbl.td, textAlign: 'right' }}>
+                    <TableCell style={{ ...tbl.td, textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                         <button style={tbl.iconBtn} onClick={() => { setEditItem(item); setShowModal(true); }} title="Edit">
                           <Pencil size={14} />
@@ -283,12 +284,12 @@ export default function HotFoodMenu() {
                           <Trash2 size={14} />
                         </button>
                       </div>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
 
