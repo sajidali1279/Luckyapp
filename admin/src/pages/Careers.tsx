@@ -5,6 +5,7 @@ import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const POSITION_LABELS: Record<string, string> = {
   CASHIER: 'Cashier',
@@ -300,40 +301,40 @@ export default function Careers() {
         <div style={s.empty}>No applications found.</div>
       ) : (
         <div style={s.tableWrap}>
-          <table style={s.table}>
-            <thead>
-              <tr style={s.thead}>
-                <th style={s.th}>Applicant</th>
-                <th style={s.th}>Position</th>
-                <th style={s.th}>Preferred Store</th>
-                <th style={s.th}>Availability</th>
-                <th style={s.th}>Status</th>
-                <th style={s.th}>Applied</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow style={s.thead}>
+                <TableHead style={s.th}>Applicant</TableHead>
+                <TableHead style={s.th}>Position</TableHead>
+                <TableHead style={s.th}>Preferred Store</TableHead>
+                <TableHead style={s.th}>Availability</TableHead>
+                <TableHead style={s.th}>Status</TableHead>
+                <TableHead style={s.th}>Applied</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {applications.map(app => {
                 const sc = STATUS_CONFIG[app.status];
                 return (
-                  <tr key={app.id} style={s.tr} onClick={() => openApp(app)}>
-                    <td style={s.td}>
+                  <TableRow key={app.id} style={s.tr} onClick={() => openApp(app)} aria-label={`Open application from ${app.name}`}>
+                    <TableCell style={s.td}>
                       <div style={s.appName}>{app.name}</div>
                       <div style={s.appPhone}>{app.phone}</div>
-                    </td>
-                    <td style={s.td}>{POSITION_LABELS[app.position] ?? app.position}</td>
-                    <td style={s.td}>{app.store ? `${app.store.name} — ${app.store.city}` : 'Any'}</td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>{POSITION_LABELS[app.position] ?? app.position}</TableCell>
+                    <TableCell style={s.td}>{app.store ? `${app.store.name} — ${app.store.city}` : 'Any'}</TableCell>
+                    <TableCell style={s.td}>
                       <span style={s.avail}>{app.availability.type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</span>
-                    </td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>
                       <span style={{ ...s.badge, color: sc.color, background: sc.bg }}>{sc.label}</span>
-                    </td>
-                    <td style={{ ...s.td, color: '#888', fontSize: 14 }}>{timeAgo(app.createdAt)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell style={{ ...s.td, color: '#888', fontSize: 14 }}>{timeAgo(app.createdAt)}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
