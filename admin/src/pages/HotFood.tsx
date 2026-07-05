@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -598,7 +599,7 @@ export default function HotFood() {
           {ordersError ? (
             <ErrorState onRetry={refetch} />
           ) : ordersLoading ? (
-            <div style={pg.empty}>Loading orders…</div>
+            <CardSkeleton count={4} />
           ) : filteredOrders.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
@@ -638,7 +639,7 @@ export default function HotFood() {
           {catalogError ? (
             <ErrorState onRetry={refetchCatalog} />
           ) : catalogLoading ? (
-            <div style={pg.empty}>Loading catalog…</div>
+            <CardSkeleton count={4} />
           ) : filteredCatalog.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />

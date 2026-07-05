@@ -5,6 +5,7 @@ import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, invent
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -697,7 +698,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
   if (selectedList) {
     return fullListLoading ? (
-      <div style={s.loading}>Loading list…</div>
+      <CardSkeleton count={2} />
     ) : fullList ? (
       <OrderListDetail
         list={fullList}
@@ -729,7 +730,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.loading}>Loading lists…</div>
+        <CardSkeleton count={4} />
       ) : lists.length === 0 ? (
         <div style={s.empty}>No order lists found.</div>
       ) : (
@@ -850,7 +851,7 @@ function CategoriesTab() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.loading}>Loading categories…</div>
+        <CardSkeleton count={4} />
       ) : categories.length === 0 ? (
         <div style={s.empty}>No categories found.</div>
       ) : (
@@ -1005,7 +1006,7 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.loading}>Loading requests…</div>
+        <CardSkeleton count={4} />
       ) : requests.length === 0 ? (
         <div style={s.empty}>No employee requests found.</div>
       ) : (

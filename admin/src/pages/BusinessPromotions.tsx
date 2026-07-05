@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 interface PromoRequest {
   id: string;
@@ -261,7 +262,7 @@ export default function BusinessPromotions() {
       </div>
 
       {isLoading ? (
-        <div style={s.center}>Loading...</div>
+        <CardSkeleton count={3} />
       ) : requests.length === 0 ? (
         <div style={s.empty}>
           <div style={s.emptyEmoji}>📣</div>

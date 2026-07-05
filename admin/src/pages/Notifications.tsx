@@ -6,6 +6,7 @@ import { superAdminApi, devAdminApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 interface Notification {
   id: string;
@@ -409,7 +410,7 @@ export default function Notifications() {
         </div>
 
       ) : isLoading ? (
-        <div style={s.empty}>Loading notifications…</div>
+        <CardSkeleton count={4} />
 
       ) : isError ? (
         <ErrorState message="Failed to load notifications." onRetry={refetch} />

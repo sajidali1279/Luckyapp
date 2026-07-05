@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -316,7 +317,7 @@ function MyRequestsTab() {
   const requests: MyRequest[] = (data as any)?.data?.data || [];
 
   if (isError) return <ErrorState onRetry={refetch} />;
-  if (isLoading) return <div style={s.loading}>Loading your requests…</div>;
+  if (isLoading) return <CardSkeleton count={3} />;
 
   if (requests.length === 0) {
     return (
