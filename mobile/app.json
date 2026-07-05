@@ -34,6 +34,7 @@
       "@react-native-firebase/app",
       "expo-router",
       "./plugins/withPodfileStaticFrameworks",
+      "./plugins/withPodfileSwiftVersion",
       [
         "expo-camera",
         {
