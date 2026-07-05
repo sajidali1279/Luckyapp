@@ -5,6 +5,7 @@ import { schedulingApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -337,7 +338,7 @@ export default function Scheduling() {
                   {scheduleError ? (
                     <ErrorState onRetry={refetchSchedule} />
                   ) : scheduleLoading ? (
-                    <div style={s.loadingText}>Loading schedule...</div>
+                    <TableSkeleton rows={4} columns={8} />
                   ) : (
                     <div style={s.gridWrapper}>
                       <Table style={s.grid}>

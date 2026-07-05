@@ -7,6 +7,7 @@ import { Flame, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronDown } fro
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -226,7 +227,7 @@ export default function HotFoodMenu() {
         {isError ? (
           <ErrorState onRetry={refetch} />
         ) : isLoading ? (
-          <div style={pg.empty}>Loading…</div>
+          <TableSkeleton columns={6} />
         ) : items.length === 0 ? (
           <div style={pg.empty}>
             <Flame size={32} color="#E5E7EB" />

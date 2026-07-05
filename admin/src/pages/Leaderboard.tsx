@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { leaderboardApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -81,7 +82,7 @@ export default function LeaderboardPage() {
             {custError ? (
               <ErrorState onRetry={refetchCust} />
             ) : custLoading ? (
-              <div style={s.loading}>Loading…</div>
+              <TableSkeleton columns={3} />
             ) : customers.length === 0 ? (
               <div style={s.empty}>
                 <div style={{ fontSize: 36 }}>🏁</div>
@@ -163,7 +164,7 @@ export default function LeaderboardPage() {
                 <div style={s.emptySub}>Select a store above to see employee rankings</div>
               </div>
             ) : empLoading ? (
-              <div style={s.loading}>Loading…</div>
+              <TableSkeleton columns={4} />
             ) : employees.length === 0 ? (
               <div style={s.empty}>
                 <div style={{ fontSize: 36 }}>⭐</div>

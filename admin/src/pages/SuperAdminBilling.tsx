@@ -4,6 +4,7 @@ import { superAdminApi } from '../services/api';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -61,7 +62,7 @@ export default function SuperAdminBilling() {
         </div>
 
         {isLoading ? (
-          <div style={s.empty}>Loading invoices…</div>
+          <TableSkeleton columns={6} />
         ) : isError ? (
           <ErrorState message="Failed to load invoices." onRetry={refetch} />
         ) : invoices.length === 0 ? (

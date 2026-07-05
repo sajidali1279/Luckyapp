@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -135,7 +136,7 @@ export default function InventoryAnalytics() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.loading}>Loading analytics…</div>
+        <CardSkeleton count={4} />
       ) : (
         <div style={s.grid}>
           {/* Top Items Chart */}

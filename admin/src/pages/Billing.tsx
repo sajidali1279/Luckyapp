@@ -5,6 +5,7 @@ import { billingApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 interface BillNotes {
   txCount: number; purchaseVolume: number;
@@ -332,7 +333,7 @@ export default function Billing() {
       {/* ══════════════════ STORES TAB ══════════════════ */}
       {tab === 'stores' && (
         storesError ? <ErrorState onRetry={refetchStores} /> :
-        storesLoading ? <div style={s.loading}>Loading stores…</div> : (
+        storesLoading ? <TableSkeleton columns={7} /> : (
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
@@ -485,7 +486,7 @@ export default function Billing() {
           </p>
 
           {monthlyLoading ? (
-            <div style={s.loading}>Loading records…</div>
+            <TableSkeleton columns={7} />
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
               <p style={{ margin: 0, color: '#6c757d' }}>No billing records for this filter.</p>
@@ -764,7 +765,7 @@ export default function Billing() {
               </div>
 
               {ecLoading ? (
-                <div style={s.loading}>Loading charges…</div>
+                <TableSkeleton columns={6} />
               ) : extraCharges.length === 0 ? (
                 <div style={ec.emptyBox}>
                   No extra charges found{ecStoreFilter || ecPeriodFilter || ecPaidFilter ? ' for this filter' : ''}. Add one above.
@@ -890,7 +891,7 @@ export default function Billing() {
               For GAS/DIESEL, you can optionally set a flat <strong>¢ per gallon</strong> rate instead of a percentage.
               Leave blank to use the percentage rate for gas too.
             </p>
-            {tierRatesLoading ? <div style={s.loading}>Loading…</div> : (
+            {tierRatesLoading ? <TableSkeleton columns={4} /> : (
               <Table style={{ width: '100%', marginTop: 12 }}>
                 <TableHeader>
                   <TableRow style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>

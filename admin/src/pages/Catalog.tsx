@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 interface CatalogItem {
   id: string;
@@ -413,7 +414,7 @@ export default function CatalogPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div style={s.loadingBox}>Loading…</div>
+          <TableSkeleton columns={8} />
         ) : visibleItems.length === 0 ? (
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>🏷️</div>

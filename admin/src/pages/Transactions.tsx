@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import DataTablePagination from '../components/DataTablePagination';
+import TableSkeleton from '../components/TableSkeleton';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -276,7 +277,7 @@ export default function Transactions() {
       ) : isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.empty}>Loading...</div>
+        <TableSkeleton columns={isSuperAdmin ? 10 : 9} />
       ) : transactions.length === 0 ? (
         <div style={s.empty}>No transactions found.</div>
       ) : (

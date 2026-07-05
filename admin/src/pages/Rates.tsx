@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
@@ -230,7 +231,7 @@ export default function Rates() {
         💡 Store cost = cashback paid out × (1 + that store's dev cut rate). Dev cut rate is set per-store on the Stores page, not here.
       </div>
 
-      {isLoading && <div style={s.loading}>Loading rates…</div>}
+      {isLoading && <TableSkeleton columns={5} />}
       {isError  && <ErrorState message="Could not load rates. Check your connection." onRetry={refetch} />}
 
       {!isLoading && !isError && tiers.length === 0 && (
@@ -381,7 +382,7 @@ export default function Rates() {
         )}
       </div>
 
-      {catLoading && <div style={s.loading}>Loading category rates…</div>}
+      {catLoading && <TableSkeleton columns={7} />}
 
       {!catLoading && (
         <div style={s.tableWrap}>
