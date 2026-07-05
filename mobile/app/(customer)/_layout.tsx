@@ -58,9 +58,7 @@ export default function CustomerLayout() {
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
-        <Tabs.Screen name="scan-receipt" options={{ href: null }} />
         <Tabs.Screen name="rewards" />
-        <Tabs.Screen name="catalog" options={{ href: null }} />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />
         <Tabs.Screen name="hot-food" />

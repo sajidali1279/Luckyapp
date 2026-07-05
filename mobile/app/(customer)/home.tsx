@@ -1649,23 +1649,6 @@ const styles = StyleSheet.create({
 
   historyLink: { paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4 },
   historyLinkText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },
-
-  scanReceiptCard: {
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: COLORS.accent + '08', borderRadius: 18, padding: 16,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: COLORS.accent + '40',
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
-  },
-  scanReceiptLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  scanReceiptIconWrap: {
-    width: 48, height: 48, borderRadius: 14,
-    backgroundColor: COLORS.accent + '15',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  scanReceiptTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
-  scanReceiptSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 });
 
 const ps = StyleSheet.create({
