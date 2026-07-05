@@ -5,6 +5,7 @@ import { offersApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -723,8 +724,8 @@ export default function Offers() {
       {mainTab === 'promotions' && (
         <>
           {isLoading ? (
-            <div style={s.empty}>Loading...</div>
-          ) : promotionOffers.length === 0 ? (
+            <CardSkeleton count={4} />
+          ) :promotionOffers.length === 0 ? (
             <div style={s.empty}>No active promotions. Use a template or create one manually.</div>
           ) : (
             <>
@@ -823,8 +824,8 @@ export default function Offers() {
           )}
 
           {isLoading ? (
-            <div style={s.empty}>Loading...</div>
-          ) : dealOffers.length === 0 ? (
+            <CardSkeleton count={4} />
+          ) :dealOffers.length === 0 ? (
             <div style={s.empty}>No active deals. Click "+ New Deal" to post one.</div>
           ) : (
             <>

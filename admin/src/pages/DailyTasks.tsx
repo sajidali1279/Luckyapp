@@ -5,6 +5,7 @@ import { dailyTaskApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 import { ListChecks, Plus, Pencil, Trash2, Sparkles } from 'lucide-react';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
@@ -167,7 +168,7 @@ export default function DailyTasks() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.empty}>Loading tasks…</div>
+        <CardSkeleton count={3} />
       ) : totalTasks === 0 ? (
         <div style={s.emptyState}>
           <div style={s.emptyIcon}>📋</div>

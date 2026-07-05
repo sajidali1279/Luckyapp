@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { dailyReportApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -220,7 +221,7 @@ export default function DailyReports() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.empty}>Loading reports…</div>
+        <CardSkeleton count={3} />
       ) : reports.length === 0 ? (
         <div style={s.emptyState}>
           <ClipboardCheck size={36} color="#D1D5DB" />

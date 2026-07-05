@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { hotFoodApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 import { Flame, Clock, CheckCircle, X, RefreshCw, ChevronDown } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -238,7 +239,7 @@ export default function HotFoodOrders() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={pg.empty}>Loading orders…</div>
+        <CardSkeleton count={4} />
       ) : filtered.length === 0 ? (
         <div style={pg.empty}>
           <Flame size={36} color="#E5E7EB" />

@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -287,7 +288,7 @@ export default function StoreRequests() {
                 {isError ? (
                   <ErrorState onRetry={refetch} />
                 ) : isLoading ? (
-                  <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptySub}>Loading…</div></div>
+                  <CardSkeleton count={3} />
                 ) : displayed.length === 0 ? (
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>{statusFilter === 'PENDING' ? '✅' : '📭'}</div>
@@ -374,7 +375,7 @@ export default function StoreRequests() {
 
                 {/* ── Product Requests List ── */}
                 {prLoading ? (
-                  <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptySub}>Loading…</div></div>
+                  <CardSkeleton count={3} />
                 ) : prDisplayed.length === 0 ? (
                   <div style={s.emptyState}>
                     <div style={s.emptyIcon}>🛍️</div>

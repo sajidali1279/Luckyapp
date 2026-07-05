@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { authApi, storesApi, staffApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 type Tab = 'list' | 'create';
 
@@ -220,10 +221,7 @@ export default function Staff() {
         isError ? (
           <ErrorState onRetry={refetch} />
         ) : isLoading ? (
-          <div style={s.emptyState}>
-            <div style={{ fontSize: 32 }}>⏳</div>
-            <div style={s.emptyTitle}>Loading staff…</div>
-          </div>
+          <CardSkeleton count={4} />
         ) : filtered.length === 0 ? (
           <div style={s.emptyState}>
             <div style={{ fontSize: 48 }}>👥</div>
