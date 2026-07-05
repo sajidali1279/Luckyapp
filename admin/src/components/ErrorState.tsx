@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react';
+import { TEXT_MUTED } from '../lib/theme';
 
 interface ErrorStateProps {
   message?: string;
@@ -23,7 +24,7 @@ const s: Record<string, CSSProperties> = {
     justifyContent: 'center', padding: '60px 20px', gap: 12,
   },
   icon: { fontSize: 36 },
-  msg: { fontSize: 15, color: '#6b7280', textAlign: 'center', maxWidth: 340, lineHeight: 1.5 },
+  msg: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5 },
   btn: {
     marginTop: 4, padding: '9px 22px', borderRadius: 10,
     background: '#1D3557', color: '#fff', border: 'none',

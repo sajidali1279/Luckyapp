@@ -77,7 +77,7 @@ function OrderCard({ order, onUpdate, updatingId }: {
           <span style={{ ...oc.badge, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
         </div>
         <div style={oc.meta}>
-          <Clock size={11} color="#9CA3AF" />
+          <Clock size={11} color="#5a6472" />
           <span style={oc.metaTxt}>{timeAgo(order.createdAt)}</span>
           <span style={oc.dot} />
           <span style={oc.metaTxt}>{order.store.name}</span>
@@ -139,7 +139,7 @@ function OrderCard({ order, onUpdate, updatingId }: {
         {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
           <div style={oc.done}>
             <CheckCircle size={13} color={order.status === 'COMPLETED' ? '#16A34A' : '#D1D5DB'} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#16A34A' : '#9CA3AF' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#16A34A' : '#5a6472' }}>
               {order.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
             </span>
           </div>
@@ -373,7 +373,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
               <span style={am.price}>${Number(item.price).toFixed(2)}</span>
               {item.estimatedMinutes && (
-                <span style={am.est}><Clock size={10} color="#9CA3AF" /> ~{item.estimatedMinutes} min</span>
+                <span style={am.est}><Clock size={10} color="#5a6472" /> ~{item.estimatedMinutes} min</span>
               )}
             </div>
           </div>
@@ -394,7 +394,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
         </div>
 
         {assignLoading ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>Loading…</div>
+          <div style={{ padding: '24px', textAlign: 'center', color: '#5a6472', fontSize: 14 }}>Loading…</div>
         ) : (
           <div style={am.storeList}>
             {stores.map(store => {
@@ -599,7 +599,7 @@ export default function HotFood() {
           ) : filteredOrders.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
-              <p style={{ color: '#9CA3AF', marginTop: 8 }}>
+              <p style={{ color: '#5a6472', marginTop: 8 }}>
                 No {orderTab === 'ALL' ? '' : orderTab.toLowerCase() + ' '}orders right now
               </p>
             </div>
@@ -618,7 +618,7 @@ export default function HotFood() {
         <>
           <div style={pg.catalogBar}>
             <div style={pg.searchWrap}>
-              <Search size={15} style={pg.searchIcon} color="#9CA3AF" />
+              <Search size={15} style={pg.searchIcon} color="#5a6472" />
               <input
                 style={pg.searchInput}
                 placeholder="Search catalog…"
@@ -637,7 +637,7 @@ export default function HotFood() {
           ) : filteredCatalog.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
-              <p style={{ color: '#9CA3AF', marginTop: 8 }}>
+              <p style={{ color: '#5a6472', marginTop: 8 }}>
                 {search.trim() ? 'No items match your search' : 'No items yet. Add one to get started.'}
               </p>
             </div>
@@ -667,8 +667,8 @@ export default function HotFood() {
                       <div style={pg.tileBottom}>
                         <span style={pg.tilePrice}>${Number(item.price).toFixed(2)}</span>
                         <div style={{ ...pg.storeBadge, ...(item.storeCount === 0 ? pg.storeBadgeNone : {}) }}>
-                          <Building2 size={9} color={item.storeCount > 0 ? '#3B82F6' : '#9CA3AF'} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#3B82F6' : '#9CA3AF' }}>
+                          <Building2 size={9} color={item.storeCount > 0 ? '#3B82F6' : '#5a6472'} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#3B82F6' : '#5a6472' }}>
                             {item.storeCount}
                           </span>
                         </div>
@@ -713,7 +713,7 @@ const pg: Record<string, React.CSSProperties> = {
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
   iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  sub:          { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  sub:          { fontSize: 13, color: '#5a6472', marginTop: 2 },
 
   toggle:       { display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 3, gap: 2 },
   toggleBtn:    { border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'transparent', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 150ms, color 150ms' },
@@ -733,7 +733,7 @@ const pg: Record<string, React.CSSProperties> = {
   tabBadgeOn:   { background: 'rgba(255,255,255,0.25)', color: '#fff' },
   selectWrap:   { position: 'relative', display: 'inline-flex', alignItems: 'center' },
   select:       { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
-  selectIcon:   { position: 'absolute', right: 10, pointerEvents: 'none', color: '#9CA3AF' },
+  selectIcon:   { position: 'absolute', right: 10, pointerEvents: 'none', color: '#5a6472' },
 
   orderGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
   empty:        { padding: '80px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
@@ -760,17 +760,17 @@ const oc: Record<string, React.CSSProperties> = {
   num:       { fontSize: 15, fontWeight: 800, color: '#0F172A' },
   badge:     { borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 },
   meta:      { display: 'flex', alignItems: 'center', gap: 5 },
-  metaTxt:   { fontSize: 12, color: '#9CA3AF' },
+  metaTxt:   { fontSize: 12, color: '#5a6472' },
   dot:       { width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB' },
   custName:  { fontSize: 14, fontWeight: 700, color: '#0F172A' },
-  custPhone: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  custPhone: { fontSize: 12, color: '#5a6472', marginTop: 2 },
   items:     { borderTop: '1px solid #F1F5F9', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
   itemRow:   { display: 'flex', alignItems: 'center', gap: 5 },
   qty:       { fontSize: 13, fontWeight: 700, color: '#EA580C', width: 22, flexShrink: 0 },
   iname:     { flex: 1, fontSize: 13, color: '#374151' },
   iprice:    { fontSize: 13, fontWeight: 600, color: '#0F172A' },
   totalRow:  { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 6, marginTop: 2 },
-  totalLbl:  { fontSize: 12, color: '#9CA3AF', fontWeight: 600 },
+  totalLbl:  { fontSize: 12, color: '#5a6472', fontWeight: 600 },
   totalVal:  { fontSize: 14, fontWeight: 800, color: '#0F172A' },
   note:      { background: '#FFFBEB', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
   noteLbl:   { fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' },
@@ -786,7 +786,7 @@ const md: Record<string, React.CSSProperties> = {
   panel:     { background: '#fff', borderRadius: 16, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   head:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6' },
   headTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
-  closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#9CA3AF', lineHeight: 1 },
+  closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#5a6472', lineHeight: 1 },
   body:      { padding: '16px 20px 0' },
   footer:    { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #F3F4F6', marginTop: 16 },
   imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 16, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #E2E8F0', cursor: 'pointer', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -799,9 +799,9 @@ const am: Record<string, React.CSSProperties> = {
   itemRow:   { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
   thumb:     { width: 64, height: 64, borderRadius: 12, objectFit: 'cover', flexShrink: 0 },
   itemName:  { fontSize: 16, fontWeight: 700, color: '#111827' },
-  itemDesc:  { fontSize: 12, color: '#6B7280', marginTop: 3, lineHeight: '1.4' },
+  itemDesc:  { fontSize: 12, color: '#5a6472', marginTop: 3, lineHeight: '1.4' },
   price:     { fontSize: 13, fontWeight: 700, color: '#EA580C' },
-  est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: '#9CA3AF' },
+  est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: '#5a6472' },
   iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' },
   sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' },

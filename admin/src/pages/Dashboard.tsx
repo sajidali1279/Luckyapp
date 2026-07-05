@@ -297,8 +297,8 @@ function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }:
         </div>
       </div>
       <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
-      {sub && <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 3 }}>{sub}</div>}
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+      {sub && <div style={{ fontSize: 13, color: '#5a6472', marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -353,7 +353,7 @@ function RecentTransactions({ txs }: { txs: any[] }) {
   const navigate = useNavigate();
   if (!txs.length) return null;
   const STATUS_DOT: Record<string, string> = {
-    APPROVED: '#2DC653', PENDING: '#F4A261', REJECTED: '#9ca3af', FLAGGED: '#E63946',
+    APPROVED: '#2DC653', PENDING: '#F4A261', REJECTED: '#5a6472', FLAGGED: '#E63946',
   };
   return (
     <div style={s.recentPanel}>
@@ -798,9 +798,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
   offerChipName: { fontSize: 15, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
-  offerChipCat: { fontSize: 12, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  offerChipCat: { fontSize: 12, color: '#5a6472', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   offerChipExpiry: { fontSize: 12, color: '#E63946', fontWeight: 600, marginTop: 6 },
-  emptyState: { padding: '24px 18px', color: '#9ca3af', fontSize: 15, textAlign: 'center' as const },
+  emptyState: { padding: '24px 18px', color: '#5a6472', fontSize: 15, textAlign: 'center' as const },
 
   recentPanel: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
@@ -813,9 +813,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
   recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
-  recentMeta: { fontSize: 13, color: '#9ca3af', marginTop: 1 },
+  recentMeta: { fontSize: 13, color: '#5a6472', marginTop: 1 },
   recentAmount: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
-  recentTime: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  recentTime: { fontSize: 12, color: '#5a6472', marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
   statCard: {
@@ -829,11 +829,11 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   statIcon: { fontSize: 20 },
-  statArrow: { fontSize: 15, color: '#9ca3af', fontWeight: 700 },
-  statLabel: { color: '#6b7280', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statArrow: { fontSize: 15, color: '#5a6472', fontWeight: 700 },
+  statLabel: { color: '#5a6472', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
 
-  healthLoading: { color: '#9ca3af', fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
+  healthLoading: { color: '#5a6472', fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
   healthOk: {
     color: '#2DC653', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
     border: '1px solid rgba(45,198,83,0.3)', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
@@ -849,7 +849,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   healthRowName: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
   healthRowStats: { display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const },
-  healthStat: { fontSize: 13, color: '#6b7280' },
+  healthStat: { fontSize: 13, color: '#5a6472' },
   healthPill: {
     fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
     border: '1px solid', background: '#fff', transition: TRANSITION_FAST,

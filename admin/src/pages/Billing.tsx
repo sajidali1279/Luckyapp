@@ -706,7 +706,7 @@ export default function Billing() {
 
               <label style={s.fieldLabel}>Amount (USD) *</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontWeight: 700 }}>$</span>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#5a6472', fontWeight: 700 }}>$</span>
                 <input style={{ ...s.input, paddingLeft: 26 }} placeholder="0.00" type="number" min="0.01" step="0.01"
                   value={manualForm.amount}
                   onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }} />
@@ -792,13 +792,13 @@ export default function Billing() {
                               <input style={{ ...s.input, margin: 0 }} value={editForm.description}
                                 onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                             ) : (
-                              <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: '#9ca3af' }}>No description</em>}</span>
+                              <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: '#5a6472' }}>No description</em>}</span>
                             )}
                           </td>
                           <td style={s.td}>
                             {isEditing ? (
                               <div style={{ position: 'relative', width: 110 }}>
-                                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>$</span>
+                                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#5a6472' }}>$</span>
                                 <input style={{ ...s.input, paddingLeft: 20, margin: 0 }} type="number" min="0.01" step="0.01"
                                   value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                               </div>
@@ -1545,7 +1545,7 @@ const s: Record<string, React.CSSProperties> = {
 const ec: Record<string, React.CSSProperties> = {
   card: { background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' },
   cardTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' },
-  cardSub: { fontSize: 14, color: '#6b7280', margin: '0 0 20px' },
+  cardSub: { fontSize: 14, color: '#5a6472', margin: '0 0 20px' },
 
   templateRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center', padding: '12px 14px', background: '#f8faff', borderRadius: 10, border: '1px solid #e0e7ff' },
   templateLabel: { fontSize: 13, fontWeight: 700, color: '#4f46e5', marginRight: 4, flexShrink: 0 },
@@ -1562,7 +1562,7 @@ const ec: Record<string, React.CSSProperties> = {
   filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff' },
 
   successBox: { marginTop: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#166534' },
-  emptyBox: { padding: '32px 0', textAlign: 'center', color: '#6b7280', fontSize: 14 },
+  emptyBox: { padding: '32px 0', textAlign: 'center', color: '#5a6472', fontSize: 14 },
 };
 
 // ─── Invoice styles ───────────────────────────────────────────────────────────

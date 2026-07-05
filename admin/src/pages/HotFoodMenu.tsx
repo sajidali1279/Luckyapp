@@ -226,7 +226,7 @@ export default function HotFoodMenu() {
         ) : items.length === 0 ? (
           <div style={pg.empty}>
             <Flame size={32} color="#E5E7EB" />
-            <p style={{ color: '#9CA3AF', marginTop: 8 }}>No menu items yet. Add one to get started.</p>
+            <p style={{ color: '#5a6472', marginTop: 8 }}>No menu items yet. Add one to get started.</p>
           </div>
         ) : (
           <table style={tbl.table}>
@@ -245,7 +245,7 @@ export default function HotFoodMenu() {
                 <tr key={item.id} style={tbl.tr}>
                   <td style={tbl.td}>
                     <div style={{ fontWeight: 600, color: '#111827' }}>{item.name}</div>
-                    {item.description && <div style={{ fontSize: 14, color: '#6B7280', marginTop: 2 }}>{item.description}</div>}
+                    {item.description && <div style={{ fontSize: 14, color: '#5a6472', marginTop: 2 }}>{item.description}</div>}
                   </td>
                   <td style={tbl.td}>
                     <span style={{ fontWeight: 700, color: '#111827' }}>${Number(item.price).toFixed(2)}</span>
@@ -309,24 +309,24 @@ const pg: Record<string, React.CSSProperties> = {
   header:    { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   iconWrap:  { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:     { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  sub:       { fontSize: 15, color: '#6B7280', marginTop: 2 },
+  sub:       { fontSize: 15, color: '#5a6472', marginTop: 2 },
   addBtn:    { display: 'flex', alignItems: 'center', gap: 6, background: '#EA580C', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' },
   filterBar: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 },
   filterLabel:{ fontSize: 15, fontWeight: 600, color: '#374151' },
   selectWrap:{ position: 'relative', display: 'inline-flex', alignItems: 'center' },
   select:    { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 15, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
-  selectIcon:{ position: 'absolute', right: 10, pointerEvents: 'none', color: '#9CA3AF' },
+  selectIcon:{ position: 'absolute', right: 10, pointerEvents: 'none', color: '#5a6472' },
   card:      { background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' },
   empty:     { padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
 };
 
 const tbl: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse' },
-  th:    { padding: '10px 16px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #F3F4F6', background: '#F9FAFB' },
+  th:    { padding: '10px 16px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #F3F4F6', background: '#F9FAFB' },
   tr:    { borderBottom: '1px solid #F9FAFB' },
   td:    { padding: '12px 16px', fontSize: 14, color: '#374151', verticalAlign: 'middle' },
   pill:  { display: 'inline-block', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px', fontSize: 14, fontWeight: 500, color: '#4B5563' },
-  iconBtn:{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 6, color: '#6B7280', display: 'flex', alignItems: 'center' },
+  iconBtn:{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 6, color: '#5a6472', display: 'flex', alignItems: 'center' },
 };
 
 const f: Record<string, React.CSSProperties> = {
@@ -341,7 +341,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
   panel:   { background: '#fff', borderRadius: 16, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   header:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid #F3F4F6' },
   headerTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
-  closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#9CA3AF', lineHeight: 1 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#5a6472', lineHeight: 1 },
   body:    { padding: '4px 20px 12px' },
   footer:  { display: 'flex', gap: 10, padding: '16px 20px', borderTop: '1px solid #F3F4F6' },
 };

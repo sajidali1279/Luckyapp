@@ -76,7 +76,7 @@ const s: Record<string, React.CSSProperties> = {
     animation: 'ls-spin 0.85s linear infinite',
   } as React.CSSProperties,
   label: {
-    color: '#9ca3af',
+    color: '#5a6472',
     fontSize: 13,
     fontWeight: 600,
     letterSpacing: 0.3,

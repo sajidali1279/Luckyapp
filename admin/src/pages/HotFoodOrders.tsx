@@ -65,7 +65,7 @@ function OrderCard({
           <span style={{ ...c.statusBadge, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
         </div>
         <div style={c.meta}>
-          <Clock size={12} color="#9CA3AF" />
+          <Clock size={12} color="#5a6472" />
           <span style={c.metaText}>{timeAgo(order.createdAt)}</span>
           <span style={c.dot} />
           <span style={c.metaText}>{order.store.name}</span>
@@ -123,7 +123,7 @@ function OrderCard({
         {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
           <div style={c.doneLine}>
             <CheckCircle size={14} color={order.status === 'COMPLETED' ? '#16A34A' : '#D1D5DB'} />
-            <span style={{ fontSize: 15, color: order.status === 'COMPLETED' ? '#16A34A' : '#9CA3AF', fontWeight: 600 }}>
+            <span style={{ fontSize: 15, color: order.status === 'COMPLETED' ? '#16A34A' : '#5a6472', fontWeight: 600 }}>
               {order.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
             </span>
           </div>
@@ -242,7 +242,7 @@ export default function HotFoodOrders() {
       ) : filtered.length === 0 ? (
         <div style={pg.empty}>
           <Flame size={36} color="#E5E7EB" />
-          <p style={{ color: '#9CA3AF', marginTop: 8 }}>
+          <p style={{ color: '#5a6472', marginTop: 8 }}>
             No {activeTab === 'ALL' ? '' : activeTab.toLowerCase() + ' '}orders right now
           </p>
         </div>
@@ -264,7 +264,7 @@ const pg: Record<string, React.CSSProperties> = {
   header:     { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   iconWrap:   { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:      { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  sub:        { fontSize: 15, color: '#6B7280', marginTop: 2 },
+  sub:        { fontSize: 15, color: '#5a6472', marginTop: 2 },
   refreshBtn: { display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 15, cursor: 'pointer', color: '#374151' },
   toolbar:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
   tabs:       { display: 'flex', gap: 6 },
@@ -274,7 +274,7 @@ const pg: Record<string, React.CSSProperties> = {
   tabBadgeActive: { background: 'rgba(255,255,255,0.25)', color: '#fff' },
   selectWrap: { position: 'relative', display: 'inline-flex', alignItems: 'center' },
   select:     { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 15, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
-  selectIcon: { position: 'absolute', right: 10, pointerEvents: 'none', color: '#9CA3AF' },
+  selectIcon: { position: 'absolute', right: 10, pointerEvents: 'none', color: '#5a6472' },
   grid:       { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
   empty:      { padding: '80px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
 };
@@ -285,18 +285,18 @@ const c: Record<string, React.CSSProperties> = {
   orderNum:     { fontSize: 15, fontWeight: 800, color: '#0F172A' },
   statusBadge:  { borderRadius: 20, padding: '3px 10px', fontSize: 14, fontWeight: 700 },
   meta:         { display: 'flex', alignItems: 'center', gap: 5 },
-  metaText:     { fontSize: 14, color: '#9CA3AF' },
+  metaText:     { fontSize: 14, color: '#5a6472' },
   dot:          { width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB' },
   customer:     { display: 'flex', flexDirection: 'column', gap: 2 },
   customerName: { fontSize: 14, fontWeight: 700, color: '#0F172A' },
-  customerPhone:{ fontSize: 14, color: '#9CA3AF' },
+  customerPhone:{ fontSize: 14, color: '#5a6472' },
   itemsList:    { borderTop: '1px solid #F1F5F9', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 },
   itemRow:      { display: 'flex', alignItems: 'center', gap: 6 },
   itemQty:      { fontSize: 15, fontWeight: 700, color: '#EA580C', width: 24, flexShrink: 0 },
   itemName:     { flex: 1, fontSize: 15, color: '#374151' },
   itemPrice:    { fontSize: 15, fontWeight: 600, color: '#0F172A' },
   totalRow:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: 8, marginTop: 2 },
-  totalLabel:   { fontSize: 14, color: '#9CA3AF', fontWeight: 600 },
+  totalLabel:   { fontSize: 14, color: '#5a6472', fontWeight: 600 },
   totalValue:   { fontSize: 15, fontWeight: 800, color: '#0F172A' },
   noteBox:      { background: '#FFFBEB', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 3 },
   noteLabel:    { fontSize: 12, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' },

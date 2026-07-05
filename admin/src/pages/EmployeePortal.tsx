@@ -428,7 +428,7 @@ const s: Record<string, React.CSSProperties> = {
   section:    { marginBottom: 20 },
 
   label:      { fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 },
-  optional:   { fontSize: 12, fontWeight: 500, color: '#9CA3AF' },
+  optional:   { fontSize: 12, fontWeight: 500, color: '#5a6472' },
 
   typeRow:    { display: 'flex', gap: 10 },
   typeBtn:    { flex: 1, padding: '12px 10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 14, fontWeight: 600, color: '#64748B', cursor: 'pointer', transition: 'all 0.15s' },

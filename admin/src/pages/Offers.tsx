@@ -374,12 +374,12 @@ export default function Offers() {
         <button style={{ ...s.mainTab, ...(mainTab === 'promotions' ? s.mainTabActive : {}) }}
           onClick={() => { setMainTab('promotions'); setShowDealForm(false); }}>
           📢 Promotions
-          <span style={{ ...s.tabCount, background: mainTab === 'promotions' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'promotions' ? '#fff' : '#6b7280' }}>{promotionOffers.length}</span>
+          <span style={{ ...s.tabCount, background: mainTab === 'promotions' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'promotions' ? '#fff' : '#5a6472' }}>{promotionOffers.length}</span>
         </button>
         <button style={{ ...s.mainTab, ...(mainTab === 'deals' ? s.mainTabActive : {}) }}
           onClick={() => { setMainTab('deals'); setShowForm(false); setShowTemplates(false); }}>
           🏷️ Deals
-          <span style={{ ...s.tabCount, background: mainTab === 'deals' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'deals' ? '#fff' : '#6b7280' }}>{dealOffers.length}</span>
+          <span style={{ ...s.tabCount, background: mainTab === 'deals' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'deals' ? '#fff' : '#5a6472' }}>{dealOffers.length}</span>
         </button>
       </div>
 
@@ -938,7 +938,7 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#9ca3af', marginTop: 4, fontSize: 15 },
+  sub: { color: '#5a6472', marginTop: 4, fontSize: 15 },
 
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
   templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
@@ -964,13 +964,13 @@ const s: Record<string, React.CSSProperties> = {
   suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 16, fontWeight: 800 },
   suggestSub: { margin: '0 0 16px', color: '#6c757d', fontSize: 15 },
   groupTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' },
+  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#5a6472' },
   groupTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
   templateGrid: { display: 'flex', flexDirection: 'column', gap: 8 },
   templateCard: { background: '#fff', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e9ecef' },
   templateIcon: { fontSize: 22, flexShrink: 0, width: 32, textAlign: 'center' },
   templateTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 4 },
-  templateDesc: { fontSize: 14, color: '#6b7280', lineHeight: 1.5 },
+  templateDesc: { fontSize: 14, color: '#5a6472', lineHeight: 1.5 },
   templateMeta: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   templateBadge: { background: '#fef2f2', color: '#E63946', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
   templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 600 },
@@ -988,7 +988,7 @@ const s: Record<string, React.CSSProperties> = {
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
-  cancelFormBtn: { background: '#f8fafc', color: '#6b7280', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
+  cancelFormBtn: { background: '#f8fafc', color: '#5a6472', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
 
   sectionHead: {
     fontSize: 14, fontWeight: 800, color: '#1D3557', marginBottom: 16,
@@ -1001,24 +1001,24 @@ const s: Record<string, React.CSSProperties> = {
   img: { width: '100%', height: 160, objectFit: 'cover' as const },
   cardBody: { padding: '16px 18px' },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' },
-  cardDesc: { color: '#6b7280', fontSize: 15, margin: '0 0 8px', lineHeight: 1.5 },
+  cardDesc: { color: '#5a6472', fontSize: 15, margin: '0 0 8px', lineHeight: 1.5 },
   cardDate: { color: '#adb5bd', fontSize: 13, margin: '8px 0 0', fontWeight: 600 },
   badge: { display: 'inline-block', background: '#fef2f2', color: '#E63946', borderRadius: 8, padding: '4px 10px', fontSize: 14, fontWeight: 700 },
   tagAll: { background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagPast: { background: '#f8fafc', color: '#9ca3af', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagPast: { background: '#f8fafc', color: '#5a6472', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   reuseBtn: { background: '#eff6ff', color: '#1D3557', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
-  empty: { color: '#9ca3af', textAlign: 'center', padding: 60, fontSize: 14 },
+  empty: { color: '#5a6472', textAlign: 'center', padding: 60, fontSize: 14 },
 
   mainTabs: { display: 'flex', gap: 8, marginBottom: 24 },
   mainTab: {
     padding: '9px 20px', borderRadius: 10,
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700,
-    color: '#6b7280', display: 'flex', alignItems: 'center', gap: 8,
+    color: '#5a6472', display: 'flex', alignItems: 'center', gap: 8,
   },
   mainTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
   tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 13, fontWeight: 700 },

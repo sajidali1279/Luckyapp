@@ -67,7 +67,7 @@ const ITEM_STATUS_CFG = {
   PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' },
   ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669', border: '#6EE7B7' },
   RECEIVED: { label: 'Received', bg: '#EDE9FE', text: '#7C3AED', border: '#C4B5FD' },
-  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#9CA3AF', border: '#E5E7EB' },
+  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#5a6472', border: '#E5E7EB' },
 };
 
 const CAT_STATUS_CFG = {
@@ -741,7 +741,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                 aria-label={`Open list ${list.name} for ${list.store?.name}`}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedList(list)}>
                 <div style={s.listCardTop}>
-                  <span style={{ ...s.statusPill, background: isOpen ? '#D1FAE5' : '#F3F4F6', color: isOpen ? '#059669' : '#6B7280' }}>
+                  <span style={{ ...s.statusPill, background: isOpen ? '#D1FAE5' : '#F3F4F6', color: isOpen ? '#059669' : '#5a6472' }}>
                     {isOpen ? '● Open' : '✓ Closed'}
                   </span>
                   <span style={s.listCardDate}>
@@ -1228,7 +1228,7 @@ const s: Record<string, React.CSSProperties> = {
   approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#5a6472', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
 

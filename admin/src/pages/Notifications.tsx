@@ -512,14 +512,14 @@ const s: Record<string, React.CSSProperties> = {
     margin: 0, fontSize: 26, fontWeight: 800, color: '#111827',
     display: 'flex', alignItems: 'center', gap: 10,
   },
-  subtitle: { margin: '4px 0 0', color: '#6b7280', fontSize: 14 },
+  subtitle: { margin: '4px 0 0', color: '#5a6472', fontSize: 14 },
   badge: {
     background: '#ef4444', color: '#fff',
     borderRadius: 12, padding: '2px 9px', fontSize: 14, fontWeight: 700,
   },
   headerActions: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
   markAllBtn: {
-    background: 'none', border: '1.5px solid #d1d5db', color: '#6b7280',
+    background: 'none', border: '1.5px solid #d1d5db', color: '#5a6472',
     borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
   },
   refreshBtn: {
@@ -534,13 +534,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   tab: {
     background: 'none', border: 'none', padding: '9px 16px',
-    fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer',
+    fontSize: 14, fontWeight: 600, color: '#5a6472', cursor: 'pointer',
     borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: 6,
     borderBottom: '2px solid transparent', marginBottom: -2, transition: 'color 0.15s',
   },
   tabActive: { color: '#1D3557', borderBottom: '2px solid #1D3557', background: '#f8faff' },
   tabBadge: {
-    background: '#e5e7eb', color: '#6b7280',
+    background: '#e5e7eb', color: '#5a6472',
     borderRadius: 10, padding: '1px 7px', fontSize: 12, fontWeight: 700,
   },
   tabBadgeActive: { background: '#ef4444', color: '#fff' },
@@ -572,7 +572,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 12, fontWeight: 700,
     padding: '3px 9px', borderRadius: 6,
   },
-  timeStamp: { fontSize: 13, color: '#9ca3af', flexShrink: 0, paddingTop: 2 },
+  timeStamp: { fontSize: 13, color: '#5a6472', flexShrink: 0, paddingTop: 2 },
 
   message: { fontSize: 14, lineHeight: 1.65, paddingLeft: 36 },
   paidStamp: { fontSize: 13, fontWeight: 600, color: '#065f46', paddingLeft: 36 },
@@ -596,7 +596,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb',
   },
   filterGroup: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  filterLabel: { fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 },
+  filterLabel: { fontSize: 12, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 },
   filterPill: {
     background: '#fff', border: '1.5px solid #d1d5db', color: '#374151',
     borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600,
@@ -611,13 +611,13 @@ const s: Record<string, React.CSSProperties> = {
     background: 'none', border: '1.5px solid #fca5a5', color: '#dc2626',
     borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
   },
-  resultCount: { fontSize: 13, color: '#6b7280', marginBottom: 12, paddingLeft: 4 },
+  resultCount: { fontSize: 13, color: '#5a6472', marginBottom: 12, paddingLeft: 4 },
 
-  empty: { textAlign: 'center', padding: '60px 0', color: '#6b7280', fontSize: 15 },
+  empty: { textAlign: 'center', padding: '60px 0', color: '#5a6472', fontSize: 15 },
   emptyState: { textAlign: 'center', padding: '80px 0' },
   emptyIcon: { fontSize: 52, marginBottom: 14 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#6b7280', lineHeight: 1.6 },
+  emptyText: { fontSize: 14, color: '#5a6472', lineHeight: 1.6 },
   emptyLink: { background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
 };
 
@@ -634,7 +634,7 @@ const sp: Record<string, React.CSSProperties> = {
   panelSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)' },
   field: { marginBottom: 18 },
   label: { display: 'block', fontSize: 14, fontWeight: 700, color: '#1D3557', marginBottom: 6 },
-  charCount: { fontWeight: 400, color: '#6b7280', fontSize: 13 },
+  charCount: { fontWeight: 400, color: '#5a6472', fontSize: 13 },
   select: {
     width: '100%', padding: '10px 14px', borderRadius: 10,
     border: '1.5px solid #d1d5db', fontSize: 14, color: '#111827',
@@ -655,7 +655,7 @@ const sp: Record<string, React.CSSProperties> = {
     background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb',
   },
   previewLabel: {
-    fontSize: 12, fontWeight: 700, color: '#6b7280',
+    fontSize: 12, fontWeight: 700, color: '#5a6472',
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
   },
   previewCard: {
@@ -671,5 +671,5 @@ const sp: Record<string, React.CSSProperties> = {
     fontSize: 15, fontWeight: 800, cursor: 'pointer',
   },
   sendBtnDisabled: { opacity: 0.45, cursor: 'not-allowed' },
-  hint: { marginTop: 16, fontSize: 13, color: '#6b7280', lineHeight: 1.6 },
+  hint: { marginTop: 16, fontSize: 13, color: '#5a6472', lineHeight: 1.6 },
 };

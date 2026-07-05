@@ -157,7 +157,7 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#9ca3af', marginTop: 4, fontSize: 15 },
+  sub: { color: '#5a6472', marginTop: 4, fontSize: 15 },
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
@@ -177,9 +177,9 @@ const s: Record<string, React.CSSProperties> = {
   img: { width: 220, height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' },
-  cardDate: { color: '#9ca3af', fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
+  cardDate: { color: '#5a6472', fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
   tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
-  empty: { color: '#9ca3af', textAlign: 'center', padding: 60, fontSize: 14 },
+  empty: { color: '#5a6472', textAlign: 'center', padding: 60, fontSize: 14 },
 };

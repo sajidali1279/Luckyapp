@@ -85,7 +85,7 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
               <ImageIcon size={11} /> Photo
             </span>
           )}
-          {expanded ? <ChevronUp size={15} color="#9CA3AF" /> : <ChevronDown size={15} color="#9CA3AF" />}
+          {expanded ? <ChevronUp size={15} color="#5a6472" /> : <ChevronDown size={15} color="#5a6472" />}
         </div>
       </button>
 
@@ -276,7 +276,7 @@ const s: Record<string, CSSProperties> = {
   subtitle: {
     margin: 0,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#5a6472',
     marginTop: 2,
   },
   filters: {
@@ -313,7 +313,7 @@ const s: Record<string, CSSProperties> = {
     marginBottom: 12,
   },
   loadingDot: {
-    color: '#9CA3AF',
+    color: '#5a6472',
     fontWeight: 400,
   },
   reportList: {
@@ -323,7 +323,7 @@ const s: Record<string, CSSProperties> = {
   },
   reportCount: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#5a6472',
     fontWeight: 500,
     marginBottom: 4,
     textTransform: 'uppercase' as const,
@@ -372,7 +372,7 @@ const s: Record<string, CSSProperties> = {
   },
   submittedAt: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#5a6472',
     textAlign: 'left' as const,
     marginTop: 1,
     display: 'flex',
@@ -416,7 +416,7 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 700,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.06em',
-    color: '#9CA3AF',
+    color: '#5a6472',
     marginBottom: 8,
   },
   dataGrid: {
@@ -431,7 +431,7 @@ const s: Record<string, CSSProperties> = {
   },
   dataCellLabel: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#5a6472',
     fontWeight: 500,
     marginBottom: 2,
   },
@@ -461,7 +461,7 @@ const s: Record<string, CSSProperties> = {
   empty: {
     textAlign: 'center' as const,
     padding: '48px 0',
-    color: '#9CA3AF',
+    color: '#5a6472',
     fontSize: 14,
   },
   emptyState: {
@@ -481,6 +481,6 @@ const s: Record<string, CSSProperties> = {
   emptySubtitle: {
     margin: 0,
     fontSize: 13,
-    color: '#9CA3AF',
+    color: '#5a6472',
   },
 };
