@@ -324,7 +324,9 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
             const pLines   = req.lines.filter(l => l.status === 'PENDING');
             return (
               <div key={req.id} style={{ ...p.reqCard, marginBottom: 8 }}>
-                <div style={p.reqHead} onClick={() => setExpandedId(isOpen ? null : req.id)}>
+                <div style={p.reqHead} onClick={() => setExpandedId(isOpen ? null : req.id)}
+                  role="button" tabIndex={0} aria-expanded={isOpen}
+                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setExpandedId(isOpen ? null : req.id)}>
                   <div style={{ flex: 1 }}>
                     <div style={p.reqName}>{req.submittedBy.name}</div>
                     <div style={p.reqMeta}>

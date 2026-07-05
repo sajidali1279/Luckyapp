@@ -227,7 +227,9 @@ function CashbackHealthCard() {
                 style={{ ...s.healthRow, borderColor: meta.border, background: meta.bg }}
                 onMouseMove={handleGlowMove}
               >
-                <div style={s.healthRowHeader} onClick={() => setExpandedStore(isOpen ? null : store.storeId)}>
+                <div style={s.healthRowHeader} onClick={() => setExpandedStore(isOpen ? null : store.storeId)}
+                  role="button" tabIndex={0} aria-expanded={isOpen}
+                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setExpandedStore(isOpen ? null : store.storeId)}>
                   <div style={s.healthRowName}>{isOpen ? '▾' : '▸'} {store.storeName}</div>
                   <div style={s.healthRowStats}>
                     <span style={s.healthStat}>{fmt$(store.purchaseVolume)} sold</span>

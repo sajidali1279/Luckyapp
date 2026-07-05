@@ -274,7 +274,9 @@ export default function BusinessPromotions() {
             const isExpanded = expandedId === req.id;
             return (
               <div key={req.id} style={s.card}>
-                <div style={s.cardTop} onClick={() => setExpandedId(isExpanded ? null : req.id)}>
+                <div style={s.cardTop} onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                  role="button" tabIndex={0} aria-expanded={isExpanded}
+                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setExpandedId(isExpanded ? null : req.id)}>
                   <div style={s.bizInfo}>
                     <div style={s.bizNameRow}>
                       <span style={s.bizName}>{req.businessName}</span>

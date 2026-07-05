@@ -270,7 +270,10 @@ function NewRequestTab() {
                     <button style={s.doneBtn} onClick={() => setEditingId(null)}>Done</button>
                   </div>
                 ) : (
-                  <div style={s.cartItemMeta} onClick={() => setEditingId(item.id)}>
+                  <div style={s.cartItemMeta} onClick={() => setEditingId(item.id)}
+                    role="button" tabIndex={0}
+                    aria-label={`Edit quantity, category, and notes for ${item.name ?? 'item'}`}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setEditingId(item.id)}>
                     <span>{item.quantity || 'Tap to add qty'}</span>
                     {item.category && <span> · {item.category}</span>}
                     {item.notes && <span> · {item.notes}</span>}
