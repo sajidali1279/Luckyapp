@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
@@ -238,26 +239,26 @@ export default function Rates() {
 
       {tiers.length > 0 && (
         <div style={s.tableWrap}>
-          <table style={s.table}>
-            <thead>
-              <tr style={s.thead}>
-                <th style={{ ...s.th, width: 160 }}>Tier</th>
-                <th style={s.th}>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow style={s.thead}>
+                <TableHead style={{ ...s.th, width: 160 }}>Tier</TableHead>
+                <TableHead style={s.th}>
                   Cashback %
                   <div style={s.thSub}>earned on every purchase</div>
-                </th>
-                <th style={s.th}>
+                </TableHead>
+                <TableHead style={s.th}>
                   Gas ¢ / gallon
                   <div style={s.thSub}>optional — overrides % for gas & diesel</div>
-                </th>
-                <th style={s.th}>
+                </TableHead>
+                <TableHead style={s.th}>
                   Min $ earned to reach tier
                   <div style={s.thSub}>period earnings threshold (cashback dollars)</div>
-                </th>
-                <th style={{ ...s.th, width: 80 }}></th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+                <TableHead style={{ ...s.th, width: 80 }}></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {TIERS.map((tierKey) => {
                 const r = tiers.find(x => x.tier === tierKey);
                 if (!r) return null;
@@ -267,9 +268,9 @@ export default function Rates() {
                 const isSaving = saving === tierKey;
 
                 return (
-                  <tr key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                  <TableRow key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
                     {/* Tier label */}
-                    <td style={s.td}>
+                    <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
@@ -279,10 +280,10 @@ export default function Rates() {
                           </div>
                         </div>
                       </div>
-                    </td>
+                    </TableCell>
 
                     {/* Cashback % */}
-                    <td style={s.td}>
+                    <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
                           type="number"
@@ -297,10 +298,10 @@ export default function Rates() {
                           <span style={s.preview}>{fmtPct(parseFloat(row.cashbackRate) / 100)} back per $1</span>
                         )}
                       </div>
-                    </td>
+                    </TableCell>
 
                     {/* Gas ¢/gallon */}
-                    <td style={s.td}>
+                    <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
                           type="number"
@@ -315,10 +316,10 @@ export default function Rates() {
                       {r.gasCentsPerGallon != null && !isDirty && (
                         <div style={s.gasActive}>Active: {r.gasCentsPerGallon}¢/gal for GAS & DIESEL</div>
                       )}
-                    </td>
+                    </TableCell>
 
                     {/* Tier threshold */}
-                    <td style={s.td}>
+                    <TableCell style={s.td}>
                       {tierKey === 'BRONZE' ? (
                         <span style={{ fontSize: 14, color: '#adb5bd' }}>Starting tier</span>
                       ) : (
@@ -337,10 +338,10 @@ export default function Rates() {
                           )}
                         </div>
                       )}
-                    </td>
+                    </TableCell>
 
                     {/* Actions */}
-                    <td style={{ ...s.td, textAlign: 'right' }}>
+                    <TableCell style={{ ...s.td, textAlign: 'right' }}>
                       {isDirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button style={s.saveBtn} disabled={isSaving} onClick={() => handleSave(tierKey)}>
@@ -351,12 +352,12 @@ export default function Rates() {
                       ) : (
                         <span style={s.savedTag}>✓ Saved</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -384,24 +385,24 @@ export default function Rates() {
 
       {!catLoading && (
         <div style={s.tableWrap}>
-          <table style={s.table}>
-            <thead>
-              <tr style={s.thead}>
-                <th style={{ ...s.th, width: 180 }}>Category</th>
-                <th style={s.th}>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow style={s.thead}>
+                <TableHead style={{ ...s.th, width: 180 }}>Category</TableHead>
+                <TableHead style={s.th}>
                   Bonus %
                   <div style={s.thSub}>added on top of tier base rate</div>
-                </th>
+                </TableHead>
                 {TIERS.map(tierKey => (
-                  <th key={tierKey} style={{ ...s.th, textAlign: 'center' as const }}>
+                  <TableHead key={tierKey} style={{ ...s.th, textAlign: 'center' as const }}>
                     {TIER_META[tierKey].emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}
                     <div style={s.thSub}>total cashback %</div>
-                  </th>
+                  </TableHead>
                 ))}
-                <th style={{ ...s.th, width: 80 }}></th>
-              </tr>
-            </thead>
-            <tbody>
+                <TableHead style={{ ...s.th, width: 80 }}></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {CATEGORIES.map((cat) => {
                 const meta = CAT_META[cat];
                 const isGasDiesel = cat === 'GAS' || cat === 'DIESEL';
@@ -414,8 +415,8 @@ export default function Rates() {
                 // GAS/DIESEL in ¢/gallon mode — show redirect badge, no editable %
                 if (isGasDiesel && showPerGallon) {
                   return (
-                    <tr key={cat} style={s.tr}>
-                      <td style={s.td}>
+                    <TableRow key={cat} style={s.tr}>
+                      <TableCell style={s.td}>
                         <div style={s.tierCell}>
                           <span style={s.catEmoji}>{meta.emoji}</span>
                           <div>
@@ -423,17 +424,17 @@ export default function Rates() {
                             <div style={s.tierSub}>{meta.desc}</div>
                           </div>
                         </div>
-                      </td>
-                      <td style={s.td} colSpan={7}>
+                      </TableCell>
+                      <TableCell style={s.td} colSpan={7}>
                         <span style={s.perGallonBadge}>⛽ ¢/gallon mode — configure per-tier rates below</span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 }
 
                 return (
-                  <tr key={cat} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
-                    <td style={s.td}>
+                  <TableRow key={cat} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                    <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={s.catEmoji}>{meta.emoji}</span>
                         <div>
@@ -441,8 +442,8 @@ export default function Rates() {
                           <div style={s.tierSub}>{meta.desc}</div>
                         </div>
                       </div>
-                    </td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
                           type="number"
@@ -460,13 +461,13 @@ export default function Rates() {
                           <span style={{ ...s.preview, color: '#adb5bd' }}>no bonus</span>
                         )}
                       </div>
-                    </td>
+                    </TableCell>
                     {TIERS.map(tierKey => (
-                      <td key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}>
+                      <TableCell key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}>
                         <span style={s.effectiveTag}>{fmtPct(tierRateFor(tierKey, tiers) + bonusFraction)}</span>
-                      </td>
+                      </TableCell>
                     ))}
-                    <td style={{ ...s.td, textAlign: 'right' }}>
+                    <TableCell style={{ ...s.td, textAlign: 'right' }}>
                       {isDirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button style={s.saveBtn} disabled={isSaving} onClick={() => handleCatSave(cat)}>
@@ -477,12 +478,12 @@ export default function Rates() {
                       ) : (
                         <span style={s.savedTag}>✓</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -536,22 +537,22 @@ export default function Rates() {
 
         {/* Per-tier ¢/gallon table */}
         {showPerGallon && tiers.length > 0 && (
-          <table style={{ ...s.table, marginTop: 16 }}>
-            <thead>
-              <tr style={s.thead}>
-                <th style={{ ...s.th, width: 200 }}>Tier</th>
-                <th style={s.th}>
+          <Table style={{ ...s.table, marginTop: 16 }}>
+            <TableHeader>
+              <TableRow style={s.thead}>
+                <TableHead style={{ ...s.th, width: 200 }}>Tier</TableHead>
+                <TableHead style={s.th}>
                   ¢ / gallon
                   <div style={s.thSub}>applies to GAS & DIESEL</div>
-                </th>
-                <th style={s.th}>
+                </TableHead>
+                <TableHead style={s.th}>
                   Example (1 gal)
                   <div style={s.thSub}>cashback earned</div>
-                </th>
-                <th style={{ ...s.th, width: 100 }}></th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+                <TableHead style={{ ...s.th, width: 100 }}></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {TIERS.map((tierKey) => {
                 const r = tiers.find(x => x.tier === tierKey);
                 if (!r) return null;
@@ -563,8 +564,8 @@ export default function Rates() {
                 const cpgNum = parseFloat(cpgVal);
 
                 return (
-                  <tr key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
-                    <td style={s.td}>
+                  <TableRow key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                    <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
@@ -574,8 +575,8 @@ export default function Rates() {
                           </div>
                         </div>
                       </div>
-                    </td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
                           type="number" min="0" step="0.5"
@@ -586,15 +587,15 @@ export default function Rates() {
                         />
                         {cpgVal !== '' && <span style={s.suffix}>¢</span>}
                       </div>
-                    </td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>
                       {!isNaN(cpgNum) && cpgNum > 0 ? (
                         <span style={s.effectiveTag}>${(1 * cpgNum / 100).toFixed(2)} cashback</span>
                       ) : (
                         <span style={{ fontSize: 14, color: '#adb5bd' }}>enter rate above</span>
                       )}
-                    </td>
-                    <td style={{ ...s.td, textAlign: 'right' }}>
+                    </TableCell>
+                    <TableCell style={{ ...s.td, textAlign: 'right' }}>
                       {isDirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button style={s.saveBtn} disabled={isSaving} onClick={() => handleSave(tierKey)}>
@@ -605,12 +606,12 @@ export default function Rates() {
                       ) : (
                         <span style={s.savedTag}>✓</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
 

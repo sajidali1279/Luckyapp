@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -339,27 +340,27 @@ export default function Scheduling() {
                     <div style={s.loadingText}>Loading schedule...</div>
                   ) : (
                     <div style={s.gridWrapper}>
-                      <table style={s.grid}>
-                        <thead>
-                          <tr>
-                            <th style={s.gridHeaderCell}>Shift</th>
+                      <Table style={s.grid}>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead style={s.gridHeaderCell}>Shift</TableHead>
                             {DAYS.map((d) => (
-                              <th key={d.key} style={{ ...s.gridHeaderCell, ...(d.key === todayDay ? s.todayCol : {}) }}>
+                              <TableHead key={d.key} style={{ ...s.gridHeaderCell, ...(d.key === todayDay ? s.todayCol : {}) }}>
                                 {d.label.slice(0, 3)}
                                 {d.key === todayDay && <span style={s.todayBadge}>Today</span>}
-                              </th>
+                              </TableHead>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {SHIFTS.map((shift) => (
-                            <tr key={shift.key}>
-                              <td style={s.shiftLabelCell}>
+                            <TableRow key={shift.key}>
+                              <TableCell style={s.shiftLabelCell}>
                                 <div style={{ ...s.shiftLabel, borderLeftColor: shift.color }}>
                                   <div style={s.shiftLabelName}>{shift.label}</div>
                                   <div style={s.shiftLabelTime}>{shift.time}</div>
                                 </div>
-                              </td>
+                              </TableCell>
                               {DAYS.map((day) => {
                                 const assignedHere = (grouped[day.key] || []).filter(
                                   (t: any) => t.shiftType === shift.key
@@ -367,7 +368,7 @@ export default function Scheduling() {
                                 const available = getAvailableEmployees(day.key);
                                 const noEmployees = allEmployees.length === 0;
                                 return (
-                                  <td key={day.key} style={{ ...s.cell, ...(day.key === todayDay ? s.todayCellBg : {}) }}>
+                                  <TableCell key={day.key} style={{ ...s.cell, ...(day.key === todayDay ? s.todayCellBg : {}) }}>
                                     <div style={s.cellContent}>
                                       {assignedHere.map((t: any) => (
                                         <div key={t.id} style={{ ...s.chip, borderColor: shift.color + '60' }}>
@@ -396,13 +397,13 @@ export default function Scheduling() {
                                         +
                                       </button>
                                     </div>
-                                  </td>
+                                  </TableCell>
                                 );
                               })}
-                            </tr>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </div>
