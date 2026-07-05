@@ -10,8 +10,9 @@ import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
 import { hotFoodApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
-import { FlameIcon, ClockIcon, CheckCircleIcon, XIcon, MapPinIcon } from '../../components/Icons';
+import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import ModalCloseButton from '../../components/ModalCloseButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,14 +295,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
 
           <View style={cs.header}>
             <Text style={cs.title}>Your Order</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Close order sheet"
-            >
-              <XIcon size={20} color={COLORS.textMuted} />
-            </TouchableOpacity>
+            <ModalCloseButton onPress={onClose} label="Close order sheet" size={20} color={COLORS.textMuted} />
           </View>
 
           <ScrollView style={cs.body} showsVerticalScrollIndicator={false}>

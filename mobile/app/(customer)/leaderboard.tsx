@@ -2,12 +2,12 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { router } from 'expo-router';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
-import { ChevronLeftIcon, TrophyIcon } from '../../components/Icons';
+import { TrophyIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import BackButton from '../../components/BackButton';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -77,15 +77,7 @@ export default function CustomerLeaderboardScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={st.backBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
-          </TouchableOpacity>
+          <BackButton variant="light" />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TrophyIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
@@ -197,11 +189,6 @@ const st = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900' },
   headerSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600', marginTop: 2 },

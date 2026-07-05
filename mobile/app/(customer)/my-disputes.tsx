@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { disputeApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import ErrorState from '../../components/ErrorState';
+import BackButton from '../../components/BackButton';
 
 function StatusPill({ status }: { status: string }) {
   const cfg = {
@@ -26,16 +26,7 @@ export default function MyDisputesScreen() {
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={s.backBtn}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={s.backArrow}>←</Text>
-        </TouchableOpacity>
+        <BackButton />
         <Text style={s.title}>My Reports</Text>
       </View>
 
@@ -81,8 +72,6 @@ export default function MyDisputesScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, gap: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
-  backArrow: { fontSize: 18, color: COLORS.text, lineHeight: 22 },
   title: { fontSize: 20, fontWeight: '800', color: COLORS.text },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 10 },
