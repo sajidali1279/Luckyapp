@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { superAdminApi } from '../services/api';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -66,22 +67,23 @@ export default function SuperAdminBilling() {
         ) : invoices.length === 0 ? (
           <div style={s.empty}>No invoices yet.</div>
         ) : (
-          <table style={s.table}>
-            <thead>
-              <tr>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow>
                 {['Invoice Period', 'Transactions', 'Purchase Volume', 'Cashback Issued', 'Platform Fee', 'Status'].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
+                  <TableHead key={h} style={s.th}>{h}</TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {invoices.map((inv: any) => (
                 <Fragment key={inv.period}>
-                  <tr
-                    style={{ ...s.tr, cursor: 'pointer', background: expanded === inv.period ? '#f0f4ff' : undefined }}
+                  <TableRow
+                    style={{ ...s.tr, background: expanded === inv.period ? '#f0f4ff' : undefined }}
                     onClick={() => setExpanded(expanded === inv.period ? null : inv.period)}
+                    aria-label={`${expanded === inv.period ? 'Collapse' : 'Expand'} store breakdown for ${periodLabel(inv.period)}`}
                   >
-                    <td style={s.td}>
+                    <TableCell style={s.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={s.expandBtn}>{expanded === inv.period ? '▼' : '▶'}</span>
                         <div>
@@ -89,17 +91,17 @@ export default function SuperAdminBilling() {
                           <div style={s.sub}>{inv.stores.length} store{inv.stores.length !== 1 ? 's' : ''}</div>
                         </div>
                       </div>
-                    </td>
-                    <td style={s.td}>{inv.totalTxns.toLocaleString()}</td>
-                    <td style={s.td}>{fmt$(inv.totalVolume)}</td>
-                    <td style={s.td}>{fmt$(inv.totalCashback)}</td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>{inv.totalTxns.toLocaleString()}</TableCell>
+                    <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
+                    <TableCell style={s.td}>{fmt$(inv.totalCashback)}</TableCell>
+                    <TableCell style={s.td}>
                       <strong style={{ color: '#E63946', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
                       {inv.totalCashback > 0 && (
                         <div style={s.sub}>{fmtPct(inv.totalDevCut / inv.totalCashback)} of cashback</div>
                       )}
-                    </td>
-                    <td style={s.td}>
+                    </TableCell>
+                    <TableCell style={s.td}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
                         {inv.isPaid ? (
                           <span style={s.badgePaid}>✓ Paid</span>
@@ -118,44 +120,44 @@ export default function SuperAdminBilling() {
                           </button>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
 
                   {expanded === inv.period && (
-                    <tr>
-                      <td colSpan={6} style={s.expandedCell}>
+                    <TableRow>
+                      <TableCell colSpan={6} style={s.expandedCell}>
                         <div style={s.storeBreakdown}>
                           <div style={s.breakdownTitle}>Store Breakdown</div>
-                          <table style={{ ...s.table, margin: 0 }}>
-                            <thead>
-                              <tr>
+                          <Table style={{ ...s.table, margin: 0 }}>
+                            <TableHeader>
+                              <TableRow>
                                 {['Store', 'City', 'Transactions', 'Cashback Issued', 'Dev Cut'].map((h) => (
-                                  <th key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</th>
+                                  <TableHead key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</TableHead>
                                 ))}
-                              </tr>
-                            </thead>
-                            <tbody>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
                               {inv.stores
                                 .sort((a: any, b: any) => b.amount - a.amount)
                                 .map((row: any) => (
-                                  <tr key={row.store.id} style={s.tr}>
-                                    <td style={s.td}><strong>{row.store.name}</strong></td>
-                                    <td style={s.td}>{row.store.city}</td>
-                                    <td style={s.td}>{row.txCount}</td>
-                                    <td style={s.td}>{fmt$(row.cashbackIssued)}</td>
-                                    <td style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</td>
-                                  </tr>
+                                  <TableRow key={row.store.id} style={s.tr}>
+                                    <TableCell style={s.td}><strong>{row.store.name}</strong></TableCell>
+                                    <TableCell style={s.td}>{row.store.city}</TableCell>
+                                    <TableCell style={s.td}>{row.txCount}</TableCell>
+                                    <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
+                                    <TableCell style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</TableCell>
+                                  </TableRow>
                                 ))}
-                            </tbody>
-                          </table>
+                            </TableBody>
+                          </Table>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </Fragment>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
 
         {invoices.length > 0 && (
