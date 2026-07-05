@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 interface BillNotes {
   txCount: number; purchaseVolume: number;
@@ -332,19 +333,19 @@ export default function Billing() {
       {tab === 'stores' && (
         storesError ? <ErrorState onRetry={refetchStores} /> :
         storesLoading ? <div style={s.loading}>Loading stores…</div> : (
-          <table style={s.table}>
-            <thead>
-              <tr>
-                <th style={s.th}>Store</th>
-                <th style={s.th}>Billing Type</th>
-                <th style={s.th}>Monthly Price</th>
-                <th style={s.th}>Tx Fee</th>
-                <th style={s.th}>30-day Volume</th>
-                <th style={s.th}>Avg/Month (90d)</th>
-                <th style={s.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={s.th}>Store</TableHead>
+                <TableHead style={s.th}>Billing Type</TableHead>
+                <TableHead style={s.th}>Monthly Price</TableHead>
+                <TableHead style={s.th}>Tx Fee</TableHead>
+                <TableHead style={s.th}>30-day Volume</TableHead>
+                <TableHead style={s.th}>Avg/Month (90d)</TableHead>
+                <TableHead style={s.th}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {stores.map((store: any) => {
                 const isEditing = editingStore === store.id;
                 const isExpanded = expandedStore === store.id;
@@ -357,55 +358,55 @@ export default function Billing() {
 
                 return (
                   <Fragment key={store.id}>
-                    <tr style={isExpanded ? s.rowExpanded : undefined}>
-                      <td style={s.td}>
+                    <TableRow style={isExpanded ? s.rowExpanded : undefined}>
+                      <TableCell style={s.td}>
                         <button style={s.expandBtn} onClick={() => setExpandedStore(isExpanded ? null : store.id)}>
                           {isExpanded ? '▾' : '▸'} {store.name}
                         </button>
                         <div style={s.cityLabel}>{store.city}</div>
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         {isEditing ? (
                           <select value={billingForm.billingType} onChange={(e) => setBillingForm((f) => ({ ...f, billingType: e.target.value }))} style={s.select}>
                             {BILLING_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
                           </select>
                         ) : <span style={s.badge}>{store.billingType.replace(/_/g, ' ')}</span>}
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         {isEditing ? (
                           needsSubscription(activeType)
                             ? <input type="number" min="0" step="0.01" placeholder="e.g. 99" value={billingForm.subscriptionPrice} onChange={(e) => setBillingForm((f) => ({ ...f, subscriptionPrice: e.target.value }))} style={s.input} />
                             : <span style={s.na}>—</span>
                         ) : needsSubscription(store.billingType) ? `${fmt$(store.subscriptionPrice)}/mo` : <span style={s.na}>—</span>}
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         {isEditing ? (
                           needsTransactionFee(activeType)
                             ? <input type="number" min="0" max="1" step="0.001" placeholder="e.g. 0.02" value={billingForm.transactionFeeRate} onChange={(e) => setBillingForm((f) => ({ ...f, transactionFeeRate: e.target.value }))} style={s.input} />
                             : <span style={s.na}>—</span>
                         ) : needsTransactionFee(store.billingType) ? fmtPct(store.transactionFeeRate) : <span style={s.na}>—</span>}
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         <span style={s.volValue}>{fmt$(rev.last30Days.purchaseVolume)}</span>
                         <div style={s.volSub}>{rev.last30Days.transactions} txns</div>
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         <span style={s.volValue}>{fmt$(rev.last90Days.avgMonthlyVolume)}</span>
                         <div style={s.volSub}>90-day avg</div>
-                      </td>
-                      <td style={s.td}>
+                      </TableCell>
+                      <TableCell style={s.td}>
                         {isEditing ? (
                           <>
                             <button style={s.saveBtn} onClick={() => saveEdit(store.id)} disabled={updateBilling.isPending}>{updateBilling.isPending ? '…' : 'Save'}</button>
                             <button style={s.cancelBtn} onClick={() => setEditingStore(null)}>Cancel</button>
                           </>
                         ) : <button style={s.editBtn} onClick={() => startEdit(store)}>Edit</button>}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
 
                     {isExpanded && (
-                      <tr key={`${store.id}-exp`}>
-                        <td colSpan={7} style={s.expandedCell}>
+                      <TableRow key={`${store.id}-exp`}>
+                        <TableCell colSpan={7} style={s.expandedCell}>
                           <div style={s.statsRow}>
                             <div style={s.statBox}>
                               <div style={s.statBoxLabel}>Last 30 Days</div>
@@ -427,14 +428,14 @@ export default function Billing() {
                               </div>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </Fragment>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )
       )}
 
@@ -491,43 +492,43 @@ export default function Billing() {
               <p style={{ margin: '8px 0 0', fontSize: 15, color: '#adb5bd' }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
             </div>
           ) : (
-            <table style={s.table}>
-              <thead>
-                <tr>
-                  <th style={s.th}>Invoice Period</th>
-                  <th style={s.th}>Stores</th>
-                  <th style={s.th}>Transactions</th>
-                  <th style={s.th}>Purchase Volume</th>
-                  <th style={s.th}>Dev Cut</th>
-                  <th style={s.th}>Status</th>
-                  <th style={s.th}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table style={s.table}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={s.th}>Invoice Period</TableHead>
+                  <TableHead style={s.th}>Stores</TableHead>
+                  <TableHead style={s.th}>Transactions</TableHead>
+                  <TableHead style={s.th}>Purchase Volume</TableHead>
+                  <TableHead style={s.th}>Dev Cut</TableHead>
+                  <TableHead style={s.th}>Status</TableHead>
+                  <TableHead style={s.th}>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {consolidatedInvoices.map((inv: any) => {
                   const isExp = expandedBill === inv.period;
                   return (
                     <Fragment key={inv.period}>
-                      <tr style={isExp ? s.rowExpanded : undefined}>
-                        <td style={s.td}>
+                      <TableRow style={isExp ? s.rowExpanded : undefined}>
+                        <TableCell style={s.td}>
                           <button style={s.expandBtn} onClick={() => setExpandedBill(isExp ? null : inv.period)}>
                             {isExp ? '▾' : '▸'} {inv.period}
                           </button>
-                        </td>
-                        <td style={s.td}>{inv.stores.length} stores</td>
-                        <td style={s.td}>{inv.totalTxns}</td>
-                        <td style={s.td}>{fmt$(inv.totalVolume)}</td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>{inv.stores.length} stores</TableCell>
+                        <TableCell style={s.td}>{inv.totalTxns}</TableCell>
+                        <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
+                        <TableCell style={s.td}>
                           <strong style={{ color: '#E63946', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
                           {inv.totalCashback > 0 && (
                             <div style={s.cityLabel}>{fmtPct(devCutRate)} of {fmt$(inv.totalCashback)} cashback</div>
                           )}
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>{inv.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
                           {inv.isPaid && inv.paidAt && <div style={s.cityLabel}>{new Date(inv.paidAt).toLocaleDateString()}</div>}
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button
                               style={{ ...s.editBtn, background: '#457B9D', fontSize: 14 }}
@@ -539,31 +540,31 @@ export default function Billing() {
                               </button>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
 
                       {/* ── Expanded: per-store breakdown ── */}
                       {isExp && (
-                        <tr>
-                          <td colSpan={7} style={s.expandedCell}>
+                        <TableRow>
+                          <TableCell colSpan={7} style={s.expandedCell}>
                             <div style={{ padding: '16px 20px' }}>
                               <div style={s.billSectionTitle}>Per-Store Breakdown — {inv.period}</div>
-                              <table style={{ width: '100%', fontSize: 15, borderCollapse: 'collapse', marginTop: 8 }}>
-                                <thead>
-                                  <tr>
+                              <Table style={{ width: '100%', fontSize: 15 }}>
+                                <TableHeader>
+                                  <TableRow>
                                     {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', ''].map((h) => (
-                                      <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</th>
+                                      <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
                                     ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                   {inv.stores
                                     .sort((a: any, b: any) => b.amount - a.amount)
                                     .map((r: any) => {
                                       const n: BillNotes | null = r.notes;
                                       return (
-                                        <tr key={r.id}>
-                                          <td style={s.catTd}>
+                                        <TableRow key={r.id}>
+                                          <TableCell style={s.catTd}>
                                             <strong>{r.store?.name}</strong>
                                             <div style={s.cityLabel}>{r.store?.city}</div>
                                             {n?.generatedBy === 'cron' && (
@@ -572,41 +573,41 @@ export default function Billing() {
                                             {n?.generatedBy === 'manual' && (
                                               <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#f0fdf4', color: '#166534', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
                                             )}
-                                          </td>
-                                          <td style={s.catTd}>{n?.txCount ?? 0}</td>
-                                          <td style={s.catTd}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
-                                          <td style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : '—'}</td>
-                                          <td style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</td>
-                                          <td style={s.catTd}>
+                                          </TableCell>
+                                          <TableCell style={s.catTd}>{n?.txCount ?? 0}</TableCell>
+                                          <TableCell style={s.catTd}>{n ? fmt$(n.purchaseVolume) : '—'}</TableCell>
+                                          <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : '—'}</TableCell>
+                                          <TableCell style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</TableCell>
+                                          <TableCell style={s.catTd}>
                                             <button
                                               style={{ padding: '4px 10px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
                                               onClick={() => setInvoiceView({ record: r, period: inv.period })}
                                             >📄 Invoice</button>
-                                          </td>
-                                        </tr>
+                                          </TableCell>
+                                        </TableRow>
                                       );
                                     })}
-                                </tbody>
-                                <tfoot>
-                                  <tr>
-                                    <td style={{ ...s.catTd, fontWeight: 800 }}>Total</td>
-                                    <td style={{ ...s.catTd, fontWeight: 800 }}>{inv.totalTxns}</td>
-                                    <td style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</td>
-                                    <td style={s.catTd}></td>
-                                    <td style={{ ...s.catTd, color: '#E63946', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</td>
-                                    <td style={s.catTd}></td>
-                                  </tr>
-                                </tfoot>
-                              </table>
+                                </TableBody>
+                                <TableFooter>
+                                  <TableRow>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>Total</TableCell>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{inv.totalTxns}</TableCell>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
+                                    <TableCell style={s.catTd}></TableCell>
+                                    <TableCell style={{ ...s.catTd, color: '#E63946', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
+                                    <TableCell style={s.catTd}></TableCell>
+                                  </TableRow>
+                                </TableFooter>
+                              </Table>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
                     </Fragment>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
 
           {/* Totals footer */}
@@ -769,35 +770,35 @@ export default function Billing() {
                   No extra charges found{ecStoreFilter || ecPeriodFilter || ecPaidFilter ? ' for this filter' : ''}. Add one above.
                 </div>
               ) : (
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={s.th}>Store</th>
-                      <th style={s.th}>Description</th>
-                      <th style={s.th}>Amount</th>
-                      <th style={s.th}>Period</th>
-                      <th style={s.th}>Status</th>
-                      <th style={s.th}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table style={s.table}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead style={s.th}>Store</TableHead>
+                      <TableHead style={s.th}>Description</TableHead>
+                      <TableHead style={s.th}>Amount</TableHead>
+                      <TableHead style={s.th}>Period</TableHead>
+                      <TableHead style={s.th}>Status</TableHead>
+                      <TableHead style={s.th}>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {extraCharges.map((charge: any) => {
                       const isEditing = editingCharge === charge.id;
                       return (
-                        <tr key={charge.id}>
-                          <td style={s.td}>
+                        <TableRow key={charge.id}>
+                          <TableCell style={s.td}>
                             <strong>{charge.store?.name ?? '—'}</strong>
                             {charge.store?.city && <div style={s.cityLabel}>{charge.store.city}</div>}
-                          </td>
-                          <td style={s.td}>
+                          </TableCell>
+                          <TableCell style={s.td}>
                             {isEditing ? (
                               <input style={{ ...s.input, margin: 0 }} value={editForm.description}
                                 onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                             ) : (
                               <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: '#5a6472' }}>No description</em>}</span>
                             )}
-                          </td>
-                          <td style={s.td}>
+                          </TableCell>
+                          <TableCell style={s.td}>
                             {isEditing ? (
                               <div style={{ position: 'relative', width: 110 }}>
                                 <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#5a6472' }}>$</span>
@@ -807,17 +808,17 @@ export default function Billing() {
                             ) : (
                               <strong style={{ color: '#E63946', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
                             )}
-                          </td>
-                          <td style={s.td}>{charge.period}</td>
-                          <td style={s.td}>
+                          </TableCell>
+                          <TableCell style={s.td}>{charge.period}</TableCell>
+                          <TableCell style={s.td}>
                             <span style={charge.isPaid ? s.paidBadge : s.unpaidBadge}>
                               {charge.isPaid ? `✓ Paid` : '⏳ Unpaid'}
                             </span>
                             {charge.isPaid && charge.paidAt && (
                               <div style={s.cityLabel}>{new Date(charge.paidAt).toLocaleDateString()}</div>
                             )}
-                          </td>
-                          <td style={s.td}>
+                          </TableCell>
+                          <TableCell style={s.td}>
                             {isEditing ? (
                               <div style={{ display: 'flex', gap: 6 }}>
                                 <button style={s.saveBtn} disabled={updateCharge.isPending}
@@ -846,20 +847,20 @@ export default function Billing() {
                                 )}
                               </div>
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={2} style={{ ...s.catTd, fontWeight: 800 }}>
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2} style={{ ...s.catTd, fontWeight: 800 }}>
                         Total ({extraCharges.length} charge{extraCharges.length !== 1 ? 's' : ''})
-                      </td>
-                      <td style={{ ...s.catTd, fontWeight: 800, color: '#E63946' }}>
+                      </TableCell>
+                      <TableCell style={{ ...s.catTd, fontWeight: 800, color: '#E63946' }}>
                         {fmt$(extraCharges.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))}
-                      </td>
-                      <td colSpan={3} style={s.catTd}>
+                      </TableCell>
+                      <TableCell colSpan={3} style={s.catTd}>
                         <span style={{ color: '#2DC653', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} collected
                         </span>
@@ -867,10 +868,10 @@ export default function Billing() {
                         <span style={{ color: '#f59e0b', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => !c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} outstanding
                         </span>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
               )}
             </div>
           </div>
@@ -890,23 +891,23 @@ export default function Billing() {
               Leave blank to use the percentage rate for gas too.
             </p>
             {tierRatesLoading ? <div style={s.loading}>Loading…</div> : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                    <th style={s.th}>Tier</th>
-                    <th style={s.th}>Cashback %</th>
-                    <th style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional — overrides % for gas)</span></th>
-                    <th style={s.th}></th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table style={{ width: '100%', marginTop: 12 }}>
+                <TableHeader>
+                  <TableRow style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                    <TableHead style={s.th}>Tier</TableHead>
+                    <TableHead style={s.th}>Cashback %</TableHead>
+                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional — overrides % for gas)</span></TableHead>
+                    <TableHead style={s.th}></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {tierRates.map((r) => {
                     const edit = tierEdits[r.tier];
                     const isEditing = !!edit;
                     return (
-                      <tr key={r.tier} style={{ borderBottom: '1px solid #dee2e6' }}>
-                        <td style={s.td}><strong>{TIER_EMOJI[r.tier]} {r.tier[0] + r.tier.slice(1).toLowerCase()}</strong></td>
-                        <td style={s.td}>
+                      <TableRow key={r.tier} style={{ borderBottom: '1px solid #dee2e6' }}>
+                        <TableCell style={s.td}><strong>{TIER_EMOJI[r.tier]} {r.tier[0] + r.tier.slice(1).toLowerCase()}</strong></TableCell>
+                        <TableCell style={s.td}>
                           {isEditing ? (
                             <input type="number" min="0" max="1" step="0.01" value={edit.cashbackRate}
                               onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], cashbackRate: e.target.value } }))}
@@ -914,8 +915,8 @@ export default function Billing() {
                           ) : (
                             <span style={{ fontWeight: 600, color: '#2DC653' }}>{fmtPct(r.cashbackRate)}</span>
                           )}
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           {isEditing ? (
                             <input type="number" min="0" step="0.5" value={edit.gasCentsPerGallon}
                               onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], gasCentsPerGallon: e.target.value } }))}
@@ -925,8 +926,8 @@ export default function Billing() {
                               ? <span style={{ fontWeight: 600, color: '#F4A261' }}>{r.gasCentsPerGallon}¢/gal</span>
                               : <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>use %</span>
                           )}
-                        </td>
-                        <td style={{ ...s.td, textAlign: 'right' }}>
+                        </TableCell>
+                        <TableCell style={{ ...s.td, textAlign: 'right' }}>
                           {isEditing ? (
                             <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                               <button style={s.saveBtn} disabled={updateTierRate.isPending} onClick={() => {
@@ -943,12 +944,12 @@ export default function Billing() {
                               ...p, [r.tier]: { cashbackRate: String(r.cashbackRate), gasCentsPerGallon: r.gasCentsPerGallon != null ? String(r.gasCentsPerGallon) : '' }
                             }))}>Edit</button>
                           )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
 
@@ -1167,61 +1168,61 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
           </div>
 
           {/* Per-store line items */}
-          <table style={inv2.table}>
-            <thead>
-              <tr>
-                <th style={inv2.tableTh}>Store</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Txns</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Volume</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Subscription</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Dev Cut</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Cashback</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Total Owed</th>
-                <th style={{ ...inv2.tableTh, textAlign: 'center' as const }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={inv2.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={inv2.tableTh}>Store</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Txns</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Volume</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Subscription</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Dev Cut</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Cashback</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Total Owed</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'center' as const }}>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {stores.map((r: any, i: number) => {
                 const n: BillNotes | null = r.notes;
                 return (
-                  <tr key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
-                    <td style={inv2.tableTd}>
+                  <TableRow key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
+                    <TableCell style={inv2.tableTd}>
                       <div style={{ fontWeight: 700 }}>{r.store?.name ?? '—'}</div>
                       {r.store?.city && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{r.store.city}</div>}
-                    </td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : '—'}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: '#adb5bd' }}>—</span>}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right', color: '#E63946', fontWeight: 600 }}>{fmt$(n?.devCutEarned ?? r.amount)}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : '—'}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</td>
-                    <td style={{ ...inv2.tableTd, textAlign: 'center' }}>
+                    </TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : '—'}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: '#adb5bd' }}>—</span>}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#E63946', fontWeight: 600 }}>{fmt$(n?.devCutEarned ?? r.amount)}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : '—'}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'center' }}>
                       <span style={r.isPaid ? inv2.paidTag : inv2.unpaidTag}>{r.isPaid ? '✓' : '⏳'}</span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: '#f0f4f8' }}>
-                <td style={{ ...inv2.tableTd, fontWeight: 800 }}>Subtotal ({stores.length} stores)</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{inv.totalTxns}</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(inv.totalVolume)}</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(totalSubscription)}</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#E63946' }}>{fmt$(totalDevCut)}</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#F4A261' }}>{fmt$(totalCashback)}</td>
-                <td style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(grandTotal)}</td>
-                <td style={inv2.tableTd}></td>
-              </tr>
-              <tr style={{ background: '#1D3557' }}>
-                <td colSpan={6} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
+            </TableBody>
+            <TableFooter>
+              <TableRow style={{ background: '#f0f4f8' }}>
+                <TableCell style={{ ...inv2.tableTd, fontWeight: 800 }}>Subtotal ({stores.length} stores)</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{inv.totalTxns}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(totalSubscription)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#E63946' }}>{fmt$(totalDevCut)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#F4A261' }}>{fmt$(totalCashback)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(grandTotal)}</TableCell>
+                <TableCell style={inv2.tableTd}></TableCell>
+              </TableRow>
+              <TableRow style={{ background: '#1D3557' }}>
+                <TableCell colSpan={6} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
                   Grand Total — All Stores
-                </td>
-                <td style={{ ...inv2.tableTd, color: '#fff', fontWeight: 900, fontSize: 16 }}>{fmt$(grandTotal)}</td>
-                <td style={inv2.tableTd}></td>
-              </tr>
-            </tfoot>
-          </table>
+                </TableCell>
+                <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 900, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>
+                <TableCell style={inv2.tableTd}></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
 
           {/* Payment status banner */}
           {inv.isPaid ? (
@@ -1356,64 +1357,64 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
           </div>
 
           {/* Line items */}
-          <table style={inv.table}>
-            <thead>
-              <tr>
-                <th style={inv.tableTh}>Description</th>
-                <th style={{ ...inv.tableTh, textAlign: 'right' }}>Transactions</th>
-                <th style={{ ...inv.tableTh, textAlign: 'right' }}>Purchase Volume</th>
-                <th style={{ ...inv.tableTh, textAlign: 'right' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table style={inv.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={inv.tableTh}>Description</TableHead>
+                <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Transactions</TableHead>
+                <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Purchase Volume</TableHead>
+                <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {n?.subscriptionFee != null && n.subscriptionFee > 0 && (
-                <tr>
-                  <td style={inv.tableTd}>Monthly Subscription Fee</td>
-                  <td style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</td>
-                  <td style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</td>
-                  <td style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</td>
-                </tr>
+                <TableRow>
+                  <TableCell style={inv.tableTd}>Monthly Subscription Fee</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</TableCell>
+                </TableRow>
               )}
               {n && n.categories.length > 0
                 ? n.categories.map((cat) => (
-                    <tr key={cat.category}>
-                      <td style={inv.tableTd}>
+                    <TableRow key={cat.category}>
+                      <TableCell style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Fee — {cat.category}</div>
                         <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)})
                         </div>
-                      </td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right' }}>{cat.txCount}</td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(cat.purchaseVolume)}</td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(cat.devCutEarned + cat.cashbackIssued)}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{cat.txCount}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(cat.purchaseVolume)}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(cat.devCutEarned + cat.cashbackIssued)}</TableCell>
+                    </TableRow>
                   ))
                 : n && (
-                    <tr>
-                      <td style={inv.tableTd}>
+                    <TableRow>
+                      <TableCell style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Processing Fee</div>
                         <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)}) × {n.txCount} transactions
                         </div>
-                      </td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right' }}>{n.txCount}</td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(n.purchaseVolume)}</td>
-                      <td style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(n.transactionFee + n.cashbackFee)}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{n.txCount}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(n.purchaseVolume)}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(n.transactionFee + n.cashbackFee)}</TableCell>
+                    </TableRow>
                   )
               }
-            </tbody>
-            <tfoot>
-              <tr style={{ background: '#f8f9fa' }}>
-                <td colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, textAlign: 'right' }}>Subtotal</td>
-                <td style={{ ...inv.tableTd, fontWeight: 800 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</td>
-              </tr>
-              <tr style={{ background: '#1D3557' }}>
-                <td colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', textAlign: 'right', fontSize: 15 }}>Total Amount Owed</td>
-                <td style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', fontSize: 15 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</td>
-              </tr>
-            </tfoot>
-          </table>
+            </TableBody>
+            <TableFooter>
+              <TableRow style={{ background: '#f8f9fa' }}>
+                <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, textAlign: 'right' }}>Subtotal</TableCell>
+                <TableCell style={{ ...inv.tableTd, fontWeight: 800 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</TableCell>
+              </TableRow>
+              <TableRow style={{ background: '#1D3557' }}>
+                <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', textAlign: 'right', fontSize: 15 }}>Total Amount Owed</TableCell>
+                <TableCell style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', fontSize: 15 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
 
           {/* Summary box */}
           {n && (
