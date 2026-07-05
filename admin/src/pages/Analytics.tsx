@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
@@ -212,25 +213,25 @@ export default function Analytics() {
           {byStore.length > 0 && (
             <div style={s.chartCard}>
               <h2 style={s.chartTitle}>Store Breakdown Table</h2>
-              <table style={s.table}>
-                <thead>
-                  <tr>
+              <Table style={s.table}>
+                <TableHeader>
+                  <TableRow>
                     {['Store', 'Transactions', 'Purchase Volume', 'Dev Cut'].map((h) => (
-                      <th key={h} style={s.th}>{h}</th>
+                      <TableHead key={h} style={s.th}>{h}</TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {byStore.map((store, i) => (
-                    <tr key={store.storeId} style={i % 2 === 0 ? s.trEven : {}}>
-                      <td style={s.td}>{store.storeName}</td>
-                      <td style={{ ...s.td, ...s.tdNum }}>{store.transactions}</td>
-                      <td style={{ ...s.td, ...s.tdNum }}>{fmt$(store.purchaseVolume)}</td>
-                      <td style={{ ...s.td, ...s.tdNum, color: '#2DC653', fontWeight: 700 }}>{fmt$(store.devCut)}</td>
-                    </tr>
+                    <TableRow key={store.storeId} style={i % 2 === 0 ? s.trEven : {}}>
+                      <TableCell style={s.td}>{store.storeName}</TableCell>
+                      <TableCell style={{ ...s.td, ...s.tdNum }}>{store.transactions}</TableCell>
+                      <TableCell style={{ ...s.td, ...s.tdNum }}>{fmt$(store.purchaseVolume)}</TableCell>
+                      <TableCell style={{ ...s.td, ...s.tdNum, color: '#2DC653', fontWeight: 700 }}>{fmt$(store.devCut)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </>

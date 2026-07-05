@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { leaderboardApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -89,32 +90,32 @@ export default function LeaderboardPage() {
               </div>
             ) : (
               <div style={s.tableWrap}>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
+                <Table style={s.table}>
+                  <TableHeader>
+                    <TableRow>
                       {['Rank', 'Name', 'Points Earned'].map(h => (
-                        <th key={h} style={s.th}>{h}</th>
+                        <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {customers.map((c, i) => (
-                      <tr key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                        <td style={{ ...s.td, width: 60, textAlign: 'center' }}>
+                      <TableRow key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                        <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
                           {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : (
                             <span style={s.rankNum}>#{c.rank}</span>
                           )}
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           <span style={s.custName}>{c.firstName}</span>
-                        </td>
-                        <td style={{ ...s.td, textAlign: 'right' }}>
+                        </TableCell>
+                        <TableCell style={{ ...s.td, textAlign: 'right' }}>
                           <span style={s.ptsBadge}>{c.totalPoints.toLocaleString()} pts</span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
@@ -171,43 +172,43 @@ export default function LeaderboardPage() {
               </div>
             ) : (
               <div style={s.tableWrap}>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
+                <Table style={s.table}>
+                  <TableHeader>
+                    <TableRow>
                       {['Rank', 'Employee', 'Rating', 'Reviews'].map(h => (
-                        <th key={h} style={s.th}>{h}</th>
+                        <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {employees.map((e: EmployeeEntry, i: number) => (
-                      <tr key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                        <td style={{ ...s.td, width: 60, textAlign: 'center' }}>
+                      <TableRow key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                        <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
                           {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : (
                             <span style={s.rankNum}>#{e.rank}</span>
                           )}
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={s.empName}>{e.firstName}</span>
                             {e.isEmployeeOfMonth && (
                               <span style={s.eomChip}>🏅 Month</span>
                             )}
                           </div>
-                        </td>
-                        <td style={s.td}>
+                        </TableCell>
+                        <TableCell style={s.td}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Stars rating={e.avgRating} />
                             <span style={s.ratingNum}>{e.avgRating.toFixed(1)}</span>
                           </div>
-                        </td>
-                        <td style={{ ...s.td, textAlign: 'right' }}>
+                        </TableCell>
+                        <TableCell style={{ ...s.td, textAlign: 'right' }}>
                           <span style={s.countBadge}>{e.ratingCount}</span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
