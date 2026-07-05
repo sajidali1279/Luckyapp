@@ -27,8 +27,12 @@ Verifone Commander
 
 ## Hardware Needed (~$25 total)
 
-- **2× USB-to-RS232 (DB9) adapters** — e.g. UGREEN USB to RS232 (~$12 each on Amazon, ASIN B00QUZY4UG or similar)
-- The existing serial cables (already running between Commander and TM-T88)
+- **2× USB-to-RS232 serial adapters, matching your printer's actual connector** — most receipt printers use DB9, but some (e.g. Verifone RP-300) use a DB25 serial connector. **Before buying, confirm the connector is genuinely RS-232 serial and not IEEE-1284 parallel** — DB25 is used for both, and they are electrically incompatible; a parallel adapter will not work on a serial port. Check the printer's self-test print (usually: hold FEED while powering on) — it prints the actual Interface/Baudrate/Handshaking in use.
+- The existing serial cables (already running between the POS/Commander and the printer)
+
+### Hardware handshake (DTR/DSR)
+
+Some printers (e.g. Verifone RP-300) use DTR/DSR hardware flow control by default instead of XON/XOFF — check the self-test print's "Handshaking" line. If it says `DTR/DSR`, set `printer.handshake: "dtrdsr"` in `config.json` (see `config.example.json`) — otherwise the two independent USB-serial adapters won't relay the printer's ready/busy signal and printing may stall. If it says `XON/XOFF`, leave `handshake: "none"` — no extra config needed, since XON/XOFF flows through as ordinary data bytes.
 
 ---
 

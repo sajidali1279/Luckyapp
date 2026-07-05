@@ -217,14 +217,25 @@ function startTcpProxy() {
 
 // ─── Serial Proxy Mode ────────────────────────────────────────────────────────
 // Two USB-to-serial adapters on the Windows laptop:
-//   comPortIn  → receives ESC/POS data from the Verifone Commander
-//   comPortOut → sends modified data (+ QR footer) to the Epson TM-T88 printer
+//   comPortIn  → receives ESC/POS data from the POS/Commander
+//   comPortOut → sends modified data (+ QR footer) to the receipt printer
 //
 // Hardware setup:
-//   Commander serial cable → USB-RS232 adapter A (comPortIn, e.g. COM3)
-//   USB-RS232 adapter B (comPortOut, e.g. COM4) → serial cable → TM-T88
+//   POS serial cable → USB-RS232 adapter A (comPortIn, e.g. COM3)
+//   USB-RS232 adapter B (comPortOut, e.g. COM4) → serial cable → printer
 //
-// Baud rate for Epson TM-T88: 38400 (match the printer self-test sheet)
+// Match baudRate/dataBits/parity/stopBits to the printer's self-test sheet.
+//
+// Hardware handshake (printer.handshake = "dtrdsr"):
+// Some printers (e.g. Verifone RP-300) use DTR/DSR hardware flow control instead
+// of XON/XOFF: the printer asserts its DTR line to tell the POS "ready for more
+// data"; the POS reads that as its own DSR/CTS input. Splicing two independent
+// USB-serial adapters into that link breaks the direct electrical connection
+// carrying that signal, so we relay it in software: poll the printer-side
+// adapter's DSR input (which reflects the printer's real DTR output) and mirror
+// it onto the POS-side adapter's DTR output, so the POS still sees an accurate
+// ready/busy signal. This assumes the original cable wired printer.DTR -> POS.DSR
+// (the standard convention) — verify against real hardware before relying on it.
 
 function startSerialProxy() {
   const {
@@ -233,6 +244,10 @@ function startSerialProxy() {
       comPortOut,
       comPort,           // legacy single-port field (fallback)
       baudRate = 38400,
+      dataBits = 8,
+      parity = 'none',
+      stopBits = 1,
+      handshake = 'none', // 'none' | 'dtrdsr'
     },
   } = cfg;
 
@@ -247,18 +262,19 @@ function startSerialProxy() {
   try {
     const { SerialPort } = require('serialport');
 
-    const portIn  = new SerialPort({ path: inPort,  baudRate, autoOpen: true });
-    const portOut = new SerialPort({ path: outPort, baudRate, autoOpen: true });
+    const portOpts = { baudRate, dataBits, parity, stopBits, autoOpen: true };
+    const portIn  = new SerialPort({ path: inPort,  ...portOpts });
+    const portOut = new SerialPort({ path: outPort, ...portOpts });
 
     let buffer    = Buffer.alloc(0);
     let flushTimer = null;
 
-    portIn.on('open',  () => console.log(`✅  IN  serial port ${inPort}  opened at ${baudRate} baud (from Commander)`));
-    portOut.on('open', () => console.log(`✅  OUT serial port ${outPort} opened at ${baudRate} baud (to TM-T88 printer)`));
+    portIn.on('open',  () => console.log(`✅  IN  serial port ${inPort}  opened at ${baudRate} baud (from POS)`));
+    portOut.on('open', () => console.log(`✅  OUT serial port ${outPort} opened at ${baudRate} baud (to printer)`));
 
     portIn.on('data', (chunk) => {
       buffer = Buffer.concat([buffer, chunk]);
-      // Wait 300ms of silence — TM-T88 serial is slower than TCP, give it more time
+      // Wait 300ms of silence — serial thermal printers are slower than TCP, give it more time
       clearTimeout(flushTimer);
       flushTimer = setTimeout(async () => {
         if (buffer.length === 0) return;
@@ -273,11 +289,27 @@ function startSerialProxy() {
       }, 300);
     });
 
-    // Pass any printer status bytes back to the Commander (paper-low signals etc.)
+    // Pass any printer status bytes back to the POS (paper-low signals etc.)
     portOut.on('data', (d) => portIn.write(d));
 
     portIn.on('error',  (err) => console.error(`Serial IN error: ${err.message}`));
     portOut.on('error', (err) => console.error(`Serial OUT error: ${err.message}`));
+
+    if (handshake === 'dtrdsr') {
+      console.log('🤝  DTR/DSR hardware handshake relay enabled (polling every 50ms)');
+      let lastReady = null;
+      setInterval(() => {
+        portOut.get((err, status) => {
+          if (err || !status) return;
+          const printerReady = !!status.dsr;
+          if (printerReady === lastReady) return;
+          lastReady = printerReady;
+          portIn.set({ dtr: printerReady }, (setErr) => {
+            if (setErr) console.error(`Handshake relay error: ${setErr.message}`);
+          });
+        });
+      }, 50);
+    }
 
   } catch {
     console.error('❌  serialport package not installed. Run: npm install serialport');

@@ -9,10 +9,15 @@
     "mode": "serial",
     "_modeOptions": "serial | manual | tcp",
 
-    "_serialComment": "Two USB-to-RS232 adapters on the Windows laptop. comPortIn receives from Commander, comPortOut sends to the Epson TM-T88. Run: node src/list-ports.js to find your COM port numbers.",
+    "_serialComment": "Two USB-to-RS232 adapters on the Windows laptop. comPortIn receives from the POS, comPortOut sends to the printer. Run: node src/list-ports.js to find your COM port numbers. Match baudRate/dataBits/parity/stopBits/handshake to the printer's self-test sheet (hold FEED while powering on most thermal printers to print one).",
     "comPortIn": "COM3",
     "comPortOut": "COM4",
     "baudRate": 38400,
+    "dataBits": 8,
+    "parity": "none",
+    "stopBits": 1,
+    "_handshakeComment": "handshake: 'none' (default) or 'dtrdsr'. Set to 'dtrdsr' if the printer's self-test sheet shows Handshaking: DTR/DSR (e.g. Verifone RP-300) — printer-agent will relay the printer's DTR readiness signal to the POS-side adapter so the POS still sees accurate ready/busy status.",
+    "handshake": "none",
 
     "_manualComment": "mode=manual: cashier opens http://localhost:7771 and clicks Print after each transaction.",
 
