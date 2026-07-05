@@ -76,6 +76,9 @@ export default function AdsScreen() {
             style={s.websiteBtn}
             onPress={() => Linking.openURL(item.website!).catch(() => {})}
             activeOpacity={0.75}
+            accessibilityRole="link"
+            accessibilityLabel={`Visit ${item.businessName}'s website`}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <GlobeIcon size={14} color={COLORS.primary} strokeWidth={2} />

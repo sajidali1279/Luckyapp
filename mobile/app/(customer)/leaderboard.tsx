@@ -76,7 +76,13 @@ export default function CustomerLeaderboardScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={st.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -104,6 +110,10 @@ export default function CustomerLeaderboardScreen() {
               style={[st.tab, tab === t && st.tabActive]}
               onPress={() => setTab(t)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityLabel={t === 'chain' ? 'Show all stores leaderboard' : 'Show by-store leaderboard'}
+              accessibilityState={{ selected: tab === t }}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <Text style={[st.tabText, tab === t && st.tabTextActive]}>
                 {t === 'chain' ? 'All Stores' : 'By Store'}
@@ -121,6 +131,10 @@ export default function CustomerLeaderboardScreen() {
                 style={[st.storeChip, store.id === selectedStoreId && st.storeChipActive]}
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityState={{ selected: store.id === selectedStoreId }}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               >
                 <Text style={[st.storeChipText, store.id === selectedStoreId && st.storeChipTextActive]}>
                   {store.name}

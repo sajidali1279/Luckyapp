@@ -191,6 +191,8 @@ const PromoSlideshow = memo(function PromoSlideshow() {
       style={[ps.slide, { backgroundColor: item.bg }]}
       activeOpacity={item.route ? 0.88 : 1}
       onPress={() => { if (item.route) router.push(item.route as any); }}
+      accessibilityRole={item.route ? 'button' : undefined}
+      accessibilityLabel={item.route ? `${item.headline}${item.cta ? `: ${item.cta}` : ''}` : undefined}
     >
       <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '22' }]} />
       <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '33' }]} />
@@ -277,6 +279,8 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
                   style={[rs.tile, canAfford && { borderColor: section.color + '55' }]}
                   onPress={() => router.push('/(customer)/rewards')}
                   activeOpacity={0.82}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title}, ${item.pointsCost.toLocaleString()} points. View in rewards`}
                 >
                   <View style={[rs.tileIconWrap, { backgroundColor: section.color + '18' }]}>
                     <Text style={rs.tileEmoji}>{item.emoji || '🎁'}</Text>
@@ -586,6 +590,9 @@ export default function CustomerHome() {
               <TouchableOpacity
                 onPress={() => router.push('/(customer)/notifications')}
                 style={styles.bellBtn}
+                accessibilityRole="button"
+                accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <BellIcon size={20} color="#fff" strokeWidth={2} />
                 {unreadCount > 0 && (
@@ -594,7 +601,13 @@ export default function CustomerHome() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/(customer)/profile')} style={styles.profileBtn}>
+              <TouchableOpacity
+                onPress={() => router.push('/(customer)/profile')}
+                style={styles.profileBtn}
+                accessibilityRole="button"
+                accessibilityLabel="View profile"
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
                 {user?.avatarUrl ? (
                   <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={styles.profileBtnAvatar} />
                 ) : (
@@ -635,7 +648,12 @@ export default function CustomerHome() {
           <Text style={styles.balanceLabel}>Points Balance</Text>
           <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
           <Text style={styles.balanceSubtext}>redeemable points</Text>
-          <TouchableOpacity style={styles.redeemButton} onPress={() => router.push('/(customer)/rewards')}>
+          <TouchableOpacity
+            style={styles.redeemButton}
+            onPress={() => router.push('/(customer)/rewards')}
+            accessibilityRole="button"
+            accessibilityLabel="Redeem rewards with points"
+          >
             <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
           </TouchableOpacity>
 
@@ -653,7 +671,13 @@ export default function CustomerHome() {
                       )}
                     </View>
                   )}
-                  <TouchableOpacity onPress={() => setSelectedTier(key)} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedTier(key)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${cfg.label} tier details`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
                     {isCurrent ? (
                       <Animated.View style={[
                         styles.tierBubble,
@@ -711,7 +735,13 @@ export default function CustomerHome() {
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label="Redeem with Points" />
-            <TouchableOpacity onPress={() => router.push('/(customer)/rewards')} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/rewards')}
+              activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="See all rewards"
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
               <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>See all →</Text>
             </TouchableOpacity>
           </View>
@@ -756,6 +786,9 @@ export default function CustomerHome() {
                         onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`)}
                         activeOpacity={0.7}
                         style={{ alignSelf: 'flex-start', marginBottom: 5 }}
+                        accessibilityRole="link"
+                        accessibilityLabel={`Call ${store.name} at ${store.phone}`}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Text style={styles.gasStorePhone}>📞 {store.phone}</Text>
                       </TouchableOpacity>
@@ -787,7 +820,13 @@ export default function CustomerHome() {
 
                   {/* ─ Gas offer tile ─ */}
                   {bestGasOffer && (
-                    <TouchableOpacity style={gp.offerCard} onPress={() => setSelectedOffer(bestGasOffer)} activeOpacity={0.85}>
+                    <TouchableOpacity
+                      style={gp.offerCard}
+                      onPress={() => setSelectedOffer(bestGasOffer)}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View gas offer: ${bestGasOffer.title}`}
+                    >
                       <View style={gp.offerIconWrap}>
                         <GasPumpIcon size={18} color="#fff" strokeWidth={2} />
                       </View>
@@ -828,7 +867,14 @@ export default function CustomerHome() {
               </View>
               {promotions.length <= 2 ? (
                 promotions.map((offer: any) => (
-                  <TouchableOpacity key={offer.id} style={styles.offerCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    key={offer.id}
+                    style={styles.offerCard}
+                    onPress={() => setSelectedOffer(offer)}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View promotion: ${offer.title}`}
+                  >
                     {offer.imageUrl
                       ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
                       : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
@@ -865,7 +911,14 @@ export default function CustomerHome() {
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
                   {promotions.map((offer: any) => (
-                    <TouchableOpacity key={offer.id} style={styles.offerSlideCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
+                    <TouchableOpacity
+                      key={offer.id}
+                      style={styles.offerSlideCard}
+                      onPress={() => setSelectedOffer(offer)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View promotion: ${offer.title}`}
+                    >
                       {offer.imageUrl
                         ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                         : (
@@ -927,6 +980,8 @@ export default function CustomerHome() {
                   style={styles.hotFoodCard}
                   onPress={() => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
                   activeOpacity={0.82}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Order ${item.name}, $${Number(item.price).toFixed(2)}`}
                 >
                   {item.imageUrl
                     ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} />
@@ -962,7 +1017,14 @@ export default function CustomerHome() {
             </View>
             {deals.length <= 2 ? (
               deals.map((offer: any) => (
-                <TouchableOpacity key={offer.id} style={styles.dealCard} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
+                <TouchableOpacity
+                  key={offer.id}
+                  style={styles.dealCard}
+                  onPress={() => setSelectedOffer(offer)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View deal: ${offer.title}`}
+                >
                   {offer.imageUrl
                     ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
                     : (
@@ -984,7 +1046,14 @@ export default function CustomerHome() {
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
                 {deals.map((offer: any) => (
-                  <TouchableOpacity key={offer.id} style={[styles.offerSlideCard, styles.dealSlideCard]} onPress={() => setSelectedOffer(offer)} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    key={offer.id}
+                    style={[styles.offerSlideCard, styles.dealSlideCard]}
+                    onPress={() => setSelectedOffer(offer)}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View deal: ${offer.title}`}
+                  >
                     {offer.imageUrl
                       ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                       : (
@@ -1008,7 +1077,12 @@ export default function CustomerHome() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.historyLink} onPress={() => router.push('/(customer)/history')}>
+        <TouchableOpacity
+          style={styles.historyLink}
+          onPress={() => router.push('/(customer)/history')}
+          accessibilityRole="link"
+          accessibilityLabel="View points history"
+        >
           <Text style={styles.historyLinkText}>View Points History</Text>
           <ChevronRightIcon size={16} color={COLORS.primary} strokeWidth={2.5} />
         </TouchableOpacity>
@@ -1051,11 +1125,23 @@ export default function CustomerHome() {
                   : null}
 
                 <View style={hf.qtyRow}>
-                  <TouchableOpacity onPress={() => setFoodQty(q => Math.max(1, q - 1))} style={hf.qtyBtn}>
+                  <TouchableOpacity
+                    onPress={() => setFoodQty(q => Math.max(1, q - 1))}
+                    style={hf.qtyBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decrease quantity"
+                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+                  >
                     <Text style={hf.qtyBtnText}>−</Text>
                   </TouchableOpacity>
                   <Text style={hf.qty}>{foodQty}</Text>
-                  <TouchableOpacity onPress={() => setFoodQty(q => Math.min(10, q + 1))} style={hf.qtyBtn}>
+                  <TouchableOpacity
+                    onPress={() => setFoodQty(q => Math.min(10, q + 1))}
+                    style={hf.qtyBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Increase quantity"
+                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+                  >
                     <Text style={hf.qtyBtnText}>+</Text>
                   </TouchableOpacity>
                 </View>
@@ -1080,12 +1166,20 @@ export default function CustomerHome() {
                   onPress={placeHotFoodOrder}
                   disabled={foodOrdering}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={foodOrdering ? 'Placing order' : `Place order for ${selectedFoodItem.name}, total $${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}`}
                 >
                   <FlameIcon size={16} color="#fff" strokeWidth={2} />
                   <Text style={hf.orderBtnText}>{foodOrdering ? 'Placing Order…' : 'Place Order'}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setSelectedFoodItem(null)} style={hf.cancelLink}>
+                <TouchableOpacity
+                  onPress={() => setSelectedFoodItem(null)}
+                  style={hf.cancelLink}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel order"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <Text style={hf.cancelLinkText}>Cancel</Text>
                 </TouchableOpacity>
               </>
@@ -1114,6 +1208,8 @@ export default function CustomerHome() {
                     onPress={() => { setHoveredStar(s); submitRating(s); }}
                     activeOpacity={0.7}
                     style={rm.starBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rate ${s} star${s > 1 ? 's' : ''}`}
                   >
                     <StarIcon
                       size={44}
@@ -1124,7 +1220,13 @@ export default function CustomerHome() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <TouchableOpacity onPress={() => setPendingRating(null)} style={rm.skipBtn}>
+              <TouchableOpacity
+                onPress={() => setPendingRating(null)}
+                style={rm.skipBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Skip rating"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
                 <Text style={rm.skipText}>Skip</Text>
               </TouchableOpacity>
             </View>
@@ -1165,6 +1267,8 @@ export default function CustomerHome() {
                 }}
                 disabled={confirming21}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={confirming21 ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
               >
                 <Text style={ag.confirmBtnText}>{confirming21 ? 'Confirming…' : 'I am 21 or older — Continue'}</Text>
               </TouchableOpacity>
@@ -1176,6 +1280,9 @@ export default function CustomerHome() {
                   setLocationStatus('none');
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Go back, cancel age verification"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Text style={ag.backBtnText}>Go back</Text>
               </TouchableOpacity>
@@ -1234,7 +1341,12 @@ export default function CustomerHome() {
                         : 'Show your QR code to the cashier and mention this deal to claim it.'}
                   </Text>
                 </View>
-                <TouchableOpacity style={om.closeBtn} onPress={() => setSelectedOffer(null)}>
+                <TouchableOpacity
+                  style={om.closeBtn}
+                  onPress={() => setSelectedOffer(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close offer details"
+                >
                   <Text style={om.closeBtnText}>Got it</Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1254,7 +1366,13 @@ export default function CustomerHome() {
         const ptsAway = Math.max(0, cfg.thresholdPts - periodPts);
         return (
           <Modal transparent animationType="fade" onRequestClose={() => setSelectedTier(null)}>
-            <TouchableOpacity style={ti.backdrop} activeOpacity={1} onPress={() => setSelectedTier(null)}>
+            <TouchableOpacity
+              style={ti.backdrop}
+              activeOpacity={1}
+              onPress={() => setSelectedTier(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss tier details"
+            >
               <TouchableOpacity style={ti.card} activeOpacity={1} onPress={() => {}}>
                 <View style={[ti.iconWrap, { backgroundColor: cfg.color + '22' }]}>
                   <Text style={ti.icon}>{cfg.icon}</Text>
@@ -1287,7 +1405,12 @@ export default function CustomerHome() {
                     </View>
                   ))}
                 </View>
-                <TouchableOpacity style={ti.closeBtn} onPress={() => setSelectedTier(null)}>
+                <TouchableOpacity
+                  style={ti.closeBtn}
+                  onPress={() => setSelectedTier(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close tier details"
+                >
                   <Text style={ti.closeBtnText}>Got it</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -1299,7 +1422,13 @@ export default function CustomerHome() {
       </Animated.ScrollView>
 
       {/* ── QR floating button ── */}
-      <TouchableOpacity style={styles.qrFab} onPress={() => setShowQR(true)} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.qrFab}
+        onPress={() => setShowQR(true)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Show my QR code"
+      >
         <View style={styles.qrFabInner}>
           <Text style={styles.qrFabIcon}>▦</Text>
           <Text style={styles.qrFabLabel}>My QR</Text>
@@ -1309,7 +1438,13 @@ export default function CustomerHome() {
       {/* ── QR Modal ── */}
       <Modal visible={showQR} transparent animationType="slide" onRequestClose={() => setShowQR(false)}>
         <View style={styles.qrModalBackdrop}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowQR(false)} activeOpacity={1} />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowQR(false)}
+            activeOpacity={1}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss QR code"
+          />
           <View style={styles.qrModalSheet}>
             {/* Handle + header */}
             <View style={styles.qrModalHeader}>
@@ -1342,7 +1477,13 @@ export default function CustomerHome() {
               </View>
             )}
             <Text style={styles.qrHint}>🔒 Unique to your account</Text>
-            <TouchableOpacity style={styles.qrModalClose} onPress={() => setShowQR(false)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.qrModalClose}
+              onPress={() => setShowQR(false)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Close QR code"
+            >
               <Text style={styles.qrModalCloseText}>Close</Text>
             </TouchableOpacity>
           </View>

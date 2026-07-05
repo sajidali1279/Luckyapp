@@ -113,7 +113,13 @@ export default function RequestProductScreen() {
             <Text style={styles.headerTitle}>Request a Product</Text>
             <Text style={styles.headerSub}>Don't see something you want in-store? Let the team know!</Text>
           </View>
-          <TouchableOpacity style={styles.newBtn} onPress={() => { setShowForm(true); setSubmitted(false); }}>
+          <TouchableOpacity
+            style={styles.newBtn}
+            onPress={() => { setShowForm(true); setSubmitted(false); }}
+            accessibilityRole="button"
+            accessibilityLabel="Request a new product"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.newBtnText}>+ New</Text>
           </TouchableOpacity>
         </View>
@@ -152,7 +158,13 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Product Request</Text>
-              <TouchableOpacity onPress={() => { setShowForm(false); setSubmitted(false); }} style={styles.modalCloseBtn}>
+              <TouchableOpacity
+                onPress={() => { setShowForm(false); setSubmitted(false); }}
+                style={styles.modalCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close new product request form"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
                 <XIcon size={18} color="#6c757d" strokeWidth={2} />
               </TouchableOpacity>
             </View>
@@ -166,7 +178,12 @@ export default function RequestProductScreen() {
                 <Text style={styles.successSub}>
                   The store team will review your request within 7 days. You'll get a notification with their response.
                 </Text>
-                <TouchableOpacity style={styles.doneBtn} onPress={() => setShowForm(false)}>
+                <TouchableOpacity
+                  style={styles.doneBtn}
+                  onPress={() => setShowForm(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close request submitted confirmation"
+                >
                   <Text style={styles.doneBtnText}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -174,7 +191,12 @@ export default function RequestProductScreen() {
               <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
                 {/* Store Picker */}
                 <Text style={styles.fieldLabel}>Store *</Text>
-                <TouchableOpacity style={styles.storePicker} onPress={() => setShowStorePicker(true)}>
+                <TouchableOpacity
+                  style={styles.storePicker}
+                  onPress={() => setShowStorePicker(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedStore ? `Change selected store, currently ${selectedStore.name}` : 'Select a store for this product request'}
+                >
                   <Text style={[styles.storePickerText, !selectedStore && styles.placeholder]}>
                     {selectedStore ? `${selectedStore.name} — ${selectedStore.city}, ${selectedStore.state}` : 'Select a store…'}
                   </Text>
@@ -204,6 +226,9 @@ export default function RequestProductScreen() {
                         style={[styles.categoryChip, active && styles.categoryChipActive]}
                         onPress={() => setSelectedCategory(active ? null : cat.key)}
                         activeOpacity={0.75}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${cat.key} category${active ? ', selected' : ''}`}
+                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                       >
                         <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
                         <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
@@ -238,6 +263,8 @@ export default function RequestProductScreen() {
                   style={[styles.submitBtn, (!selectedStore || !productName.trim() || submitMut.isPending) && styles.submitBtnDisabled]}
                   onPress={handleSubmit}
                   disabled={!selectedStore || !productName.trim() || submitMut.isPending}
+                  accessibilityRole="button"
+                  accessibilityLabel="Submit product request"
                 >
                   {submitMut.isPending
                     ? <ActivityIndicator color="#fff" />
@@ -254,7 +281,13 @@ export default function RequestProductScreen() {
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select a Store</Text>
-              <TouchableOpacity onPress={() => setShowStorePicker(false)} style={styles.modalCloseBtn}>
+              <TouchableOpacity
+                onPress={() => setShowStorePicker(false)}
+                style={styles.modalCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close store picker"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
                 <XIcon size={18} color="#6c757d" strokeWidth={2} />
               </TouchableOpacity>
             </View>
@@ -264,6 +297,8 @@ export default function RequestProductScreen() {
                   key={store.id}
                   style={[styles.storeOption, selectedStore?.id === store.id && styles.storeOptionActive]}
                   onPress={() => { setSelectedStore(store); setShowStorePicker(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${store.name}, ${store.city}, ${store.state}`}
                 >
                   <View style={styles.storeOptionAvatar}>
                     <Text style={styles.storeOptionInitial}>{store.name[0].toUpperCase()}</Text>

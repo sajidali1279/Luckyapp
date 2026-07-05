@@ -202,7 +202,13 @@ export default function CareersScreen() {
                     <View style={st.posTag}><Text style={st.posTagText}>{opening.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</Text></View>
                   ) : null}
                 </View>
-                <TouchableOpacity style={st.applyBtn} onPress={() => openForm(opening.position, opening.id)}>
+                <TouchableOpacity
+                  style={st.applyBtn}
+                  onPress={() => openForm(opening.position, opening.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Apply for ${opening.title}`}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                >
                   <Text style={st.applyBtnText}>Apply Now</Text>
                 </TouchableOpacity>
               </View>
@@ -229,7 +235,13 @@ export default function CareersScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <SafeAreaView style={st.modalSafe}>
             <View style={st.modalHeader}>
-              <TouchableOpacity onPress={() => setShowForm(false)} style={st.closeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowForm(false)}
+                style={st.closeBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel application"
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              >
                 <Text style={st.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
               <Text style={st.modalTitle}>Apply — {positionLabel}</Text>
@@ -258,7 +270,12 @@ export default function CareersScreen() {
                 {(['FULL_TIME', 'PART_TIME'] as const).map(type => (
                   <TouchableOpacity key={type}
                     style={[st.toggle, form.availType === type && st.toggleActive]}
-                    onPress={() => setForm(f => ({ ...f, availType: type }))}>
+                    onPress={() => setForm(f => ({ ...f, availType: type }))}
+                    accessibilityRole="tab"
+                    accessibilityLabel={`Set employment type to ${type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}`}
+                    accessibilityState={{ selected: form.availType === type }}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                  >
                     <Text style={[st.toggleText, form.availType === type && st.toggleTextActive]}>
                       {type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}
                     </Text>
@@ -271,7 +288,11 @@ export default function CareersScreen() {
                 const checked = form.shifts.includes(sh.value);
                 return (
                   <TouchableOpacity key={sh.value} style={[st.checkRow, checked && st.checkRowActive]}
-                    onPress={() => toggleShift(sh.value)}>
+                    onPress={() => toggleShift(sh.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${sh.label} shift`}
+                    accessibilityState={{ checked }}
+                  >
                     <View style={[st.checkbox, checked && st.checkboxActive]}>
                       {checked && <Text style={st.checkmark}>✓</Text>}
                     </View>
@@ -297,7 +318,11 @@ export default function CareersScreen() {
 
               {/* Submit */}
               <TouchableOpacity style={[st.submitBtn, applyMut.isPending && st.submitBtnDisabled]}
-                onPress={handleSubmit} disabled={applyMut.isPending}>
+                onPress={handleSubmit} disabled={applyMut.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Submit application"
+                accessibilityState={{ disabled: applyMut.isPending, busy: applyMut.isPending }}
+              >
                 {applyMut.isPending
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={st.submitBtnText}>Submit Application</Text>}

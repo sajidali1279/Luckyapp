@@ -72,7 +72,13 @@ export default function HistoryScreen() {
             const icon = CATEGORY_ICONS[item.category] || '🏪';
             const catLabel = item.category?.replace(/_/g, ' ') || 'Other';
             return (
-              <TouchableOpacity style={s.card} onPress={() => setSelected(item)} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={s.card}
+                onPress={() => setSelected(item)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`View transaction details for ${item.store?.name || 'Lucky Stop'} on ${format(new Date(item.createdAt), 'MMM d, yyyy')}`}
+              >
                 <View style={s.cardIconBg}>
                   <Text style={s.cardIcon}>{icon}</Text>
                 </View>
@@ -141,7 +147,12 @@ export default function HistoryScreen() {
                 </View>
               ) : null}
 
-              <TouchableOpacity style={d.closeBtn} onPress={() => setSelected(null)}>
+              <TouchableOpacity
+                style={d.closeBtn}
+                onPress={() => setSelected(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close transaction details"
+              >
                 <Text style={d.closeBtnText}>Close</Text>
               </TouchableOpacity>
             </View>

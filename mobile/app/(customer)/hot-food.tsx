@@ -117,16 +117,37 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
       <View style={mc.controls}>
         {qty > 0 ? (
           <View style={mc.stepper}>
-            <TouchableOpacity style={mc.stepBtn} onPress={onRemove} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={mc.stepBtn}
+              onPress={onRemove}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove one ${item.name} from cart`}
+              hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+            >
               <Text style={mc.stepBtnText}>−</Text>
             </TouchableOpacity>
             <Text style={mc.stepQty}>{qty}</Text>
-            <TouchableOpacity style={[mc.stepBtn, mc.stepBtnAdd]} onPress={onAdd} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={[mc.stepBtn, mc.stepBtnAdd]}
+              onPress={onAdd}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Add one more ${item.name} to cart`}
+              hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+            >
               <Text style={[mc.stepBtnText, { color: '#fff' }]}>+</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={mc.addBtn} onPress={onAdd} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={mc.addBtn}
+            onPress={onAdd}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${item.name} to cart`}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={mc.addBtnText}>Add</Text>
           </TouchableOpacity>
         )}
@@ -175,6 +196,8 @@ function OrderCard({ order }: { order: FoodOrder }) {
       style={[oc.card, { borderLeftColor: cfg.color }]}
       onPress={() => setExpanded(v => !v)}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`Order #${order.orderNumber}, ${cfg.label}. ${expanded ? 'Collapse' : 'Expand'} details`}
     >
       <View style={oc.top}>
         <View style={oc.topLeft}>
@@ -258,13 +281,24 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <View style={cs.overlay}>
-        <TouchableOpacity style={cs.backdrop} onPress={onClose} activeOpacity={1} />
+        <TouchableOpacity
+          style={cs.backdrop}
+          onPress={onClose}
+          activeOpacity={1}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss order sheet"
+        />
         <View style={cs.sheet}>
           <View style={cs.handle} />
 
           <View style={cs.header}>
             <Text style={cs.title}>Your Order</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close order sheet"
+            >
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -311,6 +345,8 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
               onPress={() => placeMutation.mutate()}
               disabled={placeMutation.isPending}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={placeMutation.isPending ? 'Placing order' : `Place order for ${fmtPrice(total)}`}
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
@@ -337,7 +373,13 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
             <Text style={{ fontWeight: '800', color: COLORS.primary }}>My Orders</Text>{' '}
             tab to track its status in real time.
           </Text>
-          <TouchableOpacity style={ss.btn} onPress={onClose} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={ss.btn}
+            onPress={onClose}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss order confirmation"
+          >
             <Text style={ss.btnText}>Got it</Text>
           </TouchableOpacity>
         </View>
@@ -466,7 +508,14 @@ export default function CustomerHotFoodScreen() {
 
           {/* Active order indicator */}
           {hasActive && (
-            <TouchableOpacity style={s.activePill} onPress={() => setTab('orders')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.activePill}
+              onPress={() => setTab('orders')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`${activeOrders.length} active orders. View my orders`}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
               <View style={s.activeDot} />
               <Text style={s.activePillText}>{activeOrders.length} active</Text>
             </TouchableOpacity>
@@ -481,6 +530,10 @@ export default function CustomerHotFoodScreen() {
               style={[s.tab, tab === t && s.tabActive]}
               onPress={() => setTab(t)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityLabel={t === 'menu' ? 'Menu tab' : 'My Orders tab'}
+              accessibilityState={{ selected: tab === t }}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
               <Text style={[s.tabText, tab === t && s.tabTextActive]}>
                 {t === 'menu' ? '🍽️  Menu' : `📋  My Orders${orders.length ? ` (${orders.length})` : ''}`}
@@ -555,7 +608,13 @@ export default function CustomerHotFoodScreen() {
 
           {/* Floating cart button */}
           {cartCount > 0 && (
-            <TouchableOpacity style={s.cartFab} onPress={() => setShowCart(true)} activeOpacity={0.9}>
+            <TouchableOpacity
+              style={s.cartFab}
+              onPress={() => setShowCart(true)}
+              activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityLabel={`View order, ${cartCount} items, ${fmtPrice(cartTotal)}`}
+            >
               <View style={s.cartFabBadge}>
                 <Text style={s.cartFabBadgeText}>{cartCount}</Text>
               </View>
@@ -585,7 +644,14 @@ export default function CustomerHotFoodScreen() {
                 <Text style={s.emptyEmoji}>📋</Text>
                 <Text style={s.emptyTitle}>No orders yet</Text>
                 <Text style={s.emptySub}>Head to the Menu tab to order hot food from the kitchen.</Text>
-                <TouchableOpacity style={s.goMenuBtn} onPress={() => setTab('menu')} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={s.goMenuBtn}
+                  onPress={() => setTab('menu')}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Browse menu"
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
                   <Text style={s.goMenuBtnText}>Browse Menu</Text>
                 </TouchableOpacity>
               </View>

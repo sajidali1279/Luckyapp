@@ -120,7 +120,13 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
         <Text style={[r.timerText, urgency && { color: '#E63946' }]}>
           {mins}:{secs.toString().padStart(2, '0')}
         </Text>
-        <TouchableOpacity onPress={onCancel} style={r.cancelSmall}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={r.cancelSmall}
+          accessibilityRole="button"
+          accessibilityLabel={`Cancel redemption for ${redemption.catalogItem?.title}`}
+          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+        >
           <Text style={r.cancelSmallText}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -150,7 +156,14 @@ function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem
           <Text style={[ct.costLabel, !canAfford && { color: COLORS.textMuted }]}>pts</Text>
         </View>
         {canAfford ? (
-          <TouchableOpacity style={[ct.redeemBtn, { backgroundColor: catCfg.color }]} onPress={() => onRedeem(item)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[ct.redeemBtn, { backgroundColor: catCfg.color }]}
+            onPress={() => onRedeem(item)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Redeem ${item.title} for ${item.pointsCost.toLocaleString()} points`}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          >
             <Text style={ct.redeemBtnText}>Redeem</Text>
           </TouchableOpacity>
         ) : (
@@ -198,10 +211,19 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
           <TouchableOpacity
             style={[md.confirmBtn, { backgroundColor: catCfg.color }, loading && { opacity: 0.6 }]}
             onPress={onConfirm} disabled={loading} activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Confirm redeem ${item.title} for ${item.pointsCost.toLocaleString()} points`}
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={md.confirmBtnText}>Redeem Now — {item.pointsCost.toLocaleString()} pts</Text>}
           </TouchableOpacity>
-          <TouchableOpacity style={md.cancelBtn} onPress={onClose} disabled={loading}>
+          <TouchableOpacity
+            style={md.cancelBtn}
+            onPress={onClose}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel redemption"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          >
             <Text style={md.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -231,7 +253,12 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
                 <Text style={suc.refundSub}>{data.pointsSpent} pts returned to your balance</Text>
               </View>
             </View>
-            <TouchableOpacity style={[md.confirmBtn, { backgroundColor: COLORS.primary }]} onPress={onClose}>
+            <TouchableOpacity
+              style={[md.confirmBtn, { backgroundColor: COLORS.primary }]}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close expired redemption notice and redeem again"
+            >
               <Text style={md.confirmBtnText}>Redeem Again</Text>
             </TouchableOpacity>
           </View>
@@ -260,7 +287,12 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
             </Text>
             <Text style={suc.timerSub}>Points are refunded if not scanned in time</Text>
           </View>
-          <TouchableOpacity style={[md.confirmBtn, { backgroundColor: COLORS.secondary }]} onPress={onClose}>
+          <TouchableOpacity
+            style={[md.confirmBtn, { backgroundColor: COLORS.secondary }]}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close redemption confirmation"
+          >
             <Text style={md.confirmBtnText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -395,7 +427,13 @@ export default function RewardsScreen() {
 
             {/* ── Tier benefits ── */}
             {benefits.length > 0 && (
-              <TouchableOpacity style={r.sectionCard} onPress={() => setBenefitModal(true)} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={r.sectionCard}
+                onPress={() => setBenefitModal(true)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`View how to use your ${tierCfg.label} benefits`}
+              >
                 <View style={r.sectionTitleRow}>
                   <Text style={[r.sectionTitle, { color: tierCfg.color }]}>{tierCfg.emoji} Your {tierCfg.label} Benefits</Text>
                   <Text style={[r.howToUse, { color: tierCfg.color }]}>How to use →</Text>
@@ -445,6 +483,9 @@ export default function RewardsScreen() {
                     style={[r.catPill, active && { backgroundColor: cat.color, borderColor: cat.color }]}
                     onPress={() => setActiveCategory(cat.key)}
                     activeOpacity={0.75}
+                    accessibilityRole="tab"
+                    accessibilityLabel={`Filter rewards by ${cat.label}${active ? ', selected' : ''}`}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   >
                     <Text style={r.catPillEmoji}>{cat.emoji}</Text>
                     <Text style={[r.catPillLabel, active && { color: '#fff' }]}>{cat.label}</Text>
@@ -541,7 +582,12 @@ export default function RewardsScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={[md.confirmBtn, { backgroundColor: tierCfg.color }]} onPress={() => setBenefitModal(false)}>
+            <TouchableOpacity
+              style={[md.confirmBtn, { backgroundColor: tierCfg.color }]}
+              onPress={() => setBenefitModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close benefits info"
+            >
               <Text style={md.confirmBtnText}>Got it</Text>
             </TouchableOpacity>
           </View>
