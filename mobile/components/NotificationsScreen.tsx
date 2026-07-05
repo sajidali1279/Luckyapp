@@ -251,6 +251,8 @@ export default function NotificationsScreen() {
         style={[s.card, !item.isRead && s.cardUnread, isGasAlert && s.cardGasAlert, isExpiredOffer && s.cardExpired]}
         onPress={() => handlePress(item)}
         activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}${!item.isRead ? ', unread' : ''}`}
       >
         <View style={[s.iconWrap, { backgroundColor: cfg.color + (isExpiredOffer ? '0C' : '18') }]}>
           <NotifIcon type={item.type} color={isExpiredOffer ? cfg.color + '70' : cfg.color} />
@@ -290,6 +292,9 @@ export default function NotificationsScreen() {
               style={s.headerBtn}
               onPress={() => markAllMutation.mutate()}
               disabled={markAllMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all notifications as read"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={s.headerBtnText}>Mark read</Text>
             </TouchableOpacity>
@@ -299,6 +304,9 @@ export default function NotificationsScreen() {
               style={[s.headerBtn, s.headerBtnClear]}
               onPress={confirmClearAll}
               disabled={clearAllMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all notifications"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={[s.headerBtnText, s.headerBtnClearText]}>Clear all</Text>
             </TouchableOpacity>
