@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { auditApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -235,7 +236,7 @@ export default function ActivityLog() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.empty}>Loading...</div>
+        <CardSkeleton count={4} />
       ) : logs.length === 0 ? (
         <div style={s.empty}>No activity found for the selected filters.</div>
       ) : (

@@ -5,6 +5,7 @@ import { bannersApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 export default function Banners() {
   const qc = useQueryClient();
@@ -125,7 +126,7 @@ export default function Banners() {
       )}
 
       {isLoading ? (
-        <div style={s.empty}>Loading...</div>
+        <CardSkeleton count={4} />
       ) : isError ? (
         <ErrorState message="Failed to load banners." onRetry={refetch} />
       ) : banners.length === 0 ? (

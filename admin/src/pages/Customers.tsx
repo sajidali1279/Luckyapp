@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { customersApi, disputesApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 import { format } from 'date-fns';
 
 function fmt$(n: number) {
@@ -179,7 +180,7 @@ export default function Customers() {
             </select>
           </div>
           {disputesLoading ? (
-            <div style={s.emptyState}><div style={{ fontSize: 32 }}>⏳</div><div style={s.emptyTitle}>Loading…</div></div>
+            <CardSkeleton count={3} />
           ) : disputes.length === 0 ? (
             <div style={s.emptyState}><div style={{ fontSize: 48 }}>✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear — no missing points reports</div></div>
           ) : (
@@ -235,10 +236,7 @@ export default function Customers() {
       {isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
-        <div style={s.emptyState}>
-          <div style={{ fontSize: 32 }}>⏳</div>
-          <div style={s.emptyTitle}>Loading customers…</div>
-        </div>
+        <CardSkeleton count={4} />
       ) : customers.length === 0 ? (
         <div style={s.emptyState}>
           <div style={{ fontSize: 48 }}>🙋</div>

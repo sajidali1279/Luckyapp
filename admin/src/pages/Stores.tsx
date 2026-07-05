@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
+import CardSkeleton from '../components/CardSkeleton';
 
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
@@ -308,7 +309,7 @@ export default function Stores() {
       </div>
 
       {isLoading ? (
-        <div style={s.empty}>Loading stores…</div>
+        <CardSkeleton count={4} />
       ) : isError ? (
         <ErrorState message="Failed to load stores." onRetry={refetch} />
       ) : (
