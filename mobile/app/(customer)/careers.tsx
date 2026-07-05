@@ -9,6 +9,7 @@ import { careersApi, jobOpeningsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircleIcon } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 const POSITION_META: Record<string, { emoji: string; desc: string }> = {
   CASHIER:           { emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
@@ -73,7 +74,7 @@ export default function CareersScreen() {
   const [showForm, setShowForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const { data: openingsData, isLoading: openingsLoading } = useQuery({
+  const { data: openingsData, isLoading: openingsLoading, isError: openingsError, refetch: refetchOpenings } = useQuery({
     queryKey: ['job-openings'],
     queryFn: () => jobOpeningsApi.getActive(),
   });
@@ -172,6 +173,8 @@ export default function CareersScreen() {
         <Text style={st.sectionTitle}>Open Positions</Text>
         {openingsLoading ? (
           <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 24 }} />
+        ) : openingsError ? (
+          <ErrorState message="Failed to load job openings." onRetry={() => refetchOpenings()} />
         ) : openings.length === 0 ? (
           <View style={st.emptyCard}>
             <Text style={st.emptyText}>No openings posted yet.</Text>

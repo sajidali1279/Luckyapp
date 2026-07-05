@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
+import ErrorState from '../../components/ErrorState';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon } from '../../components/Icons';
 
 interface Ad {
@@ -35,7 +36,7 @@ export default function AdsScreen() {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['published-promotions'],
     queryFn: () => promotionsApi.getPublished(),
     staleTime: 5 * 60 * 1000,
@@ -108,6 +109,8 @@ export default function AdsScreen() {
         <View style={s.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
+      ) : isError ? (
+        <ErrorState message="Failed to load ads." onRetry={() => refetch()} />
       ) : ads.length === 0 ? (
         <EmptyState
           icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}

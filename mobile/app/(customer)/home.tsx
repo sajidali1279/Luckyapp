@@ -13,6 +13,7 @@ import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
+import ErrorState from '../../components/ErrorState';
 import { COLORS, TIER_CONFIG } from '../../constants';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
@@ -474,7 +475,7 @@ export default function CustomerHome() {
   });
 
   const {
-    data: offersData, isLoading: offersLoading, isRefetching: offersRefetching, refetch: refetchOffers,
+    data: offersData, isLoading: offersLoading, isError: offersIsError, isRefetching: offersRefetching, refetch: refetchOffers,
   } = useQuery({
     queryKey: ['offers', nearestStore?.id],
     queryFn: () => offersApi.getActive(nearestStore?.id),
@@ -855,6 +856,15 @@ export default function CustomerHome() {
               </View>
               <SkeletonOfferCard />
               <SkeletonOfferCard />
+            </View>
+          )
+          : offersIsError
+          ? (
+            <View style={styles.section}>
+              <View style={styles.sectionRow}>
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label="Active Promotions" />
+              </View>
+              <ErrorState message="Failed to load promotions." onRetry={() => refetchOffers()} />
             </View>
           )
           : promotions.length > 0 && (

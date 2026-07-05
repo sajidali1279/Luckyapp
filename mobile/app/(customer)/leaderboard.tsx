@@ -7,6 +7,7 @@ import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, TrophyIcon } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -149,6 +150,8 @@ export default function CustomerLeaderboardScreen() {
         <View style={st.center}>
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
+      ) : activeQuery.isError ? (
+        <ErrorState message="Failed to load leaderboard." onRetry={() => activeQuery.refetch()} />
       ) : entries.length === 0 && !activeQuery.isLoading ? (
         <View style={st.center}>
           <View style={st.emptyIconRing}>

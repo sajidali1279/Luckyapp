@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productRequestApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ShoppingBagIcon, CheckCircleIcon, XIcon, ChevronRightIcon } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 const STATUS_CONFIG = {
   PENDING:  { label: 'Pending',  color: '#b45309', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
@@ -67,7 +68,7 @@ export default function RequestProductScreen() {
   });
   const stores: Store[] = gasPricesData?.data?.data ?? [];
 
-  const { data: myRequestsData, isLoading } = useQuery({
+  const { data: myRequestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-product-requests'],
     queryFn: () => productRequestApi.getMine(),
     staleTime: 60 * 1000,
@@ -127,6 +128,8 @@ export default function RequestProductScreen() {
         <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
           {isLoading ? (
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+          ) : isError ? (
+            <ErrorState message="Failed to load your requests." onRetry={() => refetch()} />
           ) : myRequests.length === 0 ? (
             <View style={styles.emptyWrap}>
               <View style={styles.emptyIconWrap}>

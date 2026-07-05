@@ -11,6 +11,7 @@ import * as Location from 'expo-location';
 import { hotFoodApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { FlameIcon, ClockIcon, CheckCircleIcon, XIcon, MapPinIcon } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -441,7 +442,7 @@ export default function CustomerHotFoodScreen() {
   const effectiveStore = nearestStore?.id || '';
 
   // Menu for detected store
-  const { data: menuData, isLoading: menuLoading, refetch: refetchMenu, isRefetching: menuRefetching } = useQuery({
+  const { data: menuData, isLoading: menuLoading, isError: menuIsError, refetch: refetchMenu, isRefetching: menuRefetching } = useQuery({
     queryKey: ['customer-hot-food-menu', effectiveStore],
     queryFn: () => hotFoodApi.getCustomerMenu(effectiveStore),
     enabled: !!effectiveStore,
@@ -450,7 +451,7 @@ export default function CustomerHotFoodScreen() {
   const menuItems: MenuItem[] = menuData?.data?.data || [];
 
   // My orders
-  const { data: ordersData, isLoading: ordersLoading, refetch: refetchOrders, isRefetching: ordersRefetching } = useQuery({
+  const { data: ordersData, isLoading: ordersLoading, isError: ordersIsError, refetch: refetchOrders, isRefetching: ordersRefetching } = useQuery({
     queryKey: ['my-hot-food-orders'],
     queryFn: hotFoodApi.getMyOrders,
     refetchInterval: tab === 'orders' ? 15_000 : false,
@@ -580,6 +581,8 @@ export default function CustomerHotFoodScreen() {
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={s.loadingText}>Loading…</Text>
             </View>
+          ) : menuIsError ? (
+            <ErrorState message="Failed to load the menu." onRetry={() => refetchMenu()} />
           ) : menuItems.length === 0 ? (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>🍽️</Text>
@@ -639,6 +642,8 @@ export default function CustomerHotFoodScreen() {
               <View style={s.loadingBox}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
+            ) : ordersIsError ? (
+              <ErrorState message="Failed to load your orders." onRetry={() => refetchOrders()} />
             ) : (
               <View style={s.emptyBox}>
                 <Text style={s.emptyEmoji}>📋</Text>

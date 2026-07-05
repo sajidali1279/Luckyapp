@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { catalogApi, pointsApi } from '../../services/api';
 import { COLORS, TIER_CONFIG } from '../../constants';
 import { StarIcon, TagIcon, ClockIcon } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 
 const TIER_THRESHOLDS: Record<string, number> = {
@@ -324,7 +325,7 @@ export default function RewardsScreen() {
   });
   const benefitStatus = benefitData?.data?.data;
 
-  const { data: catalogData, isLoading: catalogLoading, refetch, isRefetching } = useQuery({
+  const { data: catalogData, isLoading: catalogLoading, isError: catalogIsError, refetch, isRefetching } = useQuery({
     queryKey: ['catalog'],
     queryFn: () => catalogApi.getActive(),
   });
@@ -509,13 +510,17 @@ export default function RewardsScreen() {
         }
         ListEmptyComponent={
           !catalogLoading ? (
-            <View style={r.emptyBox}>
-              <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory).emoji}</Text>
-              <Text style={r.emptyTitle}>
-                {activeCategory === 'ALL' ? 'No rewards yet' : `No ${getCatCfg(activeCategory).label} rewards yet`}
-              </Text>
-              <Text style={r.emptySub}>Check back soon — new rewards are added regularly</Text>
-            </View>
+            catalogIsError ? (
+              <ErrorState message="Failed to load rewards." onRetry={() => refetch()} />
+            ) : (
+              <View style={r.emptyBox}>
+                <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory).emoji}</Text>
+                <Text style={r.emptyTitle}>
+                  {activeCategory === 'ALL' ? 'No rewards yet' : `No ${getCatCfg(activeCategory).label} rewards yet`}
+                </Text>
+                <Text style={r.emptySub}>Check back soon — new rewards are added regularly</Text>
+              </View>
+            )
           ) : null
         }
         ListFooterComponent={

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { disputeApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import ErrorState from '../../components/ErrorState';
 
 function StatusPill({ status }: { status: string }) {
   const cfg = {
@@ -15,7 +16,7 @@ function StatusPill({ status }: { status: string }) {
 }
 
 export default function MyDisputesScreen() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-disputes'],
     queryFn: () => disputeApi.getMine(),
   });
@@ -40,6 +41,8 @@ export default function MyDisputesScreen() {
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.primary} /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load your reports." onRetry={() => refetch()} />
       ) : disputes.length === 0 ? (
         <View style={s.center}>
           <Text style={s.emptyIcon}>✅</Text>
