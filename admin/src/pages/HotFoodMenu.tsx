@@ -5,6 +5,7 @@ import { hotFoodApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { Flame, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export default function HotFoodMenu() {
   });
   const stores: Store[] = storesData?.data?.data ?? [];
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['hot-food-menu-admin', filterStore],
     queryFn: () => hotFoodApi.getMenu(filterStore || undefined),
     refetchInterval: 60_000,
@@ -221,7 +222,9 @@ export default function HotFoodMenu() {
 
       {/* Items table */}
       <div style={pg.card}>
-        {isLoading ? (
+        {isError ? (
+          <ErrorState onRetry={refetch} />
+        ) : isLoading ? (
           <div style={pg.empty}>Loading…</div>
         ) : items.length === 0 ? (
           <div style={pg.empty}>

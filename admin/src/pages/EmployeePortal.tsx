@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -304,13 +305,14 @@ function NewRequestTab() {
 function MyRequestsTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-employee-requests'],
     queryFn: employeeRequestApi.getMine,
     refetchInterval: 60_000,
   });
   const requests: MyRequest[] = (data as any)?.data?.data || [];
 
+  if (isError) return <ErrorState onRetry={refetch} />;
   if (isLoading) return <div style={s.loading}>Loading your requests…</div>;
 
   if (requests.length === 0) {

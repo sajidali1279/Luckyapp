@@ -9,6 +9,7 @@ import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, p
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
+import ErrorState from '../components/ErrorState';
 
 function greeting() {
   const h = new Date().getHours();
@@ -390,11 +391,13 @@ export default function Dashboard() {
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
-  const { data: offersData, isLoading: loadingOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
-  const { data: bannersData, isLoading: loadingBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
-  const { data: customersData, isLoading: loadingCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
-  const { data: staffData, isLoading: loadingStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
-  const { data: storesData, isLoading: loadingStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  const { data: offersData, isLoading: loadingOffers, isError: offersError, refetch: refetchOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
+  const { data: bannersData, isLoading: loadingBanners, isError: bannersError, refetch: refetchBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
+  const { data: customersData, isLoading: loadingCustomers, isError: customersError, refetch: refetchCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
+  const { data: staffData, isLoading: loadingStaff, isError: staffError, refetch: refetchStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
+  const { data: storesData, isLoading: loadingStores, isError: storesError, refetch: refetchStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  const kpiError = offersError || bannersError || customersError || staffError || storesError;
+  const refetchKpis = () => { refetchOffers(); refetchBanners(); refetchCustomers(); refetchStaff(); refetchStores(); };
 
   const { data: platformData } = useQuery({
     queryKey: ['platform-summary'],
@@ -490,6 +493,13 @@ export default function Dashboard() {
           {isDevAdmin ? '⚡ Dev Admin' : '🏢 Super Admin'}
         </div>
       </div>
+
+      {/* ── KPI load failure ── */}
+      {kpiError && (
+        <div className="dash-fade-in" style={{ animationDelay: '30ms' }}>
+          <ErrorState message="Some dashboard data failed to load." onRetry={refetchKpis} />
+        </div>
+      )}
 
       {/* ── Quick Actions ── */}
       {isSuperAdmin && (

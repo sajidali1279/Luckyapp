@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import ErrorState from '../components/ErrorState';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -76,7 +77,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isStoreManager = user?.role === 'STORE_MANAGER';
 
-  const { data: storesData } = useQuery({
+  const { data: storesData, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['chat-stores'],
     queryFn: () => chatApi.getMyStores(),
   });
@@ -195,7 +196,9 @@ export default function Chat() {
 
       {/* ── Chat Panel ── */}
       <div style={s.chatPanel}>
-        {!selectedStoreId ? (
+        {storesError ? (
+          <ErrorState message="Failed to load your stores." onRetry={refetchStores} />
+        ) : !selectedStoreId ? (
           <div style={s.emptyState}>
             <div style={s.emptyIconWrap}>💬</div>
             <div style={s.emptyTitle}>Your team chats live here</div>

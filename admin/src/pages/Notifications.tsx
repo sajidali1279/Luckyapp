@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { superAdminApi, devAdminApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
+import ErrorState from '../components/ErrorState';
 
 interface Notification {
   id: string;
@@ -411,7 +412,7 @@ export default function Notifications() {
         <div style={s.empty}>Loading notifications…</div>
 
       ) : isError ? (
-        <div style={{ ...s.empty, color: '#ef4444' }}>Failed to load notifications. Please refresh.</div>
+        <ErrorState message="Failed to load notifications." onRetry={refetch} />
 
       ) : displayed.length === 0 ? (
         <div style={s.emptyState}>

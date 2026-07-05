@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -673,7 +674,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   });
   const stores: Store[] = storesData?.data?.data || [];
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-order-lists', filterStoreId, filterStatus],
     queryFn: () => orderListApi.adminGetAll({
       storeId: filterStoreId || undefined,
@@ -723,7 +724,9 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
         <button style={s.refreshBtn} onClick={() => refetch()}>↺ Refresh</button>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.loading}>Loading lists…</div>
       ) : lists.length === 0 ? (
         <div style={s.empty}>No order lists found.</div>
@@ -775,7 +778,7 @@ function CategoriesTab() {
   const [approveEdit,  setApproveEdit]  = useState('');
   const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['order-categories-admin', filterStatus],
     queryFn: () => orderCategoriesApi.adminGetAll(filterStatus || undefined),
   });
@@ -842,7 +845,9 @@ function CategoriesTab() {
         </div>
       )}
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.loading}>Loading categories…</div>
       ) : categories.length === 0 ? (
         <div style={s.empty}>No categories found.</div>
@@ -938,7 +943,7 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
 
   const effectiveStoreId = managerStoreId || filterStoreId;
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-employee-requests', effectiveStoreId, filterStatus],
     queryFn: () => managerStoreId
       ? employeeRequestApi.getForStore(managerStoreId, filterStatus || undefined)
@@ -995,7 +1000,9 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
         )}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <ErrorState onRetry={refetch} />
+      ) : isLoading ? (
         <div style={s.loading}>Loading requests…</div>
       ) : requests.length === 0 ? (
         <div style={s.empty}>No employee requests found.</div>

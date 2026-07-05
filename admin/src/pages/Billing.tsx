@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 interface BillNotes {
   txCount: number; purchaseVolume: number;
@@ -66,7 +67,7 @@ export default function Billing() {
   const [tierEdits, setTierEdits] = useState<Record<string, { cashbackRate: string; gasCentsPerGallon: string }>>({});
 
   // ── Queries ──────────────────────────────────────────────────────────────────
-  const { data, isLoading: storesLoading } = useQuery({
+  const { data, isLoading: storesLoading, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['billing-stores'],
     queryFn: () => billingApi.getAllStores(),
   });
@@ -329,6 +330,7 @@ export default function Billing() {
 
       {/* ══════════════════ STORES TAB ══════════════════ */}
       {tab === 'stores' && (
+        storesError ? <ErrorState onRetry={refetchStores} /> :
         storesLoading ? <div style={s.loading}>Loading stores…</div> : (
           <table style={s.table}>
             <thead>

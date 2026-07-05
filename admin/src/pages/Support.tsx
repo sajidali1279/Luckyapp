@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supportApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -266,7 +267,9 @@ export default function Support() {
               {threads.length} thread{threads.length !== 1 ? 's' : ''}
             </div>
             <div style={s.listBody}>
-              {threadsQ.isLoading ? (
+              {threadsQ.isError ? (
+                <ErrorState onRetry={threadsQ.refetch} />
+              ) : threadsQ.isLoading ? (
                 <div style={s.empty}><div style={s.emptyIco}>⏳</div>Loading…</div>
               ) : threads.length === 0 ? (
                 <div style={s.empty}>
@@ -316,7 +319,11 @@ export default function Support() {
           {/* Thread Detail */}
           {activeThread ? (
             <div style={s.detailPanel}>
-              {threadDetailQ.isLoading && !detail ? (
+              {threadDetailQ.isError ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ErrorState onRetry={threadDetailQ.refetch} />
+                </div>
+              ) : threadDetailQ.isLoading && !detail ? (
                 <div style={{ ...s.empty, flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
                   <div style={s.emptyIco}>⏳</div>Loading…
                 </div>

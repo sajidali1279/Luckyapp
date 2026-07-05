@@ -8,6 +8,7 @@ import {
   Plus, Pencil, Trash2, Building2, Search, ImageIcon,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -458,7 +459,7 @@ export default function HotFood() {
 
   // ── Orders ─────────────────────────────────────────────────────────────────
 
-  const { data: ordersData, isLoading: ordersLoading, isRefetching, refetch } = useQuery({
+  const { data: ordersData, isLoading: ordersLoading, isError: ordersError, isRefetching, refetch } = useQuery({
     queryKey: ['hot-food-orders-admin', filterStore],
     queryFn: () => hotFoodApi.getAllOrders(filterStore ? { storeId: filterStore } : undefined),
     enabled: view === 'orders',
@@ -494,7 +495,7 @@ export default function HotFood() {
 
   // ── Catalog ────────────────────────────────────────────────────────────────
 
-  const { data: catalogData, isLoading: catalogLoading, refetch: refetchCatalog } = useQuery({
+  const { data: catalogData, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } = useQuery({
     queryKey: ['hot-food-catalog'],
     queryFn: hotFoodCatalogApi.getAll,
     enabled: view === 'catalog',
@@ -594,7 +595,9 @@ export default function HotFood() {
             </div>
           </div>
 
-          {ordersLoading ? (
+          {ordersError ? (
+            <ErrorState onRetry={refetch} />
+          ) : ordersLoading ? (
             <div style={pg.empty}>Loading orders…</div>
           ) : filteredOrders.length === 0 ? (
             <div style={pg.empty}>
@@ -632,7 +635,9 @@ export default function HotFood() {
             </button>
           </div>
 
-          {catalogLoading ? (
+          {catalogError ? (
+            <ErrorState onRetry={refetchCatalog} />
+          ) : catalogLoading ? (
             <div style={pg.empty}>Loading catalog…</div>
           ) : filteredCatalog.length === 0 ? (
             <div style={pg.empty}>

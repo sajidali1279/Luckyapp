@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { superAdminApi } from '../services/api';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
+import ErrorState from '../components/ErrorState';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -14,7 +15,7 @@ function periodLabel(p: string) {
 export default function SuperAdminBilling() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['super-admin-invoices'],
     queryFn: () => superAdminApi.getInvoices(),
   });
@@ -61,7 +62,7 @@ export default function SuperAdminBilling() {
         {isLoading ? (
           <div style={s.empty}>Loading invoices…</div>
         ) : isError ? (
-          <div style={{ ...s.empty, color: '#E63946' }}>Failed to load invoices. Please refresh the page.</div>
+          <ErrorState message="Failed to load invoices." onRetry={refetch} />
         ) : invoices.length === 0 ? (
           <div style={s.empty}>No invoices yet.</div>
         ) : (

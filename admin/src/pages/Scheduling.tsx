@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ErrorState from '../components/ErrorState';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export default function Scheduling() {
     enabled: isStoreManager && !!managerStoreId,
   });
 
-  const { data: scheduleData, isLoading: scheduleLoading } = useQuery({
+  const { data: scheduleData, isLoading: scheduleLoading, isError: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: ['schedule', selectedStoreId],
     queryFn: () => schedulingApi.getStoreSchedule(selectedStoreId!),
     enabled: !!selectedStoreId,
@@ -332,7 +333,9 @@ export default function Scheduling() {
                 {/* Weekly Grid */}
                 <div style={s.section}>
                   <h2 style={s.sectionTitle}>Weekly Template</h2>
-                  {scheduleLoading ? (
+                  {scheduleError ? (
+                    <ErrorState onRetry={refetchSchedule} />
+                  ) : scheduleLoading ? (
                     <div style={s.loadingText}>Loading schedule...</div>
                   ) : (
                     <div style={s.gridWrapper}>

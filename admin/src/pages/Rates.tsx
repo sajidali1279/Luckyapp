@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
+import ErrorState from '../components/ErrorState';
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
@@ -44,7 +45,7 @@ export default function Rates() {
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['tier-rates'],
     queryFn: () => billingApi.getTierRates(),
   });
@@ -229,7 +230,7 @@ export default function Rates() {
       </div>
 
       {isLoading && <div style={s.loading}>Loading rates…</div>}
-      {isError  && <div style={s.error}>Could not load rates. Check your connection.</div>}
+      {isError  && <ErrorState message="Could not load rates. Check your connection." onRetry={refetch} />}
 
       {!isLoading && !isError && tiers.length === 0 && (
         <div style={s.error}>No tier data returned. The backend may need to be restarted.</div>
