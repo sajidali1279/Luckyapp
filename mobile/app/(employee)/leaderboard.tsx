@@ -39,7 +39,13 @@ export default function EmployeeLeaderboardScreen() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
-          <TouchableOpacity onPress={() => router.back()} style={st.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={st.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -59,6 +65,10 @@ export default function EmployeeLeaderboardScreen() {
                 key={id}
                 style={[st.storePill, selectedStore === id && st.storePillActive]}
                 onPress={() => setSelectedStore(id)}
+                accessibilityRole="tab"
+                accessibilityLabel="Filter by store"
+                accessibilityState={{ selected: selectedStore === id }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[st.storePillText, selectedStore === id && st.storePillTextActive]}>
                   Store

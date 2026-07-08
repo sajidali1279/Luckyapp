@@ -165,6 +165,9 @@ export default function ManagerHome() {
             <TouchableOpacity
               onPress={() => router.push('/(manager)/notifications')}
               style={s.bellBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`View notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <BellIcon size={20} color="#fff" strokeWidth={2} />
               {unreadCount > 0 && (
@@ -177,6 +180,8 @@ export default function ManagerHome() {
               style={s.avatarRing}
               onPress={() => router.push('/(manager)/profile')}
               activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
             >
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
@@ -205,6 +210,8 @@ export default function ManagerHome() {
               style={[s.quickCard, s.quickCardWide]}
               onPress={() => router.push('/(manager)/order-list')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`View order list, ${activeListItems.length} items`}
             >
               <View style={s.quickTop}>
                 <View style={[s.quickIconBox, { backgroundColor: COLORS.secondary + '15' }]}>
@@ -245,6 +252,8 @@ export default function ManagerHome() {
               style={s.quickCard}
               onPress={() => router.push('/(manager)/requests')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`View employee requests, ${pendingCount} pending`}
             >
               <View style={s.quickTop}>
                 <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.secondary + '15' }]}>
@@ -274,6 +283,8 @@ export default function ManagerHome() {
               style={s.alertCard}
               onPress={() => router.push('/(manager)/requests')}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Review ${pendingCount} pending item ${pendingCount === 1 ? 'request' : 'requests'}`}
             >
               <View style={s.alertIcon}>
                 <InboxIcon size={18} color="#C2410C" />
@@ -300,6 +311,9 @@ export default function ManagerHome() {
                   key={p.value}
                   style={[s.periodBtn, period === p.value && s.periodBtnActive]}
                   onPress={() => setPeriod(p.value)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Show order history for ${p.label}`}
+                  hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 >
                   <Text style={[s.periodBtnText, period === p.value && s.periodBtnTextActive]}>
                     {p.label}
@@ -321,6 +335,9 @@ export default function ManagerHome() {
                 key="__all__"
                 style={[s.chip, category === '' && s.chipActive]}
                 onPress={() => setCategory('')}
+                accessibilityRole="tab"
+                accessibilityLabel="Filter by all categories"
+                hitSlop={{ top: 9, bottom: 9, left: 8, right: 8 }}
               >
                 <Text style={[s.chipText, category === '' && s.chipTextActive]}>All</Text>
               </TouchableOpacity>
@@ -329,6 +346,9 @@ export default function ManagerHome() {
                   key={c}
                   style={[s.chip, category === c && s.chipActive]}
                   onPress={() => setCategory(category === c ? '' : c)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Filter by category: ${c}`}
+                  hitSlop={{ top: 9, bottom: 9, left: 8, right: 8 }}
                 >
                   <Text style={[s.chipText, category === c && s.chipTextActive]} numberOfLines={1}>
                     {c}
@@ -359,7 +379,14 @@ export default function ManagerHome() {
                     <View style={s.emptyIcon}><PackageIcon size={28} color={COLORS.border} /></View>
                     <Text style={s.empty}>No orders yet for this period</Text>
                     <Text style={s.emptySub}>Start tracking by logging your first order list</Text>
-                    <TouchableOpacity style={s.emptyAction} onPress={() => router.push('/(manager)/order-list')} activeOpacity={0.75}>
+                    <TouchableOpacity
+                      style={s.emptyAction}
+                      onPress={() => router.push('/(manager)/order-list')}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open order list"
+                      hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+                    >
                       <Text style={s.emptyActionText}>Open order list →</Text>
                     </TouchableOpacity>
                   </View>

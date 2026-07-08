@@ -205,7 +205,13 @@ function CelebrationDone({
       {sub2 && <Text style={s.doneSub}>{sub2}</Text>}
       {extraNode}
 
-      <TouchableOpacity style={[s.primaryBtn, s.doneBtn]} onPress={onNext} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={[s.primaryBtn, s.doneBtn]}
+        onPress={onNext}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={nextLabel}
+      >
         <Text style={s.primaryBtnText}>{nextLabel}</Text>
       </TouchableOpacity>
     </Animated.View>
@@ -638,7 +644,12 @@ export default function EmployeeScanScreen() {
         </View>
         <Text style={s.permTitle}>Camera Access Needed</Text>
         <Text style={s.permSub}>Camera is required to scan customer QR codes</Text>
-        <TouchableOpacity style={s.primaryBtn} onPress={requestPermission}>
+        <TouchableOpacity
+          style={s.primaryBtn}
+          onPress={requestPermission}
+          accessibilityRole="button"
+          accessibilityLabel="Grant camera access"
+        >
           <Text style={s.primaryBtnText}>Grant Camera Access</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -778,6 +789,9 @@ export default function EmployeeScanScreen() {
                       onPress={() => handleConfirmPending(r)}
                       disabled={loading}
                       activeOpacity={0.85}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Confirm redemption of ${r.catalogItem?.title}`}
                     >
                       {loading
                         ? <ActivityIndicator color="#fff" size="small" />
@@ -790,7 +804,13 @@ export default function EmployeeScanScreen() {
           )}
 
           {/* Grant Points */}
-          <TouchableOpacity style={s.modeCard} onPress={() => setStep('grant-amount')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={s.modeCard}
+            onPress={() => setStep('grant-amount')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Select Grant Points mode"
+          >
             <View style={[s.modeIconBg, { backgroundColor: COLORS.primary + '15' }]}>
               <ReceiptIcon size={26} color={COLORS.primary} strokeWidth={1.75} />
             </View>
@@ -804,7 +824,13 @@ export default function EmployeeScanScreen() {
           </TouchableOpacity>
 
           {/* Redeem Credits */}
-          <TouchableOpacity style={[s.modeCard, s.modeCardAlt]} onPress={() => setStep('redeem-amount')} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[s.modeCard, s.modeCardAlt]}
+            onPress={() => setStep('redeem-amount')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Select Redeem Credits mode"
+          >
             <View style={[s.modeIconBg, { backgroundColor: COLORS.accent + '15' }]}>
               <CreditCardIcon size={26} color={COLORS.accent} strokeWidth={1.75} />
             </View>
@@ -824,6 +850,8 @@ export default function EmployeeScanScreen() {
               onPress={handleClaimBenefit}
               disabled={loading}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={benefitType === 'SILVER_FOUNTAIN' ? 'Claim free fountain refill' : 'Claim free daily refill'}
             >
               <View style={[s.modeIconBg, { backgroundColor: tierCfg.color + '18' }]}>
                 <Text style={s.modeEmoji}>🥤</Text>
@@ -854,6 +882,8 @@ export default function EmployeeScanScreen() {
               style={[s.modeCard, { borderColor: '#9B5DE5' + '50' }]}
               onPress={() => setStep('catalog-select')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Select Catalog Reward mode"
             >
               <View style={[s.modeIconBg, { backgroundColor: '#9B5DE5' + '15' }]}>
                 <GiftIcon size={26} color="#9B5DE5" strokeWidth={1.75} />
@@ -875,6 +905,8 @@ export default function EmployeeScanScreen() {
               onPress={handleConfirmWelcomeBonus}
               disabled={loading}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Confirm welcome bonus day ${welcomeBonus.day}`}
             >
               <View style={[s.modeIconBg, { backgroundColor: '#FEF3C7' }]}>
                 <Text style={s.modeEmoji}>{welcomeBonus.rewardEmoji || '🎁'}</Text>
@@ -945,6 +977,8 @@ export default function EmployeeScanScreen() {
                     <TouchableOpacity
                       onPress={() => setLineItems(prev => prev.filter(i => i.id !== item.id))}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${cat?.label ?? 'item'} entry`}
                     >
                       <Text style={s.committedRowRemove}>×</Text>
                     </TouchableOpacity>
@@ -968,6 +1002,8 @@ export default function EmployeeScanScreen() {
                   style={[s.catCell, active && s.catCellActive]}
                   onPress={() => selectCategory(c.value)}
                   activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${c.label} category`}
                 >
                   <Text style={s.catEmoji}>{c.icon}</Text>
                   <Text style={[s.catCellLabel, active && s.catCellLabelActive]}>{c.label}</Text>
@@ -1061,6 +1097,8 @@ export default function EmployeeScanScreen() {
               onPress={addCurrentItem}
               disabled={!validAmount || !validGallons}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Add another item to this transaction"
             >
               <Text style={s.addAnotherBtnText}>+ Add{'\n'}Another</Text>
             </TouchableOpacity>
@@ -1069,6 +1107,8 @@ export default function EmployeeScanScreen() {
               onPress={handleGrantPoints}
               disabled={!validAmount || !validGallons || loading}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={lineItems.length > 0 ? `Grant all ${lineItems.length + 1} items` : 'Continue to receipt'}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
@@ -1080,7 +1120,12 @@ export default function EmployeeScanScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={s.ghostBtn} onPress={() => setStep('mode')}>
+          <TouchableOpacity
+            style={s.ghostBtn}
+            onPress={() => setStep('mode')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to mode selection"
+          >
             <Text style={s.ghostBtnText}>← Back</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1133,6 +1178,8 @@ export default function EmployeeScanScreen() {
             style={[s.receiptBox, receiptImage && s.receiptBoxFilled]}
             onPress={pickReceiptImage}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={receiptImage ? 'Retake receipt photo' : 'Take receipt photo'}
           >
             {receiptImage ? (
               <View style={{ width: '100%' }}>
@@ -1158,6 +1205,8 @@ export default function EmployeeScanScreen() {
             onPress={handleUploadAndApprove}
             disabled={loading || !receiptImage}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Submit receipt and grant points"
           >
             {loading
               ? <ActivityIndicator color="#fff" />
@@ -1247,13 +1296,20 @@ export default function EmployeeScanScreen() {
             onPress={handleRedeemCredits}
             disabled={loading}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm redemption"
           >
             {loading
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.primaryBtnText}>Confirm Redemption</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={s.ghostBtn} onPress={() => setStep('mode')}>
+          <TouchableOpacity
+            style={s.ghostBtn}
+            onPress={() => setStep('mode')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to mode selection"
+          >
             <Text style={s.ghostBtnText}>← Back</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1320,6 +1376,8 @@ export default function EmployeeScanScreen() {
                   ]}
                   onPress={() => canAfford && setSelectedCatalogItem(item)}
                   activeOpacity={canAfford ? 0.8 : 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${item.title}${!canAfford ? ', insufficient points' : ''}`}
                 >
                   <View style={s.catalogItemLeft}>
                     <Text style={s.catalogItemName}>{item.emoji ? `${item.emoji} ` : ''}{item.title}</Text>
@@ -1348,6 +1406,8 @@ export default function EmployeeScanScreen() {
               onPress={handleCatalogRedeem}
               disabled={!selectedCatalogItem || loading}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={selectedCatalogItem ? `Redeem ${selectedCatalogItem.title} for ${selectedCatalogItem.pointsCost} points` : 'Select a reward first'}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
@@ -1355,7 +1415,12 @@ export default function EmployeeScanScreen() {
                     {selectedCatalogItem ? `Redeem — ${selectedCatalogItem.pointsCost.toLocaleString()} pts` : 'Select a reward'}
                   </Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={s.ghostBtn} onPress={() => setStep('mode')}>
+            <TouchableOpacity
+              style={s.ghostBtn}
+              onPress={() => setStep('mode')}
+              accessibilityRole="button"
+              accessibilityLabel="Back to mode selection"
+            >
               <Text style={s.ghostBtnText}>← Back</Text>
             </TouchableOpacity>
           </View>

@@ -222,14 +222,25 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
           {/* Header */}
           <View style={sh.header}>
             <Text style={sh.title}>{isEdit ? 'Edit Item' : 'Add Menu Item'}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Photo area */}
-            <TouchableOpacity style={sh.photoArea} onPress={showPhotoOptions} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={sh.photoArea}
+              onPress={showPhotoOptions}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={imageUri ? 'Change item photo' : 'Add item photo'}
+            >
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={sh.photo} />
               ) : (
@@ -271,7 +282,14 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
             {showCatSug && catSuggestions.length > 0 && (
               <View style={sh.catSuggest}>
                 {catSuggestions.slice(0, 5).map(c => (
-                  <TouchableOpacity key={c} style={sh.catSuggestRow} onPress={() => { setCategory(c); setShowCatSug(false); }}>
+                  <TouchableOpacity
+                    key={c}
+                    style={sh.catSuggestRow}
+                    onPress={() => { setCategory(c); setShowCatSug(false); }}
+                    hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select category ${c}`}
+                  >
                     <Text style={sh.catSuggestText}>{c}</Text>
                   </TouchableOpacity>
                 ))}
@@ -319,6 +337,8 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               style={[sh.saveBtn, saving && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={saving || deleting}
+              accessibilityRole="button"
+              accessibilityLabel={isEdit ? 'Save changes' : 'Add item to menu'}
             >
               {saving
                 ? <ActivityIndicator color="#fff" />
@@ -332,6 +352,8 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
                 style={[sh.deleteBtn, deleting && { opacity: 0.6 }]}
                 onPress={handleDelete}
                 disabled={saving || deleting}
+                accessibilityRole="button"
+                accessibilityLabel="Remove item from menu"
               >
                 {deleting
                   ? <ActivityIndicator color="#EF4444" />
@@ -403,6 +425,8 @@ function OrderCard({
           onPress={() => onUpdateStatus(order.id, 'ACCEPTED')}
           disabled={updating}
           activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={`Accept order #${order.orderNumber}`}
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
@@ -416,6 +440,8 @@ function OrderCard({
           onPress={() => onUpdateStatus(order.id, 'READY')}
           disabled={updating}
           activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={`Mark order #${order.orderNumber} ready`}
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
@@ -430,6 +456,8 @@ function OrderCard({
             onPress={() => onUpdateStatus(order.id, 'COMPLETED')}
             disabled={updating}
             activeOpacity={0.82}
+            accessibilityRole="button"
+            accessibilityLabel={`Mark order #${order.orderNumber} completed`}
           >
             {updating
               ? <ActivityIndicator color="#fff" size="small" />
@@ -445,6 +473,8 @@ function OrderCard({
             }}
             disabled={updating}
             activeOpacity={0.82}
+            accessibilityRole="button"
+            accessibilityLabel={`Cancel order #${order.orderNumber}`}
           >
             <XIcon size={15} color="#EF4444" strokeWidth={2.5} />
           </TouchableOpacity>
@@ -501,7 +531,13 @@ function MenuItemCard({
       <View style={s.menuCardRight}>
         {/* Edit button — only for store-specific items */}
         {item.source === 'menu' && (
-          <TouchableOpacity style={s.editBtn} onPress={() => onEdit(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            style={s.editBtn}
+            onPress={() => onEdit(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${item.name}`}
+          >
             <EditIcon size={15} color={COLORS.secondary} strokeWidth={2} />
           </TouchableOpacity>
         )}
@@ -510,6 +546,9 @@ function MenuItemCard({
           onPress={() => onToggle(item)}
           disabled={updating}
           activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          accessibilityRole="switch"
+          accessibilityLabel={`Mark ${item.name} as ${item.isAvailable ? 'sold out' : 'available'}`}
         >
           {updating
             ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
@@ -689,7 +728,13 @@ export default function HotFoodOrders() {
 
         {/* Add item button — only visible on MENU tab */}
         {activeTab === 'MENU' && (
-          <TouchableOpacity style={s.addItemBtn} onPress={() => setShowAddSheet(true)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.addItemBtn}
+            onPress={() => setShowAddSheet(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Add menu item"
+          >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addItemBtnText}>Add Item</Text>
           </TouchableOpacity>
@@ -708,6 +753,9 @@ export default function HotFoodOrders() {
               style={[s.tab, active && (isMenu ? s.tabActiveMenu : s.tabActive)]}
               onPress={() => setActiveTab(tab.key)}
               activeOpacity={0.75}
+              hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+              accessibilityRole="tab"
+              accessibilityLabel={`${tab.label} tab${count > 0 ? `, ${count} items` : ''}`}
             >
               <Text style={[s.tabText, active && s.tabTextActive]}>{tab.label}</Text>
               {count > 0 && (

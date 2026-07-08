@@ -18,7 +18,14 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
       <StatusBar barStyle="light-content" backgroundColor={headerColor} />
 
       <SafeAreaView style={[s.header, { backgroundColor: headerColor }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={s.backBtn}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={s.headerTitle} numberOfLines={1}>{title}</Text>

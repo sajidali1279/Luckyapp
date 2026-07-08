@@ -169,7 +169,13 @@ export default function EmployeeRequestsScreen() {
             <Text style={s.headerEyebrow}>🔔 STORE ALERTS</Text>
             <Text style={s.headerTitle}>My Alerts</Text>
           </View>
-          <TouchableOpacity style={s.newBtn} onPress={() => setShowForm(true)}>
+          <TouchableOpacity
+            style={s.newBtn}
+            onPress={() => setShowForm(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Create new store alert"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={s.newBtnText}>+ New Alert</Text>
           </TouchableOpacity>
         </View>
@@ -199,7 +205,13 @@ export default function EmployeeRequestsScreen() {
           <Text style={s.emptyEmoji}>📭</Text>
           <Text style={s.emptyTitle}>No requests yet</Text>
           <Text style={s.emptySub}>Tap "+ New" to alert your manager about a store issue</Text>
-          <TouchableOpacity style={s.emptyBtn} onPress={() => setShowForm(true)}>
+          <TouchableOpacity
+            style={s.emptyBtn}
+            onPress={() => setShowForm(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Create first store alert"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
             <Text style={s.emptyBtnText}>Create First Request</Text>
           </TouchableOpacity>
         </View>
@@ -224,7 +236,13 @@ export default function EmployeeRequestsScreen() {
                 <Text style={s.modalHeaderTitle}>New Store Alert</Text>
                 <Text style={s.modalHeaderSub}>Notify your manager of a store issue</Text>
               </View>
-              <TouchableOpacity style={s.modalCloseBtn} onPress={() => setShowForm(false)}>
+              <TouchableOpacity
+                style={s.modalCloseBtn}
+                onPress={() => setShowForm(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close new alert form"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
                 <Text style={s.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -249,6 +267,9 @@ export default function EmployeeRequestsScreen() {
                       key={st.id}
                       style={[s.chip, selectedStore === st.id && s.chipActive]}
                       onPress={() => setSelectedStore(st.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select store: ${st.name}`}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Text style={[s.chipText, selectedStore === st.id && s.chipTextActive]}>{st.name}</Text>
                     </TouchableOpacity>
@@ -269,6 +290,8 @@ export default function EmployeeRequestsScreen() {
                       style={[s.typeCard, active && { borderColor: t.color, backgroundColor: t.bg }]}
                       onPress={() => setSelectedType(t.value)}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select request type: ${t.label}`}
                     >
                       <View style={[s.typeCardIconWrap, { backgroundColor: active ? t.bg : '#f3f4f6' }]}>
                         <Text style={s.typeCardEmoji}>{t.icon}</Text>
@@ -301,6 +324,9 @@ export default function EmployeeRequestsScreen() {
                       ]}
                       onPress={() => setSelectedPriority(p.value)}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select priority: ${p.label}`}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <View style={[s.prioBtnDot, { backgroundColor: active ? '#fff' : p.color }]} />
                       <Text style={[s.prioBtnText, { color: active ? '#fff' : p.color }]}>{p.label}</Text>
@@ -333,6 +359,8 @@ export default function EmployeeRequestsScreen() {
               onPress={() => canSubmit && submitMutation.mutate()}
               disabled={!canSubmit || submitMutation.isPending}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Send store alert"
             >
               {submitMutation.isPending
                 ? <ActivityIndicator color="#fff" size="small" />

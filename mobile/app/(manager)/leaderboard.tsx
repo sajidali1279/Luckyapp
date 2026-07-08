@@ -68,7 +68,14 @@ export default function ManagerLeaderboardScreen() {
 
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={s.backBtn}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -87,6 +94,10 @@ export default function ManagerLeaderboardScreen() {
                 style={[s.storeChip, store.id === storeId && s.storeChipActive]}
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityState={{ selected: store.id === storeId }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>{store.name}</Text>
               </TouchableOpacity>
@@ -102,6 +113,10 @@ export default function ManagerLeaderboardScreen() {
               style={[s.tab, tab === t && s.tabActive]}
               onPress={() => setTab(t)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityLabel={t === 'customers' ? 'Top Customers' : 'Staff Ratings'}
+              accessibilityState={{ selected: tab === t }}
+              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
             >
               <Text style={[s.tabText, tab === t && s.tabTextActive]}>
                 {t === 'customers' ? 'Top Customers' : 'Staff Ratings'}

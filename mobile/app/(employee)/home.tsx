@@ -103,6 +103,9 @@ export default function EmployeeHomeScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/(employee)/notifications')}
                 style={s.bellBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`View notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <BellIcon size={20} color="#fff" strokeWidth={2} />
                 {unreadCount > 0 && (
@@ -111,7 +114,13 @@ export default function EmployeeHomeScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={s.avatarRing} onPress={() => router.push('/(employee)/profile')} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={s.avatarRing}
+                onPress={() => router.push('/(employee)/profile')}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+              >
                 {user?.avatarUrl ? (
                   <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
                 ) : (
@@ -159,6 +168,8 @@ export default function EmployeeHomeScreen() {
               style={[s.actionCard, { backgroundColor: '#1D3557' }]}
               onPress={() => router.push('/(employee)/scan')}
               activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel="Grant points: scan customer QR code"
             >
               <View style={s.actionIconBg}>
                 <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
@@ -174,6 +185,8 @@ export default function EmployeeHomeScreen() {
               style={[s.actionCard, { backgroundColor: '#b45309' }]}
               onPress={() => router.push('/(employee)/scan')}
               activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel="Redeem credits: scan customer QR code"
             >
               <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
@@ -197,6 +210,10 @@ export default function EmployeeHomeScreen() {
               style={[s.hotFoodTile, pendingCount > 0 && s.hotFoodTileActive]}
               onPress={() => router.push('/(employee)/hot-food')}
               activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel={pendingCount > 0
+                ? `View hot food orders, ${pendingCount} waiting`
+                : 'View hot food orders'}
             >
               <View style={s.hotFoodTileLeft}>
                 <View style={[s.hotFoodIconBg, pendingCount > 0 && s.hotFoodIconBgActive]}>

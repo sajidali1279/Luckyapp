@@ -193,7 +193,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
 
         {/* Header */}
         <View style={[st.header, phase === 'scanning' || phase === 'loading' ? { backgroundColor: '#000' } : { backgroundColor: COLORS.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border }]}>
-          <TouchableOpacity onPress={onClose} style={st.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={st.closeBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close scanner"
+          >
             <XIcon size={22} color={phase === 'scanning' || phase === 'loading' ? '#fff' : COLORS.textMuted} strokeWidth={2.5} />
           </TouchableOpacity>
           <Text style={[st.title, phase !== 'scanning' && phase !== 'loading' && { color: COLORS.text }]}>{headerTitle}</Text>
@@ -208,10 +214,21 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
         ) : !permission.granted ? (
           <View style={st.center}>
             <Text style={st.permText}>Camera access is required to scan barcodes.</Text>
-            <TouchableOpacity style={st.permBtn} onPress={requestPermission}>
+            <TouchableOpacity
+              style={st.permBtn}
+              onPress={requestPermission}
+              accessibilityRole="button"
+              accessibilityLabel="Allow camera access"
+            >
               <Text style={st.permBtnText}>Allow Camera</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={st.cancelLink} onPress={onClose}>
+            <TouchableOpacity
+              style={st.cancelLink}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            >
               <Text style={st.cancelLinkText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -297,12 +314,24 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
               />
 
               {/* Add button */}
-              <TouchableOpacity style={st.addBtn} onPress={handleConfirmFound} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={st.addBtn}
+                onPress={handleConfirmFound}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Add product to list"
+              >
                 <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
                 <Text style={st.addBtnText}>Add to List</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain}>
+              <TouchableOpacity
+                style={st.scanAgainBtn}
+                onPress={scanAgain}
+                accessibilityRole="button"
+                accessibilityLabel="Scan a different product"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Text style={st.scanAgainText}>Not this product? Scan again</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -360,7 +389,11 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
                   <View style={st.catSugg}>
                     {catSuggs.map(c => (
                       <TouchableOpacity key={c} style={st.catSuggRow}
-                        onPress={() => { setCategory(c); setShowCatSugg(false); }}>
+                        onPress={() => { setCategory(c); setShowCatSugg(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Use category ${c}`}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
                         <Text style={st.catSuggText}>{c}</Text>
                       </TouchableOpacity>
                     ))}
@@ -373,6 +406,8 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
                 onPress={handleSaveAndAdd}
                 disabled={!productName.trim() || saving}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Save and add product to list"
               >
                 {saving
                   ? <ActivityIndicator color="#fff" />
@@ -383,7 +418,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
                 }
               </TouchableOpacity>
 
-              <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain}>
+              <TouchableOpacity
+                style={st.scanAgainBtn}
+                onPress={scanAgain}
+                accessibilityRole="button"
+                accessibilityLabel="Scan a different barcode"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Text style={st.scanAgainText}>Scan a different barcode</Text>
               </TouchableOpacity>
             </ScrollView>

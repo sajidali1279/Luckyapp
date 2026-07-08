@@ -259,7 +259,14 @@ export default function ManagerRequestsScreen() {
               </View>
             </View>
           ) : (
-            <TouchableOpacity style={s.actionBtn} onPress={() => { setAckTarget(item); setAckNote(''); }} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={() => { setAckTarget(item); setAckNote(''); }}
+              activeOpacity={0.8}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Mark ${TYPE_LABELS[item.type] || item.type} alert as handled`}
+            >
               <Text style={s.actionBtnText}>✅  Mark as Handled</Text>
             </TouchableOpacity>
           )}
@@ -351,6 +358,9 @@ export default function ManagerRequestsScreen() {
                 setReviewTarget(item);
               }}
               activeOpacity={0.8}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Review stock request from ${item.submittedBy.name}`}
             >
               <Text style={s.actionBtnText}>📋  Review Items</Text>
             </TouchableOpacity>
@@ -407,6 +417,9 @@ export default function ManagerRequestsScreen() {
               style={[s.actionBtn, { backgroundColor: '#1e40af', shadowColor: '#1e40af' }]}
               onPress={() => { setRespondTarget(item); setRespondStatus('ACCEPTED'); setRespondNote(''); }}
               activeOpacity={0.8}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Respond to product request for ${item.productName}`}
             >
               <Text style={s.actionBtnText}>💬  Respond to Request</Text>
             </TouchableOpacity>
@@ -478,6 +491,9 @@ export default function ManagerRequestsScreen() {
                 key={st.id}
                 style={[s.storeChip, st.id === effectiveStoreId && s.storeChipActive]}
                 onPress={() => setSelectedStoreId(st.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="tab"
+                accessibilityLabel={`Select store ${st.name}`}
               >
                 <Text style={[s.storeChipText, st.id === effectiveStoreId && s.storeChipTextActive]}>
                   {st.name}
@@ -494,6 +510,9 @@ export default function ManagerRequestsScreen() {
               key={tab.key}
               style={[s.mainTab, mainTab === tab.key && s.mainTabActive]}
               onPress={() => setMainTab(tab.key)}
+              hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
+              accessibilityRole="tab"
+              accessibilityLabel={`${tab.label} tab${tab.badge > 0 ? `, ${tab.badge} pending` : ''}`}
             >
               <Text style={[s.mainTabText, mainTab === tab.key && s.mainTabTextActive]}>
                 {tab.icon} {tab.label}
@@ -517,7 +536,14 @@ export default function ManagerRequestsScreen() {
               { key: 'PENDING', label: 'Pending', count: pending.length },
               { key: 'ACKNOWLEDGED', label: 'Done', count: requests.length - pending.length },
             ].map(f => (
-              <TouchableOpacity key={f.key} style={[s.filterTab, statusFilter === f.key && s.filterTabActive]} onPress={() => setStatusFilter(f.key)}>
+              <TouchableOpacity
+                key={f.key}
+                style={[s.filterTab, statusFilter === f.key && s.filterTabActive]}
+                onPress={() => setStatusFilter(f.key)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter alerts by ${f.label}`}
+              >
                 <Text style={[s.filterTabText, statusFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
                 {f.count > 0 && (
                   <View style={[s.filterCount, statusFilter === f.key && s.filterCountActive]}>
@@ -537,7 +563,14 @@ export default function ManagerRequestsScreen() {
               { key: 'PENDING', label: 'Pending', count: pendingEmp.length },
               { key: 'REVIEWED', label: 'Reviewed', count: empRequests.length - pendingEmp.length },
             ].map(f => (
-              <TouchableOpacity key={f.key} style={[s.filterTab, empFilter === f.key && s.filterTabActive]} onPress={() => setEmpFilter(f.key)}>
+              <TouchableOpacity
+                key={f.key}
+                style={[s.filterTab, empFilter === f.key && s.filterTabActive]}
+                onPress={() => setEmpFilter(f.key)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter stock requests by ${f.label}`}
+              >
                 <Text style={[s.filterTabText, empFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
                 {f.count > 0 && (
                   <View style={[s.filterCount, empFilter === f.key && s.filterCountActive]}>
@@ -615,10 +648,22 @@ export default function ManagerRequestsScreen() {
             <Text style={s.sheetLabel}>Note <Text style={s.optionalTag}>(optional)</Text></Text>
             <TextInput style={s.noteInput} value={ackNote} onChangeText={setAckNote} placeholder="e.g. Ordered, arriving Thursday…" placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top" />
             <View style={s.sheetActions}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setAckTarget(null)}>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => setAckTarget(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.confirmBtn, acknowledgeMutation.isPending && { opacity: 0.65 }]} disabled={acknowledgeMutation.isPending} onPress={() => ackTarget && acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={[s.confirmBtn, acknowledgeMutation.isPending && { opacity: 0.65 }]}
+                disabled={acknowledgeMutation.isPending}
+                onPress={() => ackTarget && acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm alert handled"
+              >
                 {acknowledgeMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.confirmBtnText}>✅  Confirm</Text>}
               </TouchableOpacity>
             </View>
@@ -649,10 +694,19 @@ export default function ManagerRequestsScreen() {
                   reviewTarget.lines.forEach(l => { d[l.id] = 'ACCEPT'; });
                   setLineDecisions(d);
                 }}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Accept all items"
               >
                 <Text style={s.acceptAllBtnText}>✅ All</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setReviewTarget(null)} style={s.closeBtn}>
+              <TouchableOpacity
+                onPress={() => setReviewTarget(null)}
+                style={s.closeBtn}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Text style={s.closeBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -674,12 +728,18 @@ export default function ManagerRequestsScreen() {
                         <TouchableOpacity
                           style={[s.decisionBtn, decision === 'ACCEPT' && s.decisionBtnAccept]}
                           onPress={() => setLineDecisions(prev => ({ ...prev, [line.id]: 'ACCEPT' }))}
+                          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Accept ${line.name}`}
                         >
                           <Text style={[s.decisionBtnText, decision === 'ACCEPT' && s.decisionBtnTextAccept]}>✅</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[s.decisionBtn, decision === 'REJECT' && s.decisionBtnReject]}
                           onPress={() => setLineDecisions(prev => ({ ...prev, [line.id]: 'REJECT' }))}
+                          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Reject ${line.name}`}
                         >
                           <Text style={[s.decisionBtnText, decision === 'REJECT' && s.decisionBtnTextReject]}>❌</Text>
                         </TouchableOpacity>
@@ -693,6 +753,9 @@ export default function ManagerRequestsScreen() {
                             key={r.key}
                             style={[s.reasonPill, rejectReasons[line.id] === r.key && s.reasonPillActive]}
                             onPress={() => setRejectReasons(prev => ({ ...prev, [line.id]: r.key }))}
+                            hitSlop={{ top: 8, bottom: 8, left: 0, right: 0 }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Select rejection reason ${r.label} for ${line.name}`}
                           >
                             <Text style={[s.reasonPillText, rejectReasons[line.id] === r.key && s.reasonPillTextActive]}>
                               {r.label}
@@ -708,7 +771,12 @@ export default function ManagerRequestsScreen() {
             </ScrollView>
 
             <View style={[s.sheetActions, { paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' }]}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setReviewTarget(null)}>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => setReviewTarget(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -716,6 +784,8 @@ export default function ManagerRequestsScreen() {
                 disabled={!allDecided || reviewMutation.isPending}
                 onPress={submitReview}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Submit review"
               >
                 {reviewMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -748,10 +818,22 @@ export default function ManagerRequestsScreen() {
               </View>
             )}
             <View style={s.toggleRow}>
-              <TouchableOpacity style={[s.toggleBtn, respondStatus === 'ACCEPTED' && s.toggleBtnAccept]} onPress={() => setRespondStatus('ACCEPTED')}>
+              <TouchableOpacity
+                style={[s.toggleBtn, respondStatus === 'ACCEPTED' && s.toggleBtnAccept]}
+                onPress={() => setRespondStatus('ACCEPTED')}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel="Set response to accept"
+              >
                 <Text style={[s.toggleBtnText, respondStatus === 'ACCEPTED' && s.toggleBtnTextAccept]}>✅ Accept</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.toggleBtn, respondStatus === 'DECLINED' && s.toggleBtnDecline]} onPress={() => setRespondStatus('DECLINED')}>
+              <TouchableOpacity
+                style={[s.toggleBtn, respondStatus === 'DECLINED' && s.toggleBtnDecline]}
+                onPress={() => setRespondStatus('DECLINED')}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel="Set response to decline"
+              >
                 <Text style={[s.toggleBtnText, respondStatus === 'DECLINED' && s.toggleBtnTextDecline]}>❌ Decline</Text>
               </TouchableOpacity>
             </View>
@@ -762,7 +844,12 @@ export default function ManagerRequestsScreen() {
               placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top"
             />
             <View style={s.sheetActions}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setRespondTarget(null)}>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => setRespondTarget(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -770,6 +857,8 @@ export default function ManagerRequestsScreen() {
                 disabled={respondMutation.isPending}
                 onPress={() => respondTarget && respondMutation.mutate({ id: respondTarget.id, status: respondStatus, note: respondNote })}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={respondStatus === 'ACCEPTED' ? 'Accept product request' : 'Decline product request'}
               >
                 {respondMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />

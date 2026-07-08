@@ -143,12 +143,25 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
 
           {/* List */}
           <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity style={[s.catOption, !selected && s.catOptionSel]} onPress={() => { onSelect(''); onClose(); }}>
+            <TouchableOpacity
+              style={[s.catOption, !selected && s.catOptionSel]}
+              onPress={() => { onSelect(''); onClose(); }}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear category selection"
+            >
               <Text style={[s.catOptionText, !selected && { color: COLORS.secondary, fontWeight: '700' }]}>None</Text>
               {!selected && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
             </TouchableOpacity>
             {filtered.map(cat => (
-              <TouchableOpacity key={cat} style={[s.catOption, selected === cat && s.catOptionSel]} onPress={() => { onSelect(cat); onClose(); }}>
+              <TouchableOpacity
+                key={cat}
+                style={[s.catOption, selected === cat && s.catOptionSel]}
+                onPress={() => { onSelect(cat); onClose(); }}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Select category ${cat}`}
+              >
                 <Text style={[s.catOptionText, selected === cat && { color: COLORS.secondary, fontWeight: '700' }]}>{cat}</Text>
                 {selected === cat && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
               </TouchableOpacity>
@@ -158,7 +171,13 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
           {/* Submit New */}
           <View style={s.catNewSection}>
             {!showNew ? (
-              <TouchableOpacity style={s.catNewTrigger} onPress={() => setShowNew(true)}>
+              <TouchableOpacity
+                style={s.catNewTrigger}
+                onPress={() => setShowNew(true)}
+                hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel="Submit new category for approval"
+              >
                 <PlusIcon size={14} color={COLORS.secondary} strokeWidth={2.5} />
                 <Text style={s.catNewTriggerText}>Submit New Category for Approval</Text>
               </TouchableOpacity>
@@ -180,6 +199,8 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                   style={[s.catNewSubmitBtn, (!newName.trim() || submitting) && { opacity: 0.4 }]}
                   onPress={handleSubmitNew}
                   disabled={!newName.trim() || submitting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Submit new category"
                 >
                   {submitting
                     ? <ActivityIndicator color="#fff" size="small" />
@@ -247,13 +268,26 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
 
       <View style={r.right}>
         {nextAction ? (
-          <TouchableOpacity style={[r.actionBtn, { backgroundColor: nextAction.bg }]} onPress={nextAction.onPress} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={[r.actionBtn, { backgroundColor: nextAction.bg }]}
+            onPress={nextAction.onPress}
+            activeOpacity={0.75}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Mark ${item.name} as ${item.status === 'PENDING' ? 'ordered' : 'received'}`}
+          >
             <Text style={[r.actionBtnText, { color: nextAction.color }]}>{nextAction.label}</Text>
           </TouchableOpacity>
         ) : (
           <View style={r.donePill}><Text style={r.donePillText}>✓ Done</Text></View>
         )}
-        <TouchableOpacity onPress={showEditMenu} style={r.moreBtn} hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+        <TouchableOpacity
+          onPress={showEditMenu}
+          style={r.moreBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={`More options for ${item.name}`}
+        >
           <Text style={r.moreBtnText}>···</Text>
         </TouchableOpacity>
       </View>
@@ -388,7 +422,14 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
         <View style={qa.suggBox}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
             {itemSuggestions.map(item => (
-              <TouchableOpacity key={item.name} style={qa.suggRow} onPress={() => handleSelectItem(item.name)}>
+              <TouchableOpacity
+                key={item.name}
+                style={qa.suggRow}
+                onPress={() => handleSelectItem(item.name)}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Use suggested item ${item.name}`}
+              >
                 <Text style={qa.suggText}>{item.name}</Text>
                 <Text style={qa.suggCount}>{item.count}×</Text>
               </TouchableOpacity>
@@ -406,6 +447,9 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 key={cat}
                 style={[qa.suggRow, category === cat && qa.suggRowActive]}
                 onPress={() => handleSelectCat(cat)}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Select category ${cat}`}
               >
                 <Text style={[qa.suggText, category === cat && qa.suggTextActive]}>{cat}</Text>
               </TouchableOpacity>
@@ -501,6 +545,9 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 onPress={() => quickAdd(item)}
                 disabled={addMutation.isPending}
                 activeOpacity={0.75}
+                hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Quick add ${item.name}`}
               >
                 <Text style={qa.quickTileName} numberOfLines={1}>{item.name}</Text>
                 {item.category ? <Text style={qa.quickTileCat} numberOfLines={1}>{item.category}</Text> : null}
@@ -634,6 +681,9 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                       key={sug.name}
                       style={[s.catSuggestRow, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
                       onPress={() => { setName(sug.name); setShowNameSugg(false); }}
+                      hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Use suggested name ${sug.name}`}
                     >
                       <Text style={s.catSuggestText}>{sug.name}</Text>
                       <Text style={{ fontSize: 11, color: COLORS.textMuted }}>{sug.count}×</Text>
@@ -683,6 +733,9 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                       key={cat}
                       style={[s.catSuggestRow, category === cat && s.catSuggestRowActive]}
                       onPress={() => { setCategory(cat); setCatSearch(cat); setShowCatSugg(false); }}
+                      hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select category ${cat}`}
                     >
                       <Text style={[s.catSuggestText, category === cat && s.catSuggestTextActive]}>{cat}</Text>
                     </TouchableOpacity>
@@ -691,7 +744,13 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               </View>
             )}
 
-            <TouchableOpacity style={[s.catNewTrigger, { marginTop: 8 }]} onPress={() => setShowNewCat(true)}>
+            <TouchableOpacity
+              style={[s.catNewTrigger, { marginTop: 8 }]}
+              onPress={() => setShowNewCat(true)}
+              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel="Submit new category for approval"
+            >
               <PlusIcon size={13} color={COLORS.secondary} strokeWidth={2.5} />
               <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
             </TouchableOpacity>
@@ -700,6 +759,8 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               style={[s.submitBtn, editMutation.isPending && { opacity: 0.6 }]}
               onPress={handleSubmit}
               disabled={editMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Save changes"
             >
               {editMutation.isPending
                 ? <ActivityIndicator color="#fff" />
@@ -829,7 +890,12 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
           <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
             {requests.map(req => (
               <View key={req.id} style={s.reqCard}>
-                <TouchableOpacity style={s.reqCardHeader} onPress={() => setExpandedReq(expandedReq === req.id ? null : req.id)}>
+                <TouchableOpacity
+                  style={s.reqCardHeader}
+                  onPress={() => setExpandedReq(expandedReq === req.id ? null : req.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${expandedReq === req.id ? 'Collapse' : 'Expand'} request from ${req.submittedBy.name}`}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={s.reqCardName}>{req.submittedBy.name}</Text>
                     <Text style={s.reqCardMeta}>
@@ -856,13 +922,21 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                           <View style={s.actionRow}>
                             <TouchableOpacity
                               style={[s.acceptBtn, st.action === 'ACCEPT' && s.acceptBtnActive]}
-                              onPress={() => setLine(line.id, 'action', 'ACCEPT')}>
+                              onPress={() => setLine(line.id, 'action', 'ACCEPT')}
+                              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Accept ${line.name}`}
+                            >
                               <CheckCircleIcon size={14} color={st.action === 'ACCEPT' ? '#fff' : '#16A34A'} strokeWidth={2.5} />
                               <Text style={[s.acceptBtnText, st.action === 'ACCEPT' && { color: '#fff' }]}>Accept</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={[s.rejectBtn, st.action === 'REJECT' && s.rejectBtnActive]}
-                              onPress={() => setLine(line.id, 'action', 'REJECT')}>
+                              onPress={() => setLine(line.id, 'action', 'REJECT')}
+                              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Reject ${line.name}`}
+                            >
                               <XIcon size={14} color={st.action === 'REJECT' ? '#fff' : '#DC2626'} strokeWidth={2.5} />
                               <Text style={[s.rejectBtnText, st.action === 'REJECT' && { color: '#fff' }]}>Reject</Text>
                             </TouchableOpacity>
@@ -874,7 +948,11 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                                 {REJECTION_REASONS.map(r => (
                                   <TouchableOpacity key={r.value} onPress={() => setLine(line.id, 'reason', r.value)}
-                                    style={[s.reasonChip, st.reason === r.value && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' }]}>
+                                    style={[s.reasonChip, st.reason === r.value && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' }]}
+                                    hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Select rejection reason ${r.label} for ${line.name}`}
+                                  >
                                     <Text style={[s.reasonChipText, st.reason === r.value && { color: '#DC2626' }]}>{r.label}</Text>
                                   </TouchableOpacity>
                                 ))}
@@ -890,7 +968,9 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                     <TouchableOpacity
                       style={[s.submitBtn, reviewMutation.isPending && { opacity: 0.6 }]}
                       onPress={() => handleSubmitReview(req)}
-                      disabled={reviewMutation.isPending}>
+                      disabled={reviewMutation.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel="Submit review">
                       {reviewMutation.isPending
                         ? <ActivityIndicator color="#fff" />
                         : <Text style={s.submitBtnText}>Submit Review</Text>
@@ -971,7 +1051,10 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
               return (
                 <View key={list.id} style={s.reqCard}>
                   <TouchableOpacity style={s.reqCardHeader}
-                    onPress={() => { setExpandedList(isExpanded ? null : list.id); setSelected({}); }}>
+                    onPress={() => { setExpandedList(isExpanded ? null : list.id); setSelected({}); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} list ${list.name}`}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={s.reqCardName}>{list.name}</Text>
                       <Text style={s.reqCardMeta}>
@@ -998,7 +1081,10 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                           {undelivered.map(item => (
                             <TouchableOpacity key={item.id}
                               style={[s.restoreItem, selected[item.id] && s.restoreItemSelected]}
-                              onPress={() => setSelected(prev => ({ ...prev, [item.id]: !prev[item.id] }))}>
+                              onPress={() => setSelected(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${selected[item.id] ? 'Deselect' : 'Select'} ${item.name} to restore`}
+                            >
                               <View style={[s.restoreCheckbox, selected[item.id] && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
                                 {selected[item.id] && <CheckCircleIcon size={14} color="#fff" strokeWidth={2.5} />}
                               </View>
@@ -1011,7 +1097,9 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                           <TouchableOpacity
                             style={[s.submitBtn, { marginTop: 8 }, restoreMutation.isPending && { opacity: 0.6 }]}
                             onPress={() => handleRestore(list.id)}
-                            disabled={restoreMutation.isPending}>
+                            disabled={restoreMutation.isPending}
+                            accessibilityRole="button"
+                            accessibilityLabel="Add selected items to current list">
                             {restoreMutation.isPending
                               ? <ActivityIndicator color="#fff" />
                               : <Text style={s.submitBtnText}>
@@ -1187,13 +1275,25 @@ export default function ManagerOrderListScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {activeList && (
-            <TouchableOpacity style={s.headerBtn} onPress={() => setShowHistory(true)}>
+            <TouchableOpacity
+              style={s.headerBtn}
+              onPress={() => setShowHistory(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="View order list history"
+            >
               <ListIcon size={17} color="#fff" strokeWidth={2} />
               <Text style={s.headerBtnText}>History</Text>
             </TouchableOpacity>
           )}
           {pendingRequestCount > 0 && (
-            <TouchableOpacity style={[s.headerBtn, { backgroundColor: '#EF4444' }]} onPress={() => setShowReview(true)}>
+            <TouchableOpacity
+              style={[s.headerBtn, { backgroundColor: '#EF4444' }]}
+              onPress={() => setShowReview(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${pendingRequestCount} pending employee requests`}
+            >
               <ClipboardIcon size={17} color="#fff" strokeWidth={2} />
               <Text style={s.headerBtnText}>Requests ({pendingRequestCount})</Text>
             </TouchableOpacity>
@@ -1208,7 +1308,11 @@ export default function ManagerOrderListScreen() {
             const isSel = selectedStoreId === store.id;
             return (
               <TouchableOpacity key={store.id} onPress={() => setSelectedStoreId(store.id)}
-                style={[s.storeTab, isSel && s.storeTabActive]}>
+                style={[s.storeTab, isSel && s.storeTabActive]}
+                hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                accessibilityRole="tab"
+                accessibilityLabel={`Select store ${store.name}`}
+              >
                 <Text style={[s.storeTabText, isSel && s.storeTabTextActive]} numberOfLines={1}>
                   {store.name}
                 </Text>
@@ -1232,7 +1336,10 @@ export default function ManagerOrderListScreen() {
           <Text style={s.emptyTitle}>No open list for {selectedStore?.name}</Text>
           <Text style={s.emptyText}>Open a new list to start adding items for this order.</Text>
           <TouchableOpacity style={[s.openListBtn, openListMutation.isPending && { opacity: 0.6 }]}
-            onPress={() => openListMutation.mutate()} disabled={openListMutation.isPending}>
+            onPress={() => openListMutation.mutate()} disabled={openListMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Open new order list"
+          >
             {openListMutation.isPending
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.openListBtnText}>Open New List</Text>
@@ -1269,13 +1376,23 @@ export default function ManagerOrderListScreen() {
                 style={[s.bannerIconBtn, (isPrinting || items.length === 0) && { opacity: 0.35 }]}
                 onPress={showPrintOptions}
                 disabled={isPrinting || items.length === 0}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel="Print order list"
               >
                 {isPrinting
                   ? <ActivityIndicator size="small" color={COLORS.textMuted} />
                   : <PrinterIcon size={18} color={COLORS.textMuted} strokeWidth={2} />
                 }
               </TouchableOpacity>
-              <TouchableOpacity style={s.closeListBtn} onPress={handleCloseList} disabled={closeListMutation.isPending}>
+              <TouchableOpacity
+                style={s.closeListBtn}
+                onPress={handleCloseList}
+                disabled={closeListMutation.isPending}
+                hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close list"
+              >
                 {closeListMutation.isPending
                   ? <ActivityIndicator size="small" color={COLORS.primary} />
                   : <Text style={s.closeListBtnText}>Close List</Text>
@@ -1290,6 +1407,9 @@ export default function ManagerOrderListScreen() {
               style={s.reqBanner}
               onPress={() => setShowReview(true)}
               activeOpacity={0.8}
+              hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${pendingRequestCount} employee request${pendingRequestCount !== 1 ? 's' : ''} waiting, tap to review`}
             >
               <ClipboardIcon size={16} color="#fff" strokeWidth={2.5} />
               <Text style={s.reqBannerText}>

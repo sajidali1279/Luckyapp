@@ -61,6 +61,13 @@ function TaskBox({ done, lastReport, onPress }: { done: boolean; lastReport?: Da
       style={[tb.card, done && tb.cardDone]}
       onPress={!done ? onPress : undefined}
       activeOpacity={done ? 1 : 0.82}
+      accessibilityRole="button"
+      accessibilityLabel={
+        done
+          ? `Daily report submitted by ${lastReport?.submittedBy.name || lastReport?.submittedBy.phone || 'employee'} at ${lastReport ? fmtTime(lastReport.createdAt) : ''}`
+          : "Submit today's daily report"
+      }
+      accessibilityState={{ disabled: done }}
     >
       <View style={tb.left}>
         <View style={[tb.iconRing, done && tb.iconRingDone]}>
@@ -101,7 +108,13 @@ function ReportCard({ report }: { report: DailyReport }) {
   const [imgErr, setImgErr] = useState(false);
 
   return (
-    <TouchableOpacity style={rc.card} onPress={() => setExpanded(v => !v)} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={rc.card}
+      onPress={() => setExpanded(v => !v)}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} report from ${report.submittedBy.name || report.submittedBy.phone}`}
+    >
       <View style={rc.top}>
         <View style={rc.topLeft}>
           <View style={rc.avatar}>
@@ -275,7 +288,12 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
           {/* Header */}
           <View style={fs.header}>
             <Text style={fs.title}>Daily Report</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity
+              onPress={handleClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close report form"
+            >
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -289,6 +307,9 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                 style={fs.infoRow}
                 onPress={() => setShowStorePicker(v => !v)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Change store, currently ${selectedStore?.name || 'not selected'}`}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <Text style={fs.infoLabel}>Store</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -311,6 +332,9 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                         setShowStorePicker(false);
                       }}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select ${store.name} as store`}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     >
                       <Text style={[fs.storeOptionText, store.id === selectedStoreId && fs.storeOptionTextSelected]}>
                         {store.name}
@@ -421,7 +445,13 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 
             {/* ── Photo ── */}
             <Text style={fs.sectionLabel}>Photo (optional)</Text>
-            <TouchableOpacity style={fs.photoArea} onPress={showPhotoOptions} activeOpacity={0.82}>
+            <TouchableOpacity
+              style={fs.photoArea}
+              onPress={showPhotoOptions}
+              activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel={imageUri ? 'Change report photo' : 'Add photo to report'}
+            >
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={fs.photoPreview} resizeMode="cover" />
               ) : (
@@ -456,6 +486,8 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
               onPress={handleSubmit}
               disabled={submitting}
               activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel="Submit daily report"
             >
               {submitting
                 ? <ActivityIndicator color="#fff" />
@@ -552,7 +584,13 @@ export default function DailyReportScreen() {
       </ScrollView>
 
       {/* FAB — always available so any employee can add another report */}
-      <TouchableOpacity style={s.fab} onPress={() => setShowForm(true)} activeOpacity={0.88}>
+      <TouchableOpacity
+        style={s.fab}
+        onPress={() => setShowForm(true)}
+        activeOpacity={0.88}
+        accessibilityRole="button"
+        accessibilityLabel="Submit a new daily report"
+      >
         <Text style={s.fabText}>+ Submit Report</Text>
       </TouchableOpacity>
 

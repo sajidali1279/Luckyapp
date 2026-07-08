@@ -111,7 +111,14 @@ export default function ManagerBannersScreen() {
             <Text style={s.headerTitle}>Banners</Text>
             <Text style={s.headerSub}>Promotional images shown to customers</Text>
           </View>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowCreate(true)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.addBtn}
+            onPress={() => setShowCreate(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Upload banner"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addBtnText}>Upload</Text>
           </TouchableOpacity>
@@ -126,6 +133,10 @@ export default function ManagerBannersScreen() {
                 style={[s.storeChip, store.id === storeId && s.storeChipActive]}
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityState={{ selected: store.id === storeId }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
                   {store.name}
@@ -152,7 +163,13 @@ export default function ManagerBannersScreen() {
             </View>
             <Text style={s.emptyTitle}>No banners yet</Text>
             <Text style={s.emptySub}>Upload promotional images that customers see in the app</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={() => setShowCreate(true)}>
+            <TouchableOpacity
+              style={s.emptyBtn}
+              onPress={() => setShowCreate(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Upload banner"
+              hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+            >
               <Text style={s.emptyBtnText}>Upload Banner</Text>
             </TouchableOpacity>
           </View>
@@ -179,6 +196,9 @@ export default function ManagerBannersScreen() {
                   onPress={() => confirmDelete(banner)}
                   disabled={deleteMutation.isPending}
                   activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove banner${banner.title ? `: ${banner.title}` : ''}`}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Text style={s.deleteBtnText}>Remove</Text>
                 </TouchableOpacity>
@@ -198,6 +218,9 @@ export default function ManagerBannersScreen() {
               onPress={() => { setShowCreate(false); setTitle(''); setImageUri(null); }}
               style={s.modalCloseBtn}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close upload banner form"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <XIcon size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
             </TouchableOpacity>
@@ -205,7 +228,13 @@ export default function ManagerBannersScreen() {
 
           <ScrollView contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
             {/* Image picker */}
-            <TouchableOpacity style={s.imagePicker} onPress={pickImage} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.imagePicker}
+              onPress={pickImage}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={imageUri ? 'Change banner image' : 'Select banner image'}
+            >
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
               ) : (
@@ -217,7 +246,13 @@ export default function ManagerBannersScreen() {
               )}
             </TouchableOpacity>
             {imageUri && (
-              <TouchableOpacity onPress={pickImage} style={{ alignSelf: 'center', marginTop: 8, marginBottom: 16 }}>
+              <TouchableOpacity
+                onPress={pickImage}
+                style={{ alignSelf: 'center', marginTop: 8, marginBottom: 16 }}
+                accessibilityRole="button"
+                accessibilityLabel="Change image"
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+              >
                 <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14 }}>Change image</Text>
               </TouchableOpacity>
             )}
@@ -235,6 +270,8 @@ export default function ManagerBannersScreen() {
               style={[s.createBtn, createMutation.isPending && { opacity: 0.6 }]}
               onPress={handleCreate}
               disabled={createMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Upload banner"
             >
               {createMutation.isPending
                 ? <ActivityIndicator color="#fff" />

@@ -175,12 +175,18 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
           <TouchableOpacity
             style={[f.typeChip, requestType === 'LOW_STOCK' && f.typeChipActive]}
             onPress={() => setRequestType('LOW_STOCK')}
+            accessibilityRole="tab"
+            accessibilityLabel="Select request type: Low Stock"
+            hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
             <Text style={[f.typeChipText, requestType === 'LOW_STOCK' && f.typeChipTextActive]}>📉 Low Stock</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[f.typeChip, requestType === 'CUSTOMER_REQUEST' && f.typeChipActive]}
             onPress={() => setRequestType('CUSTOMER_REQUEST')}
+            accessibilityRole="tab"
+            accessibilityLabel="Select request type: Customer Ask"
+            hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
             <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>🙋 Customer Ask</Text>
           </TouchableOpacity>
@@ -190,7 +196,13 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
         <View style={f.searchWrapper}>
           <View style={f.searchRow}>
             {/* Scan button */}
-            <TouchableOpacity style={f.scanBtn} onPress={() => setShowScanner(true)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={f.scanBtn}
+              onPress={() => setShowScanner(true)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Scan barcode to add item"
+            >
               <QrCodeScanIcon size={22} color="#fff" strokeWidth={2} />
             </TouchableOpacity>
 
@@ -215,7 +227,14 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
               {showSugg && suggestions.length > 0 && (
                 <View style={f.suggBox}>
                   {suggestions.map(sg => (
-                    <TouchableOpacity key={sg.name} style={f.suggRow} onPress={() => pickSugg(sg)}>
+                    <TouchableOpacity
+                      key={sg.name}
+                      style={f.suggRow}
+                      onPress={() => pickSugg(sg)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${sg.name}${sg.category ? `, ${sg.category}` : ''} to request`}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                    >
                       <Text style={f.suggName}>{sg.name}</Text>
                       {sg.category ? <Text style={f.suggCat}>{sg.category}</Text> : null}
                     </TouchableOpacity>
@@ -228,6 +247,8 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
               onPress={addManual}
               disabled={!search.trim()}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Add item to request"
             >
               <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
@@ -249,10 +270,19 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                       <TouchableOpacity
                         style={f.editDetailBtn}
                         onPress={() => setExpandedKey(isExpanded ? null : item.key)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${isExpanded ? 'Hide' : 'Edit'} details for ${item.name}`}
+                        hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
                       >
                         <Text style={f.editDetailBtnText}>{isExpanded ? 'Done' : 'Details'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={f.removeBtn} onPress={() => removeItem(item.key)}>
+                      <TouchableOpacity
+                        style={f.removeBtn}
+                        onPress={() => removeItem(item.key)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${item.name} from request`}
+                        hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
+                      >
                         <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
                       </TouchableOpacity>
                     </View>
@@ -322,6 +352,8 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
           onPress={() => submitMut.mutate()}
           disabled={!canSubmit}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Submit stock request${cart.length > 0 ? ` with ${cart.length} item${cart.length !== 1 ? 's' : ''}` : ''}`}
         >
           {submitMut.isPending
             ? <ActivityIndicator color="#fff" />
@@ -389,6 +421,8 @@ function MyRequests() {
               style={m.cardHead}
               onPress={() => setExpandedId(isExpanded ? null : req.id)}
               activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} request from ${new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, ${typeLabel}`}
             >
               <View style={{ flex: 1 }}>
                 <View style={m.cardTitleRow}>
@@ -509,10 +543,22 @@ export default function StockRequestScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        <TouchableOpacity style={[s.tab, activeTab === 'new' && s.tabActive]} onPress={() => setActiveTab('new')}>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'new' && s.tabActive]}
+          onPress={() => setActiveTab('new')}
+          accessibilityRole="tab"
+          accessibilityLabel="New Request tab"
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
           <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>+ New Request</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.tab, activeTab === 'mine' && s.tabActive]} onPress={() => setActiveTab('mine')}>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'mine' && s.tabActive]}
+          onPress={() => setActiveTab('mine')}
+          accessibilityRole="tab"
+          accessibilityLabel="My Requests tab"
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        >
           <Text style={[s.tabText, activeTab === 'mine' && s.tabTextActive]}>My Requests</Text>
         </TouchableOpacity>
       </View>

@@ -119,7 +119,13 @@ export default function DailyTasksScreen() {
       ) : isError ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>Failed to load tasks.</Text>
-          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
+          <TouchableOpacity
+            onPress={() => refetch()}
+            style={styles.retryBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading tasks"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -145,6 +151,9 @@ export default function DailyTasksScreen() {
                   style={[styles.shiftHeader, { backgroundColor: cfg.bg }]}
                   onPress={() => toggleExpand(shift)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${cfg.label} shift, ${shiftDone} of ${shiftTasks.length} completed`}
+                  accessibilityState={{ expanded: isOpen }}
                 >
                   <View style={styles.shiftLeft}>
                     <Text style={styles.shiftEmoji}>{cfg.emoji}</Text>
@@ -169,6 +178,9 @@ export default function DailyTasksScreen() {
                           style={[styles.taskRow, done && styles.taskRowDone]}
                           onPress={() => toggleCheck(task.id)}
                           activeOpacity={0.65}
+                          accessibilityRole="checkbox"
+                          accessibilityLabel={task.title}
+                          accessibilityState={{ checked: done }}
                         >
                           <View style={styles.taskCheckbox}>
                             {done

@@ -91,7 +91,13 @@ function NewThreadModal({ visible, onClose, onCreated }: {
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalHeader}>
           <Text style={s.modalTitle}>New Support Ticket</Text>
-          <TouchableOpacity onPress={onClose} style={s.modalClose}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={s.modalClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close new ticket form"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <XIcon size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
@@ -116,7 +122,13 @@ function NewThreadModal({ visible, onClose, onCreated }: {
             <View style={s.rowGap}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Priority</Text>
-                <TouchableOpacity style={s.picker} onPress={() => { setShowPri(true); setShowCat(false); }}>
+                <TouchableOpacity
+                  style={s.picker}
+                  onPress={() => { setShowPri(true); setShowCat(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select priority, currently ${PRIORITY_CFG[priority]?.label}`}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                >
                   <Text style={[s.pickerText, { color: PRIORITY_CFG[priority]?.color }]}>
                     {PRIORITY_CFG[priority]?.label}
                   </Text>
@@ -126,7 +138,11 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                   <View style={s.dropdown}>
                     {PRIORITIES.map(p => (
                       <TouchableOpacity key={p} style={[s.dropItem, p === priority && s.dropItemActive]}
-                        onPress={() => { setPriority(p); setShowPri(false); }}>
+                        onPress={() => { setPriority(p); setShowPri(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set priority to ${PRIORITY_CFG[p]?.label}`}
+                        hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                      >
                         <Text style={[s.dropItemText, { color: PRIORITY_CFG[p]?.color }, p === priority && { fontWeight: '700' }]}>
                           {PRIORITY_CFG[p]?.label}
                         </Text>
@@ -137,7 +153,13 @@ function NewThreadModal({ visible, onClose, onCreated }: {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.fieldLabel}>Category</Text>
-                <TouchableOpacity style={s.picker} onPress={() => { setShowCat(true); setShowPri(false); }}>
+                <TouchableOpacity
+                  style={s.picker}
+                  onPress={() => { setShowCat(true); setShowPri(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select category, currently ${category}`}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                >
                   <Text style={s.pickerText}>{category}</Text>
                   <ChevronDownIcon size={14} color={COLORS.textMuted} />
                 </TouchableOpacity>
@@ -145,7 +167,11 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                   <View style={s.dropdown}>
                     {CATEGORIES.map(c => (
                       <TouchableOpacity key={c} style={[s.dropItem, c === category && s.dropItemActive]}
-                        onPress={() => { setCategory(c); setShowCat(false); }}>
+                        onPress={() => { setCategory(c); setShowCat(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Set category to ${c}`}
+                        hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                      >
                         <Text style={[s.dropItemText, c === category && { fontWeight: '700', color: COLORS.secondary }]}>{c}</Text>
                       </TouchableOpacity>
                     ))}
@@ -173,6 +199,8 @@ function NewThreadModal({ visible, onClose, onCreated }: {
               style={[s.submitBtn, (!canSubmit || createMutation.isPending) && { opacity: 0.5 }]}
               onPress={() => createMutation.mutate()}
               disabled={!canSubmit || createMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Submit support ticket"
             >
               {createMutation.isPending
                 ? <ActivityIndicator color="#fff" />
@@ -222,7 +250,13 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         {/* Header */}
         <View style={s.threadHeader}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={{ padding: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close ticket"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          >
             <XIcon size={20} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 8 }}>
@@ -285,6 +319,9 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
                 style={[s.sendBtn, (!reply.trim() || sendMutation.isPending) && { opacity: 0.4 }]}
                 onPress={() => sendMutation.mutate()}
                 disabled={!reply.trim() || sendMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Send reply"
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {sendMutation.isPending
                   ? <ActivityIndicator size="small" color="#fff" />
@@ -340,7 +377,13 @@ export default function SupportScreen() {
           <HeadphonesIcon size={20} color="#fff" strokeWidth={2} />
           <Text style={s.headerTitle}>Support</Text>
         </View>
-        <TouchableOpacity style={s.newBtn} onPress={() => setShowNew(true)}>
+        <TouchableOpacity
+          style={s.newBtn}
+          onPress={() => setShowNew(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Create new support ticket"
+          hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+        >
           <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
           <Text style={s.newBtnText}>New Ticket</Text>
         </TouchableOpacity>
@@ -399,7 +442,13 @@ function ThreadCard({ thread, onPress }: { thread: Thread; onPress: () => void }
   const pc = PRIORITY_CFG[thread.priority] || PRIORITY_CFG.NORMAL;
 
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={s.card}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ticket: ${thread.subject}, ${sc.label}`}
+    >
       <View style={s.cardTop}>
         <Text style={s.cardSubject} numberOfLines={1}>{thread.subject}</Text>
         {(thread.unreadCount ?? 0) > 0 && (

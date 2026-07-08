@@ -58,6 +58,9 @@ export default function CatalogScreen() {
             style={[s.tabBtn, tab === key && s.tabBtnActive]}
             onPress={() => setTab(key)}
             activeOpacity={0.75}
+            accessibilityRole="tab"
+            accessibilityLabel={`${label} tab`}
+            hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
           >
             <Icon size={15} color={tab === key ? COLORS.secondary : COLORS.textMuted} strokeWidth={2} />
             <Text style={[s.tabLabel, tab === key && s.tabLabelActive]}>{label}</Text>
@@ -164,7 +167,12 @@ function ScanTab() {
     return (
       <View style={s.center}>
         <Text style={s.permText}>Camera access is needed to scan barcodes.</Text>
-        <TouchableOpacity style={s.permBtn} onPress={requestPermission}>
+        <TouchableOpacity
+          style={s.permBtn}
+          onPress={requestPermission}
+          accessibilityRole="button"
+          accessibilityLabel="Allow camera access"
+        >
           <Text style={s.permBtnText}>Allow Camera</Text>
         </TouchableOpacity>
       </View>
@@ -250,7 +258,13 @@ function ScanTab() {
               maxLength={100}
             />
             <View style={s.namingActions}>
-              <TouchableOpacity style={s.skipBtn} onPress={resetToReady}>
+              <TouchableOpacity
+                style={s.skipBtn}
+                onPress={resetToReady}
+                accessibilityRole="button"
+                accessibilityLabel="Skip adding this product"
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              >
                 <Text style={s.skipBtnText}>Skip</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -258,6 +272,9 @@ function ScanTab() {
                 onPress={handleSaveName}
                 disabled={!nameInput.trim() || saving}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Save new product to catalog"
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {saving
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -370,7 +387,14 @@ function ManualTab() {
           {showSuggs && catSuggs.length > 0 && (
             <View style={s.sugg}>
               {catSuggs.map(c => (
-                <TouchableOpacity key={c} style={s.suggRow} onPress={() => { setCategory(c); setShowSuggs(false); }}>
+                <TouchableOpacity
+                  key={c}
+                  style={s.suggRow}
+                  onPress={() => { setCategory(c); setShowSuggs(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use category ${c}`}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                >
                   <Text style={s.suggText}>{c}</Text>
                 </TouchableOpacity>
               ))}
@@ -398,6 +422,8 @@ function ManualTab() {
           onPress={handleAdd}
           disabled={!name.trim() || adding}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Add product to catalog"
         >
           {adding
             ? <ActivityIndicator color="#fff" />
@@ -523,6 +549,8 @@ function BrowseTab() {
                     onPress={() => confirmDelete(item.id, item.name)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     disabled={deleteMut.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${item.name} from catalog`}
                   >
                     <Trash2Icon size={15} color="#EF4444" strokeWidth={2} />
                   </TouchableOpacity>
@@ -618,11 +646,23 @@ function PhotoTab() {
 
       {/* Image picker buttons */}
       <View style={s.photoPickRow}>
-        <TouchableOpacity style={s.photoPickBtn} onPress={() => pickImage(true)} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.photoPickBtn}
+          onPress={() => pickImage(true)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Take a photo of product page"
+        >
           <CameraIcon size={20} color={COLORS.secondary} strokeWidth={2} />
           <Text style={s.photoPickLabel}>Take Photo</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.photoPickBtn} onPress={() => pickImage(false)} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={s.photoPickBtn}
+          onPress={() => pickImage(false)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Choose photo from gallery"
+        >
           <ListIcon size={20} color={COLORS.secondary} strokeWidth={2} />
           <Text style={s.photoPickLabel}>Choose from Gallery</Text>
         </TouchableOpacity>
@@ -637,6 +677,8 @@ function PhotoTab() {
             onPress={analyze}
             disabled={analyzing}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Analyze photo to extract products"
           >
             {analyzing ? (
               <><ActivityIndicator color="#fff" size="small" /><Text style={s.analyzeBtnText}>Reading page…</Text></>
@@ -652,7 +694,12 @@ function PhotoTab() {
         <View style={{ marginTop: 20 }}>
           <View style={s.resultsHeader}>
             <Text style={s.resultsTitle}>Found {items.length} product{items.length !== 1 ? 's' : ''}</Text>
-            <TouchableOpacity onPress={() => setItems(prev => prev.map(i => ({ ...i, selected: !prev.every(x => x.selected) })))}>
+            <TouchableOpacity
+              onPress={() => setItems(prev => prev.map(i => ({ ...i, selected: !prev.every(x => x.selected) })))}
+              accessibilityRole="button"
+              accessibilityLabel={`${items.every(i => i.selected) ? 'Deselect all' : 'Select all'} products`}
+              hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
+            >
               <Text style={s.selectAllText}>{items.every(i => i.selected) ? 'Deselect all' : 'Select all'}</Text>
             </TouchableOpacity>
           </View>
@@ -663,6 +710,9 @@ function PhotoTab() {
               style={[s.extractedRow, item.selected && s.extractedRowSelected]}
               onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, selected: !x.selected } : x))}
               activeOpacity={0.75}
+              accessibilityRole="switch"
+              accessibilityLabel={`Toggle selection of ${item.name}`}
+              accessibilityState={{ checked: item.selected }}
             >
               <View style={[s.checkbox, item.selected && s.checkboxChecked]}>
                 {item.selected && <CheckCircleIcon size={14} color="#fff" strokeWidth={2.5} />}
@@ -689,13 +739,21 @@ function PhotoTab() {
             onPress={saveSelected}
             disabled={!selectedCount || saving}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${selectedCount} item${selectedCount !== 1 ? 's' : ''} to catalog`}
           >
             {saving
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.saveAllBtnText}>Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} to Catalog</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ alignItems: 'center', marginTop: 12, padding: 8 }} onPress={() => { setImageUri(null); setItems([]); setSavedCount(null); }}>
+          <TouchableOpacity
+            style={{ alignItems: 'center', marginTop: 12, padding: 8 }}
+            onPress={() => { setImageUri(null); setItems([]); setSavedCount(null); }}
+            accessibilityRole="button"
+            accessibilityLabel="Reset and scan another page"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
             <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Scan another page</Text>
           </TouchableOpacity>
         </View>

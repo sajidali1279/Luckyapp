@@ -162,7 +162,14 @@ export default function ManagerOffersScreen() {
             <Text style={s.headerTitle}>Offers</Text>
             <Text style={s.headerSub}>Manage your store's active deals</Text>
           </View>
-          <TouchableOpacity style={s.addBtn} onPress={() => setShowCreate(true)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.addBtn}
+            onPress={() => setShowCreate(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Create new offer"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addBtnText}>New</Text>
           </TouchableOpacity>
@@ -177,6 +184,10 @@ export default function ManagerOffersScreen() {
                 style={[s.storeChip, store.id === storeId && s.storeChipActive]}
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityState={{ selected: store.id === storeId }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
                   {store.name}
@@ -198,7 +209,13 @@ export default function ManagerOffersScreen() {
           <View style={s.emptyCard}>
             <Text style={s.emptyTitle}>No active offers</Text>
             <Text style={s.emptySub}>Tap "+ New" to create your first promotion</Text>
-            <TouchableOpacity style={s.emptyBtn} onPress={() => setShowCreate(true)}>
+            <TouchableOpacity
+              style={s.emptyBtn}
+              onPress={() => setShowCreate(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Create offer"
+              hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+            >
               <Text style={s.emptyBtnText}>Create Offer</Text>
             </TouchableOpacity>
           </View>
@@ -233,7 +250,14 @@ export default function ManagerOffersScreen() {
                   </Text>
                 </View>
                 <View style={s.cardActions}>
-                  <TouchableOpacity style={s.editBtn} onPress={() => openEdit(offer)} activeOpacity={0.75}>
+                  <TouchableOpacity
+                    style={s.editBtn}
+                    onPress={() => openEdit(offer)}
+                    activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit offer: ${offer.title}`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
                     <EditIcon size={14} color={COLORS.primary} strokeWidth={2} />
                     <Text style={s.editBtnText}>Edit</Text>
                   </TouchableOpacity>
@@ -242,6 +266,9 @@ export default function ManagerOffersScreen() {
                     onPress={() => confirmDelete(offer)}
                     disabled={deleteMutation.isPending}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove offer: ${offer.title}`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Text style={s.deleteBtnText}>Remove</Text>
                   </TouchableOpacity>
@@ -299,7 +326,14 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
       <View style={s.modal}>
         <View style={s.modalHeader}>
           <Text style={s.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} style={s.modalCloseBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={s.modalCloseBtn}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Close offer form"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <XIcon size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
@@ -342,6 +376,10 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
               <TouchableOpacity
                 style={[s.catChip, !form.category && s.catChipActive]}
                 onPress={() => setField('category', '')}
+                accessibilityRole="tab"
+                accessibilityLabel="All categories"
+                accessibilityState={{ selected: !form.category }}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
               >
                 <Text style={[s.catChipText, !form.category && s.catChipTextActive]}>All</Text>
               </TouchableOpacity>
@@ -350,6 +388,10 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
                   key={c.value}
                   style={[s.catChip, form.category === c.value && s.catChipActive]}
                   onPress={() => setField('category', c.value)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${c.label} category`}
+                  accessibilityState={{ selected: form.category === c.value }}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 >
                   <Text style={[s.catChipText, form.category === c.value && s.catChipTextActive]}>{c.label}</Text>
                 </TouchableOpacity>
@@ -364,6 +406,10 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
                   key={d}
                   style={[s.durationChip, form.durationDays === d && s.durationChipActive]}
                   onPress={() => setField('durationDays', d)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${d} days`}
+                  accessibilityState={{ selected: form.durationDays === d }}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 >
                   <Text style={[s.durationChipText, form.durationDays === d && s.durationChipTextActive]}>{d}d</Text>
                 </TouchableOpacity>
@@ -381,6 +427,8 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
             style={[s.createBtn, isPending && { opacity: 0.6 }]}
             onPress={onSubmit}
             disabled={isPending}
+            accessibilityRole="button"
+            accessibilityLabel={submitLabel}
           >
             {isPending
               ? <ActivityIndicator color="#fff" />
