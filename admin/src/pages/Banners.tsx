@@ -13,6 +13,7 @@ export default function Banners() {
   const isStoreManager = user?.role === 'STORE_MANAGER';
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [storeTarget, setStoreTarget] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
   const [storeId, setStoreId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -35,7 +36,7 @@ export default function Banners() {
     onSuccess: () => {
       toast.success('Banner created');
       setShowForm(false);
-      setTitle(''); setStoreTarget('ALL_STORES'); setStoreId(''); setImageFile(null);
+      setTitle(''); setLinkUrl(''); setStoreTarget('ALL_STORES'); setStoreId(''); setImageFile(null);
       if (fileRef.current) fileRef.current.value = '';
       qc.invalidateQueries({ queryKey: ['banners'] });
     },
@@ -56,6 +57,7 @@ export default function Banners() {
     const fd = new FormData();
     fd.append('title', title.trim());
     fd.append('image', imageFile);
+    if (linkUrl.trim()) fd.append('linkUrl', linkUrl.trim());
     if (storeTarget === 'SPECIFIC_STORE' && storeId) fd.append('storeId', storeId);
     createMutation.mutate(fd);
   }
@@ -90,6 +92,9 @@ export default function Banners() {
 
           <label style={s.label}>Title *</label>
           <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
+
+          <label style={s.label}>Link (optional)</label>
+          <input style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... — shown as a 'Visit' button when tapped in the app" />
 
           {isStoreManager ? (
             <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
@@ -143,6 +148,7 @@ export default function Banners() {
                     ? `📍 ${storeMap[banner.storeId] || 'Specific Store'}`
                     : '🌐 All Stores'}
                 </span>
+                {banner.linkUrl && <span style={s.tagLink}>🔗 Has link</span>}
                 <p style={s.cardDate}>Added {new Date(banner.createdAt).toLocaleDateString()}</p>
               </div>
               <button style={s.deleteBtn} onClick={() => setConfirmId(banner.id)}>Delete</button>
@@ -181,6 +187,7 @@ const s: Record<string, React.CSSProperties> = {
   cardDate: { color: '#5a6472', fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
   tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagLink: { display: 'inline-block', background: '#f0fdf4', color: '#16a34a', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
   empty: { color: '#5a6472', textAlign: 'center', padding: 60, fontSize: 14 },
 };

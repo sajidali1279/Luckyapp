@@ -56,7 +56,7 @@ const AnimatedDot = memo(function AnimatedDot({ active, color }: { active: boole
 });
 
 /* ─── Banner carousel ─────────────────────────────────────── */
-const BannerCarousel = memo(function BannerCarousel({ banners }: { banners: any[] }) {
+const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { banners: any[]; onSelect: (banner: any) => void }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -79,15 +79,21 @@ const BannerCarousel = memo(function BannerCarousel({ banners }: { banners: any[
   }, [banners.length, startTimer]);
 
   const renderBannerItem = useCallback(({ item }: { item: any }) => (
-    <View style={bc.slide}>
+    <TouchableOpacity
+      style={bc.slide}
+      activeOpacity={0.9}
+      onPress={() => onSelect(item)}
+      accessibilityRole="button"
+      accessibilityLabel={item.title ? `View banner: ${item.title}` : 'View banner'}
+    >
       <Image source={{ uri: item.imageUrl }} style={bc.image} />
       {item.title ? (
         <View style={bc.titleBar}>
           <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
         </View>
       ) : null}
-    </View>
-  ), []);
+    </TouchableOpacity>
+  ), [onSelect]);
 
   if (banners.length === 0) return null;
 
@@ -506,6 +512,7 @@ export default function CustomerHome() {
   const isRefreshing = bannersRefetching || offersRefetching;
   const contentLoading = !locationReady || offersLoading;
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [selectedBanner, setSelectedBanner] = useState<any>(null);
   const [pendingRating, setPendingRating] = useState<any>(null);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -1108,7 +1115,7 @@ export default function CustomerHome() {
           )
           : banners.length > 0 && (
             <View style={styles.bannerWrapper}>
-              <BannerCarousel banners={banners} />
+              <BannerCarousel banners={banners} onSelect={setSelectedBanner} />
             </View>
           )
         }
@@ -1360,6 +1367,40 @@ export default function CustomerHome() {
                   <Text style={om.closeBtnText}>Got it</Text>
                 </TouchableOpacity>
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Banner detail modal ── */}
+      {selectedBanner && (
+        <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
+          <View style={om.overlay}>
+            <View style={om.sheet}>
+              <Image source={{ uri: selectedBanner.imageUrl }} style={om.image} />
+              <View style={om.bodyContent}>
+                <Text style={om.title}>{selectedBanner.title}</Text>
+                {selectedBanner.linkUrl ? (
+                  <TouchableOpacity
+                    style={om.closeBtn}
+                    onPress={() => Linking.openURL(selectedBanner.linkUrl).catch(() => {})}
+                    accessibilityRole="link"
+                    accessibilityLabel="Visit link"
+                  >
+                    <Text style={om.closeBtnText}>Visit →</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={[om.closeBtn, selectedBanner.linkUrl ? { backgroundColor: COLORS.background, marginTop: 10 } : null]}
+                  onPress={() => setSelectedBanner(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close banner"
+                >
+                  <Text style={[om.closeBtnText, selectedBanner.linkUrl ? { color: COLORS.textMuted } : null]}>
+                    {selectedBanner.linkUrl ? 'Close' : 'Got it'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
