@@ -69,6 +69,7 @@ function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
   const actions = isDevAdmin ? [
     { icon: '📢', label: 'Offers', to: '/offers' },
     { icon: '🧾', label: 'Transactions', to: '/transactions' },
+    { icon: '⚠️', label: 'Disputes', to: '/customers?tab=disputes' },
     { icon: '🏪', label: 'Stores', to: '/stores' },
     { icon: '💳', label: 'Billing', to: '/billing' },
     { icon: '📈', label: 'Analytics', to: '/analytics' },
@@ -76,6 +77,7 @@ function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
   ] : [
     { icon: '📢', label: 'Offers', to: '/offers' },
     { icon: '🧾', label: 'Transactions', to: '/transactions' },
+    { icon: '⚠️', label: 'Disputes', to: '/customers?tab=disputes' },
     { icon: '👥', label: 'Staff', to: '/staff' },
     { icon: '🙋', label: 'Customers', to: '/customers' },
     { icon: '🏆', label: 'Leaderboard', to: '/leaderboard' },
@@ -269,7 +271,7 @@ function AttentionBanner({ pending, disputes }: { pending: number; disputes: num
   const navigate = useNavigate();
   const items = [];
   if (pending > 0) items.push({ label: `${pending} transaction${pending > 1 ? 's' : ''} awaiting review`, to: '/transactions', color: '#E63946' });
-  if (disputes > 0) items.push({ label: `${disputes} open dispute${disputes > 1 ? 's' : ''}`, to: '/transactions', color: '#F4A261' });
+  if (disputes > 0) items.push({ label: `${disputes} open dispute${disputes > 1 ? 's' : ''}`, to: '/customers?tab=disputes', color: '#F4A261' });
   if (!items.length) return null;
   return (
     <div style={s.attnBanner}>
@@ -624,6 +626,11 @@ export default function Dashboard() {
               <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
               <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
               <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
+              <StatCard
+                icon="⚠️" label="Customer Disputes" value={pendingDisputesCount}
+                valueColor={pendingDisputesCount > 0 ? '#E63946' : undefined}
+                to="/customers?tab=disputes"
+              />
             </div>
           </div>
         </>

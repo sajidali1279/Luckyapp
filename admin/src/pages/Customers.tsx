@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { customersApi, disputesApi, storesApi } from '../services/api';
@@ -28,7 +29,10 @@ export default function Customers() {
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [fraudNote, setFraudNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>('customers');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>(
+    searchParams.get('tab') === 'disputes' ? 'disputes' : 'customers'
+  );
   const [disputeStore, setDisputeStore] = useState('');
   const [disputeStatus, setDisputeStatus] = useState('PENDING');
   const [resolveTarget, setResolveTarget] = useState<any | null>(null);
