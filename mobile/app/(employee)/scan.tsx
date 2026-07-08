@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
-  Animated, Easing,
+  Animated, Easing, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -377,6 +377,27 @@ export default function EmployeeScanScreen() {
     setConfirmedWelcomeBonus(null);
   }
 
+  // Warn before discarding entered amounts/line items/receipt photo — a stray tap
+  // shouldn't silently lose real work. No confirmation needed right after a scan,
+  // since nothing has been entered yet at that point.
+  function confirmReset() {
+    const hasUnsavedWork =
+      lineItems.length > 0 || purchaseAmount.trim() !== '' || redeemAmount.trim() !== '' ||
+      receiptImage !== null || selectedCatalogItem !== null;
+    if (!hasUnsavedWork) {
+      reset();
+      return;
+    }
+    Alert.alert(
+      'Cancel this transaction?',
+      'Any amounts or items you entered will be lost.',
+      [
+        { text: 'Keep Going', style: 'cancel' },
+        { text: 'Cancel Transaction', style: 'destructive', onPress: reset },
+      ]
+    );
+  }
+
   async function handleQrScan({ data }: { data: string }) {
     if (scanned) return;
     // Validate UUID format — customer QR codes are plain UUIDs
@@ -395,12 +416,20 @@ export default function EmployeeScanScreen() {
         catalogApi.getPendingForCustomer(data),
         welcomeBonusApi.getForCustomer(data).catch(() => null),
       ]);
+      const pendingList = pendingRes.data.data || [];
+      const wb = wbRes?.data?.data ?? null;
       setCustomerData(infoRes.data.data);
       setCatalogItems(catalogRes.data.data || []);
-      setPendingRedemptions(pendingRes.data.data || []);
-      setWelcomeBonus(wbRes?.data?.data ?? null);
+      setPendingRedemptions(pendingList);
+      setWelcomeBonus(wb);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setStep('mode');
+      // Grant Points is by far the most common action — skip straight to it unless
+      // something else needs the cashier's attention first (a pending redemption to
+      // confirm, an unconfirmed welcome bonus, or an available tier benefit). Those
+      // still land on mode-select so nothing gets missed. "Other options" on the
+      // grant-amount screen routes back here without re-scanning.
+      const needsModeSelect = pendingList.length > 0 || !!wb || !!infoRes.data.data?.benefit?.available;
+      setStep(needsModeSelect ? 'mode' : 'grant-amount');
     } catch (err: any) {
       const msg = err.response?.data?.error || 'Customer not found';
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -488,8 +517,10 @@ export default function EmployeeScanScreen() {
       setStep('grant-done');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setReceiptImage(null);
-      Toast.show({ type: 'error', text1: 'Upload failed — retake receipt', text2: err.response?.data?.error });
+      // Keep the captured photo — most failures here are transient network/server
+      // errors unrelated to the photo itself, so let the cashier just retry the
+      // upload instead of forcing a full camera retake.
+      Toast.show({ type: 'error', text1: 'Upload failed — tap Upload to retry', text2: err.response?.data?.error });
     } finally {
       setLoading(false);
     }
@@ -634,7 +665,12 @@ export default function EmployeeScanScreen() {
             <Text style={s.headerSub}>{user?.name || user?.phone} · {user?.role?.replace(/_/g, ' ')}</Text>
           </View>
           {step !== 'scan' && (
-            <TouchableOpacity style={s.headerBackBtn} onPress={reset}>
+            <TouchableOpacity
+              style={s.headerBackBtn}
+              onPress={confirmReset}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel transaction"
+            >
               <XIcon size={14} color="#fff" strokeWidth={2.5} />
               <Text style={s.headerBackText}>Cancel</Text>
             </TouchableOpacity>
@@ -860,6 +896,37 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── GRANT: AMOUNT ────────────────────────── */}
       {step === 'grant-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+
+          {/* Customer summary — Grant Points is the fast-path default from scan, so this
+              step needs its own tier/balance confirmation (the mode-select screen used to
+              show this before every action). "See other options" routes back to mode-select
+              for Redeem/Benefit/Catalog/Welcome Bonus without re-scanning. */}
+          {cdata && (
+            <View style={s.fastPathHeader}>
+              <View style={s.customerCardLeft}>
+                <View style={[s.customerAvatar, { backgroundColor: tierCfg.color + '20' }]}>
+                  <Text style={[s.customerAvatarText, { color: tierCfg.color }]}>
+                    {(cdata.name || cdata.phone || '?')[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={s.customerName}>{cdata.name || cdata.phone}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <TierBadge tier={tier} />
+                    <Text style={s.customerBalancePtsLabel}>{cdata.pointsBalance?.toLocaleString() || 0} pts</Text>
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setStep('mode')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="See other options: redeem credits, benefits, or rewards"
+              >
+                <Text style={s.fastPathSwitchLink}>Other options ›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Committed items list */}
           {lineItems.length > 0 && (
@@ -1097,7 +1164,12 @@ export default function EmployeeScanScreen() {
               : <Text style={s.primaryBtnText}>Grant Points ✓</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={s.dangerBtn} onPress={reset}>
+          <TouchableOpacity
+            style={s.dangerBtn}
+            onPress={confirmReset}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel transaction"
+          >
             <Text style={s.dangerBtnText}>Cancel Transaction</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1420,6 +1492,13 @@ const s = StyleSheet.create({
   customerBalanceRow: { flexDirection: 'row', alignItems: 'baseline' },
   customerBalancePts: { fontSize: 20, fontWeight: '900', color: COLORS.text },
   customerBalancePtsLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+
+  fastPathHeader: {
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 14, borderWidth: 1.5, borderColor: COLORS.border,
+  },
+  fastPathSwitchLink: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
   tierBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
