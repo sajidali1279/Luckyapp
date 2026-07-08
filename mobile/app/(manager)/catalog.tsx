@@ -14,6 +14,7 @@ import {
   QrCodeScanIcon, PlusIcon, ListIcon,
   CheckCircleIcon, Trash2Icon, PackageIcon, CameraIcon, XIcon,
 } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -348,6 +349,7 @@ function ManualTab() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <FadeSlideIn>
         <Text style={s.manualHint}>
           Add products from your book. Category is kept between entries so you can batch-add by section.
         </Text>
@@ -442,6 +444,7 @@ function ManualTab() {
             ))}
           </View>
         )}
+        </FadeSlideIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -513,12 +516,12 @@ function BrowseTab() {
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.secondary} /></View>
       ) : items.length === 0 ? (
-        <View style={[s.center, { paddingBottom: 60 }]}>
+        <FadeSlideIn style={[s.center, { paddingBottom: 60 }]}>
           <PackageIcon size={52} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyText}>
             {searchQ ? 'No matches found' : 'Catalog is empty\nUse Rapid Scan or Manual Add to get started'}
           </Text>
-        </View>
+        </FadeSlideIn>
       ) : (
         <ScrollView
           style={s.flex}
@@ -526,6 +529,7 @@ function BrowseTab() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
           showsVerticalScrollIndicator={false}
         >
+        <FadeSlideIn>
           <Text style={s.totalLabel}>{items.length} product{items.length !== 1 ? 's' : ''} in catalog</Text>
 
           {grouped.map(([cat, catItems]) => (
@@ -558,6 +562,7 @@ function BrowseTab() {
               ))}
             </View>
           ))}
+        </FadeSlideIn>
         </ScrollView>
       )}
     </View>
@@ -639,6 +644,7 @@ function PhotoTab() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      <FadeSlideIn>
       {/* Instructions */}
       <Text style={s.photoHint}>
         Take a photo of any page from your product book. AI will read all product names and barcodes at once.
@@ -758,6 +764,7 @@ function PhotoTab() {
           </TouchableOpacity>
         </View>
       )}
+      </FadeSlideIn>
     </ScrollView>
   );
 }

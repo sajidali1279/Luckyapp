@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { dailyTaskApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ListChecksIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, CircleIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
 
@@ -137,7 +138,7 @@ export default function DailyTasksScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          {SHIFT_ORDER.map(shift => {
+          {SHIFT_ORDER.map((shift, shiftIdx) => {
             const shiftTasks = grouped[shift];
             if (shiftTasks.length === 0) return null;
             const cfg = SHIFT_CONFIG[shift];
@@ -145,69 +146,71 @@ export default function DailyTasksScreen() {
             const shiftDone = shiftTasks.filter(t => checked.has(t.id)).length;
 
             return (
-              <View key={shift} style={styles.section}>
-                {/* Shift header — tappable to expand/collapse */}
-                <TouchableOpacity
-                  style={[styles.shiftHeader, { backgroundColor: cfg.bg }]}
-                  onPress={() => toggleExpand(shift)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${cfg.label} shift, ${shiftDone} of ${shiftTasks.length} completed`}
-                  accessibilityState={{ expanded: isOpen }}
-                >
-                  <View style={styles.shiftLeft}>
-                    <Text style={styles.shiftEmoji}>{cfg.emoji}</Text>
-                    <View>
-                      <Text style={[styles.shiftLabel, { color: cfg.color }]}>{cfg.label}</Text>
-                      <Text style={styles.shiftCount}>{shiftDone}/{shiftTasks.length} completed</Text>
+              <FadeSlideIn key={shift} delay={Math.min(shiftIdx * 40, 200)}>
+                <View style={styles.section}>
+                  {/* Shift header — tappable to expand/collapse */}
+                  <TouchableOpacity
+                    style={[styles.shiftHeader, { backgroundColor: cfg.bg }]}
+                    onPress={() => toggleExpand(shift)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${cfg.label} shift, ${shiftDone} of ${shiftTasks.length} completed`}
+                    accessibilityState={{ expanded: isOpen }}
+                  >
+                    <View style={styles.shiftLeft}>
+                      <Text style={styles.shiftEmoji}>{cfg.emoji}</Text>
+                      <View>
+                        <Text style={[styles.shiftLabel, { color: cfg.color }]}>{cfg.label}</Text>
+                        <Text style={styles.shiftCount}>{shiftDone}/{shiftTasks.length} completed</Text>
+                      </View>
                     </View>
-                  </View>
-                  {isOpen
-                    ? <ChevronUpIcon size={18} color={cfg.color} />
-                    : <ChevronDownIcon size={18} color={cfg.color} />}
-                </TouchableOpacity>
+                    {isOpen
+                      ? <ChevronUpIcon size={18} color={cfg.color} />
+                      : <ChevronDownIcon size={18} color={cfg.color} />}
+                  </TouchableOpacity>
 
-                {/* Tasks */}
-                {isOpen && (
-                  <View style={styles.taskList}>
-                    {shiftTasks.map((task, idx) => {
-                      const done = checked.has(task.id);
-                      return (
-                        <TouchableOpacity
-                          key={task.id}
-                          style={[styles.taskRow, done && styles.taskRowDone]}
-                          onPress={() => toggleCheck(task.id)}
-                          activeOpacity={0.65}
-                          accessibilityRole="checkbox"
-                          accessibilityLabel={task.title}
-                          accessibilityState={{ checked: done }}
-                        >
-                          <View style={styles.taskCheckbox}>
-                            {done
-                              ? <CheckCircleIcon size={22} color={COLORS.primary} />
-                              : <CircleIcon size={22} color="#D1D5DB" />}
-                          </View>
-                          <View style={styles.taskBody}>
-                            <View style={styles.taskTitleRow}>
-                              <View style={styles.taskNumBadge}>
-                                <Text style={styles.taskNum}>{idx + 1}</Text>
-                              </View>
-                              <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>
-                                {task.title}
-                              </Text>
+                  {/* Tasks */}
+                  {isOpen && (
+                    <View style={styles.taskList}>
+                      {shiftTasks.map((task, idx) => {
+                        const done = checked.has(task.id);
+                        return (
+                          <TouchableOpacity
+                            key={task.id}
+                            style={[styles.taskRow, done && styles.taskRowDone]}
+                            onPress={() => toggleCheck(task.id)}
+                            activeOpacity={0.65}
+                            accessibilityRole="checkbox"
+                            accessibilityLabel={task.title}
+                            accessibilityState={{ checked: done }}
+                          >
+                            <View style={styles.taskCheckbox}>
+                              {done
+                                ? <CheckCircleIcon size={22} color={COLORS.primary} />
+                                : <CircleIcon size={22} color="#D1D5DB" />}
                             </View>
-                            {task.description && (
-                              <Text style={[styles.taskDesc, done && styles.taskDescDone]}>
-                                {task.description}
-                              </Text>
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
+                            <View style={styles.taskBody}>
+                              <View style={styles.taskTitleRow}>
+                                <View style={styles.taskNumBadge}>
+                                  <Text style={styles.taskNum}>{idx + 1}</Text>
+                                </View>
+                                <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>
+                                  {task.title}
+                                </Text>
+                              </View>
+                              {task.description && (
+                                <Text style={[styles.taskDesc, done && styles.taskDescDone]}>
+                                  {task.description}
+                                </Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              </FadeSlideIn>
             );
           })}
           <View style={{ height: 32 }} />

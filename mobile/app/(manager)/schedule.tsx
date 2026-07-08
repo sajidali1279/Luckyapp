@@ -11,6 +11,7 @@ import { COLORS, AVATAR_PALETTE } from '../../constants';
 import {
   InboxIcon, CheckCircleIcon, XIcon, CalendarIcon, ClockIcon,
 } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -205,7 +206,7 @@ export default function ManagerScheduleScreen() {
         {/* ════ TODAY'S ROSTER ════ */}
         {tab === 'roster' && (
           rosterLoading ? <LoadingView /> : (
-            <>
+            <FadeSlideIn>
               <View style={s.rosterHeading}>
                 <Text style={s.rosterDay}>
                   {DAY_LABELS[getTodayKey()]}
@@ -262,14 +263,14 @@ export default function ManagerScheduleScreen() {
                   );
                 })
               )}
-            </>
+            </FadeSlideIn>
           )
         )}
 
         {/* ════ WEEKLY VIEW ════ */}
         {tab === 'week' && (
           weekLoading ? <LoadingView /> : (
-            <>
+            <FadeSlideIn>
               {/* Day selector strip */}
               <View style={s.weekStrip}>
                 {weekDates.map(({ key, date }) => {
@@ -371,14 +372,14 @@ export default function ManagerScheduleScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </>
+            </FadeSlideIn>
           )
         )}
 
         {/* ════ REQUESTS ════ */}
         {tab === 'requests' && (
           reqLoading ? <LoadingView /> : (
-            <>
+            <FadeSlideIn>
               {/* Pending */}
               <View style={s.reqSectionRow}>
                 <Text style={s.sectionLabel}>Pending</Text>
@@ -419,7 +420,7 @@ export default function ManagerScheduleScreen() {
                   ))}
                 </>
               )}
-            </>
+            </FadeSlideIn>
           )
         )}
 

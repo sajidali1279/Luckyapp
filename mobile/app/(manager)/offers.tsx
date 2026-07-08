@@ -11,6 +11,7 @@ import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { XIcon, EditIcon, PlusIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 interface Store { id: string; name: string }
 
@@ -206,7 +207,7 @@ export default function ManagerOffersScreen() {
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : offers.length === 0 ? (
-          <View style={s.emptyCard}>
+          <FadeSlideIn style={s.emptyCard}>
             <Text style={s.emptyTitle}>No active offers</Text>
             <Text style={s.emptySub}>Tap "+ New" to create your first promotion</Text>
             <TouchableOpacity
@@ -218,12 +219,13 @@ export default function ManagerOffersScreen() {
             >
               <Text style={s.emptyBtnText}>Create Offer</Text>
             </TouchableOpacity>
-          </View>
+          </FadeSlideIn>
         ) : (
           <>
             <Text style={s.sectionLabel}>{offers.length} Active Offer{offers.length !== 1 ? 's' : ''}</Text>
-            {offers.map((offer: any) => (
-              <View key={offer.id} style={s.offerCard}>
+            {offers.map((offer: any, index: number) => (
+              <FadeSlideIn key={offer.id} delay={Math.min(index * 40, 200)}>
+              <View style={s.offerCard}>
                 <View style={s.offerTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.offerTitle}>{offer.title}</Text>
@@ -274,6 +276,7 @@ export default function ManagerOffersScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+              </FadeSlideIn>
             ))}
           </>
         )}

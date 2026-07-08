@@ -15,6 +15,7 @@ import {
 } from '../../components/Icons';
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <FadeSlideIn>
         {/* Type chips */}
         <View style={f.typeRow}>
           <TouchableOpacity
@@ -366,6 +368,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
         {cart.length === 0 && (
           <Text style={f.emptyHint}>Add at least one item above to submit.</Text>
         )}
+        </FadeSlideIn>
       </ScrollView>
 
       <BarcodeScannerModal
@@ -408,7 +411,7 @@ function MyRequests() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
     >
-      {requests.map(req => {
+      {requests.map((req, reqIndex) => {
         const isExpanded = expandedId === req.id;
         const isPending  = req.status === 'PENDING';
         const accepted   = req.lines.filter(l => l.status === 'ACCEPTED').length;
@@ -416,7 +419,8 @@ function MyRequests() {
         const typeLabel  = req.requestType === 'CUSTOMER_REQUEST' ? '🙋 Customer Ask' : '📉 Low Stock';
 
         return (
-          <View key={req.id} style={m.card}>
+          <FadeSlideIn key={req.id} delay={Math.min(reqIndex * 40, 200)}>
+          <View style={m.card}>
             <TouchableOpacity
               style={m.cardHead}
               onPress={() => setExpandedId(isExpanded ? null : req.id)}
@@ -496,6 +500,7 @@ function MyRequests() {
               </View>
             )}
           </View>
+          </FadeSlideIn>
         );
       })}
     </ScrollView>

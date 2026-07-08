@@ -16,6 +16,7 @@ import {
   FileCheckIcon, CheckCircleIcon, CameraIcon, XIcon,
   ClockIcon, FlameIcon, GasPumpIcon,
 } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -553,32 +554,34 @@ export default function DailyReportScreen() {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        {/* Task Box */}
-        <TaskBox
-          done={submittedToday}
-          lastReport={reports[0]}
-          onPress={() => setShowForm(true)}
-        />
+        <FadeSlideIn style={{ gap: 12 }}>
+          {/* Task Box */}
+          <TaskBox
+            done={submittedToday}
+            lastReport={reports[0]}
+            onPress={() => setShowForm(true)}
+          />
 
-        {/* Today's submissions */}
-        {isLoading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator color={COLORS.secondary} />
-          </View>
-        ) : reports.length > 0 ? (
-          <>
-            <Text style={s.sectionLabel}>
-              {reports.length} submission{reports.length > 1 ? 's' : ''} today
-            </Text>
-            {reports.map(r => <ReportCard key={r.id} report={r} />)}
-          </>
-        ) : (
-          <View style={s.emptyBox}>
-            <Text style={s.emptyEmoji}>📋</Text>
-            <Text style={s.emptyTitle}>No reports yet today</Text>
-            <Text style={s.emptySub}>Submit the first daily report for today.</Text>
-          </View>
-        )}
+          {/* Today's submissions */}
+          {isLoading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator color={COLORS.secondary} />
+            </View>
+          ) : reports.length > 0 ? (
+            <>
+              <Text style={s.sectionLabel}>
+                {reports.length} submission{reports.length > 1 ? 's' : ''} today
+              </Text>
+              {reports.map(r => <ReportCard key={r.id} report={r} />)}
+            </>
+          ) : (
+            <View style={s.emptyBox}>
+              <Text style={s.emptyEmoji}>📋</Text>
+              <Text style={s.emptyTitle}>No reports yet today</Text>
+              <Text style={s.emptySub}>Submit the first daily report for today.</Text>
+            </View>
+          )}
+        </FadeSlideIn>
 
         <View style={{ height: 120 }} />
       </ScrollView>

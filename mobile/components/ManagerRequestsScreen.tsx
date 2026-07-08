@@ -8,6 +8,7 @@ import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
 import { COLORS } from '../constants';
+import FadeSlideIn from './FadeSlideIn';
 
 // ── Store alerts ──────────────────────────────────────────────────────────────
 
@@ -600,7 +601,9 @@ export default function ManagerRequestsScreen() {
             <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending alerts' : 'No alerts in this category'}</Text>
           </View>
         ) : (
-          <FlatList data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          <FadeSlideIn style={{ flex: 1 }}>
+            <FlatList data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          </FadeSlideIn>
         )
       ) : mainTab === 'stock' ? (
         displayedEmp.length === 0 ? (
@@ -610,7 +613,9 @@ export default function ManagerRequestsScreen() {
             <Text style={s.emptySub}>{empFilter === 'PENDING' ? 'No pending stock requests' : 'No stock requests in this category'}</Text>
           </View>
         ) : (
-          <FlatList data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          <FadeSlideIn style={{ flex: 1 }}>
+            <FlatList data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          </FadeSlideIn>
         )
       ) : (
         productRequests.length === 0 ? (
@@ -620,7 +625,9 @@ export default function ManagerRequestsScreen() {
             <Text style={s.emptySub}>Customer product requests will appear here</Text>
           </View>
         ) : (
-          <FlatList data={productRequests} keyExtractor={r => r.id} renderItem={renderProductItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          <FadeSlideIn style={{ flex: 1 }}>
+            <FlatList data={productRequests} keyExtractor={r => r.id} renderItem={renderProductItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+          </FadeSlideIn>
         )
       )}
 

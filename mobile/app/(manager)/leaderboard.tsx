@@ -10,6 +10,7 @@ import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { TrophyIcon, StarIcon, ChevronLeftIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 interface Store { id: string; name: string }
 
@@ -129,6 +130,7 @@ export default function ManagerLeaderboardScreen() {
       {isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : tab === 'customers' ? (
+        <FadeSlideIn style={{ flex: 1 }}>
         <FlatList
           data={customers}
           keyExtractor={(_, i) => String(i)}
@@ -160,7 +162,9 @@ export default function ManagerLeaderboardScreen() {
             </View>
           )}
         />
+        </FadeSlideIn>
       ) : (
+        <FadeSlideIn style={{ flex: 1 }}>
         <FlatList
           data={staff}
           keyExtractor={(item: any) => item.id}
@@ -207,6 +211,7 @@ export default function ManagerLeaderboardScreen() {
             );
           }}
         />
+        </FadeSlideIn>
       )}
     </View>
   );

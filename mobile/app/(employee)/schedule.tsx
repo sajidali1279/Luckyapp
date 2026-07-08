@@ -10,6 +10,7 @@ import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { CheckCircleIcon, ClockIcon, MapPinIcon, InfoIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ export default function ScheduleScreen() {
             <Text style={s.loadingText}>Loading your schedule…</Text>
           </View>
         ) : (
-          <>
+          <FadeSlideIn>
             {/* ── Selected Day Detail ── */}
             {selectedDayData && (
               <View style={[s.dayCard, selectedDayKey === todayKey && s.dayCardToday]}>
@@ -419,7 +420,7 @@ export default function ScheduleScreen() {
             </View>
 
             <View style={{ height: 24 }} />
-          </>
+          </FadeSlideIn>
         )}
       </ScrollView>
 

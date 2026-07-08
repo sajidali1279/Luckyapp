@@ -17,6 +17,7 @@ import {
   FlameIcon, ClockIcon, CheckCircleIcon, XIcon, InboxIcon,
   PlusIcon, EditIcon,
 } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -783,50 +784,54 @@ export default function HotFoodOrders() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : activeTab === 'MENU' ? (
-        <FlatList
-          data={menuItems}
-          keyExtractor={item => item.id}
-          contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} />}
-          renderItem={({ item }) => (
-            <MenuItemCard
-              item={item}
-              onToggle={handleToggleItem}
-              onEdit={setEditingItem}
-              updating={updatingId === item.id}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={s.empty}>
-              <InboxIcon size={48} color="#D1D5DB" />
-              <Text style={s.emptyText}>No menu items yet — tap "Add Item" to get started.</Text>
-            </View>
-          }
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={menuItems}
+            keyExtractor={item => item.id}
+            contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} />}
+            renderItem={({ item }) => (
+              <MenuItemCard
+                item={item}
+                onToggle={handleToggleItem}
+                onEdit={setEditingItem}
+                updating={updatingId === item.id}
+              />
+            )}
+            ListEmptyComponent={
+              <View style={s.empty}>
+                <InboxIcon size={48} color="#D1D5DB" />
+                <Text style={s.emptyText}>No menu items yet — tap "Add Item" to get started.</Text>
+              </View>
+            }
+          />
+        </FadeSlideIn>
       ) : (
-        <FlatList
-          data={filteredOrders}
-          keyExtractor={item => item.id}
-          contentContainerStyle={filteredOrders.length === 0 ? s.emptyList : s.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
-          }
-          renderItem={({ item }) => (
-            <OrderCard
-              order={item}
-              onUpdateStatus={handleUpdateStatus}
-              updating={updatingId === item.id}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={s.empty}>
-              <InboxIcon size={48} color="#D1D5DB" />
-              <Text style={s.emptyText}>No {activeTab === 'ALL' ? '' : activeTab.toLowerCase() + ' '}orders right now</Text>
-            </View>
-          }
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={filteredOrders}
+            keyExtractor={item => item.id}
+            contentContainerStyle={filteredOrders.length === 0 ? s.emptyList : s.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+            }
+            renderItem={({ item }) => (
+              <OrderCard
+                order={item}
+                onUpdateStatus={handleUpdateStatus}
+                updating={updatingId === item.id}
+              />
+            )}
+            ListEmptyComponent={
+              <View style={s.empty}>
+                <InboxIcon size={48} color="#D1D5DB" />
+                <Text style={s.emptyText}>No {activeTab === 'ALL' ? '' : activeTab.toLowerCase() + ' '}orders right now</Text>
+              </View>
+            }
+          />
+        </FadeSlideIn>
       )}
 
       {/* Add Item Sheet */}

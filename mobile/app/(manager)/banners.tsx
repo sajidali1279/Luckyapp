@@ -12,6 +12,7 @@ import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ImageIcon, CameraIcon, XIcon, PlusIcon, InboxIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 interface Store { id: string; name: string }
 
@@ -157,6 +158,7 @@ export default function ManagerBannersScreen() {
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : banners.length === 0 ? (
+          <FadeSlideIn>
           <View style={s.emptyCard}>
             <View style={s.emptyIconWrap}>
               <ImageIcon size={44} color={COLORS.textMuted} strokeWidth={1.25} />
@@ -173,11 +175,13 @@ export default function ManagerBannersScreen() {
               <Text style={s.emptyBtnText}>Upload Banner</Text>
             </TouchableOpacity>
           </View>
+          </FadeSlideIn>
         ) : (
           <>
             <Text style={s.sectionLabel}>{banners.length} Banner{banners.length !== 1 ? 's' : ''}</Text>
-            {banners.map((banner: any) => (
-              <View key={banner.id} style={s.bannerCard}>
+            {banners.map((banner: any, bannerIndex: number) => (
+              <FadeSlideIn key={banner.id} delay={Math.min(bannerIndex * 40, 200)}>
+              <View style={s.bannerCard}>
                 {banner.imageUrl ? (
                   <Image source={{ uri: banner.imageUrl }} style={s.bannerImg} resizeMode="cover" />
                 ) : (
@@ -203,6 +207,7 @@ export default function ManagerBannersScreen() {
                   <Text style={s.deleteBtnText}>Remove</Text>
                 </TouchableOpacity>
               </View>
+              </FadeSlideIn>
             ))}
           </>
         )}

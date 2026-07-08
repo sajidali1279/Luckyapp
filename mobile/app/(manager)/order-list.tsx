@@ -17,6 +17,7 @@ import {
 } from '../../components/Icons';
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1428,6 +1429,7 @@ export default function ManagerOrderListScreen() {
                 <Text style={s.emptyText}>Add an item below to get started.</Text>
               </View>
             ) : (
+              <FadeSlideIn style={{ flex: 1 }}>
               <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingBottom: 8 }}
@@ -1484,6 +1486,7 @@ export default function ManagerOrderListScreen() {
                   </>
                 )}
               </ScrollView>
+              </FadeSlideIn>
             )}
 
             {/* Quick Add Bar — always pinned at bottom */}

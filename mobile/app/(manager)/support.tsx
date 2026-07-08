@@ -10,6 +10,7 @@ import { supportApi } from '../../services/api';
 import { useAuthStore, isAdmin } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -406,13 +407,21 @@ export default function SupportScreen() {
           {openThreads.length > 0 && (
             <>
               <Text style={s.sectionLabel}>Open</Text>
-              {openThreads.map(thread => <ThreadCard key={thread.id} thread={thread} onPress={() => setActiveThread(thread)} />)}
+              {openThreads.map((thread, index) => (
+                <FadeSlideIn key={thread.id} delay={Math.min(index * 40, 200)}>
+                  <ThreadCard thread={thread} onPress={() => setActiveThread(thread)} />
+                </FadeSlideIn>
+              ))}
             </>
           )}
           {resolvedThreads.length > 0 && (
             <>
               <Text style={[s.sectionLabel, { marginTop: 8 }]}>Resolved</Text>
-              {resolvedThreads.map(thread => <ThreadCard key={thread.id} thread={thread} onPress={() => setActiveThread(thread)} />)}
+              {resolvedThreads.map((thread, index) => (
+                <FadeSlideIn key={thread.id} delay={Math.min(index * 40, 200)}>
+                  <ThreadCard thread={thread} onPress={() => setActiveThread(thread)} />
+                </FadeSlideIn>
+              ))}
             </>
           )}
           <View style={{ height: 16 }} />

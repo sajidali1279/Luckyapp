@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
+import FadeSlideIn from './FadeSlideIn';
 
 const REQUEST_TYPES = [
   { value: 'LOW_STOCK',                  label: 'Low Stock Alert',  icon: '📦', desc: 'A section or product is running very low', bg: '#eff6ff', color: '#1D3557' },
@@ -216,13 +217,15 @@ export default function EmployeeRequestsScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={myRequests}
-          keyExtractor={(r) => r.id}
-          renderItem={renderRequest}
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={myRequests}
+            keyExtractor={(r) => r.id}
+            renderItem={renderRequest}
+            contentContainerStyle={s.list}
+            showsVerticalScrollIndicator={false}
+          />
+        </FadeSlideIn>
       )}
 
       {/* ── New Request Modal ── */}

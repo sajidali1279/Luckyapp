@@ -5,6 +5,7 @@ import MarkdownView from './MarkdownView';
 import { router } from 'expo-router';
 import { COLORS } from '../constants';
 import { ChevronLeftIcon } from './Icons';
+import FadeSlideIn from './FadeSlideIn';
 
 interface Props {
   title: string;
@@ -37,7 +38,9 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
         contentContainerStyle={s.body}
         showsVerticalScrollIndicator={false}
       >
-        <MarkdownView>{content}</MarkdownView>
+        <FadeSlideIn>
+          <MarkdownView>{content}</MarkdownView>
+        </FadeSlideIn>
         <View style={{ height: 32 }} />
       </ScrollView>
     </View>

@@ -7,6 +7,7 @@ import { leaderboardApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
+import FadeSlideIn from '../../components/FadeSlideIn';
 
 function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   return (
@@ -81,66 +82,72 @@ export default function EmployeeLeaderboardScreen() {
 
       {/* My rating card */}
       {myEntry && (
-        <View style={st.myCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={st.myCardLabel}>Your Rating</Text>
-            <Stars rating={myEntry.avgRating} size={20} />
-            <Text style={st.myCardSub}>{myEntry.avgRating.toFixed(1)} avg · {myEntry.ratingCount} review{myEntry.ratingCount !== 1 ? 's' : ''}</Text>
-          </View>
-          <View style={st.myRankBubble}>
-            <Text style={st.myRankNum}>#{myEntry.rank}</Text>
-            <Text style={st.myRankLabel2}>ranking</Text>
-          </View>
-          {myEntry.isEmployeeOfMonth && (
-            <View style={st.eomBadge}>
-              <AwardIcon size={14} color="#92400E" strokeWidth={2} />
-              <Text style={st.eomBadgeText}>Employee of the Month</Text>
+        <FadeSlideIn>
+          <View style={st.myCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={st.myCardLabel}>Your Rating</Text>
+              <Stars rating={myEntry.avgRating} size={20} />
+              <Text style={st.myCardSub}>{myEntry.avgRating.toFixed(1)} avg · {myEntry.ratingCount} review{myEntry.ratingCount !== 1 ? 's' : ''}</Text>
             </View>
-          )}
-        </View>
+            <View style={st.myRankBubble}>
+              <Text style={st.myRankNum}>#{myEntry.rank}</Text>
+              <Text style={st.myRankLabel2}>ranking</Text>
+            </View>
+            {myEntry.isEmployeeOfMonth && (
+              <View style={st.eomBadge}>
+                <AwardIcon size={14} color="#92400E" strokeWidth={2} />
+                <Text style={st.eomBadgeText}>Employee of the Month</Text>
+              </View>
+            )}
+          </View>
+        </FadeSlideIn>
       )}
 
       {isLoading ? (
         <View style={st.center}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : leaderboard.length === 0 ? (
-        <View style={st.center}>
-          <View style={st.emptyIconRing}>
-            <StarIcon size={32} color="#F59E0B" strokeWidth={1.5} />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <View style={st.center}>
+            <View style={st.emptyIconRing}>
+              <StarIcon size={32} color="#F59E0B" strokeWidth={1.5} />
+            </View>
+            <Text style={st.emptyTitle}>No ratings yet</Text>
+            <Text style={st.emptySub}>Ratings appear after customers rate their experience</Text>
           </View>
-          <Text style={st.emptyTitle}>No ratings yet</Text>
-          <Text style={st.emptySub}>Ratings appear after customers rate their experience</Text>
-        </View>
+        </FadeSlideIn>
       ) : (
-        <FlatList
-          data={leaderboard}
-          keyExtractor={(item: any) => item.employeeId}
-          contentContainerStyle={st.list}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }: { item: any }) => {
-            const isMine = item.isCurrentUser;
-            const isEOM = item.isEmployeeOfMonth;
-            return (
-              <View style={[st.row, isMine && st.rowMine]}>
-                <Text style={st.rowRank}>
-                  {item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}
-                </Text>
-                <View style={st.rowBody}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={[st.rowName, isMine && { color: COLORS.primary }]}>
-                      {item.firstName}{isMine ? ' (You)' : ''}
-                    </Text>
-                    {isEOM && <View style={[st.eomChipWrap]}><Text style={st.eomChip}>Month</Text></View>}
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={leaderboard}
+            keyExtractor={(item: any) => item.employeeId}
+            contentContainerStyle={st.list}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }: { item: any }) => {
+              const isMine = item.isCurrentUser;
+              const isEOM = item.isEmployeeOfMonth;
+              return (
+                <View style={[st.row, isMine && st.rowMine]}>
+                  <Text style={st.rowRank}>
+                    {item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`}
+                  </Text>
+                  <View style={st.rowBody}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[st.rowName, isMine && { color: COLORS.primary }]}>
+                        {item.firstName}{isMine ? ' (You)' : ''}
+                      </Text>
+                      {isEOM && <View style={[st.eomChipWrap]}><Text style={st.eomChip}>Month</Text></View>}
+                    </View>
+                    <Stars rating={item.avgRating} size={13} />
                   </View>
-                  <Stars rating={item.avgRating} size={13} />
+                  <View style={st.rowRight}>
+                    <Text style={[st.rowAvg, isMine && { color: COLORS.primary }]}>{item.avgRating.toFixed(1)}</Text>
+                    <Text style={st.rowCount}>{item.ratingCount} ratings</Text>
+                  </View>
                 </View>
-                <View style={st.rowRight}>
-                  <Text style={[st.rowAvg, isMine && { color: COLORS.primary }]}>{item.avgRating.toFixed(1)}</Text>
-                  <Text style={st.rowCount}>{item.ratingCount} ratings</Text>
-                </View>
-              </View>
-            );
-          }}
-        />
+              );
+            }}
+          />
+        </FadeSlideIn>
       )}
     </View>
   );

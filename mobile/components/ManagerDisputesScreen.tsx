@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
+import FadeSlideIn from './FadeSlideIn';
 
 interface Dispute {
   id: string;
@@ -201,14 +202,16 @@ export default function ManagerDisputesScreen() {
           <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending missing-points reports' : 'No disputes in this category'}</Text>
         </View>
       ) : (
-        <FlatList
-          data={displayed}
-          keyExtractor={d => d.id}
-          renderItem={renderItem}
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
-        />
+        <FadeSlideIn style={{ flex: 1 }}>
+          <FlatList
+            data={displayed}
+            keyExtractor={d => d.id}
+            renderItem={renderItem}
+            contentContainerStyle={s.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+          />
+        </FadeSlideIn>
       )}
 
       {/* ── Resolve Sheet ── */}
