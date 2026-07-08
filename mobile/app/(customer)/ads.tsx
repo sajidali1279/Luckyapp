@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, StatusBar,
+  View, Text, FlatList, StyleSheet, StatusBar, ScrollView,
   ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import PromoteBusinessModal from '../../components/PromoteBusinessModal';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon } from '../../components/Icons';
 
 interface Ad {
@@ -36,12 +37,19 @@ function timeAgo(dateStr: string) {
 export default function AdsScreen() {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['published-promotions'],
     queryFn: () => promotionsApi.getPublished(),
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: myPromoData } = useQuery({
+    queryKey: ['my-promo-request'],
+    queryFn: () => promotionsApi.getMy(),
+  });
+  const myPromoStatus: string | undefined = myPromoData?.data?.data?.status;
 
   const ads: Ad[] = data?.data?.data ?? [];
 
@@ -98,6 +106,42 @@ export default function AdsScreen() {
     );
   }
 
+  function PromoteCta() {
+    return (
+      <View style={s.promoCard}>
+        <View style={s.promoIconWrap}>
+          <BuildingIcon size={22} color="#f97316" strokeWidth={1.75} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.promoTitle}>Own a local business?</Text>
+          <Text style={s.promoSub}>
+            Auto care, towing, landscaping, or anything else — promote it to every Lucky Stop customer here.
+          </Text>
+        </View>
+        {myPromoStatus === 'PENDING' ? (
+          <View style={[s.promoBadge, { backgroundColor: '#fffbeb' }]}>
+            <Text style={[s.promoBadgeText, { color: '#b45309' }]}>Pending</Text>
+          </View>
+        ) : myPromoStatus === 'APPROVED' ? (
+          <View style={[s.promoBadge, { backgroundColor: '#f0fdf4' }]}>
+            <Text style={[s.promoBadgeText, { color: '#16a34a' }]}>Live</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={s.promoBtn}
+            onPress={() => setShowPromoteModal(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Promote your business"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={s.promoBtnText}>Promote →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
@@ -113,11 +157,14 @@ export default function AdsScreen() {
       ) : isError ? (
         <ErrorState message="Failed to load ads." onRetry={() => refetch()} />
       ) : ads.length === 0 ? (
-        <EmptyState
-          icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
-          title="No ads yet"
-          subtitle="Local business advertisements will appear here. Check back soon!"
-        />
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+          <PromoteCta />
+          <EmptyState
+            icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
+            title="No ads yet"
+            subtitle="Local business advertisements will appear here. Check back soon!"
+          />
+        </ScrollView>
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           <FlatList
@@ -125,12 +172,15 @@ export default function AdsScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={s.list}
+            ListHeaderComponent={PromoteCta}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
             }
           />
         </FadeSlideIn>
       )}
+
+      <PromoteBusinessModal visible={showPromoteModal} onClose={() => setShowPromoteModal(false)} />
     </View>
   );
 }
@@ -143,6 +193,41 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
+
+  promoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff7ed',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  promoIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#f9731618',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  promoSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 17 },
+  promoBtn: {
+    backgroundColor: '#f97316',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  promoBtnText: { fontSize: 12, fontWeight: '800', color: '#fff' },
+  promoBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  promoBadgeText: { fontSize: 11, fontWeight: '800' },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '900' },
   headerSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },
 

@@ -21,6 +21,7 @@ import {
   GlobeIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
+import PromoteBusinessModal from './PromoteBusinessModal';
 import FadeSlideIn from './FadeSlideIn';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 
@@ -58,12 +59,6 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   // Business promotion modal state
   const [promoModalVisible, setPromoModalVisible] = useState(false);
-  const [promoName, setPromoName] = useState(user?.name || '');
-  const [promoPhone, setPromoPhone] = useState(user?.phone || '');
-  const [promoBusinessName, setPromoBusinessName] = useState('');
-  const [promoDesc, setPromoDesc] = useState('');
-  const [promoWebsite, setPromoWebsite] = useState('');
-  const [promoImageUri, setPromoImageUri] = useState<string | null>(null);
 
   const { data: myPromoData } = useQuery({
     queryKey: ['my-promo-request'],
@@ -82,43 +77,6 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const myRating = ratingData?.data?.data;
 
   const qc = useQueryClient();
-
-  const submitPromoMutation = useMutation({
-    mutationFn: () => promotionsApi.submit({
-      requesterName: promoName.trim(),
-      requesterPhone: promoPhone.trim(),
-      businessName: promoBusinessName.trim(),
-      businessDescription: promoDesc.trim(),
-      website: promoWebsite.trim() || undefined,
-      imageUri: promoImageUri || undefined,
-    }),
-    onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Request submitted!', text2: "We'll reach out soon." });
-      qc.invalidateQueries({ queryKey: ['my-promo-request'] });
-      setPromoModalVisible(false);
-      setPromoImageUri(null);
-    },
-    onError: (err: any) => {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to submit request' });
-    },
-  });
-
-  async function pickPromoImage() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow photo access to upload a business image.' });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPromoImageUri(result.assets[0].uri);
-    }
-  }
 
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -745,108 +703,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </Modal>
       )}
 
-      {/* ── Promote Your Business Modal ── */}
-      <Modal visible={promoModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPromoModalVisible(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.modalRoot}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{t('promoModal.title')}</Text>
-              <TouchableOpacity
-                onPress={() => setPromoModalVisible(false)}
-                style={s.modalClose}
-                accessibilityRole="button"
-                accessibilityLabel="Close promote your business form"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={s.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={s.modalSubtitle}>{t('promoModal.subtitle')}</Text>
-            <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
-              <Text style={s.panelLabel}>{t('promoModal.yourName')}</Text>
-              <TextInput style={s.panelInput} value={promoName} onChangeText={setPromoName} placeholder={t('promoModal.fullNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
-              <Text style={s.panelLabel}>{t('promoModal.contactPhone')}</Text>
-              <TextInput style={s.panelInput} value={promoPhone} onChangeText={setPromoPhone} placeholder={t('promoModal.phonePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
-              <Text style={s.panelLabel}>{t('promoModal.businessName')}</Text>
-              <TextInput style={s.panelInput} value={promoBusinessName} onChangeText={setPromoBusinessName} placeholder={t('promoModal.businessNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
-              <Text style={s.panelLabel}>{t('promoModal.businessDesc')}</Text>
-              <TextInput
-                style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
-                value={promoDesc}
-                onChangeText={setPromoDesc}
-                placeholder={t('promoModal.businessDescPlaceholder')}
-                placeholderTextColor={COLORS.textMuted}
-                multiline
-                numberOfLines={4}
-              />
-              <Text style={s.panelLabel}>{t('promoModal.website')}</Text>
-              <TextInput style={s.panelInput} value={promoWebsite} onChangeText={setPromoWebsite} placeholder={t('promoModal.websitePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
-
-              <Text style={s.panelLabel}>{t('promoModal.businessImage')}</Text>
-              {promoImageUri ? (
-                <View style={s.promoImgWrap}>
-                  <Image source={{ uri: promoImageUri }} style={s.promoImgPreview} resizeMode="cover" />
-                  <View style={s.promoImgActions}>
-                    <TouchableOpacity
-                      style={s.promoImgBtn}
-                      onPress={pickPromoImage}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Change business image"
-                      hitSlop={{ top: 6, bottom: 6 }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <RefreshIcon size={14} color={COLORS.textMuted} strokeWidth={2.5} />
-                        <Text style={s.promoImgBtnText}>{t('promoModal.change')}</Text>
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.promoImgBtn, { borderColor: COLORS.error + '60' }]}
-                      onPress={() => setPromoImageUri(null)}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Remove business image"
-                      hitSlop={{ top: 6, bottom: 6 }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Trash2Icon size={14} color={COLORS.error} strokeWidth={2.5} />
-                        <Text style={[s.promoImgBtnText, { color: COLORS.error }]}>{t('promoModal.remove')}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={s.promoImgPicker}
-                  onPress={pickPromoImage}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Add business image"
-                >
-                  <ImageIcon size={28} color={COLORS.textMuted} strokeWidth={1.5} />
-                  <Text style={s.promoImgPickerText}>{t('promoModal.tapToAdd')}</Text>
-                  <Text style={s.promoImgPickerSub}>{t('promoModal.supportedFormats')}</Text>
-                </TouchableOpacity>
-              )}
-
-              <Text style={s.emailHint}>{t('promoModal.hint')}</Text>
-              <TouchableOpacity
-                style={[s.panelBtn, { marginTop: 4, backgroundColor: '#f97316' }]}
-                onPress={() => submitPromoMutation.mutate()}
-                disabled={submitPromoMutation.isPending || !promoBusinessName.trim() || !promoDesc.trim()}
-                accessibilityRole="button"
-                accessibilityLabel="Submit business promotion request"
-              >
-                {submitPromoMutation.isPending
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.panelBtnText}>{t('promoModal.submitRequest')}</Text>
-                }
-              </TouchableOpacity>
-              <View style={{ height: 16 }} />
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <PromoteBusinessModal visible={promoModalVisible} onClose={() => setPromoModalVisible(false)} />
 
       {/* ── Avatar picker modal ── */}
       <Modal visible={showAvatarModal} transparent animationType="fade" onRequestClose={() => setShowAvatarModal(false)}>
@@ -1090,23 +947,6 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.error + '35',
   },
   signOutText: { color: COLORS.error, fontWeight: '800', fontSize: 16 },
-
-  // Image picker in promo modal
-  promoImgWrap: { gap: 8 },
-  promoImgPreview: { width: '100%', height: 160, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-  promoImgActions: { flexDirection: 'row', gap: 8 },
-  promoImgBtn: {
-    flex: 1, borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: 10, paddingVertical: 9, alignItems: 'center',
-  },
-  promoImgBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
-  promoImgPicker: {
-    borderWidth: 2, borderColor: COLORS.border, borderStyle: 'dashed',
-    borderRadius: 12, paddingVertical: 20,
-    alignItems: 'center', gap: 6, backgroundColor: COLORS.background,
-  },
-  promoImgPickerText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
-  promoImgPickerSub: { fontSize: 12, color: COLORS.border },
 
   // Promote Your Business modal
   modalRoot: { flex: 1, backgroundColor: COLORS.background },
