@@ -135,7 +135,10 @@
     "descPlaceholder": "Describe tu compra — qué compraste, hora aproximada, por qué faltan los puntos...",
     "amountPlaceholder": "ej. 24.50",
     "loadingStores": "Cargando tiendas…",
-    "submitReport": "Enviar Reporte"
+    "submitReport": "Enviar Reporte",
+    "descMinHint": "Describe lo que pasó en al menos 10 caracteres",
+    "amountInvalidHint": "Ingresa un monto entre $0 y $10,000",
+    "newReport": "Nuevo Reporte"
   },
   "deleteModal": {
     "title": "¿Eliminar Mi Cuenta?",

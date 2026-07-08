@@ -135,7 +135,10 @@
     "descPlaceholder": "Describe your purchase — what you bought, approximate time, why points are missing...",
     "amountPlaceholder": "e.g. 24.50",
     "loadingStores": "Loading stores…",
-    "submitReport": "Submit Report"
+    "submitReport": "Submit Report",
+    "descMinHint": "Please describe what happened in at least 10 characters",
+    "amountInvalidHint": "Enter an amount between $0 and $10,000",
+    "newReport": "New Report"
   },
   "deleteModal": {
     "title": "Delete My Account?",

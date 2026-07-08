@@ -11,7 +11,7 @@ import Constants from 'expo-constants';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
-import { authApi, promotionsApi, leaderboardApi, disputeApi, storesApi } from '../services/api';
+import { authApi, promotionsApi, leaderboardApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import {
@@ -82,35 +82,6 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const myRating = ratingData?.data?.data;
 
   const qc = useQueryClient();
-
-  // Dispute modal state (customers only)
-  const [showDisputeModal, setShowDisputeModal] = useState(false);
-  const [disputeStoreId, setDisputeStoreId] = useState('');
-  const [disputeDesc, setDisputeDesc] = useState('');
-  const [disputeEstAmt, setDisputeEstAmt] = useState('');
-
-  const { data: storesData } = useQuery({
-    queryKey: ['all-stores'],
-    queryFn: () => storesApi.getGasPrices(),
-    enabled: isCustomer,
-  });
-  const allStores: any[] = storesData?.data?.data || [];
-
-  const submitDisputeMutation = useMutation({
-    mutationFn: () => disputeApi.submit({
-      storeId: disputeStoreId,
-      description: disputeDesc.trim(),
-      estimatedAmt: disputeEstAmt ? parseFloat(disputeEstAmt) : undefined,
-    }),
-    onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Report submitted', text2: "We'll review your missing points." });
-      setShowDisputeModal(false);
-      setDisputeStoreId('');
-      setDisputeDesc('');
-      setDisputeEstAmt('');
-    },
-    onError: () => Toast.show({ type: 'error', text1: 'Submission failed', text2: 'Please try again.' }),
-  });
 
   const submitPromoMutation = useMutation({
     mutationFn: () => promotionsApi.submit({
@@ -642,15 +613,15 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
-        {/* ── Report Missing Points + My Reports (customers only) ── */}
+        {/* ── Missing Points Reports (customers only) — view + file reports live together on my-disputes ── */}
         {isCustomer && (
           <>
             <TouchableOpacity
               style={s.settingRow}
-              onPress={() => setShowDisputeModal(true)}
+              onPress={() => router.push('/(customer)/my-disputes')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Report missing points"
+              accessibilityLabel="View or report missing points"
             >
               <View style={[s.settingIconBg, { backgroundColor: '#fff7ed' }]}>
                 <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
@@ -658,22 +629,6 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               <View style={s.settingBody}>
                 <Text style={s.settingTitle}>{t('profile.reportMissingPoints')}</Text>
                 <Text style={s.settingValue}>{t('profile.reportMissingPointsSub')}</Text>
-              </View>
-              <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.settingRow}
-              onPress={() => router.push('/(customer)/my-disputes')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="View my reports"
-            >
-              <View style={[s.settingIconBg, { backgroundColor: '#f0fdf4' }]}>
-                <CheckCircleIcon size={20} color="#16a34a" strokeWidth={1.75} />
-              </View>
-              <View style={s.settingBody}>
-                <Text style={s.settingTitle}>{t('profile.myReports')}</Text>
-                <Text style={s.settingValue}>{t('profile.myReportsSub')}</Text>
               </View>
               <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
             </TouchableOpacity>
@@ -885,85 +840,6 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 {submitPromoMutation.isPending
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={s.panelBtnText}>{t('promoModal.submitRequest')}</Text>
-                }
-              </TouchableOpacity>
-              <View style={{ height: 16 }} />
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ── Report Missing Points Modal ── */}
-      <Modal visible={showDisputeModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDisputeModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.modalRoot}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{t('disputeModal.title')}</Text>
-              <TouchableOpacity
-                onPress={() => setShowDisputeModal(false)}
-                style={s.modalClose}
-                accessibilityRole="button"
-                accessibilityLabel="Close report missing points form"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={s.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={s.modalSubtitle}>{t('disputeModal.subtitle')}</Text>
-            <ScrollView style={s.modalBody} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
-              <Text style={s.panelLabel}>{t('disputeModal.store')}</Text>
-              <View style={s.disputePickerWrap}>
-                {allStores.length === 0 ? (
-                  <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>{t('disputeModal.loadingStores')}</Text>
-                ) : (
-                  allStores.map((st: any) => (
-                    <TouchableOpacity
-                      key={st.id}
-                      style={[s.disputeStorePill, disputeStoreId === st.id && s.disputeStorePillActive]}
-                      onPress={() => setDisputeStoreId(st.id)}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Select store: ${st.name}`}
-                      hitSlop={{ top: 6, bottom: 6 }}
-                    >
-                      <Text style={[s.disputeStorePillText, disputeStoreId === st.id && { color: '#fff' }]}>{st.name}</Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </View>
-
-              <Text style={s.panelLabel}>{t('disputeModal.whatHappened')}</Text>
-              <TextInput
-                style={[s.panelInput, { minHeight: 90, textAlignVertical: 'top' }]}
-                value={disputeDesc}
-                onChangeText={setDisputeDesc}
-                placeholder={t('disputeModal.descPlaceholder')}
-                placeholderTextColor={COLORS.textMuted}
-                multiline
-                numberOfLines={4}
-              />
-
-              <Text style={s.panelLabel}>{t('disputeModal.purchaseAmount')}</Text>
-              <TextInput
-                style={s.panelInput}
-                value={disputeEstAmt}
-                onChangeText={setDisputeEstAmt}
-                placeholder={t('disputeModal.amountPlaceholder')}
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="decimal-pad"
-              />
-
-              <TouchableOpacity
-                style={[s.panelBtn, (!disputeStoreId || !disputeDesc.trim() || submitDisputeMutation.isPending) && { opacity: 0.5 }]}
-                onPress={() => submitDisputeMutation.mutate()}
-                disabled={!disputeStoreId || !disputeDesc.trim() || submitDisputeMutation.isPending}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Submit missing points report"
-              >
-                {submitDisputeMutation.isPending
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.panelBtnText}>{t('disputeModal.submitReport')}</Text>
                 }
               </TouchableOpacity>
               <View style={{ height: 16 }} />
@@ -1275,15 +1151,6 @@ const s = StyleSheet.create({
     paddingVertical: 12, width: '100%', alignItems: 'center',
   },
   deleteCancelText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '700' },
-
-  // Dispute modal
-  disputePickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  disputeStorePill: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: '#f1f5f9', borderWidth: 1.5, borderColor: '#e2e8f0',
-  },
-  disputeStorePillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  disputeStorePillText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
 
   // Avatar modal
   avatarModalBackdrop: {
