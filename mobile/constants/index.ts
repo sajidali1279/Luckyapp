@@ -24,7 +24,17 @@ export const COLORS = {
   statusDeclinedBg: '#fff1f2',
   statusDeclinedBorder: '#fecaca',
   statusDeclinedDot: '#ef4444',
+  // Third red used pervasively app-wide as an alert/danger accent — distinct from primary/error
+  danger: '#E63946',
+  // Manager-role brand color (headers, active tabs, approve/confirm buttons on manager screens)
+  managerPrimary: '#0f5132',
 };
+
+// Shared avatar-initial background palette (was independently duplicated in
+// manager/schedule.tsx and ManagerDisputesScreen.tsx)
+export const AVATAR_PALETTE = [
+  '#7c3aed', '#0369a1', '#16a34a', '#b45309', COLORS.secondary, COLORS.danger,
+];
 
 export const CASHBACK_RATE = 0.05; // 5% shown to customers
 

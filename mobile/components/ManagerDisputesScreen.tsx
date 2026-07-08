@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { COLORS } from '../constants';
+import { COLORS, AVATAR_PALETTE } from '../constants';
 
 interface Dispute {
   id: string;
@@ -22,8 +22,8 @@ interface Dispute {
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; color: string; border: string }> = {
   PENDING:  { label: 'Pending',  bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
-  APPROVED: { label: 'Approved', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  REJECTED: { label: 'Rejected', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  APPROVED: { label: 'Approved', bg: COLORS.statusAcceptedBg, color: '#15803d', border: '#bbf7d0' },
+  REJECTED: { label: 'Rejected', bg: '#fef2f2', color: '#b91c1c', border: COLORS.statusDeclinedBorder },
 };
 
 function formatTime(iso: string) {
@@ -34,7 +34,6 @@ function formatTime(iso: string) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 function getInitial(name: string) { return (name || '?')[0].toUpperCase(); }
-const AVATAR_COLORS = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946'];
 
 export default function ManagerDisputesScreen() {
   const { user } = useAuthStore();
@@ -91,7 +90,7 @@ export default function ManagerDisputesScreen() {
   function renderItem({ item, index }: { item: Dispute; index: number }) {
     const st = STATUS_STYLE[item.status] || STATUS_STYLE.PENDING;
     const isPending = item.status === 'PENDING';
-    const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
+    const avatarColor = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
     return (
       <View style={[s.card, !isPending && s.cardDone]}>
         <View style={s.cardInner}>
@@ -128,7 +127,14 @@ export default function ManagerDisputesScreen() {
           )}
 
           {isPending && (
-            <TouchableOpacity style={s.actionBtn} onPress={() => openResolve(item)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={() => openResolve(item)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Review dispute from ${item.customer?.name || item.customer?.phone}`}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Text style={s.actionBtnText}>🚩  Review Dispute</Text>
             </TouchableOpacity>
           )}
@@ -160,7 +166,15 @@ export default function ManagerDisputesScreen() {
             { key: '', label: 'All', count: disputes.length },
             { key: 'RESOLVED', label: 'Resolved', count: disputes.length - pending.length },
           ].map(f => (
-            <TouchableOpacity key={f.key} style={[s.filterTab, statusFilter === f.key && s.filterTabActive]} onPress={() => setStatusFilter(f.key)}>
+            <TouchableOpacity
+              key={f.key}
+              style={[s.filterTab, statusFilter === f.key && s.filterTabActive]}
+              onPress={() => setStatusFilter(f.key)}
+              accessibilityRole="tab"
+              accessibilityLabel={`Filter by ${f.label}`}
+              accessibilityState={{ selected: statusFilter === f.key }}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            >
               <Text style={[s.filterTabText, statusFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
               {f.count > 0 && (
                 <View style={[s.filterCount, statusFilter === f.key && s.filterCountActive]}>
@@ -216,10 +230,24 @@ export default function ManagerDisputesScreen() {
             )}
 
             <View style={s.toggleRow}>
-              <TouchableOpacity style={[s.toggleBtn, resolveAction === 'APPROVED' && s.toggleBtnAccept]} onPress={() => setResolveAction('APPROVED')}>
+              <TouchableOpacity
+                style={[s.toggleBtn, resolveAction === 'APPROVED' && s.toggleBtnAccept]}
+                onPress={() => setResolveAction('APPROVED')}
+                accessibilityRole="tab"
+                accessibilityLabel="Approve"
+                accessibilityState={{ selected: resolveAction === 'APPROVED' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Text style={[s.toggleBtnText, resolveAction === 'APPROVED' && s.toggleBtnTextAccept]}>✅ Approve</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.toggleBtn, resolveAction === 'REJECTED' && s.toggleBtnReject]} onPress={() => setResolveAction('REJECTED')}>
+              <TouchableOpacity
+                style={[s.toggleBtn, resolveAction === 'REJECTED' && s.toggleBtnReject]}
+                onPress={() => setResolveAction('REJECTED')}
+                accessibilityRole="tab"
+                accessibilityLabel="Reject"
+                accessibilityState={{ selected: resolveAction === 'REJECTED' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Text style={[s.toggleBtnText, resolveAction === 'REJECTED' && s.toggleBtnTextReject]}>❌ Reject</Text>
               </TouchableOpacity>
             </View>
@@ -246,17 +274,24 @@ export default function ManagerDisputesScreen() {
             />
 
             <View style={s.sheetActions}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setResolveTarget(null)}>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => setResolveTarget(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+              >
                 <Text style={s.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.confirmBtn, resolveAction === 'REJECTED' && { backgroundColor: '#E63946', shadowColor: '#E63946' }, resolveMutation.isPending && { opacity: 0.65 }]}
+                style={[s.confirmBtn, resolveAction === 'REJECTED' && { backgroundColor: COLORS.danger, shadowColor: COLORS.danger }, resolveMutation.isPending && { opacity: 0.65 }]}
                 disabled={resolveMutation.isPending}
                 onPress={submitResolve}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={resolveAction === 'APPROVED' ? 'Approve and credit dispute' : 'Reject dispute'}
               >
                 {resolveMutation.isPending
-                  ? <ActivityIndicator color="#fff" size="small" />
+                  ? <ActivityIndicator color={COLORS.white} size="small" />
                   : <Text style={s.confirmBtnText}>{resolveAction === 'APPROVED' ? '✅  Approve & Credit' : '❌  Reject Dispute'}</Text>
                 }
               </TouchableOpacity>
@@ -269,19 +304,19 @@ export default function ManagerDisputesScreen() {
 }
 
 const s = StyleSheet.create({
-  headerBg: { backgroundColor: '#0f5132' },
+  headerBg: { backgroundColor: COLORS.managerPrimary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
   },
   headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
-  headerTitle: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
 
   pendingBadge: {
-    backgroundColor: '#E63946', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, alignItems: 'center',
-    shadowColor: '#E63946', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,
+    backgroundColor: COLORS.danger, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, alignItems: 'center',
+    shadowColor: COLORS.danger, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,
   },
-  pendingBadgeNum: { color: '#fff', fontSize: 18, fontWeight: '900', lineHeight: 20 },
+  pendingBadgeNum: { color: COLORS.white, fontSize: 18, fontWeight: '900', lineHeight: 20 },
   pendingBadgeLbl: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '700' },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 14, paddingTop: 8, gap: 8 },
@@ -290,16 +325,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  filterTabActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  filterTabActive: { backgroundColor: COLORS.white, borderColor: COLORS.white },
   filterTabText: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '700' },
-  filterTabTextActive: { color: '#0f5132' },
+  filterTabTextActive: { color: COLORS.managerPrimary },
   filterCount: {
     minWidth: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
   },
-  filterCountActive: { backgroundColor: '#0f5132' },
+  filterCountActive: { backgroundColor: COLORS.managerPrimary },
   filterCountText: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '800' },
-  filterCountTextActive: { color: '#fff' },
+  filterCountTextActive: { color: COLORS.white },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
@@ -309,7 +344,7 @@ const s = StyleSheet.create({
   list: { padding: 16, gap: 12 },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 16,
+    backgroundColor: COLORS.white, borderRadius: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
     borderWidth: 1, borderColor: '#f0f1f2',
   },
@@ -317,7 +352,7 @@ const s = StyleSheet.create({
   cardInner: { padding: 14, gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  avatarText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
   custName: { fontSize: 15, fontWeight: '700', color: '#111827' },
   metaSub: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
 
@@ -331,15 +366,15 @@ const s = StyleSheet.create({
   resolvedText: { fontSize: 12, fontWeight: '600' },
 
   actionBtn: {
-    backgroundColor: '#0f5132', paddingVertical: 11, paddingHorizontal: 18,
+    backgroundColor: COLORS.managerPrimary, paddingVertical: 11, paddingHorizontal: 18,
     borderRadius: 12, alignSelf: 'stretch', alignItems: 'center',
-    shadowColor: '#0f5132', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
-  actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  actionBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40, gap: 14,
   },
   sheetDrag: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', alignSelf: 'center', marginBottom: 4 },
@@ -358,8 +393,8 @@ const s = StyleSheet.create({
     flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
     borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
   },
-  toggleBtnAccept: { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
-  toggleBtnReject: { borderColor: '#E63946', backgroundColor: '#fef2f2' },
+  toggleBtnAccept: { borderColor: '#16a34a', backgroundColor: COLORS.statusAcceptedBg },
+  toggleBtnReject: { borderColor: COLORS.danger, backgroundColor: '#fef2f2' },
   toggleBtnText: { fontSize: 14, fontWeight: '700', color: '#6b7280' },
   toggleBtnTextAccept: { color: '#15803d' },
   toggleBtnTextReject: { color: '#b91c1c' },
@@ -379,8 +414,8 @@ const s = StyleSheet.create({
   cancelBtn: { flex: 1, padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb', alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
   confirmBtn: {
-    flex: 2, padding: 15, borderRadius: 12, backgroundColor: '#0f5132', alignItems: 'center',
-    shadowColor: '#0f5132', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
+    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center',
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
-  confirmBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  confirmBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
 });

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS } from '../../constants';
+import { COLORS, AVATAR_PALETTE } from '../../constants';
 import {
   InboxIcon, CheckCircleIcon, XIcon, CalendarIcon, ClockIcon,
 } from '../../components/Icons';
@@ -29,10 +29,8 @@ const DAY_LETTER: Record<string, string> = {
 
 const SHIFT_ORDER = ['OPENING', 'MIDDLE', 'CLOSING'];
 const SHIFT_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
-const SHIFT_COLORS: Record<string, string> = { OPENING: '#F4A261', MIDDLE: '#2DC653', CLOSING: '#1D3557' };
+const SHIFT_COLORS: Record<string, string> = { OPENING: COLORS.accent, MIDDLE: COLORS.success, CLOSING: COLORS.secondary };
 const SHIFT_TIMES: Record<string, string> = { OPENING: '6am–2pm', MIDDLE: '10am–6pm', CLOSING: '2pm–10pm' };
-
-const AVATAR_COLORS = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946'];
 
 const JS_DAY_TO_ENUM = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -156,7 +154,13 @@ export default function ManagerScheduleScreen() {
             <Text style={s.headerTitle}>Schedule</Text>
           </View>
           {pendingCount > 0 && (
-            <TouchableOpacity style={s.pendingBadge} onPress={() => setTab('requests')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.pendingBadge}
+              onPress={() => setTab('requests')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${pendingCount} pending request${pendingCount === 1 ? '' : 's'}`}
+            >
               <Text style={s.pendingBadgeNum}>{pendingCount}</Text>
               <Text style={s.pendingBadgeLbl}>pending</Text>
             </TouchableOpacity>
@@ -171,6 +175,13 @@ export default function ManagerScheduleScreen() {
               style={[s.tab, tab === t && s.tabActive]}
               onPress={() => setTab(t)}
               activeOpacity={0.8}
+              accessibilityRole="tab"
+              accessibilityLabel={
+                t === 'roster' ? "View today's roster"
+                  : t === 'week' ? 'View weekly schedule'
+                  : `View requests${pendingCount > 0 ? `, ${pendingCount} pending` : ''}`
+              }
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <Text style={[s.tabText, tab === t && s.tabTextActive]}>
                 {t === 'roster' ? "Today's Roster"
@@ -230,7 +241,7 @@ export default function ManagerScheduleScreen() {
                       </View>
                       {/* Staff cards */}
                       {staffOnShift.map((item: any, idx: number) => {
-                        const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                        const avatarColor = AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
                         const name = item.employee?.name || item.employee?.phone || '?';
                         return (
                           <View key={item.templateId} style={s.staffCard}>
@@ -271,6 +282,8 @@ export default function ManagerScheduleScreen() {
                       style={[s.weekStripCell, isSelected && s.weekStripCellActive]}
                       onPress={() => setSelectedWeekDay(key)}
                       activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${DAY_LABELS[key]} schedule`}
                     >
                       <Text style={[s.weekStripLetter, isSelected && s.weekStripLetterActive, isToday && !isSelected && s.weekStripLetterToday]}>
                         {DAY_LETTER[key]}
@@ -334,6 +347,8 @@ export default function ManagerScheduleScreen() {
                     style={[s.overviewRow, isToday && s.overviewRowToday]}
                     onPress={() => setSelectedWeekDay(day)}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View schedule for ${DAY_LABELS[day]}`}
                   >
                     <Text style={[s.overviewDay, isToday && s.overviewDayToday]}>{DAY_SHORT[day]}</Text>
                     <View style={s.overviewShifts}>
@@ -373,7 +388,7 @@ export default function ManagerScheduleScreen() {
               </View>
               {pendingReqs.length === 0 ? (
                 <View style={s.emptyWrap}>
-                  <CheckCircleIcon size={44} color="#2DC653" strokeWidth={1.25} />
+                  <CheckCircleIcon size={44} color={COLORS.success} strokeWidth={1.25} />
                   <Text style={s.emptyTitle}>All clear!</Text>
                   <Text style={s.emptySub}>No pending requests from your team</Text>
                 </View>
@@ -382,7 +397,7 @@ export default function ManagerScheduleScreen() {
                   <RequestCard
                     key={req.id}
                     req={req}
-                    avatarColor={AVATAR_COLORS[idx % AVATAR_COLORS.length]}
+                    avatarColor={AVATAR_PALETTE[idx % AVATAR_PALETTE.length]}
                     onApprove={() => confirmAction(req, 'APPROVED')}
                     onDeny={() => confirmAction(req, 'DENIED')}
                     showActions
@@ -398,7 +413,7 @@ export default function ManagerScheduleScreen() {
                     <RequestCard
                       key={req.id}
                       req={req}
-                      avatarColor={AVATAR_COLORS[idx % AVATAR_COLORS.length]}
+                      avatarColor={AVATAR_PALETTE[idx % AVATAR_PALETTE.length]}
                       showActions={false}
                     />
                   ))}
@@ -417,10 +432,10 @@ export default function ManagerScheduleScreen() {
           <View style={s.modal}>
             {confirmModal && (
               <>
-                <View style={[s.modalIconWrap, { backgroundColor: confirmModal.action === 'APPROVED' ? '#f0fdf4' : '#fff1f2' }]}>
+                <View style={[s.modalIconWrap, { backgroundColor: confirmModal.action === 'APPROVED' ? COLORS.statusAcceptedBg : COLORS.statusDeclinedBg }]}>
                   {confirmModal.action === 'APPROVED'
                     ? <CheckCircleIcon size={30} color="#16a34a" strokeWidth={2} />
-                    : <XIcon size={28} color="#E63946" strokeWidth={2.5} />
+                    : <XIcon size={28} color={COLORS.danger} strokeWidth={2.5} />
                   }
                 </View>
                 <Text style={s.modalTitle}>
@@ -442,19 +457,28 @@ export default function ManagerScheduleScreen() {
                   </Text>
                 )}
                 <TouchableOpacity
-                  style={[s.modalActionBtn, { backgroundColor: confirmModal.action === 'APPROVED' ? '#0f5132' : '#E63946' }]}
+                  style={[s.modalActionBtn, { backgroundColor: confirmModal.action === 'APPROVED' ? COLORS.managerPrimary : COLORS.danger }]}
                   onPress={() => updateMutation.mutate({ id: confirmModal.requestId, status: confirmModal.action })}
                   activeOpacity={0.8}
                   disabled={updateMutation.isPending}
+                  accessibilityRole="button"
+                  accessibilityLabel={confirmModal.action === 'APPROVED' ? 'Confirm approval of shift request' : 'Confirm denial of shift request'}
                 >
                   {updateMutation.isPending
-                    ? <ActivityIndicator color="#fff" size="small" />
+                    ? <ActivityIndicator color={COLORS.white} size="small" />
                     : <Text style={s.modalActionText}>
                         {confirmModal.action === 'APPROVED' ? 'Yes, Approve' : 'Yes, Deny'}
                       </Text>
                   }
                 </TouchableOpacity>
-                <TouchableOpacity style={s.modalCancelBtn} onPress={() => setConfirmModal(null)} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={s.modalCancelBtn}
+                  onPress={() => setConfirmModal(null)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel and close dialog"
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
                   <Text style={s.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
               </>
@@ -480,8 +504,8 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
   req: any; avatarColor: string; onApprove?: () => void; onDeny?: () => void; showActions: boolean;
 }) {
   const isTimeOff = req.requestType === 'TIME_OFF';
-  const typeColor = isTimeOff ? '#E63946' : '#2DC653';
-  const statusColor = req.status === 'APPROVED' ? '#2DC653' : req.status === 'DENIED' ? '#E63946' : '#f59e0b';
+  const typeColor = isTimeOff ? COLORS.danger : COLORS.success;
+  const statusColor = req.status === 'APPROVED' ? COLORS.success : req.status === 'DENIED' ? COLORS.danger : COLORS.statusPendingDot;
   const name = req.employee?.name || req.employee?.phone || 'Employee';
 
   return (
@@ -514,10 +538,24 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
 
       {showActions ? (
         <View style={s.reqActions}>
-          <TouchableOpacity style={s.approveBtn} onPress={onApprove} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.approveBtn}
+            onPress={onApprove}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Approve shift request from ${name}`}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+          >
             <Text style={s.approveBtnText}>Approve</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.denyBtn} onPress={onDeny} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.denyBtn}
+            onPress={onDeny}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Deny shift request from ${name}`}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+          >
             <Text style={s.denyBtnText}>Deny</Text>
           </TouchableOpacity>
         </View>
@@ -537,19 +575,19 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f8fafc' },
 
   // Header
-  headerBg: { backgroundColor: '#0f5132' },
+  headerBg: { backgroundColor: COLORS.managerPrimary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
   },
   headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
-  headerTitle: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   pendingBadge: {
-    backgroundColor: '#E63946', paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: COLORS.danger, paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 14, alignItems: 'center',
-    shadowColor: '#E63946', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,
+    shadowColor: COLORS.danger, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,
   },
-  pendingBadgeNum: { color: '#fff', fontSize: 17, fontWeight: '900' },
+  pendingBadgeNum: { color: COLORS.white, fontSize: 17, fontWeight: '900' },
   pendingBadgeLbl: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '700' },
 
   // Tab bar
@@ -558,9 +596,9 @@ const s = StyleSheet.create({
     flex: 1, paddingVertical: 8, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center',
   },
-  tabActive: { backgroundColor: '#fff' },
+  tabActive: { backgroundColor: COLORS.white },
   tabText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.6)' },
-  tabTextActive: { color: '#0f5132' },
+  tabTextActive: { color: COLORS.managerPrimary },
 
   // Body
   body: { padding: 16, paddingBottom: 32 },
@@ -569,8 +607,8 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
   reqSectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  pendingCountBadge: { backgroundColor: '#E63946', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
-  pendingCountBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  pendingCountBadge: { backgroundColor: COLORS.danger, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  pendingCountBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: '800' },
 
   emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
@@ -596,13 +634,13 @@ const s = StyleSheet.create({
 
   staffCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8,
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
     borderWidth: 1, borderColor: '#f0f1f2',
   },
   staffAvatar: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  staffAvatarText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  staffAvatarText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
   staffInfo: { flex: 1 },
   staffName: { fontSize: 14, fontWeight: '700', color: '#111827' },
   staffPhone: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
@@ -611,25 +649,25 @@ const s = StyleSheet.create({
 
   // Weekly view
   weekStrip: {
-    flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16,
+    flexDirection: 'row', backgroundColor: COLORS.white, borderRadius: 16,
     padding: 12, gap: 4, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
     borderWidth: 1, borderColor: '#f0f1f2',
   },
   weekStripCell: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 10, gap: 4 },
-  weekStripCellActive: { backgroundColor: '#0f5132' },
+  weekStripCellActive: { backgroundColor: COLORS.managerPrimary },
   weekStripLetter: { fontSize: 9, fontWeight: '800', color: '#9ca3af' },
   weekStripLetterActive: { color: 'rgba(255,255,255,0.7)' },
-  weekStripLetterToday: { color: '#0f5132' },
+  weekStripLetterToday: { color: COLORS.managerPrimary },
   weekStripDate: { fontSize: 15, fontWeight: '700', color: '#374151' },
-  weekStripDateActive: { color: '#fff' },
+  weekStripDateActive: { color: COLORS.white },
   weekStripDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#9ca3af' },
   weekStripDotActive: { backgroundColor: 'rgba(255,255,255,0.6)' },
   weekStripDotEmpty: { width: 5, height: 5 },
 
   weekDayCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 20,
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
     borderWidth: 1, borderColor: '#f0f1f2',
@@ -637,8 +675,8 @@ const s = StyleSheet.create({
   },
   weekDayCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   weekDayName: { fontSize: 17, fontWeight: '800', color: '#111827', flex: 1 },
-  todayPill: { backgroundColor: '#0f5132', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  todayPillText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  todayPill: { backgroundColor: COLORS.managerPrimary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  todayPillText: { color: COLORS.white, fontSize: 10, fontWeight: '800' },
   weekDayCount: { fontSize: 12, color: '#9ca3af', fontWeight: '600' },
   dayEmptyWrap: { alignItems: 'center', paddingVertical: 12 },
   dayEmptyText: { fontSize: 13, color: '#d1d5db', fontStyle: 'italic' },
@@ -654,12 +692,12 @@ const s = StyleSheet.create({
 
   overviewRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8,
+    backgroundColor: COLORS.white, borderRadius: 12, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: '#f0f1f2',
   },
-  overviewRowToday: { borderColor: '#0f5132', borderWidth: 1.5 },
+  overviewRowToday: { borderColor: COLORS.managerPrimary, borderWidth: 1.5 },
   overviewDay: { fontSize: 13, fontWeight: '800', color: '#6b7280', width: 32 },
-  overviewDayToday: { color: '#0f5132' },
+  overviewDayToday: { color: COLORS.managerPrimary },
   overviewShifts: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   overviewEmpty: { fontSize: 13, color: '#d1d5db' },
   overviewShiftPill: {
@@ -670,7 +708,7 @@ const s = StyleSheet.create({
 
   // Requests
   reqCard: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
     marginBottom: 10, borderWidth: 1.5, gap: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
@@ -678,7 +716,7 @@ const s = StyleSheet.create({
   reqDetailItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   reqCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reqAvatar: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  reqAvatarText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  reqAvatarText: { color: COLORS.white, fontSize: 15, fontWeight: '800' },
   reqName: { fontSize: 14, fontWeight: '700', color: '#111827' },
   reqPhone: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
   reqTypeBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
@@ -688,15 +726,15 @@ const s = StyleSheet.create({
   reqNotes: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
   reqActions: { flexDirection: 'row', gap: 10 },
   approveBtn: {
-    flex: 1, backgroundColor: '#f0fdf4', borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+    flex: 1, backgroundColor: COLORS.statusAcceptedBg, borderRadius: 10, paddingVertical: 10, alignItems: 'center',
     borderWidth: 1, borderColor: '#bbf7d0',
   },
   approveBtnText: { color: '#16a34a', fontSize: 13, fontWeight: '800' },
   denyBtn: {
-    flex: 1, backgroundColor: '#fff1f2', borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-    borderWidth: 1, borderColor: '#fecaca',
+    flex: 1, backgroundColor: COLORS.statusDeclinedBg, borderRadius: 10, paddingVertical: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: COLORS.statusDeclinedBorder,
   },
-  denyBtnText: { color: '#E63946', fontSize: 13, fontWeight: '800' },
+  denyBtnText: { color: COLORS.danger, fontSize: 13, fontWeight: '800' },
   statusChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1,
@@ -706,7 +744,7 @@ const s = StyleSheet.create({
 
   // Confirm modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modal: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', gap: 12 },
+  modal: { backgroundColor: COLORS.white, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', gap: 12 },
   modalIconWrap: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' },
   modalPreview: {
@@ -719,7 +757,7 @@ const s = StyleSheet.create({
     alignSelf: 'stretch', borderRadius: 14, paddingVertical: 14, alignItems: 'center',
     shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  modalActionText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  modalActionText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
   modalCancelBtn: {
     alignSelf: 'stretch', borderRadius: 14, paddingVertical: 12, alignItems: 'center',
     backgroundColor: '#f3f4f6',
