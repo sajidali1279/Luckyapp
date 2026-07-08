@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -83,6 +84,7 @@ export default function ChatScreen() {
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [pollOffline, setPollOffline] = useState(false);
   const listRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sendScale = useRef(new Animated.Value(1)).current;
@@ -129,7 +131,13 @@ export default function ChatScreen() {
         setMessages((prev) => [...prev, ...newMsgs]);
         setLastTimestamp(newMsgs[newMsgs.length - 1]!.createdAt);
       }
-    } catch {}
+      setPollOffline(false);
+    } catch {
+      // Don't toast on every failed 8s poll — that would be constant spam while
+      // offline. Show a persistent inline banner instead, cleared on the next
+      // successful poll.
+      setPollOffline(true);
+    }
   }, [selectedStoreId, lastTimestamp]);
 
   useEffect(() => {
@@ -148,14 +156,17 @@ export default function ChatScreen() {
     ]).start();
 
     setSending(true);
-    setInputText('');
     try {
       const res = await chatApi.sendMessage(selectedStoreId, text);
       const newMsg: Message = res.data.data;
+      setInputText('');
       setMessages((prev) => [...prev, newMsg]);
       setLastTimestamp(newMsg.createdAt);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
-    } catch {}
+    } catch (err: any) {
+      // Keep the typed text in the input — don't make the cashier retype a lost message
+      Toast.show({ type: 'error', text1: 'Message not sent', text2: err.response?.data?.error || 'Check your connection and try again.' });
+    }
     setSending(false);
   }
 
@@ -272,9 +283,9 @@ export default function ChatScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={s.headerTitle}>{selectedStore?.name || 'Chat'}</Text>
                 <View style={s.headerSubRow}>
-                  <View style={s.onlineDot} />
+                  <View style={[s.onlineDot, pollOffline && s.onlineDotOffline]} />
                   <Text style={s.headerSub}>
-                    {selectedStore?.city ? `${selectedStore.city} · ` : ''}Team Chat
+                    {pollOffline ? 'Reconnecting…' : `${selectedStore?.city ? `${selectedStore.city} · ` : ''}Team Chat`}
                   </Text>
                 </View>
               </View>
@@ -383,6 +394,7 @@ const s = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
   headerSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
+  onlineDotOffline: { backgroundColor: '#f59e0b' },
   headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
   msgCountBadge: {
     backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20,
