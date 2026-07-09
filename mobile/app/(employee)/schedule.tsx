@@ -380,7 +380,7 @@ export default function ScheduleScreen() {
                   const isTimeOff = r.requestType === 'TIME_OFF';
                   const typeColor = isTimeOff ? COLORS.danger : COLORS.success;
                   return (
-                    <View key={r.id} style={[s.requestCard, { borderColor: typeColor + '40', backgroundColor: typeColor + '06' }]}>
+                    <View key={r.id} style={[s.requestCard, { borderLeftColor: typeColor }]}>
                       <View style={s.requestCardTop}>
                         <View style={[s.requestTypePill, { backgroundColor: typeColor + '18' }]}>
                           <Text style={[s.requestTypeText, { color: typeColor }]}>
@@ -677,8 +677,12 @@ const s = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, marginTop: 8 },
-  sectionBadge: { backgroundColor: COLORS.secondary, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
-  sectionBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: '800' },
+  sectionBadge: {
+    backgroundColor: COLORS.statusPendingBg, borderRadius: 8,
+    paddingHorizontal: 7, paddingVertical: 2,
+    borderWidth: 1, borderColor: COLORS.statusPendingBorder,
+  },
+  sectionBadgeText: { color: COLORS.statusPendingText, fontSize: 11, fontWeight: '800' },
 
   weekOverview: {
     flexDirection: 'row', gap: 6, marginBottom: 24,
@@ -698,16 +702,20 @@ const s = StyleSheet.create({
 
   // Pending requests
   requestCard: {
-    backgroundColor: COLORS.white, borderRadius: 14, padding: 14,
-    marginBottom: 10, borderWidth: 1.5, borderColor: '#e5e7eb',
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 12,
+    marginBottom: 10, borderWidth: 1, borderColor: '#f0f1f2', borderLeftWidth: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
     gap: 6,
   },
   requestCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   requestTypePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   requestTypeText: { fontSize: 12, fontWeight: '700' },
-  pendingTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: COLORS.statusPendingBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pendingTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.statusPendingBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    borderWidth: 1, borderColor: COLORS.statusPendingBorder,
+  },
   pendingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.statusPendingDot },
   pendingTagText: { fontSize: 10, fontWeight: '800', color: COLORS.statusPendingText },
   requestDate: { fontSize: 14, fontWeight: '700', color: '#111827' },
