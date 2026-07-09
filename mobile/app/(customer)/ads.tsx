@@ -117,6 +117,7 @@ export default function AdsScreen() {
           <Text style={s.promoSub}>
             Auto care, towing, landscaping, or anything else — promote it to every Lucky Stop customer here.
           </Text>
+          <Text style={s.promoDisclaimer}>Charges may apply — contact us for details</Text>
         </View>
         {myPromoStatus === 'PENDING' ? (
           <View style={[s.promoBadge, { backgroundColor: '#fffbeb' }]}>
@@ -215,6 +216,7 @@ const s = StyleSheet.create({
   },
   promoTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
   promoSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 17 },
+  promoDisclaimer: { fontSize: 10, color: COLORS.textMuted, marginTop: 4, fontStyle: 'italic' },
   promoBtn: {
     backgroundColor: '#f97316',
     borderRadius: 10,
