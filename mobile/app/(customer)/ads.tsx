@@ -115,9 +115,9 @@ export default function AdsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={s.promoTitle}>Own a local business?</Text>
           <Text style={s.promoSub}>
-            Auto care, towing, landscaping, or anything else — promote it to every Lucky Stop customer here.
+            Auto care, towing, landscaping, or anything else - promote it to every Lucky Stop customer here.
           </Text>
-          <Text style={s.promoDisclaimer}>Charges may apply — contact us for details</Text>
+          <Text style={s.promoDisclaimer}>Charges may apply, contact us for details</Text>
         </View>
         {myPromoStatus === 'PENDING' ? (
           <View style={[s.promoBadge, { backgroundColor: '#fffbeb' }]}>
