@@ -36,6 +36,22 @@ export const AVATAR_PALETTE = [
   '#7c3aed', '#0369a1', '#16a34a', '#b45309', COLORS.secondary, COLORS.danger,
 ];
 
+// A finer-grained neutral scale than COLORS.text/textMuted/border offers —
+// used where a screen needs more than 3 steps of text/border hierarchy
+// (e.g. heading vs. label vs. meta vs. disabled vs. divider). Named here so
+// it's a documented, shared scale instead of unlabeled hex scattered per
+// screen (manager/schedule.tsx and manager/leaderboard.tsx both used this
+// same scale independently before this was extracted).
+export const TEXT_GRAY = {
+  900: '#111827',
+  700: '#374151',
+  500: '#6b7280',
+  400: '#9ca3af',
+  300: '#d1d5db',
+  200: '#e5e7eb',
+  100: '#f3f4f6',
+} as const;
+
 export const CASHBACK_RATE = 0.05; // 5% shown to customers
 
 export const TIER_CONFIG: Record<string, {

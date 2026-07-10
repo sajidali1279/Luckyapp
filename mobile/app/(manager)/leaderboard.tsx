@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS, AVATAR_PALETTE } from '../../constants';
+import { COLORS, AVATAR_PALETTE, TEXT_GRAY } from '../../constants';
 import { TrophyIcon, StarIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
@@ -232,7 +232,7 @@ const s = StyleSheet.create({
   tabTextActive: { color: COLORS.managerPrimary, fontWeight: '800' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
+  emptyText: { fontSize: 14, color: TEXT_GRAY[500], textAlign: 'center' },
   list: { padding: 16, gap: 10 },
 
   // Customer rows
@@ -242,14 +242,14 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   rankWrap: { width: 28, alignItems: 'center' },
-  rank: { fontSize: 13, fontWeight: '800', color: '#9CA3AF' },
+  rank: { fontSize: 13, fontWeight: '800', color: TEXT_GRAY[400] },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  customerName: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  customerSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+  customerName: { fontSize: 14, fontWeight: '700', color: TEXT_GRAY[900] },
+  customerSub: { fontSize: 12, color: TEXT_GRAY[400], marginTop: 2 },
   pointsBadge: { alignItems: 'flex-end' },
   pointsNum: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
-  pointsLbl: { fontSize: 10, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase' },
+  pointsLbl: { fontSize: 10, color: TEXT_GRAY[400], fontWeight: '700', textTransform: 'uppercase' },
 
   // Staff rows
   staffRow: {
@@ -258,9 +258,9 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   staffRowEOM: { borderWidth: 1.5, borderColor: '#F59E0B' },
-  staffName: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 2 },
+  staffName: { fontSize: 14, fontWeight: '700', color: TEXT_GRAY[900], marginBottom: 2 },
   eomBadge: { backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 },
   eomText: { fontSize: 10, fontWeight: '800', color: '#B45309' },
   ratingNum: { fontSize: 18, fontWeight: '800', color: '#F59E0B' },
-  ratingCount: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
+  ratingCount: { fontSize: 11, color: TEXT_GRAY[400], fontWeight: '600' },
 });

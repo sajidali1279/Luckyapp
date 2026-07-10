@@ -130,6 +130,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                   onPress={() => { setShowPri(true); setShowCat(false); }}
                   accessibilityRole="button"
                   accessibilityLabel={`Select priority, currently ${PRIORITY_CFG[priority]?.label}`}
+                  accessibilityState={{ expanded: showPri }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text style={[s.pickerText, { color: PRIORITY_CFG[priority]?.color }]}>
@@ -161,6 +162,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                   onPress={() => { setShowCat(true); setShowPri(false); }}
                   accessibilityRole="button"
                   accessibilityLabel={`Select category, currently ${category}`}
+                  accessibilityState={{ expanded: showCat }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text style={s.pickerText}>{category}</Text>

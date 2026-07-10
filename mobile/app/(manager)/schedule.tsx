@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS, AVATAR_PALETTE } from '../../constants';
+import { COLORS, AVATAR_PALETTE, TEXT_GRAY } from '../../constants';
 import {
   InboxIcon, CheckCircleIcon, XIcon, CalendarIcon, ClockIcon,
 } from '../../components/Icons';
@@ -225,7 +225,7 @@ export default function ManagerScheduleScreen() {
 
               {roster.length === 0 ? (
                 <View style={s.emptyWrap}>
-                  <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />
+                  <InboxIcon size={44} color={TEXT_GRAY[300]} strokeWidth={1.25} />
                   <Text style={s.emptyTitle}>No staff scheduled today</Text>
                   <Text style={s.emptySub}>Go to the admin panel to manage the weekly schedule</Text>
                 </View>
@@ -292,8 +292,9 @@ export default function ManagerScheduleScreen() {
                       style={[s.weekStripCell, isSelected && s.weekStripCellActive]}
                       onPress={() => setSelectedWeekDay(key)}
                       activeOpacity={0.75}
-                      accessibilityRole="button"
+                      accessibilityRole="tab"
                       accessibilityLabel={`View ${DAY_LABELS[key]} schedule`}
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Text style={[s.weekStripLetter, isSelected && s.weekStripLetterActive, isToday && !isSelected && s.weekStripLetterToday]}>
                         {DAY_LETTER[key]}
@@ -538,11 +539,11 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
       </View>
       <View style={s.reqDetail}>
         <View style={s.reqDetailItem}>
-          <CalendarIcon size={13} color="#6b7280" strokeWidth={2} />
+          <CalendarIcon size={13} color={TEXT_GRAY[500]} strokeWidth={2} />
           <Text style={s.reqDetailText}>{new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</Text>
         </View>
         <View style={s.reqDetailItem}>
-          <ClockIcon size={13} color="#6b7280" strokeWidth={2} />
+          <ClockIcon size={13} color={TEXT_GRAY[500]} strokeWidth={2} />
           <Text style={s.reqDetailText}>{SHIFT_LABELS[req.shiftType]}</Text>
         </View>
       </View>
@@ -619,7 +620,7 @@ const s = StyleSheet.create({
   // Body
   body: { padding: 16, paddingBottom: 32 },
   sectionLabel: {
-    fontSize: 11, fontWeight: '800', color: '#6b7280',
+    fontSize: 11, fontWeight: '800', color: TEXT_GRAY[500],
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
   reqSectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
@@ -627,13 +628,13 @@ const s = StyleSheet.create({
   pendingCountBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: '800' },
 
   emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', paddingHorizontal: 20 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: TEXT_GRAY[900] },
+  emptySub: { fontSize: 13, color: TEXT_GRAY[500], textAlign: 'center', paddingHorizontal: 20 },
 
   // Roster
   rosterHeading: { marginBottom: 20 },
-  rosterDay: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  rosterDate: { fontSize: 13, color: '#6b7280', marginTop: 3 },
+  rosterDay: { fontSize: 24, fontWeight: '800', color: TEXT_GRAY[900] },
+  rosterDate: { fontSize: 13, color: TEXT_GRAY[500], marginTop: 3 },
 
   shiftSection: { marginBottom: 20 },
   shiftHeader: {
@@ -642,7 +643,7 @@ const s = StyleSheet.create({
   },
   shiftHeaderDot: { width: 10, height: 10, borderRadius: 5 },
   shiftHeaderLabel: { fontSize: 15, fontWeight: '800' },
-  shiftHeaderTime: { fontSize: 12, color: '#6b7280', marginTop: 1 },
+  shiftHeaderTime: { fontSize: 12, color: TEXT_GRAY[500], marginTop: 1 },
   shiftCountBadge: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1,
   },
@@ -658,8 +659,8 @@ const s = StyleSheet.create({
   staffAvatar: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   staffAvatarText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
   staffInfo: { flex: 1 },
-  staffName: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  staffPhone: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  staffName: { fontSize: 14, fontWeight: '700', color: TEXT_GRAY[900] },
+  staffPhone: { fontSize: 12, color: TEXT_GRAY[400], marginTop: 2 },
   staffTimePill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   staffTimeText: { fontSize: 12, fontWeight: '700' },
 
@@ -673,12 +674,12 @@ const s = StyleSheet.create({
   },
   weekStripCell: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 10, gap: 4 },
   weekStripCellActive: { backgroundColor: COLORS.managerPrimary },
-  weekStripLetter: { fontSize: 9, fontWeight: '800', color: '#9ca3af' },
+  weekStripLetter: { fontSize: 9, fontWeight: '800', color: TEXT_GRAY[400] },
   weekStripLetterActive: { color: 'rgba(255,255,255,0.7)' },
   weekStripLetterToday: { color: COLORS.managerPrimary },
-  weekStripDate: { fontSize: 15, fontWeight: '700', color: '#374151' },
+  weekStripDate: { fontSize: 15, fontWeight: '700', color: TEXT_GRAY[700] },
   weekStripDateActive: { color: COLORS.white },
-  weekStripDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#9ca3af' },
+  weekStripDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: TEXT_GRAY[400] },
   weekStripDotActive: { backgroundColor: 'rgba(255,255,255,0.6)' },
   weekStripDotEmpty: { width: 5, height: 5 },
 
@@ -690,12 +691,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
   weekDayCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  weekDayName: { fontSize: 17, fontWeight: '800', color: '#111827', flex: 1 },
+  weekDayName: { fontSize: 17, fontWeight: '800', color: TEXT_GRAY[900], flex: 1 },
   todayPill: { backgroundColor: COLORS.managerPrimary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   todayPillText: { color: COLORS.white, fontSize: 10, fontWeight: '800' },
-  weekDayCount: { fontSize: 12, color: '#9ca3af', fontWeight: '600' },
+  weekDayCount: { fontSize: 12, color: TEXT_GRAY[400], fontWeight: '600' },
   dayEmptyWrap: { alignItems: 'center', paddingVertical: 12 },
-  dayEmptyText: { fontSize: 13, color: '#d1d5db', fontStyle: 'italic' },
+  dayEmptyText: { fontSize: 13, color: TEXT_GRAY[300], fontStyle: 'italic' },
   weekShiftRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#f8fafc', borderRadius: 12, padding: 10,
@@ -703,8 +704,8 @@ const s = StyleSheet.create({
   weekShiftIcon: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   weekShiftDot: { width: 8, height: 8, borderRadius: 4 },
   weekShiftLabel: { fontSize: 12, fontWeight: '800' },
-  weekShiftNames: { fontSize: 12, color: '#6b7280', marginTop: 1 },
-  weekShiftTime: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
+  weekShiftNames: { fontSize: 12, color: TEXT_GRAY[500], marginTop: 1 },
+  weekShiftTime: { fontSize: 11, color: TEXT_GRAY[400], fontWeight: '600' },
 
   overviewRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -712,15 +713,15 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#f0f1f2',
   },
   overviewRowToday: { borderColor: COLORS.managerPrimary, borderWidth: 1.5 },
-  overviewDay: { fontSize: 13, fontWeight: '800', color: '#6b7280', width: 32 },
+  overviewDay: { fontSize: 13, fontWeight: '800', color: TEXT_GRAY[500], width: 32 },
   overviewDayToday: { color: COLORS.managerPrimary },
   overviewShifts: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  overviewEmpty: { fontSize: 13, color: '#d1d5db' },
+  overviewEmpty: { fontSize: 13, color: TEXT_GRAY[300] },
   overviewShiftPill: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1,
   },
   overviewShiftText: { fontSize: 11, fontWeight: '700' },
-  overviewCount: { fontSize: 13, fontWeight: '700', color: '#9ca3af', width: 20, textAlign: 'right' },
+  overviewCount: { fontSize: 13, fontWeight: '700', color: TEXT_GRAY[400], width: 20, textAlign: 'right' },
 
   // Requests
   reqCard: {
@@ -733,13 +734,13 @@ const s = StyleSheet.create({
   reqCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   reqAvatar: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   reqAvatarText: { color: COLORS.white, fontSize: 15, fontWeight: '800' },
-  reqName: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  reqPhone: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
+  reqName: { fontSize: 14, fontWeight: '700', color: TEXT_GRAY[900] },
+  reqPhone: { fontSize: 12, color: TEXT_GRAY[400], marginTop: 1 },
   reqTypeBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   reqTypeText: { fontSize: 12, fontWeight: '700' },
   reqDetail: { flexDirection: 'row', gap: 16 },
-  reqDetailText: { fontSize: 13, color: '#374151', fontWeight: '600' },
-  reqNotes: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
+  reqDetailText: { fontSize: 13, color: TEXT_GRAY[700], fontWeight: '600' },
+  reqNotes: { fontSize: 12, color: TEXT_GRAY[400], fontStyle: 'italic' },
   reqActions: { flexDirection: 'row', gap: 10 },
   approveBtn: {
     flex: 1, backgroundColor: COLORS.statusAcceptedBg, borderRadius: 10, paddingVertical: 10, alignItems: 'center',
@@ -762,13 +763,13 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modal: { backgroundColor: COLORS.white, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', gap: 12 },
   modalIconWrap: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: TEXT_GRAY[900], textAlign: 'center' },
   modalPreview: {
     backgroundColor: '#f8fafc', borderRadius: 12, padding: 14,
-    alignSelf: 'stretch', gap: 6, borderWidth: 1, borderColor: '#e5e7eb',
+    alignSelf: 'stretch', gap: 6, borderWidth: 1, borderColor: TEXT_GRAY[200],
   },
-  modalPreviewRow: { fontSize: 14, color: '#374151', fontWeight: '600' },
-  modalNote: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20 },
+  modalPreviewRow: { fontSize: 14, color: TEXT_GRAY[700], fontWeight: '600' },
+  modalNote: { fontSize: 13, color: TEXT_GRAY[500], textAlign: 'center', lineHeight: 20 },
   modalActionBtn: {
     alignSelf: 'stretch', borderRadius: 14, paddingVertical: 14, alignItems: 'center',
     shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
@@ -776,7 +777,7 @@ const s = StyleSheet.create({
   modalActionText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
   modalCancelBtn: {
     alignSelf: 'stretch', borderRadius: 14, paddingVertical: 12, alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: TEXT_GRAY[100],
   },
-  modalCancelText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
+  modalCancelText: { color: TEXT_GRAY[500], fontSize: 14, fontWeight: '600' },
 });

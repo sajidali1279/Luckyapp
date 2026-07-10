@@ -500,6 +500,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               }}
               trackColor={{ false: COLORS.border, true: COLORS.primary + '80' }}
               thumbColor={biometricEnabled ? COLORS.primary : '#f4f3f4'}
+              accessibilityRole="switch"
+              accessibilityLabel={t('profile.biometricLogin')}
+              accessibilityState={{ checked: biometricEnabled }}
             />
           </View>
         )}

@@ -131,11 +131,12 @@ export default function ManagerHome() {
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
+    <View style={{ flex: 1 }}>
+      <SafeAreaView style={s.headerSafe} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
 
-      {/* ── Header with SVG gradient ── */}
-      <View style={s.header}>
+        {/* ── Header with SVG gradient ── */}
+        <View style={s.header}>
         <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
             <SvgGradient id="hg" x1="0" y1="0" x2="1" y2="1">
@@ -196,7 +197,9 @@ export default function ManagerHome() {
         </View>
 
       </View>
+      </SafeAreaView>
 
+      <View style={s.safe}>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
@@ -441,11 +444,13 @@ export default function ManagerHome() {
           )}
         </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  headerSafe: { backgroundColor: '#0a3323' },
   safe:   { flex: 1, backgroundColor: '#EDF1F7' },
   scroll: { flex: 1 },
   content: { paddingTop: 0, paddingHorizontal: 16, paddingBottom: 48 },

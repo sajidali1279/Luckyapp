@@ -70,6 +70,31 @@ interface EmployeeRequest {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+// Three separate status-color contexts, each with a different design intent:
+// action buttons use distinct hues so "mark ordered" vs "mark received" stay
+// visually distinguishable at a glance; stat cards use vivid colors to draw
+// the eye; section headers deliberately mute RECEIVED to de-emphasize
+// completed items. Kept as three named maps (not merged into one) so the
+// intentional differences are documented instead of drifting as unexplained
+// inline hex.
+const ACTION_COLORS = {
+  ORDERED:  { text: '#059669', bg: '#D1FAE5' },
+  RECEIVED: { text: '#2563EB', bg: '#DBEAFE' },
+} as const;
+
+const STAT_CARD_COLORS = {
+  NEEDED:   { border: '#F59E0B', num: '#D97706' },
+  ORDERED:  { border: '#34D399', num: '#059669' },
+  RECEIVED: { border: '#86EFAC', num: '#16A34A' },
+} as const;
+
+const SECTION_HEADER_COLORS = {
+  URGENT:   { bg: '#FFF7ED', text: '#C2410C' },
+  NEEDED:   { bg: '#FFFBEB', text: '#92400E' },
+  ORDERED:  { bg: '#F0FDF4', text: '#166534' },
+  RECEIVED: { bg: '#F8FAFC', text: '#6B7280' },
+} as const;
+
 const REJECTION_REASONS = [
   { value: 'NO_SUPPLIER',   label: 'No supplier' },
   { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
@@ -237,8 +262,8 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
   };
 
   const nextAction =
-    item.status === 'PENDING'  ? { label: '→ Ordered',  color: '#059669', bg: '#D1FAE5', onPress: () => onMarkOrdered(item) }  :
-    item.status === 'ORDERED'  ? { label: '✓ Received', color: '#2563EB', bg: '#DBEAFE', onPress: () => onMarkReceived(item) } :
+    item.status === 'PENDING'  ? { label: '→ Ordered',  color: ACTION_COLORS.ORDERED.text, bg: ACTION_COLORS.ORDERED.bg, onPress: () => onMarkOrdered(item) }  :
+    item.status === 'ORDERED'  ? { label: '✓ Received', color: ACTION_COLORS.RECEIVED.text, bg: ACTION_COLORS.RECEIVED.bg, onPress: () => onMarkReceived(item) } :
     null;
 
   return (
@@ -1094,7 +1119,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                         {list.items.length} items · Closed {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </Text>
                       {undelivered.length > 0 && (
-                        <Text style={{ fontSize: 12, color: '#D97706', marginTop: 2 }}>
+                        <Text style={{ fontSize: 12, color: STAT_CARD_COLORS.NEEDED.num, marginTop: 2 }}>
                           {undelivered.length} item{undelivered.length !== 1 ? 's' : ''} not received
                         </Text>
                       )}
@@ -1386,20 +1411,20 @@ export default function ManagerOrderListScreen() {
             <Text style={s.listName} numberOfLines={1}>{activeList.name}</Text>
             <View style={s.statsRow}>
               {(urgentItems.length > 0 || neededItems.length > 0) && (
-                <View style={[s.statCard, { borderColor: '#F59E0B' }]}>
-                  <Text style={[s.statNum, { color: '#D97706' }]}>{urgentItems.length + neededItems.length}</Text>
+                <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.NEEDED.border }]}>
+                  <Text style={[s.statNum, { color: STAT_CARD_COLORS.NEEDED.num }]}>{urgentItems.length + neededItems.length}</Text>
                   <Text style={s.statLabel}>Needed</Text>
                 </View>
               )}
               {orderedItems.length > 0 && (
-                <View style={[s.statCard, { borderColor: '#34D399' }]}>
-                  <Text style={[s.statNum, { color: '#059669' }]}>{orderedItems.length}</Text>
+                <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.ORDERED.border }]}>
+                  <Text style={[s.statNum, { color: STAT_CARD_COLORS.ORDERED.num }]}>{orderedItems.length}</Text>
                   <Text style={s.statLabel}>Ordered</Text>
                 </View>
               )}
               {receivedItems.length > 0 && (
-                <View style={[s.statCard, { borderColor: '#86EFAC' }]}>
-                  <Text style={[s.statNum, { color: '#16A34A' }]}>{receivedItems.length}</Text>
+                <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.RECEIVED.border }]}>
+                  <Text style={[s.statNum, { color: STAT_CARD_COLORS.RECEIVED.num }]}>{receivedItems.length}</Text>
                   <Text style={s.statLabel}>Received</Text>
                 </View>
               )}
@@ -1471,9 +1496,9 @@ export default function ManagerOrderListScreen() {
               >
                 {urgentItems.length > 0 && (
                   <>
-                    <View style={[r.sectionHeader, { backgroundColor: '#FFF7ED', flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-                      <ZapIcon size={12} color="#C2410C" strokeWidth={2.25} />
-                      <Text style={[r.sectionLabel, { color: '#C2410C' }]}>URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
+                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.URGENT.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+                      <ZapIcon size={12} color={SECTION_HEADER_COLORS.URGENT.text} strokeWidth={2.25} />
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {urgentItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1484,8 +1509,8 @@ export default function ManagerOrderListScreen() {
                 )}
                 {neededItems.length > 0 && (
                   <>
-                    <View style={[r.sectionHeader, { backgroundColor: '#FFFBEB' }]}>
-                      <Text style={[r.sectionLabel, { color: '#92400E' }]}>Needed — {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
+                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.NEEDED.bg }]}>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>Needed — {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {neededItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1496,8 +1521,8 @@ export default function ManagerOrderListScreen() {
                 )}
                 {orderedItems.length > 0 && (
                   <>
-                    <View style={[r.sectionHeader, { backgroundColor: '#F0FDF4' }]}>
-                      <Text style={[r.sectionLabel, { color: '#166534' }]}>Ordered — {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
+                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.ORDERED.bg }]}>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>Ordered — {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {orderedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1508,8 +1533,8 @@ export default function ManagerOrderListScreen() {
                 )}
                 {receivedItems.length > 0 && (
                   <>
-                    <View style={[r.sectionHeader, { backgroundColor: '#F8FAFC' }]}>
-                      <Text style={[r.sectionLabel, { color: '#6B7280' }]}>Received — {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
+                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.RECEIVED.bg }]}>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>Received — {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {receivedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
