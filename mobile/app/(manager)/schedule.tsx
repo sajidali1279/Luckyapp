@@ -13,47 +13,22 @@ import {
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import {
+  DAY_ORDER, DAY_LABELS, DAY_SHORT, DAY_LETTER, JS_DAY_TO_ENUM,
+  SHIFT_ORDER, SHIFT_COLORS, SHIFT_LABELS as SHIFT_LABELS_TYPED,
+  getTodayDayKey as getTodayKey, getCurrentWeekDates, fmtDateFull, formatShiftTime,
+} from '../../utils/schedule';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const DAY_LABELS: Record<string, string> = {
-  MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday',
-  THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday',
+// This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
+// responses (e.g. req.shiftType), so both are re-typed loosely here rather
+// than with the shared module's literal ShiftKey union — the values still
+// come from one source of truth, only the local type is widened.
+const SHIFT_LABELS: Record<string, string> = SHIFT_LABELS_TYPED;
+const SHIFT_TIMES: Record<string, string> = {
+  OPENING: formatShiftTime('OPENING', true),
+  MIDDLE: formatShiftTime('MIDDLE', true),
+  CLOSING: formatShiftTime('CLOSING', true),
 };
-const DAY_SHORT: Record<string, string> = {
-  MON: 'Mon', TUE: 'Tue', WED: 'Wed',
-  THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun',
-};
-const DAY_LETTER: Record<string, string> = {
-  MON: 'M', TUE: 'T', WED: 'W', THU: 'T', FRI: 'F', SAT: 'S', SUN: 'S',
-};
-
-const SHIFT_ORDER = ['OPENING', 'MIDDLE', 'CLOSING'];
-const SHIFT_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
-const SHIFT_COLORS: Record<string, string> = { OPENING: COLORS.accent, MIDDLE: COLORS.success, CLOSING: COLORS.secondary };
-const SHIFT_TIMES: Record<string, string> = { OPENING: '6am–2pm', MIDDLE: '10am–6pm', CLOSING: '2pm–10pm' };
-
-const JS_DAY_TO_ENUM = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-
-function getTodayKey(): string { return JS_DAY_TO_ENUM[new Date().getDay()]; }
-
-function getCurrentWeekDates(): { key: string; date: Date }[] {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return DAY_ORDER.map((key, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return { key, date: d };
-  });
-}
-
-function fmtDateFull(d: string): string {
-  return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 type Tab = 'roster' | 'week' | 'requests';
 interface Store { id: string; name: string }
