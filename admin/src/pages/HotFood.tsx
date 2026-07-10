@@ -13,7 +13,7 @@ import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog';
+type MainView   = 'orders' | 'catalog' | 'availability';
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -28,7 +28,7 @@ interface CatalogItem {
   id: string; name: string; description?: string;
   price: number; imageUrl?: string; estimatedMinutes?: number; storeCount: number;
 }
-interface Store { id: string; name: string }
+interface Store { id: string; name: string; city?: string; hotFoodEnabled?: boolean }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -458,6 +458,22 @@ export default function HotFood() {
   });
   const stores: Store[] = storesData?.data?.data ?? [];
 
+  // ── Availability ───────────────────────────────────────────────────────────
+
+  const [togglingHotFood, setTogglingHotFood] = useState<string | null>(null);
+  async function toggleHotFood(store: Store) {
+    setTogglingHotFood(store.id);
+    try {
+      await storesApi.update(store.id, { hotFoodEnabled: !store.hotFoodEnabled });
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      toast.success(store.hotFoodEnabled ? `🔥 Hot food disabled at ${store.name}` : `🔥 Hot food enabled at ${store.name}`);
+    } catch {
+      toast.error('Failed to update hot food setting');
+    } finally {
+      setTogglingHotFood(null);
+    }
+  }
+
   // ── Orders ─────────────────────────────────────────────────────────────────
 
   const { data: ordersData, isLoading: ordersLoading, isError: ordersError, isRefetching, refetch } = useQuery({
@@ -523,7 +539,9 @@ export default function HotFood() {
             <p style={pg.sub}>
               {view === 'orders'
                 ? pendingCount > 0 ? `${pendingCount} pending order${pendingCount !== 1 ? 's' : ''} · auto-refreshes every 20s` : 'Live order board · auto-refreshes every 20s'
-                : `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`}
+                : view === 'catalog'
+                ? `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`
+                : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
             </p>
           </div>
         </div>
@@ -548,6 +566,12 @@ export default function HotFood() {
             >
               Catalog
             </button>
+            <button
+              style={{ ...pg.toggleBtn, ...(view === 'availability' ? pg.toggleBtnOn : {}) }}
+              onClick={() => setView('availability')}
+            >
+              Availability
+            </button>
           </div>
 
           {view === 'orders' ? (
@@ -555,12 +579,12 @@ export default function HotFood() {
               <RefreshCw size={13} style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />
               Refresh
             </button>
-          ) : (
+          ) : view === 'catalog' ? (
             <button style={pg.addBtn} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>
               <Plus size={14} />
               Add Item
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -688,6 +712,45 @@ export default function HotFood() {
         </>
       )}
 
+      {/* ── Availability view ───────────────────────────────────────────── */}
+      {view === 'availability' && (
+        <>
+          <p style={pg.availabilityHint}>
+            Turn a store off before advertising or launching pickup there — customers won't see hot food ordering
+            at that location, and any attempt to place an order will be rejected server-side.
+          </p>
+          {stores.length === 0 ? (
+            <div style={pg.empty}>
+              <Flame size={36} color="#E5E7EB" />
+              <p style={{ color: '#5a6472', marginTop: 8 }}>No stores found.</p>
+            </div>
+          ) : (
+            <div style={pg.availList}>
+              {stores.map(store => (
+                <div key={store.id} style={pg.availRow}>
+                  <div style={pg.availInfo}>
+                    <span style={pg.availIcon}>🔥</span>
+                    <div>
+                      <div style={pg.availName}>{store.name}{store.city ? ` · ${store.city}` : ''}</div>
+                      <div style={pg.availSub}>
+                        {store.hotFoodEnabled ? 'Customers can order from the kitchen' : 'Hidden for customers at this location'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    style={{ ...pg.availToggle, ...(store.hotFoodEnabled ? pg.availToggleOn : pg.availToggleOff) }}
+                    onClick={() => toggleHotFood(store)}
+                    disabled={togglingHotFood === store.id}
+                  >
+                    {togglingHotFood === store.id ? '…' : store.hotFoodEnabled ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {/* ── Modals ──────────────────────────────────────────────────────── */}
       {showAddEdit && (
         <AddEditModal
@@ -748,6 +811,17 @@ const pg: Record<string, React.CSSProperties> = {
   searchWrap:   { position: 'relative', flex: 1, maxWidth: 340 },
   searchIcon:   { position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
   searchInput:  { width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px 8px 34px', fontSize: 14, color: '#374151', outline: 'none', background: '#fff', boxSizing: 'border-box' },
+
+  availabilityHint: { fontSize: 13, color: '#5a6472', marginBottom: 16, maxWidth: 640, lineHeight: 1.5 },
+  availList:    { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 },
+  availRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '14px 16px' },
+  availInfo:    { display: 'flex', alignItems: 'center', gap: 10 },
+  availIcon:    { fontSize: 20, flexShrink: 0 },
+  availName:    { fontSize: 14, fontWeight: 700, color: '#111827' },
+  availSub:     { fontSize: 12, color: '#5a6472', marginTop: 1 },
+  availToggle:  { fontSize: 12, fontWeight: 800, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
+  availToggleOn:  { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
+  availToggleOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
 
   tileGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 },
   tile:         { background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', overflow: 'hidden', cursor: 'pointer', transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },

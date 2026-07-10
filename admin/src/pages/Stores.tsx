@@ -118,20 +118,6 @@ export default function Stores() {
     onError: () => toast.error('Failed to update gas prices'),
   });
 
-  const [togglingHotFood, setTogglingHotFood] = useState<string | null>(null);
-  async function toggleHotFood(store: Store) {
-    setTogglingHotFood(store.id);
-    try {
-      await storesApi.update(store.id, { hotFoodEnabled: !store.hotFoodEnabled });
-      qc.invalidateQueries({ queryKey: ['stores'] });
-      toast.success(store.hotFoodEnabled ? '🔥 Hot food disabled for this store' : '🔥 Hot food enabled for this store');
-    } catch {
-      toast.error('Failed to update hot food setting');
-    } finally {
-      setTogglingHotFood(null);
-    }
-  }
-
   function getGasForm(store: Store) {
     return gasForms[store.id] ?? {
       gas:    store.gasPricePerGallon    != null ? store.gasPricePerGallon.toFixed(3)    : '',
@@ -364,25 +350,6 @@ export default function Stores() {
                       </span>
                     );
                   })}
-                </div>
-
-                {/* ── Feature Flags ── */}
-                <div style={s.divider} />
-                <div style={s.featureRow}>
-                  <div style={s.featureInfo}>
-                    <span style={s.featureIcon}>🔥</span>
-                    <div>
-                      <div style={s.featureLabel}>Hot Food Ordering</div>
-                      <div style={s.featureSub}>{store.hotFoodEnabled ? 'Customers can order from the kitchen' : 'Hidden for customers at this location'}</div>
-                    </div>
-                  </div>
-                  <button
-                    style={{ ...s.toggleBtn, ...(store.hotFoodEnabled ? s.toggleBtnOn : s.toggleBtnOff) }}
-                    onClick={() => toggleHotFood(store)}
-                    disabled={togglingHotFood === store.id}
-                  >
-                    {togglingHotFood === store.id ? '…' : store.hotFoodEnabled ? 'ON' : 'OFF'}
-                  </button>
                 </div>
 
                 {/* ── Gas Prices inline editor ── */}
@@ -755,14 +722,6 @@ const s: Record<string, React.CSSProperties> = {
   catPillOn: { background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' },
   catPillOff: { background: '#f9f9f9', borderColor: '#e5e7eb', color: '#aaa', textDecoration: 'line-through' },
 
-  featureRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '4px 0' },
-  featureInfo: { display: 'flex', alignItems: 'center', gap: 10 },
-  featureIcon: { fontSize: 20, flexShrink: 0 },
-  featureLabel: { fontSize: 14, fontWeight: 700, color: '#1a1a2e' },
-  featureSub: { fontSize: 12, color: '#6c757d', marginTop: 1 },
-  toggleBtn: { fontSize: 12, fontWeight: 800, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
-  toggleBtnOn:  { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
-  toggleBtnOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
 
   catHint: { fontSize: 14, color: '#6c757d', background: '#f8f9fb', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
   catToggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 },
