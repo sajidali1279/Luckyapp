@@ -629,6 +629,8 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
   const [catSearch,      setCatSearch]      = useState(item.category || '');
   const [showCatSugg,    setShowCatSugg]    = useState(false);
   const [showNewCat,     setShowNewCat]     = useState(false);
+  const [newCatName,     setNewCatName]     = useState('');
+  const [newCatSubmitting, setNewCatSubmitting] = useState(false);
   const [priority,       setPriority]       = useState<Priority>(item.priority);
 
   // Debounce name for API
@@ -645,6 +647,9 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       setCategory(item.category || '');
       setCatSearch(item.category || '');
       setPriority(item.priority);
+    } else {
+      setShowNewCat(false);
+      setNewCatName('');
     }
   }, [visible, item.id]);
 
@@ -677,6 +682,23 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
   const catSuggestions = catSearch.trim()
     ? categories.filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
     : categories;
+
+  const handleSubmitNewCat = async () => {
+    if (!newCatName.trim() || newCatSubmitting) return;
+    setNewCatSubmitting(true);
+    try {
+      await orderCategoriesApi.submitNew(newCatName.trim());
+      setCategory(newCatName.trim());
+      setCatSearch(newCatName.trim());
+      Toast.show({ type: 'success', text1: 'Submitted for approval' });
+      setShowNewCat(false);
+      setNewCatName('');
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to submit category' });
+    } finally {
+      setNewCatSubmitting(false);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -798,16 +820,45 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               </View>
             )}
 
-            <TouchableOpacity
-              style={[s.catNewTrigger, { marginTop: 8 }]}
-              onPress={() => setShowNewCat(true)}
-              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
-              accessibilityRole="button"
-              accessibilityLabel="Submit new category for approval"
-            >
-              <PlusIcon size={13} color={COLORS.managerPrimary} strokeWidth={2.5} />
-              <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
-            </TouchableOpacity>
+            {!showNewCat ? (
+              <TouchableOpacity
+                style={[s.catNewTrigger, { marginTop: 8 }]}
+                onPress={() => setShowNewCat(true)}
+                hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                accessibilityRole="button"
+                accessibilityLabel="Submit new category for approval"
+              >
+                <PlusIcon size={13} color={COLORS.managerPrimary} strokeWidth={2.5} />
+                <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[s.catNewForm, { marginTop: 8 }]}>
+                <TextInput
+                  style={s.catNewInput}
+                  value={newCatName}
+                  onChangeText={setNewCatName}
+                  placeholder="Enter category name..."
+                  placeholderTextColor={COLORS.textMuted}
+                  autoFocus
+                  maxLength={80}
+                />
+                <Text style={s.catNewHint}>
+                  Will be sent to the admin for review. Once approved it appears for all managers.
+                </Text>
+                <TouchableOpacity
+                  style={[s.catNewSubmitBtn, (!newCatName.trim() || newCatSubmitting) && { opacity: 0.4 }]}
+                  onPress={handleSubmitNewCat}
+                  disabled={!newCatName.trim() || newCatSubmitting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Submit new category"
+                >
+                  {newCatSubmitting
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={s.catNewSubmitText}>Submit for Approval</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[s.submitBtn, editMutation.isPending && { opacity: 0.6 }]}
@@ -824,21 +875,6 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
-
-        {/* New Category Submission Modal */}
-        <CategoryPicker
-          visible={showNewCat}
-          categories={categories}
-          selected={category}
-          onSelect={(cat) => { setCategory(cat); setCatSearch(cat); }}
-          onSubmitNew={async (newCat) => {
-            await orderCategoriesApi.submitNew(newCat);
-            setCategory(newCat);
-            setCatSearch(newCat);
-            Toast.show({ type: 'success', text1: 'Submitted for approval' });
-          }}
-          onClose={() => setShowNewCat(false)}
-        />
       </KeyboardAvoidingView>
     </Modal>
   );
