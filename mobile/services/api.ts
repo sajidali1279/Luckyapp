@@ -147,6 +147,10 @@ export const chatApi = {
   getUnreadCount: () => api.get('/chat/unread-count'),
 };
 
+export const noticesApi = {
+  getActive: () => api.get('/notices/active'),
+};
+
 export const disputeApi = {
   submit: (data: { storeId: string; description: string; estimatedAmt?: number }) =>
     api.post('/disputes', data),

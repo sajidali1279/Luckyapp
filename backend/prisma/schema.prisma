@@ -253,6 +253,7 @@ model User {
   hotFoodOrders         HotFoodOrder[]        @relation("HotFoodOrdersPlaced")
   jobOpenings           JobOpening[]
   dailyReports          DailyReport[]         @relation("DailyReportsSubmitted")
+  adminNotices          AdminNotice[]
 
   @@map("users")
 }
@@ -326,6 +327,7 @@ model Store {
   hotFoodCatalogStores  HotFoodCatalogStore[]
   dailyReports          DailyReport[]
   dailyTasks            DailyTask[]
+  adminNotices          AdminNotice[]
 
   @@map("stores")
 }
@@ -1232,6 +1234,27 @@ model HotFoodCatalogStore {
 
   @@unique([catalogItemId, storeId])
   @@map("hot_food_catalog_stores")
+}
+
+// ─── Admin Notices (HQ broadcast → pinned banner in store chat) ─────────────
+
+model AdminNotice {
+  id          String   @id @default(uuid())
+  title       String
+  body        String
+  storeId     String?  // null = all stores
+  createdById String
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store     Store? @relation(fields: [storeId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@index([isActive, endDate])
+  @@index([storeId])
+  @@map("admin_notices")
 }
 
 // ─── Points Dispute ───────────────────────────────────────────────────────────

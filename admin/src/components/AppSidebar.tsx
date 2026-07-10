@@ -45,6 +45,7 @@ import {
   LogOut,
   Fuel,
   Flame,
+  Pin,
   ChevronRight,
 } from 'lucide-react';
 
@@ -341,6 +342,9 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" />
               <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
+              )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
               )}

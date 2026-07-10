@@ -96,6 +96,13 @@ export const bannersApi = {
   getActive: () => api.get('/banners'),
 };
 
+export const noticesApi = {
+  create: (data: { title: string; body: string; storeId?: string; endDate: string }) => api.post('/admin/notices', data),
+  getAll: () => api.get('/admin/notices'),
+  deactivate: (id: string) => api.patch(`/admin/notices/${id}`, {}),
+  delete: (id: string) => api.delete(`/admin/notices/${id}`),
+};
+
 export const pointsApi = {
   getStoreSummary: (storeId: string) => api.get(`/points/store/${storeId}/summary`),
   getStoreTransactions: (storeId: string, status?: string, page = 1) =>

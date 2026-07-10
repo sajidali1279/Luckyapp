@@ -19,6 +19,7 @@ const Billing                = lazy(() => import('./pages/Billing'));
 const Analytics              = lazy(() => import('./pages/Analytics'));
 const Offers                 = lazy(() => import('./pages/Offers'));
 const Banners                = lazy(() => import('./pages/Banners'));
+const Notices                = lazy(() => import('./pages/Notices'));
 const Transactions           = lazy(() => import('./pages/Transactions'));
 const Staff                  = lazy(() => import('./pages/Staff'));
 const Customers              = lazy(() => import('./pages/Customers'));
@@ -115,6 +116,7 @@ export default function App() {
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />
+              <Route path="/notices" element={<Notices />} />
               {/* Scheduling accessible to StoreManager+ */}
               <Route path="/scheduling" element={<Scheduling />} />
               <Route element={<SuperAdminOnly />}>

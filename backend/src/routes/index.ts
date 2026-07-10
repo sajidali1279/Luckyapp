@@ -149,6 +149,7 @@ import {
 } from '../controllers/leaderboard.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
+import { createNotice, getAllNotices, deactivateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
 import {
   updateStoreBilling,
   getAllStoresBilling,
@@ -511,6 +512,13 @@ router.post('/admin/daily-tasks/seed',   authenticate, requireRole(Role.DEV_ADMI
 router.post('/admin/daily-tasks',        authenticate, requireRole(Role.SUPER_ADMIN), createTask);
 router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.SUPER_ADMIN), updateTask);
 router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteTask);
+
+// ─── Admin Notices (HQ broadcast → pinned banner in store chat) ──────────────
+router.get('/notices/active',        authenticate, requireRole(Role.EMPLOYEE),    getActiveNotices);
+router.get('/admin/notices',         authenticate, requireRole(Role.SUPER_ADMIN), getAllNotices);
+router.post('/admin/notices',        authenticate, requireRole(Role.SUPER_ADMIN), createNotice);
+router.patch('/admin/notices/:id',   authenticate, requireRole(Role.SUPER_ADMIN), deactivateNotice);
+router.delete('/admin/notices/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteNotice);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);

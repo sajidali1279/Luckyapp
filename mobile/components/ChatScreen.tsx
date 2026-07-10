@@ -6,12 +6,52 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
-import { chatApi } from '../services/api';
+import { chatApi, noticesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
-import { MessageCircleIcon, ArrowUpIcon } from './Icons';
+import { MessageCircleIcon, ArrowUpIcon, XIcon } from './Icons';
+
+const DISMISSED_NOTICES_KEY = 'dismissed-admin-notices';
+
+interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  storeId: string | null;
+}
+
+function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <TouchableOpacity
+      style={s.noticeBanner}
+      onPress={() => setExpanded((v) => !v)}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`Important notice: ${notice.title}. ${notice.body}`}
+    >
+      <View style={s.noticeIconWrap}>
+        <Text style={{ fontSize: 16 }}>📌</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.noticeTitle}>{notice.title}</Text>
+        <Text style={s.noticeBody} numberOfLines={expanded ? undefined : 2}>{notice.body}</Text>
+      </View>
+      <TouchableOpacity
+        onPress={onDismiss}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={s.noticeDismiss}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss notice"
+      >
+        <XIcon size={16} color="#92400e" strokeWidth={2.5} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -93,6 +133,30 @@ export default function ChatScreen() {
     queryKey: ['chat-my-stores'],
     queryFn: () => chatApi.getMyStores(),
   });
+
+  const { data: noticesData } = useQuery({
+    queryKey: ['active-notices'],
+    queryFn: () => noticesApi.getActive(),
+    staleTime: 60_000,
+  });
+  const allNotices: Notice[] = noticesData?.data?.data || [];
+  const relevantNotices = allNotices.filter((n) => !n.storeId || n.storeId === selectedStoreId);
+
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    AsyncStorage.getItem(DISMISSED_NOTICES_KEY).then((raw) => {
+      if (raw) { try { setDismissedIds(new Set(JSON.parse(raw))); } catch {} }
+    });
+  }, []);
+  const visibleNotice = relevantNotices.find((n) => !dismissedIds.has(n.id));
+  function dismissNotice(id: string) {
+    setDismissedIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      AsyncStorage.setItem(DISMISSED_NOTICES_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   useEffect(() => {
     const s: Store[] = storesData?.data?.data || [];
@@ -318,6 +382,11 @@ export default function ChatScreen() {
           </SafeAreaView>
         </View>
 
+        {/* ── Pinned Notice ── */}
+        {visibleNotice && (
+          <NoticeBanner notice={visibleNotice} onDismiss={() => dismissNotice(visibleNotice.id)} />
+        )}
+
         {/* ── Messages ── */}
         {msgsLoading ? (
           <View style={s.centered}>
@@ -417,6 +486,17 @@ const s = StyleSheet.create({
   storeTabDot: { width: 7, height: 7, borderRadius: 4 },
   storeTabText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '600', flexShrink: 1 },
   storeTabTextActive: { color: '#fff' },
+
+  // Pinned notice banner
+  noticeBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#fffbeb', borderBottomWidth: 1, borderBottomColor: '#fde68a',
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  noticeIconWrap: { marginTop: 1 },
+  noticeTitle: { fontSize: 13, fontWeight: '800', color: '#92400e', marginBottom: 2 },
+  noticeBody: { fontSize: 12.5, color: '#78350f', lineHeight: 18 },
+  noticeDismiss: { padding: 2, marginTop: 1 },
 
   // Messages
   messageList: { padding: 16, paddingBottom: 10 },
