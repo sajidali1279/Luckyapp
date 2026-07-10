@@ -176,6 +176,9 @@ export default function NotificationsScreen() {
   const unreadCount: number = data?.data?.data?.unreadCount ?? 0;
   // Only employees need gas price alerts pinned (they update the pump display)
   const isEmployee = user?.role === 'EMPLOYEE';
+  const headerBg = user?.role === 'CUSTOMER' ? COLORS.primary
+    : user?.role === 'STORE_MANAGER' ? COLORS.managerPrimary
+    : COLORS.secondary;
   const notifications = isEmployee
     ? [...rawNotifications].sort((a, b) => {
         const aPin = a.type === 'GAS_PRICE_UPDATE' && !a.isRead ? -1 : 0;
@@ -284,8 +287,8 @@ export default function NotificationsScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
-      <SafeAreaView style={s.header}>
+      <StatusBar barStyle="light-content" backgroundColor={headerBg} />
+      <SafeAreaView style={[s.header, { backgroundColor: headerBg }]}>
         <Text style={s.headerTitle}>Notifications</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {unreadCount > 0 && (

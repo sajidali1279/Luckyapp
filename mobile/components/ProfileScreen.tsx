@@ -160,7 +160,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
   const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
-  const headerBg = isCustomer ? COLORS.primary : COLORS.secondary;
+  const headerBg = isCustomer ? COLORS.primary
+    : user?.role === 'STORE_MANAGER' ? COLORS.managerPrimary
+    : COLORS.secondary;
 
   async function handleSaveLanguage() {
     await setLanguage(selectedLang);

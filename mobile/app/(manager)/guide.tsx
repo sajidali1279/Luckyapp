@@ -7,7 +7,7 @@ export default function ManagerGuideScreen() {
     <GuideScreen
       title="Store Manager Manual"
       content={storeManagerManual}
-      headerColor={COLORS.secondary}
+      headerColor={COLORS.managerPrimary}
     />
   );
 }

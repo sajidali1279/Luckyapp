@@ -65,7 +65,7 @@ export default function ManagerLeaderboardScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
 
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
@@ -223,7 +223,7 @@ function custAvatarColor(i: number) { return AVATAR_COLORS[i % AVATAR_COLORS.len
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F8FAFC' },
 
-  headerBg: { backgroundColor: COLORS.secondary },
+  headerBg: { backgroundColor: COLORS.managerPrimary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
@@ -253,7 +253,7 @@ const s = StyleSheet.create({
   },
   tabActive: { backgroundColor: '#fff', borderColor: '#fff' },
   tabText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '700' },
-  tabTextActive: { color: COLORS.secondary, fontWeight: '800' },
+  tabTextActive: { color: COLORS.managerPrimary, fontWeight: '800' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyText: { fontSize: 14, color: '#6B7280', textAlign: 'center' },

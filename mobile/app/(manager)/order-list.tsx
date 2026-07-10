@@ -151,8 +151,8 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
               accessibilityRole="button"
               accessibilityLabel="Clear category selection"
             >
-              <Text style={[s.catOptionText, !selected && { color: COLORS.secondary, fontWeight: '700' }]}>None</Text>
-              {!selected && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
+              <Text style={[s.catOptionText, !selected && { color: COLORS.managerPrimary, fontWeight: '700' }]}>None</Text>
+              {!selected && <CheckCircleIcon size={15} color={COLORS.managerPrimary} strokeWidth={2.5} />}
             </TouchableOpacity>
             {filtered.map(cat => (
               <TouchableOpacity
@@ -163,8 +163,8 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                 accessibilityRole="button"
                 accessibilityLabel={`Select category ${cat}`}
               >
-                <Text style={[s.catOptionText, selected === cat && { color: COLORS.secondary, fontWeight: '700' }]}>{cat}</Text>
-                {selected === cat && <CheckCircleIcon size={15} color={COLORS.secondary} strokeWidth={2.5} />}
+                <Text style={[s.catOptionText, selected === cat && { color: COLORS.managerPrimary, fontWeight: '700' }]}>{cat}</Text>
+                {selected === cat && <CheckCircleIcon size={15} color={COLORS.managerPrimary} strokeWidth={2.5} />}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -179,7 +179,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                 accessibilityRole="button"
                 accessibilityLabel="Submit new category for approval"
               >
-                <PlusIcon size={14} color={COLORS.secondary} strokeWidth={2.5} />
+                <PlusIcon size={14} color={COLORS.managerPrimary} strokeWidth={2.5} />
                 <Text style={s.catNewTriggerText}>Submit New Category for Approval</Text>
               </TouchableOpacity>
             ) : (
@@ -488,7 +488,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           style={qa.catNewBtn}
           accessibilityLabel="Submit new category"
         >
-          <PlusIcon size={14} color={COLORS.secondary} strokeWidth={2.5} />
+          <PlusIcon size={14} color={COLORS.managerPrimary} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
@@ -752,7 +752,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               accessibilityRole="button"
               accessibilityLabel="Submit new category for approval"
             >
-              <PlusIcon size={13} color={COLORS.secondary} strokeWidth={2.5} />
+              <PlusIcon size={13} color={COLORS.managerPrimary} strokeWidth={2.5} />
               <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
             </TouchableOpacity>
 
@@ -881,7 +881,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
         </View>
 
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
+          <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
         ) : requests.length === 0 ? (
           <View style={s.center}>
             <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
@@ -1038,7 +1038,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
         </View>
 
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
+          <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
         ) : lists.length === 0 ? (
           <View style={s.center}>
             <ListIcon size={48} color={COLORS.border} strokeWidth={1.25} />
@@ -1086,7 +1086,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                               accessibilityRole="button"
                               accessibilityLabel={`${selected[item.id] ? 'Deselect' : 'Select'} ${item.name} to restore`}
                             >
-                              <View style={[s.restoreCheckbox, selected[item.id] && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
+                              <View style={[s.restoreCheckbox, selected[item.id] && { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary }]}>
                                 {selected[item.id] && <CheckCircleIcon size={14} color="#fff" strokeWidth={2.5} />}
                               </View>
                               <View style={{ flex: 1 }}>
@@ -1266,7 +1266,7 @@ export default function ManagerOrderListScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
 
       {/* Header */}
       <View style={s.header}>
@@ -1330,7 +1330,7 @@ export default function ManagerOrderListScreen() {
           <Text style={s.emptyTitle}>Select a store above</Text>
         </View>
       ) : listLoading ? (
-        <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
+        <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
       ) : !activeList ? (
         <View style={s.center}>
           <PackageIcon size={56} color={COLORS.border} strokeWidth={1.25} />
@@ -1435,7 +1435,7 @@ export default function ManagerOrderListScreen() {
                 contentContainerStyle={{ paddingBottom: 8 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.secondary} />}
+                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.managerPrimary} />}
               >
                 {urgentItems.length > 0 && (
                   <>
@@ -1542,7 +1542,7 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
 
   header: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.managerPrimary,
     paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     flexWrap: 'wrap', gap: 8,
@@ -1558,7 +1558,7 @@ const s = StyleSheet.create({
   storeTabs:      { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeTabsInner: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
   storeTab:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff' },
-  storeTabActive:     { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  storeTabActive:     { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary },
   storeTabText:       { fontSize: 13, fontWeight: '600', color: COLORS.text },
   storeTabTextActive: { color: '#fff' },
 
@@ -1580,8 +1580,8 @@ const s = StyleSheet.create({
   closeListBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
 
   openListBtn: {
-    marginTop: 20, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.secondary,
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    marginTop: 20, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.managerPrimary,
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
   openListBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
@@ -1628,15 +1628,15 @@ const s = StyleSheet.create({
   catOptionText: { fontSize: 15, color: COLORS.text },
   catNewSection: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
   catNewTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  catNewTriggerText: { fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+  catNewTriggerText: { fontSize: 14, color: COLORS.managerPrimary, fontWeight: '600' },
   catNewForm: { gap: 10 },
   catNewInput: {
-    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.secondary,
+    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.managerPrimary,
     borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.text,
   },
   catNewHint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 18 },
   catNewSubmitBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+    backgroundColor: COLORS.managerPrimary, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
   },
   catNewSubmitText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
@@ -1652,14 +1652,14 @@ const s = StyleSheet.create({
   catSuggestRow:       { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
   catSuggestRowActive: { backgroundColor: '#EEF2FF' },
   catSuggestText:      { fontSize: 14, color: COLORS.text },
-  catSuggestTextActive:{ fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+  catSuggestTextActive:{ fontSize: 14, color: COLORS.managerPrimary, fontWeight: '600' },
 
-  submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
+  submitBtn:     { backgroundColor: COLORS.managerPrimary, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // Full-screen modals
   modalFullHeader: {
-    backgroundColor: COLORS.secondary, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
+    backgroundColor: COLORS.managerPrimary, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   modalFullTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: '#fff' },
@@ -1689,7 +1689,7 @@ const s = StyleSheet.create({
 
   // Restore
   restoreItem:         { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#fff' },
-  restoreItemSelected: { borderColor: COLORS.secondary, backgroundColor: '#EEF2FF' },
+  restoreItemSelected: { borderColor: COLORS.managerPrimary, backgroundColor: '#EEF2FF' },
   restoreCheckbox:     { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
 });
 
@@ -1811,8 +1811,8 @@ const t = StyleSheet.create({
   addCatPlaceholder: { fontSize: 12, color: '#B0B8C4', fontWeight: '500', textAlign: 'center' },
   addCircle: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
+    backgroundColor: COLORS.managerPrimary, alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
   },
 });
 
@@ -1838,7 +1838,7 @@ const qa = StyleSheet.create({
   },
   suggRowActive:  { backgroundColor: '#EEF2FF' },
   suggText:       { fontSize: 14, color: COLORS.text, flex: 1 },
-  suggTextActive: { fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+  suggTextActive: { fontSize: 14, color: COLORS.managerPrimary, fontWeight: '600' },
   suggCount:      { fontSize: 12, color: COLORS.textMuted, marginLeft: 8 },
 
   // Category search row
@@ -1880,9 +1880,9 @@ const qa = StyleSheet.create({
   },
   addBtn: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.managerPrimary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 },
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35, shadowRadius: 6, elevation: 5,
   },
   addBtnDim: { opacity: 0.4 },

@@ -116,7 +116,7 @@ export default function ManagerLayout() {
   ];
 
   return (
-    <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.secondary}>
+    <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.managerPrimary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
         <Tabs.Screen name="order-list" />

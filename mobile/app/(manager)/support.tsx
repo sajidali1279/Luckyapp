@@ -173,7 +173,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                         accessibilityLabel={`Set category to ${c}`}
                         hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                       >
-                        <Text style={[s.dropItemText, c === category && { fontWeight: '700', color: COLORS.secondary }]}>{c}</Text>
+                        <Text style={[s.dropItemText, c === category && { fontWeight: '700', color: COLORS.managerPrimary }]}>{c}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -273,20 +273,20 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
 
         {/* Messages */}
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
+          <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
         ) : (
           <ScrollView
             ref={scrollRef}
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLORS.secondary} />}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
           >
             {messages.map(msg => {
               const isSupport = msg.isFromSupport;
               return (
                 <View key={msg.id} style={[s.bubble, isSupport ? s.bubbleSupport : s.bubbleUser]}>
-                  <Text style={[s.bubbleName, isSupport && { color: COLORS.secondary }]}>
+                  <Text style={[s.bubbleName, isSupport && { color: COLORS.managerPrimary }]}>
                     {isSupport ? '🎧 Support' : msg.senderName}
                   </Text>
                   <Text style={s.bubbleBody}>{msg.body}</Text>
@@ -370,7 +370,7 @@ export default function SupportScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
 
       {/* Header */}
       <View style={s.header}>
@@ -391,7 +391,7 @@ export default function SupportScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
+        <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
       ) : threads.length === 0 ? (
         <View style={s.center}>
           <HeadphonesIcon size={52} color={COLORS.border} strokeWidth={1.25} />
@@ -402,7 +402,7 @@ export default function SupportScreen() {
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
         >
           {openThreads.length > 0 && (
             <>
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
 
   header: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.managerPrimary,
     paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
@@ -556,12 +556,12 @@ const s = StyleSheet.create({
   dropItemActive: { backgroundColor: '#EEF2FF' },
   dropItemText:   { fontSize: 14, color: COLORS.text },
 
-  submitBtn:     { backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
+  submitBtn:     { backgroundColor: COLORS.managerPrimary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // Thread detail
   threadHeader: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.managerPrimary,
     paddingHorizontal: 12, paddingTop: 8, paddingBottom: 14,
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
   },
@@ -574,7 +574,7 @@ const s = StyleSheet.create({
     maxWidth: '82%', borderRadius: 14, padding: 12, gap: 4,
   },
   bubbleUser: {
-    alignSelf: 'flex-end', backgroundColor: COLORS.secondary,
+    alignSelf: 'flex-end', backgroundColor: COLORS.managerPrimary,
     borderBottomRightRadius: 4,
   },
   bubbleSupport: {
@@ -607,9 +607,9 @@ const s = StyleSheet.create({
   },
   sendBtn: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.managerPrimary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
 
   emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, textAlign: 'center' },

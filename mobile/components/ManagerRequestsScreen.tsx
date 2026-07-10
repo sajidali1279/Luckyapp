@@ -881,7 +881,7 @@ export default function ManagerRequestsScreen() {
 }
 
 const s = StyleSheet.create({
-  headerBg: { backgroundColor: '#0f5132' },
+  headerBg: { backgroundColor: COLORS.managerPrimary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
@@ -913,7 +913,7 @@ const s = StyleSheet.create({
   },
   mainTabActive: { backgroundColor: '#fff', borderColor: '#fff' },
   mainTabText: { color: 'rgba(255,255,255,0.70)', fontSize: 12, fontWeight: '700' },
-  mainTabTextActive: { color: '#0f5132' },
+  mainTabTextActive: { color: COLORS.managerPrimary },
   mainTabCount: {
     minWidth: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
@@ -930,12 +930,12 @@ const s = StyleSheet.create({
   },
   filterTabActive: { backgroundColor: '#fff', borderColor: '#fff' },
   filterTabText: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '700' },
-  filterTabTextActive: { color: '#0f5132' },
+  filterTabTextActive: { color: COLORS.managerPrimary },
   filterCount: {
     minWidth: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
   },
-  filterCountActive: { backgroundColor: '#0f5132' },
+  filterCountActive: { backgroundColor: COLORS.managerPrimary },
   filterCountText: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '800' },
   filterCountTextActive: { color: '#fff' },
 
@@ -992,9 +992,9 @@ const s = StyleSheet.create({
   ackNote: { fontSize: 12, color: '#16a34a', fontStyle: 'italic', marginTop: 2 },
 
   actionBtn: {
-    backgroundColor: '#0f5132', paddingVertical: 11, paddingHorizontal: 18,
+    backgroundColor: COLORS.managerPrimary, paddingVertical: 11, paddingHorizontal: 18,
     borderRadius: 12, alignSelf: 'stretch', alignItems: 'center',
-    shadowColor: '#0f5132', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
   actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 
@@ -1090,8 +1090,8 @@ const s = StyleSheet.create({
   cancelBtn: { flex: 1, padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb', alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
   confirmBtn: {
-    flex: 2, padding: 15, borderRadius: 12, backgroundColor: '#0f5132', alignItems: 'center',
-    shadowColor: '#0f5132', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
+    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center',
+    shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
   confirmBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });

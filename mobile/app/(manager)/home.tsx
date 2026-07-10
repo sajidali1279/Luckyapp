@@ -131,15 +131,15 @@ export default function ManagerHome() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0f1f35" />
+      <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
 
       {/* ── Header with SVG gradient ── */}
       <View style={s.header}>
         <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
             <SvgGradient id="hg" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#0f1f35" />
-              <Stop offset="1" stopColor="#2a4a73" />
+              <Stop offset="0" stopColor="#0a3323" />
+              <Stop offset="1" stopColor="#1f7a52" />
             </SvgGradient>
           </Defs>
           <Rect width="100%" height="100%" fill="url(#hg)" />
@@ -199,7 +199,7 @@ export default function ManagerHome() {
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.secondary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.managerPrimary} />}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Quick stat cards — overlap header ── */}
@@ -214,8 +214,8 @@ export default function ManagerHome() {
               accessibilityLabel={`View order list, ${activeListItems.length} items`}
             >
               <View style={s.quickTop}>
-                <View style={[s.quickIconBox, { backgroundColor: COLORS.secondary + '15' }]}>
-                  <PackageIcon size={20} color={COLORS.secondary} />
+                <View style={[s.quickIconBox, { backgroundColor: COLORS.managerPrimary + '15' }]}>
+                  <PackageIcon size={20} color={COLORS.managerPrimary} />
                 </View>
                 <ChevronRightIcon size={14} color="#ADB5BD" />
               </View>
@@ -256,8 +256,8 @@ export default function ManagerHome() {
               accessibilityLabel={`View employee requests, ${pendingCount} pending`}
             >
               <View style={s.quickTop}>
-                <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.secondary + '15' }]}>
-                  <ClipboardIcon size={20} color={pendingCount > 0 ? '#EA580C' : COLORS.secondary} />
+                <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.managerPrimary + '15' }]}>
+                  <ClipboardIcon size={20} color={pendingCount > 0 ? '#EA580C' : COLORS.managerPrimary} />
                 </View>
                 <ChevronRightIcon size={14} color="#ADB5BD" />
               </View>
@@ -303,7 +303,7 @@ export default function ManagerHome() {
         {/* ── Inventory Intelligence header ── */}
         <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
           <View style={s.sectionHeader}>
-            <TrendingUpIcon size={15} color={COLORS.secondary} />
+            <TrendingUpIcon size={15} color={COLORS.managerPrimary} />
             <Text style={s.sectionTitle}>Order History</Text>
             <View style={s.periodPicker}>
               {PERIODS.map(p => (
@@ -363,7 +363,7 @@ export default function ManagerHome() {
         <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
           {isLoading ? (
             <View style={s.loadingBox}>
-              <ActivityIndicator color={COLORS.secondary} />
+              <ActivityIndicator color={COLORS.managerPrimary} />
               <Text style={s.loadingText}>Loading analytics…</Text>
             </View>
           ) : (
@@ -504,7 +504,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
-    shadowColor: '#1D3557',
+    shadowColor: COLORS.managerPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -552,7 +552,7 @@ const s = StyleSheet.create({
   chipScroll: { marginBottom: 14, marginHorizontal: -16 },
   chipRow:    { paddingHorizontal: 16, gap: 8, flexDirection: 'row' },
   chip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
-  chipActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  chipActive: { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary },
   chipText:   { fontSize: 12, color: '#4B5563', fontWeight: '500' },
   chipTextActive: { color: '#FFFFFF', fontWeight: '700' },
 
@@ -575,8 +575,8 @@ const s = StyleSheet.create({
   emptyIcon:  { width: 56, height: 56, borderRadius: 16, backgroundColor: '#F9FAFB', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   empty:      { fontSize: 14, color: '#9CA3AF', textAlign: 'center', fontWeight: '600' },
   emptySub:   { fontSize: 12, color: '#D1D5DB', textAlign: 'center', lineHeight: 18, paddingHorizontal: 16 },
-  emptyAction:     { marginTop: 6, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.secondary + '18' },
-  emptyActionText: { fontSize: 13, color: COLORS.secondary, fontWeight: '700' },
+  emptyAction:     { marginTop: 6, paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.managerPrimary + '18' },
+  emptyActionText: { fontSize: 13, color: COLORS.managerPrimary, fontWeight: '700' },
 
   // ── Loading ────────────────────────────────────────────────────────────────
   loadingBox:  { alignItems: 'center', paddingVertical: 48, gap: 10 },
@@ -589,7 +589,7 @@ const s = StyleSheet.create({
   itemName:     { fontSize: 14, fontWeight: '600', color: '#111827' },
   itemCat:      { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   itemCountBox: { alignItems: 'flex-end' },
-  itemCount:    { fontSize: 16, fontWeight: '800', color: COLORS.secondary },
+  itemCount:    { fontSize: 16, fontWeight: '800', color: COLORS.managerPrimary },
   itemCountLabel:{ fontSize: 9, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
 
   // ── Category bars ──────────────────────────────────────────────────────────

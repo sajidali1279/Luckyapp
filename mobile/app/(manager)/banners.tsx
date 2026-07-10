@@ -104,7 +104,7 @@ export default function ManagerBannersScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
 
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
@@ -293,7 +293,7 @@ export default function ManagerBannersScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
 
-  headerBg: { backgroundColor: COLORS.secondary },
+  headerBg: { backgroundColor: COLORS.managerPrimary },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14,
@@ -350,7 +350,7 @@ const s = StyleSheet.create({
   modal: { flex: 1, backgroundColor: COLORS.background },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 52, backgroundColor: COLORS.secondary,
+    padding: 20, paddingTop: 52, backgroundColor: COLORS.managerPrimary,
   },
   modalTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
   modalCloseBtn: {

@@ -63,7 +63,7 @@ export default function CatalogScreen() {
             accessibilityLabel={`${label} tab`}
             hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
           >
-            <Icon size={15} color={tab === key ? COLORS.secondary : COLORS.textMuted} strokeWidth={2} />
+            <Icon size={15} color={tab === key ? COLORS.managerPrimary : COLORS.textMuted} strokeWidth={2} />
             <Text style={[s.tabLabel, tab === key && s.tabLabelActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -161,7 +161,7 @@ function ScanTab() {
   }
 
   if (!permission) {
-    return <View style={s.center}><ActivityIndicator color={COLORS.secondary} /></View>;
+    return <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} /></View>;
   }
 
   if (!permission.granted) {
@@ -214,7 +214,7 @@ function ScanTab() {
 
         {phase === 'checking' && (
           <View style={s.phaseRow}>
-            <ActivityIndicator size="small" color={COLORS.secondary} />
+            <ActivityIndicator size="small" color={COLORS.managerPrimary} />
             <Text style={[s.phaseHint, { marginLeft: 8 }]}>Looking up product…</Text>
           </View>
         )}
@@ -514,7 +514,7 @@ function BrowseTab() {
       </View>
 
       {isLoading ? (
-        <View style={s.center}><ActivityIndicator color={COLORS.secondary} /></View>
+        <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} /></View>
       ) : items.length === 0 ? (
         <FadeSlideIn style={[s.center, { paddingBottom: 60 }]}>
           <PackageIcon size={52} color={COLORS.border} strokeWidth={1.25} />
@@ -526,7 +526,7 @@ function BrowseTab() {
         <ScrollView
           style={s.flex}
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
           showsVerticalScrollIndicator={false}
         >
         <FadeSlideIn>
@@ -659,7 +659,7 @@ function PhotoTab() {
           accessibilityRole="button"
           accessibilityLabel="Take a photo of product page"
         >
-          <CameraIcon size={20} color={COLORS.secondary} strokeWidth={2} />
+          <CameraIcon size={20} color={COLORS.managerPrimary} strokeWidth={2} />
           <Text style={s.photoPickLabel}>Take Photo</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -669,7 +669,7 @@ function PhotoTab() {
           accessibilityRole="button"
           accessibilityLabel="Choose photo from gallery"
         >
-          <ListIcon size={20} color={COLORS.secondary} strokeWidth={2} />
+          <ListIcon size={20} color={COLORS.managerPrimary} strokeWidth={2} />
           <Text style={s.photoPickLabel}>Choose from Gallery</Text>
         </TouchableOpacity>
       </View>
@@ -782,15 +782,15 @@ const s = StyleSheet.create({
   center:      { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
   // Header
-  header:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.secondary, paddingHorizontal: 16, paddingVertical: 14 },
+  header:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.managerPrimary, paddingHorizontal: 16, paddingVertical: 14 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
 
   // Tab bar
   tabBar:      { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },
   tabBtn:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 11 },
-  tabBtnActive:{ borderBottomWidth: 2, borderBottomColor: COLORS.secondary },
+  tabBtnActive:{ borderBottomWidth: 2, borderBottomColor: COLORS.managerPrimary },
   tabLabel:    { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  tabLabelActive:{ color: COLORS.secondary },
+  tabLabelActive:{ color: COLORS.managerPrimary },
 
   // Camera
   cameraWrap:  { flex: 1, overflow: 'hidden', backgroundColor: '#000' },
@@ -822,12 +822,12 @@ const s = StyleSheet.create({
   namingActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   skipBtn:       { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   skipBtnText:   { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
-  saveBtn:       { flex: 1, backgroundColor: COLORS.secondary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  saveBtn:       { flex: 1, backgroundColor: COLORS.managerPrimary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
   saveBtnText:   { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   // Permission
   permText:    { fontSize: 15, color: COLORS.text, textAlign: 'center', marginBottom: 20, lineHeight: 22 },
-  permBtn:     { backgroundColor: COLORS.secondary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: 12 },
+  permBtn:     { backgroundColor: COLORS.managerPrimary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: 12 },
   permBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Manual tab
@@ -836,7 +836,7 @@ const s = StyleSheet.create({
   required:    { color: COLORS.primary, fontWeight: '700' },
   optional:    { fontWeight: '400', color: COLORS.textMuted },
   fieldInput:  { backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: COLORS.text },
-  addBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: COLORS.secondary, borderRadius: 13, paddingVertical: 15, marginTop: 22, shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 },
+  addBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: COLORS.managerPrimary, borderRadius: 13, paddingVertical: 15, marginTop: 22, shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 },
   addBtnText:  { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   sugg:     { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99, backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, marginTop: 2, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 8 },
@@ -854,9 +854,9 @@ const s = StyleSheet.create({
   emptyText:   { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 22, marginTop: 16 },
   totalLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 10 },
   catHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: COLORS.background },
-  catName:     { fontSize: 13, fontWeight: '800', color: COLORS.secondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  catBadge:    { backgroundColor: `${COLORS.secondary}18`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  catCount:    { fontSize: 12, fontWeight: '700', color: COLORS.secondary },
+  catName:     { fontSize: 13, fontWeight: '800', color: COLORS.managerPrimary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  catBadge:    { backgroundColor: `${COLORS.managerPrimary}18`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  catCount:    { fontSize: 12, fontWeight: '700', color: COLORS.managerPrimary },
   itemRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },
   itemName:    { fontSize: 14, fontWeight: '600', color: COLORS.text },
   itemMeta:    { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
@@ -866,22 +866,22 @@ const s = StyleSheet.create({
   photoHint:     { fontSize: 13, color: COLORS.textMuted, lineHeight: 19, marginBottom: 18 },
   photoPickRow:  { flexDirection: 'row', gap: 10, marginBottom: 16 },
   photoPickBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 14 },
-  photoPickLabel:{ fontSize: 13, fontWeight: '600', color: COLORS.secondary },
+  photoPickLabel:{ fontSize: 13, fontWeight: '600', color: COLORS.managerPrimary },
   previewWrap:   { borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 4 },
   previewImg:    { width: '100%', height: 220 },
   analyzeBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, paddingVertical: 14 },
   analyzeBtnText:{ color: '#fff', fontSize: 15, fontWeight: '700' },
   resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   resultsTitle:  { fontSize: 15, fontWeight: '800', color: COLORS.text },
-  selectAllText: { fontSize: 13, color: COLORS.secondary, fontWeight: '600' },
+  selectAllText: { fontSize: 13, color: COLORS.managerPrimary, fontWeight: '600' },
   extractedRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1.5, borderColor: COLORS.border },
-  extractedRowSelected: { borderColor: COLORS.secondary, backgroundColor: `${COLORS.secondary}08` },
+  extractedRowSelected: { borderColor: COLORS.managerPrimary, backgroundColor: `${COLORS.managerPrimary}08` },
   checkbox:      { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked:{ backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  checkboxChecked:{ backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary },
   extractedName: { fontSize: 13, fontWeight: '700', color: COLORS.text },
   extractedMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   savedBanner:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 10, padding: 12, marginTop: 10, marginBottom: 6 },
   savedBannerText:{ fontSize: 13, fontWeight: '600', color: '#15803D' },
-  saveAllBtn:    { backgroundColor: COLORS.secondary, borderRadius: 13, paddingVertical: 15, alignItems: 'center', marginTop: 14, shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 },
+  saveAllBtn:    { backgroundColor: COLORS.managerPrimary, borderRadius: 13, paddingVertical: 15, alignItems: 'center', marginTop: 14, shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4 },
   saveAllBtnText:{ color: '#fff', fontSize: 15, fontWeight: '700' },
 });
