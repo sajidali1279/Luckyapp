@@ -9,6 +9,7 @@ import { disputeApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
+import ErrorState from './ErrorState';
 
 interface Dispute {
   id: string;
@@ -47,7 +48,7 @@ export default function ManagerDisputesScreen() {
   const [creditAmt, setCreditAmt] = useState('');
   const [resolveNote, setResolveNote] = useState('');
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['manager-disputes', storeId],
     queryFn: () => disputeApi.getForStore(storeId!),
     enabled: !!storeId,
@@ -195,6 +196,8 @@ export default function ManagerDisputesScreen() {
         </View>
       ) : isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load disputes." onRetry={() => refetch()} />
       ) : displayed.length === 0 ? (
         <View style={s.centered}>
           <Text style={s.emptyEmoji}>{statusFilter === 'PENDING' ? '✅' : '📭'}</Text>

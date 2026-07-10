@@ -11,6 +11,7 @@ import { useAuthStore, isAdmin } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,7 +223,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
   const scrollRef = useRef<ScrollView>(null);
   const qc = useQueryClient();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['support-thread', thread.id],
     queryFn: () => supportApi.getThread(thread.id),
     refetchInterval: 15000,
@@ -274,6 +275,8 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
         {/* Messages */}
         {isLoading ? (
           <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
+        ) : isError ? (
+          <ErrorState message="Failed to load this ticket." onRetry={() => refetch()} />
         ) : (
           <ScrollView
             ref={scrollRef}
@@ -357,7 +360,7 @@ export default function SupportScreen() {
     );
   }
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['support-threads'],
     queryFn: () => supportApi.getMyThreads(),
     refetchInterval: 30000,
@@ -392,11 +395,13 @@ export default function SupportScreen() {
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load support tickets." onRetry={() => refetch()} />
       ) : threads.length === 0 ? (
         <View style={s.center}>
           <HeadphonesIcon size={52} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyTitle}>No support tickets</Text>
-          <Text style={s.emptyText}>Tap "New Ticket" to contact the developer.</Text>
+          <Text style={s.emptyText}>Tap "New Ticket" to reach the Lucky Stop support team.</Text>
         </View>
       ) : (
         <ScrollView

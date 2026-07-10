@@ -15,6 +15,7 @@ import {
   CheckCircleIcon, Trash2Icon, PackageIcon, CameraIcon, XIcon,
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -456,7 +457,7 @@ function BrowseTab() {
   const [searchQ, setSearchQ] = useState('');
   const qc = useQueryClient();
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['catalog-list', searchQ],
     queryFn:  () => scannedProductApi.list({ q: searchQ || undefined }),
     staleTime: 30_000,
@@ -515,6 +516,8 @@ function BrowseTab() {
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load the catalog." onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <FadeSlideIn style={[s.center, { paddingBottom: 60 }]}>
           <PackageIcon size={52} color={COLORS.border} strokeWidth={1.25} />

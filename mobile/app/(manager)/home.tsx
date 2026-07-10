@@ -13,6 +13,7 @@ import { COLORS } from '../../constants';
 import {
   PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon, BellIcon,
 } from '../../components/Icons';
+import ErrorState from '../../components/ErrorState';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -96,7 +97,7 @@ export default function ManagerHome() {
   });
   const categoryOptions: string[] = catListData?.data?.data ?? [];
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventory-analytics', storeId, period, category],
     queryFn: () => managerApi.getInventoryAnalytics({ storeId, period, category: category || undefined }),
     enabled: true,
@@ -365,6 +366,10 @@ export default function ManagerHome() {
             <View style={s.loadingBox}>
               <ActivityIndicator color={COLORS.managerPrimary} />
               <Text style={s.loadingText}>Loading analytics…</Text>
+            </View>
+          ) : isError ? (
+            <View style={s.card}>
+              <ErrorState message="Failed to load inventory analytics." onRetry={() => refetch()} />
             </View>
           ) : (
             <>

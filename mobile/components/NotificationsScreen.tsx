@@ -10,6 +10,7 @@ import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
+import ErrorState from './ErrorState';
 import FadeSlideIn from './FadeSlideIn';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
@@ -105,7 +106,7 @@ export default function NotificationsScreen() {
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-notifications'],
     queryFn: () => notificationsApi.getMyNotifications(),
     refetchInterval: 30000,
@@ -322,6 +323,8 @@ export default function NotificationsScreen() {
         <View style={s.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
+      ) : isError ? (
+        <ErrorState message="Failed to load notifications." onRetry={() => refetch()} />
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           {notifications.length === 0 ? (

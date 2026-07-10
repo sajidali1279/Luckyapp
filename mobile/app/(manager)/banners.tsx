@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ImageIcon, CameraIcon, XIcon, PlusIcon, InboxIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 interface Store { id: string; name: string }
 
@@ -36,7 +37,7 @@ export default function ManagerBannersScreen() {
   const [title, setTitle] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['manager-banners', storeId],
     queryFn: () => offersApi.getBanners(storeId),
     enabled: !!storeId,
@@ -157,6 +158,8 @@ export default function ManagerBannersScreen() {
       >
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+        ) : isError ? (
+          <ErrorState message="Failed to load banners." onRetry={() => refetch()} />
         ) : banners.length === 0 ? (
           <FadeSlideIn>
           <View style={s.emptyCard}>

@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { TrophyIcon, StarIcon, ChevronLeftIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 interface Store { id: string; name: string }
 
@@ -43,8 +44,8 @@ export default function ManagerLeaderboardScreen() {
   }, [stores]);
   const storeId = selectedStoreId || user?.storeIds?.[0];
 
-  // Customer leaderboard — all stores for this manager (no storeId filter for chain-wide view)
-  const { data: custData, isLoading: custLoading } = useQuery({
+  // Customer leaderboard — filtered to the selected store (store chips above change storeId and re-trigger this query)
+  const { data: custData, isLoading: custLoading, isError: custError, refetch: refetchCust } = useQuery({
     queryKey: ['leaderboard-customers-mgr', storeId],
     queryFn: () => leaderboardApi.getCustomers(storeId),
     enabled: tab === 'customers',
@@ -53,7 +54,7 @@ export default function ManagerLeaderboardScreen() {
   const customers: any[] = custData?.data?.data?.leaderboard || [];
 
   // Staff leaderboard
-  const { data: staffData, isLoading: staffLoading } = useQuery({
+  const { data: staffData, isLoading: staffLoading, isError: staffError, refetch: refetchStaff } = useQuery({
     queryKey: ['leaderboard-employees', storeId],
     queryFn: () => leaderboardApi.getEmployees(storeId!),
     enabled: tab === 'staff' && !!storeId,
@@ -62,6 +63,8 @@ export default function ManagerLeaderboardScreen() {
   const { storeName, leaderboard: staff = [], employeeOfMonthId } = staffData?.data?.data || {};
 
   const isLoading = tab === 'customers' ? custLoading : staffLoading;
+  const isError = tab === 'customers' ? custError : staffError;
+  const refetchCurrent = tab === 'customers' ? refetchCust : refetchStaff;
 
   return (
     <View style={s.root}>
@@ -129,6 +132,8 @@ export default function ManagerLeaderboardScreen() {
 
       {isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load the leaderboard." onRetry={() => refetchCurrent()} />
       ) : tab === 'customers' ? (
         <FadeSlideIn style={{ flex: 1 }}>
         <FlatList

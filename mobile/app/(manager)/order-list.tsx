@@ -18,6 +18,7 @@ import {
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -803,7 +804,7 @@ interface ReviewModalProps {
 function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps) {
   const qc = useQueryClient();
 
-  const { data: requestsData, isLoading } = useQuery({
+  const { data: requestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['employee-requests', storeId, 'PENDING'],
     queryFn: () => employeeRequestApi.forStore(storeId, 'PENDING'),
     enabled: visible && !!storeId,
@@ -882,6 +883,8 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
 
         {isLoading ? (
           <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
+        ) : isError ? (
+          <ErrorState message="Failed to load employee requests." onRetry={() => refetch()} />
         ) : requests.length === 0 ? (
           <View style={s.center}>
             <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
@@ -999,7 +1002,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
   const [expandedList, setExpandedList] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['order-list-history', storeId],
     queryFn: () => orderListApi.getHistory(storeId),
     enabled: visible && !!storeId,
@@ -1039,6 +1042,8 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
 
         {isLoading ? (
           <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
+        ) : isError ? (
+          <ErrorState message="Failed to load past lists." onRetry={() => refetch()} />
         ) : lists.length === 0 ? (
           <View style={s.center}>
             <ListIcon size={48} color={COLORS.border} strokeWidth={1.25} />
@@ -1149,7 +1154,7 @@ export default function ManagerOrderListScreen() {
   const selectedStore = stores.find(s => s.id === selectedStoreId);
 
   // ── Active list ──────────────────────────────────────────────────────────
-  const { data: activeData, isLoading: listLoading, refetch: refetchList, isRefetching: listRefetching } = useQuery({
+  const { data: activeData, isLoading: listLoading, isError: listError, refetch: refetchList, isRefetching: listRefetching } = useQuery({
     queryKey: ['order-list-active', selectedStoreId],
     queryFn: () => orderListApi.getActive(selectedStoreId!),
     enabled: !!selectedStoreId,
@@ -1331,6 +1336,8 @@ export default function ManagerOrderListScreen() {
         </View>
       ) : listLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
+      ) : listError ? (
+        <ErrorState message="Failed to load the order list." onRetry={() => refetchList()} />
       ) : !activeList ? (
         <View style={s.center}>
           <PackageIcon size={56} color={COLORS.border} strokeWidth={1.25} />

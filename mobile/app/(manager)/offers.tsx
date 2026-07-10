@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { XIcon, EditIcon, PlusIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 interface Store { id: string; name: string }
 
@@ -61,7 +62,7 @@ export default function ManagerOffersScreen() {
   const [editForm, setEditForm] = useState(blankForm());
   const setEF = (k: keyof ReturnType<typeof blankForm>, v: string) => setEditForm(f => ({ ...f, [k]: v }));
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['manager-offers', storeId],
     queryFn: () => offersApi.getActive(storeId),
     enabled: !!storeId,
@@ -206,6 +207,8 @@ export default function ManagerOffersScreen() {
       >
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+        ) : isError ? (
+          <ErrorState message="Failed to load offers." onRetry={() => refetch()} />
         ) : offers.length === 0 ? (
           <FadeSlideIn style={s.emptyCard}>
             <Text style={s.emptyTitle}>No active offers</Text>

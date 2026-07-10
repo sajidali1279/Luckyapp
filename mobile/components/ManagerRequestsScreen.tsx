@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
+import ErrorState from './ErrorState';
 
 // ── Store alerts ──────────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export default function ManagerRequestsScreen() {
   const effectiveStoreId = stores.length === 1 ? stores[0]?.id : selectedStoreId;
 
   // ── Queries ──────────────────────────────────────────────────────────────────
-  const { data: requestsData, isLoading: alertsLoading } = useQuery({
+  const { data: requestsData, isLoading: alertsLoading, isError: alertsError, refetch: refetchAlerts } = useQuery({
     queryKey: ['manager-store-requests', effectiveStoreId, statusFilter],
     queryFn: () => storeRequestApi.getStoreRequests(effectiveStoreId!, statusFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'alerts',
@@ -152,7 +153,7 @@ export default function ManagerRequestsScreen() {
     : statusFilter === 'ACKNOWLEDGED' ? requests.filter(r => r.status === 'ACKNOWLEDGED')
     : requests;
 
-  const { data: empData, isLoading: empLoading } = useQuery({
+  const { data: empData, isLoading: empLoading, isError: empError, refetch: refetchEmp } = useQuery({
     queryKey: ['manager-employee-requests', effectiveStoreId, empFilter],
     queryFn: () => employeeRequestApi.forStore(effectiveStoreId!, empFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'stock',
@@ -164,7 +165,7 @@ export default function ManagerRequestsScreen() {
     : empFilter === 'REVIEWED' ? empRequests.filter(r => r.status === 'REVIEWED')
     : empRequests;
 
-  const { data: productRequestsData, isLoading: prLoading } = useQuery({
+  const { data: productRequestsData, isLoading: prLoading, isError: prError, refetch: refetchPr } = useQuery({
     queryKey: ['manager-product-requests', effectiveStoreId],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!),
     enabled: !!effectiveStoreId && mainTab === 'products',
@@ -448,6 +449,12 @@ export default function ManagerRequestsScreen() {
   const isLoading = mainTab === 'alerts' ? alertsLoading
     : mainTab === 'stock' ? empLoading
     : prLoading;
+  const isError = mainTab === 'alerts' ? alertsError
+    : mainTab === 'stock' ? empError
+    : prError;
+  const refetchCurrent = mainTab === 'alerts' ? refetchAlerts
+    : mainTab === 'stock' ? refetchEmp
+    : refetchPr;
 
   // ── Tab config ────────────────────────────────────────────────────────────────
   const TABS: { key: MainTab; icon: string; label: string; badge: number }[] = [
@@ -593,6 +600,8 @@ export default function ManagerRequestsScreen() {
         </View>
       ) : isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+      ) : isError ? (
+        <ErrorState message="Failed to load requests." onRetry={() => refetchCurrent()} />
       ) : mainTab === 'alerts' ? (
         displayed.length === 0 ? (
           <View style={s.centered}>

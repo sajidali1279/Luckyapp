@@ -12,6 +12,7 @@ import {
   InboxIcon, CheckCircleIcon, XIcon, CalendarIcon, ClockIcon,
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ export default function ManagerScheduleScreen() {
   } | null>(null);
 
   const {
-    data: rosterData, isLoading: rosterLoading,
+    data: rosterData, isLoading: rosterLoading, isError: rosterError,
     refetch: refetchRoster, isRefetching: rosterRefetching,
   } = useQuery({
     queryKey: ['manager-roster', storeId],
@@ -83,7 +84,7 @@ export default function ManagerScheduleScreen() {
   });
 
   const {
-    data: weekData, isLoading: weekLoading,
+    data: weekData, isLoading: weekLoading, isError: weekError,
     refetch: refetchWeek, isRefetching: weekRefetching,
   } = useQuery({
     queryKey: ['manager-schedule', storeId],
@@ -92,7 +93,7 @@ export default function ManagerScheduleScreen() {
   });
 
   const {
-    data: reqData, isLoading: reqLoading,
+    data: reqData, isLoading: reqLoading, isError: reqError,
     refetch: refetchReqs, isRefetching: reqsRefetching,
   } = useQuery({
     queryKey: ['manager-requests', storeId],
@@ -205,7 +206,9 @@ export default function ManagerScheduleScreen() {
 
         {/* ════ TODAY'S ROSTER ════ */}
         {tab === 'roster' && (
-          rosterLoading ? <LoadingView /> : (
+          rosterLoading ? <LoadingView /> : rosterError ? (
+            <ErrorState message="Failed to load today's roster." onRetry={() => refetchRoster()} />
+          ) : (
             <FadeSlideIn>
               <View style={s.rosterHeading}>
                 <Text style={s.rosterDay}>
@@ -269,7 +272,9 @@ export default function ManagerScheduleScreen() {
 
         {/* ════ WEEKLY VIEW ════ */}
         {tab === 'week' && (
-          weekLoading ? <LoadingView /> : (
+          weekLoading ? <LoadingView /> : weekError ? (
+            <ErrorState message="Failed to load the weekly schedule." onRetry={() => refetchWeek()} />
+          ) : (
             <FadeSlideIn>
               {/* Day selector strip */}
               <View style={s.weekStrip}>
@@ -378,7 +383,9 @@ export default function ManagerScheduleScreen() {
 
         {/* ════ REQUESTS ════ */}
         {tab === 'requests' && (
-          reqLoading ? <LoadingView /> : (
+          reqLoading ? <LoadingView /> : reqError ? (
+            <ErrorState message="Failed to load requests." onRetry={() => refetchReqs()} />
+          ) : (
             <FadeSlideIn>
               {/* Pending */}
               <View style={s.reqSectionRow}>
