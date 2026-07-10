@@ -30,13 +30,28 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 
   const token = authHeader.split(' ')[1];
+  let payload: AuthUser;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
-    req.user = payload;
-    next();
+    payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
   } catch {
     res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    return;
   }
+
+  // Confirm the account still exists and hasn't been deactivated —
+  // a JWT signature alone doesn't reflect deletions/deactivations that
+  // happened after it was issued (tokens are valid for up to 30 days).
+  const dbUser = await prisma.user.findUnique({
+    where: { id: payload.id },
+    select: { isActive: true },
+  });
+  if (!dbUser || !dbUser.isActive) {
+    res.status(401).json({ success: false, error: 'Account no longer active. Please sign in again.' });
+    return;
+  }
+
+  req.user = payload;
+  next();
 }
 
 // Require a minimum role level

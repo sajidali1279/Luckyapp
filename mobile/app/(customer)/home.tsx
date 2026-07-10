@@ -4,6 +4,7 @@ import {
   TextInput, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
@@ -401,7 +402,14 @@ export default function CustomerHome() {
             avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
           }, t);
         }
-      }).catch(() => {});
+      }).catch((err: any) => {
+        // Account no longer exists or was deactivated server-side — a locally
+        // cached session shouldn't keep showing the app as usable.
+        if (err.response?.status === 401 || err.response?.status === 404) {
+          useAuthStore.getState().logout();
+          Toast.show({ type: 'error', text1: 'Signed out', text2: 'Please sign in again' });
+        }
+      });
     }, [])
   );
 
