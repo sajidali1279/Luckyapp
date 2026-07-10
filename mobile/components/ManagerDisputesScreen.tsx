@@ -1,11 +1,11 @@
 import {
-  View, Text, TouchableOpacity, FlatList,
+  View, Text, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { disputeApi } from '../services/api';
+import { disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
@@ -37,10 +37,22 @@ function formatTime(iso: string) {
 }
 function getInitial(name: string) { return (name || '?')[0].toUpperCase(); }
 
+interface Store { id: string; name: string }
+
 export default function ManagerDisputesScreen() {
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
   const qc = useQueryClient();
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const { data: storesData } = useQuery({
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.accessible(),
+  });
+  const stores: Store[] = storesData?.data?.data || [];
+  useEffect(() => {
+    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
+  }, [stores]);
+  const storeId = selectedStoreId || user?.storeIds?.[0];
 
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const [resolveTarget, setResolveTarget] = useState<Dispute | null>(null);
@@ -161,6 +173,27 @@ export default function ManagerDisputesScreen() {
             </View>
           )}
         </View>
+
+        {stores.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
+            {stores.map(store => (
+              <TouchableOpacity
+                key={store.id}
+                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
+                onPress={() => setSelectedStoreId(store.id)}
+                activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityState={{ selected: store.id === storeId }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              >
+                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
+                  {store.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={s.filterRow}>
           {[
@@ -324,6 +357,17 @@ const s = StyleSheet.create({
   },
   pendingBadgeNum: { color: COLORS.white, fontSize: 18, fontWeight: '900', lineHeight: 20 },
   pendingBadgeLbl: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '700' },
+
+  storePickerRow: {
+    flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12,
+  },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
+  storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  storeChipTextActive: { color: '#fff', fontWeight: '700' },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 14, paddingTop: 8, gap: 8 },
   filterTab: {
