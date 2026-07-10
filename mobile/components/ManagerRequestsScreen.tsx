@@ -3,13 +3,28 @@ import {
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
+import {
+  PackageIcon, ClipboardIcon, ShoppingBagIcon, BriefcaseIcon, TagIcon,
+  CheckCircleIcon, XIcon, MessageCircleIcon, BuildingIcon, InboxIcon, BellIcon,
+} from './Icons';
+
+function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
+  const p = { size, color, strokeWidth: 1.75 };
+  switch (type) {
+    case 'LOW_STOCK':                   return <PackageIcon {...p} />;
+    case 'STORE_SUPPLIES':              return <ClipboardIcon {...p} />;
+    case 'CUSTOMER_REQUESTED_PRODUCT':  return <ShoppingBagIcon {...p} />;
+    case 'WORK_ORDER':                  return <BriefcaseIcon {...p} />;
+    default:                            return <ClipboardIcon {...p} />;
+  }
+}
 
 // ── Store alerts ──────────────────────────────────────────────────────────────
 
@@ -18,9 +33,6 @@ const TYPE_LABELS: Record<string, string> = {
   STORE_SUPPLIES: 'Store Supplies',
   CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
   WORK_ORDER: 'Work Order',
-};
-const TYPE_ICONS: Record<string, string> = {
-  LOW_STOCK: '📦', STORE_SUPPLIES: '🧹', CUSTOMER_REQUESTED_PRODUCT: '🛍️', WORK_ORDER: '🔧',
 };
 const TYPE_BG: Record<string, string> = {
   LOW_STOCK: '#eff6ff', STORE_SUPPLIES: '#fefce8',
@@ -222,7 +234,7 @@ export default function ManagerRequestsScreen() {
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: typeBg }]}>
-              <Text style={s.typeIconText}>{TYPE_ICONS[item.type] || '📋'}</Text>
+              <TypeIcon type={item.type} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.typeLabel, isDone && s.typeLabelDone]}>{TYPE_LABELS[item.type] || item.type}</Text>
@@ -234,7 +246,10 @@ export default function ManagerRequestsScreen() {
                 <Text style={[s.prioBadgeText, { color: pColor }]}>{item.priority}</Text>
               </View>
             ) : (
-              <View style={s.doneBadge}><Text style={s.doneBadgeText}>✓ Done</Text></View>
+              <View style={s.doneBadge}>
+                <CheckCircleIcon size={12} color="#065f46" strokeWidth={2.5} />
+                <Text style={s.doneBadgeText}>Done</Text>
+              </View>
             )}
           </View>
 
@@ -254,7 +269,7 @@ export default function ManagerRequestsScreen() {
 
           {isDone ? (
             <View style={s.ackBox}>
-              <Text style={s.ackIcon}>✅</Text>
+              <CheckCircleIcon size={18} color="#16a34a" strokeWidth={2} />
               <View style={{ flex: 1 }}>
                 <Text style={s.ackBy}>Handled by {item.acknowledgerName}</Text>
                 {item.acknowledgerNote ? <Text style={s.ackNote}>"{item.acknowledgerNote}"</Text> : null}
@@ -269,7 +284,8 @@ export default function ManagerRequestsScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Mark ${TYPE_LABELS[item.type] || item.type} alert as handled`}
             >
-              <Text style={s.actionBtnText}>✅  Mark as Handled</Text>
+              <CheckCircleIcon size={15} color="#fff" strokeWidth={2.25} />
+              <Text style={s.actionBtnText}>Mark as Handled</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -288,7 +304,7 @@ export default function ManagerRequestsScreen() {
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: '#eff6ff' }]}>
-              <Text style={s.typeIconText}>📦</Text>
+              <PackageIcon size={22} color="#2563eb" strokeWidth={1.75} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.typeLabel, !isPending && s.typeLabelDone]}>{typeLabel}</Text>
@@ -303,7 +319,10 @@ export default function ManagerRequestsScreen() {
                 <Text style={[s.prioBadgeText, { color: '#c2410c' }]}>Pending</Text>
               </View>
             ) : (
-              <View style={s.doneBadge}><Text style={s.doneBadgeText}>✓ Reviewed</Text></View>
+              <View style={s.doneBadge}>
+                <CheckCircleIcon size={12} color="#065f46" strokeWidth={2.5} />
+                <Text style={s.doneBadgeText}>Reviewed</Text>
+              </View>
             )}
           </View>
 
@@ -341,8 +360,8 @@ export default function ManagerRequestsScreen() {
                   ]}>
                     <Text style={s.linePreviewName} numberOfLines={1}>{l.name}</Text>
                     {l.quantity ? <Text style={s.linePreviewQty}>{l.quantity}</Text> : null}
-                    {l.status === 'ACCEPTED' && <Text style={s.lineAcceptedTag}>✓</Text>}
-                    {l.status === 'REJECTED' && <Text style={s.lineRejectedTag}>✗</Text>}
+                    {l.status === 'ACCEPTED' && <CheckCircleIcon size={14} color="#16a34a" strokeWidth={2.5} />}
+                    {l.status === 'REJECTED' && <XIcon size={14} color="#E63946" strokeWidth={2.5} />}
                   </View>
                 ))}
               </View>
@@ -364,7 +383,8 @@ export default function ManagerRequestsScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Review stock request from ${item.submittedBy.name}`}
             >
-              <Text style={s.actionBtnText}>📋  Review Items</Text>
+              <ClipboardIcon size={15} color="#fff" strokeWidth={2.25} />
+              <Text style={s.actionBtnText}>Review Items</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -380,12 +400,15 @@ export default function ManagerRequestsScreen() {
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: '#fff7ed' }]}>
-              <Text style={s.typeIconText}>🛍️</Text>
+              <ShoppingBagIcon size={22} color="#c2410c" strokeWidth={1.75} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.typeLabel, !isPending && s.typeLabelDone]}>{item.productName}</Text>
               {item.category ? (
-                <Text style={s.categoryMeta}>📂 {item.category}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <TagIcon size={11} color={COLORS.textMuted} strokeWidth={2} />
+                  <Text style={s.categoryMeta}>{item.category}</Text>
+                </View>
               ) : item.description ? (
                 <Text style={s.metaSub} numberOfLines={1}>{item.description}</Text>
               ) : null}
@@ -423,7 +446,8 @@ export default function ManagerRequestsScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Respond to product request for ${item.productName}`}
             >
-              <Text style={s.actionBtnText}>💬  Respond to Request</Text>
+              <MessageCircleIcon size={15} color="#fff" strokeWidth={2} />
+              <Text style={s.actionBtnText}>Respond to Request</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -457,10 +481,10 @@ export default function ManagerRequestsScreen() {
     : refetchPr;
 
   // ── Tab config ────────────────────────────────────────────────────────────────
-  const TABS: { key: MainTab; icon: string; label: string; badge: number }[] = [
-    { key: 'alerts',   icon: '🔔', label: 'Alerts',   badge: pending.length },
-    { key: 'stock',    icon: '📦', label: 'Stock',    badge: pendingEmp.length },
-    { key: 'products', icon: '🛍️', label: 'Products', badge: pendingProducts.length },
+  const TABS: { key: MainTab; icon: (p: { size: number; color: string }) => ReactElement; label: string; badge: number }[] = [
+    { key: 'alerts',   icon: (p) => <BellIcon {...p} strokeWidth={2} />,        label: 'Alerts',   badge: pending.length },
+    { key: 'stock',    icon: (p) => <PackageIcon {...p} strokeWidth={2} />,     label: 'Stock',    badge: pendingEmp.length },
+    { key: 'products', icon: (p) => <ShoppingBagIcon {...p} strokeWidth={2} />, label: 'Products', badge: pendingProducts.length },
   ];
 
   return (
@@ -470,9 +494,9 @@ export default function ManagerRequestsScreen() {
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.headerEyebrow}>
-              {mainTab === 'alerts' ? '🔔 STORE ALERTS'
-                : mainTab === 'stock' ? '📦 STOCK REQUESTS'
-                : '🛍️ PRODUCT REQUESTS'}
+              {mainTab === 'alerts' ? 'STORE ALERTS'
+                : mainTab === 'stock' ? 'STOCK REQUESTS'
+                : 'PRODUCT REQUESTS'}
             </Text>
             <Text style={s.headerTitle}>
               {mainTab === 'alerts' ? 'Store Alerts'
@@ -522,9 +546,12 @@ export default function ManagerRequestsScreen() {
               accessibilityRole="tab"
               accessibilityLabel={`${tab.label} tab${tab.badge > 0 ? `, ${tab.badge} pending` : ''}`}
             >
-              <Text style={[s.mainTabText, mainTab === tab.key && s.mainTabTextActive]}>
-                {tab.icon} {tab.label}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                {tab.icon({ size: 13, color: mainTab === tab.key ? COLORS.managerPrimary : 'rgba(255,255,255,0.70)' })}
+                <Text style={[s.mainTabText, mainTab === tab.key && s.mainTabTextActive]}>
+                  {tab.label}
+                </Text>
+              </View>
               {tab.badge > 0 && (
                 <View style={[s.mainTabCount, mainTab === tab.key && s.mainTabCountActive]}>
                   <Text style={[s.mainTabCountText, mainTab === tab.key && s.mainTabCountTextActive]}>
@@ -594,7 +621,7 @@ export default function ManagerRequestsScreen() {
       {/* ── Content ── */}
       {!effectiveStoreId ? (
         <View style={s.centered}>
-          <Text style={s.emptyEmoji}>🏪</Text>
+          <View style={{ marginBottom: 12 }}><BuildingIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
           <Text style={s.emptyTitle}>Select a store</Text>
           <Text style={s.emptySub}>Choose a store above to view requests</Text>
         </View>
@@ -605,7 +632,11 @@ export default function ManagerRequestsScreen() {
       ) : mainTab === 'alerts' ? (
         displayed.length === 0 ? (
           <View style={s.centered}>
-            <Text style={s.emptyEmoji}>{statusFilter === 'PENDING' ? '✅' : '📭'}</Text>
+            <View style={{ marginBottom: 12 }}>
+              {statusFilter === 'PENDING'
+                ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
+                : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
+            </View>
             <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</Text>
             <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending alerts' : 'No alerts in this category'}</Text>
           </View>
@@ -617,7 +648,11 @@ export default function ManagerRequestsScreen() {
       ) : mainTab === 'stock' ? (
         displayedEmp.length === 0 ? (
           <View style={s.centered}>
-            <Text style={s.emptyEmoji}>{empFilter === 'PENDING' ? '✅' : '📭'}</Text>
+            <View style={{ marginBottom: 12 }}>
+              {empFilter === 'PENDING'
+                ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
+                : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
+            </View>
             <Text style={s.emptyTitle}>{empFilter === 'PENDING' ? 'All reviewed!' : 'Nothing here'}</Text>
             <Text style={s.emptySub}>{empFilter === 'PENDING' ? 'No pending stock requests' : 'No stock requests in this category'}</Text>
           </View>
@@ -629,7 +664,7 @@ export default function ManagerRequestsScreen() {
       ) : (
         productRequests.length === 0 ? (
           <View style={s.centered}>
-            <Text style={s.emptyEmoji}>🛍️</Text>
+            <View style={{ marginBottom: 12 }}><ShoppingBagIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
             <Text style={s.emptyTitle}>No product requests</Text>
             <Text style={s.emptySub}>Customer product requests will appear here</Text>
           </View>
@@ -649,7 +684,7 @@ export default function ManagerRequestsScreen() {
             {ackTarget && (
               <View style={s.previewCard}>
                 <View style={[s.previewIconWrap, { backgroundColor: TYPE_BG[ackTarget.type] || '#f3f4f6' }]}>
-                  <Text style={s.previewIcon}>{TYPE_ICONS[ackTarget.type]}</Text>
+                  <TypeIcon type={ackTarget.type} size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.previewType}>{TYPE_LABELS[ackTarget.type]}</Text>
@@ -680,7 +715,12 @@ export default function ManagerRequestsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Confirm alert handled"
               >
-                {acknowledgeMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.confirmBtnText}>✅  Confirm</Text>}
+                {acknowledgeMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : (
+                  <>
+                    <CheckCircleIcon size={16} color="#fff" strokeWidth={2.25} />
+                    <Text style={s.confirmBtnText}>Confirm</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -714,7 +754,8 @@ export default function ManagerRequestsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Accept all items"
               >
-                <Text style={s.acceptAllBtnText}>✅ All</Text>
+                <CheckCircleIcon size={13} color="#15803d" strokeWidth={2.25} />
+                <Text style={s.acceptAllBtnText}>All</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setReviewTarget(null)}
@@ -723,7 +764,7 @@ export default function ManagerRequestsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
-                <Text style={s.closeBtnText}>✕</Text>
+                <XIcon size={14} color="#6b7280" strokeWidth={2.25} />
               </TouchableOpacity>
             </View>
 
@@ -735,8 +776,13 @@ export default function ManagerRequestsScreen() {
                     <View style={s.reviewLineTop}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.reviewLineName}>{line.name}</Text>
-                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-                          {line.category ? <Text style={s.reviewLineMeta}>📂 {line.category}</Text> : null}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                          {line.category ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <TagIcon size={11} color="#6b7280" strokeWidth={2} />
+                              <Text style={s.reviewLineMeta}>{line.category}</Text>
+                            </View>
+                          ) : null}
                           {line.quantity ? <Text style={s.reviewLineMeta}>· {line.quantity}</Text> : null}
                         </View>
                       </View>
@@ -748,7 +794,7 @@ export default function ManagerRequestsScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={`Accept ${line.name}`}
                         >
-                          <Text style={[s.decisionBtnText, decision === 'ACCEPT' && s.decisionBtnTextAccept]}>✅</Text>
+                          <CheckCircleIcon size={20} color={decision === 'ACCEPT' ? '#16a34a' : '#9ca3af'} strokeWidth={2.25} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[s.decisionBtn, decision === 'REJECT' && s.decisionBtnReject]}
@@ -757,7 +803,7 @@ export default function ManagerRequestsScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={`Reject ${line.name}`}
                         >
-                          <Text style={[s.decisionBtnText, decision === 'REJECT' && s.decisionBtnTextReject]}>❌</Text>
+                          <XIcon size={20} color={decision === 'REJECT' ? '#E63946' : '#9ca3af'} strokeWidth={2.25} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -805,9 +851,14 @@ export default function ManagerRequestsScreen() {
               >
                 {reviewMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.confirmBtnText}>
-                      📋  Submit Review{reviewTarget ? ` (${reviewTarget.lines.length})` : ''}
-                    </Text>
+                  : (
+                    <>
+                      <ClipboardIcon size={16} color="#fff" strokeWidth={2.25} />
+                      <Text style={s.confirmBtnText}>
+                        Submit Review{reviewTarget ? ` (${reviewTarget.lines.length})` : ''}
+                      </Text>
+                    </>
+                  )
                 }
               </TouchableOpacity>
             </View>
@@ -824,7 +875,7 @@ export default function ManagerRequestsScreen() {
             {respondTarget && (
               <View style={s.previewCard}>
                 <View style={[s.previewIconWrap, { backgroundColor: '#fff7ed' }]}>
-                  <Text style={s.previewIcon}>🛍️</Text>
+                  <ShoppingBagIcon size={20} color="#c2410c" strokeWidth={1.75} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.previewType}>{respondTarget.productName}</Text>
@@ -841,7 +892,8 @@ export default function ManagerRequestsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Set response to accept"
               >
-                <Text style={[s.toggleBtnText, respondStatus === 'ACCEPTED' && s.toggleBtnTextAccept]}>✅ Accept</Text>
+                <CheckCircleIcon size={15} color={respondStatus === 'ACCEPTED' ? '#15803d' : '#6b7280'} strokeWidth={2.25} />
+                <Text style={[s.toggleBtnText, respondStatus === 'ACCEPTED' && s.toggleBtnTextAccept]}>Accept</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.toggleBtn, respondStatus === 'DECLINED' && s.toggleBtnDecline]}
@@ -850,7 +902,8 @@ export default function ManagerRequestsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Set response to decline"
               >
-                <Text style={[s.toggleBtnText, respondStatus === 'DECLINED' && s.toggleBtnTextDecline]}>❌ Decline</Text>
+                <XIcon size={15} color={respondStatus === 'DECLINED' ? '#b91c1c' : '#6b7280'} strokeWidth={2.25} />
+                <Text style={[s.toggleBtnText, respondStatus === 'DECLINED' && s.toggleBtnTextDecline]}>Decline</Text>
               </TouchableOpacity>
             </View>
             <Text style={s.sheetLabel}>Note <Text style={s.optionalTag}>(optional)</Text></Text>
@@ -878,7 +931,14 @@ export default function ManagerRequestsScreen() {
               >
                 {respondMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.confirmBtnText}>{respondStatus === 'ACCEPTED' ? '✅  Accept Request' : '❌  Decline Request'}</Text>
+                  : (
+                    <>
+                      {respondStatus === 'ACCEPTED'
+                        ? <CheckCircleIcon size={16} color="#fff" strokeWidth={2.25} />
+                        : <XIcon size={16} color="#fff" strokeWidth={2.25} />}
+                      <Text style={s.confirmBtnText}>{respondStatus === 'ACCEPTED' ? 'Accept Request' : 'Decline Request'}</Text>
+                    </>
+                  )
                 }
               </TouchableOpacity>
             </View>
@@ -949,7 +1009,6 @@ const s = StyleSheet.create({
   filterCountTextActive: { color: '#fff' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
   emptySub: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20 },
 
@@ -964,7 +1023,6 @@ const s = StyleSheet.create({
   cardInner: { padding: 14, gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   typeIconWrap: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  typeIconText: { fontSize: 22 },
   typeLabel: { fontSize: 15, fontWeight: '700', color: '#111827' },
   typeLabelDone: { color: '#6b7280' },
   metaSub: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
@@ -977,7 +1035,10 @@ const s = StyleSheet.create({
   prioBadgeDot: { width: 7, height: 7, borderRadius: 4 },
   prioBadgeText: { fontSize: 10, fontWeight: '800' },
 
-  doneBadge: { backgroundColor: '#d1fae5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: '#a7f3d0' },
+  doneBadge: {
+    backgroundColor: '#d1fae5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: '#a7f3d0',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
   doneBadgeText: { fontSize: 11, fontWeight: '700', color: '#065f46' },
 
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
@@ -1002,7 +1063,8 @@ const s = StyleSheet.create({
 
   actionBtn: {
     backgroundColor: COLORS.managerPrimary, paddingVertical: 11, paddingHorizontal: 18,
-    borderRadius: 12, alignSelf: 'stretch', alignItems: 'center',
+    borderRadius: 12, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
   actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
@@ -1017,8 +1079,6 @@ const s = StyleSheet.create({
   },
   linePreviewName: { flex: 1, fontSize: 13, color: '#374151', fontWeight: '500' },
   linePreviewQty: { fontSize: 11, color: '#9ca3af' },
-  lineAcceptedTag: { fontSize: 12, color: '#16a34a', fontWeight: '800' },
-  lineRejectedTag: { fontSize: 12, color: '#E63946', fontWeight: '800' },
 
   // Bottom sheets
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
@@ -1032,10 +1092,10 @@ const s = StyleSheet.create({
   reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   reviewMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { fontSize: 14, color: '#6b7280', fontWeight: '700' },
   acceptAllBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
     backgroundColor: '#f0fdf4', borderWidth: 1.5, borderColor: '#bbf7d0',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   acceptAllBtnText: { fontSize: 12, fontWeight: '800', color: '#15803d' },
 
@@ -1053,9 +1113,6 @@ const s = StyleSheet.create({
   },
   decisionBtnAccept: { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
   decisionBtnReject: { borderColor: '#E63946', backgroundColor: '#fef2f2' },
-  decisionBtnText: { fontSize: 18 },
-  decisionBtnTextAccept: {},
-  decisionBtnTextReject: {},
   reasonRow: { marginTop: 2 },
   reasonPill: {
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, marginRight: 6,
@@ -1070,7 +1127,6 @@ const s = StyleSheet.create({
     backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#e5e7eb',
   },
   previewIconWrap: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  previewIcon: { fontSize: 20 },
   previewType: { fontSize: 14, fontWeight: '700', color: '#111827' },
   previewMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   previewNotes: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 4 },
@@ -1079,7 +1135,8 @@ const s = StyleSheet.create({
 
   toggleRow: { flexDirection: 'row', gap: 10 },
   toggleBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
+    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
   },
   toggleBtnAccept: { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
@@ -1099,7 +1156,8 @@ const s = StyleSheet.create({
   cancelBtn: { flex: 1, padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb', alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
   confirmBtn: {
-    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center',
+    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
   confirmBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },

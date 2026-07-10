@@ -366,6 +366,14 @@ export function AlertTriangleIcon({ size = 24, color = '#212529', strokeWidth = 
   );
 }
 
+export function ZapIcon({ size = 24, color = '#212529', strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ size = 24, color = '#212529', strokeWidth = 1.75 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

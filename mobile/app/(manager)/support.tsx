@@ -9,7 +9,7 @@ import Toast from 'react-native-toast-message';
 import { supportApi } from '../../services/api';
 import { useAuthStore, isAdmin } from '../../store/authStore';
 import { COLORS } from '../../constants';
-import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon } from '../../components/Icons';
+import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon, CheckCircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 
@@ -289,9 +289,14 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
               const isSupport = msg.isFromSupport;
               return (
                 <View key={msg.id} style={[s.bubble, isSupport ? s.bubbleSupport : s.bubbleUser]}>
-                  <Text style={[s.bubbleName, isSupport && { color: COLORS.managerPrimary }]}>
-                    {isSupport ? '🎧 Support' : msg.senderName}
-                  </Text>
+                  {isSupport ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <HeadphonesIcon size={11} color={COLORS.managerPrimary} strokeWidth={2} />
+                      <Text style={[s.bubbleName, { color: COLORS.managerPrimary }]}>Support</Text>
+                    </View>
+                  ) : (
+                    <Text style={s.bubbleName}>{msg.senderName}</Text>
+                  )}
                   <Text style={s.bubbleBody}>{msg.body}</Text>
                   <Text style={s.bubbleTime}>{timeAgo(msg.createdAt)}</Text>
                 </View>
@@ -299,7 +304,8 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             })}
             {thread.status === 'RESOLVED' && (
               <View style={s.resolvedBanner}>
-                <Text style={s.resolvedBannerText}>✓ This ticket has been resolved</Text>
+                <CheckCircleIcon size={14} color="#059669" strokeWidth={2.25} />
+                <Text style={s.resolvedBannerText}>This ticket has been resolved</Text>
               </View>
             )}
             <View style={{ height: 8 }} />
@@ -594,6 +600,7 @@ const s = StyleSheet.create({
 
   resolvedBanner: {
     alignSelf: 'center', backgroundColor: '#D1FAE5',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 8,
   },
   resolvedBannerText: { fontSize: 13, fontWeight: '600', color: '#059669' },

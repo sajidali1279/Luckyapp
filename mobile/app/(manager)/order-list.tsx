@@ -13,7 +13,7 @@ import { COLORS } from '../../constants';
 import {
   PackageIcon, PrinterIcon, CheckCircleIcon,
   PlusIcon, XIcon, ClipboardIcon,
-  ListIcon, ChevronDownIcon, QrCodeScanIcon,
+  ListIcon, ChevronDownIcon, QrCodeScanIcon, ZapIcon,
 } from '../../components/Icons';
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
@@ -598,7 +598,7 @@ interface EditItemSheetProps {
 const PRIORITY_OPTIONS: { value: Priority; label: string; color: string }[] = [
   { value: 'LOW',    label: 'Low',    color: COLORS.textMuted },
   { value: 'NORMAL', label: 'Normal', color: COLORS.managerPrimary },
-  { value: 'URGENT', label: '⚡ Urgent', color: '#F97316' },
+  { value: 'URGENT', label: 'Urgent', color: '#F97316' },
 ];
 
 function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: EditItemSheetProps) {
@@ -721,9 +721,10 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                     onPress={() => setPriority(opt.value)}
                     activeOpacity={0.75}
                     accessibilityRole="radio"
-                    accessibilityLabel={`Set priority to ${opt.label.replace('⚡ ', '')}`}
+                    accessibilityLabel={`Set priority to ${opt.label}`}
                     accessibilityState={{ checked: active }}
                   >
+                    {opt.value === 'URGENT' && <ZapIcon size={12} color={active ? opt.color : COLORS.textMuted} strokeWidth={2} />}
                     <Text style={[s.priorityChipText, { color: active ? opt.color : COLORS.textMuted }]}>
                       {opt.label}
                     </Text>
@@ -1478,8 +1479,9 @@ export default function ManagerOrderListScreen() {
               >
                 {urgentItems.length > 0 && (
                   <>
-                    <View style={[r.sectionHeader, { backgroundColor: '#FFF7ED' }]}>
-                      <Text style={[r.sectionLabel, { color: '#C2410C' }]}>⚡ URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
+                    <View style={[r.sectionHeader, { backgroundColor: '#FFF7ED', flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+                      <ZapIcon size={12} color="#C2410C" strokeWidth={2.25} />
+                      <Text style={[r.sectionLabel, { color: '#C2410C' }]}>URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {urgentItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}

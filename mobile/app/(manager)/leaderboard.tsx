@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { COLORS } from '../../constants';
+import { COLORS, AVATAR_PALETTE } from '../../constants';
 import { TrophyIcon, StarIcon, ChevronLeftIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
@@ -17,13 +17,13 @@ interface Store { id: string; name: string }
 
 type Tab = 'customers' | 'staff';
 
-const MEDAL = ['🥇', '🥈', '🥉'];
+const RANK_COLORS = ['#F59E0B', '#9CA3AF', '#B45309']; // gold, silver, bronze
 
 function Stars({ rating }: { rating: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 1 }}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <Text key={s} style={{ fontSize: 13, color: s <= Math.round(rating) ? '#F59E0B' : '#E5E7EB' }}>★</Text>
+        <StarIcon key={s} size={13} color={s <= Math.round(rating) ? '#F59E0B' : '#E5E7EB'} strokeWidth={1.5} filled={s <= Math.round(rating)} />
       ))}
     </View>
   );
@@ -150,7 +150,7 @@ export default function ManagerLeaderboardScreen() {
             <View style={s.customerRow}>
               <View style={s.rankWrap}>
                 {index < 3
-                  ? <Text style={s.medal}>{MEDAL[index]}</Text>
+                  ? <TrophyIcon size={18} color={RANK_COLORS[index]} strokeWidth={2} />
                   : <Text style={s.rank}>#{index + 1}</Text>}
               </View>
               <View style={[s.avatar, { backgroundColor: custAvatarColor(index) }]}>
@@ -186,7 +186,7 @@ export default function ManagerLeaderboardScreen() {
               <View style={[s.staffRow, isEOM && s.staffRowEOM]}>
                 <View style={s.rankWrap}>
                   {index < 3
-                    ? <Text style={s.medal}>{MEDAL[index]}</Text>
+                    ? <TrophyIcon size={18} color={RANK_COLORS[index]} strokeWidth={2} />
                     : <Text style={s.rank}>#{index + 1}</Text>}
                 </View>
                 <View style={[s.avatar, { backgroundColor: custAvatarColor(index) }]}>
@@ -222,8 +222,7 @@ export default function ManagerLeaderboardScreen() {
   );
 }
 
-const AVATAR_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981', '#F59E0B'];
-function custAvatarColor(i: number) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
+function custAvatarColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F8FAFC' },
@@ -271,7 +270,6 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   rankWrap: { width: 28, alignItems: 'center' },
-  medal: { fontSize: 20 },
   rank: { fontSize: 13, fontWeight: '800', color: '#9CA3AF' },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 16, fontWeight: '800' },

@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
+import { AlertTriangleIcon, BuildingIcon, CheckCircleIcon, XIcon, InboxIcon } from './Icons';
 
 interface Dispute {
   id: string;
@@ -149,7 +150,8 @@ export default function ManagerDisputesScreen() {
               accessibilityLabel={`Review dispute from ${item.customer?.name || item.customer?.phone}`}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={s.actionBtnText}>🚩  Review Dispute</Text>
+              <AlertTriangleIcon size={14} color="#fff" strokeWidth={2.25} />
+              <Text style={s.actionBtnText}>Review Dispute</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -163,7 +165,7 @@ export default function ManagerDisputesScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>🚩 MISSING POINTS</Text>
+            <Text style={s.headerEyebrow}>MISSING POINTS</Text>
             <Text style={s.headerTitle}>Disputes</Text>
           </View>
           {pending.length > 0 && (
@@ -224,7 +226,7 @@ export default function ManagerDisputesScreen() {
       {/* ── Content ── */}
       {!storeId ? (
         <View style={s.centered}>
-          <Text style={s.emptyEmoji}>🏪</Text>
+          <View style={{ marginBottom: 12 }}><BuildingIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
           <Text style={s.emptyTitle}>No store assigned</Text>
         </View>
       ) : isLoading ? (
@@ -233,7 +235,11 @@ export default function ManagerDisputesScreen() {
         <ErrorState message="Failed to load disputes." onRetry={() => refetch()} />
       ) : displayed.length === 0 ? (
         <View style={s.centered}>
-          <Text style={s.emptyEmoji}>{statusFilter === 'PENDING' ? '✅' : '📭'}</Text>
+          <View style={{ marginBottom: 12 }}>
+            {statusFilter === 'PENDING'
+              ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
+              : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
+          </View>
           <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</Text>
           <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending missing-points reports' : 'No disputes in this category'}</Text>
         </View>
@@ -277,7 +283,8 @@ export default function ManagerDisputesScreen() {
                 accessibilityState={{ selected: resolveAction === 'APPROVED' }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={[s.toggleBtnText, resolveAction === 'APPROVED' && s.toggleBtnTextAccept]}>✅ Approve</Text>
+                <CheckCircleIcon size={15} color={resolveAction === 'APPROVED' ? '#15803d' : '#6b7280'} strokeWidth={2.25} />
+                <Text style={[s.toggleBtnText, resolveAction === 'APPROVED' && s.toggleBtnTextAccept]}>Approve</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.toggleBtn, resolveAction === 'REJECTED' && s.toggleBtnReject]}
@@ -287,7 +294,8 @@ export default function ManagerDisputesScreen() {
                 accessibilityState={{ selected: resolveAction === 'REJECTED' }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={[s.toggleBtnText, resolveAction === 'REJECTED' && s.toggleBtnTextReject]}>❌ Reject</Text>
+                <XIcon size={15} color={resolveAction === 'REJECTED' ? '#b91c1c' : '#6b7280'} strokeWidth={2.25} />
+                <Text style={[s.toggleBtnText, resolveAction === 'REJECTED' && s.toggleBtnTextReject]}>Reject</Text>
               </TouchableOpacity>
             </View>
 
@@ -329,10 +337,16 @@ export default function ManagerDisputesScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={resolveAction === 'APPROVED' ? 'Approve and credit dispute' : 'Reject dispute'}
               >
-                {resolveMutation.isPending
-                  ? <ActivityIndicator color={COLORS.white} size="small" />
-                  : <Text style={s.confirmBtnText}>{resolveAction === 'APPROVED' ? '✅  Approve & Credit' : '❌  Reject Dispute'}</Text>
-                }
+                {resolveMutation.isPending ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  <>
+                    {resolveAction === 'APPROVED'
+                      ? <CheckCircleIcon size={16} color={COLORS.white} strokeWidth={2.25} />
+                      : <XIcon size={16} color={COLORS.white} strokeWidth={2.25} />}
+                    <Text style={s.confirmBtnText}>{resolveAction === 'APPROVED' ? 'Approve & Credit' : 'Reject Dispute'}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -417,7 +431,8 @@ const s = StyleSheet.create({
 
   actionBtn: {
     backgroundColor: COLORS.managerPrimary, paddingVertical: 11, paddingHorizontal: 18,
-    borderRadius: 12, alignSelf: 'stretch', alignItems: 'center',
+    borderRadius: 12, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
   actionBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
@@ -440,7 +455,8 @@ const s = StyleSheet.create({
 
   toggleRow: { flexDirection: 'row', gap: 10 },
   toggleBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
+    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
   },
   toggleBtnAccept: { borderColor: '#16a34a', backgroundColor: COLORS.statusAcceptedBg },
@@ -464,7 +480,8 @@ const s = StyleSheet.create({
   cancelBtn: { flex: 1, padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb', alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
   confirmBtn: {
-    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center',
+    flex: 2, padding: 15, borderRadius: 12, backgroundColor: COLORS.managerPrimary, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6,
     shadowColor: COLORS.managerPrimary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4,
   },
   confirmBtnText: { fontSize: 15, fontWeight: '800', color: COLORS.white },
