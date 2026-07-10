@@ -1,8 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, StatusBar, Modal, Alert, RefreshControl,
+  ActivityIndicator, Modal, Alert, RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulingApi, storesApi } from '../../services/api';
@@ -13,6 +12,7 @@ import {
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 import {
   DAY_ORDER, DAY_LABELS, DAY_SHORT, DAY_LETTER, JS_DAY_TO_ENUM,
   SHIFT_ORDER, SHIFT_COLORS, SHIFT_LABELS as SHIFT_LABELS_TYPED,
@@ -132,16 +132,13 @@ export default function ManagerScheduleScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>STORE MANAGER</Text>
-            <Text style={s.headerTitle}>Schedule</Text>
-          </View>
-          {pendingCount > 0 && (
+      <ManagerHeader
+        eyebrow="STORE MANAGER"
+        title="Schedule"
+        size="lg"
+        rightSlot={
+          pendingCount > 0 ? (
             <TouchableOpacity
               style={s.pendingBadge}
               onPress={() => setTab('requests')}
@@ -152,9 +149,9 @@ export default function ManagerScheduleScreen() {
               <Text style={s.pendingBadgeNum}>{pendingCount}</Text>
               <Text style={s.pendingBadgeLbl}>pending</Text>
             </TouchableOpacity>
-          )}
-        </View>
-
+          ) : null
+        }
+      >
         {stores.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
             {stores.map(store => (
@@ -200,7 +197,7 @@ export default function ManagerScheduleScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </SafeAreaView>
+      </ManagerHeader>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -590,13 +587,6 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f8fafc' },
 
   // Header
-  headerBg: { backgroundColor: COLORS.managerPrimary },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
-  },
-  headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
-  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
   pendingBadge: {
     backgroundColor: COLORS.danger, paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 14, alignItems: 'center',

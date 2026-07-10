@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar, Modal, RefreshControl,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import { COLORS } from '../../constants';
 import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon, CheckCircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -378,26 +379,24 @@ export default function SupportScreen() {
   const resolvedThreads = threads.filter(t => t.status === 'RESOLVED');
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
-
-      {/* Header */}
-      <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <HeadphonesIcon size={20} color="#fff" strokeWidth={2} />
-          <Text style={s.headerTitle}>Support</Text>
-        </View>
-        <TouchableOpacity
-          style={s.newBtn}
-          onPress={() => setShowNew(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Create new support ticket"
-          hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
-        >
-          <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-          <Text style={s.newBtnText}>New Ticket</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={s.container}>
+      <ManagerHeader
+        size="sm"
+        title="Support"
+        icon={<HeadphonesIcon size={20} color="#fff" strokeWidth={2} />}
+        rightSlot={
+          <TouchableOpacity
+            style={s.newBtn}
+            onPress={() => setShowNew(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Create new support ticket"
+            hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+          >
+            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+            <Text style={s.newBtnText}>New Ticket</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
@@ -451,7 +450,7 @@ export default function SupportScreen() {
           onClose={() => setActiveThread(null)}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -495,12 +494,6 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
 
-  header: {
-    backgroundColor: COLORS.managerPrimary,
-    paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
   newBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,

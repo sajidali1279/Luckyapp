@@ -4,7 +4,6 @@ import {
   ScrollView, ActivityIndicator, Alert, RefreshControl,
   KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +15,7 @@ import {
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -45,12 +45,8 @@ export default function CatalogScreen() {
   ];
 
   return (
-    <SafeAreaView style={s.root} edges={['top']}>
-      {/* Header */}
-      <View style={s.header}>
-        <PackageIcon size={18} color="#fff" strokeWidth={2} />
-        <Text style={s.headerTitle}>Store Catalog</Text>
-      </View>
+    <View style={s.root}>
+      <ManagerHeader size="sm" title="Store Catalog" icon={<PackageIcon size={18} color="#fff" strokeWidth={2} />} />
 
       {/* Tab bar */}
       <View style={s.tabBar}>
@@ -74,7 +70,7 @@ export default function CatalogScreen() {
       {tab === 'manual' && <ManualTab />}
       {tab === 'browse' && <BrowseTab />}
       {tab === 'photo'  && <PhotoTab />}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -783,10 +779,6 @@ const s = StyleSheet.create({
   root:        { flex: 1, backgroundColor: COLORS.background },
   flex:        { flex: 1 },
   center:      { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-
-  // Header
-  header:      { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.managerPrimary, paddingHorizontal: 16, paddingVertical: 14 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
 
   // Tab bar
   tabBar:      { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border },

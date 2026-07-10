@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  RefreshControl, StatusBar, Modal, Alert, KeyboardAvoidingView,
+  RefreshControl, Modal, Alert, KeyboardAvoidingView,
   Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1303,63 +1304,61 @@ export default function ManagerOrderListScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
-
-      {/* Header */}
-      <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <PackageIcon size={20} color="#fff" strokeWidth={2} />
-          <Text style={s.headerTitle}>Order Lists</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {activeList && (
-            <TouchableOpacity
-              style={s.headerBtn}
-              onPress={() => setShowHistory(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel="View order list history"
-            >
-              <ListIcon size={17} color="#fff" strokeWidth={2} />
-              <Text style={s.headerBtnText}>History</Text>
-            </TouchableOpacity>
-          )}
-          {pendingRequestCount > 0 && (
-            <TouchableOpacity
-              style={[s.headerBtn, { backgroundColor: '#EF4444' }]}
-              onPress={() => setShowReview(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${pendingRequestCount} pending employee requests`}
-            >
-              <ClipboardIcon size={17} color="#fff" strokeWidth={2} />
-              <Text style={s.headerBtnText}>Requests ({pendingRequestCount})</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Store Tabs */}
-      <View style={s.storeTabs}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storeTabsInner}>
-          {stores.map(store => {
-            const isSel = selectedStoreId === store.id;
-            return (
-              <TouchableOpacity key={store.id} onPress={() => setSelectedStoreId(store.id)}
-                style={[s.storeTab, isSel && s.storeTabActive]}
-                hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
-                accessibilityRole="tab"
-                accessibilityLabel={`Select store ${store.name}`}
+    <View style={s.container}>
+      <ManagerHeader
+        size="sm"
+        title="Order Lists"
+        icon={<PackageIcon size={20} color="#fff" strokeWidth={2} />}
+        rightSlot={
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {activeList && (
+              <TouchableOpacity
+                style={s.headerBtn}
+                onPress={() => setShowHistory(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="View order list history"
               >
-                <Text style={[s.storeTabText, isSel && s.storeTabTextActive]} numberOfLines={1}>
-                  {store.name}
-                </Text>
+                <ListIcon size={17} color="#fff" strokeWidth={2} />
+                <Text style={s.headerBtnText}>History</Text>
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+            )}
+            {pendingRequestCount > 0 && (
+              <TouchableOpacity
+                style={[s.headerBtn, { backgroundColor: '#EF4444' }]}
+                onPress={() => setShowReview(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${pendingRequestCount} pending employee requests`}
+              >
+                <ClipboardIcon size={17} color="#fff" strokeWidth={2} />
+                <Text style={s.headerBtnText}>Requests ({pendingRequestCount})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      >
+        {/* Store Tabs */}
+        <View style={s.storeTabs}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storeTabsInner}>
+            {stores.map(store => {
+              const isSel = selectedStoreId === store.id;
+              return (
+                <TouchableOpacity key={store.id} onPress={() => setSelectedStoreId(store.id)}
+                  style={[s.storeTab, isSel && s.storeTabActive]}
+                  hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Select store ${store.name}`}
+                >
+                  <Text style={[s.storeTabText, isSel && s.storeTabTextActive]} numberOfLines={1}>
+                    {store.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </ManagerHeader>
 
       {/* Content */}
       {!selectedStoreId ? (
@@ -1571,7 +1570,7 @@ export default function ManagerOrderListScreen() {
           qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1582,13 +1581,6 @@ const s = StyleSheet.create({
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
 
-  header: {
-    backgroundColor: COLORS.managerPrimary,
-    paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    flexWrap: 'wrap', gap: 8,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
   headerBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,

@@ -1,17 +1,16 @@
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  TouchableOpacity, StatusBar, ScrollView,
+  TouchableOpacity, ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
-import { router } from 'expo-router';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../../constants';
-import { TrophyIcon, StarIcon, ChevronLeftIcon } from '../../components/Icons';
+import { TrophyIcon, StarIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 
 interface Store { id: string; name: string }
 
@@ -68,27 +67,13 @@ export default function ManagerLeaderboardScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
-
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={s.backBtn}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Leaderboard</Text>
-            <Text style={s.headerSub}>{storeName || stores.find(s => s.id === storeId)?.name || 'Your store'}</Text>
-          </View>
-          <TrophyIcon size={24} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />
-        </View>
-
+      <ManagerHeader
+        title="Leaderboard"
+        subtitle={storeName || stores.find(st => st.id === storeId)?.name || 'Your store'}
+        showBack
+        paddingHorizontal={16}
+        rightSlot={<TrophyIcon size={24} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />}
+      >
         {/* Store selector */}
         {stores.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
@@ -128,7 +113,7 @@ export default function ManagerLeaderboardScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </SafeAreaView>
+      </ManagerHeader>
 
       {isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
@@ -226,19 +211,6 @@ function custAvatarColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.l
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F8FAFC' },
-
-  headerBg: { backgroundColor: COLORS.managerPrimary },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  headerSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 1 },
 
   storePickerRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10 },
   storeChip: {

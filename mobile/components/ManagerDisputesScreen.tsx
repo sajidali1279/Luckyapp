@@ -2,7 +2,6 @@ import {
   View, Text, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi, storesApi } from '../services/api';
@@ -10,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
+import ManagerHeader from './ManagerHeader';
 import { AlertTriangleIcon, BuildingIcon, CheckCircleIcon, XIcon, InboxIcon } from './Icons';
 
 interface Dispute {
@@ -162,20 +162,19 @@ export default function ManagerDisputesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>MISSING POINTS</Text>
-            <Text style={s.headerTitle}>Disputes</Text>
-          </View>
-          {pending.length > 0 && (
+      <ManagerHeader
+        eyebrow="MISSING POINTS"
+        title="Disputes"
+        size="lg"
+        rightSlot={
+          pending.length > 0 ? (
             <View style={s.pendingBadge}>
               <Text style={s.pendingBadgeNum}>{pending.length}</Text>
               <Text style={s.pendingBadgeLbl}>pending</Text>
             </View>
-          )}
-        </View>
-
+          ) : null
+        }
+      >
         {stores.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
             {stores.map(store => (
@@ -221,7 +220,7 @@ export default function ManagerDisputesScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </SafeAreaView>
+      </ManagerHeader>
 
       {/* ── Content ── */}
       {!storeId ? (
@@ -357,14 +356,6 @@ export default function ManagerDisputesScreen() {
 }
 
 const s = StyleSheet.create({
-  headerBg: { backgroundColor: COLORS.managerPrimary },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
-  },
-  headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
-  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-
   pendingBadge: {
     backgroundColor: COLORS.danger, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, alignItems: 'center',
     shadowColor: COLORS.danger, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,

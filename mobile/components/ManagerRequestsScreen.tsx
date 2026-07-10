@@ -2,7 +2,6 @@ import {
   View, Text, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +9,7 @@ import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from 
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
+import ManagerHeader from './ManagerHeader';
 import {
   PackageIcon, ClipboardIcon, ShoppingBagIcon, BriefcaseIcon, TagIcon,
   CheckCircleIcon, XIcon, MessageCircleIcon, BuildingIcon, InboxIcon, BellIcon,
@@ -490,31 +490,28 @@ export default function ManagerRequestsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>
-              {mainTab === 'alerts' ? 'STORE ALERTS'
-                : mainTab === 'stock' ? 'STOCK REQUESTS'
-                : 'PRODUCT REQUESTS'}
-            </Text>
-            <Text style={s.headerTitle}>
-              {mainTab === 'alerts' ? 'Store Alerts'
-                : mainTab === 'stock' ? 'Stock Requests'
-                : 'Product Requests'}
-            </Text>
-          </View>
-          {(() => {
-            const badgeCount = TABS.find(t => t.key === mainTab)?.badge ?? 0;
-            return badgeCount > 0 ? (
-              <View style={s.pendingBadge}>
-                <Text style={s.pendingBadgeNum}>{badgeCount}</Text>
-                <Text style={s.pendingBadgeLbl}>pending</Text>
-              </View>
-            ) : null;
-          })()}
-        </View>
-
+      <ManagerHeader
+        eyebrow={
+          mainTab === 'alerts' ? 'STORE ALERTS'
+            : mainTab === 'stock' ? 'STOCK REQUESTS'
+            : 'PRODUCT REQUESTS'
+        }
+        title={
+          mainTab === 'alerts' ? 'Store Alerts'
+            : mainTab === 'stock' ? 'Stock Requests'
+            : 'Product Requests'
+        }
+        size="lg"
+        rightSlot={(() => {
+          const badgeCount = TABS.find(t => t.key === mainTab)?.badge ?? 0;
+          return badgeCount > 0 ? (
+            <View style={s.pendingBadge}>
+              <Text style={s.pendingBadgeNum}>{badgeCount}</Text>
+              <Text style={s.pendingBadgeLbl}>pending</Text>
+            </View>
+          ) : null;
+        })()}
+      >
         {/* Store picker */}
         {stores.length > 1 && (
           <View style={s.storePickerRow}>
@@ -616,7 +613,7 @@ export default function ManagerRequestsScreen() {
             ))}
           </View>
         )}
-      </SafeAreaView>
+      </ManagerHeader>
 
       {/* ── Content ── */}
       {!effectiveStoreId ? (
@@ -950,14 +947,6 @@ export default function ManagerRequestsScreen() {
 }
 
 const s = StyleSheet.create({
-  headerBg: { backgroundColor: COLORS.managerPrimary },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12, gap: 12,
-  },
-  headerEyebrow: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
-  headerTitle: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-
   pendingBadge: {
     backgroundColor: '#E63946', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, alignItems: 'center',
     shadowColor: '#E63946', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 8, elevation: 4,

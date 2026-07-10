@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, RefreshControl, StatusBar,
+  TextInput, RefreshControl,
   ActivityIndicator, Alert, Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { offersApi, storesApi } from '../../services/api';
@@ -13,6 +12,7 @@ import { COLORS } from '../../constants';
 import { XIcon, EditIcon, PlusIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import ManagerHeader from '../../components/ManagerHeader';
 
 interface Store { id: string; name: string }
 
@@ -156,14 +156,10 @@ export default function ManagerOffersScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
-
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Offers</Text>
-            <Text style={s.headerSub}>Manage your store's active deals</Text>
-          </View>
+      <ManagerHeader
+        title="Offers"
+        subtitle="Manage your store's active deals"
+        rightSlot={
           <TouchableOpacity
             style={s.addBtn}
             onPress={() => setShowCreate(true)}
@@ -175,8 +171,8 @@ export default function ManagerOffersScreen() {
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addBtnText}>New</Text>
           </TouchableOpacity>
-        </View>
-
+        }
+      >
         {/* Store selector */}
         {stores.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
@@ -198,7 +194,7 @@ export default function ManagerOffersScreen() {
             ))}
           </ScrollView>
         )}
-      </SafeAreaView>
+      </ManagerHeader>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -460,13 +456,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
 
-  headerBg: { backgroundColor: COLORS.managerPrimary },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14,
-  },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  headerSub: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 3 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: COLORS.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
