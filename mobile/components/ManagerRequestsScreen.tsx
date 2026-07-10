@@ -6,7 +6,8 @@ import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
-import { COLORS } from '../constants';
+import { COLORS, AVATAR_PALETTE } from '../constants';
+import { formatTime, getInitial } from '../utils/format';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
 import ManagerHeader from './ManagerHeader';
@@ -96,15 +97,6 @@ interface EmployeeItemRequest {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-function getInitial(name: string) { return (name || '?')[0].toUpperCase(); }
-const AVATAR_COLORS = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -228,7 +220,7 @@ export default function ManagerRequestsScreen() {
     const pColor = PRIORITY_COLORS[item.priority] || '#adb5bd';
     const typeBg = TYPE_BG[item.type] || '#f3f4f6';
     const isDone = item.status === 'ACKNOWLEDGED';
-    const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
+    const avatarColor = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
     return (
       <View style={[s.card, isDone && s.cardDone]}>
         <View style={s.cardInner}>

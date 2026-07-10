@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS, AVATAR_PALETTE } from '../constants';
+import { formatTime, getInitial } from '../utils/format';
 import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
 import ManagerHeader from './ManagerHeader';
@@ -28,15 +29,6 @@ const STATUS_STYLE: Record<string, { label: string; bg: string; color: string; b
   APPROVED: { label: 'Approved', bg: COLORS.statusAcceptedBg, color: '#15803d', border: '#bbf7d0' },
   REJECTED: { label: 'Rejected', bg: '#fef2f2', color: '#b91c1c', border: COLORS.statusDeclinedBorder },
 };
-
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-function getInitial(name: string) { return (name || '?')[0].toUpperCase(); }
 
 interface Store { id: string; name: string }
 

@@ -70,13 +70,6 @@ interface EmployeeRequest {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<ItemStatus, { label: string; bg: string; text: string }> = {
-  PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706' },
-  ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669' },
-  RECEIVED: { label: 'Received', bg: '#DCFCE7', text: '#16A34A' },
-  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#9CA3AF' },
-};
-
 const REJECTION_REASONS = [
   { value: 'NO_SUPPLIER',   label: 'No supplier' },
   { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
