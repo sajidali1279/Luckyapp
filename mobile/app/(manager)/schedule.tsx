@@ -455,12 +455,13 @@ export default function ManagerScheduleScreen() {
                   {confirmModal.action === 'APPROVED' ? 'Approve Request?' : 'Deny Request?'}
                 </Text>
                 <View style={s.modalPreview}>
-                  <Text style={s.modalPreviewRow}><Text style={{ fontWeight: '700' }}>{confirmModal.employeeName}</Text></Text>
                   <Text style={s.modalPreviewRow}>
-                    {confirmModal.type === 'TIME_OFF' ? 'Time Off Request' : 'Fill-In Request'}
+                    <Text style={{ fontWeight: '700' }}>{confirmModal.employeeName}</Text>
+                    {'  ·  '}{confirmModal.type === 'TIME_OFF' ? 'Time Off' : 'Fill-In'}
                   </Text>
-                  <Text style={s.modalPreviewRow}>{fmtDateFull(confirmModal.date)}</Text>
-                  <Text style={s.modalPreviewRow}>{SHIFT_LABELS[confirmModal.shift]}</Text>
+                  <Text style={[s.modalPreviewRow, { color: TEXT_GRAY[500], fontWeight: '400' }]}>
+                    {fmtDateFull(confirmModal.date)} · {SHIFT_LABELS[confirmModal.shift]}
+                  </Text>
                 </View>
                 {confirmModal.action === 'APPROVED' && (
                   <Text style={s.modalNote}>
