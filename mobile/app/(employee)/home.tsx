@@ -5,14 +5,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useEffect } from 'react';
-import { offersApi, hotFoodApi, notificationsApi } from '../../services/api';
+import { useRef, useEffect, useState } from 'react';
+import { offersApi, hotFoodApi, notificationsApi, schedulingApi, dailyReportApi, dailyTaskApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
-  QrCodeScanIcon, GiftIcon, MegaphoneIcon, TagIcon, ImageIcon,
+  QrCodeScanIcon, GiftIcon, MegaphoneIcon, TagIcon,
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
-  BellIcon,
+  BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
 
 function getGreeting() {
@@ -20,6 +20,17 @@ function getGreeting() {
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+const JS_DAY_TO_ENUM = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const SHIFT_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function EmployeeHomeScreen() {
@@ -45,10 +56,53 @@ export default function EmployeeHomeScreen() {
     refetch: refetchOffers, isRefetching: offersRefetching,
   } = useQuery({ queryKey: ['offers', storeId], queryFn: () => offersApi.getActive(storeId) });
 
-  const {
-    data: bannersData,
-    refetch: refetchBanners, isRefetching: bannersRefetching,
-  } = useQuery({ queryKey: ['banners', storeId], queryFn: () => offersApi.getBanners(storeId) });
+  const { data: scheduleData } = useQuery({
+    queryKey: ['my-schedule'],
+    queryFn: () => schedulingApi.getMySchedule(),
+  });
+  const templates: any[] = scheduleData?.data?.data?.templates || [];
+  const scheduleRequests: any[] = scheduleData?.data?.data?.requests || [];
+  const templateByDay: Record<string, any> = {};
+  for (const t of templates) templateByDay[t.dayOfWeek] = t;
+
+  const todayKey = JS_DAY_TO_ENUM[new Date().getDay()];
+  const todayTemplate = templateByDay[todayKey];
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowKey = JS_DAY_TO_ENUM[tomorrowDate.getDay()];
+  const tomorrowISO = tomorrowDate.toISOString().slice(0, 10);
+  const tomorrowTemplate = templateByDay[tomorrowKey];
+  const approvedOffTomorrow = scheduleRequests.some(
+    (r: any) => r.requestType === 'TIME_OFF' && r.status === 'APPROVED' &&
+      new Date(r.date).toISOString().slice(0, 10) === tomorrowISO
+  );
+  const isOffTomorrow = !tomorrowTemplate || approvedOffTomorrow;
+
+  const todayISO = todayStr();
+  const { data: reportData } = useQuery({
+    queryKey: ['daily-reports-today', storeId, todayISO],
+    queryFn: () => dailyReportApi.getToday(storeId!, todayISO),
+    enabled: !!storeId,
+    staleTime: 60_000,
+  });
+  const todaysReports: any[] = reportData?.data?.data || [];
+  const reportSubmitted = todaysReports.length > 0;
+
+  const { data: tasksData } = useQuery({
+    queryKey: ['daily-tasks', storeId],
+    queryFn: () => dailyTaskApi.getTasks(storeId),
+    enabled: !!storeId && !!todayTemplate,
+    staleTime: 5 * 60_000,
+  });
+  const allTasks: any[] = tasksData?.data?.data || [];
+  const shiftTasks = todayTemplate ? allTasks.filter((t: any) => t.shift === todayTemplate.shiftType) : [];
+
+  const [taskIdx, setTaskIdx] = useState(0);
+  useEffect(() => {
+    if (shiftTasks.length <= 1) return;
+    const id = setInterval(() => setTaskIdx((i) => (i + 1) % shiftTasks.length), 4000);
+    return () => clearInterval(id);
+  }, [shiftTasks.length]);
 
   const { data: pendingData } = useQuery({
     queryKey: ['hot-food-pending-count', storeId],
@@ -83,8 +137,7 @@ export default function EmployeeHomeScreen() {
   const allOffers: any[] = offersData?.data?.data || [];
   const promotions = allOffers.filter((o: any) => !o.dealText);
   const deals = allOffers.filter((o: any) => o.dealText);
-  const banners: any[] = bannersData?.data?.data || [];
-  const isRefreshing = offersRefetching || bannersRefetching;
+  const isRefreshing = offersRefetching;
 
   return (
     <View style={s.root}>
@@ -137,6 +190,13 @@ export default function EmployeeHomeScreen() {
             <Text style={s.statusText}>On Duty · {user?.role?.replace(/_/g, ' ')}</Text>
           </View>
 
+          {isOffTomorrow && (
+            <View style={s.offTomorrowPill}>
+              <Text style={s.offTomorrowEmoji}>😴</Text>
+              <Text style={s.offTomorrowText}>You're off tomorrow</Text>
+            </View>
+          )}
+
           {promotions.length > 0 && (
             <View style={s.promoStrip}>
               <FlameIcon size={16} color="#fff" strokeWidth={2} />
@@ -154,7 +214,7 @@ export default function EmployeeHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => { refetchOffers(); refetchBanners(); }}
+            onRefresh={() => { refetchOffers(); }}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />
@@ -313,30 +373,70 @@ export default function EmployeeHomeScreen() {
           </Animated.View>
         )}
 
-        {/* ── Store Banners ── */}
-        {banners.length > 0 && (
-          <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
-            <View style={[s.sectionRow, { marginTop: 28 }]}>
-              <ImageIcon size={13} color="#6b7280" strokeWidth={2} />
-              <Text style={s.sectionLabel}>Store Banners</Text>
-            </View>
-            <ScrollView
-              horizontal showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+        {/* ── Daily Report Status ── */}
+        {storeId && (
+          <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }], marginTop: 12 }}>
+            <TouchableOpacity
+              style={[s.dailyReportTile, reportSubmitted && s.dailyReportTileDone]}
+              onPress={() => router.push('/(employee)/daily-report')}
+              activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel={reportSubmitted ? 'Daily report already submitted today' : "Submit today's daily report"}
             >
-              {banners.map((b: any) => (
-                <View key={b.id} style={s.bannerCard}>
-                  {b.imageUrl ? (
-                    <Image source={{ uri: b.imageUrl }} style={s.bannerImg} resizeMode="cover" />
-                  ) : (
-                    <View style={[s.bannerImg, s.bannerPlaceholder]}>
-                      <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>Banner</Text>
-                    </View>
-                  )}
-                  {b.title ? <Text style={s.bannerLabel} numberOfLines={1}>{b.title}</Text> : null}
+              <View style={s.dailyReportTileLeft}>
+                <View style={[s.dailyReportIconBg, reportSubmitted && s.dailyReportIconBgDone]}>
+                  <FileCheckIcon size={22} color={reportSubmitted ? '#16A34A' : COLORS.secondary} strokeWidth={2} />
                 </View>
-              ))}
-            </ScrollView>
+                <View>
+                  <Text style={s.dailyReportTitle}>Daily Report</Text>
+                  <Text style={s.dailyReportSub}>
+                    {reportSubmitted
+                      ? `✓ Submitted by ${todaysReports[0].submittedBy?.name || todaysReports[0].submittedBy?.phone || 'a teammate'} at ${fmtTime(todaysReports[0].createdAt)}`
+                      : "Not submitted yet — tap to fill it out"}
+                  </Text>
+                </View>
+              </View>
+              <ChevronRightIcon size={18} color={reportSubmitted ? '#16A34A' : '#94A3B8'} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* ── Daily Tasks Ticker ── */}
+        {todayTemplate && shiftTasks.length > 0 && (
+          <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }], marginTop: 10 }}>
+            <TouchableOpacity
+              style={s.taskTickerCard}
+              onPress={() => router.push('/(employee)/daily-tasks')}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Daily tasks checklist, showing task ${(taskIdx % shiftTasks.length) + 1} of ${shiftTasks.length}: ${shiftTasks[taskIdx % shiftTasks.length].title}`}
+            >
+              <View style={s.taskTickerIconBg}>
+                <ListChecksIcon size={20} color={COLORS.primary} strokeWidth={2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.taskTickerLabel}>{SHIFT_LABELS[todayTemplate.shiftType]} Shift Checklist</Text>
+                <Text style={s.taskTickerTitle} numberOfLines={1}>
+                  {shiftTasks[taskIdx % shiftTasks.length].title}
+                </Text>
+              </View>
+              <ChevronRightIcon size={16} color="#94A3B8" strokeWidth={2.5} />
+            </TouchableOpacity>
+            {shiftTasks.length > 1 && (
+              <View style={s.taskTickerDots}>
+                {shiftTasks.map((t: any, i: number) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    onPress={() => setTaskIdx(i)}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show task ${i + 1}: ${t.title}`}
+                  >
+                    <View style={[s.taskTickerDot, i === (taskIdx % shiftTasks.length) && s.taskTickerDotActive]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </Animated.View>
         )}
 
@@ -406,13 +506,22 @@ const s = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '900' },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: 20, marginBottom: 14,
+    marginHorizontal: 20, marginBottom: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 20,
   },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
   statusText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
+  offTomorrowPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginHorizontal: 20, marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20,
+  },
+  offTomorrowEmoji: { fontSize: 12 },
+  offTomorrowText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
   promoStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 20, marginBottom: 16,
@@ -497,10 +606,41 @@ const s = StyleSheet.create({
   dealSub: { color: '#6b7280', fontSize: 12, marginTop: 2 },
   dealCat: { color: '#b45309', fontSize: 11, fontWeight: '600', marginTop: 4, textTransform: 'capitalize' },
 
-  bannerCard: { width: 200, borderRadius: 16, overflow: 'hidden', backgroundColor: '#fff' },
-  bannerImg: { width: 200, height: 116 },
-  bannerPlaceholder: { backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  bannerLabel: { padding: 10, fontWeight: '600', fontSize: 13, color: '#111827' },
+  // Daily report tile
+  dailyReportTile: {
+    backgroundColor: '#fff', borderRadius: 18,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16, borderWidth: 1.5, borderColor: '#BFDBFE',
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+  },
+  dailyReportTileDone: { borderColor: '#86EFAC', shadowColor: '#16A34A', shadowOpacity: 0.06 },
+  dailyReportTileLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+  dailyReportIconBg: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
+  },
+  dailyReportIconBgDone: { backgroundColor: '#DCFCE7' },
+  dailyReportTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 2 },
+  dailyReportSub: { fontSize: 12, color: '#6b7280', lineHeight: 16 },
+
+  // Daily tasks ticker
+  taskTickerCard: {
+    backgroundColor: '#fff', borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 14, borderWidth: 1, borderColor: '#f0f1f2',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  taskTickerIconBg: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center',
+  },
+  taskTickerLabel: { fontSize: 10.5, fontWeight: '800', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  taskTickerTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  taskTickerDots: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginTop: 10 },
+  taskTickerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#e5e7eb' },
+  taskTickerDotActive: { backgroundColor: COLORS.primary, width: 16 },
 
   infoFooter: {
     backgroundColor: '#f0f9ff', borderRadius: 16, padding: 16,
