@@ -29,3 +29,6 @@ GoogleService-Info.plist
 # Apple App Store Connect API key — NEVER commit
 *.p8
 mobile/credentials/
+
+# Google Play service account key — NEVER commit
+mobile/google-play-service-account.json
