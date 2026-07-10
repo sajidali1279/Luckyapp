@@ -304,8 +304,8 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
 //             "milk x4"  →  name=milk, qty=x4
 //             "OJ 3 cases"  →  name=OJ 3 cases  (no x-pattern, kept as name)
 //
-//  Priority defaults to NORMAL. Tap any item in the list to mark it Urgent/Low.
-//  Category is set via the Edit sheet (tap an item → Edit Details).
+//  Priority defaults to NORMAL. Category and priority (Low/Normal/Urgent)
+//  are set via the Edit sheet (tap an item → Edit Details).
 // ─────────────────────────────────────────────────────────────────────────────
 
 function parseInput(raw: string): { name: string; quantity?: string } {
@@ -595,6 +595,12 @@ interface EditItemSheetProps {
   onSaved: () => void;
 }
 
+const PRIORITY_OPTIONS: { value: Priority; label: string; color: string }[] = [
+  { value: 'LOW',    label: 'Low',    color: COLORS.textMuted },
+  { value: 'NORMAL', label: 'Normal', color: COLORS.managerPrimary },
+  { value: 'URGENT', label: '⚡ Urgent', color: '#F97316' },
+];
+
 function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: EditItemSheetProps) {
   const [name,           setName]           = useState(item.name);
   const [debouncedName,  setDebouncedName]  = useState(item.name);
@@ -604,6 +610,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
   const [catSearch,      setCatSearch]      = useState(item.category || '');
   const [showCatSugg,    setShowCatSugg]    = useState(false);
   const [showNewCat,     setShowNewCat]     = useState(false);
+  const [priority,       setPriority]       = useState<Priority>(item.priority);
 
   // Debounce name for API
   useEffect(() => {
@@ -618,6 +625,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       setQuantity(item.quantity || '');
       setCategory(item.category || '');
       setCatSearch(item.category || '');
+      setPriority(item.priority);
     }
   }, [visible, item.id]);
 
@@ -643,6 +651,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       name: name.trim(),
       quantity: quantity.trim() || null,
       category: category.trim() || null,
+      priority,
     });
   };
 
@@ -699,6 +708,29 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             <Text style={s.label}>Quantity / Amount</Text>
             <TextInput style={s.input} value={quantity} onChangeText={setQuantity}
               placeholder="e.g. 4 gallons, 2 cases" placeholderTextColor={COLORS.textMuted} maxLength={60} />
+
+            {/* Priority */}
+            <Text style={s.label}>Priority</Text>
+            <View style={s.priorityRow}>
+              {PRIORITY_OPTIONS.map(opt => {
+                const active = priority === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[s.priorityChip, active && { backgroundColor: opt.color + '18', borderColor: opt.color }]}
+                    onPress={() => setPriority(opt.value)}
+                    activeOpacity={0.75}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Set priority to ${opt.label.replace('⚡ ', '')}`}
+                    accessibilityState={{ checked: active }}
+                  >
+                    <Text style={[s.priorityChipText, { color: active ? opt.color : COLORS.textMuted }]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {/* Category — inline autocomplete */}
             <Text style={s.label}>Category</Text>
