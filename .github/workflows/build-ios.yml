@@ -22,6 +22,15 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
+      # Expo SDK 55 bumped its minimum Xcode requirement to 26 (EAS Build itself
+      # defaults to 26.2). This runner's default Xcode is still 16.4, which can't
+      # parse newer Swift syntax expo-modules-core now uses (e.g. @MainActor
+      # applied to a protocol conformance), so archive fails with
+      # "unknown attribute 'MainActor'". Select 26.2 explicitly before anything
+      # touches native tooling.
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
       # Decode GoogleService-Info.plist to project root BEFORE prebuild so the
       # @react-native-firebase/app Expo plugin picks it up during prebuild.
       - name: Decode GoogleService-Info.plist
