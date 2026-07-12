@@ -27,7 +27,7 @@ type Priority = 'URGENT' | 'NORMAL' | 'LOW';
 type ItemStatus = 'PENDING' | 'ORDERED' | 'RECEIVED' | 'REMOVED';
 type RequestStatus = 'PENDING' | 'REVIEWED';
 
-interface Store { id: string; name: string }
+interface Store { id: string; name: string; orderInstructions?: string | null }
 
 interface OrderListItem {
   id: string;

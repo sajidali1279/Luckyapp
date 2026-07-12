@@ -190,6 +190,8 @@ export const storesApi = {
   getTierRates:   () => api.get('/billing/tier-rates'),
   getCategoryRates: () => api.get('/billing/category-rates'),
   accessible:     () => api.get('/stores/accessible'),  // STORE_MANAGER+: own stores or all if allStoresAccess
+  updateOrderInstructions: (storeId: string, instructions: string | null) =>
+    api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
 };
 
 export const welcomeBonusApi = {
