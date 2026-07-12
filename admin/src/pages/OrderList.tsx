@@ -583,7 +583,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           </>
         ) : (
           <div
-            style={s.instructionsDisplay}
+            style={{ ...s.instructionsDisplay, cursor: canClose ? 'pointer' : 'default' }}
             onClick={canClose ? () => { setInstructionsDraft(list.store.orderInstructions || ''); setEditingInstructions(true); } : undefined}
           >
             <span style={s.instructionsLabel}>📋 Standing instructions</span>
@@ -1265,7 +1265,7 @@ const s: Record<string, React.CSSProperties> = {
   printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
   closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   instructionsBanner:  { background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
-  instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4, cursor: 'pointer' },
+  instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
   instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   instructionsText:    { fontSize: 14, color: '#1E293B', lineHeight: 1.5 },
   instructionsEmpty:   { fontSize: 14, color: '#94A3B8', fontStyle: 'italic' as const },
