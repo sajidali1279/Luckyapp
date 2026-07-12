@@ -305,6 +305,16 @@ export default function Transactions() {
                   <TableCell style={s.td}>
                     <div>{format(new Date(tx.createdAt), 'MMM d')}</div>
                     <div style={{ fontSize: 13, color: '#adb5bd' }}>{format(new Date(tx.createdAt), 'h:mm a')}</div>
+                    <div
+                      style={{ fontSize: 11, color: '#ced4da', cursor: 'pointer', marginTop: 2 }}
+                      title="Click to copy full transaction ID"
+                      onClick={() => {
+                        navigator.clipboard.writeText(tx.id);
+                        toast.success('Transaction ID copied');
+                      }}
+                    >
+                      #{tx.id.slice(0, 8)}
+                    </div>
                   </TableCell>
                   <TableCell style={s.td}>
                     <div style={{ fontWeight: 600 }}>{tx.customer?.name || '—'}</div>

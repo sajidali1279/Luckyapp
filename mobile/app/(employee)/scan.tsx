@@ -1145,9 +1145,12 @@ export default function EmployeeScanScreen() {
               </View>
               <View>
                 <Text style={s.customerName}>{customerInfo?.name || customerInfo?.phone}</Text>
-                {customerInfo?.phone && customerInfo?.name && (
-                  <Text style={s.customerPhone}>{customerInfo.phone}</Text>
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <TierBadge tier={tier} />
+                  {customerInfo?.phone && customerInfo?.name && (
+                    <Text style={s.customerPhone}>{customerInfo.phone}</Text>
+                  )}
+                </View>
               </View>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 6 }}>
