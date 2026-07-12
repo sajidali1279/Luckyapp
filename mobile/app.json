@@ -2,7 +2,7 @@
   "expo": {
     "name": "Lucky Stop",
     "slug": "luckystop",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon-appstore.png",
