@@ -1312,7 +1312,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
 
 // STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store) — standing order instructions
 const orderInstructionsSchema = z.object({
-  instructions: z.string().max(300).nullable(),
+  instructions: z.string().trim().max(300).nullable(),
 });
 
 export async function updateOrderInstructions(req: AuthRequest, res: Response) {
