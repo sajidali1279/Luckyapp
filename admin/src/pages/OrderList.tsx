@@ -413,6 +413,18 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const [editingQty,   setEditingQty]   = useState('');
   const [confirmCloseList, setConfirmCloseList] = useState(false);
   const [confirmRemoveItemId, setConfirmRemoveItemId] = useState<string | null>(null);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [instructionsDraft,   setInstructionsDraft]   = useState('');
+
+  const instructionsMutation = useMutation({
+    mutationFn: (instructions: string | null) => storesApi.updateOrderInstructions(list.store.id, instructions),
+    onSuccess: () => {
+      toast.success('Instructions saved');
+      qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
+      setEditingInstructions(false);
+    },
+    onError: () => toast.error('Failed to save instructions'),
+  });
 
   const { data: reqData, refetch: refetchReqs } = useQuery({
     queryKey: ['pending-reqs-panel', list.store.id],
@@ -544,6 +556,42 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Standing instructions banner */}
+      <div style={s.instructionsBanner}>
+        {editingInstructions ? (
+          <>
+            <textarea
+              style={s.instructionsTextarea}
+              value={instructionsDraft}
+              onChange={e => setInstructionsDraft(e.target.value)}
+              maxLength={300}
+              placeholder="e.g. Call supplier before ordering dairy"
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                style={s.approveBtn}
+                onClick={() => instructionsMutation.mutate(instructionsDraft.trim() || null)}
+                disabled={instructionsMutation.isPending}
+              >
+                {instructionsMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button style={s.cancelBtnSm} onClick={() => setEditingInstructions(false)}>Cancel</button>
+            </div>
+          </>
+        ) : (
+          <div
+            style={s.instructionsDisplay}
+            onClick={canClose ? () => { setInstructionsDraft(list.store.orderInstructions || ''); setEditingInstructions(true); } : undefined}
+          >
+            <span style={s.instructionsLabel}>📋 Standing instructions</span>
+            <span style={list.store.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
+              {list.store.orderInstructions || (canClose ? 'No standing instructions — click to add' : 'No standing instructions')}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Two-column body */}
@@ -1216,6 +1264,12 @@ const s: Record<string, React.CSSProperties> = {
 
   printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
   closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  instructionsBanner:  { background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
+  instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4, cursor: 'pointer' },
+  instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  instructionsText:    { fontSize: 14, color: '#1E293B', lineHeight: 1.5 },
+  instructionsEmpty:   { fontSize: 14, color: '#94A3B8', fontStyle: 'italic' as const },
+  instructionsTextarea:{ width: '100%', minHeight: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' as const },
   openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#059669', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
 
