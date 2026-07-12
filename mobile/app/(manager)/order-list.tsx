@@ -1226,6 +1226,8 @@ export default function ManagerOrderListScreen() {
   const [showReview,      setShowReview]       = useState(false);
   const [showHistory,     setShowHistory]      = useState(false);
   const [isPrinting,      setIsPrinting]       = useState(false);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [instructionsDraft,   setInstructionsDraft]   = useState('');
 
   // ── Stores ───────────────────────────────────────────────────────────────
   const { data: storesData } = useQuery({
@@ -1305,6 +1307,16 @@ export default function ManagerOrderListScreen() {
     mutationFn: ({ id, status }: { id: string; status: string }) => orderListApi.updateItemStatus(id, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
     onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
+  });
+
+  const instructionsMutation = useMutation({
+    mutationFn: (instructions: string | null) => storesApi.updateOrderInstructions(selectedStoreId!, instructions),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['accessible-stores'] });
+      setEditingInstructions(false);
+      Toast.show({ type: 'success', text1: 'Instructions saved' });
+    },
+    onError: () => Toast.show({ type: 'error', text1: 'Failed to save instructions' }),
   });
 
 
@@ -1495,6 +1507,46 @@ export default function ManagerOrderListScreen() {
             </View>
           </View>
 
+          {/* Standing instructions banner */}
+          <View style={s.instructionsBanner}>
+            {editingInstructions ? (
+              <>
+                <TextInput
+                  style={s.instructionsInput}
+                  value={instructionsDraft}
+                  onChangeText={setInstructionsDraft}
+                  maxLength={300}
+                  multiline
+                  placeholder="e.g. Call supplier before ordering dairy"
+                  autoFocus
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TouchableOpacity
+                    style={[s.instructionsSaveBtn, instructionsMutation.isPending && { opacity: 0.6 }]}
+                    onPress={() => instructionsMutation.mutate(instructionsDraft.trim() || null)}
+                    disabled={instructionsMutation.isPending}
+                  >
+                    <Text style={s.instructionsSaveBtnText}>{instructionsMutation.isPending ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.instructionsCancelBtn} onPress={() => setEditingInstructions(false)}>
+                    <Text style={s.instructionsCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <TouchableOpacity
+                onPress={() => { setInstructionsDraft(selectedStore?.orderInstructions || ''); setEditingInstructions(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="Edit standing order instructions"
+              >
+                <Text style={s.instructionsLabel}>📋 Standing instructions</Text>
+                <Text style={selectedStore?.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
+                  {selectedStore?.orderInstructions || 'No standing instructions — tap to add'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Inline employee requests banner */}
           {pendingRequestCount > 0 && (
             <TouchableOpacity
@@ -1654,6 +1706,17 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 10,
   },
   listName:    { fontSize: 13, fontWeight: '700', color: COLORS.text },
+
+  instructionsBanner: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, marginHorizontal: 16, marginBottom: 8 },
+  instructionsLabel:  { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 },
+  instructionsText:   { fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  instructionsEmpty:  { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic' },
+  instructionsInput:  { minHeight: 56, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, padding: 10, fontSize: 14, color: COLORS.text, textAlignVertical: 'top' },
+  instructionsSaveBtn:   { backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+  instructionsSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  instructionsCancelBtn:   { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+  instructionsCancelBtnText: { color: COLORS.textMuted, fontWeight: '600', fontSize: 13 },
+
   statsRow:    { flexDirection: 'row', gap: 8 },
   statCard: {
     flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12,
