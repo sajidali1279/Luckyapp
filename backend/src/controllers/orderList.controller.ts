@@ -170,15 +170,19 @@ export async function getListById(req: AuthRequest, res: Response) {
 
 // ─── POST /order-lists/store/:storeId/open ───────────────────────────────────
 
+async function createListForStore(storeId: string, openedById: string) {
+  const name = await generateListName(storeId);
+  return prisma.orderList.create({
+    data: { storeId, name, openedById },
+    include: { openedBy: { select: { id: true, name: true } } },
+  });
+}
+
 export async function openList(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const existing = await prisma.orderList.findFirst({ where: { storeId, status: 'OPEN' } });
   if (existing) { res.status(409).json({ success: false, error: 'A list is already open for this store', data: existing }); return; }
-  const name = await generateListName(storeId);
-  const list = await prisma.orderList.create({
-    data: { storeId, name, openedById: req.user!.id },
-    include: { openedBy: { select: { id: true, name: true } } },
-  });
+  const list = await createListForStore(storeId, req.user!.id);
   res.status(201).json({ success: true, data: list });
 }
 
@@ -186,7 +190,6 @@ export async function openList(req: AuthRequest, res: Response) {
 
 export async function closeList(req: AuthRequest, res: Response) {
   const { listId } = req.params;
-  const notes = req.body.notes as string | undefined;
   const list = await prisma.orderList.findUnique({ where: { id: listId } });
   if (!list) { res.status(404).json({ success: false, error: 'List not found' }); return; }
   if (list.status === 'CLOSED') { res.status(400).json({ success: false, error: 'List is already closed' }); return; }
@@ -195,11 +198,12 @@ export async function closeList(req: AuthRequest, res: Response) {
   if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
     res.status(403).json({ success: false, error: 'No access to this store' }); return;
   }
-  const updated = await prisma.orderList.update({
+  const closed = await prisma.orderList.update({
     where: { id: listId },
-    data: { status: 'CLOSED', closedById: user.id, closedAt: new Date(), ...(notes ? { notes } : {}) },
+    data: { status: 'CLOSED', closedById: user.id, closedAt: new Date() },
   });
-  res.json({ success: true, data: updated });
+  const reopened = await createListForStore(list.storeId, user.id);
+  res.json({ success: true, data: { closed, reopened } });
 }
 
 // ─── POST /order-lists/:listId/items ─────────────────────────────────────────
