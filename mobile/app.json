@@ -32,6 +32,7 @@
     },
     "plugins": [
       "@react-native-firebase/app",
+      "./plugins/withFirebaseAppDelegateFix",
       "expo-router",
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
