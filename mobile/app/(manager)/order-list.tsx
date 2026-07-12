@@ -1319,6 +1319,11 @@ export default function ManagerOrderListScreen() {
     onError: () => Toast.show({ type: 'error', text1: 'Failed to save instructions' }),
   });
 
+  useEffect(() => {
+    setEditingInstructions(false);
+    setInstructionsDraft('');
+  }, [selectedStoreId]);
+
 
   const doPrint = async (shareAsPdf: boolean) => {
     if (!activeList || items.length === 0 || isPrinting) return;
