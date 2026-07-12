@@ -696,6 +696,16 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
   const refresh = () => { refetch(); setSelectedList(null); };
 
+  const openMutation = useMutation({
+    mutationFn: (storeId: string) => orderListApi.openList(storeId),
+    onSuccess: (res) => {
+      toast.success('List opened');
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      setSelectedList(res.data?.data ?? null);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to open list'),
+  });
+
   if (selectedList) {
     return fullListLoading ? (
       <CardSkeleton count={2} />
@@ -725,6 +735,16 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
           <option value="CLOSED">Closed</option>
         </select>
         <button style={s.refreshBtn} onClick={() => refetch()}>↺ Refresh</button>
+        {canClose && (
+          <button
+            style={{ ...s.openListBtn, ...(!filterStoreId || openMutation.isPending ? s.openListBtnDim : {}) }}
+            onClick={() => filterStoreId && openMutation.mutate(filterStoreId)}
+            disabled={!filterStoreId || openMutation.isPending}
+            title={!filterStoreId ? 'Select a store above first' : undefined}
+          >
+            {openMutation.isPending ? 'Opening…' : '+ Open List'}
+          </button>
+        )}
       </div>
 
       {isError ? (
@@ -1196,6 +1216,8 @@ const s: Record<string, React.CSSProperties> = {
 
   printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
   closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#059669', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
 
   // Two-column detail layout
   detailBody: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' },
