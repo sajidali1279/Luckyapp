@@ -198,11 +198,17 @@ export async function closeList(req: AuthRequest, res: Response) {
   if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
     res.status(403).json({ success: false, error: 'No access to this store' }); return;
   }
-  const closed = await prisma.orderList.update({
-    where: { id: listId },
-    data: { status: 'CLOSED', closedById: user.id, closedAt: new Date() },
-  });
-  const reopened = await createListForStore(list.storeId, user.id);
+  const newListName = await generateListName(list.storeId);
+  const [closed, reopened] = await prisma.$transaction([
+    prisma.orderList.update({
+      where: { id: listId },
+      data: { status: 'CLOSED', closedById: user.id, closedAt: new Date() },
+    }),
+    prisma.orderList.create({
+      data: { storeId: list.storeId, name: newListName, openedById: user.id },
+      include: { openedBy: { select: { id: true, name: true } } },
+    }),
+  ]);
   res.json({ success: true, data: { closed, reopened } });
 }
 
