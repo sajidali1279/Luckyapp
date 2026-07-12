@@ -934,23 +934,19 @@ function CategoriesTab() {
 
 // ─── Tab: Employee Requests ───────────────────────────────────────────────────
 
-function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
+function RequestsTab() {
   const qc = useQueryClient();
   const [filterStoreId, setFilterStoreId] = useState('');
   const [filterStatus,  setFilterStatus]  = useState('PENDING');
   const [expandedId,    setExpandedId]    = useState<string | null>(null);
   const [lineState, setLineState] = useState<Record<string, { action: 'ACCEPT' | 'REJECT' | null; reason: string; note: string }>>({});
 
-  const { data: storesData } = useQuery({ queryKey: ['stores-all'], queryFn: storesApi.getAll, enabled: !managerStoreId });
+  const { data: storesData } = useQuery({ queryKey: ['stores-all'], queryFn: storesApi.getAll });
   const stores: { id: string; name: string }[] = storesData?.data?.data || [];
 
-  const effectiveStoreId = managerStoreId || filterStoreId;
-
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-employee-requests', effectiveStoreId, filterStatus],
-    queryFn: () => managerStoreId
-      ? employeeRequestApi.getForStore(managerStoreId, filterStatus || undefined)
-      : employeeRequestApi.adminGetAll({ storeId: filterStoreId || undefined, status: filterStatus || undefined }),
+    queryKey: ['admin-employee-requests', filterStoreId, filterStatus],
+    queryFn: () => employeeRequestApi.adminGetAll({ storeId: filterStoreId || undefined, status: filterStatus || undefined }),
     refetchInterval: 30000,
   });
   const requests: EmpRequest[] = data?.data?.data || [];
@@ -986,12 +982,10 @@ function RequestsTab({ managerStoreId }: { managerStoreId?: string }) {
   return (
     <div>
       <div style={s.filters}>
-        {!managerStoreId && (
-          <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
-            <option value="">All Stores</option>
-            {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
-          </select>
-        )}
+        <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
+          <option value="">All Stores</option>
+          {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+        </select>
         <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="PENDING">Pending</option>
@@ -1115,11 +1109,9 @@ export default function OrderListPage() {
 
   const isDevAdmin     = user?.role === 'DEV_ADMIN';
   const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
-  const isStoreManager = user?.role === 'STORE_MANAGER';
-  const canEdit        = isDevAdmin || isStoreManager;
-  const canClose       = isDevAdmin || isSuperAdmin || isStoreManager;
-  const canSeeRequests = isDevAdmin || isSuperAdmin || isStoreManager;
-  const managerStoreId = isStoreManager ? user?.storeIds?.[0] : undefined;
+  const canEdit        = isDevAdmin;
+  const canClose       = isDevAdmin || isSuperAdmin;
+  const canSeeRequests = isDevAdmin || isSuperAdmin;
 
   return (
     <div style={s.page}>
@@ -1129,7 +1121,7 @@ export default function OrderListPage() {
           <p style={s.pageSubtitle}>
             {isDevAdmin
               ? 'Manage all store order lists, employee requests, and categories.'
-              : 'Build and manage your store\'s order list — add items, review employee requests.'}
+              : 'Review and close store order lists across all locations.'}
           </p>
         </div>
       </div>
@@ -1152,7 +1144,7 @@ export default function OrderListPage() {
 
       <div style={s.tabContent}>
         {tab === 'lists'      && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
-        {tab === 'requests'   && canSeeRequests && <RequestsTab managerStoreId={managerStoreId} />}
+        {tab === 'requests'   && canSeeRequests && <RequestsTab />}
         {tab === 'categories' && isDevAdmin && <CategoriesTab />}
       </div>
     </div>

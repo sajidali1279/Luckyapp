@@ -7,6 +7,16 @@ import { hasMinRole } from '../middleware/auth';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// SUPER_ADMIN+ always has access; below that, a StoreManager needs either
+// allStoresAccess or an explicit UserStoreRole for this specific store.
+async function hasStoreAccess(userId: string, userRole: Role, storeId: string): Promise<boolean> {
+  if (hasMinRole(userRole, Role.SUPER_ADMIN)) return true;
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { allStoresAccess: true } });
+  if (dbUser?.allStoresAccess) return true;
+  const access = await prisma.userStoreRole.findUnique({ where: { userId_storeId: { userId, storeId } } });
+  return !!access;
+}
+
 export async function generateListName(storeId: string): Promise<string> {
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
   const storeName = store?.name ?? 'Store';
@@ -145,6 +155,10 @@ export async function getListById(req: AuthRequest, res: Response) {
     },
   });
   if (!list) { res.status(404).json({ success: false, error: 'List not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   const grouped: Record<string, typeof list.items> = {};
   for (const item of list.items) {
     const key = item.category || 'Uncategorized';
@@ -178,12 +192,8 @@ export async function closeList(req: AuthRequest, res: Response) {
   if (list.status === 'CLOSED') { res.status(400).json({ success: false, error: 'List is already closed' }); return; }
 
   const user = req.user!;
-  if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
-    const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } });
-    if (!dbUser?.allStoresAccess) {
-      const access = await prisma.userStoreRole.findUnique({ where: { userId_storeId: { userId: user.id, storeId: list.storeId } } });
-      if (!access) { res.status(403).json({ success: false, error: 'No access to this store' }); return; }
-    }
+  if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
   }
   const updated = await prisma.orderList.update({
     where: { id: listId },
@@ -206,9 +216,13 @@ export async function addItem(req: AuthRequest, res: Response) {
   const { listId } = req.params;
   const parsed = addItemSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.errors[0].message }); return; }
-  const list = await prisma.orderList.findUnique({ where: { id: listId }, select: { status: true } });
+  const list = await prisma.orderList.findUnique({ where: { id: listId }, select: { status: true, storeId: true } });
   if (!list) { res.status(404).json({ success: false, error: 'List not found' }); return; }
   if (list.status === 'CLOSED') { res.status(400).json({ success: false, error: 'Cannot add to a closed list' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   const max = await prisma.orderListItem.aggregate({ where: { listId }, _max: { sortOrder: true } });
   const item = await prisma.orderListItem.create({
     data: { listId, ...parsed.data, sortOrder: (max._max.sortOrder ?? 0) + 1, addedById: req.user!.id },
@@ -229,37 +243,49 @@ const updateItemSchema = z.object({
 });
 
 export async function updateItem(req: AuthRequest, res: Response) {
-  const { listId, itemId } = req.params;
+  const { itemId } = req.params;
   const parsed = updateItemSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.errors[0].message }); return; }
-  const item = await prisma.orderListItem.findFirst({ where: { id: itemId, listId } });
+  const item = await prisma.orderListItem.findUnique({ where: { id: itemId }, include: { list: { select: { storeId: true } } } });
   if (!item) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, item.list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   if (item.status !== 'PENDING') { res.status(400).json({ success: false, error: 'Can only edit PENDING items' }); return; }
   const updated = await prisma.orderListItem.update({ where: { id: itemId }, data: parsed.data });
   if (parsed.data.category) trackCategoryUsage(parsed.data.category).catch(() => {});
   res.json({ success: true, data: updated });
 }
 
-// ─── DELETE /order-lists/:listId/items/:itemId ───────────────────────────────
+// ─── DELETE /order-lists/items/:itemId ────────────────────────────────────────
 
 export async function removeItem(req: AuthRequest, res: Response) {
-  const { listId, itemId } = req.params;
-  const item = await prisma.orderListItem.findFirst({ where: { id: itemId, listId } });
+  const { itemId } = req.params;
+  const item = await prisma.orderListItem.findUnique({ where: { id: itemId }, include: { list: { select: { storeId: true } } } });
   if (!item) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, item.list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   await prisma.orderListItem.update({ where: { id: itemId }, data: { status: 'REMOVED' } });
   res.json({ success: true });
 }
 
-// ─── PATCH /order-lists/:listId/items/:itemId/status ─────────────────────────
+// ─── PATCH /order-lists/items/:itemId/status ──────────────────────────────────
 
 export async function updateItemStatus(req: AuthRequest, res: Response) {
-  const { listId, itemId } = req.params;
+  const { itemId } = req.params;
   const { status } = req.body;
   if (!['ORDERED', 'RECEIVED'].includes(status)) {
     res.status(400).json({ success: false, error: 'status must be ORDERED or RECEIVED' }); return;
   }
-  const item = await prisma.orderListItem.findFirst({ where: { id: itemId, listId } });
+  const item = await prisma.orderListItem.findUnique({ where: { id: itemId }, include: { list: { select: { storeId: true } } } });
   if (!item) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, item.list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   const data: Partial<{ status: OrderListItemStatus; orderedAt: Date; receivedAt: Date }> = { status };
   if (status === 'ORDERED')  data.orderedAt  = new Date();
   if (status === 'RECEIVED') data.receivedAt = new Date();
@@ -274,6 +300,12 @@ export async function reorderItems(req: AuthRequest, res: Response) {
   const { items } = req.body as { items: { id: string; sortOrder: number }[] };
   if (!Array.isArray(items) || items.length === 0) {
     res.status(400).json({ success: false, error: 'items array required' }); return;
+  }
+  const list = await prisma.orderList.findUnique({ where: { id: listId }, select: { storeId: true } });
+  if (!list) { res.status(404).json({ success: false, error: 'List not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
   }
   await prisma.$transaction(
     items.map(({ id, sortOrder }) => prisma.orderListItem.updateMany({ where: { id, listId }, data: { sortOrder } }))
@@ -291,6 +323,10 @@ export async function printList(req: AuthRequest, res: Response) {
     include: { items: { where: { status: 'PENDING' } } },
   });
   if (!list) { res.status(404).json({ success: false, error: 'List not found' }); return; }
+  const user = req.user!;
+  if (!(await hasStoreAccess(user.id, user.role, list.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' }); return;
+  }
   if (list.items.length === 0) { res.status(400).json({ success: false, error: 'No pending items to print' }); return; }
   const job = await prisma.printJob.create({
     data: {
