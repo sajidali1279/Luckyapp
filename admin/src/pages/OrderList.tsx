@@ -9,7 +9,7 @@ import CardSkeleton from '../components/CardSkeleton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Store { id: string; name: string }
+interface Store { id: string; name: string; orderInstructions?: string | null }
 
 interface OrderListItem {
   id: string;
@@ -32,7 +32,7 @@ interface OrderList {
   closedAt?: string;
   openedBy: { id: string; name: string };
   closedBy?: { id: string; name: string };
-  store: { id: string; name: string };
+  store: { id: string; name: string; orderInstructions?: string | null };
   items: OrderListItem[];
   _count: { items: number };
 }

@@ -153,6 +153,8 @@ export const storesApi = {
     api.post(`/stores/${storeId}/keyword-mappings`, { keyword, category }),
   deleteKeywordMapping: (storeId: string, id: string) =>
     api.delete(`/stores/${storeId}/keyword-mappings/${id}`),
+  updateOrderInstructions: (storeId: string, instructions: string | null) =>
+    api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
 };
 
 export const staffApi = {
