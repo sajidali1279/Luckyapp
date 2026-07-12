@@ -146,7 +146,7 @@ export async function getListById(req: AuthRequest, res: Response) {
     include: {
       openedBy: { select: { id: true, name: true } },
       closedBy: { select: { id: true, name: true } },
-      store:    { select: { id: true, name: true } },
+      store:    { select: { id: true, name: true, orderInstructions: true } },
       items: {
         where: { status: { not: 'REMOVED' } },
         include: { addedBy: { select: { id: true, name: true, role: true } } },

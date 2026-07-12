@@ -158,6 +158,7 @@ import {
   getAccessibleStores,
   updateStore,
   updateGasPrices,
+  updateOrderInstructions,
   getAllGasPrices,
   createBillingRecord,
   markBillingPaid,
@@ -271,6 +272,7 @@ router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), up
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
 router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
+router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
 router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)

@@ -18,7 +18,7 @@ export async function getStoreById(req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-      enabledCategories: true, hotFoodEnabled: true,
+      enabledCategories: true, hotFoodEnabled: true, orderInstructions: true,
     },
   });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
@@ -45,7 +45,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
 export async function getAccessibleStores(req: AuthRequest, res: Response) {
   const user = req.user!;
   const storeSelect = {
-    id: true, name: true, address: true, city: true, isActive: true,
+    id: true, name: true, address: true, city: true, isActive: true, orderInstructions: true,
     gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
   } as const;
 
@@ -1307,6 +1307,27 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     })
     .catch(() => { /* non-critical */ });
 
+  res.json({ success: true, data: store });
+}
+
+// STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store) — standing order instructions
+const orderInstructionsSchema = z.object({
+  instructions: z.string().max(300).nullable(),
+});
+
+export async function updateOrderInstructions(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const parsed = orderInstructionsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+  const trimmed = parsed.data.instructions?.trim() || null;
+  const store = await prisma.store.update({
+    where: { id: storeId },
+    data: { orderInstructions: trimmed },
+    select: { id: true, orderInstructions: true },
+  });
   res.json({ success: true, data: store });
 }
 
