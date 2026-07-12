@@ -178,7 +178,7 @@ export async function closeList(req: AuthRequest, res: Response) {
   if (list.status === 'CLOSED') { res.status(400).json({ success: false, error: 'List is already closed' }); return; }
 
   const user = req.user!;
-  if (!hasMinRole(user.role, Role.DEV_ADMIN)) {
+  if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
     const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } });
     if (!dbUser?.allStoresAccess) {
       const access = await prisma.userStoreRole.findUnique({ where: { userId_storeId: { userId: user.id, storeId: list.storeId } } });
