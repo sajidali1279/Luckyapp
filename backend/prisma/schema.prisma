@@ -288,6 +288,10 @@ model Store {
   // Feature flags
   hotFoodEnabled    Boolean  @default(true)
 
+  // Standing order instructions — shown to whoever opens the store's order list
+  // (admin web or mobile), persists across list close/auto-reopen cycles
+  orderInstructions String?
+
   // Gas prices (updated daily by admins)
   gasPricePerGallon    Float?
   dieselPricePerGallon Float?
