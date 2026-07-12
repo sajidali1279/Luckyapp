@@ -6,7 +6,7 @@ Across both apps, a notification tells you *something* happened but never takes 
 
 1. **Push messages carry no data.** `backend/src/utils/push.ts` sends every Expo push as `{ to, title, body, sound }` — no `data` field. Even if the mobile app listened for taps, there'd be nothing to route on.
 2. **Nothing listens for OS-level taps.** No `addNotificationResponseReceivedListener` or `getLastNotificationResponseAsync` exists anywhere in `mobile/` (repo-wide, confirmed). Tapping a push just opens the app to its default role landing screen. Only the in-app Notifications *list* (`mobile/components/NotificationsScreen.tsx`), opened manually, deep-links today — via a role-specific type-switch (`:191-238`) duplicated three times (customer/employee/manager).
-3. **That switch is itself incomplete and, in one case, wrong.** `dispute.controller.ts:33-38` sends `DISPUTE_SUBMITTED` to store *employees* via `sendPushToStoreEmployees` — but `NotificationsScreen.tsx`'s `EMPLOYEE` switch (`:214-225`) has no case for it, so tapping it does nothing. The `STORE_MANAGER` switch does have a case (`:236`), but it routes to `/(manager)/home`, not the disputes screen.
+3. **That switch is itself incomplete and, in one case, wrong.** `dispute.controller.ts:33-38` sends `DISPUTE_SUBMITTED` to store *employees* via `sendPushToStoreEmployees` (the code comment there confirms this is deliberate — "cashiers handled the transaction and can escalate," not resolve it) — but `NotificationsScreen.tsx`'s `EMPLOYEE` switch (`:214-225`) has no case for it, so tapping it does nothing. The `STORE_MANAGER` switch does have a case (`:236`), but it routes to `/(manager)/home`, not the disputes screen. There is no employee-facing disputes screen at all (confirmed against `mobile/app/(employee)/`) and none is being added here — only Store Manager+ manages disputes per this app's RBAC, so the employee tap target is `/(employee)/home`, not a new management screen.
 4. **Admin web has no URL-addressable state for requests.** `admin/src/pages/StoreRequests.tsx` picks a store via local React state only — no `storeId`/`tab` query param — so even a correct link has nowhere to land. Contrast `Customers.tsx`, which already reads `?tab=disputes` from `useSearchParams`.
 5. **Admin's Notifications bell omits disputes and requests entirely.** The synthesizer in `billing.controller.ts` only emits `billing`/`transactions`/`scheduling`/`customers` cards. Disputes and store/product requests exist only as sidebar badge counts (`AppSidebar.tsx:156-170`), with no click-through to a specific one.
 
@@ -30,16 +30,16 @@ One small function per destination, so a URL is never hand-typed at a call site.
 |---|---|
 | `OFFER` | `/(customer)/home?scrollTo=offers` |
 | `GAS_PRICE_UPDATE` (customer) | `/(customer)/home?scrollTo=gas` |
-| `POINTS` | `/(customer)/history` |
-| `REDEMPTION` | `/(customer)/rewards` |
-| `HOT_FOOD_ORDER` | `/(employee)/hot-food?tab=PENDING` |
+| `POINTS` | `/(customer)/history?highlightId={transactionId}` |
+| `REDEMPTION` | `/(customer)/rewards?highlightId={redemptionId}` |
+| `HOT_FOOD_ORDER` | `/(employee)/hot-food?tab=PENDING&highlightId={orderId}` |
 | `GAS_PRICE_UPDATE` (employee) | `/(employee)/scan` |
 | `SHIFT_REQUEST` / `STORE_REQUEST` (employee) | `/(employee)/requests` |
 | `SCHEDULE` | `/(employee)/schedule` |
 | `STOCK_REQUEST` | `/(manager)/requests?tab=stock&highlightId={id}` |
 | `PRODUCT_REQUEST` (manager) | `/(manager)/requests?tab=products&highlightId={id}` |
 | `DISPUTE_SUBMITTED` (manager) | `/(manager)/disputes?highlightId={id}` |
-| `DISPUTE_SUBMITTED` (employee) — new, currently a dead end | `/(employee)/disputes?highlightId={id}` (or nearest employee equivalent screen) |
+| `DISPUTE_SUBMITTED` (employee) — new, currently a dead end | `/(employee)/home` |
 
 Plus admin-only builders: `adminDisputeUrl(id)` → `/customers?tab=disputes&highlightId={id}`, `adminRequestUrl(storeId, tab, id)` → `/store-requests?storeId={storeId}&tab={tab}&highlightId={id}`.
 
@@ -58,7 +58,7 @@ In `mobile/app/_layout.tsx`, alongside the existing push-token registration:
 
 ### 6. Mobile: highlight-on-arrival
 
-New shared hook, e.g. `useHighlightParam()`: on mount, if a `highlightId` route param is present, scroll the matching list item into view and run a ~1.5s pulse using React Native's built-in `Animated` API — **reusing the app's existing accent/brand color token, not a new color**, per the "stay within existing styling" constraint. Clears the param via `router.setParams` afterward so a later revisit doesn't re-trigger it. Applied to every screen these types can land on (manager disputes/requests, employee requests/hot-food/schedule, customer home/history/rewards) — one hook call each, no per-screen animation code. If the target item isn't in the currently-loaded list (already resolved/filtered out), the hook no-ops silently.
+New shared hook, e.g. `useHighlightParam()`: on mount, if a `highlightId` route param is present, scroll the matching list item into view and run a ~1.5s pulse using React Native's built-in `Animated` API — **reusing the app's existing accent/brand color token, not a new color**, per the "stay within existing styling" constraint. Clears the param via `router.setParams` afterward so a later revisit doesn't re-trigger it. Wired into every screen a `highlightId` can land on per the table above (manager disputes/requests, customer history/rewards, employee hot-food) — one hook call each, no per-screen animation code. Screens reached via `scrollTo` instead (customer home) keep that existing anchor behavior unchanged; not every destination needs both. If the target item isn't in the currently-loaded list (already resolved/filtered out), the hook no-ops silently.
 
 ### 7. Admin web: `StoreRequests.tsx` becomes URL-addressable
 
