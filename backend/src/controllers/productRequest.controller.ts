@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
+import { productRequestUrlManager, productRequestUrlCustomer } from '../utils/notificationRoutes';
 import { hasMinRole } from '../middleware/auth';
 import { Role, OrderItemSource } from '@prisma/client';
 import { generateListName } from './orderList.controller';
@@ -70,7 +71,7 @@ export async function submitProductRequest(req: AuthRequest, res: Response) {
     .filter((a) => a.user.role === Role.STORE_MANAGER)
     .map((a) => a.userId);
   managerIds.forEach((id) =>
-    sendPushToUser(id, '🛍️ New Product Request', `A customer is requesting "${request.productName}" at ${request.store.name}`, 'PRODUCT_REQUEST')
+    sendPushToUser(id, '🛍️ New Product Request', `A customer is requesting "${request.productName}" at ${request.store.name}`, 'PRODUCT_REQUEST', productRequestUrlManager(request.id))
   );
 
   res.status(201).json({ success: true, data: request });
@@ -204,7 +205,7 @@ export async function respondToProductRequest(req: AuthRequest, res: Response) {
     ? `Great news! Your request for "${request.productName}" at ${request.store.name} has been accepted. We'll work on getting it in stock!`
     : DECLINE_MESSAGE;
 
-  sendPushToUser(request.customerId, notifTitle, notifBody, 'PRODUCT_REQUEST');
+  sendPushToUser(request.customerId, notifTitle, notifBody, 'PRODUCT_REQUEST', productRequestUrlCustomer(request.id));
 
   res.json({ success: true, data: updated });
 }
