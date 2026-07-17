@@ -721,6 +721,7 @@ model UserNotification {
   title     String
   body      String
   type      String    // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST"
+  actionUrl String?   // where tapping this notification should navigate to
   isRead    Boolean   @default(false)
   expiresAt DateTime? // when set, notification is hidden after this time (used for OFFER type)
   createdAt DateTime  @default(now())
