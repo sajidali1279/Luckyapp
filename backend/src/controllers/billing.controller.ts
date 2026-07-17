@@ -7,7 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
-import { gasPriceUrlEmployee, gasPriceUrlCustomer } from '../utils/notificationRoutes';
+import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminEmployeeRequestUrl, adminProductRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -844,6 +844,32 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     // Gracefully degrade — schedule notifications simply won't appear
   }
 
+  let pendingDisputes: any[] = [];
+  try {
+    pendingDisputes = await prisma.pointsDispute.findMany({
+      where: { status: 'PENDING' },
+      include: { customer: { select: { name: true, phone: true } }, store: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch { /* Gracefully degrade — dispute notifications simply won't appear */ }
+
+  let pendingEmployeeRequests: any[] = [];
+  let pendingProductRequests: any[] = [];
+  try {
+    [pendingEmployeeRequests, pendingProductRequests] = await Promise.all([
+      prisma.storeRequest.findMany({
+        where: { status: 'PENDING' },
+        include: { store: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.productRequest.findMany({
+        where: { status: 'PENDING', expiresAt: { gte: now } },
+        include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+  } catch { /* Gracefully degrade — request notifications simply won't appear */ }
+
   const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
 
   // Group bills by period
@@ -951,6 +977,51 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
+  for (const d of pendingDisputes) {
+    notifications.push({
+      id: `dispute-${d.id}`,
+      type: 'DISPUTE',
+      category: 'disputes',
+      title: `Missing-Points Report — ${d.customer?.name || d.customer?.phone}`,
+      message: `${d.description} (${d.store?.name || 'Unknown store'})`,
+      createdAt: d.createdAt.toISOString(),
+      isRead: false,
+      severity: 'warning',
+      actionUrl: adminDisputeUrl(d.id),
+      actionLabel: 'Review Dispute',
+    });
+  }
+
+  for (const r of pendingEmployeeRequests) {
+    notifications.push({
+      id: `emp-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Store Alert — ${r.submitterName || 'Employee'}`,
+      message: `${r.notes || r.type} at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: r.priority === 'HIGH' ? 'error' : 'info',
+      actionUrl: adminEmployeeRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Alert',
+    });
+  }
+
+  for (const r of pendingProductRequests) {
+    notifications.push({
+      id: `product-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Product Request — "${r.productName}"`,
+      message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      actionUrl: adminProductRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Request',
+    });
+  }
+
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   res.json({ success: true, data: notifications });
@@ -962,7 +1033,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo  = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [allBills, rejectedTx, newCustomers, pendingShiftRequests] = await Promise.all([
+  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingEmployeeRequests, pendingProductRequests] = await Promise.all([
     (prisma.billingRecord as any).findMany({
       where: {
         OR: [
@@ -985,6 +1056,21 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         employee: { select: { name: true } },
         store: { select: { id: true, name: true } },
       },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.pointsDispute.findMany({
+      where: { status: 'PENDING' },
+      include: { customer: { select: { name: true, phone: true } }, store: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.storeRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { store: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.productRequest.findMany({
+      where: { status: 'PENDING', expiresAt: { gte: now } },
+      include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     }).catch(() => [] as any[]),
   ]);
@@ -1100,6 +1186,51 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       requestId: req.id,
       storeId: req.store.id,
       requestType: req.requestType,
+    });
+  }
+
+  for (const d of pendingDisputes) {
+    notifications.push({
+      id: `dispute-${d.id}`,
+      type: 'DISPUTE',
+      category: 'disputes',
+      title: `Missing-Points Report — ${d.customer?.name || d.customer?.phone}`,
+      message: `${d.description} (${d.store?.name || 'Unknown store'})`,
+      createdAt: d.createdAt.toISOString(),
+      isRead: false,
+      severity: 'warning',
+      actionUrl: adminDisputeUrl(d.id),
+      actionLabel: 'Review Dispute',
+    });
+  }
+
+  for (const r of pendingEmployeeRequests) {
+    notifications.push({
+      id: `emp-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Store Alert — ${r.submitterName || 'Employee'}`,
+      message: `${r.notes || r.type} at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: r.priority === 'HIGH' ? 'error' : 'info',
+      actionUrl: adminEmployeeRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Alert',
+    });
+  }
+
+  for (const r of pendingProductRequests) {
+    notifications.push({
+      id: `product-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Product Request — "${r.productName}"`,
+      message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      actionUrl: adminProductRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Request',
     });
   }
 
