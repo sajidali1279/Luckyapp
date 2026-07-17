@@ -25,17 +25,22 @@ export default function PulseHighlight({
     return () => anim.stop();
   }, [active]);
 
-  if (!active) return <>{children}</>;
-
   const shadowOpacity = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.55, 0] });
   const borderColor = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: ['rgba(0,0,0,0)', COLORS.accent, 'rgba(0,0,0,0)'] });
+  const borderWidth = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 2, 0] });
 
   return (
     <Animated.View
       style={[
         style,
-        {
-          borderWidth: 2,
+        // Only merge the pulse overlay in while active — `style` often carries the
+        // item's own borderWidth/borderColor/shadowOpacity/elevation (card shadows,
+        // hairline borders), and those must render untouched the rest of the time.
+        // Interpolated values already settle back to 0/transparent by the time the
+        // highlight window ends, but gating on `active` guarantees zero footprint
+        // instead of relying on that timing.
+        active && {
+          borderWidth,
           borderColor,
           borderRadius: 16,
           shadowColor: COLORS.accent,
