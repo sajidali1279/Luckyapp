@@ -18,6 +18,8 @@ import {
   PlusIcon, EditIcon,
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
+import PulseHighlight from '../../components/PulseHighlight';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -570,6 +572,7 @@ const VALID_TABS: TabKey[] = ['PENDING', 'ACCEPTED', 'READY', 'ALL', 'MENU'];
 export default function HotFoodOrders() {
   const { user } = useAuthStore();
   const storeId  = user?.storeIds?.[0];
+  const highlightedId = useHighlightParam();
   const [activeTab,    setActiveTab]    = useState<TabKey>('PENDING');
   const [updatingId,   setUpdatingId]   = useState<string | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -818,11 +821,13 @@ export default function HotFoodOrders() {
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
             renderItem={({ item }) => (
-              <OrderCard
-                order={item}
-                onUpdateStatus={handleUpdateStatus}
-                updating={updatingId === item.id}
-              />
+              <PulseHighlight active={item.id === highlightedId}>
+                <OrderCard
+                  order={item}
+                  onUpdateStatus={handleUpdateStatus}
+                  updating={updatingId === item.id}
+                />
+              </PulseHighlight>
             )}
             ListEmptyComponent={
               <View style={s.empty}>
