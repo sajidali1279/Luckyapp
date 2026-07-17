@@ -8,6 +8,7 @@ import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
+import { alertUrlManager, pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 
@@ -205,7 +206,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       where: { role: { in: [Role.STORE_MANAGER, Role.SUPER_ADMIN] as any } },
     });
     for (const mgr of managers) {
-      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT');
+      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT', alertUrlManager());
     }
   }
 
@@ -341,7 +342,8 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     transaction.customerId,
     '💰 Points Credited!',
     `${Math.round(totalPoints * 100)} pts added to your Lucky Stop balance.`,
-    'POINTS'
+    'POINTS',
+    pointsUrl(transaction.id)
   );
 
   audit({
@@ -410,7 +412,8 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     customer.id,
     '🎉 Redemption Successful!',
     `$${amount.toFixed(2)} redeemed at Lucky Stop. Remaining balance: $${updated.pointsBalance.toFixed(2)}.`,
-    'REDEMPTION'
+    'REDEMPTION',
+    redemptionUrl()
   );
 
   audit({
@@ -475,7 +478,8 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
     transaction.customerId,
     '❌ Transaction Rejected',
     `Your $${transaction.purchaseAmount.toFixed(2)} ${transaction.category.replace(/_/g, ' ').toLowerCase()} transaction could not be verified. Visit the store if you have questions.`,
-    'POINTS'
+    'POINTS',
+    pointsUrl(transactionId)
   );
 
   audit({
@@ -525,7 +529,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
 
   if (action === 'REJECT') {
     await prisma.pointsTransaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.REJECTED } });
-    sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.`, 'POINTS');
+    sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.`, 'POINTS', pointsUrl(transactionId));
     audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'REJECT_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
     res.json({ success: true, message: 'Flagged transaction rejected' });
     return;
@@ -538,7 +542,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     prisma.user.update({ where: { id: transaction.customerId }, data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } } }),
   ]);
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
-  sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS');
+  sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS', pointsUrl(transactionId));
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
   res.json({ success: true, message: 'Flagged transaction approved and points credited' });
 }
@@ -891,7 +895,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
     }),
   ]);
 
-  sendPushToUser(customer.id, '🎁 Reward Redeemed!', `You redeemed "${item.title}" for ${item.pointsCost} pts.`, 'REDEMPTION');
+  sendPushToUser(customer.id, '🎁 Reward Redeemed!', `You redeemed "${item.title}" for ${item.pointsCost} pts.`, 'REDEMPTION', redemptionUrl());
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

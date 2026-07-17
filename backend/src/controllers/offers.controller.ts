@@ -6,6 +6,7 @@ import { OfferType, ProductCategory, Role } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { broadcastToCustomers } from '../utils/push';
+import { offerUrl } from '../utils/notificationRoutes';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   });
 
   // Notify all customers — notification auto-expires when the offer ends
-  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate));
+  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate), offerUrl());
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

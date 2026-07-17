@@ -7,6 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
+import { gasPriceUrlEmployee, gasPriceUrlCustomer } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -1291,6 +1292,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     `⛽ Gas Prices Updated — ${store.name}`,
     `${priceText} — update pump display now`,
     'GAS_PRICE_UPDATE',
+    gasPriceUrlEmployee(),
   );
 
   // In-app only → all customers (no push — routine daily change)
@@ -1302,6 +1304,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
           `⛽ New Prices at ${store.name}`,
           priceText,
           'GAS_PRICE_UPDATE',
+          gasPriceUrlCustomer(),
         );
       }
     })
