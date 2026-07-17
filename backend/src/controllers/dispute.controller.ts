@@ -4,6 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { Role } from '@prisma/client';
 import { sendPushToUser, sendPushToStoreEmployees } from '../utils/push';
+import { disputeSubmittedUrlEmployee, disputeResolvedUrl } from '../utils/notificationRoutes';
 
 const submitSchema = z.object({
   storeId:      z.string().uuid(),
@@ -35,6 +36,7 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     'New Missing-Points Report',
     `A customer reported missing cashback at ${store.name}. Review in the admin portal.`,
     'DISPUTE_SUBMITTED',
+    disputeSubmittedUrlEmployee(),
   ).catch(() => {});
 
   res.status(201).json({ success: true, data: dispute });
@@ -172,7 +174,7 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
     ? `Your report was reviewed and $${(finalCreditedAmt ?? 0).toFixed(2)} in credits has been added to your account.`
     : `Your missing-points report has been reviewed. ${resolvedNote ? resolvedNote : 'No additional credits were added.'}`;
 
-  sendPushToUser(dispute.customerId, pushTitle, pushBody, 'DISPUTE_RESOLVED').catch(() => {});
+  sendPushToUser(dispute.customerId, pushTitle, pushBody, 'DISPUTE_RESOLVED', disputeResolvedUrl(dispute.id)).catch(() => {});
 
   res.json({ success: true });
 }
