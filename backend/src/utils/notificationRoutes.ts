@@ -44,7 +44,7 @@ export function scheduleUrl(): string {
   return '/(employee)/schedule';
 }
 export function stockRequestUrlEmployee(requestId: string): string {
-  return withHighlight('/(employee)/stock-request', requestId);
+  return `/(employee)/stock-request?tab=mine&highlightId=${requestId}`;
 }
 export function disputeSubmittedUrlEmployee(): string {
   return '/(employee)/home';
