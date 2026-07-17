@@ -1,12 +1,15 @@
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { FlatList as FlatListType } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/Icons';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
+import PulseHighlight from '../../components/PulseHighlight';
 import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -28,6 +31,19 @@ export default function HistoryScreen() {
   });
 
   const transactions = data?.pages.flatMap((p) => p.data.data.transactions) || [];
+
+  const highlightedId = useHighlightParam();
+  const listRef = useRef<FlatListType<any>>(null);
+
+  useEffect(() => {
+    if (!highlightedId) return;
+    const index = transactions.findIndex((t: any) => t.id === highlightedId);
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.3, animated: true });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightedId, transactions]);
 
   return (
     <View style={s.root}>
@@ -54,12 +70,16 @@ export default function HistoryScreen() {
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
         <FlatList
+          ref={listRef}
           data={transactions}
           keyExtractor={(item) => item.id}
           contentContainerStyle={transactions.length === 0 ? s.emptyContainer : s.list}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
           showsVerticalScrollIndicator={false}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
+          }}
           ListEmptyComponent={
             <EmptyState icon={<ReceiptIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="No transactions yet" subtitle="Visit a Lucky Stop and show your QR code to earn your first credits!" />
           }
@@ -74,34 +94,36 @@ export default function HistoryScreen() {
             const icon = CATEGORY_ICONS[item.category] || '🏪';
             const catLabel = item.category?.replace(/_/g, ' ') || 'Other';
             return (
-              <TouchableOpacity
-                style={s.card}
-                onPress={() => setSelected(item)}
-                activeOpacity={0.75}
-                accessibilityRole="button"
-                accessibilityLabel={`View transaction details for ${item.store?.name || 'Lucky Stop'} on ${format(new Date(item.createdAt), 'MMM d, yyyy')}`}
-              >
-                <View style={s.cardIconBg}>
-                  <Text style={s.cardIcon}>{icon}</Text>
-                </View>
-                <View style={s.cardBody}>
-                  <Text style={s.storeName}>{item.store?.name || 'Lucky Stop'}</Text>
-                  <Text style={s.date}>{format(new Date(item.createdAt), 'MMM d, yyyy · h:mm a')}</Text>
-                  <View style={s.catTag}>
-                    <Text style={s.catTagText}>{catLabel}</Text>
+              <PulseHighlight active={item.id === highlightedId}>
+                <TouchableOpacity
+                  style={s.card}
+                  onPress={() => setSelected(item)}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View transaction details for ${item.store?.name || 'Lucky Stop'} on ${format(new Date(item.createdAt), 'MMM d, yyyy')}`}
+                >
+                  <View style={s.cardIconBg}>
+                    <Text style={s.cardIcon}>{icon}</Text>
                   </View>
-                </View>
-                <View style={s.cardRight}>
-                  {item.status === 'APPROVED' ? (
-                    <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
-                  ) : item.status === 'PENDING' ? (
-                    <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>Pending</Text>
-                  ) : (
-                    <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>Rejected</Text>
-                  )}
-                  <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={1.5} />
-                </View>
-              </TouchableOpacity>
+                  <View style={s.cardBody}>
+                    <Text style={s.storeName}>{item.store?.name || 'Lucky Stop'}</Text>
+                    <Text style={s.date}>{format(new Date(item.createdAt), 'MMM d, yyyy · h:mm a')}</Text>
+                    <View style={s.catTag}>
+                      <Text style={s.catTagText}>{catLabel}</Text>
+                    </View>
+                  </View>
+                  <View style={s.cardRight}>
+                    {item.status === 'APPROVED' ? (
+                      <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
+                    ) : item.status === 'PENDING' ? (
+                      <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>Pending</Text>
+                    ) : (
+                      <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>Rejected</Text>
+                    )}
+                    <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={1.5} />
+                  </View>
+                </TouchableOpacity>
+              </PulseHighlight>
             );
           }}
         />
