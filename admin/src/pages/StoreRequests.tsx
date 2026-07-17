@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { storeRequestApi, productRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -107,9 +108,13 @@ export default function StoreRequests() {
   const isReadOnly = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const isStoreManager = user?.role === 'STORE_MANAGER';
 
-  const [activeTab, setActiveTab] = useState<'employee' | 'product'>('employee');
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'employee' | 'product'>(
+    searchParams.get('tab') === 'product' ? 'product' : 'employee'
+  );
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(searchParams.get('storeId'));
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const highlightId = searchParams.get('highlightId');
   const [ackTarget, setAckTarget] = useState<StoreRequest | null>(null);
   const [ackNote, setAckNote] = useState('');
   const [prStatusFilter, setPrStatusFilter] = useState<string>('');
@@ -142,6 +147,14 @@ export default function StoreRequests() {
     refetchInterval: 15000,
   });
   const productRequests: ProductRequest[] = prData?.data?.data || [];
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const timer = setTimeout(() => {
+      document.querySelector('.ls-highlight-pulse')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [highlightId, requests, productRequests]);
 
   const respondMutation = useMutation({
     mutationFn: ({ id, status, note }: { id: string; status: 'ACCEPTED' | 'DECLINED'; note: string }) =>
@@ -304,7 +317,7 @@ export default function StoreRequests() {
                       const isDone = req.status === 'ACKNOWLEDGED';
                       const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                       return (
-                        <div key={req.id} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
+                        <div key={req.id} className={req.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
                           <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : pColor }} />
                           <div style={s.cardBody}>
                             <div style={s.cardTop}>
@@ -394,7 +407,7 @@ export default function StoreRequests() {
                       const isPending    = pr.status === 'PENDING';
 
                       return (
-                        <div key={pr.id} style={{ ...s.prCard, ...(isPending ? {} : s.cardDone) }}>
+                        <div key={pr.id} className={pr.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.prCard, ...(isPending ? {} : s.cardDone) }}>
                           <div style={{ ...s.prStripe, background: statusDot }} />
                           <div style={s.prBody}>
                             {/* Top row */}
