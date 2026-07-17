@@ -11,6 +11,8 @@ import { ShoppingBagIcon, CheckCircleIcon, ChevronRightIcon } from '../../compon
 import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
+import PulseHighlight from '../../components/PulseHighlight';
 
 const STATUS_CONFIG = {
   PENDING:  { label: 'Pending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -55,6 +57,7 @@ interface ProductRequest {
 
 export default function RequestProductScreen() {
   const qc = useQueryClient();
+  const highlightedId = useHighlightParam();
   const [showForm, setShowForm] = useState(false);
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -151,7 +154,9 @@ export default function RequestProductScreen() {
                   <Text style={styles.sectionLabel}>Active Requests</Text>
                   {pending.map((r, i) => (
                     <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
-                      <RequestCard request={r} />
+                      <PulseHighlight active={r.id === highlightedId}>
+                        <RequestCard request={r} />
+                      </PulseHighlight>
                     </FadeSlideIn>
                   ))}
                 </>
@@ -161,7 +166,9 @@ export default function RequestProductScreen() {
                   <Text style={styles.sectionLabel}>Past Requests</Text>
                   {resolved.map((r, i) => (
                     <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
-                      <RequestCard request={r} />
+                      <PulseHighlight active={r.id === highlightedId}>
+                        <RequestCard request={r} />
+                      </PulseHighlight>
                     </FadeSlideIn>
                   ))}
                 </>

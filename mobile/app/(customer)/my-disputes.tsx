@@ -13,6 +13,8 @@ import ErrorState from '../../components/ErrorState';
 import BackButton from '../../components/BackButton';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
+import PulseHighlight from '../../components/PulseHighlight';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -151,6 +153,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
 
 export default function MyDisputesScreen() {
   const { t } = useTranslation();
+  const highlightedId = useHighlightParam();
   const [showReportModal, setShowReportModal] = useState(false);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-disputes'],
@@ -198,7 +201,7 @@ export default function MyDisputesScreen() {
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
           {disputes.map((d, index) => (
             <FadeSlideIn key={d.id} delay={Math.min(index * 40, 200)}>
-              <View style={s.card}>
+              <PulseHighlight active={d.id === highlightedId} style={s.card}>
                 <View style={s.cardTop}>
                   <Text style={s.storeName}>{d.store?.name ?? 'Unknown store'}</Text>
                   <StatusPill status={d.status} />
@@ -216,7 +219,7 @@ export default function MyDisputesScreen() {
                 <Text style={s.date}>
                   Submitted {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </Text>
-              </View>
+              </PulseHighlight>
             </FadeSlideIn>
           ))}
         </ScrollView>
