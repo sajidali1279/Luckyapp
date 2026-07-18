@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
   StatusBar, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { careersApi, jobOpeningsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -80,6 +81,11 @@ export default function CareersScreen() {
     queryFn: () => jobOpeningsApi.getActive(),
   });
   const openings: JobOpening[] = openingsData?.data?.data ?? [];
+
+  // Refetch on every focus so a newly-posted opening shows up without an app restart
+  useFocusEffect(useCallback(() => {
+    refetchOpenings();
+  }, [refetchOpenings]));
 
   const [form, setForm] = useState<FormState>({
     name: user?.name ?? '',
