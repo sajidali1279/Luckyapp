@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { DayOfWeek, ShiftType, ShiftRequestType, RequestStatus, Role } from '@prisma/client';
 import { sendPushToUser } from '../utils/push';
 import { audit } from '../utils/audit';
+import { scheduleUrl, shiftRequestUrlEmployee } from '../utils/notificationRoutes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -160,7 +161,8 @@ export async function assignShift(req: AuthRequest, res: Response) {
     employeeId,
     'Shift Assigned 📅',
     `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`,
-    'SCHEDULE'
+    'SCHEDULE',
+    scheduleUrl()
   );
 
   audit({
@@ -481,7 +483,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         shiftRequest.employeeId,
         'Fill-In Approved ✅',
         `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`,
-        'SHIFT_REQUEST'
+        'SHIFT_REQUEST',
+        shiftRequestUrlEmployee()
       );
 
       // Check if anyone else is already assigned to the same shift slot that day
@@ -522,7 +525,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         shiftRequest.employeeId,
         'Time Off Approved ✅',
         `Your time-off request for ${dateStr} (${SHIFT_LABELS[shiftType]} shift) at ${storeName} has been approved.`,
-        'SHIFT_REQUEST'
+        'SHIFT_REQUEST',
+        shiftRequestUrlEmployee()
       );
 
       // Notify coworkers scheduled that day (excluding those already off)
@@ -559,7 +563,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
           empId,
           'Shift Available 📅',
           `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`,
-          'SCHEDULE'
+          'SCHEDULE',
+          scheduleUrl()
         );
       }
     }
