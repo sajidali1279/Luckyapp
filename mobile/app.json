@@ -33,6 +33,7 @@
     "plugins": [
       "@react-native-firebase/app",
       "./plugins/withFirebaseAppDelegateFix",
+      "./plugins/withIosCaptchaOpenUrlFix",
       "expo-router",
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
