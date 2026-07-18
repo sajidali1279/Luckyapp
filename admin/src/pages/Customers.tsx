@@ -69,7 +69,7 @@ export default function Customers() {
     enabled: isSuperAdmin,
   });
 
-  const { data: disputesData, isLoading: disputesLoading } = useQuery({
+  const { data: disputesData, isLoading: disputesLoading, isError: disputesError, refetch: refetchDisputes } = useQuery({
     queryKey: ['disputes', disputeStore, disputeStatus],
     queryFn: () => isSuperAdmin
       ? disputesApi.getAll({ storeId: disputeStore || undefined, status: disputeStatus || undefined })
@@ -192,7 +192,9 @@ export default function Customers() {
               <option value="REJECTED">Rejected</option>
             </select>
           </div>
-          {disputesLoading ? (
+          {disputesError ? (
+            <ErrorState onRetry={refetchDisputes} />
+          ) : disputesLoading ? (
             <CardSkeleton count={3} />
           ) : disputes.length === 0 ? (
             <div style={s.emptyState}><div style={{ fontSize: 48 }}>✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear — no missing points reports</div></div>
