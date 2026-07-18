@@ -15,6 +15,7 @@ import FadeSlideIn from './FadeSlideIn';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
+  BriefcaseIcon,
 } from './Icons';
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
@@ -30,6 +31,7 @@ const TYPE_CONFIG: Record<string, { color: string }> = {
   ALERT:             { color: '#E63946' },
   DISPUTE_SUBMITTED: { color: '#f59e0b' },
   HOT_FOOD_ORDER:    { color: '#ea580c' },
+  JOB_OPENING:       { color: '#0369a1' },
   GENERAL:           { color: COLORS.primary },
 };
 
@@ -48,6 +50,7 @@ function NotifIcon({ type, color }: { type: string; color: string }) {
     case 'ALERT':             return <AlertTriangleIcon {...p} />;
     case 'DISPUTE_SUBMITTED': return <ClipboardIcon {...p} />;
     case 'HOT_FOOD_ORDER':    return <ClipboardIcon {...p} />;
+    case 'JOB_OPENING':       return <BriefcaseIcon {...p} />;
     default:                  return <BellIcon {...p} />;
   }
 }
