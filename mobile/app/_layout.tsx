@@ -100,9 +100,15 @@ export default function RootLayout() {
       // Cold start via notification tap: the app just launched because the
       // user tapped a push while it was fully killed. Override the default
       // landing route above with wherever that notification actually points.
+      // getLastNotificationResponseAsync() returns the OS's cached last-tapped
+      // response and does NOT consume it, so we must explicitly clear it
+      // afterward — otherwise a later re-run of this effect (user object
+      // changes on login/profile update/token refresh) or a later unrelated
+      // relaunch would silently replay this same stale destination.
       const lastResponse = await Notifications.getLastNotificationResponseAsync();
       const actionUrl = lastResponse?.notification.request.content.data?.actionUrl as string | undefined;
       if (actionUrl) router.push(actionUrl as Href);
+      if (lastResponse) await Notifications.clearLastNotificationResponseAsync();
     }
 
     navigate();
