@@ -1,5 +1,6 @@
 node_modules/
 dist/
+*.tsbuildinfo
 .env
 *.log
 
@@ -21,6 +22,7 @@ mobile/ios/
 *firebase-adminsdk*.json
 mobile/google-services.json
 GoogleService-Info.plist
+gservices-b64.txt
 
 # Android signing keystore — NEVER commit
 *.jks

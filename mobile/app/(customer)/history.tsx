@@ -2,13 +2,13 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, Touchab
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/Icons';
-import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 import DisputeTransactionModal from '../../components/DisputeTransactionModal';
 import { format } from 'date-fns';
@@ -34,18 +34,44 @@ export default function HistoryScreen() {
 
   const transactions = data?.pages.flatMap((p) => p.data.data.transactions) || [];
 
-  const highlightedId = useHighlightParam();
+  // A dispute/points push can target a transaction older than whatever page(s)
+  // of this paginated history are already loaded. `searchId` stays set for as
+  // long as it takes to page through and find it (independent of how long the
+  // pulse itself lasts); `pulseId` only turns on once the row is actually found.
+  const { highlightId } = useLocalSearchParams<{ highlightId?: string }>();
+  const [searchId, setSearchId] = useState<string | null>(null);
+  const [pulseId, setPulseId] = useState<string | null>(null);
   const listRef = useRef<FlatListType<any>>(null);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!highlightId) return;
+      setSearchId(highlightId);
+    }, [highlightId])
+  );
+
   useEffect(() => {
-    if (!highlightedId) return;
-    const index = transactions.findIndex((t: any) => t.id === highlightedId);
-    if (index < 0) return;
-    const timer = setTimeout(() => {
-      listRef.current?.scrollToIndex({ index, viewPosition: 0.3, animated: true });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [highlightedId, transactions]);
+    if (!searchId) return;
+    const index = transactions.findIndex((t: any) => t.id === searchId);
+    if (index >= 0) {
+      const timer = setTimeout(() => {
+        listRef.current?.scrollToIndex({ index, viewPosition: 0.3, animated: true });
+        setPulseId(searchId);
+        setSearchId(null);
+        router.setParams({ highlightId: '' });
+        setTimeout(() => setPulseId(null), 1700);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    if (isLoading) return; // first page hasn't resolved yet, nothing to page through yet
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    } else if (!hasNextPage) {
+      // Paged through everything and it's still not there — give up gracefully.
+      setSearchId(null);
+      router.setParams({ highlightId: '' });
+    }
+  }, [searchId, transactions, hasNextPage, isFetchingNextPage, isLoading]);
 
   return (
     <View style={s.root}>
@@ -96,7 +122,7 @@ export default function HistoryScreen() {
             const icon = CATEGORY_ICONS[item.category] || '🏪';
             const catLabel = item.category?.replace(/_/g, ' ') || 'Other';
             return (
-              <PulseHighlight active={item.id === highlightedId}>
+              <PulseHighlight active={item.id === pulseId}>
                 <TouchableOpacity
                   style={s.card}
                   onPress={() => setSelected(item)}
