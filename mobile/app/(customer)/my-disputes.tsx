@@ -207,6 +207,11 @@ export default function MyDisputesScreen() {
                   <StatusPill status={d.status} />
                 </View>
                 <Text style={s.desc}>{d.description}</Text>
+                {d.transaction && (
+                  <Text style={s.meta}>
+                    Transaction: {new Date(d.transaction.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${Number(d.transaction.purchaseAmount).toFixed(2)} · {String(d.transaction.category || '').replace(/_/g, ' ')}
+                  </Text>
+                )}
                 {d.estimatedAmt != null && (
                   <Text style={s.meta}>Claimed purchase: ${Number(d.estimatedAmt).toFixed(2)}</Text>
                 )}
