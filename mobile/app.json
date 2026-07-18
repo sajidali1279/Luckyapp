@@ -5,9 +5,9 @@
     "version": "1.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon-appstore.png",
+    "icon": "./assets/store-icon-512.png",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/store-icon-512.png",
       "resizeMode": "cover",
       "backgroundColor": "#1D3557"
     },
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/store-icon-512.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.luckystop.app",
@@ -47,7 +47,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icon.png",
+          "image": "./assets/store-icon-512.png",
           "resizeMode": "cover",
           "backgroundColor": "#1D3557"
         }
