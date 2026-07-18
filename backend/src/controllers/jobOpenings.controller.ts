@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { broadcastToCustomers } from '../utils/push';
+import { careersUrl } from '../utils/notificationRoutes';
 
 const openingSchema = z.object({
   title:        z.string().min(3).max(120),
@@ -48,6 +50,17 @@ export async function createOpening(req: AuthRequest, res: Response) {
     data: { ...parsed.data, createdById: req.user!.id },
     include: { store: { select: { name: true, city: true } } },
   });
+
+  if (opening.isActive) {
+    broadcastToCustomers(
+      '🧑‍💼 New Job Opening!',
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} — check it out!`,
+      'JOB_OPENING',
+      undefined,
+      careersUrl(),
+    ).catch(() => {});
+  }
+
   res.status(201).json({ success: true, data: opening });
 }
 
@@ -60,11 +73,24 @@ export async function updateOpening(req: AuthRequest, res: Response) {
     return;
   }
 
+  const existing = await prisma.jobOpening.findUnique({ where: { id }, select: { isActive: true } });
+
   const opening = await prisma.jobOpening.update({
     where: { id },
     data: parsed.data,
     include: { store: { select: { name: true, city: true } } },
   });
+
+  if (existing && existing.isActive === false && opening.isActive === true) {
+    broadcastToCustomers(
+      '🧑‍💼 New Job Opening!',
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} — check it out!`,
+      'JOB_OPENING',
+      undefined,
+      careersUrl(),
+    ).catch(() => {});
+  }
+
   res.json({ success: true, data: opening });
 }
 
