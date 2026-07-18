@@ -11,6 +11,9 @@ function withHighlight(base: string, id?: string): string {
 export function offerUrl(): string {
   return '/(customer)/home?scrollTo=offers';
 }
+export function careersUrl(): string {
+  return '/(customer)/careers';
+}
 export function gasPriceUrlCustomer(): string {
   return '/(customer)/home?scrollTo=gas';
 }
