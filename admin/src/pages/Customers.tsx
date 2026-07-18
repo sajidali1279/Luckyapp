@@ -416,6 +416,22 @@ export default function Customers() {
               <div style={s.disputeCustomer}>{resolveTarget.customer?.name || resolveTarget.customer?.phone}</div>
               <div style={{ fontSize: 15, color: '#5a6472', marginTop: 4, lineHeight: 1.5 }}>{resolveTarget.description}</div>
               {resolveTarget.estimatedAmt && <div style={{ fontSize: 14, color: '#5a6472', marginTop: 4 }}>Estimated: ${Number(resolveTarget.estimatedAmt).toFixed(2)}</div>}
+              {resolveTarget.transaction && (
+                <div style={s.linkedTxCard}>
+                  <div style={s.linkedTxHeader}>Linked Transaction</div>
+                  <div style={s.linkedTxRow}>
+                    {format(new Date(resolveTarget.transaction.createdAt), 'MMM d, yyyy · h:mm a')} · ${Number(resolveTarget.transaction.purchaseAmount).toFixed(2)} · {String(resolveTarget.transaction.category || '').replace(/_/g, ' ')}
+                  </div>
+                  <div style={s.linkedTxRow}>Granted by: {resolveTarget.transaction.grantedBy?.name || 'Unknown'} · Status: {resolveTarget.transaction.status}</div>
+                  {resolveTarget.transaction.receiptImageUrl ? (
+                    <a href={resolveTarget.transaction.receiptImageUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={resolveTarget.transaction.receiptImageUrl} alt="Receipt" style={s.linkedTxReceipt} />
+                    </a>
+                  ) : (
+                    <div style={{ ...s.linkedTxRow, fontStyle: 'italic' }}>No receipt photo on file</div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'left', marginBottom: 12 }}>
               <label style={{ fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Credits to Award (if approving)</label>
@@ -561,6 +577,14 @@ const s: Record<string, React.CSSProperties> = {
     padding: '8px 18px', background: '#1D3557', color: '#fff', border: 'none',
     borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15, flexShrink: 0,
   },
+
+  linkedTxCard: {
+    marginTop: 10, padding: '12px 14px', background: '#f8fafc',
+    borderRadius: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb',
+  },
+  linkedTxHeader: { fontSize: 12, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 6 },
+  linkedTxRow: { fontSize: 14, color: '#374151', marginBottom: 4 },
+  linkedTxReceipt: { width: '100%', maxHeight: 220, borderRadius: 10, objectFit: 'cover' as const, marginTop: 6, cursor: 'pointer' },
 
   // Fraud badge
   fraudBadge: {
