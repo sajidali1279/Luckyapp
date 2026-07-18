@@ -7,10 +7,14 @@ import { sendPushToUser, sendPushToStoreEmployees } from '../utils/push';
 import { disputeSubmittedUrlEmployee, disputeResolvedUrl } from '../utils/notificationRoutes';
 
 const submitSchema = z.object({
-  storeId:      z.string().uuid(),
-  description:  z.string().min(10).max(500),
-  estimatedAmt: z.number().positive().max(10000).optional(),
-});
+  storeId:       z.string().uuid().optional(),
+  transactionId: z.string().uuid().optional(),
+  description:   z.string().min(10).max(500),
+  estimatedAmt:  z.number().positive().max(10000).optional(),
+}).refine(
+  (data) => Boolean(data.storeId) !== Boolean(data.transactionId),
+  { message: 'Provide either storeId or transactionId, not both.' }
+);
 
 export async function submitDispute(req: AuthRequest, res: Response) {
   const parsed = submitSchema.safeParse(req.body);
@@ -18,7 +22,38 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: parsed.error.flatten() });
     return;
   }
-  const { storeId, description, estimatedAmt } = parsed.data;
+  const { description, transactionId } = parsed.data;
+  let storeId = parsed.data.storeId;
+  let estimatedAmt = parsed.data.estimatedAmt;
+
+  if (transactionId) {
+    const transaction = await prisma.pointsTransaction.findUnique({
+      where: { id: transactionId },
+      select: { id: true, customerId: true, storeId: true },
+    });
+    if (!transaction) {
+      res.status(404).json({ success: false, error: 'Transaction not found' });
+      return;
+    }
+    if (transaction.customerId !== req.user!.id) {
+      res.status(403).json({ success: false, error: 'Not authorized for this transaction' });
+      return;
+    }
+    const existingPending = await prisma.pointsDispute.findFirst({
+      where: { transactionId, status: 'PENDING' },
+    });
+    if (existingPending) {
+      res.status(409).json({ success: false, error: 'You already have a pending report for this transaction.' });
+      return;
+    }
+    storeId = transaction.storeId;
+    estimatedAmt = undefined;
+  }
+
+  if (!storeId) {
+    res.status(400).json({ success: false, error: 'storeId is required' });
+    return;
+  }
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true } });
   if (!store) {
@@ -27,7 +62,7 @@ export async function submitDispute(req: AuthRequest, res: Response) {
   }
 
   const dispute = await prisma.pointsDispute.create({
-    data: { customerId: req.user!.id, storeId, description, estimatedAmt },
+    data: { customerId: req.user!.id, storeId: store.id, transactionId, description, estimatedAmt },
   });
 
   // Notify employees only — cashiers handled the transaction and can escalate
