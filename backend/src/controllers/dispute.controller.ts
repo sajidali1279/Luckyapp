@@ -81,7 +81,19 @@ export async function getMyDisputes(req: AuthRequest, res: Response) {
   const disputes = await prisma.pointsDispute.findMany({
     where: { customerId: req.user!.id },
     orderBy: { createdAt: 'desc' },
-    include: { store: { select: { name: true } } },
+    include: {
+      store: { select: { name: true } },
+      transaction: {
+        select: {
+          id: true,
+          purchaseAmount: true,
+          category: true,
+          status: true,
+          createdAt: true,
+          receiptImageUrl: true,
+        },
+      },
+    },
   });
   res.json({ success: true, data: disputes });
 }
@@ -101,6 +113,17 @@ export async function getStoreDisputes(req: AuthRequest, res: Response) {
     orderBy: { createdAt: 'desc' },
     include: {
       customer: { select: { id: true, name: true, phone: true } },
+      transaction: {
+        select: {
+          id: true,
+          purchaseAmount: true,
+          category: true,
+          status: true,
+          createdAt: true,
+          receiptImageUrl: true,
+          grantedBy: { select: { name: true } },
+        },
+      },
     },
   });
 
@@ -132,6 +155,17 @@ export async function getAllDisputes(req: AuthRequest, res: Response) {
     include: {
       customer: { select: { id: true, name: true, phone: true } },
       store:    { select: { id: true, name: true } },
+      transaction: {
+        select: {
+          id: true,
+          purchaseAmount: true,
+          category: true,
+          status: true,
+          createdAt: true,
+          receiptImageUrl: true,
+          grantedBy: { select: { name: true } },
+        },
+      },
     },
   });
   res.json({ success: true, data: disputes });
