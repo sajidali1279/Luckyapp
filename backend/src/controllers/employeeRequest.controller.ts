@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType, Role } from '@prisma/client';
 import { generateListName } from './orderList.controller';
 import { sendPushToUser } from '../utils/push';
+import { stockRequestUrlManager, stockRequestUrlEmployee } from '../utils/notificationRoutes';
 
 // ─── GET /employee-requests/suggestions ──────────────────────────────────────
 //
@@ -75,7 +76,7 @@ export async function submitRequest(req: AuthRequest, res: Response) {
   const managerIds = assignments.filter(a => a.user.role === Role.STORE_MANAGER).map(a => a.userId);
   const itemCount = parsed.data.lines.length;
   managerIds.forEach(id =>
-    sendPushToUser(id, '📦 New Stock Request', `${user.name || 'An employee'} requested ${itemCount} item${itemCount !== 1 ? 's' : ''} for restocking`, 'STOCK_REQUEST')
+    sendPushToUser(id, '📦 New Stock Request', `${user.name || 'An employee'} requested ${itemCount} item${itemCount !== 1 ? 's' : ''} for restocking`, 'STOCK_REQUEST', stockRequestUrlManager(request.id))
   );
 
   res.status(201).json({ success: true, data: request });
@@ -269,7 +270,7 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
   const notifBody = acceptedCount === total
     ? `All ${total} item${total !== 1 ? 's' : ''} accepted and added to the order list!`
     : `${acceptedCount} of ${total} item${total !== 1 ? 's' : ''} accepted for ordering.`;
-  sendPushToUser(request.submittedById, notifTitle, notifBody, 'STOCK_REQUEST');
+  sendPushToUser(request.submittedById, notifTitle, notifBody, 'STOCK_REQUEST', stockRequestUrlEmployee(requestId));
 
   res.json({ success: true, data: { requestId, results: updates, listId: targetListId } });
 }

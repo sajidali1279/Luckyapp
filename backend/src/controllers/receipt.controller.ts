@@ -6,6 +6,7 @@ import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getTierBonusRate, updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
 import { sendPushToUser } from '../utils/push';
+import { pointsUrl } from '../utils/notificationRoutes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -339,7 +340,8 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     customer.id,
     '💰 Points Credited!',
     `${Math.round(totalPointsAwarded * 100)} pts added to your Lucky Stop balance.`,
-    'POINTS'
+    'POINTS',
+    pointsUrl()
   );
 
   res.json({

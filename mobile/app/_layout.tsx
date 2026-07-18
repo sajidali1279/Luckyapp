@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
+import type { Href } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Notifications from 'expo-notifications';
@@ -95,6 +96,19 @@ export default function RootLayout() {
       } else {
         router.replace('/(customer)/home');
       }
+
+      // Cold start via notification tap: the app just launched because the
+      // user tapped a push while it was fully killed. Override the default
+      // landing route above with wherever that notification actually points.
+      // getLastNotificationResponseAsync() returns the OS's cached last-tapped
+      // response and does NOT consume it, so we must explicitly clear it
+      // afterward — otherwise a later re-run of this effect (user object
+      // changes on login/profile update/token refresh) or a later unrelated
+      // relaunch would silently replay this same stale destination.
+      const lastResponse = await Notifications.getLastNotificationResponseAsync();
+      const actionUrl = lastResponse?.notification.request.content.data?.actionUrl as string | undefined;
+      if (actionUrl) router.push(actionUrl as Href);
+      if (lastResponse) await Notifications.clearLastNotificationResponseAsync();
     }
 
     navigate();
@@ -105,6 +119,17 @@ export default function RootLayout() {
       registerPushToken().catch(() => {});
     }
   }, [user?.id]);
+
+  // Catch OS-level notification taps while the app is foregrounded or
+  // backgrounded (process still alive). The cold-start case (app was fully
+  // killed) is handled separately below, inside the auth-resolved navigate().
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const actionUrl = response.notification.request.content.data?.actionUrl as string | undefined;
+      if (actionUrl) router.push(actionUrl as Href);
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <ErrorBoundary>

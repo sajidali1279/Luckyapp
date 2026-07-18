@@ -15,6 +15,8 @@ import {
   PackageIcon, ClipboardIcon, ShoppingBagIcon, BriefcaseIcon, TagIcon,
   CheckCircleIcon, XIcon, MessageCircleIcon, BuildingIcon, InboxIcon, BellIcon,
 } from './Icons';
+import { useHighlightParam } from '../hooks/useHighlightParam';
+import PulseHighlight from './PulseHighlight';
 
 function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -116,6 +118,8 @@ export default function ManagerRequestsScreen() {
       router.setParams({ tab: '' });
     }
   }, [tab]));
+
+  const highlightedId = useHighlightParam();
 
   // ── Store picker ────────────────────────────────────────────────────────────
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -222,7 +226,7 @@ export default function ManagerRequestsScreen() {
     const isDone = item.status === 'ACKNOWLEDGED';
     const avatarColor = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
     return (
-      <View style={[s.card, isDone && s.cardDone]}>
+      <PulseHighlight active={item.id === highlightedId} style={[s.card, isDone && s.cardDone]}>
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: typeBg }]}>
@@ -281,7 +285,7 @@ export default function ManagerRequestsScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </PulseHighlight>
     );
   }, []);
 
@@ -292,7 +296,7 @@ export default function ManagerRequestsScreen() {
     const typeLabel = EMP_TYPE_LABELS[item.requestType] || item.requestType;
 
     return (
-      <View style={[s.card, !isPending && s.cardDone]}>
+      <PulseHighlight active={item.id === highlightedId} style={[s.card, !isPending && s.cardDone]}>
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: '#eff6ff' }]}>
@@ -380,7 +384,7 @@ export default function ManagerRequestsScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </PulseHighlight>
     );
   }, []);
 
@@ -388,7 +392,7 @@ export default function ManagerRequestsScreen() {
     const st = PR_STATUS[item.status] || PR_STATUS.PENDING;
     const isPending = item.status === 'PENDING';
     return (
-      <View style={[s.card, !isPending && s.cardDone]}>
+      <PulseHighlight active={item.id === highlightedId} style={[s.card, !isPending && s.cardDone]}>
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: '#fff7ed' }]}>
@@ -443,7 +447,7 @@ export default function ManagerRequestsScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
-      </View>
+      </PulseHighlight>
     );
   }, []);
 

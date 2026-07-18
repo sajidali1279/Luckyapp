@@ -17,33 +17,6 @@ import {
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
 } from './Icons';
 
-// Returns a simple route string for employee/manager notifications only.
-function getStaffRoute(type: string, role?: string): string | null {
-  if (role === 'EMPLOYEE') {
-    if (type === 'SHIFT_REQUEST') return '/(employee)/requests';
-    if (type === 'SCHEDULE')      return '/(employee)/schedule';
-    if (type === 'GAS_PRICE_UPDATE') return '/(employee)/scan';
-    if (type === 'STORE_REQUEST') return '/(employee)/requests';
-  }
-  if (role === 'STORE_MANAGER') {
-    if (type === 'STOCK_REQUEST')     return '/(manager)/requests';
-    if (type === 'PRODUCT_REQUEST')   return '/(manager)/requests';
-    if (type === 'ALERT')             return '/(manager)/home';
-    if (type === 'DISPUTE_SUBMITTED') return '/(manager)/home';
-  }
-  return null;
-}
-
-function customerHasAction(type: string): boolean {
-  return ['OFFER', 'GAS_PRICE_UPDATE', 'POINTS', 'REDEMPTION'].includes(type);
-}
-function employeeHasAction(type: string): boolean {
-  return ['HOT_FOOD_ORDER', 'GAS_PRICE_UPDATE', 'SHIFT_REQUEST', 'STORE_REQUEST', 'SCHEDULE'].includes(type);
-}
-function managerHasAction(type: string): boolean {
-  return ['STOCK_REQUEST', 'PRODUCT_REQUEST', 'ALERT', 'DISPUTE_SUBMITTED'].includes(type);
-}
-
 const TYPE_CONFIG: Record<string, { color: string }> = {
   GAS_PRICE_UPDATE:  { color: '#f97316' },
   OFFER:             { color: '#F4A261' },
@@ -96,6 +69,7 @@ interface Notification {
   title: string;
   body: string;
   type: string;
+  actionUrl?: string;
   isRead: boolean;
   createdAt: string;
   expiresAt?: string;
@@ -191,52 +165,13 @@ export default function NotificationsScreen() {
   function handlePress(item: Notification) {
     if (!item.isRead) markOneMutation.mutate(item.id);
 
-    if (user?.role === 'CUSTOMER') {
-      switch (item.type) {
-        case 'OFFER': {
-          const expired = item.expiresAt && new Date(item.expiresAt) < new Date();
-          if (expired) {
-            Alert.alert('Offer Ended', `"${item.title}" has expired and is no longer available.`, [{ text: 'Got it' }]);
-            return;
-          }
-          router.push({ pathname: '/(customer)/home', params: { scrollTo: 'offers' } } as any);
-          return;
-        }
-        case 'GAS_PRICE_UPDATE':
-          router.push({ pathname: '/(customer)/home', params: { scrollTo: 'gas' } } as any);
-          return;
-        case 'POINTS':     router.push('/(customer)/history'); return;
-        case 'REDEMPTION': router.push('/(customer)/rewards'); return;
-        default: return;
-      }
+    const expired = item.type === 'OFFER' && item.expiresAt && new Date(item.expiresAt) < new Date();
+    if (expired) {
+      Alert.alert('Offer Ended', `"${item.title}" has expired and is no longer available.`, [{ text: 'Got it' }]);
+      return;
     }
 
-    if (user?.role === 'EMPLOYEE') {
-      switch (item.type) {
-        case 'HOT_FOOD_ORDER':
-          router.push({ pathname: '/(employee)/hot-food', params: { tab: 'PENDING' } } as any);
-          return;
-        case 'GAS_PRICE_UPDATE': router.push('/(employee)/scan');     return;
-        case 'SHIFT_REQUEST':
-        case 'STORE_REQUEST':    router.push('/(employee)/requests'); return;
-        case 'SCHEDULE':         router.push('/(employee)/schedule'); return;
-        default: return;
-      }
-    }
-
-    if (user?.role === 'STORE_MANAGER') {
-      switch (item.type) {
-        case 'STOCK_REQUEST':
-          router.push({ pathname: '/(manager)/requests', params: { tab: 'stock' } } as any);
-          return;
-        case 'PRODUCT_REQUEST':
-          router.push({ pathname: '/(manager)/requests', params: { tab: 'products' } } as any);
-          return;
-        case 'ALERT':
-        case 'DISPUTE_SUBMITTED': router.push('/(manager)/home'); return;
-        default: return;
-      }
-    }
+    if (item.actionUrl) router.push(item.actionUrl as any);
   }
 
   function renderItem({ item }: { item: Notification }) {
@@ -244,11 +179,7 @@ export default function NotificationsScreen() {
     const isGasAlert = item.type === 'GAS_PRICE_UPDATE' && isEmployee && !item.isRead;
 
     const isExpiredOffer = item.type === 'OFFER' && !!item.expiresAt && new Date(item.expiresAt) < new Date();
-    const role = user?.role;
-    const hasAction = role === 'CUSTOMER'      ? customerHasAction(item.type)
-                    : role === 'EMPLOYEE'      ? employeeHasAction(item.type)
-                    : role === 'STORE_MANAGER' ? managerHasAction(item.type)
-                    : false;
+    const hasAction = !!item.actionUrl;
     const actionLabel = isExpiredOffer ? 'Expired' : hasAction ? 'View →' : null;
 
     return (

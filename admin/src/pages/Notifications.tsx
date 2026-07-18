@@ -11,7 +11,7 @@ import CardSkeleton from '../components/CardSkeleton';
 interface Notification {
   id: string;
   type: 'BILLING' | 'TRANSACTION' | 'SCHEDULE' | 'REVENUE' | 'PLATFORM';
-  category: 'billing' | 'transactions' | 'scheduling' | 'customers';
+  category: 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests';
   title: string;
   message: string;
   createdAt: string;
@@ -41,6 +41,8 @@ const CAT: Record<string, { label: string; icon: string; color: string; bg: stri
   transactions: { label: 'Transactions', icon: '🧾', color: '#7c2d12', bg: '#ffedd5' },
   scheduling:   { label: 'Scheduling',   icon: '📅', color: '#065f46', bg: '#d1fae5' },
   customers:    { label: 'Customers',    icon: '🏪', color: '#4c1d95', bg: '#ede9fe' },
+  disputes:     { label: 'Disputes',     icon: '⚠️', color: '#92400e', bg: '#fffbeb' },
+  requests:     { label: 'Requests',     icon: '📋', color: '#166534', bg: '#f0fdf4' },
 };
 
 // Schedule sub-type icon override

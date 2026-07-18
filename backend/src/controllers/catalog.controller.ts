@@ -3,6 +3,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
+import { redemptionUrl } from '../utils/notificationRoutes';
 import { audit } from '../utils/audit';
 
 const HOLD_MINUTES = 30;
@@ -241,7 +242,7 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   });
 
   sendPushToUser(redemption.customerId, '✅ Reward Confirmed!',
-    `Your "${redemption.catalogItem.title}" has been redeemed. Enjoy!`, 'REDEMPTION');
+    `Your "${redemption.catalogItem.title}" has been redeemed. Enjoy!`, 'REDEMPTION', redemptionUrl(redemption.id));
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

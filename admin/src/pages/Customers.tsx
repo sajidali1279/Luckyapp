@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -33,6 +33,7 @@ export default function Customers() {
   const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>(
     searchParams.get('tab') === 'disputes' ? 'disputes' : 'customers'
   );
+  const highlightId = searchParams.get('highlightId');
   const [disputeStore, setDisputeStore] = useState('');
   const [disputeStatus, setDisputeStatus] = useState('PENDING');
   const [resolveTarget, setResolveTarget] = useState<any | null>(null);
@@ -127,6 +128,14 @@ export default function Customers() {
   const stores = storesData?.data?.data || [];
   const disputes = disputesData?.data?.data || [];
 
+  useEffect(() => {
+    if (!highlightId) return;
+    const timer = setTimeout(() => {
+      document.querySelector('.ls-highlight-pulse')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [highlightId, disputes]);
+
   return (
     <div style={s.page}>
       {/* ── Header ── */}
@@ -190,7 +199,7 @@ export default function Customers() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {disputes.map((d: any) => (
-                <div key={d.id} style={s.disputeCard}>
+                <div key={d.id} className={d.id === highlightId ? 'ls-highlight-pulse' : undefined} style={s.disputeCard}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                       <span style={{ ...s.disputeStatusPill, background: d.status === 'PENDING' ? '#fffbeb' : d.status === 'APPROVED' ? '#f0fdf4' : '#fff1f2', color: d.status === 'PENDING' ? '#b45309' : d.status === 'APPROVED' ? '#16a34a' : '#E63946' }}>

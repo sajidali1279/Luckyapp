@@ -11,6 +11,8 @@ import { catalogApi, pointsApi } from '../../services/api';
 import { COLORS, TIER_CONFIG } from '../../constants';
 import { StarIcon, TagIcon, ClockIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
+import PulseHighlight from '../../components/PulseHighlight';
 
 
 const TIER_THRESHOLDS: Record<string, number> = {
@@ -306,6 +308,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 export default function RewardsScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
+  const highlightedId = useHighlightParam();
   const pts = Math.round(Number(user?.pointsBalance || 0) * 100);
   const tier = user?.tier || 'BRONZE';
   const periodPts = Math.round(Number(user?.periodPoints || 0) * 100);
@@ -462,7 +465,9 @@ export default function RewardsScreen() {
 
             {/* ── Active redemption banners ── */}
             {pendingRedemptions.map(rd => (
-              <ActiveRedemptionBanner key={rd.id} redemption={rd} onCancel={() => handleCancelRedemption(rd)} />
+              <PulseHighlight key={rd.id} active={rd.id === highlightedId}>
+                <ActiveRedemptionBanner redemption={rd} onCancel={() => handleCancelRedemption(rd)} />
+              </PulseHighlight>
             ))}
 
             {/* ── Redeem Rewards header + category filter ── */}

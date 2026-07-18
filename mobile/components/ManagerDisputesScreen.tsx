@@ -2,7 +2,7 @@ import {
   View, Text, TouchableOpacity, FlatList, ScrollView,
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
 } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -12,6 +12,8 @@ import FadeSlideIn from './FadeSlideIn';
 import ErrorState from './ErrorState';
 import ManagerHeader from './ManagerHeader';
 import { AlertTriangleIcon, BuildingIcon, CheckCircleIcon, XIcon, InboxIcon } from './Icons';
+import { useHighlightParam } from '../hooks/useHighlightParam';
+import PulseHighlight from './PulseHighlight';
 
 interface Dispute {
   id: string;
@@ -65,6 +67,19 @@ export default function ManagerDisputesScreen() {
     : statusFilter === 'PENDING' ? pending
     : disputes.filter(d => d.status !== 'PENDING');
 
+  const highlightedId = useHighlightParam();
+  const listRef = useRef<FlatList<Dispute>>(null);
+
+  useEffect(() => {
+    if (!highlightedId) return;
+    const index = displayed.findIndex(d => d.id === highlightedId);
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.3, animated: true });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightedId, displayed]);
+
   const resolveMutation = useMutation({
     mutationFn: ({ id, action, note, amt }: { id: string; action: 'APPROVED' | 'REJECTED'; note: string; amt?: number }) =>
       disputeApi.resolve(id, { action, resolvedNote: note || undefined, creditedAmt: amt }),
@@ -99,7 +114,7 @@ export default function ManagerDisputesScreen() {
     const isPending = item.status === 'PENDING';
     const avatarColor = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
     return (
-      <View style={[s.card, !isPending && s.cardDone]}>
+      <PulseHighlight active={item.id === highlightedId} style={[s.card, !isPending && s.cardDone]}>
         <View style={s.cardInner}>
           <View style={s.cardTop}>
             <View style={[s.avatarCircle, { backgroundColor: avatarColor }]}>
@@ -147,7 +162,7 @@ export default function ManagerDisputesScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </PulseHighlight>
     );
   }
 
@@ -237,12 +252,17 @@ export default function ManagerDisputesScreen() {
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           <FlatList
+            ref={listRef}
             data={displayed}
             keyExtractor={d => d.id}
             renderItem={renderItem}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+            onScrollToIndexFailed={(info) => {
+              // Item not measured yet (common right after mount) — retry once the layout settles.
+              setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
+            }}
           />
         </FadeSlideIn>
       )}

@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
+import { redemptionUrl } from './notificationRoutes';
 
 // Run every 5 minutes — expire PENDING catalog redemptions older than their expiresAt
 // and refund points to the customer
@@ -25,6 +26,7 @@ export function startCatalogExpiryCron() {
           '⏰ Redemption Expired',
           `Your "${r.catalogItem.title}" redemption wasn't scanned in time — ${r.pointsSpent} pts have been refunded.`,
           'REDEMPTION',
+          redemptionUrl(r.id),
         );
       }
 

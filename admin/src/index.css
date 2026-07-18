@@ -150,6 +150,15 @@
   animation: dash-fade-in 0.5s var(--ease-premium) both;
 }
 
+@keyframes ls-highlight-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(29, 53, 87, 0.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(29, 53, 87, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 53, 87, 0); }
+}
+.ls-highlight-pulse {
+  animation: ls-highlight-pulse 1.5s var(--ease-premium);
+}
+
 .dash-card {
   position: relative;
   overflow: hidden;

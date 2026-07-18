@@ -16,6 +16,8 @@ import {
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
+import { useHighlightParam } from '../../hooks/useHighlightParam';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -382,8 +384,12 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
 
 // ─── My Requests ──────────────────────────────────────────────────────────────
 
-function MyRequests() {
+function MyRequests({ highlightId }: { highlightId: string | null }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (highlightId) setExpandedId(highlightId);
+  }, [highlightId]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['my-item-requests'],
@@ -513,6 +519,14 @@ export default function StockRequestScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'new' | 'mine'>('new');
+  const highlightId = useHighlightParam();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  useFocusEffect(useCallback(() => {
+    if (tab === 'mine') {
+      setActiveTab('mine');
+      router.setParams({ tab: '' });
+    }
+  }, [tab]));
 
   const { data: catData } = useQuery({
     queryKey: ['order-categories'],
@@ -574,7 +588,7 @@ export default function StockRequestScreen() {
           onSubmitted={() => { qc.invalidateQueries({ queryKey: ['my-item-requests'] }); setActiveTab('mine'); }}
         />
       ) : (
-        <MyRequests />
+        <MyRequests highlightId={highlightId} />
       )}
     </SafeAreaView>
   );

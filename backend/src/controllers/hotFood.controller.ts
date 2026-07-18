@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
+import { hotFoodOrderUrl } from '../utils/notificationRoutes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -435,6 +436,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     `🔥 New Order #${order.orderNumber}`,
     itemSummary,
     'HOT_FOOD_ORDER',
+    hotFoodOrderUrl(order.id),
   );
 
   res.status(201).json({ success: true, data: order });

@@ -33,3 +33,4 @@ mobile/credentials/
 # Google Play service account key — NEVER commit
 mobile/google-play-service-account.json
 .worktrees/
+.superpowers/
