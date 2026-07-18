@@ -1,4 +1,4 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/Icons';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
+import DisputeTransactionModal from '../../components/DisputeTransactionModal';
 import { format } from 'date-fns';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -19,6 +20,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 export default function HistoryScreen() {
   const [selected, setSelected] = useState<any>(null);
+  const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
     queryKey: ['my-history'],
@@ -172,6 +174,19 @@ export default function HistoryScreen() {
                 </View>
               ) : null}
 
+              {selected.receiptImageUrl ? (
+                <Image source={{ uri: selected.receiptImageUrl }} style={d.receiptImg} resizeMode="cover" />
+              ) : null}
+
+              <TouchableOpacity
+                style={d.disputeBtn}
+                onPress={() => { setDisputeTarget(selected); setSelected(null); }}
+                accessibilityRole="button"
+                accessibilityLabel="Dispute this transaction"
+              >
+                <Text style={d.disputeBtnText}>Dispute This Transaction</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={d.closeBtn}
                 onPress={() => setSelected(null)}
@@ -184,6 +199,12 @@ export default function HistoryScreen() {
           </View>
         </Modal>
       )}
+
+      <DisputeTransactionModal
+        visible={!!disputeTarget}
+        onClose={() => setDisputeTarget(null)}
+        transaction={disputeTarget}
+      />
     </View>
   );
 }
@@ -256,6 +277,13 @@ const d = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingVertical: 6 },
   rowLabel: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
   rowValue: { fontSize: 14, color: COLORS.text, fontWeight: '700', textAlign: 'right', flex: 1, marginLeft: 16 },
+  receiptImg: { width: '100%', height: 180, borderRadius: 16, marginTop: 12, backgroundColor: COLORS.border },
+  disputeBtn: {
+    marginTop: 16, width: '100%', backgroundColor: 'transparent',
+    borderRadius: 16, padding: 16, alignItems: 'center',
+    borderWidth: 1.5, borderColor: COLORS.error,
+  },
+  disputeBtnText: { color: COLORS.error, fontSize: 15, fontWeight: '800' },
   closeBtn: {
     marginTop: 16, width: '100%', backgroundColor: COLORS.primary,
     borderRadius: 16, padding: 16, alignItems: 'center',
