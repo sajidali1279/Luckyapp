@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
 import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
@@ -523,7 +524,10 @@ router.patch('/admin/notices/:id',   authenticate, requireRole(Role.SUPER_ADMIN)
 router.delete('/admin/notices/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteNotice);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
-router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     submitDispute);
+// Scoped to this one route (not app.use('/api/disputes', ...)) so it only limits
+// customer submissions, not admin/manager reads sharing the same path prefix.
+const disputeSubmitRateLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { success: false, error: 'Too many dispute submissions — try again in 1 hour' } });
+router.post('/disputes',                          authenticate, requireRole(Role.CUSTOMER),     disputeSubmitRateLimit, submitDispute);
 router.get('/disputes/mine',                      authenticate, requireRole(Role.CUSTOMER),     getMyDisputes);
 router.get('/disputes/store/:storeId',            authenticate, requireRole(Role.STORE_MANAGER), getStoreDisputes);
 router.get('/disputes/store/:storeId/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getStorePendingDisputeCount); // Badge count

@@ -45,7 +45,11 @@ app.use(cors(corsOptions));
 
 // Rate limiting — prevent brute force
 // Most sensitive: login and PIN reset (brute-force targets)
-app.use('/api/disputes',        rateLimit({ windowMs: 60 * 60 * 1000, max:  5, message: { success: false, error: 'Too many dispute submissions — try again in 1 hour' } }));
+// NOTE: dispute-submission rate limiting lives on the specific POST /api/disputes
+// route in routes/index.ts, not here — app.use('/api/disputes', ...) would match
+// every method/sub-path under that prefix (GET /disputes/all, /pending-count,
+// /mine, etc.), starving normal admin reads on the same 5-per-hour budget meant
+// only for customer submission abuse.
 app.use('/api/auth/login',      rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { success: false, error: 'Too many login attempts — try again in 15 minutes' } }));
 app.use('/api/auth/register',   rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { success: false, error: 'Too many registrations from this IP' } }));
 // General auth routes: 30 per 15min (covers /auth/me, push-token, etc.)
