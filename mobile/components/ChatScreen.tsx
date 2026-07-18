@@ -1,57 +1,19 @@
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Animated,
+  Animated, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
-import { chatApi, noticesApi } from '../services/api';
+import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
-import { MessageCircleIcon, ArrowUpIcon, XIcon } from './Icons';
-
-const DISMISSED_NOTICES_KEY = 'dismissed-admin-notices';
-
-interface Notice {
-  id: string;
-  title: string;
-  body: string;
-  storeId: string | null;
-}
-
-function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <TouchableOpacity
-      style={s.noticeBanner}
-      onPress={() => setExpanded((v) => !v)}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={`Important notice: ${notice.title}. ${notice.body}`}
-    >
-      <View style={s.noticeIconWrap}>
-        <Text style={{ fontSize: 16 }}>📌</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.noticeTitle}>{notice.title}</Text>
-        <Text style={s.noticeBody} numberOfLines={expanded ? undefined : 2}>{notice.body}</Text>
-      </View>
-      <TouchableOpacity
-        onPress={onDismiss}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        style={s.noticeDismiss}
-        accessibilityRole="button"
-        accessibilityLabel="Dismiss notice"
-      >
-        <XIcon size={16} color="#92400e" strokeWidth={2.5} />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-}
+import ModalCloseButton from './ModalCloseButton';
+import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
+import NoticeBanner, { usePinnedNotice } from './NoticeBanner';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -120,6 +82,7 @@ export default function ChatScreen() {
   const { user } = useAuthStore();
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -134,29 +97,7 @@ export default function ChatScreen() {
     queryFn: () => chatApi.getMyStores(),
   });
 
-  const { data: noticesData } = useQuery({
-    queryKey: ['active-notices'],
-    queryFn: () => noticesApi.getActive(),
-    staleTime: 60_000,
-  });
-  const allNotices: Notice[] = noticesData?.data?.data || [];
-  const relevantNotices = allNotices.filter((n) => !n.storeId || n.storeId === selectedStoreId);
-
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    AsyncStorage.getItem(DISMISSED_NOTICES_KEY).then((raw) => {
-      if (raw) { try { setDismissedIds(new Set(JSON.parse(raw))); } catch {} }
-    });
-  }, []);
-  const visibleNotice = relevantNotices.find((n) => !dismissedIds.has(n.id));
-  function dismissNotice(id: string) {
-    setDismissedIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      AsyncStorage.setItem(DISMISSED_NOTICES_KEY, JSON.stringify([...next]));
-      return next;
-    });
-  }
+  const { notice: visibleNotice, dismiss: dismissNotice } = usePinnedNotice(selectedStoreId);
 
   useEffect(() => {
     const s: Store[] = storesData?.data?.data || [];
@@ -340,12 +281,22 @@ export default function ChatScreen() {
         {/* ── Header ── */}
         <View style={[s.headerGradient, { backgroundColor: gradientPair[0] }]}>
           <SafeAreaView edges={['top']}>
-            <View style={s.headerRow}>
+            <TouchableOpacity
+              style={s.headerRow}
+              activeOpacity={stores.length > 1 ? 0.75 : 1}
+              onPress={() => stores.length > 1 && setSwitcherOpen(true)}
+              disabled={stores.length <= 1}
+              accessibilityRole={stores.length > 1 ? 'button' : undefined}
+              accessibilityLabel={stores.length > 1 ? `Currently viewing ${selectedStore?.name}. Tap to switch store.` : undefined}
+            >
               <View style={s.headerAvatar}>
                 <Text style={s.headerAvatarText}>{selectedStore?.name?.[0]?.toUpperCase() ?? '?'}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.headerTitle}>{selectedStore?.name || 'Chat'}</Text>
+                <View style={s.headerTitleRow}>
+                  <Text style={s.headerTitle} numberOfLines={1}>{selectedStore?.name || 'Chat'}</Text>
+                  {stores.length > 1 && <ChevronDownIcon size={16} color="rgba(255,255,255,0.75)" strokeWidth={2.5} />}
+                </View>
                 <View style={s.headerSubRow}>
                   <View style={[s.onlineDot, pollOffline && s.onlineDotOffline]} />
                   <Text style={s.headerSub}>
@@ -356,31 +307,44 @@ export default function ChatScreen() {
               <View style={s.msgCountBadge}>
                 <Text style={s.msgCountText}>{messages.length}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </View>
 
-            {/* Store picker */}
-            {stores.length > 1 && (
-              <View style={s.storePicker}>
+        {/* ── Store Switcher ── */}
+        <Modal transparent animationType="slide" visible={switcherOpen} onRequestClose={() => setSwitcherOpen(false)}>
+          <View style={s.switcherOverlay}>
+            <View style={s.switcherSheet}>
+              <View style={s.switcherHandle} />
+              <View style={s.switcherHeaderRow}>
+                <Text style={s.switcherTitle}>Switch Store</Text>
+                <ModalCloseButton onPress={() => setSwitcherOpen(false)} label="Close store switcher" color="#6c757d" />
+              </View>
+              <ScrollView style={s.switcherList} showsVerticalScrollIndicator={false}>
                 {stores.map((store, i) => {
                   const active = store.id === selectedStoreId;
                   return (
                     <TouchableOpacity
                       key={store.id}
-                      style={[s.storeTab, active && s.storeTabActive]}
-                      onPress={() => setSelectedStoreId(store.id)}
+                      style={[s.switcherRow, active && s.switcherRowActive]}
+                      onPress={() => { setSelectedStoreId(store.id); setSwitcherOpen(false); }}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Switch to ${store.name}${active ? ', currently selected' : ''}`}
                     >
-                      <View style={[s.storeTabDot, { backgroundColor: STORE_GRADIENT_PAIRS[i % STORE_GRADIENT_PAIRS.length][1] }]} />
-                      <Text style={[s.storeTabText, active && s.storeTabTextActive]} numberOfLines={1}>
-                        {store.name}
-                      </Text>
+                      <View style={[s.switcherDot, { backgroundColor: STORE_GRADIENT_PAIRS[i % STORE_GRADIENT_PAIRS.length][1] }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.switcherName, active && s.switcherNameActive]} numberOfLines={1}>{store.name}</Text>
+                        {store.city ? <Text style={s.switcherCity}>{store.city}</Text> : null}
+                      </View>
+                      {active && <CheckCircleIcon size={20} color={COLORS.primary} strokeWidth={2} />}
                     </TouchableOpacity>
                   );
                 })}
-              </View>
-            )}
-          </SafeAreaView>
-        </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── Pinned Notice ── */}
         {visibleNotice && (
@@ -460,7 +424,8 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
   },
   headerAvatarText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '800', flexShrink: 1 },
   headerSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
   onlineDotOffline: { backgroundColor: '#f59e0b' },
@@ -471,32 +436,28 @@ const s = StyleSheet.create({
   },
   msgCountText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  storePicker: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
-    paddingHorizontal: 16, paddingBottom: 12,
+  // Store switcher (bottom sheet)
+  switcherOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  switcherSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 10, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '70%',
   },
-  storeTab: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    maxWidth: 140,
+  switcherHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb',
+    alignSelf: 'center', marginBottom: 14,
   },
-  storeTabActive: { backgroundColor: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.5)' },
-  storeTabDot: { width: 7, height: 7, borderRadius: 4 },
-  storeTabText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '600', flexShrink: 1 },
-  storeTabTextActive: { color: '#fff' },
-
-  // Pinned notice banner
-  noticeBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: '#fffbeb', borderBottomWidth: 1, borderBottomColor: '#fde68a',
-    paddingHorizontal: 16, paddingVertical: 12,
+  switcherHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  switcherTitle: { fontSize: 16, fontWeight: '800', color: '#111827' },
+  switcherList: { paddingTop: 4 },
+  switcherRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 8, borderRadius: 14,
   },
-  noticeIconWrap: { marginTop: 1 },
-  noticeTitle: { fontSize: 13, fontWeight: '800', color: '#92400e', marginBottom: 2 },
-  noticeBody: { fontSize: 12.5, color: '#78350f', lineHeight: 18 },
-  noticeDismiss: { padding: 2, marginTop: 1 },
+  switcherRowActive: { backgroundColor: '#f3f4f6' },
+  switcherDot: { width: 10, height: 10, borderRadius: 5 },
+  switcherName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  switcherNameActive: { color: COLORS.primary },
+  switcherCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
 
   // Messages
   messageList: { padding: 16, paddingBottom: 10 },

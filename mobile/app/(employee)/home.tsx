@@ -14,6 +14,7 @@ import {
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
   BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
+import NoticeBanner, { usePinnedNotice } from '../../components/NoticeBanner';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -139,6 +140,8 @@ export default function EmployeeHomeScreen() {
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = offersRefetching;
 
+  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(storeId);
+
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
@@ -207,6 +210,10 @@ export default function EmployeeHomeScreen() {
           )}
         </SafeAreaView>
       </Animated.View>
+
+      {pinnedNotice && (
+        <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
