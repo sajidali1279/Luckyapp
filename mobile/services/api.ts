@@ -152,7 +152,7 @@ export const noticesApi = {
 };
 
 export const disputeApi = {
-  submit: (data: { storeId: string; description: string; estimatedAmt?: number }) =>
+  submit: (data: { storeId: string; description: string; estimatedAmt?: number } | { transactionId: string; description: string }) =>
     api.post('/disputes', data),
   getMine: () => api.get('/disputes/mine'),
   // Manager
