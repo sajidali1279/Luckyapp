@@ -396,6 +396,7 @@ model PointsTransaction {
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
   rating      EmployeeRating?
+  disputes    PointsDispute[]
 
   @@index([customerId])
   @@index([storeId])
@@ -1274,6 +1275,7 @@ model PointsDispute {
   id            String        @id @default(uuid())
   customerId    String
   storeId       String
+  transactionId String?
   description   String
   estimatedAmt  Float?
   status        DisputeStatus @default(PENDING)
@@ -1283,9 +1285,10 @@ model PointsDispute {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  customer      User          @relation("DisputeSubmitter", fields: [customerId], references: [id], onDelete: Cascade)
-  store         Store         @relation(fields: [storeId], references: [id])
-  resolvedBy    User?         @relation("DisputeResolver", fields: [resolvedById], references: [id])
+  customer      User               @relation("DisputeSubmitter", fields: [customerId], references: [id], onDelete: Cascade)
+  store         Store              @relation(fields: [storeId], references: [id])
+  resolvedBy    User?              @relation("DisputeResolver", fields: [resolvedById], references: [id])
+  transaction   PointsTransaction? @relation(fields: [transactionId], references: [id])
 
   @@index([storeId, status])
   @@index([customerId])
