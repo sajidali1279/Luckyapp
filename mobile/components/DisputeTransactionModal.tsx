@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator,
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform, TextInput,
@@ -32,6 +32,10 @@ export default function DisputeTransactionModal({
 }) {
   const qc = useQueryClient();
   const [desc, setDesc] = useState('');
+
+  useEffect(() => {
+    if (visible) setDesc('');
+  }, [visible]);
 
   const descValid = desc.trim().length >= DESC_MIN && desc.trim().length <= DESC_MAX;
 
