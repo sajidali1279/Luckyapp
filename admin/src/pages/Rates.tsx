@@ -752,7 +752,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15, fontWeight: 600, color: '#6c757d', transition: 'all 0.15s',
   },
   modeBtnActive: {
-    background: '#1D3557', color: '#fff', borderColor: '#1D3557',
+    background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557',
   },
   gasModeHint: { fontSize: 14, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
   liveBadge: {

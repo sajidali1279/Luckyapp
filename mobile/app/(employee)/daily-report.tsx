@@ -17,6 +17,7 @@ import {
   ClockIcon, FlameIcon, GasPumpIcon,
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -521,7 +522,7 @@ export default function DailyReportScreen() {
   const allStores: StoreOption[] = storesData?.data?.data || [];
 
   // Today's reports
-  const { data: reportData, isLoading, refetch } = useQuery({
+  const { data: reportData, isLoading, isError, refetch } = useQuery({
     queryKey: ['daily-reports-today', storeId, date],
     queryFn: () => dailyReportApi.getToday(storeId!, date),
     enabled: !!storeId,
@@ -565,8 +566,11 @@ export default function DailyReportScreen() {
           {/* Today's submissions */}
           {isLoading ? (
             <View style={s.loadingBox}>
-              <ActivityIndicator color={COLORS.secondary} />
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={s.loadingText}>Loading today's submissions…</Text>
             </View>
+          ) : isError ? (
+            <ErrorState message="Failed to load today's submissions." onRetry={() => refetch()} />
           ) : reports.length > 0 ? (
             <>
               <Text style={s.sectionLabel}>
@@ -624,7 +628,8 @@ const s = StyleSheet.create({
 
   sectionLabel: { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, marginBottom: 4 },
 
-  loadingBox: { paddingTop: 40, alignItems: 'center' },
+  loadingBox: { paddingTop: 40, alignItems: 'center', gap: 12 },
+  loadingText: { color: COLORS.textMuted, fontSize: 14 },
   emptyBox: { alignItems: 'center', paddingTop: 48, gap: 8 },
   emptyEmoji: { fontSize: 44 },
   emptyTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text },

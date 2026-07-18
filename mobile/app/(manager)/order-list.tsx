@@ -1230,7 +1230,7 @@ export default function ManagerOrderListScreen() {
   const [instructionsDraft,   setInstructionsDraft]   = useState('');
 
   // ── Stores ───────────────────────────────────────────────────────────────
-  const { data: storesData } = useQuery({
+  const { data: storesData, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: storesApi.accessible,
     staleTime: 5 * 60 * 1000,
@@ -1432,7 +1432,9 @@ export default function ManagerOrderListScreen() {
       </ManagerHeader>
 
       {/* Content */}
-      {!selectedStoreId ? (
+      {storesError ? (
+        <ErrorState message="Failed to load your stores." onRetry={() => refetchStores()} />
+      ) : !selectedStoreId ? (
         <View style={s.center}>
           <PackageIcon size={48} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyTitle}>Select a store above</Text>
