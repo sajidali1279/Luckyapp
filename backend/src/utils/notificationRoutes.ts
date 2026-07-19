@@ -40,8 +40,8 @@ export function gasPriceUrlEmployee(): string {
 export function shiftRequestUrlEmployee(): string {
   return '/(employee)/requests';
 }
-export function storeRequestUrlEmployee(): string {
-  return '/(employee)/requests';
+export function storeRequestUrlEmployee(requestId: string): string {
+  return withHighlight('/(employee)/requests', requestId);
 }
 export function scheduleUrl(): string {
   return '/(employee)/schedule';
@@ -60,8 +60,9 @@ export function stockRequestUrlManager(requestId: string): string {
 export function productRequestUrlManager(requestId: string): string {
   return `/(manager)/requests?tab=products&highlightId=${requestId}`;
 }
-export function alertUrlManager(): string {
-  return '/(manager)/home';
+export function alertUrlManager(requestId?: string): string {
+  const base = '/(manager)/requests?tab=alerts';
+  return requestId ? `${base}&highlightId=${requestId}` : base;
 }
 
 // ─── Admin web ──────────────────────────────────────────────────────────────
