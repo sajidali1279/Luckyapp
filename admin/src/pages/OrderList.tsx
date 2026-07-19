@@ -157,6 +157,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
   const [showSugg, setShowSugg]   = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lineActions, setLineActions] = useState<Record<string, 'ACCEPT' | 'REJECT' | null>>({});
+  const [quickSearch, setQuickSearch] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -179,6 +180,9 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
     enabled: canEdit,
   });
   const quickItems: QuickItem[] = (quickData as any)?.data?.data || [];
+  const filteredQuickItems = quickSearch.trim()
+    ? quickItems.filter(item => item.name.toLowerCase().includes(quickSearch.trim().toLowerCase()))
+    : quickItems;
 
   const addMut = useMutation({
     mutationFn: (data: { name: string; quantity?: string; category?: string }) =>
@@ -286,20 +290,34 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       {canEdit && quickItems.length > 0 && (
         <div style={p.section}>
           <div style={p.sectionLabel}>Quick Add</div>
-          <div style={p.quickGrid}>
-            {quickItems.map(item => (
-              <button
-                key={item.name}
-                style={p.quickTile}
-                onClick={() => quickAdd(item)}
-                disabled={addMut.isPending}
-                title={`Add ${item.name}${item.category ? ' — ' + item.category : ''}`}
-              >
-                <span style={p.tileName}>{item.name}</span>
-                {item.category && <span style={p.tileCat}>{item.category}</span>}
-              </button>
-            ))}
-          </div>
+          {quickItems.length > 6 && (
+            <input
+              style={p.quickSearchInput}
+              value={quickSearch}
+              onChange={e => setQuickSearch(e.target.value)}
+              placeholder={`Search ${quickItems.length} items…`}
+            />
+          )}
+          {filteredQuickItems.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#94A3B8', padding: '8px 0' }}>No matches.</div>
+          ) : (
+            <div style={p.quickGridScroll}>
+              <div style={p.quickGrid}>
+                {filteredQuickItems.map(item => (
+                  <button
+                    key={item.name}
+                    style={p.quickTile}
+                    onClick={() => quickAdd(item)}
+                    disabled={addMut.isPending}
+                    title={`Add ${item.name}${item.category ? ' — ' + item.category : ''}`}
+                  >
+                    <span style={p.tileName}>{item.name}</span>
+                    {item.category && <span style={p.tileCat}>{item.category}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -680,11 +698,27 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       {/* Two-column body */}
       <div style={s.detailBody}>
 
-        {/* Left: item list */}
+        {/* Left: Restore Items (closed lists, DevAdmin only) + Quick Add Panel */}
+        <div style={s.addCol}>
+          {list.status === 'CLOSED' && canEdit && (
+            <div style={{ marginBottom: 16 }}>
+              <RestoreItemsPanel list={list} />
+            </div>
+          )}
+          <QuickAddPanel
+            list={list}
+            onItemAdded={onListChanged}
+            pendingRequests={pendingRequests}
+            onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
+            canEdit={canEdit && isOpen}
+          />
+        </div>
+
+        {/* Right: item list */}
         <div style={s.itemsCol}>
           {grouped.length === 0 ? (
             <div style={s.empty}>
-              No items yet.{canEdit && isOpen ? ' Use the panel on the right to add items.' : ''}
+              No items yet.{canEdit && isOpen ? ' Use the panel on the left to add items.' : ''}
             </div>
           ) : (
             grouped.map(([cat, catItems]) => (
@@ -776,22 +810,6 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
               </div>
             ))
           )}
-        </div>
-
-        {/* Right: Restore Items (closed lists, DevAdmin only) + Quick Add Panel */}
-        <div style={s.addCol}>
-          {list.status === 'CLOSED' && canEdit && (
-            <div style={{ marginBottom: 16 }}>
-              <RestoreItemsPanel list={list} />
-            </div>
-          )}
-          <QuickAddPanel
-            list={list}
-            onItemAdded={onListChanged}
-            pendingRequests={pendingRequests}
-            onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
-            canEdit={canEdit && isOpen}
-          />
         </div>
       </div>
     </div>
@@ -1223,7 +1241,7 @@ const s: Record<string, React.CSSProperties> = {
   openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
 
   // Two-column detail layout
-  detailBody: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' },
+  detailBody: { display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' },
   itemsCol:   { minWidth: 0 },
   addCol:     { position: 'sticky' as const, top: 20 },
 
@@ -1278,6 +1296,11 @@ const p: Record<string, React.CSSProperties> = {
   suggRow:     { padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid #F8FAFC', transition: 'background 0.1s' },
   suggCat:     { fontSize: 12, color: '#94A3B8', marginLeft: 8 },
 
+  quickSearchInput: {
+    width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0',
+    fontSize: 13, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10,
+  },
+  quickGridScroll: { maxHeight: 280, overflowY: 'auto' as const, paddingRight: 2 },
   quickGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   quickTile:   {
     padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC',
