@@ -130,6 +130,7 @@ export default function ManagerRequestsScreen() {
   const [ackNote, setAckNote] = useState('');
 
   // ── Product requests state ──────────────────────────────────────────────────
+  const [productFilter, setProductFilter] = useState<string>('');
   const [respondTarget, setRespondTarget] = useState<ProductRequest | null>(null);
   const [respondStatus, setRespondStatus] = useState<'ACCEPTED' | 'DECLINED'>('ACCEPTED');
   const [respondNote, setRespondNote] = useState('');
@@ -181,6 +182,7 @@ export default function ManagerRequestsScreen() {
   });
   const productRequests: ProductRequest[] = productRequestsData?.data?.data || [];
   const pendingProducts = productRequests.filter(r => r.status === 'PENDING');
+  const displayedProducts = productFilter ? productRequests.filter(r => r.status === productFilter) : productRequests;
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const acknowledgeMutation = useMutation({
@@ -612,6 +614,34 @@ export default function ManagerRequestsScreen() {
             ))}
           </View>
         )}
+
+        {/* Sub-filter (products tab) */}
+        {effectiveStoreId && mainTab === 'products' && (
+          <View style={s.filterRow}>
+            {[
+              { key: '', label: 'All', count: productRequests.length },
+              { key: 'PENDING', label: 'Pending', count: pendingProducts.length },
+              { key: 'ACCEPTED', label: 'Accepted', count: productRequests.filter(r => r.status === 'ACCEPTED').length },
+              { key: 'DECLINED', label: 'Declined', count: productRequests.filter(r => r.status === 'DECLINED').length },
+            ].map(f => (
+              <TouchableOpacity
+                key={f.key}
+                style={[s.filterTab, productFilter === f.key && s.filterTabActive]}
+                onPress={() => setProductFilter(f.key)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                accessibilityRole="tab"
+                accessibilityLabel={`Filter product requests by ${f.label}`}
+              >
+                <Text style={[s.filterTabText, productFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
+                {f.count > 0 && (
+                  <View style={[s.filterCount, productFilter === f.key && s.filterCountActive]}>
+                    <Text style={[s.filterCountText, productFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ManagerHeader>
 
       {/* ── Content ── */}
@@ -666,16 +696,24 @@ export default function ManagerRequestsScreen() {
           </FadeSlideIn>
         )
       ) : (
-        productRequests.length === 0 ? (
+        displayedProducts.length === 0 ? (
           <View style={s.centered}>
-            <View style={{ marginBottom: 12 }}><ShoppingBagIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
-            <Text style={s.emptyTitle}>No product requests</Text>
-            <Text style={s.emptySub}>Customer product requests will appear here</Text>
+            <View style={{ marginBottom: 12 }}>
+              {productFilter === 'PENDING'
+                ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
+                : <ShoppingBagIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
+            </View>
+            <Text style={s.emptyTitle}>{productFilter === 'PENDING' ? 'All clear!' : productFilter ? 'Nothing here' : 'No product requests'}</Text>
+            <Text style={s.emptySub}>
+              {productFilter === 'PENDING' ? 'No pending product requests'
+                : productFilter ? 'No product requests in this category'
+                : 'Customer product requests will appear here'}
+            </Text>
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
             <FlatList
-              data={productRequests} keyExtractor={r => r.id} renderItem={renderProductItem}
+              data={displayedProducts} keyExtractor={r => r.id} renderItem={renderProductItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} />}
             />
