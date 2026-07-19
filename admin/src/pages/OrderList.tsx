@@ -640,8 +640,8 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           {/* Item name */}
                           <span style={s.itemRowName}>{item.name}</span>
 
-                          {/* Priority dot */}
-                          <span style={{ ...s.priorityDot, background: pc.text }} title={pc.label} />
+                          {/* Priority pill */}
+                          <span style={{ ...s.priorityPill, background: pc.bg, color: pc.text }}>{pc.label}</span>
 
                           {/* Qty — click to edit inline */}
                           {isEditingQty ? (
@@ -1285,17 +1285,17 @@ const s: Record<string, React.CSSProperties> = {
   // Item list
   catHeader: { fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, paddingLeft: 4 },
   itemList:  { display: 'flex', flexDirection: 'column', gap: 4 },
-  itemRow:   { background: '#fff', borderRadius: 8, padding: '10px 12px', border: '1px solid #E2E8F0' },
+  itemRow:   { background: '#fff', borderRadius: 8, padding: '12px 16px', border: '1px solid #E2E8F0' },
   itemRowMain: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
   itemRowSub:  { display: 'flex', gap: 10, marginTop: 4, paddingLeft: 4, fontSize: 12, color: '#94A3B8', flexWrap: 'wrap' as const },
   itemRowName: { flex: 1, fontSize: 14, fontWeight: 600, color: '#1E293B', minWidth: 80 },
 
-  statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
+  statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
   qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#F8FAFC', border: '1px solid #E2E8F0', whiteSpace: 'nowrap' as const, flexShrink: 0 },
   qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #3B82F6', fontSize: 13, outline: 'none' },
-  priorityDot:  { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  priorityPill: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, flexShrink: 0 },
   removeBtn:    { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
-  sourceBadge:  { fontSize: 11, color: '#059669', background: '#D1FAE5', padding: '1px 6px', borderRadius: 10 },
+  sourceBadge:  { fontSize: 12, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
 
   // Category table
   catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
