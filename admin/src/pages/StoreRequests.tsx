@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { storeRequestApi, productRequestApi, chatApi } from '../services/api';
+import { Package } from 'lucide-react';
+import { storeRequestApi, productRequestApi, employeeRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -85,6 +86,46 @@ const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fffbeb', ACCEPTED: 
 const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#fde68a', ACCEPTED: '#86efac', DECLINED: '#fecaca' };
 const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#f59e0b', ACCEPTED: '#22c55e', DECLINED: '#ef4444' };
 
+interface StockLine {
+  id: string;
+  name: string;
+  quantity?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  rejectionReason?: string | null;
+  rejectionNote?: string | null;
+}
+
+interface StockRequest {
+  id: string;
+  storeId: string;
+  submittedById: string;
+  status: 'PENDING' | 'REVIEWED';
+  note: string | null;
+  requestType: 'LOW_STOCK' | 'CUSTOMER_REQUEST';
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  submittedBy: { id: string; name: string; role: string };
+  reviewedBy: { id: string; name: string } | null;
+  lines: StockLine[];
+  store: { id: string; name: string };
+}
+
+const STOCK_TYPE_LABELS: Record<string, string> = {
+  LOW_STOCK: 'Low Stock',
+  CUSTOMER_REQUEST: 'Customer Request',
+};
+
+const REJECTION_REASONS = [
+  { value: 'NO_SUPPLIER',   label: 'No supplier' },
+  { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
+  { value: 'IN_STOCK',      label: 'In stock' },
+  { value: 'DUPLICATE',     label: 'Duplicate' },
+  { value: 'OTHER',         label: 'Other' },
+];
+
 function daysLeft(iso: string) {
   const diff = new Date(iso).getTime() - Date.now();
   return Math.max(0, Math.ceil(diff / 86400000));
@@ -109,8 +150,8 @@ export default function StoreRequests() {
   const isStoreManager = user?.role === 'STORE_MANAGER';
 
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'employee' | 'product'>(
-    searchParams.get('tab') === 'product' ? 'product' : 'employee'
+  const [activeTab, setActiveTab] = useState<'alert' | 'stock' | 'product'>(
+    searchParams.get('tab') === 'product' ? 'product' : searchParams.get('tab') === 'stock' ? 'stock' : 'alert'
   );
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(searchParams.get('storeId'));
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -121,6 +162,9 @@ export default function StoreRequests() {
   const [respondTarget, setRespondTarget] = useState<ProductRequest | null>(null);
   const [respondNote, setRespondNote] = useState('');
   const [confirmAcceptTarget, setConfirmAcceptTarget] = useState<ProductRequest | null>(null);
+  const [stockStatusFilter, setStockStatusFilter] = useState<string>('');
+  const [reviewTarget, setReviewTarget] = useState<StockRequest | null>(null);
+  const [lineState, setLineState] = useState<Record<string, { action: 'ACCEPT' | 'REJECT' | null; reason: string; note: string }>>({});
 
   const { data: storesData } = useQuery({
     queryKey: ['chat-stores'],
@@ -148,13 +192,21 @@ export default function StoreRequests() {
   });
   const productRequests: ProductRequest[] = prData?.data?.data || [];
 
+  const { data: stockData, isLoading: stockLoading, isError: stockIsError, refetch: refetchStock } = useQuery({
+    queryKey: ['stock-requests', effectiveStoreId, stockStatusFilter],
+    queryFn: () => employeeRequestApi.getForStore(effectiveStoreId!, stockStatusFilter || undefined),
+    enabled: !!effectiveStoreId && activeTab === 'stock',
+    refetchInterval: 15000,
+  });
+  const stockRequests: StockRequest[] = stockData?.data?.data || [];
+
   useEffect(() => {
     if (!highlightId) return;
     const timer = setTimeout(() => {
       document.querySelector('.ls-highlight-pulse')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 200);
     return () => clearTimeout(timer);
-  }, [highlightId, requests, productRequests]);
+  }, [highlightId, requests, productRequests, stockRequests]);
 
   const respondMutation = useMutation({
     mutationFn: ({ id, status, note }: { id: string; status: 'ACCEPTED' | 'DECLINED'; note: string }) =>
@@ -181,6 +233,39 @@ export default function StoreRequests() {
     onError: () => toast.error('Failed to acknowledge'),
   });
 
+  const reviewMutation = useMutation({
+    mutationFn: ({ requestId, lines }: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
+      employeeRequestApi.reviewRequest(requestId, { lines }),
+    onSuccess: () => {
+      toast.success('Request reviewed — accepted items added to the order list');
+      qc.invalidateQueries({ queryKey: ['stock-requests'] });
+      qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
+      setLineState({});
+      setReviewTarget(null);
+    },
+    onError: () => toast.error('Failed to submit review'),
+  });
+
+  const setLine = (lineId: string, field: 'action' | 'reason' | 'note', value: string) =>
+    setLineState(prev => ({ ...prev, [lineId]: Object.assign({ action: null, reason: 'OTHER', note: '' }, prev[lineId], { [field]: value }) }));
+
+  function acceptAllLines(req: StockRequest) {
+    const pendingLines = req.lines.filter(l => l.status === 'PENDING');
+    if (pendingLines.length === 0) return;
+    reviewMutation.mutate({ requestId: req.id, lines: pendingLines.map(l => ({ id: l.id, action: 'ACCEPT' as const })) });
+  }
+
+  function submitStockReview(req: StockRequest) {
+    const pendingLines = req.lines.filter(l => l.status === 'PENDING');
+    const lines = pendingLines.map(l => {
+      const st = lineState[l.id];
+      if (!st?.action) return null;
+      return { id: l.id, action: st.action, ...(st.action === 'REJECT' ? { rejectionReason: st.reason || 'OTHER', rejectionNote: st.note || undefined } : {}) };
+    }).filter(Boolean) as { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[];
+    if (lines.length === 0) { toast('Select Accept or Reject for at least one item', { icon: 'ℹ️' }); return; }
+    reviewMutation.mutate({ requestId: req.id, lines });
+  }
+
   const pending = requests.filter((r) => r.status === 'PENDING');
   const acknowledged = requests.filter((r) => r.status === 'ACKNOWLEDGED');
   const displayed = statusFilter === 'PENDING' ? pending : statusFilter === 'ACKNOWLEDGED' ? acknowledged : requests;
@@ -188,6 +273,10 @@ export default function StoreRequests() {
   const prPending  = productRequests.filter((r) => r.status === 'PENDING');
   const prResolved = productRequests.filter((r) => r.status !== 'PENDING');
   const prDisplayed = prStatusFilter === 'PENDING' ? prPending : prStatusFilter === 'ACCEPTED' ? productRequests.filter(r => r.status === 'ACCEPTED') : prStatusFilter === 'DECLINED' ? productRequests.filter(r => r.status === 'DECLINED') : productRequests;
+
+  const stockPending   = stockRequests.filter((r) => r.status === 'PENDING');
+  const stockReviewed  = stockRequests.filter((r) => r.status === 'REVIEWED');
+  const stockDisplayed = stockStatusFilter === 'PENDING' ? stockPending : stockStatusFilter === 'REVIEWED' ? stockReviewed : stockRequests;
 
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
   const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
@@ -252,10 +341,15 @@ export default function StoreRequests() {
                 <div style={s.chatHeaderName}>{selectedStore?.name ?? 'Store'}</div>
                 <div style={s.chatHeaderSub}>
                   <span style={s.onlineDot} />
-                  {activeTab === 'employee' ? (
+                  {activeTab === 'alert' ? (
                     <>
                       <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>{pending.length} pending</span>
                       <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>{acknowledged.length} handled</span>
+                    </>
+                  ) : activeTab === 'stock' ? (
+                    <>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.2)', color: '#fff' }}>{stockPending.length} pending</span>
+                      <span style={{ ...s.metaPill, background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}>{stockReviewed.length} reviewed</span>
                     </>
                   ) : (
                     <>
@@ -267,8 +361,12 @@ export default function StoreRequests() {
               </div>
               {/* Tab switcher */}
               <div style={s.tabRow}>
-                <button style={{ ...s.tabBtn, ...(activeTab === 'employee' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('employee')}>
+                <button style={{ ...s.tabBtn, ...(activeTab === 'alert' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('alert')}>
                   🔔 Store Alerts
+                </button>
+                <button style={{ ...s.tabBtn, ...(activeTab === 'stock' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('stock')}>
+                  📦 Stock Requests
+                  {stockPending.length > 0 && <span style={s.tabBadge}>{stockPending.length}</span>}
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'product' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('product')}>
                   🛍️ Product Requests
@@ -277,7 +375,7 @@ export default function StoreRequests() {
               </div>
             </div>
 
-            {activeTab === 'employee' ? (
+            {activeTab === 'alert' ? (
               <>
                 {/* ── Employee filter tabs ── */}
                 <div style={s.subFilterRow}>
@@ -355,6 +453,98 @@ export default function StoreRequests() {
                               </div>
                             ) : !isReadOnly ? (
                               <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}>✅  Mark as Handled</button>
+                            ) : (
+                              <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : activeTab === 'stock' ? (
+              <>
+                {/* ── Stock filter tabs ── */}
+                <div style={s.subFilterRow}>
+                  {[
+                    { key: '',         label: 'All',      count: stockRequests.length },
+                    { key: 'PENDING',  label: 'Pending',  count: stockPending.length },
+                    { key: 'REVIEWED', label: 'Reviewed', count: stockReviewed.length },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      style={{ ...s.subFilterTab, ...(stockStatusFilter === f.key ? s.subFilterTabActive : {}) }}
+                      onClick={() => setStockStatusFilter(f.key)}
+                    >
+                      {f.label}
+                      {f.count > 0 && <span style={{ ...s.subFilterCount, ...(stockStatusFilter === f.key ? s.subFilterCountActive : {}) }}>{f.count}</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Stock List ── */}
+                {stockIsError ? (
+                  <ErrorState onRetry={refetchStock} />
+                ) : stockLoading ? (
+                  <CardSkeleton count={3} />
+                ) : stockDisplayed.length === 0 ? (
+                  <div style={s.emptyState}>
+                    <div style={s.emptyIcon}>{stockStatusFilter === 'PENDING' ? '✅' : '📦'}</div>
+                    <div style={s.emptyTitle}>{stockStatusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</div>
+                    <div style={s.emptySub}>No stock requests in this category</div>
+                  </div>
+                ) : (
+                  <div style={s.list}>
+                    {stockDisplayed.map((req, i) => {
+                      const isDone = req.status === 'REVIEWED';
+                      const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
+                      const acceptedCount = req.lines.filter(l => l.status === 'ACCEPTED').length;
+                      const rejectedCount = req.lines.filter(l => l.status === 'REJECTED').length;
+                      return (
+                        <div key={req.id} className={req.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
+                          <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : '#f59e0b' }} />
+                          <div style={s.cardBody}>
+                            <div style={s.cardTop}>
+                              <div style={{ ...s.typeIconWrap, background: '#eff6ff' }}>
+                                <Package size={22} color="#1D3557" strokeWidth={1.75} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock Request'}</div>
+                                <div style={s.storeMeta}>
+                                  {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
+                                  {req.store?.name ? `  ·  ${req.store.name}` : ''}
+                                </div>
+                              </div>
+                              <div style={s.badgeRow}>
+                                {isDone ? (
+                                  <span style={s.doneBadge}>✓ Reviewed</span>
+                                ) : (
+                                  <span style={{ ...s.prioBadge, background: '#fffbeb', color: '#b45309', borderColor: '#fde68a55' }}>
+                                    <span style={{ ...s.prioBadgeDot, background: '#f59e0b' }} />Pending
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={s.submitterRow}>
+                              <div style={{ ...s.avatar, background: avatarColor }}>{getInitial(req.submittedBy?.name || '?')}</div>
+                              <span style={s.submitterText}><strong>{req.submittedBy?.name}</strong>{'  ·  '}{formatTime(req.createdAt)}</span>
+                            </div>
+                            {req.note && <div style={s.notesBox}>"{req.note}"</div>}
+                            {isDone ? (
+                              <div style={s.ackBox}>
+                                <span style={s.ackIcon}>✅</span>
+                                <div>
+                                  <div style={s.ackBy}>Reviewed by {req.reviewedBy?.name}
+                                    {req.reviewedAt && <span style={s.ackTime}> · {formatTime(req.reviewedAt)}</span>}
+                                  </div>
+                                  <div style={s.ackNote}>
+                                    {acceptedCount} accepted{rejectedCount > 0 ? ` · ${rejectedCount} rejected` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : !isReadOnly ? (
+                              <button style={s.ackBtn} onClick={() => { setReviewTarget(req); setLineState({}); }}>📦  Review Items</button>
                             ) : (
                               <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
@@ -576,6 +766,123 @@ export default function StoreRequests() {
                 onClick={() => acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
               >
                 {acknowledgeMutation.isPending ? 'Saving…' : '✅  Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Review Stock Request Modal ── */}
+      {reviewTarget && (
+        <div style={s.overlay} onClick={() => setReviewTarget(null)}>
+          <div style={{ ...s.modal, width: 520 }} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <div style={s.modalTitle}>Review Stock Request</div>
+              <button style={s.modalClose} onClick={() => setReviewTarget(null)}>✕</button>
+            </div>
+
+            {/* Request preview */}
+            <div style={s.previewCard}>
+              <div style={{ ...s.previewIconWrap, background: '#eff6ff' }}>
+                <Package size={20} color="#1D3557" strokeWidth={1.75} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={s.previewType}>{STOCK_TYPE_LABELS[reviewTarget.requestType] || 'Stock Request'}</div>
+                <div style={s.previewMeta}>
+                  from {reviewTarget.submittedBy?.name} · {reviewTarget.lines.length} item{reviewTarget.lines.length !== 1 ? 's' : ''}
+                </div>
+                {reviewTarget.note && <div style={s.previewNotes}>"{reviewTarget.note}"</div>}
+              </div>
+            </div>
+
+            {reviewTarget.lines.filter(l => l.status === 'PENDING').length > 0 && (
+              <button
+                style={{ ...s.acceptAllBtn, ...(reviewMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
+                disabled={reviewMutation.isPending}
+                onClick={() => acceptAllLines(reviewTarget)}
+              >
+                ✓ Accept All {reviewTarget.lines.filter(l => l.status === 'PENDING').length} Item{reviewTarget.lines.filter(l => l.status === 'PENDING').length !== 1 ? 's' : ''}
+              </button>
+            )}
+
+            <div style={s.reviewLineList}>
+              {reviewTarget.lines.map(line => {
+                const linePending = line.status === 'PENDING';
+                const st = lineState[line.id] || { action: null, reason: 'OTHER', note: '' };
+                return (
+                  <div key={line.id} style={s.reviewLine}>
+                    <div style={s.reviewLineName}>{line.name}</div>
+                    {(line.quantity || line.category || line.notes) && (
+                      <div style={s.reviewLineMeta}>
+                        {line.quantity && `Qty: ${line.quantity}`}
+                        {line.quantity && line.category && ' · '}
+                        {line.category}
+                        {line.notes && `  —  ${line.notes}`}
+                      </div>
+                    )}
+                    {!linePending ? (
+                      <span style={{
+                        ...s.prStatusBadge,
+                        marginTop: 8,
+                        background: line.status === 'ACCEPTED' ? '#f0fdf4' : '#fff1f2',
+                        color: line.status === 'ACCEPTED' ? '#065f46' : '#9f1239',
+                        borderColor: line.status === 'ACCEPTED' ? '#86efac' : '#fecaca',
+                      }}>
+                        {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? ` — ${line.rejectionReason}` : ''}`}
+                      </span>
+                    ) : (
+                      <>
+                        <div style={s.reviewLineActionRow}>
+                          <button
+                            style={{ ...s.reviewLineActionBtn, ...(st.action === 'ACCEPT' ? s.reviewLineActionBtnAccept : {}) }}
+                            onClick={() => setLine(line.id, 'action', 'ACCEPT')}
+                          >
+                            ✓ Accept
+                          </button>
+                          <button
+                            style={{ ...s.reviewLineActionBtn, ...(st.action === 'REJECT' ? s.reviewLineActionBtnReject : {}) }}
+                            onClick={() => setLine(line.id, 'action', 'REJECT')}
+                          >
+                            ✕ Reject
+                          </button>
+                        </div>
+                        {st.action === 'REJECT' && (
+                          <div>
+                            <div style={s.reasonChipRow}>
+                              {REJECTION_REASONS.map(rr => (
+                                <button
+                                  key={rr.value}
+                                  style={{ ...s.reasonChip, ...(st.reason === rr.value ? s.reasonChipActive : {}) }}
+                                  onClick={() => setLine(line.id, 'reason', rr.value)}
+                                >
+                                  {rr.label}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              style={s.reasonNoteInput}
+                              value={st.note}
+                              onChange={(e) => setLine(line.id, 'note', e.target.value)}
+                              placeholder="Optional note..."
+                              maxLength={300}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setReviewTarget(null)}>Cancel</button>
+              <button
+                style={{ ...s.confirmBtn, ...(reviewMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
+                disabled={reviewMutation.isPending}
+                onClick={() => submitStockReview(reviewTarget)}
+              >
+                {reviewMutation.isPending ? 'Submitting…' : '✅  Submit Review'}
               </button>
             </div>
           </div>
@@ -902,5 +1209,46 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, border: '1.5px solid #fca5a5',
     background: '#fff', color: '#dc2626',
     cursor: 'pointer', fontSize: 15, fontWeight: 700,
+  },
+
+  // ── Stock review modal (per-line accept/reject + rejection-reason chips) ──
+  acceptAllBtn: {
+    alignSelf: 'stretch',
+    padding: '10px 16px', background: '#0f5132',
+    color: '#fff', border: 'none', borderRadius: 10,
+    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    boxShadow: '0 3px 10px rgba(15,81,50,0.3)',
+    transition: 'opacity 0.15s',
+  },
+  reviewLineList: {
+    display: 'flex', flexDirection: 'column', gap: 10,
+    maxHeight: 320, overflowY: 'auto', padding: 2,
+  },
+  reviewLine: {
+    background: '#f8fafc', border: '1px solid #e5e7eb',
+    borderRadius: 12, padding: '12px 14px',
+  },
+  reviewLineName: { fontWeight: 700, fontSize: 14, color: '#111827' },
+  reviewLineMeta: { fontSize: 13, color: '#5a6472', marginTop: 2 },
+  reviewLineActionRow: { display: 'flex', gap: 8, marginTop: 8 },
+  reviewLineActionBtn: {
+    flex: 1, padding: '7px 0', borderRadius: 8,
+    border: '1.5px solid #e5e7eb', background: '#fff',
+    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#5a6472',
+  },
+  reviewLineActionBtnAccept: { background: '#f0fdf4', borderColor: '#86efac', color: '#065f46' },
+  reviewLineActionBtnReject: { background: '#fff1f2', borderColor: '#fecaca', color: '#9f1239' },
+  reasonChipRow: { display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 8 },
+  reasonChip: {
+    padding: '4px 10px', borderRadius: 20,
+    border: '1.5px solid #e5e7eb', background: '#fff',
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#5a6472',
+  },
+  reasonChipActive: { background: '#fff1f2', borderColor: '#dc2626', color: '#dc2626' },
+  reasonNoteInput: {
+    width: '100%', marginTop: 8, padding: '8px 10px', borderRadius: 8,
+    border: '1.5px solid #e5e7eb', fontSize: 13,
+    boxSizing: 'border-box' as const,
+    background: '#fff', color: '#111827', fontFamily: 'inherit',
   },
 };
