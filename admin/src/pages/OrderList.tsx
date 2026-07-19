@@ -761,18 +761,16 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   if (selectedList) {
     return fullListLoading ? (
       <CardSkeleton count={2} />
-    ) : fullList ? (
+    ) : fullListError ? (
+      <ErrorState message="Failed to load this order list." onRetry={refetchFull} />
+    ) : (
       <OrderListDetail
-        list={fullList}
+        list={fullList!}
         canEdit={canEdit}
         canClose={canClose}
         onBack={() => setSelectedList(null)}
         onListChanged={() => { refetch(); refetchFull(); }}
       />
-    ) : fullListError ? (
-      <ErrorState message="Failed to load this order list." onRetry={refetchFull} />
-    ) : (
-      <div style={s.empty}>Failed to load list.</div>
     );
   }
 
