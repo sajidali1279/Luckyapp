@@ -325,7 +325,7 @@ export default function StoreRequests() {
           <div style={s.storeList}>
             <button
               style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
-              onClick={() => setSelectedStoreId(ALL_STORES_ID)}
+              onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
             >
               <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #6b7280)', fontSize: 18 }}>
                 🏬
@@ -397,14 +397,24 @@ export default function StoreRequests() {
               </div>
               {/* Tab switcher */}
               <div style={s.tabRow}>
-                <button style={{ ...s.tabBtn, ...(activeTab === 'alert' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('alert')}>
+                <button
+                  style={{ ...s.tabBtn, ...(activeTab === 'alert' ? s.tabBtnActive : {}), ...(isAllStores ? s.tabBtnDisabled : {}) }}
+                  onClick={() => { if (!isAllStores) setActiveTab('alert'); }}
+                  disabled={isAllStores}
+                  title={isAllStores ? 'Select a single store to view this tab' : undefined}
+                >
                   🔔 Store Alerts
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'stock' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('stock')}>
                   📦 Stock Requests
                   {stockPending.length > 0 && <span style={s.tabBadge}>{stockPending.length}</span>}
                 </button>
-                <button style={{ ...s.tabBtn, ...(activeTab === 'product' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('product')}>
+                <button
+                  style={{ ...s.tabBtn, ...(activeTab === 'product' ? s.tabBtnActive : {}), ...(isAllStores ? s.tabBtnDisabled : {}) }}
+                  onClick={() => { if (!isAllStores) setActiveTab('product'); }}
+                  disabled={isAllStores}
+                  title={isAllStores ? 'Select a single store to view this tab' : undefined}
+                >
                   🛍️ Product Requests
                   {prPending.length > 0 && <span style={s.tabBadge}>{prPending.length}</span>}
                 </button>
@@ -1002,6 +1012,7 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
   },
   tabBtnActive: { background: 'rgba(255,255,255,0.28)', borderColor: 'rgba(255,255,255,0.6)', color: '#fff' },
+  tabBtnDisabled: { opacity: 0.45, cursor: 'not-allowed' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px',

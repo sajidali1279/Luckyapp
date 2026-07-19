@@ -141,8 +141,10 @@ export default function App() {
               <Route path="/order-list" element={<OrderList />} />
               <Route path="/scanned-products" element={<ScannedProducts />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
-              <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
-              <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
+              <Route element={<SuperAdminOnly />}>
+                <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
+                <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
+              </Route>
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>
