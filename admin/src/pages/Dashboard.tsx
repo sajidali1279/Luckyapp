@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
 import ErrorState from '../components/ErrorState';
+import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 
 function greeting() {
   const h = new Date().getHours();
@@ -394,6 +395,7 @@ export default function Dashboard() {
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice();
 
   const { data: offersData, isLoading: loadingOffers, isError: offersError, refetch: refetchOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
   const { data: bannersData, isLoading: loadingBanners, isError: bannersError, refetch: refetchBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
@@ -497,6 +499,13 @@ export default function Dashboard() {
           {isDevAdmin ? '⚡ Dev Admin' : '🏢 Super Admin'}
         </div>
       </div>
+
+      {/* ── Pinned Notice ── */}
+      {pinnedNotice && (
+        <div className="dash-fade-in" style={{ animationDelay: '15ms' }}>
+          <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
+        </div>
+      )}
 
       {/* ── KPI load failure ── */}
       {kpiError && (

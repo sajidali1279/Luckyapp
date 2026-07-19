@@ -99,6 +99,7 @@ export const bannersApi = {
 export const noticesApi = {
   create: (data: { title: string; body: string; storeId?: string; endDate: string }) => api.post('/admin/notices', data),
   getAll: () => api.get('/admin/notices'),
+  getActive: () => api.get('/notices/active'),
   deactivate: (id: string) => api.patch(`/admin/notices/${id}`, {}),
   delete: (id: string) => api.delete(`/admin/notices/${id}`),
 };

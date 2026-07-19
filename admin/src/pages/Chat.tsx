@@ -1,9 +1,11 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ErrorState from '../components/ErrorState';
+import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -68,6 +70,7 @@ function getInitials(name: string) {
 export default function Chat() {
   const { user } = useAuthStore();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [storeFilter, setStoreFilter] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -157,6 +160,12 @@ export default function Chat() {
   const storeIdx = stores.findIndex((s) => s.id === selectedStoreId);
   const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
 
+  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(selectedStoreId);
+
+  const filteredStores = stores.filter((store) =>
+    store.name.toLowerCase().includes(storeFilter.trim().toLowerCase())
+  );
+
   return (
     <div style={s.container}>
       {/* ── Sidebar ── */}
@@ -167,8 +176,25 @@ export default function Chat() {
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
 
+          {stores.length > 5 && (
+            <div style={s.storeSearch}>
+              <Search size={15} style={s.searchIcon} />
+              <input
+                style={s.searchInput}
+                value={storeFilter}
+                onChange={(e) => setStoreFilter(e.target.value)}
+                placeholder="Search stores…"
+                aria-label="Search stores"
+              />
+            </div>
+          )}
+
           <div style={s.storeList}>
-            {stores.map((store, i) => {
+            {filteredStores.length === 0 && (
+              <div style={s.storeListEmpty}>No stores match "{storeFilter}"</div>
+            )}
+            {filteredStores.map((store) => {
+              const i = stores.findIndex((s2) => s2.id === store.id);
               const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
               const isActive = store.id === selectedStoreId;
               return (
@@ -220,6 +246,13 @@ export default function Chat() {
                 <span style={s.chatHeaderBadgeText}>{messages.length} msgs</span>
               </div>
             </div>
+
+            {/* Pinned Notice */}
+            {pinnedNotice && (
+              <div style={s.noticeWrap}>
+                <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
+              </div>
+            )}
 
             {/* Messages */}
             <div style={s.messageList}>
@@ -363,12 +396,15 @@ const s: Record<string, React.CSSProperties> = {
     background: '#f3f4f6',
     borderRadius: 10,
     display: 'flex', alignItems: 'center', gap: 8,
-    cursor: 'text',
   },
-  searchIcon: { fontSize: 15, opacity: 0.5 },
-  searchPlaceholder: { fontSize: 15, color: '#5a6472' },
+  searchIcon: { opacity: 0.5, flexShrink: 0 },
+  searchInput: {
+    flex: 1, border: 'none', outline: 'none', background: 'transparent',
+    fontSize: 14, color: '#212529', fontFamily: 'inherit',
+  },
 
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
+  storeListEmpty: { padding: '20px 14px', fontSize: 13.5, color: '#9ca3af', textAlign: 'center' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
     padding: '9px 10px', background: 'none', border: 'none', cursor: 'pointer',
@@ -425,6 +461,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '4px 12px', backdropFilter: 'blur(4px)',
   },
   chatHeaderBadgeText: { color: '#fff', fontSize: 14, fontWeight: 700 },
+  noticeWrap: { padding: '12px 20px 0', background: '#f8fafc', flexShrink: 0 },
 
   // ── Messages ──
   messageList: {
