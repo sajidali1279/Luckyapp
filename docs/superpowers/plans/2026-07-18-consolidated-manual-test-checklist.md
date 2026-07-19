@@ -55,3 +55,15 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Confirm the new icon shows on the home screen / app switcher
 - [ ] Look closely at the corners — confirm the double-rounding artifact (accepted tradeoff) is acceptable in practice, not worse than expected
 - [ ] Confirm splash screen and Android adaptive icon also updated correctly
+
+## 6. Order List polish (2026-07-18)
+
+- [ ] Add a note when adding a new item on mobile (Quick Add Bar) → confirm it saves and shows on admin web
+- [ ] Add a note when editing an existing PENDING item on mobile → confirm it saves and shows on admin web
+- [ ] Try to edit an ORDERED or RECEIVED item's overflow menu on mobile → confirm "Edit Details" no longer appears (or the whole menu is hidden if nothing's left to offer)
+- [ ] Edit standing instructions on mobile, type near 300 characters → confirm the counter updates live and matches what actually saves
+- [ ] On a store with many locations assigned to one manager, check the store-tab row for a visible scroll-edge fade
+- [ ] While a list is open on mobile, add an item, then check the same list on admin web within 30s without manually refreshing → confirm it appears
+- [ ] On admin web, block popups for the site, then try Print → confirm a clear error toast instead of nothing happening
+- [ ] On admin web, force a detail-load failure (e.g. disconnect network briefly, open a list) → confirm a retry button appears and works
+- [ ] Visually compare the Order Lists tab and Categories tab on admin web → confirm item rows feel visually consistent with category rows
