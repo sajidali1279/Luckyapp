@@ -67,3 +67,20 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] On admin web, block popups for the site, then try Print → confirm a clear error toast instead of nothing happening
 - [ ] On admin web, force a detail-load failure (e.g. disconnect network briefly, open a list) → confirm a retry button appears and works
 - [ ] Visually compare the Order Lists tab and Categories tab on admin web → confirm item rows feel visually consistent with category rows
+
+## 7. Requests hub redesign (2026-07-18)
+
+- [ ] Submit a Store Alert as an employee → confirm the assigned manager gets a push notification that lands on the Alerts tab with the right card pulsing
+- [ ] Acknowledge that alert as a manager → confirm the employee gets a push notification back
+- [ ] Check admin web's notification bell as DevAdmin/SuperAdmin → confirm a pending Stock Request now appears as a card, and clicking it lands on the new Stock tab in the Requests hub with the right one highlighted
+- [ ] On employee mobile, confirm the four alert-type icons (Low Stock/Store Supplies/Customer Asking/Work Order) now match the vector icons used on the manager side, not emoji
+- [ ] Pull down to refresh on each of the manager hub's three tabs (Alerts/Stock/Products) → confirm it actually refetches
+- [ ] On the manager hub's Products tab, confirm a status filter row now exists (All/Pending/Accepted/Declined or similar) and actually filters
+- [ ] Read the one-line explainer text under each of the manager hub's three tabs → confirm it renders and makes sense
+- [ ] On employee Stock Request screen, confirm the Low Stock vs Customer Ask explainer and the order-list lifecycle legend both appear
+- [ ] As a manager assigned to 2+ stores, confirm some kind of "other stores may have pending requests" hint appears when appropriate
+- [ ] On admin web, confirm Order List's page no longer has a "Requests" tab, and the Requests hub (`/store-requests`) now has three tabs: Alerts, Stock, Products
+- [ ] On admin web, use the Stock tab to accept/reject a request → confirm it behaves the same as it used to on the old Order List page (per-line accept/reject, rejection reasons, Accept All)
+- [ ] Check the "Order List" and "Requests" nav badges on admin web → confirm Stock's pending count now shows on "Requests," not "Order List"
+- [ ] Acknowledge a Store Alert or respond to a Product Request on admin web → confirm the sidebar badge count updates immediately, not after up to a minute
+- [ ] Force a Product Requests load failure on admin web → confirm a retry button now appears (previously it silently showed nothing/stale data)
