@@ -184,7 +184,7 @@ export default function StoreRequests() {
   });
   const requests: StoreRequest[] = requestsData?.data?.data || [];
 
-  const { data: prData, isLoading: prLoading } = useQuery({
+  const { data: prData, isLoading: prLoading, isError: prIsError, refetch: refetchProducts } = useQuery({
     queryKey: ['product-requests', effectiveStoreId, prStatusFilter],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!, prStatusFilter || undefined),
     enabled: !!effectiveStoreId && activeTab === 'product',
@@ -579,7 +579,9 @@ export default function StoreRequests() {
                 </div>
 
                 {/* ── Product Requests List ── */}
-                {prLoading ? (
+                {prIsError ? (
+                  <ErrorState message="Failed to load product requests." onRetry={refetchProducts} />
+                ) : prLoading ? (
                   <CardSkeleton count={3} />
                 ) : prDisplayed.length === 0 ? (
                   <div style={s.emptyState}>
