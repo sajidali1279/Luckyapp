@@ -76,8 +76,8 @@ export async function getQuickAddItems(req: AuthRequest, res: Response) {
   const results = await prisma.$queryRaw<{ name: string; category: string | null; count: bigint }[]>`
     SELECT oli.name, oli.category, COUNT(*) AS count
     FROM order_list_items oli
-    JOIN order_lists ol ON ol.id = oli.list_id
-    WHERE ol.store_id = ${storeId}
+    JOIN order_lists ol ON ol.id = oli."listId"
+    WHERE ol."storeId" = ${storeId}
       AND oli.status != 'REMOVED'
     GROUP BY oli.name, oli.category
     ORDER BY count DESC
