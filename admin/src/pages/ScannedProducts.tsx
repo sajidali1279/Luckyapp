@@ -1,0 +1,195 @@
+import { useState, useEffect, CSSProperties } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { scannedProductApi } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
+import ErrorState from '../components/ErrorState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
+
+interface ScannedProduct {
+  id: string;
+  barcode: string;
+  name: string;
+  category: string | null;
+  brand: string | null;
+  source: string;
+  scanCount: number;
+  lastScannedAt: string;
+}
+
+const SOURCE_META: Record<string, { label: string; bg: string; color: string }> = {
+  manual:        { label: 'Manual',           bg: '#e8f0fe', color: '#1D3557' },
+  openfoodfacts: { label: 'Open Food Facts',  bg: '#eaf7ee', color: '#1e7a3d' },
+};
+
+export default function ScannedProducts() {
+  const qc = useQueryClient();
+  const [search, setSearch]         = useState('');
+  const [debSearch, setDebSearch]   = useState('');
+  const [confirmItem, setConfirmItem] = useState<ScannedProduct | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Debounce the search box before it hits the server-side `q` filter —
+  // same 250ms setTimeout/cleanup pattern used elsewhere in admin (OrderList.tsx).
+  useEffect(() => {
+    const t = setTimeout(() => setDebSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['scanned-products', debSearch],
+    queryFn: () => scannedProductApi.list(debSearch.trim() || undefined),
+  });
+  const products: ScannedProduct[] = data?.data?.data || [];
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => scannedProductApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+      toast.success('Product removed from catalog');
+      setDeletingId(null);
+    },
+    onError: (e: any) => { toast.error(e.response?.data?.error || 'Failed to remove product'); setDeletingId(null); },
+  });
+
+  function handleDelete(item: ScannedProduct) { setConfirmItem(item); }
+
+  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load scanned products." onRetry={refetch} /></div>;
+
+  return (
+    <div style={s.page}>
+      <ConfirmModal
+        open={!!confirmItem}
+        title="Remove Product"
+        message={`Remove "${confirmItem?.name}" (barcode ${confirmItem?.barcode}) from the catalog? The next scan of this barcode will prompt whoever scans it to name it again.`}
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => {
+          if (confirmItem) { setDeletingId(confirmItem.id); deleteMutation.mutate(confirmItem.id); }
+          setConfirmItem(null);
+        }}
+        onCancel={() => setConfirmItem(null)}
+      />
+      <div style={s.inner}>
+
+        {/* Header */}
+        <div style={s.pageHeader}>
+          <div>
+            <h1 style={s.pageTitle}>📦 Scanned Products</h1>
+            <p style={s.pageSub}>
+              Chain-wide barcode → name/category/brand catalog built up by managers scanning products on mobile
+              {!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown`}
+            </p>
+          </div>
+          <div style={s.searchWrap}>
+            <span style={s.searchIcon}>🔍</span>
+            <input
+              style={s.searchInput}
+              placeholder="Search by product name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        {isLoading ? (
+          <TableSkeleton columns={7} />
+        ) : products.length === 0 ? (
+          <div style={s.emptyBox}>
+            <div style={s.emptyIcon}>📦</div>
+            <div style={s.emptyTitle}>{search ? 'No matching products' : 'No scanned products yet'}</div>
+            <div style={s.emptySub}>
+              {search ? 'Try a different search term' : 'Products appear here as managers scan barcodes while building order lists on mobile'}
+            </div>
+          </div>
+        ) : (
+          <div style={s.tableWrap}>
+            <Table style={s.table}>
+              <TableHeader>
+                <TableRow>
+                  {['Barcode', 'Name', 'Category', 'Brand', 'Source', 'Scans', 'Last Scanned', ''].map(h => (
+                    <TableHead key={h} style={s.th}>{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((p, i) => {
+                  const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f3f4f6', color: '#4b5563' };
+                  return (
+                    <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                      <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
+                      <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
+                      <TableCell style={s.td}>{p.category || '—'}</TableCell>
+                      <TableCell style={s.td}>{p.brand || '—'}</TableCell>
+                      <TableCell style={s.td}>
+                        <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
+                      </TableCell>
+                      <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
+                      <TableCell style={s.td}>{new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
+                      <TableCell style={s.td}>
+                        <button
+                          style={s.deleteBtn}
+                          onClick={() => handleDelete(p)}
+                          disabled={deletingId === p.id}
+                        >
+                          {deletingId === p.id ? '…' : 'Delete'}
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const s: Record<string, CSSProperties> = {
+  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
+
+  searchWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
+  searchIcon: { position: 'absolute', left: 12, fontSize: 14, pointerEvents: 'none' },
+  searchInput: {
+    paddingLeft: 36, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
+    borderRadius: 10, border: '1.5px solid #e5e7eb',
+    fontSize: 15, background: '#fff', color: '#111827', minWidth: 240,
+    outline: 'none',
+  },
+
+  tableWrap: {
+    background: '#fff', borderRadius: 14, overflowX: 'auto',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+  },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: {
+    padding: '10px 14px', textAlign: 'left',
+    fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+  },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
+  sourceBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
+  deleteBtn: {
+    background: '#fff0f0', color: '#c53030', border: 'none',
+    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+  },
+
+  emptyBox: {
+    background: '#fff', borderRadius: 16, padding: 60,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
+  },
+  emptyIcon: { fontSize: 56 },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptySub: { color: TEXT_MUTED, fontSize: 14 },
+};

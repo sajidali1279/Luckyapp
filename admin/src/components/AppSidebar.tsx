@@ -47,6 +47,7 @@ import {
   Flame,
   Pin,
   ChevronRight,
+  Barcode,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -379,6 +380,7 @@ export function AppSidebar() {
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
               <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={categoriesPendingCount} />
+              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned Products" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}

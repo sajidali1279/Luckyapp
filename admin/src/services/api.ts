@@ -316,6 +316,11 @@ export const orderCategoriesApi = {
   getPendingCount: () => api.get('/order-categories/admin/pending-count'),
 };
 
+export const scannedProductApi = {
+  list: (q?: string) => api.get('/scanned-products', { params: q ? { q } : undefined }),
+  delete: (id: string) => api.delete(`/scanned-products/${id}`),
+};
+
 export const employeeRequestApi = {
   adminGetAll: (params?: { storeId?: string; status?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');

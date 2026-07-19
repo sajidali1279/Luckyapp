@@ -38,6 +38,7 @@ const Support                = lazy(() => import('./pages/Support'));
 const Leaderboard            = lazy(() => import('./pages/Leaderboard'));
 const Careers                = lazy(() => import('./pages/Careers'));
 const OrderList              = lazy(() => import('./pages/OrderList'));
+const ScannedProducts        = lazy(() => import('./pages/ScannedProducts'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
 const HotFood                = lazy(() => import('./pages/HotFood'));
@@ -138,6 +139,7 @@ export default function App() {
               <Route path="/chat" element={<Chat />} />
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/order-list" element={<OrderList />} />
+              <Route path="/scanned-products" element={<ScannedProducts />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
               <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />

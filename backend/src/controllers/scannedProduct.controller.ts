@@ -59,7 +59,7 @@ export async function saveProduct(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /scanned-products ────────────────────────────────────────────────────
-// DevAdmin only — browse the full catalog (for review/cleanup)
+// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin) — browse the full catalog (for review/cleanup)
 
 export async function listProducts(req: AuthRequest, res: Response) {
   const { q, source } = req.query as { q?: string; source?: string };
@@ -76,7 +76,7 @@ export async function listProducts(req: AuthRequest, res: Response) {
 }
 
 // ─── DELETE /scanned-products/:id ────────────────────────────────────────────
-// DevAdmin only — remove a bad entry
+// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin) — remove a bad entry
 
 export async function deleteProduct(req: AuthRequest, res: Response) {
   const { id } = req.params;
