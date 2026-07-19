@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { StoreRequestType, StoreRequestPriority } from '@prisma/client';
+import { StoreRequestType, StoreRequestPriority, Role } from '@prisma/client';
 import { audit } from '../utils/audit';
+import { sendPushToUser } from '../utils/push';
+import { alertUrlManager, storeRequestUrlEmployee } from '../utils/notificationRoutes';
 
 const PLATFORM_ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN'];
 
@@ -64,6 +66,16 @@ export async function submitRequest(req: AuthRequest, res: Response) {
     details: { type: request.type, priority: request.priority },
     storeId, storeName: request.store.name,
   });
+
+  // Notify store managers
+  const assignments = await prisma.userStoreRole.findMany({
+    where: { storeId },
+    select: { userId: true, user: { select: { role: true } } },
+  });
+  const managerIds = assignments.filter(a => a.user.role === Role.STORE_MANAGER).map(a => a.userId);
+  managerIds.forEach(id =>
+    sendPushToUser(id, '🔔 New Store Alert', `${user.name || 'An employee'} flagged: ${request.type.replace(/_/g, ' ').toLowerCase()}`, 'STORE_REQUEST', alertUrlManager(request.id))
+  );
 
   res.status(201).json({ success: true, data: request });
 }
@@ -168,6 +180,8 @@ export async function acknowledgeRequest(req: AuthRequest, res: Response) {
     details: { type: existing.type, priority: existing.priority, submitterName: existing.submitterName },
     storeId: existing.storeId, storeName: updated.store.name,
   });
+
+  sendPushToUser(updated.submittedById, '✅ Alert Reviewed', 'Your store alert has been handled by your manager.', 'STORE_REQUEST', storeRequestUrlEmployee(requestId));
 
   res.json({ success: true, data: updated });
 }
