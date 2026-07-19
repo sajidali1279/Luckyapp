@@ -71,9 +71,7 @@ export default function Customers() {
 
   const { data: disputesData, isLoading: disputesLoading, isError: disputesError, refetch: refetchDisputes } = useQuery({
     queryKey: ['disputes', disputeStore, disputeStatus],
-    queryFn: () => isSuperAdmin
-      ? disputesApi.getAll({ storeId: disputeStore || undefined, status: disputeStatus || undefined })
-      : disputesApi.getForStore(user?.storeIds?.[0] || '', disputeStatus || undefined),
+    queryFn: () => disputesApi.getAll({ storeId: disputeStore || undefined, status: disputeStatus || undefined }),
     enabled: activeTab === 'disputes',
   });
 
