@@ -139,7 +139,10 @@ function printList(list: OrderList) {
   </body></html>`;
 
   const win = window.open('', '_blank');
-  if (!win) return;
+  if (!win) {
+    toast.error('Popups are blocked — allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
+    return;
+  }
   win.document.write(html);
   win.document.close();
   win.focus();
