@@ -200,6 +200,10 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       toast.success('Done — accepted items added to list');
       setLineActions({});
       setExpandedId(null);
+      // The Requests hub's Stock tab reviews the same underlying requests —
+      // keep it in sync instead of waiting on its own 30s poll.
+      qc.invalidateQueries({ queryKey: ['stock-requests'] });
+      qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       onRequestReviewed();
     },
     onError: () => toast.error('Failed to submit review'),
@@ -827,6 +831,17 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   });
   const fullList: OrderList | null = fullListData?.data?.data || null;
 
+  // Independent of filterStoreId/filterStatus — always the true set of currently-open
+  // lists, so "which stores need a list opened" is correct no matter what's selected above.
+  const { data: openCheckData } = useQuery({
+    queryKey: ['admin-order-lists-open-check'],
+    queryFn: () => orderListApi.adminGetAll({ status: 'OPEN' }),
+    refetchInterval: 30000,
+    enabled: canClose,
+  });
+  const openStoreIds = new Set((openCheckData?.data?.data?.lists || []).map((l: OrderList) => l.store.id));
+  const storesMissingOpenList = canClose ? stores.filter(st => !openStoreIds.has(st.id)) : [];
+
   const refresh = () => { refetch(); setSelectedList(null); };
 
   const openMutation = useMutation({
@@ -834,6 +849,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
     onSuccess: (res) => {
       toast.success('List opened');
       qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+      qc.invalidateQueries({ queryKey: ['admin-order-lists-open-check'] });
       setSelectedList(res.data?.data ?? null);
     },
     onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to open list'),
@@ -857,6 +873,25 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
   return (
     <div>
+      {storesMissingOpenList.length > 0 && (
+        <div style={s.missingBanner}>
+          <div style={s.missingBannerLabel}>
+            ⚠ {storesMissingOpenList.length} store{storesMissingOpenList.length !== 1 ? 's' : ''} with no open list
+          </div>
+          <div style={s.missingChips}>
+            {storesMissingOpenList.map(st => (
+              <button
+                key={st.id}
+                style={s.missingChip}
+                onClick={() => openMutation.mutate(st.id)}
+                disabled={openMutation.isPending}
+              >
+                + {st.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={s.filters}>
         <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
           <option value="">All Stores</option>
@@ -1146,6 +1181,11 @@ const s: Record<string, React.CSSProperties> = {
   refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#64748B', background: '#fff', cursor: 'pointer' },
   pendingBadge: { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 14, fontWeight: 700 },
   approveHint:  { background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10, padding: '10px 16px', fontSize: 14, color: '#065F46', marginBottom: 16, lineHeight: 1.5 },
+
+  missingBanner:      { background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
+  missingBannerLabel: { fontSize: 14, fontWeight: 700, color: '#B45309', marginBottom: 10 },
+  missingChips:       { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
+  missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #F59E0B', color: '#B45309', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
 
   loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
   empty:   { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },

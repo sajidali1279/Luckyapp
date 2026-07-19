@@ -262,6 +262,9 @@ export default function StoreRequests() {
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
+      // Order List's detail view has its own mini review panel for the same
+      // underlying requests — keep it in sync instead of waiting on its 30s poll.
+      qc.invalidateQueries({ queryKey: ['pending-reqs-panel'] });
       setLineState({});
       setReviewTarget(null);
     },

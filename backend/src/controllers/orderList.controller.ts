@@ -415,6 +415,7 @@ export async function adminGetAllLists(req: AuthRequest, res: Response) {
         store:    { select: { id: true, name: true } },
         openedBy: { select: { id: true, name: true } },
         closedBy: { select: { id: true, name: true } },
+        items:    { where: { status: { not: 'REMOVED' } }, select: { status: true } },
         _count:   { select: { items: { where: { status: { not: 'REMOVED' } } } } },
       },
       orderBy: [{ status: 'asc' }, { openedAt: 'desc' }],
