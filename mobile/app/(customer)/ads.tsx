@@ -4,6 +4,7 @@ import {
   ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
@@ -45,11 +46,18 @@ export default function AdsScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: myPromoData } = useQuery({
+  const { data: myPromoData, refetch: refetchMyPromo } = useQuery({
     queryKey: ['my-promo-request'],
     queryFn: () => promotionsApi.getMy(),
   });
   const myPromoStatus: string | undefined = myPromoData?.data?.data?.status;
+
+  // Refetch on every focus so a promo approved elsewhere (or by an admin
+  // moments ago) shows up without waiting out the 5-minute staleTime
+  useFocusEffect(useCallback(() => {
+    refetch();
+    refetchMyPromo();
+  }, [refetch, refetchMyPromo]));
 
   const ads: Ad[] = data?.data?.data ?? [];
 
