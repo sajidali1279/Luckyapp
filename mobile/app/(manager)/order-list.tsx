@@ -250,12 +250,18 @@ interface ItemRowProps {
 
 function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
   const isUrgent = item.priority === 'URGENT' && item.status === 'PENDING';
+  // Backend only allows updateItem while PENDING (orderList.controller.ts) — don't offer
+  // an edit that will fail on save for ORDERED/RECEIVED items.
+  const canEdit = item.status === 'PENDING';
+  const canRemove = item.status !== 'RECEIVED';
+  const hasMenuOptions = canEdit || canRemove;
 
   const showEditMenu = () => {
-    const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [
-      { text: 'Edit Details', onPress: () => onEdit(item) },
-    ];
-    if (item.status !== 'RECEIVED') {
+    const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (canEdit) {
+      buttons.push({ text: 'Edit Details', onPress: () => onEdit(item) });
+    }
+    if (canRemove) {
       buttons.push({ text: 'Remove', style: 'destructive', onPress: () => onRemove(item) });
     }
     buttons.push({ text: 'Cancel', style: 'cancel' });
@@ -303,15 +309,17 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
         ) : (
           <View style={r.donePill}><Text style={r.donePillText}>✓ Done</Text></View>
         )}
-        <TouchableOpacity
-          onPress={showEditMenu}
-          style={r.moreBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel={`More options for ${item.name}`}
-        >
-          <Text style={r.moreBtnText}>···</Text>
-        </TouchableOpacity>
+        {hasMenuOptions && (
+          <TouchableOpacity
+            onPress={showEditMenu}
+            style={r.moreBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={`More options for ${item.name}`}
+          >
+            <Text style={r.moreBtnText}>···</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
