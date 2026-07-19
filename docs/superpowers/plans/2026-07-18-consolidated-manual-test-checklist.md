@@ -94,3 +94,12 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Navigate to the new Scanned Products admin page as DevAdmin, SuperAdmin, and StoreManager → confirm all three can view and delete entries, search works
 - [ ] On a closed order list (view via the Order Lists tab's status filter), as DevAdmin, use the new Restore Items action → confirm it adds the selected items to that store's current open list
 - [ ] Try Restore Items on a store with no currently-open list → confirm a clear error message, not a silent failure
+- [ ] As STORE_MANAGER, try navigating directly to `/notices` by URL → confirm you're redirected/blocked cleanly instead of seeing a broken 403'd page (same class of fix as `/daily-reports` above)
+
+## 9. Order List follow-up fixes (2026-07-19, same day)
+
+- [ ] Close enough lists (or check on a day with several stores lacking one) that at least one store has no currently-open list → confirm a "⚠ N stores with no open list" banner appears above the Order Lists browse tab, with a clickable chip per missing store
+- [ ] Click one of those chips → confirm it opens a list for that store directly (no need to touch the store filter dropdown) and the banner's count drops accordingly
+- [ ] On the Order Lists browse tab (not the detail view), confirm cards now show "X needed"/"X received" stats when applicable, not just the total item count (previously these silently always showed nothing)
+- [ ] From an order list's detail view, accept an employee's stock request via the inline "Employee Requests" panel, then check the Requests hub's Stock tab for that same store → confirm it no longer shows that request as pending (previously could lag up to 30s)
+- [ ] Do the reverse: accept a stock request from the Requests hub's Stock tab, then open that store's order list detail view → confirm the inline panel no longer shows it as pending
