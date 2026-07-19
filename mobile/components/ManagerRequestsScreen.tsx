@@ -515,22 +515,25 @@ export default function ManagerRequestsScreen() {
       >
         {/* Store picker */}
         {stores.length > 1 && (
-          <View style={s.storePickerRow}>
-            {stores.map(st => (
-              <TouchableOpacity
-                key={st.id}
-                style={[s.storeChip, st.id === effectiveStoreId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(st.id)}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                accessibilityRole="tab"
-                accessibilityLabel={`Select store ${st.name}`}
-              >
-                <Text style={[s.storeChipText, st.id === effectiveStoreId && s.storeChipTextActive]}>
-                  {st.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            <View style={s.storePickerRow}>
+              {stores.map(st => (
+                <TouchableOpacity
+                  key={st.id}
+                  style={[s.storeChip, st.id === effectiveStoreId && s.storeChipActive]}
+                  onPress={() => setSelectedStoreId(st.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Select store ${st.name}`}
+                >
+                  <Text style={[s.storeChipText, st.id === effectiveStoreId && s.storeChipTextActive]}>
+                    {st.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={s.scopeHint}>Switch stores to see requests from your other locations</Text>
+          </>
         )}
 
         {/* Main tabs */}
@@ -1020,6 +1023,10 @@ const s = StyleSheet.create({
   storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.5)' },
   storeChipText: { color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: '600' },
   storeChipTextActive: { color: '#fff' },
+  scopeHint: {
+    fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600',
+    paddingHorizontal: 20, marginTop: -4, marginBottom: 8,
+  },
 
   mainTabRow: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 4, gap: 6 },
   mainTab: {
