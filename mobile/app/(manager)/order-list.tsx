@@ -34,6 +34,7 @@ interface OrderListItem {
   name: string;
   quantity?: string;
   category?: string;
+  notes?: string;
   priority: Priority;
   status: ItemStatus;
   source: 'MANAGER' | 'EMPLOYEE_REQUEST';
@@ -357,6 +358,8 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const [showCatSugg,   setShowCatSugg]   = useState(false);
   const [showNewCat,    setShowNewCat]    = useState(false);
   const [showScanner,   setShowScanner]   = useState(false);
+  const [showNote,      setShowNote]      = useState(false);
+  const [note,          setNote]          = useState('');
   const inputRef = useRef<any>(null);
 
   // Quick Pad — top-16 most ordered items for this store
@@ -401,11 +404,13 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   };
 
   const addMutation = useMutation({
-    mutationFn: (d: { name: string; quantity?: string; category?: string; priority?: string }) =>
+    mutationFn: (d: { name: string; quantity?: string; category?: string; priority?: string; notes?: string }) =>
       orderListApi.addItem(listId, d),
     onSuccess: () => {
       setText('');
       setDebouncedText('');
+      setNote('');
+      setShowNote(false);
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
       inputRef.current?.focus();
     },
@@ -427,7 +432,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const handleAdd = () => {
     const { name, quantity } = parseInput(text);
     if (!name) return;
-    addMutation.mutate({ name, quantity, category: category || undefined, priority: 'NORMAL' });
+    addMutation.mutate({ name, quantity, category: category || undefined, priority: 'NORMAL', notes: note.trim() || undefined });
   };
 
   const quickAdd = (item: QuickItem) => {
@@ -554,6 +559,31 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
         </TouchableOpacity>
       </View>
 
+      {/* Note affordance */}
+      {!showNote ? (
+        <TouchableOpacity
+          style={qa.noteToggle}
+          onPress={() => setShowNote(true)}
+          hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+          accessibilityRole="button"
+          accessibilityLabel="Add a note"
+        >
+          <Text style={qa.noteToggleText}>+ Note</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={qa.noteRow}>
+          <TextInput
+            style={qa.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Add a note (optional)"
+            placeholderTextColor="#B0B8C4"
+            maxLength={300}
+            returnKeyType="done"
+          />
+        </View>
+      )}
+
       {/* Quick Pad tiles */}
       {quickItems.length > 0 && (
         <View style={qa.quickPad}>
@@ -603,7 +633,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   );
 }
 
-// ─── Edit Item Sheet (edit-only, no Notes) ────────────────────────────────────
+// ─── Edit Item Sheet ───────────────────────────────────────────────────────────
 
 interface EditItemSheetProps {
   visible: boolean;
@@ -632,6 +662,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
   const [newCatName,     setNewCatName]     = useState('');
   const [newCatSubmitting, setNewCatSubmitting] = useState(false);
   const [priority,       setPriority]       = useState<Priority>(item.priority);
+  const [notes,          setNotes]          = useState(item.notes ?? '');
 
   // Debounce name for API
   useEffect(() => {
@@ -647,6 +678,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       setCategory(item.category || '');
       setCatSearch(item.category || '');
       setPriority(item.priority);
+      setNotes(item.notes ?? '');
     } else {
       setShowNewCat(false);
       setNewCatName('');
@@ -676,6 +708,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       quantity: quantity.trim() || null,
       category: category.trim() || null,
       priority,
+      notes: notes.trim() || null,
     });
   };
 
@@ -749,6 +782,18 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             <Text style={s.label}>Quantity / Amount</Text>
             <TextInput style={s.input} value={quantity} onChangeText={setQuantity}
               placeholder="e.g. 4 gallons, 2 cases" placeholderTextColor={COLORS.textMuted} maxLength={60} />
+
+            {/* Notes */}
+            <Text style={s.label}>Notes</Text>
+            <TextInput
+              style={s.instructionsInput}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="e.g. Get the 12-pack, not singles"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={300}
+              multiline
+            />
 
             {/* Priority */}
             <Text style={s.label}>Priority</Text>
@@ -2043,6 +2088,17 @@ const qa = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 6, elevation: 5,
   },
   addBtnDim: { opacity: 0.4 },
+
+  // Note affordance
+  noteToggle:     { paddingHorizontal: 12, paddingBottom: 8 },
+  noteToggleText: { fontSize: 12, fontWeight: '600', color: COLORS.managerPrimary },
+  noteRow:        { paddingHorizontal: 12, paddingBottom: 10 },
+  noteInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
+    fontSize: 13, color: COLORS.text,
+  },
 
   // Quick Pad
   quickPad: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, borderTopWidth: 1, borderTopColor: '#F1F3F5' },
