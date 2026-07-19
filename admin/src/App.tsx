@@ -116,10 +116,10 @@ export default function App() {
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/banners" element={<Banners />} />
-              <Route path="/notices" element={<Notices />} />
               {/* Scheduling accessible to StoreManager+ */}
               <Route path="/scheduling" element={<Scheduling />} />
               <Route element={<SuperAdminOnly />}>
+                <Route path="/notices" element={<Notices />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/hot-food" element={<HotFood />} />
                 <Route path="/customers" element={<Customers />} />
