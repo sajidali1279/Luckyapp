@@ -853,28 +853,26 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   } catch { /* Gracefully degrade — dispute notifications simply won't appear */ }
 
-  let pendingStoreAlerts: any[] = [];
-  let pendingProductRequests: any[] = [];
-  let pendingStockRequests: any[] = [];
-  try {
-    [pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
-      prisma.storeRequest.findMany({
-        where: { status: 'PENDING' },
-        include: { store: { select: { id: true, name: true } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.productRequest.findMany({
-        where: { status: 'PENDING', expiresAt: { gte: now } },
-        include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.employeeItemRequest.findMany({
-        where: { status: 'PENDING' },
-        include: { store: { select: { id: true, name: true } }, submittedBy: { select: { name: true } }, lines: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
-  } catch { /* Gracefully degrade — request notifications simply won't appear */ }
+  // Each request-type query degrades independently — one failing query no
+  // longer takes the other two down with it (previously a single shared
+  // try/catch dropped all three on any one failure).
+  const [pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
+    prisma.storeRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { store: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.productRequest.findMany({
+      where: { status: 'PENDING', expiresAt: { gte: now } },
+      include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.employeeItemRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { store: { select: { id: true, name: true } }, submittedBy: { select: { name: true } }, lines: true },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+  ]);
 
   const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
 
