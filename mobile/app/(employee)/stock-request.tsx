@@ -195,6 +195,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>🙋 Customer Ask</Text>
           </TouchableOpacity>
         </View>
+        <Text style={f.typeHint}>Low Stock helps track what regularly runs out. Customer Ask flags something a customer specifically wanted.</Text>
 
         {/* Search / add input */}
         <View style={f.searchWrapper}>
@@ -417,6 +418,8 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
     >
+      <Text style={m.legend}>On order list → Ordered → Received tracks your item once a manager accepts it.</Text>
+
       {requests.map((req, reqIndex) => {
         const isExpanded = expandedId === req.id;
         const isPending  = req.status === 'PENDING';
@@ -619,7 +622,7 @@ const s = StyleSheet.create({
 
 // Form styles
 const f = StyleSheet.create({
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
   typeChip: {
     flex: 1, paddingVertical: 10, borderRadius: 12,
     borderWidth: 1.5, borderColor: COLORS.border,
@@ -628,6 +631,7 @@ const f = StyleSheet.create({
   typeChipActive: { borderColor: COLORS.secondary, backgroundColor: '#EEF4FF' },
   typeChipText:       { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
   typeChipTextActive: { color: COLORS.secondary, fontWeight: '700' },
+  typeHint: { fontSize: 11, color: COLORS.textMuted, marginBottom: 14 },
 
   searchWrapper: { marginBottom: 16 },
   searchRow: { flexDirection: 'row', gap: 8 },
@@ -705,6 +709,7 @@ const f = StyleSheet.create({
 
 // My Requests styles
 const m = StyleSheet.create({
+  legend: { fontSize: 11, color: COLORS.textMuted, marginBottom: 10 },
   card:       { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
   cardHead:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
