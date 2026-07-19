@@ -84,3 +84,13 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Check the "Order List" and "Requests" nav badges on admin web → confirm Stock's pending count now shows on "Requests," not "Order List"
 - [ ] Acknowledge a Store Alert or respond to a Product Request on admin web → confirm the sidebar badge count updates immediately, not after up to a minute
 - [ ] Force a Product Requests load failure on admin web → confirm a retry button now appears (previously it silently showed nothing/stale data)
+
+## 8. Admin web cleanup & feature gaps (2026-07-19)
+
+- [ ] As a STORE_MANAGER, try navigating directly to `/daily-reports` and `/daily-tasks` by URL → confirm you're now redirected/blocked cleanly instead of seeing a broken page
+- [ ] As DevAdmin/SuperAdmin, navigate to `/hot-food/menu` and `/hot-food/orders` by URL → confirm a "Coming Soon" placeholder shows instead of the old partial functionality
+- [ ] Confirm the main `/hot-food` page (Orders/Catalog/Availability) still works exactly as before — this plan should not have touched it
+- [ ] On the Requests hub's Stock tab, select "All Stores" → confirm it shows pending stock requests across every store, each labeled with its store name, and that Review Items/Accept All still work correctly
+- [ ] Navigate to the new Scanned Products admin page as DevAdmin, SuperAdmin, and StoreManager → confirm all three can view and delete entries, search works
+- [ ] On a closed order list (view via the Order Lists tab's status filter), as DevAdmin, use the new Restore Items action → confirm it adds the selected items to that store's current open list
+- [ ] Try Restore Items on a store with no currently-open list → confirm a clear error message, not a silent failure
