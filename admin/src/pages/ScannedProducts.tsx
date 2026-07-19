@@ -96,7 +96,7 @@ export default function ScannedProducts() {
 
         {/* Content */}
         {isLoading ? (
-          <TableSkeleton columns={7} />
+          <TableSkeleton columns={8} />
         ) : products.length === 0 ? (
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>📦</div>
