@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity, FlatList, ScrollView,
-  StyleSheet, ActivityIndicator, TextInput, Modal, Alert,
+  StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
 } from 'react-native';
 import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
@@ -149,7 +149,7 @@ export default function ManagerRequestsScreen() {
   const effectiveStoreId = stores.length === 1 ? stores[0]?.id : selectedStoreId;
 
   // ── Queries ──────────────────────────────────────────────────────────────────
-  const { data: requestsData, isLoading: alertsLoading, isError: alertsError, refetch: refetchAlerts } = useQuery({
+  const { data: requestsData, isLoading: alertsLoading, isError: alertsError, refetch: refetchAlerts, isRefetching: alertsRefetching } = useQuery({
     queryKey: ['manager-store-requests', effectiveStoreId, statusFilter],
     queryFn: () => storeRequestApi.getStoreRequests(effectiveStoreId!, statusFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'alerts',
@@ -161,7 +161,7 @@ export default function ManagerRequestsScreen() {
     : statusFilter === 'ACKNOWLEDGED' ? requests.filter(r => r.status === 'ACKNOWLEDGED')
     : requests;
 
-  const { data: empData, isLoading: empLoading, isError: empError, refetch: refetchEmp } = useQuery({
+  const { data: empData, isLoading: empLoading, isError: empError, refetch: refetchEmp, isRefetching: empRefetching } = useQuery({
     queryKey: ['manager-employee-requests', effectiveStoreId, empFilter],
     queryFn: () => employeeRequestApi.forStore(effectiveStoreId!, empFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'stock',
@@ -173,7 +173,7 @@ export default function ManagerRequestsScreen() {
     : empFilter === 'REVIEWED' ? empRequests.filter(r => r.status === 'REVIEWED')
     : empRequests;
 
-  const { data: productRequestsData, isLoading: prLoading, isError: prError, refetch: refetchPr } = useQuery({
+  const { data: productRequestsData, isLoading: prLoading, isError: prError, refetch: refetchPr, isRefetching: prRefetching } = useQuery({
     queryKey: ['manager-product-requests', effectiveStoreId],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!),
     enabled: !!effectiveStoreId && mainTab === 'products',
@@ -475,6 +475,9 @@ export default function ManagerRequestsScreen() {
   const refetchCurrent = mainTab === 'alerts' ? refetchAlerts
     : mainTab === 'stock' ? refetchEmp
     : refetchPr;
+  const isRefetchingCurrent = mainTab === 'alerts' ? alertsRefetching
+    : mainTab === 'stock' ? empRefetching
+    : prRefetching;
 
   // ── Tab config ────────────────────────────────────────────────────────────────
   const TABS: { key: MainTab; icon: (p: { size: number; color: string }) => ReactElement; label: string; badge: number }[] = [
@@ -635,7 +638,11 @@ export default function ManagerRequestsScreen() {
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
-            <FlatList data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+            <FlatList
+              data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem}
+              contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} />}
+            />
           </FadeSlideIn>
         )
       ) : mainTab === 'stock' ? (
@@ -651,7 +658,11 @@ export default function ManagerRequestsScreen() {
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
-            <FlatList data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+            <FlatList
+              data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem}
+              contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} />}
+            />
           </FadeSlideIn>
         )
       ) : (
@@ -663,7 +674,11 @@ export default function ManagerRequestsScreen() {
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
-            <FlatList data={productRequests} keyExtractor={r => r.id} renderItem={renderProductItem} contentContainerStyle={s.list} showsVerticalScrollIndicator={false} />
+            <FlatList
+              data={productRequests} keyExtractor={r => r.id} renderItem={renderProductItem}
+              contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} />}
+            />
           </FadeSlideIn>
         )
       )}
