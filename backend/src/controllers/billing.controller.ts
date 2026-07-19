@@ -7,7 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
-import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl } from '../utils/notificationRoutes';
+import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -855,8 +855,9 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
 
   let pendingStoreAlerts: any[] = [];
   let pendingProductRequests: any[] = [];
+  let pendingStockRequests: any[] = [];
   try {
-    [pendingStoreAlerts, pendingProductRequests] = await Promise.all([
+    [pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
       prisma.storeRequest.findMany({
         where: { status: 'PENDING' },
         include: { store: { select: { id: true, name: true } } },
@@ -865,6 +866,11 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       prisma.productRequest.findMany({
         where: { status: 'PENDING', expiresAt: { gte: now } },
         include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.employeeItemRequest.findMany({
+        where: { status: 'PENDING' },
+        include: { store: { select: { id: true, name: true } }, submittedBy: { select: { name: true } }, lines: true },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
@@ -1022,6 +1028,21 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
+  for (const r of pendingStockRequests) {
+    notifications.push({
+      id: `stock-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Stock Request — ${r.submittedBy?.name || 'Employee'}`,
+      message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      actionUrl: adminStockRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Request',
+    });
+  }
+
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   res.json({ success: true, data: notifications });
@@ -1033,7 +1054,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo  = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingStoreAlerts, pendingProductRequests] = await Promise.all([
+  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
     (prisma.billingRecord as any).findMany({
       where: {
         OR: [
@@ -1071,6 +1092,11 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     prisma.productRequest.findMany({
       where: { status: 'PENDING', expiresAt: { gte: now } },
       include: { customer: { select: { name: true, phone: true } }, store: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => [] as any[]),
+    prisma.employeeItemRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { store: { select: { id: true, name: true } }, submittedBy: { select: { name: true } }, lines: true },
       orderBy: { createdAt: 'desc' },
     }).catch(() => [] as any[]),
   ]);
@@ -1230,6 +1256,21 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       isRead: false,
       severity: 'info',
       actionUrl: adminProductRequestUrl(r.store.id, r.id),
+      actionLabel: 'Review Request',
+    });
+  }
+
+  for (const r of pendingStockRequests) {
+    notifications.push({
+      id: `stock-request-${r.id}`,
+      type: 'REQUEST',
+      category: 'requests',
+      title: `Stock Request — ${r.submittedBy?.name || 'Employee'}`,
+      message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      actionUrl: adminStockRequestUrl(r.store.id, r.id),
       actionLabel: 'Review Request',
     });
   }

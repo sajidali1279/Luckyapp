@@ -75,3 +75,6 @@ export function adminAlertUrl(storeId: string, requestId: string): string {
 export function adminProductRequestUrl(storeId: string, requestId: string): string {
   return `/store-requests?storeId=${storeId}&tab=product&highlightId=${requestId}`;
 }
+export function adminStockRequestUrl(storeId: string, requestId: string): string {
+  return `/store-requests?storeId=${storeId}&tab=stock&highlightId=${requestId}`;
+}
