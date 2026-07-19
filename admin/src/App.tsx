@@ -41,8 +41,7 @@ const OrderList              = lazy(() => import('./pages/OrderList'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
 const HotFood                = lazy(() => import('./pages/HotFood'));
-const HotFoodMenu            = lazy(() => import('./pages/HotFoodMenu'));
-const HotFoodOrders          = lazy(() => import('./pages/HotFoodOrders'));
+const ComingSoon             = lazy(() => import('./pages/ComingSoon'));
 const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 const DailyReports           = lazy(() => import('./pages/DailyReports'));
 const DailyTasks             = lazy(() => import('./pages/DailyTasks'));
@@ -140,8 +139,8 @@ export default function App() {
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/order-list" element={<OrderList />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
-              <Route path="/hot-food/menu" element={<HotFoodMenu />} />
-              <Route path="/hot-food/orders" element={<HotFoodOrders />} />
+              <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
+              <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>
