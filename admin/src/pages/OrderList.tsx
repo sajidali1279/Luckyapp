@@ -1301,14 +1301,14 @@ const p: Record<string, React.CSSProperties> = {
     fontSize: 13, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10,
   },
   quickGridScroll: { maxHeight: 280, overflowY: 'auto' as const, paddingRight: 2 },
-  quickGrid:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
+  quickGrid:   { display: 'flex', flexDirection: 'column' as const, gap: 6 },
   quickTile:   {
-    padding: '10px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC',
+    padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC',
     cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s',
-    display: 'flex', flexDirection: 'column', gap: 2, fontSize: 13,
+    display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13,
   },
-  tileName:    { fontWeight: 700, color: '#1E293B', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  tileCat:     { fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  tileName:    { flex: 1, minWidth: 0, fontWeight: 700, color: '#1E293B', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  tileCat:     { flexShrink: 0, fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
 
   badge:       { padding: '2px 8px', borderRadius: 10, background: '#FEF3C7', color: '#D97706', fontSize: 12, fontWeight: 700 },
 
