@@ -214,6 +214,7 @@ export default function StoreRequests() {
     onSuccess: () => {
       toast.success('Response sent');
       qc.invalidateQueries({ queryKey: ['product-requests'] });
+      qc.invalidateQueries({ queryKey: ['product-requests-pending-count'] });
       setRespondTarget(null);
       setRespondNote('');
     },
@@ -227,6 +228,7 @@ export default function StoreRequests() {
       toast.success('Request acknowledged');
       qc.invalidateQueries({ queryKey: ['store-requests'] });
       qc.invalidateQueries({ queryKey: ['store-requests-count'] });
+      qc.invalidateQueries({ queryKey: ['store-requests-pending-count'] });
       setAckTarget(null);
       setAckNote('');
     },
