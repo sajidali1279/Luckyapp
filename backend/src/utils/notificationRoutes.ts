@@ -60,9 +60,9 @@ export function stockRequestUrlManager(requestId: string): string {
 export function productRequestUrlManager(requestId: string): string {
   return `/(manager)/requests?tab=products&highlightId=${requestId}`;
 }
-export function alertUrlManager(requestId?: string): string {
+export function alertUrlManager(requestId: string): string {
   const base = '/(manager)/requests?tab=alerts';
-  return requestId ? `${base}&highlightId=${requestId}` : base;
+  return `${base}&highlightId=${requestId}`;
 }
 
 // ─── Admin web ──────────────────────────────────────────────────────────────
