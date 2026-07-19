@@ -1029,7 +1029,7 @@ const s = StyleSheet.create({
   mainTabCountText: { color: 'rgba(255,255,255,0.9)', fontSize: 10, fontWeight: '800' },
   mainTabCountTextActive: { color: '#fff' },
 
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 14, paddingTop: 8, gap: 8 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingBottom: 14, paddingTop: 8, gap: 8 },
   filterTab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
