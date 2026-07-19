@@ -7,7 +7,7 @@ import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
-import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminEmployeeRequestUrl, adminProductRequestUrl } from '../utils/notificationRoutes';
+import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -853,10 +853,10 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   } catch { /* Gracefully degrade — dispute notifications simply won't appear */ }
 
-  let pendingEmployeeRequests: any[] = [];
+  let pendingStoreAlerts: any[] = [];
   let pendingProductRequests: any[] = [];
   try {
-    [pendingEmployeeRequests, pendingProductRequests] = await Promise.all([
+    [pendingStoreAlerts, pendingProductRequests] = await Promise.all([
       prisma.storeRequest.findMany({
         where: { status: 'PENDING' },
         include: { store: { select: { id: true, name: true } } },
@@ -992,7 +992,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
-  for (const r of pendingEmployeeRequests) {
+  for (const r of pendingStoreAlerts) {
     notifications.push({
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
@@ -1002,7 +1002,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',
-      actionUrl: adminEmployeeRequestUrl(r.store.id, r.id),
+      actionUrl: adminAlertUrl(r.store.id, r.id),
       actionLabel: 'Review Alert',
     });
   }
@@ -1033,7 +1033,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo  = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingEmployeeRequests, pendingProductRequests] = await Promise.all([
+  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingStoreAlerts, pendingProductRequests] = await Promise.all([
     (prisma.billingRecord as any).findMany({
       where: {
         OR: [
@@ -1204,7 +1204,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     });
   }
 
-  for (const r of pendingEmployeeRequests) {
+  for (const r of pendingStoreAlerts) {
     notifications.push({
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
@@ -1214,7 +1214,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',
-      actionUrl: adminEmployeeRequestUrl(r.store.id, r.id),
+      actionUrl: adminAlertUrl(r.store.id, r.id),
       actionLabel: 'Review Alert',
     });
   }

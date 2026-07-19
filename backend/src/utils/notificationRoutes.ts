@@ -68,7 +68,7 @@ export function alertUrlManager(): string {
 export function adminDisputeUrl(disputeId: string): string {
   return `/customers?tab=disputes&highlightId=${disputeId}`;
 }
-export function adminEmployeeRequestUrl(storeId: string, requestId: string): string {
+export function adminAlertUrl(storeId: string, requestId: string): string {
   return `/store-requests?storeId=${storeId}&tab=employee&highlightId=${requestId}`;
 }
 export function adminProductRequestUrl(storeId: string, requestId: string): string {
