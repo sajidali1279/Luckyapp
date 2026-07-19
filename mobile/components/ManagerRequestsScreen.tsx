@@ -563,84 +563,93 @@ export default function ManagerRequestsScreen() {
 
         {/* Sub-filter (alerts tab) */}
         {effectiveStoreId && mainTab === 'alerts' && (
-          <View style={s.filterRow}>
-            {[
-              { key: '', label: 'All', count: requests.length },
-              { key: 'PENDING', label: 'Pending', count: pending.length },
-              { key: 'ACKNOWLEDGED', label: 'Done', count: requests.length - pending.length },
-            ].map(f => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.filterTab, statusFilter === f.key && s.filterTabActive]}
-                onPress={() => setStatusFilter(f.key)}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                accessibilityRole="tab"
-                accessibilityLabel={`Filter alerts by ${f.label}`}
-              >
-                <Text style={[s.filterTabText, statusFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
-                {f.count > 0 && (
-                  <View style={[s.filterCount, statusFilter === f.key && s.filterCountActive]}>
-                    <Text style={[s.filterCountText, statusFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            <View style={s.filterRow}>
+              {[
+                { key: '', label: 'All', count: requests.length },
+                { key: 'PENDING', label: 'Pending', count: pending.length },
+                { key: 'ACKNOWLEDGED', label: 'Done', count: requests.length - pending.length },
+              ].map(f => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.filterTab, statusFilter === f.key && s.filterTabActive]}
+                  onPress={() => setStatusFilter(f.key)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Filter alerts by ${f.label}`}
+                >
+                  <Text style={[s.filterTabText, statusFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
+                  {f.count > 0 && (
+                    <View style={[s.filterCount, statusFilter === f.key && s.filterCountActive]}>
+                      <Text style={[s.filterCountText, statusFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Quick flags from your team — mark handled once you've dealt with it.</Text>
+          </>
         )}
 
         {/* Sub-filter (stock requests tab) */}
         {effectiveStoreId && mainTab === 'stock' && (
-          <View style={s.filterRow}>
-            {[
-              { key: '', label: 'All', count: empRequests.length },
-              { key: 'PENDING', label: 'Pending', count: pendingEmp.length },
-              { key: 'REVIEWED', label: 'Reviewed', count: empRequests.length - pendingEmp.length },
-            ].map(f => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.filterTab, empFilter === f.key && s.filterTabActive]}
-                onPress={() => setEmpFilter(f.key)}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                accessibilityRole="tab"
-                accessibilityLabel={`Filter stock requests by ${f.label}`}
-              >
-                <Text style={[s.filterTabText, empFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
-                {f.count > 0 && (
-                  <View style={[s.filterCount, empFilter === f.key && s.filterCountActive]}>
-                    <Text style={[s.filterCountText, empFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            <View style={s.filterRow}>
+              {[
+                { key: '', label: 'All', count: empRequests.length },
+                { key: 'PENDING', label: 'Pending', count: pendingEmp.length },
+                { key: 'REVIEWED', label: 'Reviewed', count: empRequests.length - pendingEmp.length },
+              ].map(f => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.filterTab, empFilter === f.key && s.filterTabActive]}
+                  onPress={() => setEmpFilter(f.key)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Filter stock requests by ${f.label}`}
+                >
+                  <Text style={[s.filterTabText, empFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
+                  {f.count > 0 && (
+                    <View style={[s.filterCount, empFilter === f.key && s.filterCountActive]}>
+                      <Text style={[s.filterCountText, empFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Multi-item requests from your team — accepted items get added straight to your Order List.</Text>
+          </>
         )}
 
         {/* Sub-filter (products tab) */}
         {effectiveStoreId && mainTab === 'products' && (
-          <View style={s.filterRow}>
-            {[
-              { key: '', label: 'All', count: productRequests.length },
-              { key: 'PENDING', label: 'Pending', count: pendingProducts.length },
-              { key: 'ACCEPTED', label: 'Accepted', count: productRequests.filter(r => r.status === 'ACCEPTED').length },
-              { key: 'DECLINED', label: 'Declined', count: productRequests.filter(r => r.status === 'DECLINED').length },
-            ].map(f => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.filterTab, productFilter === f.key && s.filterTabActive]}
-                onPress={() => setProductFilter(f.key)}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                accessibilityRole="tab"
-                accessibilityLabel={`Filter product requests by ${f.label}`}
-              >
-                <Text style={[s.filterTabText, productFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
-                {f.count > 0 && (
-                  <View style={[s.filterCount, productFilter === f.key && s.filterCountActive]}>
-                    <Text style={[s.filterCountText, productFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            <View style={s.filterRow}>
+              {[
+                { key: '', label: 'All', count: productRequests.length },
+                { key: 'PENDING', label: 'Pending', count: pendingProducts.length },
+                { key: 'ACCEPTED', label: 'Accepted', count: productRequests.filter(r => r.status === 'ACCEPTED').length },
+                { key: 'DECLINED', label: 'Declined', count: productRequests.filter(r => r.status === 'DECLINED').length },
+              ].map(f => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.filterTab, productFilter === f.key && s.filterTabActive]}
+                  onPress={() => setProductFilter(f.key)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`Filter product requests by ${f.label}`}
+                >
+                  <Text style={[s.filterTabText, productFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
+                  {f.count > 0 && (
+                    <View style={[s.filterCount, productFilter === f.key && s.filterCountActive]}>
+                      <Text style={[s.filterCountText, productFilter === f.key && s.filterCountTextActive]}>{f.count}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Customer requests to carry a specific product.</Text>
+          </>
         )}
       </ManagerHeader>
 
