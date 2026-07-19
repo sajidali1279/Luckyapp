@@ -18,7 +18,7 @@ import {
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
 
-function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
+export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
   switch (type) {
     case 'LOW_STOCK':                   return <PackageIcon {...p} />;

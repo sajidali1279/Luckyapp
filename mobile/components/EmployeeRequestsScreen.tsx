@@ -8,12 +8,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
+import { TypeIcon } from './ManagerRequestsScreen';
 
 const REQUEST_TYPES = [
-  { value: 'LOW_STOCK',                  label: 'Low Stock Alert',  icon: '📦', desc: 'A section or product is running very low', bg: '#eff6ff', color: '#1D3557' },
-  { value: 'STORE_SUPPLIES',             label: 'Store Supplies',   icon: '🧹', desc: 'Bags, cleaning supplies, etc.',             bg: '#fefce8', color: '#b45309' },
-  { value: 'CUSTOMER_REQUESTED_PRODUCT', label: 'Customer Asking',  icon: '🛍️', desc: 'Customer wants something we don\'t have',   bg: '#f0fdf4', color: '#16a34a' },
-  { value: 'WORK_ORDER',                 label: 'Work Order',       icon: '🔧', desc: 'Equipment broken or needs maintenance',      bg: '#fdf4ff', color: '#7c3aed' },
+  { value: 'LOW_STOCK',                  label: 'Low Stock Alert',  desc: 'A section or product is running very low', bg: '#eff6ff', color: '#1D3557' },
+  { value: 'STORE_SUPPLIES',             label: 'Store Supplies',   desc: 'Bags, cleaning supplies, etc.',             bg: '#fefce8', color: '#b45309' },
+  { value: 'CUSTOMER_REQUESTED_PRODUCT', label: 'Customer Asking',  desc: 'Customer wants something we don\'t have',   bg: '#f0fdf4', color: '#16a34a' },
+  { value: 'WORK_ORDER',                 label: 'Work Order',       desc: 'Equipment broken or needs maintenance',      bg: '#fdf4ff', color: '#7c3aed' },
 ];
 
 const PRIORITIES = [
@@ -31,10 +32,6 @@ const TYPE_LABELS: Record<string, string> = {
   STORE_SUPPLIES: 'Store Supplies',
   CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
   WORK_ORDER: 'Work Order',
-};
-
-const TYPE_ICONS: Record<string, string> = {
-  LOW_STOCK: '📦', STORE_SUPPLIES: '🧹', CUSTOMER_REQUESTED_PRODUCT: '🛍️', WORK_ORDER: '🔧',
 };
 
 const TYPE_BG: Record<string, string> = {
@@ -121,7 +118,7 @@ export default function EmployeeRequestsScreen() {
           {/* Top row */}
           <View style={s.cardTop}>
             <View style={[s.typeIconWrap, { backgroundColor: typeBg }]}>
-              <Text style={s.typeIconText}>{TYPE_ICONS[item.type] || '📋'}</Text>
+              <TypeIcon type={item.type} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.typeLabel}>{TYPE_LABELS[item.type] || item.type}</Text>
@@ -297,7 +294,7 @@ export default function EmployeeRequestsScreen() {
                       accessibilityLabel={`Select request type: ${t.label}`}
                     >
                       <View style={[s.typeCardIconWrap, { backgroundColor: active ? t.bg : '#f3f4f6' }]}>
-                        <Text style={s.typeCardEmoji}>{t.icon}</Text>
+                        <TypeIcon type={t.value} color={active ? t.color : '#374151'} />
                       </View>
                       <Text style={[s.typeCardLabel, active && { color: t.color }]}>{t.label}</Text>
                       <Text style={s.typeCardDesc}>{t.desc}</Text>
@@ -434,7 +431,6 @@ const s = StyleSheet.create({
   cardInner: { flex: 1, padding: 14, gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   typeIconWrap: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  typeIconText: { fontSize: 22 },
   typeLabel: { fontSize: 15, fontWeight: '700', color: '#111827' },
   metaText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   prioPill: {
@@ -520,7 +516,6 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center', marginBottom: 2,
   },
-  typeCardEmoji: { fontSize: 22 },
   typeCardLabel: { fontSize: 14, fontWeight: '800', color: '#111827' },
   typeCardDesc: { fontSize: 11, color: '#9ca3af', lineHeight: 15 },
   typeCardCheck: {
