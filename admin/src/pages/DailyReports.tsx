@@ -1,7 +1,6 @@
 import { useState, useMemo, CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { dailyReportApi, storesApi } from '../services/api';
-import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
@@ -148,21 +147,17 @@ function DataCell({ label, value }: { label: string; value: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DailyReports() {
-  const { user } = useAuthStore();
-  const isManager = user?.role === 'STORE_MANAGER';
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [date, setDate] = useState(todayStr());
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
     queryFn: storesApi.getAll,
-    enabled: !isManager,
   });
   const stores: Store[] = storesData?.data?.data ?? [];
   const storeMap = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s.name])), [stores]);
 
-  // Store managers use their own store
-  const storeId = isManager ? (user as any)?.storeIds?.[0] : selectedStoreId;
+  const storeId = selectedStoreId;
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['daily-reports', storeId, date],
@@ -188,18 +183,16 @@ export default function DailyReports() {
 
       {/* Filters */}
       <div style={s.filters}>
-        {!isManager && (
-          <select
-            style={s.select}
-            value={selectedStoreId}
-            onChange={e => setSelectedStoreId(e.target.value)}
-          >
-            <option value="">All Stores</option>
-            {stores.map(st => (
-              <option key={st.id} value={st.id}>{st.name}</option>
-            ))}
-          </select>
-        )}
+        <select
+          style={s.select}
+          value={selectedStoreId}
+          onChange={e => setSelectedStoreId(e.target.value)}
+        >
+          <option value="">All Stores</option>
+          {stores.map(st => (
+            <option key={st.id} value={st.id}>{st.name}</option>
+          ))}
+        </select>
         <input
           type="date"
           style={s.dateInput}

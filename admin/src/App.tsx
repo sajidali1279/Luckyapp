@@ -130,6 +130,8 @@ export default function App() {
                 <Route path="/stores" element={<Stores />} />
                 <Route path="/activity" element={<ActivityLog />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/daily-reports" element={<DailyReports />} />
+                <Route path="/daily-tasks" element={<DailyTasks />} />
               </Route>
               {/* Catalog accessible to both SuperAdmin and DevAdmin */}
               <Route path="/catalog" element={<Catalog />} />
@@ -140,8 +142,6 @@ export default function App() {
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               <Route path="/hot-food/menu" element={<HotFoodMenu />} />
               <Route path="/hot-food/orders" element={<HotFoodOrders />} />
-              <Route path="/daily-reports" element={<DailyReports />} />
-              <Route path="/daily-tasks" element={<DailyTasks />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               <Route element={<DevAdminOnly />}>
