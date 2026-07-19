@@ -1580,6 +1580,9 @@ export default function ManagerOrderListScreen() {
                   placeholder="e.g. Call supplier before ordering dairy"
                   autoFocus
                 />
+                <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>
+                  {instructionsDraft.length}/300
+                </Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                   <TouchableOpacity
                     style={[s.instructionsSaveBtn, instructionsMutation.isPending && { opacity: 0.6 }]}
