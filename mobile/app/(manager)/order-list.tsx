@@ -5,6 +5,7 @@ import {
   Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi, managerApi, scannedProductApi } from '../../services/api';
@@ -1481,6 +1482,30 @@ export default function ManagerOrderListScreen() {
               );
             })}
           </ScrollView>
+
+          {/* Scroll-edge fades — hint that the tab row scrolls */}
+          <View style={s.storeTabFadeLeft} pointerEvents="none">
+            <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+              <Defs>
+                <SvgGradient id="stfL" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#fff" stopOpacity="1" />
+                  <Stop offset="1" stopColor="#fff" stopOpacity="0" />
+                </SvgGradient>
+              </Defs>
+              <Rect width="100%" height="100%" fill="url(#stfL)" />
+            </Svg>
+          </View>
+          <View style={s.storeTabFadeRight} pointerEvents="none">
+            <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+              <Defs>
+                <SvgGradient id="stfR" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#fff" stopOpacity="0" />
+                  <Stop offset="1" stopColor="#fff" stopOpacity="1" />
+                </SvgGradient>
+              </Defs>
+              <Rect width="100%" height="100%" fill="url(#stfR)" />
+            </Svg>
+          </View>
         </View>
       </ManagerHeader>
 
@@ -1759,6 +1784,8 @@ const s = StyleSheet.create({
 
   storeTabs:      { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   storeTabsInner: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  storeTabFadeLeft:  { position: 'absolute', left: 0, top: 0, bottom: 0, width: 20 },
+  storeTabFadeRight: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 20 },
   storeTab:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff' },
   storeTabActive:     { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary },
   storeTabText:       { fontSize: 13, fontWeight: '600', color: COLORS.text },
