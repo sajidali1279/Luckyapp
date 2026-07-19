@@ -398,6 +398,90 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
   );
 }
 
+// ─── Restore Items Panel (closed list → current open list) ──────────────────
+
+function RestoreItemsPanel({ list }: { list: OrderList }) {
+  const qc = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+
+  // Matches mobile HistoryModal's exact filter: undelivered = not yet received, not removed.
+  const restorableItems = list.items?.filter(i => i.status !== 'RECEIVED' && i.status !== 'REMOVED') || [];
+  const selectedCount = Object.values(selectedIds).filter(Boolean).length;
+
+  const restoreMutation = useMutation({
+    mutationFn: (itemIds: string[]) => orderListApi.restoreItems(list.store.id, list.id, itemIds),
+    onSuccess: (res) => {
+      const added = res?.data?.data?.added ?? 0;
+      toast.success(`Restored ${added} item${added !== 1 ? 's' : ''} to ${list.store.name}'s current open list`);
+      setSelectedIds({});
+      // No admin view of "this store's current open list" is cached independently of manual
+      // navigation (admin only reaches a list via the browse table → getById by that list's
+      // own id), so there's nothing stale to refresh there. Invalidate the browse table so its
+      // item counts reflect the newly-added items if the admin browses back to it.
+      qc.invalidateQueries({ queryKey: ['admin-order-lists'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to restore items.'),
+  });
+
+  function toggle(id: string) {
+    setSelectedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function doRestore() {
+    const ids = Object.entries(selectedIds).filter(([, v]) => v).map(([id]) => id);
+    if (ids.length === 0) return;
+    restoreMutation.mutate(ids);
+  }
+
+  return (
+    <div style={p.panel}>
+      <div style={p.section}>
+        <div style={p.sectionLabel}>↺ Restore Items</div>
+        {restorableItems.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#94A3B8', padding: '4px 0' }}>
+            All items on this list were received — nothing to restore.
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, lineHeight: 1.5 }}>
+              Select items that weren't delivered to add them to this store's currently open list.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {restorableItems.map(item => (
+                <label
+                  key={item.id}
+                  style={{ ...p.restoreRow, ...(selectedIds[item.id] ? p.restoreRowSel : {}) }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!selectedIds[item.id]}
+                    onChange={() => toggle(item.id)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <span style={{ flex: 1, fontSize: 13 }}>
+                    <span style={{ fontWeight: 600, color: '#1E293B' }}>{item.name}</span>
+                    {item.quantity && <span style={{ color: '#64748B' }}> · {item.quantity}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button
+              style={{
+                ...p.submitReviewBtn,
+                ...(selectedCount === 0 || restoreMutation.isPending ? p.addBtnDim : {}),
+              }}
+              onClick={doRestore}
+              disabled={selectedCount === 0 || restoreMutation.isPending}
+            >
+              {restoreMutation.isPending ? 'Restoring…' : `Restore ${selectedCount} Item${selectedCount !== 1 ? 's' : ''}`}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Order List Detail (two-column layout) ────────────────────────────────────
 
 function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
@@ -690,8 +774,13 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           )}
         </div>
 
-        {/* Right: Quick Add Panel */}
+        {/* Right: Restore Items (closed lists, DevAdmin only) + Quick Add Panel */}
         <div style={s.addCol}>
+          {list.status === 'CLOSED' && canEdit && (
+            <div style={{ marginBottom: 16 }}>
+              <RestoreItemsPanel list={list} />
+            </div>
+          )}
           <QuickAddPanel
             list={list}
             onItemAdded={onListChanged}
@@ -1171,4 +1260,7 @@ const p: Record<string, React.CSSProperties> = {
   lineBtnAccept:{ background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
   lineBtnReject:{ background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
   submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+
+  restoreRow:    { display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer' },
+  restoreRowSel: { background: '#EFF6FF', borderColor: '#93C5FD' },
 };
