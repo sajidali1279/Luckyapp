@@ -739,6 +739,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
     queryKey: ['admin-order-list-detail', selectedList?.id],
     queryFn: () => orderListApi.getById(selectedList!.id),
     enabled: !!selectedList,
+    refetchInterval: 30000,
   });
   const fullList: OrderList | null = fullListData?.data?.data || null;
 
