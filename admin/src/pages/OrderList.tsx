@@ -738,7 +738,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   });
   const lists: OrderList[] = data?.data?.data?.lists || [];
 
-  const { data: fullListData, isLoading: fullListLoading, refetch: refetchFull } = useQuery({
+  const { data: fullListData, isLoading: fullListLoading, isError: fullListError, refetch: refetchFull } = useQuery({
     queryKey: ['admin-order-list-detail', selectedList?.id],
     queryFn: () => orderListApi.getById(selectedList!.id),
     enabled: !!selectedList,
@@ -769,6 +769,8 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
         onBack={() => setSelectedList(null)}
         onListChanged={() => { refetch(); refetchFull(); }}
       />
+    ) : fullListError ? (
+      <ErrorState message="Failed to load this order list." onRetry={refetchFull} />
     ) : (
       <div style={s.empty}>Failed to load list.</div>
     );
