@@ -8,7 +8,7 @@ import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
-import { alertUrlManager, pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
+import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 
@@ -206,7 +206,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       where: { role: { in: [Role.STORE_MANAGER, Role.SUPER_ADMIN] as any } },
     });
     for (const mgr of managers) {
-      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT', alertUrlManager());
+      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT');
     }
   }
 
