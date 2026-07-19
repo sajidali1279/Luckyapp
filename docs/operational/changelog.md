@@ -7,6 +7,31 @@ Audience indicators: **Customer** · **Employee** · **Manager** · **Admin** ·
 
 ---
 
+## [1.4] "Stocktake" — July 19, 2026
+
+Admin-web focused release: a full parity audit against mobile, a cleanup pass on dead/broken code paths, and several real bugs caught during live testing the same day.
+
+### Added
+- **Admin** — "All Stores" view on the Requests hub's Stock tab, showing pending stock requests across every store at once with a store-name label on each card, instead of requiring a single store to be selected first.
+- **Admin** — New Scanned Products page: search, browse, and delete entries in the chain-wide barcode → name/category/brand catalog that managers build up by scanning on mobile. Reachable by DevAdmin, SuperAdmin, and StoreManager. Includes a manual "+ Add Product" form to seed or correct an entry directly, without waiting for it to be scanned first.
+- **Admin** — Restore Items action on a closed Order List, letting DevAdmin pull undelivered items from a closed list straight onto that store's current open list (previously mobile-only).
+- **Admin** — "⚠ N stores with no open list" banner on the Order Lists tab, with a one-click button per store to open one — previously the only way to find these was checking the store filter one store at a time.
+- **Admin** — Search box for the Order List detail view's Quick Add tiles, once a store has more than 6.
+
+### Changed
+- **Admin** — Order List detail view's two-column layout: the Restore Items / Quick Add panel moved from the right to the left, item list moved to the right.
+- **Admin** — Quick Add tiles switched from a 2-column grid to a single scrollable column, capped at a fixed height instead of growing to fill the page.
+- **Admin** — The two unfinished Hot Food admin pages (Menu Management, Order Board) now show a "Coming Soon" placeholder instead of partially-working functionality, gated the same way as the main Hot Food page.
+
+### Fixed
+- **Admin** — StoreManager could reach `/daily-reports`, `/daily-tasks`, and `/notices` by typing the URL directly, despite those links being hidden from their sidebar — every request 403'd with a broken page. All three now redirect cleanly.
+- **Admin** — Order Lists browse-tab cards always silently showed 0 for "needed"/"received" item counts, regardless of a list's actual contents.
+- **Dev** — Quick Add Pad (the "add from your most-ordered items" tiles on Order List) had been failing silently on every single request since it was introduced over a month ago — a raw SQL query referenced the wrong column names. Verified the fix directly against production data before shipping.
+- **Admin** — Reviewing a stock request from the Order List page and from the Requests hub could show different (stale) pending counts for up to 30 seconds, since the two didn't share a cache-refresh signal.
+- **Dev** — Removed unreachable StoreManager-only code paths in `DailyReports.tsx` and `Customers.tsx` left over from earlier permission changes.
+
+---
+
 ## [1.3] — June 2026
 
 ### Added
