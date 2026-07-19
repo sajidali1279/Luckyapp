@@ -40,6 +40,9 @@ const PRIORITY_BG: Record<string, string> = {
 
 const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2'];
 
+// Sentinel used for the sidebar's "All Stores" entry — never collides with a real store id (cuid).
+const ALL_STORES_ID = '__ALL_STORES__';
+
 const STORE_GRADIENTS = [
   ['#1D3557', '#457B9D'],
   ['#0369a1', '#0ea5e9'],
@@ -176,10 +179,13 @@ export default function StoreRequests() {
     ? stores[0]?.id
     : selectedStoreId;
 
+  // "All Stores" is a Stock-tab-only view (Alerts/Products have no all-stores backend route).
+  const isAllStores = effectiveStoreId === ALL_STORES_ID;
+
   const { data: requestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['store-requests', effectiveStoreId, statusFilter],
     queryFn: () => storeRequestApi.getStoreRequests(effectiveStoreId!, statusFilter || undefined),
-    enabled: !!effectiveStoreId,
+    enabled: !!effectiveStoreId && !isAllStores,
     refetchInterval: 15000,
   });
   const requests: StoreRequest[] = requestsData?.data?.data || [];
@@ -187,18 +193,31 @@ export default function StoreRequests() {
   const { data: prData, isLoading: prLoading, isError: prIsError, refetch: refetchProducts } = useQuery({
     queryKey: ['product-requests', effectiveStoreId, prStatusFilter],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!, prStatusFilter || undefined),
-    enabled: !!effectiveStoreId && activeTab === 'product',
+    enabled: !!effectiveStoreId && !isAllStores && activeTab === 'product',
     refetchInterval: 15000,
   });
   const productRequests: ProductRequest[] = prData?.data?.data || [];
 
-  const { data: stockData, isLoading: stockLoading, isError: stockIsError, refetch: refetchStock } = useQuery({
+  const { data: stockData, isLoading: stockLoadingStore, isError: stockIsErrorStore, refetch: refetchStockStore } = useQuery({
     queryKey: ['stock-requests', effectiveStoreId, stockStatusFilter],
     queryFn: () => employeeRequestApi.getForStore(effectiveStoreId!, stockStatusFilter || undefined),
-    enabled: !!effectiveStoreId && activeTab === 'stock',
+    enabled: !!effectiveStoreId && !isAllStores && activeTab === 'stock',
     refetchInterval: 15000,
   });
-  const stockRequests: StockRequest[] = stockData?.data?.data || [];
+
+  const { data: stockAllData, isLoading: stockLoadingAll, isError: stockIsErrorAll, refetch: refetchStockAll } = useQuery({
+    queryKey: ['stock-requests-all', stockStatusFilter],
+    queryFn: () => employeeRequestApi.adminGetAll({ status: stockStatusFilter || undefined }),
+    enabled: isAllStores && activeTab === 'stock',
+    refetchInterval: 15000,
+  });
+
+  const stockLoading = isAllStores ? stockLoadingAll : stockLoadingStore;
+  const stockIsError = isAllStores ? stockIsErrorAll : stockIsErrorStore;
+  const refetchStock = isAllStores ? refetchStockAll : refetchStockStore;
+  const stockRequests: StockRequest[] = isAllStores
+    ? (stockAllData?.data?.data || [])
+    : (stockData?.data?.data || []);
 
   useEffect(() => {
     if (!highlightId) return;
@@ -241,6 +260,7 @@ export default function StoreRequests() {
     onSuccess: () => {
       toast.success('Request reviewed — accepted items added to the order list');
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
+      qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
       setLineState({});
       setReviewTarget(null);
@@ -282,7 +302,8 @@ export default function StoreRequests() {
 
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
   const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
-  const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
+  const gradient = isAllStores ? ['#374151', '#6b7280'] : (STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0]);
+  const headerName = isAllStores ? 'All Stores' : (selectedStore?.name ?? 'Store');
 
   return (
     <div style={s.page}>
@@ -302,6 +323,19 @@ export default function StoreRequests() {
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
           <div style={s.storeList}>
+            <button
+              style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
+              onClick={() => setSelectedStoreId(ALL_STORES_ID)}
+            >
+              <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #6b7280)', fontSize: 18 }}>
+                🏬
+              </div>
+              <div style={s.storeBtnInfo}>
+                <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? '#1D3557' : '#212529' }}>All Stores</div>
+                <div style={s.storeBtnCity}>Every location</div>
+              </div>
+              {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
+            </button>
             {stores.map((store, i) => {
               const active = store.id === selectedStoreId;
               const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
@@ -338,9 +372,9 @@ export default function StoreRequests() {
           <>
             {/* ── Gradient Header ── */}
             <div style={{ ...s.chatHeader, background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})` }}>
-              <div style={s.chatHeaderAvatar}>{getInitial(selectedStore?.name || '?')}</div>
+              <div style={s.chatHeaderAvatar}>{isAllStores ? '🏬' : getInitial(selectedStore?.name || '?')}</div>
               <div style={s.chatHeaderInfo}>
-                <div style={s.chatHeaderName}>{selectedStore?.name ?? 'Store'}</div>
+                <div style={s.chatHeaderName}>{headerName}</div>
                 <div style={s.chatHeaderSub}>
                   <span style={s.onlineDot} />
                   {activeTab === 'alert' ? (
@@ -515,7 +549,7 @@ export default function StoreRequests() {
                                 <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock Request'}</div>
                                 <div style={s.storeMeta}>
                                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
-                                  {req.store?.name ? `  ·  ${req.store.name}` : ''}
+                                  {isAllStores && req.store?.name ? `  ·  ${req.store.name}` : ''}
                                 </div>
                               </div>
                               <div style={s.badgeRow}>
