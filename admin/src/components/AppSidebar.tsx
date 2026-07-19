@@ -153,7 +153,8 @@ export function AppSidebar() {
   });
   const careersNewCount: number = careersCountData?.data?.data?.count ?? 0;
 
-  // "Requests" nav = store-alert requests + product requests (both tabs of the Requests page)
+  // "Requests" nav = store-alert requests + product requests + stock (employee item) requests
+  // (all three tabs of the Requests hub page)
   const { data: storeRequestsCountData } = useQuery({
     queryKey: ['store-requests-pending-count'],
     queryFn: storeRequestApi.getPendingCount,
@@ -166,10 +167,9 @@ export function AppSidebar() {
     refetchInterval: 60_000,
     retry: false,
   });
-  const requestsPendingCount: number =
-    (storeRequestsCountData?.data?.data?.count ?? 0) + (productRequestsCountData?.data?.data?.count ?? 0);
-
-  // "Order List" nav — employee item requests awaiting review
+  // Global cross-store count of pending EmployeeItemRequests (Stock Requests tab) — not to be
+  // confused with QuickAddPanel's per-list `getForStore(...)` preview inside OrderList.tsx, which
+  // is scoped to whichever single order list is currently open and is a separate, smaller feature.
   const { data: itemRequestsCountData } = useQuery({
     queryKey: ['employee-requests-pending-count'],
     queryFn: employeeRequestApi.getPendingCount,
@@ -177,6 +177,10 @@ export function AppSidebar() {
     retry: false,
   });
   const itemRequestsPendingCount: number = itemRequestsCountData?.data?.data?.count ?? 0;
+  const requestsPendingCount: number =
+    (storeRequestsCountData?.data?.data?.count ?? 0) +
+    (productRequestsCountData?.data?.data?.count ?? 0) +
+    itemRequestsPendingCount;
 
   // "Customers" nav — pending missing-points disputes
   const { data: disputesCountData } = useQuery({
@@ -235,7 +239,7 @@ export function AppSidebar() {
   });
   const hotFoodPendingCount: number = hotFoodCountData?.data?.data?.count ?? 0;
 
-  // "Order List" nav (cont'd) — custom categories awaiting DevAdmin review
+  // "Order List" nav — custom categories awaiting DevAdmin review
   const { data: categoriesCountData } = useQuery({
     queryKey: ['order-categories-pending-count'],
     queryFn: orderCategoriesApi.getPendingCount,
@@ -374,7 +378,7 @@ export function AppSidebar() {
                 <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={itemRequestsPendingCount + categoriesPendingCount} />
+              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={categoriesPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}
