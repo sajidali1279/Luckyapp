@@ -30,6 +30,11 @@ export default function ScannedProducts() {
   const [debSearch, setDebSearch]   = useState('');
   const [confirmItem, setConfirmItem] = useState<ScannedProduct | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newBarcode, setNewBarcode]   = useState('');
+  const [newName, setNewName]         = useState('');
+  const [newCategory, setNewCategory] = useState('');
+  const [newBrand, setNewBrand]       = useState('');
 
   // Debounce the search box before it hits the server-side `q` filter —
   // same 250ms setTimeout/cleanup pattern used elsewhere in admin (OrderList.tsx).
@@ -54,6 +59,32 @@ export default function ScannedProducts() {
     onError: (e: any) => { toast.error(e.response?.data?.error || 'Failed to remove product'); setDeletingId(null); },
   });
 
+  const saveMutation = useMutation({
+    mutationFn: (data: { barcode: string; name: string; category?: string; brand?: string }) => scannedProductApi.save(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+      toast.success('Product saved to catalog');
+      closeAddModal();
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to save product'),
+  });
+
+  function closeAddModal() {
+    setShowAddModal(false);
+    setNewBarcode(''); setNewName(''); setNewCategory(''); setNewBrand('');
+  }
+
+  function submitAdd() {
+    const barcode = newBarcode.trim();
+    const name = newName.trim();
+    if (!barcode || !name) return;
+    saveMutation.mutate({
+      barcode, name,
+      category: newCategory.trim() || undefined,
+      brand: newBrand.trim() || undefined,
+    });
+  }
+
   function handleDelete(item: ScannedProduct) { setConfirmItem(item); }
 
   if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load scanned products." onRetry={refetch} /></div>;
@@ -72,6 +103,66 @@ export default function ScannedProducts() {
         }}
         onCancel={() => setConfirmItem(null)}
       />
+
+      {showAddModal && (
+        <div style={m.overlay} onClick={closeAddModal}>
+          <div style={m.modal} onClick={e => e.stopPropagation()}>
+            <div style={m.header}>
+              <h2 style={m.title}>Add Product</h2>
+              <button style={m.closeBtn} onClick={closeAddModal}>✕</button>
+            </div>
+            <div style={m.form}>
+              <div style={m.label}>Barcode *</div>
+              <input
+                style={m.input}
+                value={newBarcode}
+                onChange={e => setNewBarcode(e.target.value)}
+                placeholder="e.g. 012345678905"
+                maxLength={50}
+                autoFocus
+              />
+              <div style={m.label}>Name *</div>
+              <input
+                style={m.input}
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. Monster Energy 16oz"
+                maxLength={200}
+              />
+              <div style={m.label}>Category</div>
+              <input
+                style={m.input}
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value)}
+                placeholder="Optional — e.g. Drinks"
+                maxLength={100}
+              />
+              <div style={m.label}>Brand</div>
+              <input
+                style={m.input}
+                value={newBrand}
+                onChange={e => setNewBrand(e.target.value)}
+                placeholder="Optional — e.g. Monster"
+                maxLength={100}
+              />
+              <div style={m.hint}>
+                If this barcode is already in the catalog, saving will update its name/category/brand instead of creating a duplicate.
+              </div>
+              <div style={m.actions}>
+                <button style={m.cancelBtn} onClick={closeAddModal}>Cancel</button>
+                <button
+                  style={{ ...m.saveBtn, ...(!newBarcode.trim() || !newName.trim() || saveMutation.isPending ? m.saveBtnDim : {}) }}
+                  onClick={submitAdd}
+                  disabled={!newBarcode.trim() || !newName.trim() || saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? 'Saving…' : 'Save Product'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={s.inner}>
 
         {/* Header */}
@@ -83,14 +174,17 @@ export default function ScannedProducts() {
               {!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown`}
             </p>
           </div>
-          <div style={s.searchWrap}>
-            <span style={s.searchIcon}>🔍</span>
-            <input
-              style={s.searchInput}
-              placeholder="Search by product name…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={s.searchWrap}>
+              <span style={s.searchIcon}>🔍</span>
+              <input
+                style={s.searchInput}
+                placeholder="Search by product name…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <button style={s.addBtn} onClick={() => setShowAddModal(true)}>+ Add Product</button>
           </div>
         </div>
 
@@ -166,6 +260,10 @@ const s: Record<string, CSSProperties> = {
     fontSize: 15, background: '#fff', color: '#111827', minWidth: 240,
     outline: 'none',
   },
+  addBtn: {
+    padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
+    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
@@ -192,4 +290,44 @@ const s: Record<string, CSSProperties> = {
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
+};
+
+const m: Record<string, CSSProperties> = {
+  overlay: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  },
+  modal: {
+    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 480,
+    margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
+    maxHeight: '90vh', overflowY: 'auto',
+  },
+  header: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '20px 24px', borderBottom: '1px solid #eee',
+    position: 'sticky', top: 0, background: '#fff', zIndex: 1,
+  },
+  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  closeBtn: {
+    background: 'none', border: 'none', fontSize: 18,
+    cursor: 'pointer', color: '#888', lineHeight: 1,
+  },
+  form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
+  label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
+  input: {
+    border: '1.5px solid #ddd', borderRadius: 10,
+    padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
+    boxSizing: 'border-box' as const,
+  },
+  hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.5 },
+  actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
+  cancelBtn: {
+    background: '#f4f4f4', border: 'none', borderRadius: 10,
+    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
+  },
+  saveBtn: {
+    background: '#1D3557', color: '#fff', border: 'none',
+    borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+  },
+  saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
 };

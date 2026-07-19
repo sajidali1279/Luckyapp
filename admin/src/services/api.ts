@@ -319,6 +319,8 @@ export const orderCategoriesApi = {
 export const scannedProductApi = {
   list: (q?: string) => api.get('/scanned-products', { params: q ? { q } : undefined }),
   delete: (id: string) => api.delete(`/scanned-products/${id}`),
+  save: (data: { barcode: string; name: string; category?: string; brand?: string }) =>
+    api.post('/scanned-products', data),
 };
 
 export const employeeRequestApi = {
