@@ -219,6 +219,7 @@ const st = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: COLORS.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
