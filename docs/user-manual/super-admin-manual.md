@@ -3,7 +3,7 @@
 **Role:** Super Admin (Lucky Stop HQ)
 **Access Level:** All stores, all features (except billing management)
 **Platform:** Web Admin Portal (admin.luckystop.cliffindus.com) + Mobile App
-**Version:** 1.2 | Last Updated: June 7, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -28,8 +28,12 @@
 17. [Inventory Analytics (Inventory Intelligence)](#17-inventory-analytics-inventory-intelligence)
 18. [Activity Log (Audit Trail)](#18-activity-log-audit-trail)
 19. [Support Tickets](#19-support-tickets)
-20. [Common Tasks — Quick Reference](#20-common-tasks--quick-reference)
-21. [Troubleshooting](#21-troubleshooting)
+20. [Important Notices](#20-important-notices)
+21. [Requests Hub & Procurement](#21-requests-hub--procurement)
+22. [Daily Reports](#22-daily-reports)
+23. [Daily Tasks](#23-daily-tasks)
+24. [Common Tasks — Quick Reference](#24-common-tasks--quick-reference)
+25. [Troubleshooting](#25-troubleshooting)
 
 ---
 
@@ -121,22 +125,30 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 |---|---|
 | **Overview** | Dashboard, Inventory Intelligence |
 | **Transactions** | All transactions, filtering, review |
-| **Customers** | Customer list, search, management |
+| **Customers** | Customer list, search, management, dispute review |
 | **Staff** | Employee and manager accounts |
 | **Stores** | Store locations and configuration |
 | **Offers** | Promotional offer management |
 | **Banners** | Promotional banner management |
+| **Notices** | Pinned HQ announcements shown in store chat |
 | **Catalog** | Redemption catalog management |
-| **Notifications** | Broadcast notifications |
-| **Leaderboard** | Rankings |
-| **Careers** | Job applications |
 | **Promotions** | Business promotion requests |
-| **Billing** | Invoices (SuperAdmin view) |
-| **Rates** | Tier and category cashback rates |
-| **Activity Log** | Audit trail |
-| **Support** | Support ticket inbox |
+| **Hot Food** | Hot food menu/order oversight (SuperAdmin only) |
 | **Chat** | Store chat monitoring |
 | **Scheduling** | Schedule overview |
+| **Requests** | Unified hub — Alerts, Stock, Product requests |
+| **Order List** | Store procurement order lists |
+| **Scanned Products** | Chain-wide barcode → product catalog |
+| **Careers** | Job applications |
+| **Daily Reports** | Employee opening/closing shift reports |
+| **Daily Tasks** | Configure shift task checklists |
+| **Rates** | Tier and category cashback rates |
+| **Leaderboard** | Rankings |
+| **Activity Log** | Audit trail |
+| **Billing** | Invoices (SuperAdmin view) |
+| **Notifications** | Broadcast notifications |
+| **Support** | Support ticket inbox |
+| **Docs** | Legal documents, manuals, technical docs |
 | **Profile** | Your account settings |
 
 ---
@@ -309,6 +321,19 @@ If a customer is locked out and cannot use the phone OTP reset flow:
 ### 6.6 Reviewing Customer Transactions
 
 From a customer's detail page, you can see every transaction associated with their account, including the receipt image uploaded for each qualifying transaction. This is the primary tool for investigating customer disputes.
+
+### 6.7 Reviewing Disputes
+
+Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view — both land in the same queue here.
+
+1. Navigate to **Customers** → click the **Disputes** tab. A count badge shows how many are pending.
+2. Filter by **Store** and **Status** (Pending, Approved, Rejected).
+3. Click a dispute to open it. If it was filed against a specific transaction, that transaction's details and receipt photo are shown inline — otherwise you're working from the customer's written description alone.
+4. Click **Resolve**:
+   - **Approve:** enter the points/credit amount to award, add an internal note, and confirm. Points are credited immediately.
+   - **Reject:** add a note explaining why, and confirm. No points are credited.
+
+A dispute tapped from a push notification scrolls to and highlights the matching row automatically.
 
 ---
 
@@ -731,7 +756,78 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 
 ---
 
-## 20. Common Tasks — Quick Reference
+## 20. Important Notices
+
+Notices are pinned announcements shown at the top of every affected store's staff chat — for time-sensitive HQ messages (e.g. a health inspection, a system outage window) that shouldn't get lost in normal chat traffic.
+
+### 20.1 Posting a Notice
+
+1. Navigate to **Notices** in the sidebar.
+2. Click **New Notice**.
+3. Fill in:
+   - **Title** (max 100 characters).
+   - **Body** — the message text.
+   - **Target:** All Stores, or a specific store.
+   - **End Date:** when the notice stops showing (defaults to one week out).
+4. Click **Post Notice**.
+
+### 20.2 Managing Existing Notices
+
+Each notice shows a status: **Active**, **Expired** (past its end date), or **Deactivated**. Click **Deactivate** to pull an active notice down early, or **Delete** to remove it permanently.
+
+---
+
+## 21. Requests Hub & Procurement
+
+This is where store-level inventory operations — stock alerts, item requests, and order lists — are coordinated across the chain.
+
+### 21.1 The Requests Hub
+
+Navigate to **Requests** in the sidebar (badge shows total pending count). It has three tabs:
+
+- **Alerts:** Low-stock alerts employees have flagged, and manager acknowledgements.
+- **Stock:** Employee item requests awaiting a manager decision (Accept → added to the store's order list, or Deny).
+- **Product:** Customer product requests forwarded from the App.
+
+Select a store from the store picker at the top, or choose **All Stores** to see pending stock requests across every location at once (the All Stores view only applies to the Stock tab — Alerts and Product require a single store to be selected).
+
+### 21.2 Order Lists
+
+Navigate to **Order List** in the sidebar. Each store maintains one active procurement list at a time, with items marked Needed → Ordered → Received. As Super Admin you can view and manage any store's list.
+
+- **Quick Add:** a searchable panel of that store's most-ordered items, for adding common items in one click.
+- **Restore Items** *(DevAdmin only)*: on a closed list, pull any items that were never marked received onto that store's current open list.
+- A banner at the top of the Order Lists tab flags any store with **no open list**, with a one-click button to open one.
+
+### 21.3 Scanned Products
+
+Navigate to **Scanned Products** in the sidebar. This is the chain-wide barcode → product name/category/brand catalog that gets built up automatically as managers scan items while building order lists on mobile.
+
+- **Search** by product name.
+- **+ Add Product** to seed or correct an entry manually (barcode, name, category, brand) without waiting for it to be scanned first — saving the same barcode again updates the existing entry rather than creating a duplicate.
+- **Delete** to remove an incorrect entry; the next scan of that barcode will prompt for a fresh name.
+
+---
+
+## 22. Daily Reports
+
+Navigate to **Daily Reports** in the sidebar to review the opening/closing shift reports employees submit from the mobile app (checklist completion, notes, any flagged issues). Use this to spot recurring problems at a specific store or shift.
+
+---
+
+## 23. Daily Tasks
+
+Navigate to **Daily Tasks** in the sidebar to configure the checklist items employees see for opening and closing shifts.
+
+1. Click **Add Task**.
+2. Fill in **Shift** (Opening or Closing), **Title**, optional **Description** (step-by-step detail), and optionally restrict it to one **Store** (leave blank to apply chain-wide).
+3. Click **Save**.
+
+**Load Default Tasks** seeds a starter checklist for a store that has none configured yet. Edit or delete any task from the list view.
+
+---
+
+## 24. Common Tasks — Quick Reference
 
 | Task | Where to Go | Steps |
 |---|---|---|
@@ -740,10 +836,16 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 | Reset an employee's PIN | Staff → [Employee Name] → Reset PIN | Set new temporary PIN |
 | Look up a customer | Customers → Search bar | Enter name or phone |
 | Deactivate a fraudulent customer | Customers → [Customer] → Deactivate | Confirm |
+| Resolve a customer dispute | Customers → Disputes tab → open dispute | Approve (credit points) or Reject, with a note |
 | Create a new promotion offer | Offers → New Offer | Fill details, set dates |
+| Post an HQ notice | Notices → New Notice | Fill in, set target and end date |
 | Send a push notification to all customers | Notifications → Send Broadcast → All Customers | Write and send |
 | Upload a new banner | Banners → New Banner | Upload image, set scope |
 | Update a store's gas prices | Stores → [Store Name] → Gas Prices | Enter prices, save |
+| Check a store's pending stock requests across all stores | Requests → Stock tab → All Stores | Review and accept/deny |
+| Look up or correct a barcode's product info | Scanned Products → search or + Add Product | Search or fill in barcode/name/category/brand |
+| Restore items from a closed order list (DevAdmin) | Order List → closed list → Restore Items | Select items, confirm |
+| Add a shift checklist task | Daily Tasks → Add Task | Fill in shift, title, optional store |
 | View a transaction's receipt | Transactions → [Transaction] | Receipt visible in detail view |
 | Export transactions | Transactions → Export to CSV | Set filters, export |
 | Check audit trail for an employee | Activity Log → Filter by actor | Filter and review |
@@ -751,7 +853,7 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 
 ---
 
-## 21. Troubleshooting
+## 25. Troubleshooting
 
 **Problem: I can't log in to the Admin Portal.**
 - Ensure you are using the correct URL: admin.luckystop.cliffindus.com
@@ -770,11 +872,16 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 - Check if the transaction was processed but flagged or rejected.
 - Contact the relevant store manager to verify if the receipt was uploaded correctly.
 - If the transaction is missing entirely, the employee may not have scanned the QR code correctly.
+- If the customer already filed a dispute, resolve it from Customers → Disputes rather than manually adjusting their balance.
 
 **Problem: An offer I created is not showing for customers.**
 - Verify the offer start date has passed and the end date has not yet passed.
 - Verify the offer is set to Active.
 - If it's a store-specific offer, confirm the customer is shopping at that store.
+
+**Problem: A store manager says they can't see their order list.**
+- Confirm the store actually has an open order list — the Order Lists tab flags stores with none.
+- Confirm the manager's account is still assigned to that store under Staff.
 
 **Problem: The Activity Log shows an unauthorized action.**
 - Identify the actor and when the action occurred.

@@ -3,7 +3,7 @@
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only — transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.3 | Last Updated: June 12, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -345,9 +345,11 @@ The benefit is marked as claimed for this tier period. The customer cannot claim
 
 When you notice that a product is running low or a customer asks for something the store doesn't carry, you can submit an item request to your manager.
 
-### Step 1: Navigate to Requests
+### Step 1: Navigate to Stock Request
 
-Tap **Requests** in the bottom navigation → **Employee Requests** tab → tap **+ New Request**.
+Tap **Stock Request** in the bottom navigation → tap **+ New Request**.
+
+> **Note:** This is a separate bottom-nav tab from **Requests** (Section 12) — Stock Request is for procurement (items to add to the order list); Requests is for store alerts (supplies, maintenance, low-stock flags).
 
 ### Step 2: Fill in the Request Details
 
@@ -373,7 +375,7 @@ Repeat for each item.
 
 Tap **Submit Request**.
 
-Your manager receives a notification. You can track the status of your request in the **Employee Requests** tab:
+Your manager receives a notification. You can track the status of your request on the **Stock Request** screen:
 - **Pending:** Awaiting manager review.
 - **Reviewed:** Manager has processed it. Each line shows whether it was Accepted or Rejected, and if rejected, the reason.
 
@@ -387,19 +389,19 @@ When your manager reviews the request, you receive a notification. Open the requ
 
 ## 12. Submitting Store Operational Requests
 
-If there is a store supply issue, maintenance problem, or any operational concern, submit a Store Request to your manager.
+If there is a store supply issue, maintenance problem, or any operational concern — including a customer asking for something you don't carry — submit an Alert to your manager.
 
 ### Step 1: Navigate to Requests
 
-Tap **Requests** → **Store Requests** tab → tap **+ New Store Request**.
+Tap **Requests** in the bottom navigation → select an alert type.
 
-### Step 2: Fill in the Request
+### Step 2: Fill in the Alert
 
 - **Type:**
-  - **Low Stock** — Store supply is running out.
+  - **Low Stock Alert** — A section or product is running very low.
   - **Store Supplies** — Need store supplies (cleaning, packaging, etc.).
-  - **Customer Requested Product** — Specific customer request.
-  - **Work Order** — Maintenance, equipment, or facility issue.
+  - **Customer Asking** — A customer wants something you don't carry.
+  - **Work Order** — Equipment broken or needs maintenance.
 - **Priority:**
   - **Low** — Non-urgent, address when possible.
   - **Medium** — Needs attention soon.
@@ -408,9 +410,9 @@ Tap **Requests** → **Store Requests** tab → tap **+ New Store Request**.
 
 ### Step 3: Submit
 
-Tap **Submit Request**.
+Tap **Submit**.
 
-Your manager is notified. Track the status in the **Store Requests** tab. When your manager acknowledges the request, you will see their note explaining what action they took.
+Your manager is notified. When your manager acknowledges the alert, you will see their note explaining what action they took.
 
 ---
 
@@ -480,8 +482,8 @@ Tap the **bell icon** at the top of the home screen to see your notifications.
 
 | Notification | What It Means |
 |---|---|
-| **Item request reviewed** | Your manager reviewed your inventory request |
-| **Store request acknowledged** | Your manager acknowledged your store request |
+| **Stock request reviewed** | Your manager reviewed your inventory request |
+| **Alert acknowledged** | Your manager acknowledged your store alert |
 | **Shift request decision** | Your time-off or fill-in request was approved or denied |
 | **New schedule assigned** | Manager added you to a new shift |
 | **Platform announcements** | Lucky Stop news or promotions |
@@ -646,8 +648,8 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 | Customer has a catalog reward code | Scan QR → Pending Catalog Redemptions → confirm |
 | New customer has a welcome bonus | Scan QR → Welcome Bonus → Claim |
 | Customer says they didn't get their points | Check their transaction history (visible after scan) — if processing error, ask manager |
-| Store is out of a product | Requests → Employee Requests → New Request → Low Stock |
-| Refrigerator is broken | Requests → Store Requests → New Request → Work Order → High priority |
+| Store is out of a product | Stock Request → New Request → Low Stock |
+| Refrigerator is broken | Requests → Work Order → High priority |
 | I want to request time off | Schedule → New Request → Time Off → select date |
 | I forgot my PIN | Log in screen → Forgot PIN → enter phone → OTP → reset PIN |
 

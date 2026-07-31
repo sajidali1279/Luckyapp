@@ -49,12 +49,14 @@ You get a live dashboard, real-time analytics, and tools to run promotions — a
 
 | Feature | Detail |
 |---|---|
-| **Cashback rewards** | 5% of every qualifying purchase credited instantly |
-| **Loyalty tiers** | Bronze → Silver → Gold → Diamond → Platinum — higher tiers earn faster |
+| **Tiered cashback rewards** | Bronze through Platinum, credited instantly on every qualifying purchase — the more they spend, the higher their rate climbs |
 | **Free product catalog** | Redeem credits for specific products in your store |
 | **Personalized offers** | Store-specific bonus rate promotions pushed to their phone |
+| **Hot Food ordering** | Customers browse your hot food menu and order ahead from their phone, with a push notification when it's ready for pickup |
+| **Careers** | Customers can browse and apply to open positions at your store right from the app |
 | **Leaderboard** | Top customers compete for recognition — drives repeat visits |
 | **Push notifications** | Instant alerts when new offers go live |
+| **Bilingual** | Full English and Español support |
 
 ---
 
@@ -68,16 +70,19 @@ A full management dashboard accessible from any browser:
 - **Offer management** — create time-limited bonus rate promotions (e.g., "Double cashback on hot foods this weekend")
 - **Banner management** — upload promotional images shown to customers at your store
 - **Staff management** — add employees, reset access, monitor activity
-- **Order management** — digital purchase order lists for your store's procurement
+- **Procurement** — digital order lists with barcode-matched printouts, plus a unified Requests hub for employee stock requests, store alerts, and customer product requests
+- **Barcode catalog** — a chain-wide product lookup that builds itself as your staff scan items while ordering
 - **Employee scheduling** — shift templates, roster management, request approvals
 - **Inventory analytics** — track what's selling and flag items to reorder
+- **Dispute resolution** — customers can flag a specific transaction or report missing points directly in-app; you review and resolve with the receipt already attached
 - **Audit log** — full record of every staff action for accountability
 
 ### Mobile App (Manager)
 Everything above, accessible from your phone.
 
 - Approve employee shift requests on the go
-- Review and respond to item request submissions from staff
+- Review and respond to stock requests and store alerts from staff
+- Review and resolve customer disputes — missing or incorrect points reports
 - Monitor store activity without being physically present
 - Chat with your team in a dedicated store channel
 

@@ -3,7 +3,7 @@
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.3 | Last Updated: June 12, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -14,7 +14,7 @@
 3. [Mobile App — Manager Dashboard](#3-mobile-app--manager-dashboard)
 4. [Order Lists — Procurement Management](#4-order-lists--procurement-management)
 5. [Employee Item Requests — Reviewing](#5-employee-item-requests--reviewing)
-6. [Store Requests — Operations](#6-store-requests--operations)
+6. [Store Alerts — Operations](#6-store-alerts--operations)
 7. [Offers — Creating and Managing Promotions](#7-offers--creating-and-managing-promotions)
 8. [Banners — Managing Store Banners](#8-banners--managing-store-banners)
 9. [Transactions — Reviewing Store Activity](#9-transactions--reviewing-store-activity)
@@ -26,8 +26,9 @@
 15. [Notifications](#15-notifications)
 16. [Profile and Account Settings](#16-profile-and-account-settings)
 17. [Web Admin Portal for Managers](#17-web-admin-portal-for-managers)
-18. [Common Tasks — Quick Reference](#18-common-tasks--quick-reference)
-19. [Troubleshooting](#19-troubleshooting)
+18. [Disputes — Missing Points Reports](#18-disputes--missing-points-reports)
+19. [Common Tasks — Quick Reference](#19-common-tasks--quick-reference)
+20. [Troubleshooting](#20-troubleshooting)
 
 ---
 
@@ -197,18 +198,22 @@ When all items have been ordered and/or received:
 3. Optionally add closing notes.
 4. Tap **Close**.
 
-The closed list moves to History. A new list can be opened immediately.
+The closed list moves to History, and **a new active list opens automatically** in the same action — your store is never left without an active order list.
 
 **Note:** Closing a list does not delete it — it remains in history for review.
 
-### 4.10 Viewing List History
+### 4.10 Standing Order Instructions
+
+Each store can keep a short standing note (up to 300 characters) pinned to the top of the order list screen — for anything a supplier or the next shift should always see (e.g., delivery-day reminders, a preferred vendor contact, dock-access instructions). Tap the instructions banner → **Edit** → type your note → **Save**. It persists across closed/reopened lists until you change it.
+
+### 4.11 Viewing List History
 
 Tap **History** (or the clock icon) at the top of the Order List screen to see all previously closed order lists. Each historical list shows:
 - List name and dates (opened/closed).
 - Total items and their final statuses.
 - Closing notes.
 
-### 4.11 Restoring Items from a Closed List
+### 4.12 Restoring Items from a Closed List
 
 If items from a previous list are still needed:
 1. Go to **History** → select the closed list.
@@ -228,7 +233,7 @@ A badge on the **Requests** tab (or your dashboard's Pending Requests count) ind
 
 ### 5.2 Opening the Requests Screen
 
-Navigate to **Requests** → **Employee Requests** tab (if not already on it).
+Navigate to **Requests** → **Stock** tab (if not already on it).
 
 You will see a list of pending requests, each showing:
 - Which employee submitted it.
@@ -271,24 +276,23 @@ View items that have been rejected (across all employee requests) in the **Rejec
 
 ---
 
-## 6. Store Requests — Operations
+## 6. Store Alerts — Operations
 
-Store Requests are maintenance and supply requests submitted by employees for store-level operational issues.
+Store Alerts are maintenance and supply issues employees flag for store-level operational attention (product requests from customers have their own **Products** tab — see Section 13).
 
-### 6.1 Types of Store Requests
+### 6.1 Types of Store Alerts
 
 | Type | Examples |
 |---|---|
-| **Low Stock** | "We're out of price stickers," "Running low on cups" |
+| **Low Stock Alert** | "We're out of price stickers," "Running low on cups" |
 | **Store Supplies** | "Need new mop heads," "Paper towels" |
-| **Customer Requested Product** | "Customer asking for X brand of chips" |
 | **Work Order** | "Refrigerator 2 is not cooling," "Light fixture out" |
 
-Each request also has a priority: **Low**, **Medium**, or **High**.
+Each alert also has a priority: **Low**, **Medium**, or **High**.
 
-### 6.2 Viewing Store Requests
+### 6.2 Viewing Store Alerts
 
-Navigate to **Requests** → **Store Requests** tab. You will see all pending and acknowledged requests for your store, sorted by priority.
+Navigate to **Requests** → **Alerts** tab. You will see all pending and acknowledged alerts for your store, sorted by priority. If you manage more than one store, a hint indicates when another of your stores also has pending items waiting.
 
 ### 6.3 Acknowledging a Request
 
@@ -537,7 +541,7 @@ Customers can submit requests for specific products to be stocked at your store.
 
 ### 13.1 Viewing Product Requests
 
-Navigate to **Requests** → **Customer Requests** tab.
+Navigate to **Requests** → **Products** tab.
 
 You will see each request with:
 - Product requested.
@@ -558,7 +562,7 @@ Customer product requests are good feedback for store inventory decisions. Consi
 
 ## 14. Leaderboard — Employee Performance
 
-### 13.1 Viewing Employee Performance
+### 14.1 Viewing Employee Performance
 
 Navigate to **Leaderboard** in the bottom navigation. The employee leaderboard for your store shows:
 - Employee name.
@@ -566,11 +570,11 @@ Navigate to **Leaderboard** in the bottom navigation. The employee leaderboard f
 - Total number of ratings.
 - Ratings breakdown.
 
-### 13.2 How Ratings Work
+### 14.2 How Ratings Work
 
 After each qualifying transaction, customers may be prompted to rate the employee who served them (on a 1–5 scale). Ratings are anonymous to the employee — they only see their aggregate score.
 
-### 13.3 Using Leaderboard Data
+### 14.3 Using Leaderboard Data
 
 - Use leaderboard data for performance reviews.
 - Recognize high-performing employees.
@@ -580,20 +584,21 @@ After each qualifying transaction, customers may be prompted to rate the employe
 
 ## 15. Notifications
 
-### 14.1 Accessing Notifications
+### 15.1 Accessing Notifications
 
 Tap the **bell icon** in the app. A badge shows unread notifications.
 
-### 14.2 Types of Notifications You Receive
+### 15.2 Types of Notifications You Receive
 
-- **Employee item request:** New inventory request submitted by an employee.
-- **Store request:** New operational request submitted by an employee.
+- **Stock request:** New inventory request submitted by an employee.
+- **Store alert:** New operational alert submitted by an employee.
 - **Shift request:** Employee submitted a time-off or fill-in request.
 - **Transaction flagged:** A transaction at your store was automatically flagged for review.
+- **Dispute filed:** A customer disputed a transaction or reported missing points at your store.
 - **Platform broadcasts:** Important announcements from Lucky Stop HQ.
 - **Order list updates:** If employees mark items as ordered or received.
 
-### 14.3 Managing Notifications
+### 15.3 Managing Notifications
 
 - Tap a notification to go directly to the related item.
 - Tap **Mark All Read** to clear the unread badge.
@@ -673,7 +678,27 @@ Use this data in your monthly planning to anticipate order volumes and identify 
 
 ---
 
-## 18. Common Tasks — Quick Reference
+## 18. Disputes — Missing Points Reports
+
+Customers can report missing or incorrect points two ways: a generic "Report Missing Points" form, or — for a specific past purchase — a **Dispute This Transaction** button on that transaction's detail view in their app. Both land in the same queue for your store.
+
+**This is a mobile-only feature** — dispute review is not available in the web admin portal for Store Managers (that's a Super Admin/HQ-level view). In the mobile app, tap **Disputes** in the bottom navigation (badge shows pending count).
+
+### 18.1 Reviewing a Dispute
+
+Filter by status (Pending, Approved, Rejected). If the dispute was filed against a specific transaction, its details and receipt photo are shown inline; otherwise you're working from the customer's written description.
+
+### 18.2 Resolving a Dispute
+
+Tap a dispute → choose:
+- **Approve:** enter the points/credit amount to award, add a note, and confirm. Points are credited immediately.
+- **Reject:** add a note explaining why, and confirm.
+
+Disputes are also reachable from your notification feed — tapping a dispute push jumps straight to the matching entry.
+
+---
+
+## 19. Common Tasks — Quick Reference
 
 | Task | Where | Steps |
 |---|---|---|
@@ -681,21 +706,23 @@ Use this data in your monthly planning to anticipate order volumes and identify 
 | Add item to order list | Order List → + Add Item | Fill form, save |
 | Mark item as ordered | Order List → tap item → update status | Set to Ordered |
 | Close the order list | Order List → ··· → Close List | Add notes, confirm |
-| Review employee item request | Requests → Employee Requests | Open, accept/reject each line |
-| Acknowledge a store request | Requests → Store Requests → tap request | Add note, acknowledge |
+| Review a stock request | Requests → Stock | Open, accept/reject each line |
+| Acknowledge a store alert | Requests → Alerts → tap alert | Add note, acknowledge |
+| Set standing order instructions | Order List → instructions banner → Edit | Type note, save |
 | Create a store offer | Offers → + New Offer | Fill form, create |
 | Upload a banner | Banners → + New Banner | Upload image, create |
 | Approve a shift request | Schedule → Shift Requests → tap request | Approve / Deny |
 | Assign a shift to employee | Schedule → Assign Shift | Select employee, shift, day |
 | Review a flagged transaction | Transactions → filter Flagged | Open, approve or reject |
-| Respond to a product request | Requests → Customer Requests → tap request | Accept / Decline |
+| Respond to a product request | Requests → Products → tap request | Accept / Decline |
+| Resolve a customer dispute | Mobile app → Disputes → open dispute | Approve (credit points) or Reject, with a note |
 | Check employee ratings | Leaderboard | View rankings |
 | Export transactions | Portal → Transactions → Export CSV | Set filters, export |
 | Change your PIN | Profile → Change PIN | Enter current + new PIN |
 
 ---
 
-## 19. Troubleshooting
+## 20. Troubleshooting
 
 **Problem: I can't see my order list.**
 - Ensure you are logged in to the correct store account.

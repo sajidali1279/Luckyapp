@@ -1,7 +1,7 @@
 # Lucky Stop App — Customer Guide
 
 **Your Guide to Earning Rewards at Lucky Stop**
-**Version:** 1.2 | Last Updated: June 7, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -314,14 +314,22 @@ Each entry shows:
 - **Points earned or deducted.**
 - **Cashback rate applied.**
 
-### Using History for Disputes
+### Reporting Missing or Incorrect Points
 
-If you believe a transaction is missing or incorrect:
-1. Check your History first — the transaction may be there with a slightly different amount.
-2. Note the date, time, and store.
-3. Contact support: support@luckystop.cliffindus.com with the details.
+There are two ways to report a problem, depending on whether the transaction shows up in your History:
 
-Disputes should be submitted within **60 days** of the transaction.
+**If the transaction is in your History (points look wrong, or you want to flag it):**
+1. Tap the transaction to open its detail view.
+2. Tap **Dispute This Transaction**.
+3. Describe the issue and submit. Your store's manager reviews it with the transaction and receipt photo already attached — no need to re-enter the store or amount.
+
+**If the transaction isn't in your History at all:**
+1. Go to **My Reports** (in your Profile).
+2. Tap **Report Missing Points**.
+3. Describe what happened — which store, roughly when, and what you purchased.
+4. Submit. This goes to the store's manager for review.
+
+Either way, you can track the status of anything you've reported from the **My Reports** screen, and you'll get a notification when it's resolved.
 
 ---
 

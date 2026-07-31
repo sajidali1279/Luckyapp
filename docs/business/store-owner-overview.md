@@ -46,27 +46,23 @@ The same app your employees and customers use. When you log in with your Store M
 
 Download it the same way customers do (iOS App Store or Google Play) and log in with your phone number.
 
+A few things live **only** in the mobile app, not the web portal — most notably **customer dispute review** (missing or incorrect points reports). Approve or reject each one from the Disputes tab in the app.
+
 ---
 
 ## 2. How Customers Earn and Redeem
 
 ### Earning Points
 
-Every qualifying purchase earns the customer **5% cashback** as Lucky Stop credits.
+Every qualifying purchase earns the customer cashback as Lucky Stop credits, at a percentage that depends on their loyalty tier — plus any category bonus or active offer stacked on top. Rates are configured and can be adjusted by Lucky Stop HQ (not fixed store-side); as a reference point, tiers typically range from **5% at Bronze up to 9% at Platinum**.
 
-**Example:** A customer spends $40 at your store. They earn 200 credits (5% of $4,000 cents = 200 points). Credits are credited to their account the moment the employee completes the scan.
+**Example:** A Gold-tier customer (say, 7% base) spends $40 on groceries at your store, and groceries carry a +1% category bonus that week: 7% + 1% = 8% effective rate, or 320 credits (1 credit = 1 cent). Credits are credited to their account the moment the employee completes the scan.
+
+Some tiers can also be configured to earn a flat cents-per-gallon bonus on gas/diesel instead of a percentage.
 
 ### Loyalty Tiers
 
-Customers move through tiers based on their total credits earned over a rolling period:
-
-| Tier | Perks |
-|---|---|
-| **Bronze** | 5% base cashback |
-| **Silver** | Slightly elevated earn rate |
-| **Gold** | Higher earn rate + early access to offers |
-| **Diamond** | Priority benefits |
-| **Platinum** | Top-tier perks, recognition |
+Customers move through tiers — **Bronze → Silver → Gold → Diamond → Platinum** — based on their total credits earned over a rolling period. Tier and category rates are configured and owned by Lucky Stop HQ, not visible in your Store Manager portal — contact Cliff Industries if you want current rates for your store.
 
 Higher-tier customers earn faster, which means they visit more frequently. Your store benefits from this automatically.
 
@@ -106,9 +102,13 @@ The receipt photo is required on every scan. This is a fraud protection measure.
 - They cannot change point balances directly
 - They cannot approve redemption codes — that's done separately by the cashier at the register
 
-### Employee Item Requests
+### Employee Requests and Alerts
 
-Employees can submit requests for products they think should be stocked or restocked. These come through as notifications in your manager dashboard, where you can approve or reject them and add approved items to your order list.
+Employees have two separate ways to flag things to you, both landing in your **Requests** hub:
+- **Stock requests** — specific products they think should be stocked or restocked. Approve to add them straight to your active order list.
+- **Alerts** — operational issues (low stock, store supplies, a customer asking for something you don't carry, or a work order like broken equipment), each with a priority level, which you acknowledge with a note once handled.
+
+Customers can also submit product requests directly from their app, which land in the same Requests hub under a separate Products tab.
 
 ---
 
@@ -126,13 +126,14 @@ When you log into the admin portal, your home page shows:
 
 | Page | What It Does |
 |---|---|
-| **Order List** | Your store's procurement orders — add items, track delivery status |
+| **Order List** | Your store's procurement orders — add items, print barcode-matched pickup sheets, track delivery status |
 | **Offers** | Create and manage bonus rate promotions for your store |
 | **Banners** | Upload promotional images shown to customers when they're near your store |
 | **Staff** | Add/remove employees, reset phone numbers, see who's active |
 | **Scheduling** | Build shift templates, publish rosters, approve shift requests |
 | **Chat** | Real-time messaging with your store's staff team |
-| **Requests** | Employee item requests — approve to add to your order list |
+| **Requests** | Alerts, Stock requests, and customer Product requests — one hub, three tabs |
+| **Scanned Products** | Search and correct the barcode catalog your staff build up while ordering |
 | **Inventory Analytics** | Category-level sales trends and reorder suggestions |
 | **Leaderboard** | Top employees by rating + top customers by spend |
 | **Notifications** | Push notifications sent to your store's customers |
@@ -282,4 +283,4 @@ Contact sksajidali1279@gmail.com directly.
 ---
 
 *This document is confidential and intended for Lucky Stop store operators only.*  
-*Last updated: May 2026 — Cliff Industries*
+*Last updated: July 2026 — Cliff Industries*

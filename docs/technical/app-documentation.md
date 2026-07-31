@@ -1,7 +1,7 @@
 # Lucky Stop Loyalty Platform — Technical Documentation
 
-**Version:** 1.2
-**Last Updated:** June 7, 2026
+**Version:** 1.4
+**Last Updated:** July 21, 2026
 **Maintained By:** Cliff Industries (sksajidali1279@gmail.com)
 
 ---
@@ -245,8 +245,10 @@ The `User.allStoresAccess` boolean allows `SUPER_ADMIN` and `DEV_ADMIN` users to
 All authenticated requests include the JWT in the `Authorization: Bearer <token>` header. The `authenticate` middleware:
 1. Extracts the JWT from the header.
 2. Verifies the signature using `JWT_SECRET`.
-3. Looks up the user by `sub` (user ID) in the database.
-4. Attaches the full user record to `req.user`.
+3. **Live-checks the account** — looks up `isActive` by user ID in the database and rejects with 401 (`Account no longer active. Please sign in again.`) if the account was deleted or deactivated, even though the JWT signature itself is still valid.
+4. Attaches the decoded JWT payload to `req.user`.
+
+**Why the live check matters (added 2026-07-10):** a JWT's signature stays valid for its full `JWT_EXPIRES_IN` lifetime (up to 7 days) regardless of what happens to the account afterward. Before this check existed, a deactivated or deleted account's existing token kept working until it naturally expired — including on iOS, where `expo-secure-store` is backed by the Keychain and survives an app delete/reinstall, so a stale session could outlive the account indefinitely. This also means an admin's "deactivate user" action now takes effect immediately on every subsequent request, not just on the account's next fresh login.
 
 ### 5.2 PIN Security
 
@@ -806,16 +808,16 @@ All push notification sending goes through `backend/src/utils/push.ts`:
 
 ```typescript
 // Send to a single user
-saveNotification(userId, title, body, type, expiresAt?)
+saveNotification(userId, title, body, type, actionUrl?, expiresAt?)
 
 // Save to multiple users' notification inbox
-saveNotificationMany(userIds[], title, body, type, expiresAt?)
+saveNotificationMany(userIds[], title, body, type, actionUrl?, expiresAt?)
 
 // Broadcast to all customers
-broadcastToCustomers(title, body, type, expiresAt?)
+broadcastToCustomers(title, body, type, actionUrl?, expiresAt?)
 
-// Send to all staff at a store
-sendPushToStoreStaff(storeId, title, body, type)
+// Send to all staff at a store (or sendPushToStoreEmployees / sendPushToStoreManagers for a single role)
+sendPushToStoreStaff(storeId, title, body, type, actionUrl?)
 ```
 
 ### 10.3 Expo Push API
@@ -833,6 +835,17 @@ Notifications are sent to `https://exp.host/--/api/v2/push/send` in batches of 1
 The `UserNotification.expiresAt` field is used to auto-hide notifications:
 - Set on offer broadcast notifications to the offer's `endDate`.
 - All notification queries filter: `OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]`.
+
+### 10.5 Deep-Linking (added 2026-07-18)
+
+Every notification carries a real, ready-to-navigate destination computed server-side at creation time, rather than the client guessing where a notification "type" should go:
+
+- `UserNotification.actionUrl` stores an in-app route (e.g. `/store-requests?tab=stock&highlight=<id>`), passed through as an optional param on every `push.ts` sender above.
+- The same `actionUrl` is included in the Expo push payload's `data` field, so a tap on the OS notification (foreground, background, or cold-start) carries it too.
+- Mobile has a single OS-level tap listener (root `_layout.tsx`) that reads `actionUrl` from the notification response and routes there via Expo Router, for all three launch states. A consume-once guard (`clearLastNotificationResponseAsync`) stops a cold-start tap from replaying itself on a later, unrelated relaunch.
+- Destination screens implement a shared "highlight" treatment (`PulseHighlight` component + `useHighlightParam` hook) that scrolls to and briefly pulses the specific row a notification pointed at (a request, a dispute, an alert), driven by a `highlight=<id>` query param on the route.
+- Admin's bell-feed notifications reuse the same `actionUrl` pattern (already existed there before the mobile-side work) rather than a separate mechanism.
+- **Known gap, by design, not a bug:** notification types with no real destination screen to link to (e.g. a customer-facing "your hot food order is ready" push — there's no dedicated order-status screen yet) simply omit `actionUrl`; tapping them just opens the app.
 
 ---
 
@@ -1162,19 +1175,26 @@ export const API_URL = 'https://api.luckystop.cliffindus.com/api'
 - Auto-deploy on push to `main`.
 - Environment variables configured in Vercel dashboard.
 
-### Mobile App Deployment (Expo EAS)
+### Mobile App Deployment (Expo EAS + custom CI)
+
+`eas build`/`eas submit` remain available for development/preview builds:
 
 ```bash
 # Development build
 eas build --profile development --platform all
 
-# Production build
-eas build --profile production --platform all
-
-# Submit to stores
-eas submit --platform ios
-eas submit --platform android
+# Preview/internal APK, for direct-install testing
+eas build --profile preview --platform android
 ```
+
+**Production releases do not use EAS's cloud build service** — to avoid EAS build credits, both platforms build via dedicated GitHub Actions workflows that run a bare local build instead:
+
+- **`.github/workflows/build-android.yml`** — `expo prebuild --clean` + Gradle `bundleRelease` (AAB, the format Play Console requires) on a standard Linux runner. Manually triggered (`workflow_dispatch`); uploads the AAB as a workflow artifact for manual Play Console upload — does not auto-submit.
+- **`.github/workflows/build-ios.yml`** — `macos-latest` runner: decodes the distribution certificate, provisioning profile, and `GoogleService-Info.plist` from GitHub Secrets into a temporary keychain, archives via `xcodebuild`, exports a signed `.ipa`, and **auto-uploads to App Store Connect** via `xcrun altool --upload-app` (API-key auth — `xcodebuild -exportArchive -destination upload` does not reliably support non-interactive API-key auth in CI). Still requires a manual "Submit for Review" step in App Store Connect itself. The pinned Xcode version (`xcode-select -s`) must be re-checked after every Expo SDK bump — SDK upgrades have broken this build twice by requiring a newer Xcode/Swift than the runner's default.
+
+**No OTA updates are configured** (no `expo-updates` dependency) — every code change, including a pure JS/TSX-only change, requires a full new native build and a fresh store submission to reach any installed device.
+
+Both apps are live publicly: iOS App Store (`id6787270736`), Google Play (`com.luckystop.app`).
 
 ---
 
@@ -1298,7 +1318,18 @@ Handles managed workflow builds for iOS and Android. OTA updates can be pushed w
 
 ### Backend
 
-All controllers are wrapped in try/catch (or use Express error middleware):
+`backend/src/index.ts` imports `express-async-errors` as its very first line, before any routes are mounted. This is load-bearing: **Express 4's built-in routing does not forward a thrown/rejected error from an `async` handler to error middleware** — without this import, a controller that throws just hangs the request forever with no response ever sent (the only trace is a swallowed `unhandledRejection` log). `express-async-errors` monkey-patches Express so every async handler's errors flow into the standard error-handling pipeline automatically, whether or not that specific controller has its own try/catch.
+
+A catch-all error middleware is registered last, after all routes:
+
+```typescript
+app.use((err: Error, _req, res, _next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+```
+
+Individual controllers may still add their own try/catch for a more specific error message/status — that's the pattern below — but it is no longer required for correctness the way it was before `express-async-errors` was added (2026-07-10, commit `cf899e9`); an uncaught throw now always reaches this handler instead of hanging.
 
 ```typescript
 try {
@@ -1313,6 +1344,8 @@ Validation errors from Zod return 400 with the field errors object.
 Auth errors return 401.
 Permission errors return 403.
 Not found returns 404.
+
+`process.on('unhandledRejection', ...)` / `process.on('uncaughtException', ...)` handlers log to the console as a last-resort safety net (Render logs), but should not be relied on as the primary error path — `express-async-errors` + the middleware above is.
 
 ### Mobile App
 
