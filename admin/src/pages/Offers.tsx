@@ -119,6 +119,8 @@ export default function Offers() {
   const [dealStoreId, setDealStoreId] = useState('');
   const [dealStartDate, setDealStartDate] = useState(todayStr());
   const [dealEndDate, setDealEndDate] = useState(endOfMonthStr());
+  const [dealImageFile, setDealImageFile] = useState<File | null>(null);
+  const dealFileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
@@ -307,6 +309,8 @@ export default function Offers() {
     setDealTitle(''); setDealText(''); setDealDescription('');
     setDealCategory(''); setDealType('ALL_STORES'); setDealStoreId('');
     setDealStartDate(todayStr()); setDealEndDate(endOfMonthStr());
+    setDealImageFile(null);
+    if (dealFileRef.current) dealFileRef.current.value = '';
   }
 
   function handleCreateDeal(e: React.FormEvent) {
@@ -324,6 +328,7 @@ export default function Offers() {
     fd.append('endDate', new Date(dealEndDate + 'T23:59:59').toISOString());
     if (dealType === 'SPECIFIC_STORE' && dealStoreId) fd.append('storeId', dealStoreId);
     if (dealCategory) fd.append('category', dealCategory);
+    if (dealImageFile) fd.append('image', dealImageFile);
     createMutation.mutate(fd);
     resetDealForm();
   }
@@ -776,6 +781,8 @@ export default function Offers() {
               <input style={s.input} value={dealText} onChange={(e) => setDealText(e.target.value)} placeholder='e.g. 2 for $5, 3 for $4, Buy 2 Get 1 Free' maxLength={40} />
               <label style={s.label}>Description (optional)</label>
               <input style={s.input} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal..." />
+              <label style={s.label}>Image (optional)</label>
+              <input ref={dealFileRef} type="file" accept="image/*" onChange={e => setDealImageFile(e.target.files?.[0] || null)} style={s.input} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={s.label}>Start Date *</label>
