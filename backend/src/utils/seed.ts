@@ -72,6 +72,7 @@ async function seed() {
           billingType: BillingType.MONTHLY_SUBSCRIPTION,
           subscriptionPrice: 99.00,
           transactionFeeRate: 0.02,
+          enabledCategories: [],
         },
       });
       console.log(`  ✅ ${created.name} — ${created.city}, ${created.state}`);

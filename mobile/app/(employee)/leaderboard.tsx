@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { leaderboardApi } from '../../services/api';
+import { leaderboardApi, chatApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
@@ -23,6 +23,14 @@ export default function EmployeeLeaderboardScreen() {
   const { user } = useAuthStore();
   const storeIds: string[] = user?.storeIds || [];
   const [selectedStore, setSelectedStore] = useState<string>(storeIds[0] || '');
+
+  const { data: myStoresData } = useQuery({
+    queryKey: ['my-chat-stores'],
+    queryFn: () => chatApi.getMyStores(),
+    enabled: storeIds.length > 1,
+  });
+  const storeNameById: Record<string, string> = {};
+  (myStoresData?.data?.data || []).forEach((s: { id: string; name: string }) => { storeNameById[s.id] = s.name; });
 
   const { data, isLoading } = useQuery({
     queryKey: ['leaderboard-employees', selectedStore],
@@ -67,12 +75,12 @@ export default function EmployeeLeaderboardScreen() {
                 style={[st.storePill, selectedStore === id && st.storePillActive]}
                 onPress={() => setSelectedStore(id)}
                 accessibilityRole="tab"
-                accessibilityLabel="Filter by store"
+                accessibilityLabel={`Filter by ${storeNameById[id] || 'store'}`}
                 accessibilityState={{ selected: selectedStore === id }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[st.storePillText, selectedStore === id && st.storePillTextActive]}>
-                  Store
+                  {storeNameById[id] || 'Store'}
                 </Text>
               </TouchableOpacity>
             ))}
