@@ -1,7 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
   StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
-  TextInput, Alert,
+  TextInput, Alert, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -242,6 +242,119 @@ const PromoSlideshow = memo(function PromoSlideshow() {
           <AnimatedDot key={i} active={i === activeIndex} color={COLORS.primary} />
         ))}
       </View>
+    </View>
+  );
+});
+
+/* ─── Deals slideshow ──────────────────────────────────────── */
+const DEAL_SLIDE_PALETTE = [
+  { bg: '#DC2626', deco: '#FCA5A5' },
+  { bg: '#EA580C', deco: '#FDBA74' },
+  { bg: '#7C3AED', deco: '#C4B5FD' },
+  { bg: '#0891B2', deco: '#67E8F9' },
+  { bg: '#DB2777', deco: '#F9A8D4' },
+];
+
+const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { deals: any[]; onSelectOffer: (offer: any) => void }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatRef = useRef<FlatList>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Slow, continuous drift for the watermark icon on solid-color slides —
+  // a single looping 0→1 driver feeds both the rotation and a gentle side-to-side pan.
+  const watermarkAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(watermarkAnim, { toValue: 1, duration: 14000, easing: Easing.linear, useNativeDriver: true })
+    ).start();
+  }, [watermarkAnim]);
+  const watermarkRotate = watermarkAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const watermarkDrift = watermarkAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 16, 0] });
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (deals.length <= 1) return;
+    timerRef.current = setInterval(() => {
+      setActiveIndex(prev => {
+        const next = (prev + 1) % deals.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 4000);
+  }, [deals.length]);
+
+  useEffect(() => {
+    startTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [startTimer]);
+
+  const renderSlide = useCallback(({ item, index }: { item: any; index: number }) => {
+    const palette = DEAL_SLIDE_PALETTE[index % DEAL_SLIDE_PALETTE.length];
+    return (
+      <TouchableOpacity
+        style={[ds.slide, !item.imageUrl && { backgroundColor: palette.bg }]}
+        activeOpacity={0.9}
+        onPress={() => onSelectOffer(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`View deal: ${item.title}, ${item.dealText}`}
+      >
+        {item.imageUrl ? (
+          <>
+            <Image source={{ uri: item.imageUrl }} style={ds.slideImage} />
+            <View style={ds.imageScrim} />
+          </>
+        ) : (
+          <>
+            <Animated.View
+              pointerEvents="none"
+              style={[ds.watermark, { transform: [{ rotate: watermarkRotate }, { translateX: watermarkDrift }] }]}
+            >
+              <TagIcon size={190} color="#fff" strokeWidth={1} />
+            </Animated.View>
+            <View style={[ds.decoCircleLg, { backgroundColor: palette.deco + '22' }]} />
+            <View style={[ds.decoCircleSm, { backgroundColor: palette.deco + '33' }]} />
+          </>
+        )}
+        <View style={ds.slideInner}>
+          <View style={ds.iconBadge}>
+            <TagIcon size={16} color="#fff" strokeWidth={2.5} />
+          </View>
+          <Text style={ds.dealTextBig} numberOfLines={1}>{item.dealText}</Text>
+          <Text style={ds.title} numberOfLines={1}>{item.title}</Text>
+          {item.description && item.description !== item.dealText && (
+            <Text style={ds.body} numberOfLines={1}>{item.description}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }, [onSelectOffer, watermarkRotate, watermarkDrift]);
+
+  return (
+    <View style={ds.root}>
+      <FlatList
+        ref={flatRef}
+        data={deals}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={SLIDE_W + 12}
+        decelerationRate="fast"
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (SLIDE_W + 12));
+          setActiveIndex(idx);
+          startTimer();
+        }}
+        getItemLayout={(_, index) => ({ length: SLIDE_W + 12, offset: (SLIDE_W + 12) * index, index })}
+        renderItem={renderSlide}
+      />
+      {deals.length > 1 && (
+        <View style={ds.dots}>
+          {deals.map((_, i) => (
+            <AnimatedDot key={i} active={i === activeIndex} color={COLORS.accent} />
+          ))}
+        </View>
+      )}
     </View>
   );
 });
@@ -1036,69 +1149,11 @@ export default function CustomerHome() {
           <View style={styles.section}>
             <View style={styles.sectionRow}>
               <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label="Today's Deals" />
-              {deals.length > 2 && (
+              {deals.length > 1 && (
                 <Text style={styles.sectionCount}>{deals.length} deals</Text>
               )}
             </View>
-            {deals.length <= 2 ? (
-              deals.map((offer: any) => (
-                <TouchableOpacity
-                  key={offer.id}
-                  style={styles.dealCard}
-                  onPress={() => setSelectedOffer(offer)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View deal: ${offer.title}`}
-                >
-                  {offer.imageUrl
-                    ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
-                    : (
-                      <View style={[styles.offerPlaceholder, { backgroundColor: COLORS.accent + '15' }]}>
-                        <TagIcon size={26} color={COLORS.accent} strokeWidth={1.75} />
-                      </View>
-                    )
-                  }
-                  <View style={styles.offerContent}>
-                    <Text style={styles.offerTitle} numberOfLines={1}>{offer.title}</Text>
-                    <View style={styles.dealBadgePill}>
-                      <TagIcon size={10} color="#fff" strokeWidth={2.5} />
-                      <Text style={styles.dealBadgeText} numberOfLines={1}>{offer.dealText}</Text>
-                    </View>
-                  </View>
-                  <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
-                </TouchableOpacity>
-              ))
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
-                {deals.map((offer: any) => (
-                  <TouchableOpacity
-                    key={offer.id}
-                    style={[styles.offerSlideCard, styles.dealSlideCard]}
-                    onPress={() => setSelectedOffer(offer)}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`View deal: ${offer.title}`}
-                  >
-                    {offer.imageUrl
-                      ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
-                      : (
-                        <View style={[styles.offerSlidePlaceholder, styles.dealSlidePlaceholder]}>
-                          <TagIcon size={14} color={COLORS.accent} strokeWidth={2.5} />
-                          <Text style={styles.dealSlidePlaceholderText} numberOfLines={1}>{offer.dealText}</Text>
-                        </View>
-                      )
-                    }
-                    <View style={styles.offerSlideContent}>
-                      <Text style={styles.offerTitle} numberOfLines={1}>{offer.title}</Text>
-                      <View style={[styles.dealBadgePill, { alignSelf: 'flex-start' }]}>
-                        <TagIcon size={10} color="#fff" strokeWidth={2.5} />
-                        <Text style={styles.dealBadgeText} numberOfLines={1}>{offer.dealText}</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+            <DealSlideshow deals={deals} onSelectOffer={setSelectedOffer} />
           </View>
         )}
 
@@ -1790,7 +1845,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
-  dealSlideCard: { backgroundColor: COLORS.accent + '08', borderWidth: 1.5, borderColor: COLORS.accent },
   offerSlideImage: { width: 220, height: 110, resizeMode: 'cover' },
   offerSlidePlaceholder: {
     width: 220, height: 110, alignItems: 'center', justifyContent: 'center',
@@ -1814,29 +1868,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4, marginTop: 6, alignSelf: 'flex-start',
   },
   offerBonusText: { color: '#fff', fontWeight: '700', fontSize: 11 },
-
-  dealCard: {
-    backgroundColor: COLORS.accent + '08', borderRadius: 18, overflow: 'hidden', marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: COLORS.accent,
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
-  },
-  dealText: { fontSize: 20, fontWeight: '900', color: COLORS.accent, marginBottom: 2, letterSpacing: -0.5 },
-  dealBadgePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.accent, borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 4, marginTop: 4, alignSelf: 'flex-start',
-  },
-  dealBadgeText: { color: '#fff', fontWeight: '800', fontSize: 12, letterSpacing: 0.2 },
-  dealSlidePlaceholder: {
-    backgroundColor: COLORS.accent + '12',
-    justifyContent: 'center', alignItems: 'center', gap: 6,
-  },
-  dealSlidePlaceholderText: {
-    fontSize: 22, fontWeight: '900', color: COLORS.accent,
-    letterSpacing: -0.5, paddingHorizontal: 16, textAlign: 'center',
-  },
 
   gasPriceRow: { gap: 10, paddingBottom: 4, paddingTop: 8 },
   gasPriceCard: {
@@ -1884,6 +1915,31 @@ const ps = StyleSheet.create({
   cta:      { alignSelf: 'flex-start', borderRadius: 10, paddingHorizontal: 13, paddingVertical: 6, marginTop: 5 },
   ctaText:  { fontSize: 12, fontWeight: '800' },
   dots:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
+});
+
+const ds = StyleSheet.create({
+  root: { gap: 10 },
+  slide: {
+    width: SLIDE_W, marginRight: 12, borderRadius: 22, overflow: 'hidden',
+    height: 176,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
+  },
+  slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined, resizeMode: 'cover' },
+  imageScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%', backgroundColor: 'rgba(0,0,0,0.55)' },
+  watermark: { position: 'absolute', top: -34, right: -44, opacity: 0.14 },
+  decoCircleLg: { position: 'absolute', width: 200, height: 200, borderRadius: 100, top: -60, right: -50 },
+  decoCircleSm: { position: 'absolute', width: 100, height: 100, borderRadius: 50, bottom: -30, left: -20 },
+  slideInner: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, padding: 18, justifyContent: 'flex-end', gap: 3 },
+  iconBadge: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+  },
+  dealTextBig: { color: '#fff', fontSize: 26, fontWeight: '900', letterSpacing: -0.6 },
+  title:       { color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '700', marginTop: 2 },
+  body:        { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
+  dots:        { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
 });
 
 const rs = StyleSheet.create({
