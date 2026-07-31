@@ -1,10 +1,10 @@
-﻿// Auto-generated from docs — do not edit directly
+// Auto-generated from docs — do not edit directly
 const employeeManual = `# Lucky Stop Platform — Employee (Cashier) User Manual
 
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only — transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.0 | Last Updated: May 30, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -27,9 +27,10 @@ const employeeManual = `# Lucky Stop Platform — Employee (Cashier) User Manual
 15. [Notifications](#15-notifications)
 16. [Your Leaderboard Ranking](#16-your-leaderboard-ranking)
 17. [Profile and Account Settings](#17-profile-and-account-settings)
-18. [Critical Rules — Read These Carefully](#18-critical-rules--read-these-carefully)
-19. [Common Situations — Quick Reference](#19-common-situations--quick-reference)
-20. [Troubleshooting](#20-troubleshooting)
+18. [Hot Food — Orders and Menu Management](#18-hot-food--orders-and-menu-management)
+19. [Critical Rules — Read These Carefully](#19-critical-rules--read-these-carefully)
+20. [Common Situations — Quick Reference](#20-common-situations--quick-reference)
+21. [Troubleshooting](#21-troubleshooting)
 
 ---
 
@@ -345,9 +346,11 @@ The benefit is marked as claimed for this tier period. The customer cannot claim
 
 When you notice that a product is running low or a customer asks for something the store doesn't carry, you can submit an item request to your manager.
 
-### Step 1: Navigate to Requests
+### Step 1: Navigate to Stock Request
 
-Tap **Requests** in the bottom navigation → **Employee Requests** tab → tap **+ New Request**.
+Tap **Stock Request** in the bottom navigation → tap **+ New Request**.
+
+> **Note:** This is a separate bottom-nav tab from **Requests** (Section 12) — Stock Request is for procurement (items to add to the order list); Requests is for store alerts (supplies, maintenance, low-stock flags).
 
 ### Step 2: Fill in the Request Details
 
@@ -373,7 +376,7 @@ Repeat for each item.
 
 Tap **Submit Request**.
 
-Your manager receives a notification. You can track the status of your request in the **Employee Requests** tab:
+Your manager receives a notification. You can track the status of your request on the **Stock Request** screen:
 - **Pending:** Awaiting manager review.
 - **Reviewed:** Manager has processed it. Each line shows whether it was Accepted or Rejected, and if rejected, the reason.
 
@@ -387,19 +390,19 @@ When your manager reviews the request, you receive a notification. Open the requ
 
 ## 12. Submitting Store Operational Requests
 
-If there is a store supply issue, maintenance problem, or any operational concern, submit a Store Request to your manager.
+If there is a store supply issue, maintenance problem, or any operational concern — including a customer asking for something you don't carry — submit an Alert to your manager.
 
 ### Step 1: Navigate to Requests
 
-Tap **Requests** → **Store Requests** tab → tap **+ New Store Request**.
+Tap **Requests** in the bottom navigation → select an alert type.
 
-### Step 2: Fill in the Request
+### Step 2: Fill in the Alert
 
 - **Type:**
-  - **Low Stock** — Store supply is running out.
+  - **Low Stock Alert** — A section or product is running very low.
   - **Store Supplies** — Need store supplies (cleaning, packaging, etc.).
-  - **Customer Requested Product** — Specific customer request.
-  - **Work Order** — Maintenance, equipment, or facility issue.
+  - **Customer Asking** — A customer wants something you don't carry.
+  - **Work Order** — Equipment broken or needs maintenance.
 - **Priority:**
   - **Low** — Non-urgent, address when possible.
   - **Medium** — Needs attention soon.
@@ -408,9 +411,9 @@ Tap **Requests** → **Store Requests** tab → tap **+ New Store Request**.
 
 ### Step 3: Submit
 
-Tap **Submit Request**.
+Tap **Submit**.
 
-Your manager is notified. Track the status in the **Store Requests** tab. When your manager acknowledges the request, you will see their note explaining what action they took.
+Your manager is notified. When your manager acknowledges the alert, you will see their note explaining what action they took.
 
 ---
 
@@ -480,8 +483,8 @@ Tap the **bell icon** at the top of the home screen to see your notifications.
 
 | Notification | What It Means |
 |---|---|
-| **Item request reviewed** | Your manager reviewed your inventory request |
-| **Store request acknowledged** | Your manager acknowledged your store request |
+| **Stock request reviewed** | Your manager reviewed your inventory request |
+| **Alert acknowledged** | Your manager acknowledged your store alert |
 | **Shift request decision** | Your time-off or fill-in request was approved or denied |
 | **New schedule assigned** | Manager added you to a new shift |
 | **Platform announcements** | Lucky Stop news or promotions |
@@ -540,13 +543,66 @@ Tap your avatar at the top of the profile screen → select a photo from your li
 
 Profile → **Biometric Login** → toggle on → confirm with your fingerprint or face. Next time you open the app, you can log in with biometrics instead of your PIN.
 
-### 17.7 Sign Out
+### 17.7 Language
+
+Profile → **Preferences** → **Language** → select English or Español → **Save**.
+The app switches to your chosen language immediately and remembers it across sessions.
+
+### 17.8 Sign Out
 
 Profile → **Sign Out** (at the bottom of the screen).
 
 ---
 
-## 18. Critical Rules — Read These Carefully
+## 18. Hot Food — Orders and Menu Management
+
+If your store has an active hot food menu, you have two responsibilities: fulfilling customer orders and keeping the menu up to date.
+
+Tap **Hot Food Orders** in the menu (or the Hot Food tab on your home screen). The screen has five tabs at the top: **Pending**, **Preparing**, **Ready**, **All**, and **Menu**.
+
+### 18.1 Fulfilling Orders (Pending / Preparing / Ready tabs)
+
+Orders appear with the customer's name, items ordered, total, and how long ago the order was placed.
+
+**Order flow:**
+1. A new order arrives in **Pending** — tap **Accept Order** once you start preparing it.
+2. When the food is ready, tap **Mark Ready** — the customer gets a push notification to come pick it up.
+3. When the customer arrives and picks up at the counter, tap **Complete**.
+4. Payment and loyalty points are handled at the register as a normal transaction — not through the app.
+
+If an order needs to be cancelled after it is marked Ready, tap the red X button next to Complete and confirm. Use this sparingly — contact your manager for any recurring issues.
+
+Keep an eye on the notification badge on the Hot Food tab so orders don't sit unnoticed.
+
+### 18.2 Managing the Menu (Menu tab)
+
+Tap the **Menu** tab to see every item currently on your store's hot food menu. From here you can:
+
+**Toggle availability:** Each item has an **Available / Sold Out** button. Tap it to flip an item's status in real time — customers immediately stop seeing sold-out items in the order screen. Use this whenever an item runs out mid-shift.
+
+**Add a new item:**
+1. Tap **+ Add Item** in the top-right corner.
+2. Tap the photo area to take a photo or pick one from your library (optional but recommended).
+3. Fill in the item name, category (e.g. Roller Grill, Pizza, Sandwiches), price, estimated preparation time, and an optional short description.
+4. As you type the category, suggestions from existing categories appear — tap one to reuse it, or type your own.
+5. Tap **Add to Menu**. The item is live immediately.
+
+**Edit or remove an item:**
+1. Tap the pencil icon on any store-created item.
+2. Update any field or swap the photo.
+3. Tap **Save Changes** — or tap **Remove from Menu** at the bottom to delete the item entirely (requires confirmation).
+
+> Items marked **Catalog** come from the shared Lucky Stop catalog managed centrally. These can be toggled available/sold out but cannot be edited or deleted at the store level.
+
+### 18.3 Things to Know
+
+- Always keep the menu accurate — if an item is unavailable, mark it Sold Out right away rather than letting customers order something you can't make.
+- Category names are shared across your store's menu. Use consistent names (capitalise the same way each time) so items group cleanly.
+- Pricing changes take effect immediately for new orders — existing open orders are not affected.
+
+---
+
+## 19. Critical Rules — Read These Carefully
 
 These rules are not negotiable. Violating them can result in disciplinary action or termination.
 
@@ -581,7 +637,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 
 ---
 
-## 19. Common Situations — Quick Reference
+## 20. Common Situations — Quick Reference
 
 | Situation | What to Do |
 |---|---|
@@ -593,14 +649,14 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 | Customer has a catalog reward code | Scan QR → Pending Catalog Redemptions → confirm |
 | New customer has a welcome bonus | Scan QR → Welcome Bonus → Claim |
 | Customer says they didn't get their points | Check their transaction history (visible after scan) — if processing error, ask manager |
-| Store is out of a product | Requests → Employee Requests → New Request → Low Stock |
-| Refrigerator is broken | Requests → Store Requests → New Request → Work Order → High priority |
+| Store is out of a product | Stock Request → New Request → Low Stock |
+| Refrigerator is broken | Requests → Work Order → High priority |
 | I want to request time off | Schedule → New Request → Time Off → select date |
 | I forgot my PIN | Log in screen → Forgot PIN → enter phone → OTP → reset PIN |
 
 ---
 
-## 20. Troubleshooting
+## 21. Troubleshooting
 
 **Problem: The app won't open or keeps crashing.**
 - Force-close the app and reopen it.

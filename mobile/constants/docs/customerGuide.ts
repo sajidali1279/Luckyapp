@@ -1,8 +1,8 @@
-﻿// Auto-generated from docs — do not edit directly
+// Auto-generated from docs — do not edit directly
 const customerGuide = `# Lucky Stop App — Customer Guide
 
 **Your Guide to Earning Rewards at Lucky Stop**
-**Version:** 1.0 | Last Updated: May 30, 2026
+**Version:** 1.4 | Last Updated: July 21, 2026
 
 ---
 
@@ -25,14 +25,15 @@ The Lucky Stop app lets you earn points on every purchase at any participating L
 9. [Redeeming Points for In-Store Credits](#9-redeeming-points-for-in-store-credits)
 10. [The Rewards Catalog](#10-the-rewards-catalog)
 11. [Your Transaction History](#11-your-transaction-history)
-12. [Notifications](#12-notifications)
-13. [Leaderboard — How You Rank](#13-leaderboard--how-you-rank)
-14. [Product Requests — Ask for What You Want](#14-product-requests--ask-for-what-you-want)
-15. [Apply for a Job at Lucky Stop](#15-apply-for-a-job-at-lucky-stop)
-16. [Advertise Your Business](#16-advertise-your-business)
-17. [Your Profile](#17-your-profile)
-18. [Account Security](#18-account-security)
-19. [Frequently Asked Questions](#19-frequently-asked-questions)
+12. [Hot Food — Order Ahead](#12-hot-food--order-ahead)
+13. [Notifications](#13-notifications)
+14. [Leaderboard — How You Rank](#14-leaderboard--how-you-rank)
+15. [Product Requests — Ask for What You Want](#15-product-requests--ask-for-what-you-want)
+16. [Apply for a Job at Lucky Stop](#16-apply-for-a-job-at-lucky-stop)
+17. [Advertise Your Business](#17-advertise-your-business)
+18. [Your Profile](#18-your-profile)
+19. [Account Security](#19-account-security)
+20. [Frequently Asked Questions](#20-frequently-asked-questions)
 
 ---
 
@@ -314,18 +315,55 @@ Each entry shows:
 - **Points earned or deducted.**
 - **Cashback rate applied.**
 
-### Using History for Disputes
+### Reporting Missing or Incorrect Points
 
-If you believe a transaction is missing or incorrect:
-1. Check your History first — the transaction may be there with a slightly different amount.
-2. Note the date, time, and store.
-3. Contact support: support@luckystop.cliffindus.com with the details.
+There are two ways to report a problem, depending on whether the transaction shows up in your History:
 
-Disputes should be submitted within **60 days** of the transaction.
+**If the transaction is in your History (points look wrong, or you want to flag it):**
+1. Tap the transaction to open its detail view.
+2. Tap **Dispute This Transaction**.
+3. Describe the issue and submit. Your store's manager reviews it with the transaction and receipt photo already attached — no need to re-enter the store or amount.
+
+**If the transaction isn't in your History at all:**
+1. Go to **My Reports** (in your Profile).
+2. Tap **Report Missing Points**.
+3. Describe what happened — which store, roughly when, and what you purchased.
+4. Submit. This goes to the store's manager for review.
+
+Either way, you can track the status of anything you've reported from the **My Reports** screen, and you'll get a notification when it's resolved.
 
 ---
 
-## 12. Notifications
+## 12. Hot Food — Order Ahead
+
+Some Lucky Stop locations offer a Hot Food menu through the app. You can browse available items and place an order directly from your phone.
+
+### Browsing the Hot Food Menu
+
+Tap **Hot Food** in the menu (or the Hot Food tile on your home screen). You will see all currently available hot food items at your nearest participating Lucky Stop location, including:
+- Item name and description.
+- Price (in dollar amount).
+- Estimated preparation time.
+
+### Placing an Order
+
+1. Tap the item(s) you want to order.
+2. Tap **Place Order**.
+3. You will receive a push notification when your order is ready for pickup.
+
+### Picking Up Your Order
+
+Go to the counter and let the cashier know you have a hot food app order. They will look up your order and hand it over.
+
+### Things to Know
+
+- Hot food orders are pay-in-store at pickup (the app does not charge your card).
+- Hot food purchases qualify for loyalty points — show your QR code as usual when you pay.
+- Not all Lucky Stop locations offer hot food ordering. If the menu is unavailable, the tab will not be shown.
+
+---
+
+## 13. Notifications
 
 Lucky Stop sends you notifications to keep you in the loop about your account and promotions.
 
@@ -351,7 +389,7 @@ Turning off notifications won't affect your account or points.
 
 ---
 
-## 13. Leaderboard — How You Rank
+## 14. Leaderboard — How You Rank
 
 The Lucky Stop Leaderboard shows the top loyalty members ranked by points earned in the current period. It's a fun way to see how you compare with other dedicated Lucky Stop customers.
 
@@ -370,7 +408,7 @@ The leaderboard shows your first name and tier. Full names are not displayed to 
 
 ---
 
-## 14. Product Requests — Ask for What You Want
+## 15. Product Requests — Ask for What You Want
 
 Can't find your favorite product at your local Lucky Stop? Submit a product request and let the store manager know what you'd like them to stock.
 
@@ -392,7 +430,7 @@ Go to **My Requests** in your profile to see the status:
 
 ---
 
-## 15. Apply for a Job at Lucky Stop
+## 16. Apply for a Job at Lucky Stop
 
 Looking for work? You can apply directly for available positions at Lucky Stop locations through the app.
 
@@ -423,7 +461,7 @@ You can track your application status in **My Applications** in your profile. A 
 
 ---
 
-## 16. Advertise Your Business
+## 17. Advertise Your Business
 
 Do you own a business? Lucky Stop offers an advertising opportunity to reach loyal Lucky Stop customers.
 
@@ -451,7 +489,7 @@ The Lucky Stop team reviews your request and will contact you via the phone numb
 
 ---
 
-## 17. Your Profile
+## 18. Your Profile
 
 Your Profile is where you manage your account settings.
 
@@ -463,6 +501,7 @@ Your Profile is where you manage your account settings.
 |---|---|---|
 | **Update Name** | Profile → Update Name | Change your display name |
 | **Change PIN** | Profile → Change PIN | Update your security PIN |
+| **Language** | Profile → Preferences → Language | Switch between English and Español |
 | **Recovery Email** | Profile → Recovery Email | Add email for account recovery |
 | **Profile Photo** | Tap your avatar at top | Upload a profile picture |
 | **Biometric Login** | Profile → Biometric Login | Enable Face ID / Touch ID login |
@@ -476,7 +515,7 @@ Your current points balance is also shown in the header of your profile screen.
 
 ---
 
-## 18. Account Security
+## 19. Account Security
 
 ### Your PIN
 
@@ -514,7 +553,10 @@ If you no longer have access to your registered phone number, contact support fo
 
 ---
 
-## 19. Frequently Asked Questions
+## 20. Frequently Asked Questions
+
+**Q: Can I use the app in Spanish?**
+A: Yes! Go to Profile → Preferences → Language and select **Español**. The app switches to Spanish immediately and remembers your choice.
 
 **Q: Is the Lucky Stop app free?**
 A: Yes! The app is completely free to download and use.
