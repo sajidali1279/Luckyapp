@@ -239,7 +239,7 @@ const s = StyleSheet.create({
   customerRow: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: COLORS.border,
+    borderWidth: 1, borderColor: COLORS.managerPrimary + '35',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   rankWrap: { width: 28, alignItems: 'center' },
@@ -256,7 +256,7 @@ const s = StyleSheet.create({
   staffRow: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: COLORS.border,
+    borderWidth: 1, borderColor: COLORS.managerPrimary + '35',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   staffRowEOM: { borderWidth: 1.5, borderColor: '#F59E0B' },
