@@ -1790,7 +1790,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
-  dealSlideCard: { backgroundColor: COLORS.accent + '08' },
+  dealSlideCard: { backgroundColor: COLORS.accent + '08', borderWidth: 1.5, borderColor: COLORS.accent + '30' },
   offerSlideImage: { width: 220, height: 110, resizeMode: 'cover' },
   offerSlidePlaceholder: {
     width: 220, height: 110, alignItems: 'center', justifyContent: 'center',
@@ -1818,6 +1818,7 @@ const styles = StyleSheet.create({
   dealCard: {
     backgroundColor: COLORS.accent + '08', borderRadius: 18, overflow: 'hidden', marginBottom: 10,
     flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1.5, borderColor: COLORS.accent + '30',
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
