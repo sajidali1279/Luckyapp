@@ -205,7 +205,7 @@ export default function ManagerHome() {
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.managerPrimary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Quick stat cards — overlap header ── */}

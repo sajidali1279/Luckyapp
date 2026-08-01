@@ -183,7 +183,7 @@ export default function AdsScreen() {
             contentContainerStyle={s.list}
             ListHeaderComponent={PromoteCta}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
           />
         </FadeSlideIn>

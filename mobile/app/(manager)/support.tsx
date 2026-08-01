@@ -286,7 +286,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
           >
             {messages.map(msg => {
               const isSupport = msg.isFromSupport;
@@ -414,7 +414,7 @@ export default function SupportScreen() {
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
         >
           {openThreads.length > 0 && (
             <>

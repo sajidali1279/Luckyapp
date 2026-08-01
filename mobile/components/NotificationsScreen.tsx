@@ -270,7 +270,7 @@ export default function NotificationsScreen() {
               renderItem={renderItem}
               contentContainerStyle={s.list}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
               }
               ItemSeparatorComponent={() => <View style={s.separator} />}
             />

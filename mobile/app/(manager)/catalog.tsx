@@ -525,7 +525,7 @@ function BrowseTab() {
         <ScrollView
           style={s.flex}
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
           showsVerticalScrollIndicator={false}
         >
         <FadeSlideIn>

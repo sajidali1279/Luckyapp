@@ -1668,7 +1668,7 @@ export default function ManagerOrderListScreen() {
                 contentContainerStyle={{ paddingBottom: 8 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.managerPrimary} />}
+                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
               >
                 {urgentItems.length > 0 && (
                   <>

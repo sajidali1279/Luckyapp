@@ -591,7 +591,7 @@ export default function CustomerHotFoodScreen() {
                 keyExtractor={item => item.id}
                 contentContainerStyle={s.menuList}
                 refreshControl={
-                  <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} />
+                  <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />
                 }
                 renderItem={({ item }) => (
                   <MenuCard
@@ -633,7 +633,7 @@ export default function CustomerHotFoodScreen() {
             keyExtractor={o => o.id}
             contentContainerStyle={s.ordersList}
             refreshControl={
-              <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} />
+              <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
             ListEmptyComponent={
               ordersLoading ? (

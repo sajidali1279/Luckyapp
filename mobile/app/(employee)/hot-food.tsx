@@ -793,7 +793,7 @@ export default function HotFoodOrders() {
             keyExtractor={item => item.id}
             contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} />}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             renderItem={({ item }) => (
               <MenuItemCard
                 item={item}

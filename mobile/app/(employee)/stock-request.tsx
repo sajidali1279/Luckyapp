@@ -416,7 +416,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
       style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />}
     >
       <Text style={m.legend}>On order list → Ordered → Received tracks your item once a manager accepts it.</Text>
 
