@@ -15,6 +15,7 @@ import {
   BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
 import NoticeBanner, { usePinnedNotice } from '../../components/NoticeBanner';
+import DashboardWatermark from '../../components/DashboardWatermark';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -144,6 +145,7 @@ export default function EmployeeHomeScreen() {
 
   return (
     <View style={s.root}>
+      <DashboardWatermark color={COLORS.primary} />
       <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}

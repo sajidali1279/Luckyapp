@@ -14,6 +14,7 @@ import {
   PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon, BellIcon,
 } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import DashboardWatermark from '../../components/DashboardWatermark';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -132,6 +133,7 @@ export default function ManagerHome() {
 
   return (
     <View style={{ flex: 1 }}>
+      <DashboardWatermark color={COLORS.managerPrimary} />
       <SafeAreaView style={s.headerSafe} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
 

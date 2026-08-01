@@ -22,6 +22,7 @@ import {
   PercentIcon, GiftIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
+import DashboardWatermark from '../../components/DashboardWatermark';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -87,12 +88,14 @@ const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { ban
       accessibilityRole="button"
       accessibilityLabel={item.title ? `View banner: ${item.title}` : 'View banner'}
     >
-      <Image source={{ uri: item.imageUrl }} style={bc.image} />
-      {item.title ? (
-        <View style={bc.titleBar}>
-          <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
-        </View>
-      ) : null}
+      <View style={bc.slideClip}>
+        <Image source={{ uri: item.imageUrl }} style={bc.image} />
+        {item.title ? (
+          <View style={bc.titleBar}>
+            <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
+          </View>
+        ) : null}
+      </View>
     </TouchableOpacity>
   ), [onSelect]);
 
@@ -196,24 +199,26 @@ const PromoSlideshow = memo(function PromoSlideshow() {
 
   const renderSlide = useCallback(({ item }: { item: PromoSlide }) => (
     <TouchableOpacity
-      style={[ps.slide, { backgroundColor: item.bg }]}
+      style={ps.slide}
       activeOpacity={item.route ? 0.88 : 1}
       onPress={() => { if (item.route) router.push(item.route as any); }}
       accessibilityRole={item.route ? 'button' : undefined}
       accessibilityLabel={item.route ? `${item.headline}${item.cta ? `: ${item.cta}` : ''}` : undefined}
     >
-      <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '22' }]} />
-      <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '33' }]} />
-      <View style={ps.slideInner}>
-        <View style={ps.iconBadge}>{promoIcon(item.id, 22)}</View>
-        <Text style={ps.eyebrow}>{item.eyebrow}</Text>
-        <Text style={ps.headline}>{item.headline}</Text>
-        <Text style={ps.body} numberOfLines={2}>{item.body}</Text>
-        {item.cta && (
-          <View style={[ps.cta, { backgroundColor: item.deco }]}>
-            <Text style={[ps.ctaText, { color: item.bg }]}>{item.cta} →</Text>
-          </View>
-        )}
+      <View style={[ps.slideClip, { backgroundColor: item.bg }]}>
+        <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '22' }]} />
+        <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '33' }]} />
+        <View style={ps.slideInner}>
+          <View style={ps.iconBadge}>{promoIcon(item.id, 22)}</View>
+          <Text style={ps.eyebrow}>{item.eyebrow}</Text>
+          <Text style={ps.headline}>{item.headline}</Text>
+          <Text style={ps.body} numberOfLines={2}>{item.body}</Text>
+          {item.cta && (
+            <View style={[ps.cta, { backgroundColor: item.deco }]}>
+              <Text style={[ps.ctaText, { color: item.bg }]}>{item.cta} →</Text>
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   ), []);
@@ -260,17 +265,6 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Slow, continuous drift for the watermark icon on solid-color slides —
-  // a single looping 0→1 driver feeds both the rotation and a gentle side-to-side pan.
-  const watermarkAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(watermarkAnim, { toValue: 1, duration: 14000, easing: Easing.linear, useNativeDriver: true })
-    ).start();
-  }, [watermarkAnim]);
-  const watermarkRotate = watermarkAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const watermarkDrift = watermarkAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 16, 0] });
-
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (deals.length <= 1) return;
@@ -292,42 +286,38 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
     const palette = DEAL_SLIDE_PALETTE[index % DEAL_SLIDE_PALETTE.length];
     return (
       <TouchableOpacity
-        style={[ds.slide, !item.imageUrl && { backgroundColor: palette.bg }]}
+        style={ds.slide}
         activeOpacity={0.9}
         onPress={() => onSelectOffer(item)}
         accessibilityRole="button"
         accessibilityLabel={`View deal: ${item.title}, ${item.dealText}`}
       >
-        {item.imageUrl ? (
-          <>
-            <Image source={{ uri: item.imageUrl }} style={ds.slideImage} />
-            <View style={ds.imageScrim} />
-          </>
-        ) : (
-          <>
-            <Animated.View
-              pointerEvents="none"
-              style={[ds.watermark, { transform: [{ rotate: watermarkRotate }, { translateX: watermarkDrift }] }]}
-            >
-              <TagIcon size={190} color="#fff" strokeWidth={1} />
-            </Animated.View>
-            <View style={[ds.decoCircleLg, { backgroundColor: palette.deco + '22' }]} />
-            <View style={[ds.decoCircleSm, { backgroundColor: palette.deco + '33' }]} />
-          </>
-        )}
-        <View style={ds.slideInner}>
-          <View style={ds.iconBadge}>
-            <TagIcon size={16} color="#fff" strokeWidth={2.5} />
-          </View>
-          <Text style={ds.dealTextBig} numberOfLines={1}>{item.dealText}</Text>
-          <Text style={ds.title} numberOfLines={1}>{item.title}</Text>
-          {item.description && item.description !== item.dealText && (
-            <Text style={ds.body} numberOfLines={1}>{item.description}</Text>
+        <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg }]}>
+          {item.imageUrl ? (
+            <>
+              <Image source={{ uri: item.imageUrl }} style={ds.slideImage} />
+              <View style={ds.imageScrim} />
+            </>
+          ) : (
+            <>
+              <View style={[ds.decoCircleLg, { backgroundColor: palette.deco + '22' }]} />
+              <View style={[ds.decoCircleSm, { backgroundColor: palette.deco + '33' }]} />
+            </>
           )}
+          <View style={ds.slideInner}>
+            <View style={ds.iconBadge}>
+              <TagIcon size={16} color="#fff" strokeWidth={2.5} />
+            </View>
+            <Text style={ds.dealTextBig} numberOfLines={1}>{item.dealText}</Text>
+            <Text style={ds.title} numberOfLines={1}>{item.title}</Text>
+            {item.description && item.description !== item.dealText && (
+              <Text style={ds.body} numberOfLines={1}>{item.description}</Text>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
-  }, [onSelectOffer, watermarkRotate, watermarkDrift]);
+  }, [onSelectOffer]);
 
   return (
     <View style={ds.root}>
@@ -693,6 +683,7 @@ export default function CustomerHome() {
 
   return (
     <View style={styles.container}>
+      <DashboardWatermark color={COLORS.primary} />
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* ── Fixed header ── */}
@@ -1013,37 +1004,39 @@ export default function CustomerHome() {
                     accessibilityRole="button"
                     accessibilityLabel={`View promotion: ${offer.title}`}
                   >
-                    {offer.imageUrl
-                      ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
-                      : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
-                    }
-                    <View style={styles.offerContent}>
-                      <Text style={styles.offerTitle}>{offer.title}</Text>
-                      {!nearestStore && (
-                        <View style={styles.offerStoreBadge}>
-                          {offer.store
-                            ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
-                            : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                    <View style={styles.offerCardClip}>
+                      {offer.imageUrl
+                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
+                        : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
+                      }
+                      <View style={styles.offerContent}>
+                        <Text style={styles.offerTitle}>{offer.title}</Text>
+                        {!nearestStore && (
+                          <View style={styles.offerStoreBadge}>
+                            {offer.store
+                              ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                              : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                            }
+                            <Text style={styles.offerStoreText}>
+                              {offer.store ? `${offer.store.name}` : 'All Lucky Stop Stores'}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={styles.offerDesc}>{offer.description}</Text>
+                        <View style={styles.offerBonusPill}>
+                          {offer.gasBonusCentsPerGallon != null
+                            ? <GasPumpIcon size={11} color="#fff" strokeWidth={2.5} />
+                            : <PercentIcon size={11} color="#fff" strokeWidth={2.5} />
                           }
-                          <Text style={styles.offerStoreText}>
-                            {offer.store ? `${offer.store.name}` : 'All Lucky Stop Stores'}
+                          <Text style={styles.offerBonusText}>
+                            {offer.gasBonusCentsPerGallon != null
+                              ? `+${offer.gasBonusCentsPerGallon}¢/gal bonus`
+                              : `+${Math.round(offer.bonusRate * 100)}% cashback`}
                           </Text>
                         </View>
-                      )}
-                      <Text style={styles.offerDesc}>{offer.description}</Text>
-                      <View style={styles.offerBonusPill}>
-                        {offer.gasBonusCentsPerGallon != null
-                          ? <GasPumpIcon size={11} color="#fff" strokeWidth={2.5} />
-                          : <PercentIcon size={11} color="#fff" strokeWidth={2.5} />
-                        }
-                        <Text style={styles.offerBonusText}>
-                          {offer.gasBonusCentsPerGallon != null
-                            ? `+${offer.gasBonusCentsPerGallon}¢/gal bonus`
-                            : `+${Math.round(offer.bonusRate * 100)}% cashback`}
-                        </Text>
                       </View>
+                      <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
                     </View>
-                    <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
                   </TouchableOpacity>
                 ))
               ) : (
@@ -1057,41 +1050,43 @@ export default function CustomerHome() {
                       accessibilityRole="button"
                       accessibilityLabel={`View promotion: ${offer.title}`}
                     >
-                      {offer.imageUrl
-                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
-                        : (
-                          <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
+                      <View style={styles.offerSlideClip}>
+                        {offer.imageUrl
+                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
+                          : (
+                            <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
+                              {offer.gasBonusCentsPerGallon != null
+                                ? <GasPumpIcon size={32} color={COLORS.accent} strokeWidth={1.5} />
+                                : <FlameIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
+                              }
+                            </View>
+                          )
+                        }
+                        <View style={styles.offerSlideContent}>
+                          <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+                          {!nearestStore && (
+                            <View style={styles.offerStoreBadge}>
+                              {offer.store
+                                ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                                : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                              }
+                              <Text style={styles.offerStoreText} numberOfLines={1}>
+                                {offer.store ? offer.store.name : 'All Stores'}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
+                          <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
                             {offer.gasBonusCentsPerGallon != null
-                              ? <GasPumpIcon size={32} color={COLORS.accent} strokeWidth={1.5} />
-                              : <FlameIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
+                              ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
+                              : <PercentIcon size={10} color="#fff" strokeWidth={2.5} />
                             }
-                          </View>
-                        )
-                      }
-                      <View style={styles.offerSlideContent}>
-                        <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
-                        {!nearestStore && (
-                          <View style={styles.offerStoreBadge}>
-                            {offer.store
-                              ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
-                              : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
-                            }
-                            <Text style={styles.offerStoreText} numberOfLines={1}>
-                              {offer.store ? offer.store.name : 'All Stores'}
+                            <Text style={styles.offerBonusText}>
+                              {offer.gasBonusCentsPerGallon != null
+                                ? `+${offer.gasBonusCentsPerGallon}¢/gal`
+                                : `+${Math.round(offer.bonusRate * 100)}%`}
                             </Text>
                           </View>
-                        )}
-                        <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
-                        <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
-                          {offer.gasBonusCentsPerGallon != null
-                            ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
-                            : <PercentIcon size={10} color="#fff" strokeWidth={2.5} />
-                          }
-                          <Text style={styles.offerBonusText}>
-                            {offer.gasBonusCentsPerGallon != null
-                              ? `+${offer.gasBonusCentsPerGallon}¢/gal`
-                              : `+${Math.round(offer.bonusRate * 100)}%`}
-                          </Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -1121,20 +1116,22 @@ export default function CustomerHome() {
                   accessibilityRole="button"
                   accessibilityLabel={`Order ${item.name}, $${Number(item.price).toFixed(2)}`}
                 >
-                  {item.imageUrl
-                    ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} />
-                    : (
-                      <View style={styles.hotFoodImgPlaceholder}>
-                        <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
-                      </View>
-                    )
-                  }
-                  <View style={styles.hotFoodCardBody}>
-                    <Text style={styles.hotFoodItemName} numberOfLines={2}>{item.name}</Text>
-                    {item.description
-                      ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text>
-                      : null}
-                    <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                  <View style={styles.hotFoodClip}>
+                    {item.imageUrl
+                      ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} />
+                      : (
+                        <View style={styles.hotFoodImgPlaceholder}>
+                          <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
+                        </View>
+                      )
+                    }
+                    <View style={styles.hotFoodCardBody}>
+                      <Text style={styles.hotFoodItemName} numberOfLines={2}>{item.name}</Text>
+                      {item.description
+                        ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text>
+                        : null}
+                      <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -1831,7 +1828,8 @@ const styles = StyleSheet.create({
 
   // Hot food cards
   hotFoodRow:          { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
-  hotFoodCard:         { width: 148, backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
+  hotFoodCard:         { width: 148, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
+  hotFoodClip:         { backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden' },
   hotFoodImg:          { width: 148, height: 96, resizeMode: 'cover' },
   hotFoodImgPlaceholder:{ width: 148, height: 96, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
   hotFoodCardBody:     { padding: 10 },
@@ -1841,10 +1839,11 @@ const styles = StyleSheet.create({
 
   sliderRow: { gap: 10, paddingBottom: 4 },
   offerSlideCard: {
-    width: 220, backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden',
+    width: 220, borderRadius: 18,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
+  offerSlideClip: { backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden' },
   offerSlideImage: { width: 220, height: 110, resizeMode: 'cover' },
   offerSlidePlaceholder: {
     width: 220, height: 110, alignItems: 'center', justifyContent: 'center',
@@ -1852,10 +1851,13 @@ const styles = StyleSheet.create({
   offerSlideContent: { padding: 12, gap: 4 },
 
   offerCard: {
-    backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden', marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 18, marginBottom: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+  },
+  offerCardClip: {
+    backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center',
   },
   offerImage: { width: 84, height: 84, resizeMode: 'cover' },
   offerPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
@@ -1896,11 +1898,12 @@ const styles = StyleSheet.create({
 const ps = StyleSheet.create({
   root:         { gap: 10 },
   slide: {
-    width: SLIDE_W, marginRight: 12, borderRadius: 22, overflow: 'hidden',
+    width: SLIDE_W, marginRight: 12, borderRadius: 22,
     height: 196,
     shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
   },
+  slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
   decoCircleLg: { position: 'absolute', width: 220, height: 220, borderRadius: 110, top: -70, right: -55 },
   decoCircleSm: { position: 'absolute', width: 110, height: 110, borderRadius: 55, top: 16, right: 62 },
   slideInner:   { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, padding: 20, justifyContent: 'flex-end', gap: 5 },
@@ -1920,14 +1923,14 @@ const ps = StyleSheet.create({
 const ds = StyleSheet.create({
   root: { gap: 10 },
   slide: {
-    width: SLIDE_W, marginRight: 12, borderRadius: 22, overflow: 'hidden',
+    width: SLIDE_W, marginRight: 12, borderRadius: 22,
     height: 176,
     shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
   },
+  slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
   slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined, resizeMode: 'cover' },
   imageScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%', backgroundColor: 'rgba(0,0,0,0.55)' },
-  watermark: { position: 'absolute', top: -34, right: -44, opacity: 0.14 },
   decoCircleLg: { position: 'absolute', width: 200, height: 200, borderRadius: 100, top: -60, right: -50 },
   decoCircleSm: { position: 'absolute', width: 100, height: 100, borderRadius: 50, bottom: -30, left: -20 },
   slideInner: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, padding: 18, justifyContent: 'flex-end', gap: 3 },
@@ -2022,10 +2025,11 @@ const ti = StyleSheet.create({
 const bc = StyleSheet.create({
   root: { gap: 10 },
   slide: {
-    width: BANNER_W, marginRight: 12, borderRadius: 20, overflow: 'hidden',
+    width: BANNER_W, marginRight: 12, borderRadius: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
   },
+  slideClip: { borderRadius: 20, overflow: 'hidden' },
   image: { width: BANNER_W, height: 190, resizeMode: 'cover' },
   titleBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
