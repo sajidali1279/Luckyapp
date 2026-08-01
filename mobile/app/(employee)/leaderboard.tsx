@@ -9,6 +9,9 @@ import { COLORS } from '../../constants';
 import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 
+const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
+const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
 function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
@@ -126,10 +129,26 @@ export default function EmployeeLeaderboardScreen() {
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           <FlatList
-            data={leaderboard}
+            data={leaderboard.filter((e: any) => e.rank > 3)}
             keyExtractor={(item: any) => item.employeeId}
             contentContainerStyle={st.list}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              leaderboard.some((e: any) => e.rank <= 3) ? (
+                <View style={st.podium}>
+                  {leaderboard.filter((e: any) => e.rank <= 3).map((e: any) => (
+                    <View
+                      key={e.employeeId}
+                      style={[st.podiumCol, e.rank === 1 && st.podiumColFirst, { backgroundColor: PODIUM_COLORS[e.rank] }]}
+                    >
+                      <Text style={st.podiumIcon}>{MEDAL[e.rank]}</Text>
+                      <Text style={st.podiumName} numberOfLines={1}>{e.firstName}</Text>
+                      <Text style={st.podiumSub}>{e.avgRating.toFixed(1)} ★</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null
+            }
             renderItem={({ item }: { item: any }) => {
               const isMine = item.isCurrentUser;
               const isEOM = item.isEmployeeOfMonth;
@@ -216,6 +235,23 @@ const st = StyleSheet.create({
   eomBadgeText: { fontSize: 13, fontWeight: '800', color: '#92400E' },
 
   list: { padding: 16, paddingBottom: 32 },
+  podium: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end',
+    gap: 12, marginBottom: 16,
+  },
+  podiumCol: {
+    alignItems: 'center', borderRadius: 16,
+    padding: 14, flex: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
+  },
+  podiumColFirst: {
+    paddingVertical: 20,
+    shadowOpacity: 0.2, elevation: 7,
+  },
+  podiumIcon: { fontSize: 32, marginBottom: 6 },
+  podiumName: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  podiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '700', marginTop: 3 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 8,
