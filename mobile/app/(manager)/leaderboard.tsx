@@ -239,8 +239,8 @@ const s = StyleSheet.create({
   customerRow: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: COLORS.managerPrimary + '35',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   rankWrap: { width: 28, alignItems: 'center' },
   rank: { fontSize: 13, fontWeight: '800', color: TEXT_GRAY[400] },
@@ -256,8 +256,8 @@ const s = StyleSheet.create({
   staffRow: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: COLORS.managerPrimary + '35',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   staffRowEOM: { borderWidth: 1.5, borderColor: '#F59E0B' },
   staffName: { fontSize: 14, fontWeight: '700', color: TEXT_GRAY[900], marginBottom: 2 },

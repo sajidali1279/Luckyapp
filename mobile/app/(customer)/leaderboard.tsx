@@ -11,6 +11,7 @@ import BackButton from '../../components/BackButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
 
 export default function CustomerLeaderboardScreen() {
   const { user } = useAuthStore();
@@ -156,14 +157,17 @@ export default function CustomerLeaderboardScreen() {
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           <FlatList
-            data={entries}
+            data={entries.filter((e: any) => e.rank > 3)}
             keyExtractor={(item) => item.customerId}
             contentContainerStyle={st.list}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               <View style={st.podium}>
                 {entries.slice(0, 3).map((e: any) => (
-                  <View key={e.customerId} style={[st.podiumCol, e.rank === 1 && st.podiumColFirst]}>
+                  <View
+                    key={e.customerId}
+                    style={[st.podiumCol, e.rank === 1 && st.podiumColFirst, { backgroundColor: PODIUM_COLORS[e.rank] }]}
+                  >
                     <Text style={st.podiumIcon}>{TIER_ICONS[e.rank]}</Text>
                     <Text style={st.podiumName} numberOfLines={1}>{e.firstName}</Text>
                     <Text style={st.podiumPts}>{(e.totalPoints / 1000).toFixed(1)}k</Text>
@@ -228,28 +232,27 @@ const st = StyleSheet.create({
     gap: 12, marginBottom: 24, paddingTop: 8,
   },
   podiumCol: {
-    alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 16,
+    alignItems: 'center', borderRadius: 16,
     padding: 14, flex: 1,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
   },
   podiumColFirst: {
     paddingVertical: 20,
-    shadowOpacity: 0.14, elevation: 6,
-    borderWidth: 2, borderColor: '#FFD700',
+    shadowOpacity: 0.2, elevation: 7,
   },
   podiumIcon: { fontSize: 32, marginBottom: 6 },
-  podiumName: { fontSize: 13, fontWeight: '800', color: COLORS.text },
-  podiumPts: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', marginTop: 3 },
+  podiumName: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  podiumPts: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '700', marginTop: 3 },
 
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 8,
-    borderWidth: 1, borderColor: COLORS.primary + '35',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 5, elevation: 2,
   },
-  rowMine: { borderWidth: 2, borderColor: COLORS.primary + '40', backgroundColor: COLORS.primary + '08' },
+  rowMine: { borderWidth: 2, borderColor: COLORS.primary + '55', backgroundColor: COLORS.primary + '08' },
   rankBox: { width: 36, alignItems: 'center' },
   rankIcon: { fontSize: 22 },
   rankNum: { fontSize: 15, fontWeight: '800', color: COLORS.textMuted },
