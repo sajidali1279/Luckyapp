@@ -22,13 +22,14 @@
 12. [Children's Privacy (COPPA)](#12-childrens-privacy-coppa)
 13. [Push Notifications](#13-push-notifications)
 14. [Camera and Photo Library Access](#14-camera-and-photo-library-access)
-15. [Security Measures](#15-security-measures)
-16. [Data Breach Notification](#16-data-breach-notification)
-17. [International Data Transfers](#17-international-data-transfers)
-18. [Third-Party Links and Services](#18-third-party-links-and-services)
-19. [Changes to This Privacy Policy](#19-changes-to-this-privacy-policy)
-20. [Contact Us](#20-contact-us)
-21. [Glossary](#21-glossary)
+15. [Location Information](#15-location-information)
+16. [Security Measures](#16-security-measures)
+17. [Data Breach Notification](#17-data-breach-notification)
+18. [International Data Transfers](#18-international-data-transfers)
+19. [Third-Party Links and Services](#19-third-party-links-and-services)
+20. [Changes to This Privacy Policy](#20-changes-to-this-privacy-policy)
+21. [Contact Us](#21-contact-us)
+22. [Glossary](#22-glossary)
 
 ---
 
@@ -154,6 +155,15 @@ If you use the App to submit a job application to a Lucky Stop location, we coll
 
 You are not required to provide optional information (recovery email, profile photo, job application details, or business promotion details) to use the core features of the App. However, withholding certain information may limit your ability to use specific features.
 
+### 3.9 Location Information
+
+If you grant permission, we access your device's precise geolocation (via GPS/location services) **only while the App is in the foreground and actively in use** — we do not access or track your location in the background. This is used to:
+
+- Identify the Lucky Stop location nearest you, so the App can show you that store's promotions, banners, and (where offered) hot food ordering.
+- Determine whether the nearest store sells age-restricted products, so the App can present the existing age-confirmation step (see Section 12) in the appropriate context.
+
+Your device coordinates are processed **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public information within the App). We do not transmit your coordinates to, or store them on, our servers. See Section 15 for more detail on how this permission works and how to control it.
+
 ---
 
 ## 4. How We Collect Information
@@ -177,6 +187,10 @@ When an employee processes a transaction on your behalf, they enter purchase det
 ### 4.4 From Third-Party Authentication Services
 
 Firebase Authentication (provided by Google LLC) handles the phone number One-Time Password (OTP) verification process. Google processes your phone number to send the OTP. Please review Google's Privacy Policy for information on how Google handles this data.
+
+### 4.5 From Your Device's Location Services
+
+If you grant location permission, your device's operating system (iOS or Android) provides your coordinates directly to the App for on-device use as described in Section 3.9. This does not pass through our servers.
 
 ---
 
@@ -255,6 +269,13 @@ We use the information we collect for the following purposes:
 - Understanding aggregate usage patterns to improve App features and performance.
 - Monitoring system health and diagnosing technical issues.
 - Generating business intelligence reports for store operators regarding transaction volumes, popular categories, and customer engagement.
+
+### 5.12 Location-Based Features
+
+- Determining which Lucky Stop location is nearest you, to tailor the promotions, banners, and (where available) hot food ordering shown on your home screen.
+- Determining whether an age-confirmation step should be presented because the nearest store sells age-restricted products.
+
+We do not use your location for advertising targeting outside the App, and we do not sell or share your location data with third parties.
 
 ---
 
@@ -392,8 +413,9 @@ In the preceding 12 months, we have collected the following categories of person
 | Personal information per California Civil Code § 1798.80(e) | Name, phone number, account records |
 | Commercial information | Purchase history, points earned, redemptions |
 | Internet or electronic network activity | App usage, push notification interaction |
+| Geolocation data | Precise device coordinates, processed on-device only, if you grant location permission (see Section 15) |
 | Inferences drawn from the above | Tier placement, purchase behavior patterns |
-| Sensitive personal information | Phone number (used for identification) |
+| Sensitive personal information | Phone number (used for identification); precise geolocation (if you grant location permission) |
 
 ### 11.2 Your CCPA Rights
 
@@ -459,7 +481,32 @@ You can revoke camera or photo library permissions at any time through your devi
 
 ---
 
-## 15. Security Measures
+## 15. Location Information
+
+The App may request access to your device's precise location (GPS/location services), governed by the iOS and Android system permission prompts.
+
+### What We Access
+
+- **Precise device coordinates**, requested via your device's location services, only while the App is open and in the foreground (`expo-location`'s "when in use" permission). We do not request or use "always allow" background location access.
+
+### Why We Request It
+
+- To identify the Lucky Stop location nearest you and tailor the home screen's promotions, banners, and hot food ordering availability to that store.
+- To determine whether the nearest store carries age-restricted products, so the App can show the existing age-confirmation step in the right context.
+
+### How It's Processed
+
+Your coordinates are used **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public within the App). They are never transmitted to or stored on our servers, and are not retained after the calculation completes — see Section 9 for our data retention practices generally.
+
+### Your Control
+
+- The first time a location-based feature is used, your device will prompt you to allow or deny location access. You may decline.
+- You can grant, deny, or revoke location permission at any time through your device's settings (iOS: Settings → Privacy → Location Services → Lucky Stop; Android: Settings → Apps → Lucky Stop → Permissions → Location).
+- Declining or revoking location permission will not affect your ability to use core app features. Without it, the App defaults to showing all Lucky Stop locations rather than automatically detecting the nearest one, and you will not see the automatic age-confirmation step tied to a detected nearby store (age verification collected at registration, per Section 3.1, still applies).
+
+---
+
+## 16. Security Measures
 
 We take data security seriously and implement the following measures to protect your personal information:
 
@@ -487,7 +534,7 @@ If you suspect your account has been compromised, please change your PIN immedia
 
 ---
 
-## 16. Data Breach Notification
+## 17. Data Breach Notification
 
 In the event of a data breach that is reasonably likely to result in a risk to the rights and freedoms of affected individuals, we will:
 
@@ -497,7 +544,7 @@ In the event of a data breach that is reasonably likely to result in a risk to t
 
 ---
 
-## 17. International Data Transfers
+## 18. International Data Transfers
 
 Lucky Stop primarily serves customers in the United States. Our servers and service providers are located in the United States. If you access the App from outside the United States, your personal information may be transferred to and processed in the United States, where data protection laws may differ from those in your country.
 
@@ -505,13 +552,13 @@ By using the App, you consent to the transfer, storage, and processing of your p
 
 ---
 
-## 18. Third-Party Links and Services
+## 19. Third-Party Links and Services
 
 The App may contain links to third-party websites or services (e.g., business promotion websites, external resources). This Privacy Policy does not apply to those third-party services, and we are not responsible for their privacy practices. We encourage you to review the privacy policies of any third-party services you access.
 
 ---
 
-## 19. Changes to This Privacy Policy
+## 20. Changes to This Privacy Policy
 
 We may update this Privacy Policy from time to time to reflect changes in our practices, technology, legal requirements, or for other operational reasons. When we make material changes, we will:
 
@@ -523,7 +570,7 @@ Your continued use of the App after the effective date of any updates constitute
 
 ---
 
-## 20. Contact Us
+## 21. Contact Us
 
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
@@ -538,7 +585,7 @@ For account deletion requests, use the "Delete My Account" feature in the App (P
 
 ---
 
-## 21. Glossary
+## 22. Glossary
 
 | Term | Definition |
 |---|---|
@@ -550,6 +597,7 @@ For account deletion requests, use the "Delete My Account" feature in the App (P
 | **DEV_ADMIN** | The platform developer/operator with the highest level of system access. |
 | **Employee** | A Lucky Stop store-level cashier or staff member who uses the App to process customer transactions. |
 | **FCM** | Firebase Cloud Messaging — Google's push notification delivery service. |
+| **Geolocation** | Your device's precise physical coordinates, accessed only with your permission and processed on-device (see Section 15). |
 | **JWT** | JSON Web Token — a secure token format used for API authentication. |
 | **OTP** | One-Time Password — a time-limited code sent to your phone number for identity verification. |
 | **Personal Information** | Any information that identifies or can be used to identify an individual. |

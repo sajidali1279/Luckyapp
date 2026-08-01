@@ -127,6 +127,7 @@ The Lucky Stop App provides customers with the following features:
 - **Career applications:** Browse and apply for available positions at Lucky Stop locations.
 - **Business promotions:** Submit a request to advertise your business to Lucky Stop app users.
 - **Receipt QR scanning:** Scan Lucky Stop receipt QR codes (where available) to self-claim points.
+- **Nearby store detection:** If you grant the optional device location permission, the App identifies the Lucky Stop location nearest you to tailor promotions and hot food ordering availability. This feature is optional; declining location permission does not limit your ability to use core features. See our Privacy Policy for details on how location data is handled.
 - **Profile management:** Update your name, profile photo, recovery email, and PIN.
 
 ### 4.2 Features Available to Employees
