@@ -118,6 +118,7 @@ const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { ban
           startTimer(idx);
         }}
         getItemLayout={(_, index) => ({ length: BANNER_W + 12, offset: (BANNER_W + 12) * index, index })}
+        onScrollToIndexFailed={() => {}}
         renderItem={renderBannerItem}
       />
       {banners.length > 1 && (
@@ -240,6 +241,7 @@ const PromoSlideshow = memo(function PromoSlideshow() {
           startTimer();
         }}
         getItemLayout={(_, index) => ({ length: SLIDE_W + 12, offset: (SLIDE_W + 12) * index, index })}
+        onScrollToIndexFailed={() => {}}
         renderItem={renderSlide}
       />
       <View style={ps.dots}>
@@ -336,6 +338,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
           startTimer();
         }}
         getItemLayout={(_, index) => ({ length: SLIDE_W + 12, offset: (SLIDE_W + 12) * index, index })}
+        onScrollToIndexFailed={() => {}}
         renderItem={renderSlide}
       />
       {deals.length > 1 && (
