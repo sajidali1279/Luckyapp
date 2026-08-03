@@ -10,12 +10,14 @@ const DEV_ADMIN_PHONE = '9999999999';
 const DEV_ADMIN_PIN   = '0000';
 const DEV_ADMIN_NAME  = 'Dev Admin';
 
-// ─── 14 LUCKY STOP STORES ─────────────────────────────────────────────────────
-// Update names/addresses with real store info before launching
+// ─── LUCKY STOP STORES ─────────────────────────────────────────────────────────
+// Legacy bootstrap placeholders only — matched/skipped by name against whatever
+// already exists in the DB. The real 12-store roster (names, addresses, real
+// coordinates) is now managed live via the admin Stores page, not this file.
+// #1, #3, #13, #14 were removed 2026-08-03: they never became real stores, and
+// their placeholder Houston-area addresses kept getting recreated by this script.
 const STORES = [
-  { name: 'Lucky Stop #1',  address: '100 Main St',       city: 'Houston',      state: 'TX', zipCode: '77001' },
   { name: 'Lucky Stop #2',  address: '200 Oak Ave',        city: 'Houston',      state: 'TX', zipCode: '77002' },
-  { name: 'Lucky Stop #3',  address: '300 Pine Blvd',      city: 'Houston',      state: 'TX', zipCode: '77003' },
   { name: 'Lucky Stop #4',  address: '400 Elm Dr',         city: 'Pasadena',     state: 'TX', zipCode: '77504' },
   { name: 'Lucky Stop #5',  address: '500 Cedar Ln',       city: 'Pasadena',     state: 'TX', zipCode: '77505' },
   { name: 'Lucky Stop #6',  address: '600 Maple St',       city: 'Pearland',     state: 'TX', zipCode: '77581' },
@@ -25,8 +27,6 @@ const STORES = [
   { name: 'Lucky Stop #10', address: '1000 Willow Way',    city: 'Katy',         state: 'TX', zipCode: '77449' },
   { name: 'Lucky Stop #11', address: '1100 Cypress Creek', city: 'Katy',         state: 'TX', zipCode: '77450' },
   { name: 'Lucky Stop #12', address: '1200 Bay Area Blvd', city: 'League City',  state: 'TX', zipCode: '77573' },
-  { name: 'Lucky Stop #13', address: '1300 NASA Rd',       city: 'Webster',      state: 'TX', zipCode: '77598' },
-  { name: 'Lucky Stop #14', address: '1400 Gulf Fwy',      city: 'Friendswood',  state: 'TX', zipCode: '77546' },
 ];
 
 async function seed() {
@@ -57,7 +57,7 @@ async function seed() {
   }
 
   // ── Stores ──────────────────────────────────────────────────────────────────
-  console.log('Creating 12 stores...');
+  console.log(`Creating ${STORES.length} stores...`);
   const createdStores = [];
 
   for (const store of STORES) {
