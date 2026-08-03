@@ -1,9 +1,9 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
   StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
-  TextInput, Alert, Easing,
+  TextInput, Alert, Easing, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
@@ -421,6 +421,10 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
 /* ─── Main screen ─────────────────────────────────────────── */
 export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetMaxHeight = windowHeight - insets.top - 24;
+  const modalImageHeight = Math.min(190, windowHeight * 0.24);
 
   // Staggered entrance — 7 sections fade + slide up on mount
   const fadeAnims = useRef([...Array(8)].map(() => new Animated.Value(0))).current;
@@ -1375,7 +1379,7 @@ export default function CustomerHome() {
       {selectedOffer && (
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
           <View style={om.overlay}>
-            <View style={om.sheet}>
+            <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
               {selectedOffer.dealText && !selectedOffer.imageUrl ? (
                 <View style={om.dealHeader}>
                   <TagIcon size={18} color="#fff" strokeWidth={2} />
@@ -1383,9 +1387,13 @@ export default function CustomerHome() {
                 </View>
               ) : null}
               {selectedOffer.imageUrl ? (
-                <Image source={{ uri: selectedOffer.imageUrl }} style={om.image} />
+                <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
               ) : null}
-              <ScrollView style={om.bodyScroll} contentContainerStyle={om.bodyContent} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={om.bodyScroll}
+                contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
+                showsVerticalScrollIndicator={false}
+              >
                 {selectedOffer.gasBonusCentsPerGallon != null ? (
                   <View style={om.badgeRow}>
                     <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
@@ -1439,9 +1447,13 @@ export default function CustomerHome() {
       {selectedBanner && (
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
           <View style={om.overlay}>
-            <View style={om.sheet}>
-              <Image source={{ uri: selectedBanner.imageUrl }} style={om.image} />
-              <View style={om.bodyContent}>
+            <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
+              <Image source={{ uri: selectedBanner.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
+              <ScrollView
+                style={om.bodyScroll}
+                contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
+                showsVerticalScrollIndicator={false}
+              >
                 <Text style={om.title}>{selectedBanner.title}</Text>
                 {selectedBanner.linkUrl ? (
                   <TouchableOpacity
@@ -1463,7 +1475,7 @@ export default function CustomerHome() {
                     {selectedBanner.linkUrl ? 'Close' : 'Got it'}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
