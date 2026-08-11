@@ -104,7 +104,7 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] From an order list's detail view, accept an employee's stock request via the inline "Employee Requests" panel, then check the Requests hub's Stock tab for that same store → confirm it no longer shows that request as pending (previously could lag up to 30s)
 - [ ] Do the reverse: accept a stock request from the Requests hub's Stock tab, then open that store's order list detail view → confirm the inline panel no longer shows it as pending
 
-## 8. Shelf/price labels (2026-08-11)
+## 10. Shelf/price labels (2026-08-11)
 
 - [ ] As DevAdmin/SuperAdmin, open the new "Labels" nav item → confirm the store-picker sidebar lists all stores
 - [ ] Pick a store, add a label with a plain price (`$3.99`) → appears in the table

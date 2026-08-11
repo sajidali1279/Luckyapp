@@ -18,10 +18,13 @@ function esc(s: string): string {
 }
 
 const TEMPLATE_CSS: Record<string, string> = {
+  // Black border + red accent stripe achieve the "red and black" sale-tag look
+  // using only borders and text color (both print reliably by default), never
+  // a background-color fill (browsers don't print background graphics unless
+  // the user explicitly opts in via the print dialog).
   CLASSIC_RED_BLACK: `
-    background: #111;
-    color: #fff;
-    border: 3px solid #c0392b;
+    border: 3px solid #111;
+    border-top: 8px solid #c0392b;
   `,
 };
 
@@ -60,11 +63,18 @@ export function printLabels(labels: PrintableLabel[]): void {
       text-align: center;
       padding: 4mm;
       page-break-inside: avoid;
+      /* Defense-in-depth: forces background rendering in browsers that honor
+         this (not all do), in case a future template relies on a fill color.
+         The primary fix for legibility is that templates no longer depend on
+         backgrounds for contrast — see TEMPLATE_CSS above. */
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
     .label-name {
       font-size: 12pt;
       font-weight: 700;
       margin-bottom: 4mm;
+      color: #111;
     }
     .label-price {
       font-size: 20pt;

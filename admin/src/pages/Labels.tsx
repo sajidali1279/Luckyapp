@@ -224,7 +224,7 @@ export default function Labels() {
                 <Table style={s.table}>
                   <TableHeader>
                     <TableRow>
-                      {['', 'Product', 'Price / Deal', 'Template', 'Updated', ''].map(h => (
+                      {['', 'Product', 'Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
                     </TableRow>

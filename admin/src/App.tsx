@@ -141,11 +141,11 @@ export default function App() {
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/order-list" element={<OrderList />} />
               <Route path="/scanned-products" element={<ScannedProducts />} />
-              <Route path="/labels" element={<Labels />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               <Route element={<SuperAdminOnly />}>
                 <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
                 <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
+                <Route path="/labels" element={<Labels />} />
               </Route>
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
