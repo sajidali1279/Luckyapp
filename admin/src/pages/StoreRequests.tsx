@@ -1063,7 +1063,7 @@ const s: Record<string, React.CSSProperties> = {
   // Cards
   card: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    display: 'flex', overflow: 'hidden',
+    display: 'flex', overflow: 'hidden', flexShrink: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     transition: 'box-shadow 0.15s',
   },
@@ -1213,7 +1213,7 @@ const s: Record<string, React.CSSProperties> = {
   // Product Request cards
   prCard: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    display: 'flex', overflow: 'hidden',
+    display: 'flex', overflow: 'hidden', flexShrink: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
   },
   prStripe: { width: 5, flexShrink: 0 },
