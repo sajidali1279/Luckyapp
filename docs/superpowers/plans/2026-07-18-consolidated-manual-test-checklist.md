@@ -103,3 +103,14 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] On the Order Lists browse tab (not the detail view), confirm cards now show "X needed"/"X received" stats when applicable, not just the total item count (previously these silently always showed nothing)
 - [ ] From an order list's detail view, accept an employee's stock request via the inline "Employee Requests" panel, then check the Requests hub's Stock tab for that same store → confirm it no longer shows that request as pending (previously could lag up to 30s)
 - [ ] Do the reverse: accept a stock request from the Requests hub's Stock tab, then open that store's order list detail view → confirm the inline panel no longer shows it as pending
+
+## 8. Shelf/price labels (2026-08-11)
+
+- [ ] As DevAdmin/SuperAdmin, open the new "Labels" nav item → confirm the store-picker sidebar lists all stores
+- [ ] Pick a store, add a label with a plain price (`$3.99`) → appears in the table
+- [ ] Add another label with a deal price (`2 for $5`) → appears correctly
+- [ ] Edit a label's price → table updates immediately
+- [ ] Select both labels, click "Print Selected" → a new tab opens, the print dialog fires automatically, and both labels render in a grid styled with the red/black template
+- [ ] Delete a label → disappears from the table and from a subsequent print selection
+- [ ] Log in as a Store Manager (or check the API directly) → confirm no "Labels" nav item appears, and `/labels/*` endpoints return 403
+- [ ] Switch to a different store in the sidebar → confirm the label table and any selection checkboxes reset to that store's own labels (no cross-store leakage)
