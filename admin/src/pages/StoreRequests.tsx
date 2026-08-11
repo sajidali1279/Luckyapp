@@ -1007,7 +1007,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   // Tab switcher (in gradient header)
-  tabRow: { display: 'flex', gap: 6, flexShrink: 0 },
+  tabRow: { display: 'flex', gap: 6, flexWrap: 'wrap' as const },
   tabBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 20,
