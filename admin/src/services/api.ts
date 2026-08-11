@@ -96,6 +96,15 @@ export const bannersApi = {
   getActive: () => api.get('/banners'),
 };
 
+export const labelsApi = {
+  getForStore: (storeId: string) => api.get(`/labels/store/${storeId}`),
+  create: (data: { storeId: string; productName: string; priceText: string; template?: string }) =>
+    api.post('/labels', data),
+  update: (labelId: string, data: { productName?: string; priceText?: string; template?: string }) =>
+    api.patch(`/labels/${labelId}`, data),
+  delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+};
+
 export const noticesApi = {
   create: (data: { title: string; body: string; storeId?: string; endDate: string }) => api.post('/admin/notices', data),
   getAll: () => api.get('/admin/notices'),
