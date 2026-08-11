@@ -471,7 +471,7 @@ export default function StoreRequests() {
                               <div style={{ ...s.typeIconWrap, background: typeBg }}>
                                 <span style={s.typeIconEmoji}>{TYPE_ICONS[req.type] || '📋'}</span>
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.typeLabel}>{TYPE_LABELS[req.type] || req.type}</div>
                                 <div style={s.storeMeta}>{req.store?.name}</div>
                               </div>
@@ -558,7 +558,7 @@ export default function StoreRequests() {
                               <div style={{ ...s.typeIconWrap, background: '#eff6ff' }}>
                                 <Package size={22} color="#1D3557" strokeWidth={1.75} />
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock Request'}</div>
                                 <div style={s.storeMeta}>
                                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
@@ -656,7 +656,7 @@ export default function StoreRequests() {
                               <div style={s.prIconWrap}>
                                 <span style={{ fontSize: 22 }}>🛍️</span>
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.prProductName}>{pr.productName}</div>
                                 {pr.description && <div style={s.prDescription}>"{pr.description}"</div>}
                               </div>
@@ -973,7 +973,7 @@ const s: Record<string, React.CSSProperties> = {
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
 
   // ── Chat Panel ──
-  chatPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  chatPanel: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
   chatHeader: {
     display: 'flex', alignItems: 'center', gap: 14,
     padding: '14px 22px', flexShrink: 0,
@@ -1024,8 +1024,8 @@ const s: Record<string, React.CSSProperties> = {
 
   // Sub-filter row (below header, on white bg)
   subFilterRow: {
-    display: 'flex', gap: 6, padding: '10px 18px',
-    borderBottom: '1px solid #f0f1f2', background: '#fff', flexShrink: 0,
+    display: 'flex', gap: 6, padding: '10px 18px', flexWrap: 'wrap' as const,
+    borderBottom: '1px solid #f0f1f2', background: '#fff',
   },
   subFilterTab: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -1071,7 +1071,7 @@ const s: Record<string, React.CSSProperties> = {
   priorityStripe: { width: 5, flexShrink: 0 },
   cardBody: { flex: 1, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
 
-  cardTop: { display: 'flex', alignItems: 'center', gap: 12 },
+  cardTop: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const },
   typeIconWrap: {
     width: 46, height: 46, borderRadius: 13,
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -1218,7 +1218,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   prStripe: { width: 5, flexShrink: 0 },
   prBody: { flex: 1, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
-  prTop: { display: 'flex', alignItems: 'flex-start', gap: 12 },
+  prTop: { display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const },
   prIconWrap: {
     width: 46, height: 46, borderRadius: 13,
     background: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
