@@ -67,6 +67,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
+import { getLabelsForStore, createLabel, updateLabel, deleteLabel } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -460,6 +461,12 @@ router.post  ('/scanned-products',                  authenticate, requireRole(Ro
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
+
+// ─── Labels (printable shelf/price tags) ───────────────────────────────────────
+router.get   ('/labels/store/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), getLabelsForStore);
+router.post  ('/labels',                authenticate, requireRole(Role.SUPER_ADMIN), createLabel);
+router.patch ('/labels/:labelId',       authenticate, requireRole(Role.SUPER_ADMIN), updateLabel);
+router.delete('/labels/:labelId',       authenticate, requireRole(Role.SUPER_ADMIN), deleteLabel);
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
