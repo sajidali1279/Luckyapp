@@ -1,7 +1,7 @@
 import { useState, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, storesApi } from '../services/api';
+import { labelsApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -10,15 +10,8 @@ import { TEXT_MUTED } from '../lib/theme';
 import { printLabels } from '../utils/printLabels';
 import { LABEL_PRESETS } from '../data/labelPresets';
 
-interface Store {
-  id: string;
-  name: string;
-  city: string;
-}
-
 interface Label {
   id: string;
-  storeId: string;
   productName: string;
   priceText: string;
   template: string;
@@ -37,7 +30,6 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 
 export default function Labels() {
   const qc = useQueryClient();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
@@ -58,16 +50,9 @@ export default function Labels() {
     setShowSuggestions(false);
   }
 
-  const { data: storesData } = useQuery({
-    queryKey: ['stores-all'],
-    queryFn: storesApi.getAll,
-  });
-  const stores: Store[] = storesData?.data?.data || [];
-
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['labels', selectedStoreId],
-    queryFn: () => labelsApi.getForStore(selectedStoreId!),
-    enabled: !!selectedStoreId,
+    queryKey: ['labels'],
+    queryFn: labelsApi.getAll,
   });
   const labels: Label[] = data?.data?.data || [];
 
@@ -75,9 +60,9 @@ export default function Labels() {
     mutationFn: () =>
       editingLabel
         ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate })
-        : labelsApi.create({ storeId: selectedStoreId!, productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate }),
+        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['labels', selectedStoreId] });
+      qc.invalidateQueries({ queryKey: ['labels'] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
       closeModal();
     },
@@ -87,7 +72,7 @@ export default function Labels() {
   const deleteMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.delete(labelId),
     onSuccess: (_res, labelId) => {
-      qc.invalidateQueries({ queryKey: ['labels', selectedStoreId] });
+      qc.invalidateQueries({ queryKey: ['labels'] });
       setSelectedIds(prev => { const next = new Set(prev); next.delete(labelId); return next; });
       toast.success('Label removed');
       setConfirmDelete(null);
@@ -138,7 +123,7 @@ export default function Labels() {
       <ConfirmModal
         open={!!confirmDelete}
         title="Remove Label"
-        message={`Remove the label for "${confirmDelete?.productName}"? It will no longer appear in this store's print batches.`}
+        message={`Remove the label for "${confirmDelete?.productName}"? It will no longer appear in future print batches.`}
         confirmLabel="Remove"
         danger
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
@@ -214,100 +199,69 @@ export default function Labels() {
         </div>
       )}
 
-      {/* ── Sidebar ── */}
-      <div style={s.sidebar}>
-        <div style={s.sidebarTop}>
-          <div style={s.sidebarTitle}>Labels</div>
-          <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
+      <div style={s.inner}>
+        <div style={s.pageHeader}>
+          <div>
+            <h1 style={s.pageTitle}>🏷️ Labels</h1>
+            <p style={s.pageSub}>Chain-wide catalog of printable shelf/price tags — one list, every store.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              style={{ ...s.printBtn, ...(selectedIds.size === 0 ? s.printBtnDim : {}) }}
+              onClick={handlePrintSelected}
+              disabled={selectedIds.size === 0}
+            >
+              🖨️ Print Selected ({selectedIds.size})
+            </button>
+            <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
+          </div>
         </div>
-        <div style={s.storeList}>
-          {stores.map(store => {
-            const active = store.id === selectedStoreId;
-            return (
-              <button
-                key={store.id}
-                style={{ ...s.storeBtn, ...(active ? s.storeBtnActive : {}) }}
-                onClick={() => { setSelectedStoreId(store.id); setSelectedIds(new Set()); }}
-              >
-                <div style={s.storeBtnName}>{store.name}</div>
-                {store.city && <div style={s.storeBtnCity}>{store.city}</div>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* ── Main panel ── */}
-      <div style={s.main}>
-        {!selectedStoreId ? (
-          <div style={s.emptyState}>
+        {isError ? (
+          <ErrorState message="Failed to load labels." onRetry={refetch} />
+        ) : isLoading ? (
+          <TableSkeleton columns={6} />
+        ) : labels.length === 0 ? (
+          <div style={s.emptyBox}>
             <div style={s.emptyIcon}>🏷️</div>
-            <div style={s.emptyTitle}>Select a store</div>
-            <div style={s.emptySub}>Choose a store from the sidebar to manage its labels</div>
+            <div style={s.emptyTitle}>No labels yet</div>
+            <div style={s.emptySub}>Add a label to start building a print batch</div>
           </div>
         ) : (
-          <>
-            <div style={s.pageHeader}>
-              <h1 style={s.pageTitle}>🏷️ Labels</h1>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  style={{ ...s.printBtn, ...(selectedIds.size === 0 ? s.printBtnDim : {}) }}
-                  onClick={handlePrintSelected}
-                  disabled={selectedIds.size === 0}
-                >
-                  🖨️ Print Selected ({selectedIds.size})
-                </button>
-                <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
-              </div>
-            </div>
-
-            {isError ? (
-              <ErrorState message="Failed to load labels." onRetry={refetch} />
-            ) : isLoading ? (
-              <TableSkeleton columns={6} />
-            ) : labels.length === 0 ? (
-              <div style={s.emptyBox}>
-                <div style={s.emptyIcon}>🏷️</div>
-                <div style={s.emptyTitle}>No labels yet</div>
-                <div style={s.emptySub}>Add a label to start building this store's print batch</div>
-              </div>
-            ) : (
-              <div style={s.tableWrap}>
-                <Table style={s.table}>
-                  <TableHeader>
-                    <TableRow>
-                      {['', 'Product', 'Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
-                        <TableHead key={h} style={s.th}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {labels.map((label, i) => (
-                      <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                        <TableCell style={s.td}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(label.id)}
-                            onChange={() => toggleSelected(label.id)}
-                          />
-                        </TableCell>
-                        <TableCell style={s.td}><span style={s.itemName}>{label.productName}</span></TableCell>
-                        <TableCell style={s.td}>{label.priceText}</TableCell>
-                        <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
-                        <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
-                        <TableCell style={s.td}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
-                            <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
+          <div style={s.tableWrap}>
+            <Table style={s.table}>
+              <TableHeader>
+                <TableRow>
+                  {['', 'Product', 'Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
+                    <TableHead key={h} style={s.th}>{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {labels.map((label, i) => (
+                  <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                    <TableCell style={s.td}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(label.id)}
+                        onChange={() => toggleSelected(label.id)}
+                      />
+                    </TableCell>
+                    <TableCell style={s.td}><span style={s.itemName}>{label.productName}</span></TableCell>
+                    <TableCell style={s.td}>{label.priceText}</TableCell>
+                    <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
+                    <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
+                    <TableCell style={s.td}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
+                        <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>
@@ -315,39 +269,12 @@ export default function Labels() {
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f0f2f5', overflow: 'hidden' },
+  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
-  sidebar: {
-    width: 272, background: '#fff', borderRight: '1px solid #e5e7eb',
-    display: 'flex', flexDirection: 'column', flexShrink: 0,
-  },
-  sidebarTop: { padding: '20px 18px 8px' },
-  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  sidebarSubtitle: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
-  storeList: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 8px 12px' },
-  storeBtn: {
-    width: '100%', textAlign: 'left', background: 'none', border: 'none',
-    borderRadius: 12, padding: '10px 12px', cursor: 'pointer', marginBottom: 2,
-  },
-  storeBtnActive: { background: '#eff6ff' },
-  storeBtnName: { fontWeight: 600, fontSize: 14, color: '#212529', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
-
-  main: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 24, gap: 20 },
-  emptyState: {
-    flex: 1, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: 8, padding: 40,
-  },
-  emptyIcon: { fontSize: 48, marginBottom: 4 },
-  emptyTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
-  emptySub: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center' },
-  emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
-  },
-
-  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
-  pageTitle: { fontSize: 24, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
   printBtn: {
     padding: '10px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -359,7 +286,7 @@ const s: Record<string, CSSProperties> = {
   },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0,
+    background: '#fff', borderRadius: 14, overflowX: 'auto',
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
@@ -378,6 +305,14 @@ const s: Record<string, CSSProperties> = {
     background: '#fff0f0', color: '#c53030', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
+
+  emptyBox: {
+    background: '#fff', borderRadius: 16, padding: 60,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
+  },
+  emptyIcon: { fontSize: 56 },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };
 
 const m: Record<string, CSSProperties> = {

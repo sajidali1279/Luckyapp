@@ -97,8 +97,8 @@ export const bannersApi = {
 };
 
 export const labelsApi = {
-  getForStore: (storeId: string) => api.get(`/labels/store/${storeId}`),
-  create: (data: { storeId: string; productName: string; priceText: string; template?: string }) =>
+  getAll: () => api.get('/labels'),
+  create: (data: { productName: string; priceText: string; template?: string }) =>
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),

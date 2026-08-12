@@ -332,7 +332,6 @@ model Store {
   dailyReports          DailyReport[]
   dailyTasks            DailyTask[]
   adminNotices          AdminNotice[]
-  labels                Label[]
 
   @@map("stores")
 }
@@ -500,18 +499,17 @@ enum LabelTemplate {
   SUMMER
 }
 
+// Chain-wide catalog, not per-store — the same product/price applies to
+// every store. If a store ever needs a different price on one item, that's
+// a future per-store override, not modeled here.
 model Label {
   id          String        @id @default(uuid())
-  storeId     String
   productName String
   priceText   String        // freeform: "$3.99" or "2 for $5"
   template    LabelTemplate @default(CLASSIC_RED_BLACK)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  @@index([storeId])
   @@map("labels")
 }
 

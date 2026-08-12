@@ -6,17 +6,13 @@ import { LabelTemplate } from '@prisma/client';
 import { audit } from '../utils/audit';
 
 const createLabelSchema = z.object({
-  storeId: z.string().uuid(),
   productName: z.string().min(1).max(120),
   priceText: z.string().min(1).max(40),
   template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
 });
 
-export async function getLabelsForStore(req: AuthRequest, res: Response) {
-  const { storeId } = req.params;
-
+export async function getAllLabels(req: AuthRequest, res: Response) {
   const labels = await prisma.label.findMany({
-    where: { storeId },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -36,7 +32,6 @@ export async function createLabel(req: AuthRequest, res: Response) {
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
     details: { productName: label.productName, priceText: label.priceText },
-    storeId: label.storeId,
   });
 
   res.status(201).json({ success: true, data: label });
@@ -66,7 +61,6 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'UPDATE_LABEL', entity: 'label', entityId: label.id,
     details: { productName: label.productName, priceText: label.priceText },
-    storeId: label.storeId,
   });
 
   res.json({ success: true, data: label });
@@ -81,7 +75,6 @@ export async function deleteLabel(req: AuthRequest, res: Response) {
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'DELETE_LABEL', entity: 'label', entityId: deleted.id,
     details: { productName: deleted.productName },
-    storeId: deleted.storeId,
   });
 
   res.json({ success: true, data: deleted });
