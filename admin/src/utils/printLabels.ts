@@ -6,6 +6,7 @@ export interface PrintableLabel {
   id: string;
   productName: string;
   priceText: string;
+  barcode?: string | null;
   template: string;
 }
 
@@ -62,16 +63,45 @@ const TEMPLATES: Record<string, TemplateStyle> = {
 
 function renderLabel(label: PrintableLabel): string {
   const t = TEMPLATES[label.template] || TEMPLATES.CLASSIC_RED_BLACK;
+  const barcode = label.barcode?.trim();
+  const cls = barcode ? 'label has-barcode' : 'label';
   return `
-    <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
+    <div class="${cls}" style="border: ${t.border}; border-top: ${t.borderTop};">
       <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
       <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
       <div class="label-price" style="color: ${t.priceColor};">${esc(label.priceText)}</div>
+      ${barcode ? `
+      <div class="label-barcode-wrap">
+        <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
+        <div class="label-barcode-val">${esc(barcode)}</div>
+      </div>` : ''}
     </div>
   `;
 }
 
 export function printLabels(labels: PrintableLabel[]): void {
+  const hasAnyBarcode = labels.some(l => l.barcode?.trim());
+  const barcodeScript = hasAnyBarcode
+    ? `<script>
+    function renderBarcodes() {
+      document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
+        try {
+          JsBarcode(el, el.getAttribute('data-barcode'), {
+            format: 'CODE128', width: 1.5, height: 40,
+            displayValue: false, margin: 0, lineColor: '#000'
+          });
+          var w = parseFloat(el.getAttribute('width') || '0');
+          var h = parseFloat(el.getAttribute('height') || '0');
+          if (w && h) el.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+          el.removeAttribute('width');
+          el.removeAttribute('height');
+        } catch (e) { el.style.display = 'none'; }
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" onload="renderBarcodes()"></script>`
+    : '';
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -83,19 +113,19 @@ export function printLabels(labels: PrintableLabel[]): void {
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 6mm;
     }
     .label {
       position: relative;
       aspect-ratio: 3 / 2;
-      border-radius: 6px;
+      border-radius: 5px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 3mm 9mm 3mm 3mm;
+      padding: 2.5mm 7mm 2.5mm 2.5mm;
       page-break-inside: avoid;
       /* Defense-in-depth only — the real fix for legibility is that every
          template gets its contrast from text/border color, never a fill. */
@@ -104,19 +134,46 @@ export function printLabels(labels: PrintableLabel[]): void {
     }
     .label-qr {
       position: absolute;
-      bottom: 1.5mm;
-      right: 1.5mm;
-      width: 7mm;
-      height: 7mm;
+      bottom: 1mm;
+      right: 1mm;
+      width: 6mm;
+      height: 6mm;
     }
     .label-name {
-      font-size: 9pt;
+      font-size: 7pt;
       font-weight: 700;
-      margin-bottom: 2mm;
+      margin-bottom: 1.5mm;
     }
     .label-price {
-      font-size: 14pt;
+      font-size: 11pt;
       font-weight: 900;
+    }
+    /* Barcode labels drop the fixed aspect-ratio and grow to fit the extra
+       row instead — only labels that actually carry a barcode get taller,
+       everything else stays at the compact size above. */
+    .label.has-barcode {
+      aspect-ratio: auto;
+    }
+    .label.has-barcode .label-qr {
+      width: 4.5mm;
+      height: 4.5mm;
+    }
+    .label-barcode-wrap {
+      width: 100%;
+      margin-top: 1mm;
+    }
+    .label-barcode {
+      display: block;
+      width: 100%;
+      max-width: 20mm;
+      height: 6.5mm;
+      margin: 0 auto;
+    }
+    .label-barcode-val {
+      font-size: 5.5pt;
+      color: #555;
+      letter-spacing: 0.3px;
+      margin-top: 0.3mm;
     }
   </style>
   <script>window.onload = () => window.print();</script>
@@ -125,6 +182,7 @@ export function printLabels(labels: PrintableLabel[]): void {
   <div class="grid">
     ${labels.map(renderLabel).join('')}
   </div>
+  ${barcodeScript}
 </body>
 </html>`;
 

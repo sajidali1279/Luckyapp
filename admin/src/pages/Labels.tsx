@@ -14,6 +14,7 @@ interface Label {
   id: string;
   productName: string;
   priceText: string;
+  barcode: string | null;
   template: string;
   updatedAt: string;
 }
@@ -35,6 +36,7 @@ export default function Labels() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  const [formBarcode, setFormBarcode] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -59,8 +61,8 @@ export default function Labels() {
   const saveMutation = useMutation({
     mutationFn: () =>
       editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate })
-        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate }),
+        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), barcode: formBarcode.trim() || null, template: formTemplate })
+        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), barcode: formBarcode.trim() || null, template: formTemplate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
@@ -84,6 +86,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormBarcode('');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowModal(true);
   }
@@ -92,6 +95,7 @@ export default function Labels() {
     setEditingLabel(label);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormBarcode(label.barcode || '');
     setFormTemplate(label.template);
     setShowModal(true);
   }
@@ -101,6 +105,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormBarcode(label.barcode || '');
     setFormTemplate(label.template);
     setShowModal(true);
   }
@@ -110,6 +115,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormBarcode('');
     setFormTemplate('CLASSIC_RED_BLACK');
   }
 
@@ -177,6 +183,14 @@ export default function Labels() {
                 value={formPriceText}
                 onChange={e => setFormPriceText(e.target.value)}
                 placeholder='e.g. "$3.99" or "2 for $5"'
+                maxLength={40}
+              />
+              <div style={m.label}>Barcode (optional)</div>
+              <input
+                style={m.input}
+                value={formBarcode}
+                onChange={e => setFormBarcode(e.target.value)}
+                placeholder="Scan or type the product's UPC/EAN — for order lookups, not tied to the price/deal above"
                 maxLength={40}
               />
               <div style={m.label}>Template</div>
@@ -256,7 +270,10 @@ export default function Labels() {
                         onChange={() => toggleSelected(label.id)}
                       />
                     </TableCell>
-                    <TableCell style={s.td}><span style={s.itemName}>{label.productName}</span></TableCell>
+                    <TableCell style={s.td}>
+                      <span style={s.itemName}>{label.productName}</span>
+                      {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
+                    </TableCell>
                     <TableCell style={s.td}>{label.priceText}</TableCell>
                     <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
                     <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
@@ -307,6 +324,7 @@ const s: Record<string, CSSProperties> = {
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
   editBtn: {
     background: '#eff6ff', color: '#1D3557', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,

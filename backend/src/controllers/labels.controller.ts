@@ -8,6 +8,7 @@ import { audit } from '../utils/audit';
 const createLabelSchema = z.object({
   productName: z.string().min(1).max(120),
   priceText: z.string().min(1).max(40),
+  barcode: z.string().max(40).optional().nullable(),
   template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
 });
 
@@ -40,6 +41,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
 const updateLabelSchema = z.object({
   productName: z.string().min(1).max(120).optional(),
   priceText: z.string().min(1).max(40).optional(),
+  barcode: z.string().max(40).optional().nullable(),
   template: z.nativeEnum(LabelTemplate).optional(),
 });
 

@@ -506,6 +506,7 @@ model Label {
   id          String        @id @default(uuid())
   productName String
   priceText   String        // freeform: "$3.99" or "2 for $5"
+  barcode     String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/deal
   template    LabelTemplate @default(CLASSIC_RED_BLACK)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
