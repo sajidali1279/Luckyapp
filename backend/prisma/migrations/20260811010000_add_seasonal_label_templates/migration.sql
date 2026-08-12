@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "LabelTemplate" ADD VALUE 'CHRISTMAS_WINTER';
+ALTER TYPE "LabelTemplate" ADD VALUE 'SUMMER';
