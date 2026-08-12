@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED } from '../lib/theme';
 import { printLabels } from '../utils/printLabels';
+import { LABEL_PRESETS } from '../data/labelPresets';
 
 interface Store {
   id: string;
@@ -44,6 +45,18 @@ export default function Labels() {
   const [formPriceText, setFormPriceText] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const nameQuery = formProductName.trim().toLowerCase();
+  const suggestions = nameQuery
+    ? LABEL_PRESETS.filter(p => p.name.toLowerCase().includes(nameQuery)).slice(0, 8)
+    : [];
+
+  function applyPreset(preset: (typeof LABEL_PRESETS)[number]) {
+    setFormProductName(preset.name);
+    setFormPriceText(preset.priceText);
+    setShowSuggestions(false);
+  }
 
   const { data: storesData } = useQuery({
     queryKey: ['stores-all'],
@@ -141,14 +154,29 @@ export default function Labels() {
             </div>
             <div style={m.form}>
               <div style={m.label}>Product Name *</div>
-              <input
-                style={m.input}
-                value={formProductName}
-                onChange={e => setFormProductName(e.target.value)}
-                placeholder="e.g. Monster Energy 16oz"
-                maxLength={120}
-                autoFocus
-              />
+              <div style={{ position: 'relative' as const }}>
+                <input
+                  style={m.input}
+                  value={formProductName}
+                  onChange={e => { setFormProductName(e.target.value); setShowSuggestions(true); }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="e.g. Monster Energy 16oz"
+                  maxLength={120}
+                  autoComplete="off"
+                  autoFocus
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div style={m.sugg}>
+                    {suggestions.map(p => (
+                      <div key={p.name} style={m.suggRow} onMouseDown={() => applyPreset(p)}>
+                        <span style={{ fontWeight: 600 }}>{p.name}</span>
+                        <span style={m.suggPrice}>{p.priceText}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={m.label}>Price / Deal Text *</div>
               <input
                 style={m.input}
@@ -385,6 +413,17 @@ const m: Record<string, CSSProperties> = {
   },
   templateChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
   templateSwatch: { width: 10, height: 10, borderRadius: 5, display: 'inline-block' },
+  sugg: {
+    position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
+    border: '1.5px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 10px 10px',
+    zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto',
+  },
+  suggRow: {
+    padding: '10px 14px', cursor: 'pointer', display: 'flex',
+    justifyContent: 'space-between', alignItems: 'center', fontSize: 14,
+    borderBottom: '1px solid #f8fafc', transition: 'background 0.1s',
+  },
+  suggPrice: { fontSize: 13, color: TEXT_MUTED, marginLeft: 8, whiteSpace: 'nowrap' as const },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   cancelBtn: {
     background: '#f4f4f4', border: 'none', borderRadius: 10,
