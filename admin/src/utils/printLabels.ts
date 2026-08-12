@@ -9,6 +9,13 @@ export interface PrintableLabel {
   template: string;
 }
 
+// Static QR code pointing at the Lucky Stop app/signup page — same on every
+// label, so it's generated once and baked in as a data URI rather than
+// pulled from a QR-generation library or a live external request at print
+// time (no new runtime dependency, no third-party call from a printed page).
+const QR_CODE_DATA_URI =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEX///8RERFxTxnbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAvklEQVRYhd2UwRHEMAgD6b9pcgNI2EkFe/jhgfVHI5nIrois8ytNoCSqq1tPdkIko6qm0ZIz8WQ9/A9Sxl2OUYlz16YdEyRZv3Q0QRKX+adQxHrLOW/0pBLFb2aKIpjsdojjTVLJNPPKv4pK8mq9NZJLBiuJ+ltYErMr1sfUcyQ5ZFq65SLJ5G6C6HwiiUrtLg0msbaO5OkYk4T03Uq55JPDl14qkeieBJ1MFNPfjEriUNW7/M4ojCh7c3vEJA9A1mYnV9N4IgAAAABJRU5ErkJggg==';
+
 function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -57,6 +64,7 @@ function renderLabel(label: PrintableLabel): string {
   const t = TEMPLATES[label.template] || TEMPLATES.CLASSIC_RED_BLACK;
   return `
     <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
+      <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
       <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
       <div class="label-price" style="color: ${t.priceColor};">${esc(label.priceText)}</div>
     </div>
@@ -79,6 +87,7 @@ export function printLabels(labels: PrintableLabel[]): void {
       gap: 6mm;
     }
     .label {
+      position: relative;
       aspect-ratio: 3 / 2;
       border-radius: 6px;
       display: flex;
@@ -86,20 +95,27 @@ export function printLabels(labels: PrintableLabel[]): void {
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 3mm;
+      padding: 3mm 9mm 3mm 3mm;
       page-break-inside: avoid;
       /* Defense-in-depth only — the real fix for legibility is that every
          template gets its contrast from text/border color, never a fill. */
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
+    .label-qr {
+      position: absolute;
+      bottom: 1.5mm;
+      right: 1.5mm;
+      width: 7mm;
+      height: 7mm;
+    }
     .label-name {
-      font-size: 10pt;
+      font-size: 9pt;
       font-weight: 700;
-      margin-bottom: 2.5mm;
+      margin-bottom: 2mm;
     }
     .label-price {
-      font-size: 16pt;
+      font-size: 14pt;
       font-weight: 900;
     }
   </style>

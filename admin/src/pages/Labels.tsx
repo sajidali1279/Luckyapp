@@ -96,6 +96,15 @@ export default function Labels() {
     setShowModal(true);
   }
 
+  function duplicateLabel(label: Label) {
+    // editingLabel stays null so Save creates a new label instead of updating this one.
+    setEditingLabel(null);
+    setFormProductName(label.productName);
+    setFormPriceText(label.priceText);
+    setFormTemplate(label.template);
+    setShowModal(true);
+  }
+
   function closeModal() {
     setShowModal(false);
     setEditingLabel(null);
@@ -254,6 +263,7 @@ export default function Labels() {
                     <TableCell style={s.td}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
+                        <button style={s.duplicateBtn} onClick={() => duplicateLabel(label)}>Duplicate</button>
                         <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
                       </div>
                     </TableCell>
@@ -299,6 +309,10 @@ const s: Record<string, CSSProperties> = {
   itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
   editBtn: {
     background: '#eff6ff', color: '#1D3557', border: 'none',
+    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+  },
+  duplicateBtn: {
+    background: '#f4f4f4', color: '#444', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
   deleteBtn: {
