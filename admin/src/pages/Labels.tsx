@@ -24,9 +24,15 @@ interface Label {
   updatedAt: string;
 }
 
-const TEMPLATE_LABELS: Record<string, string> = {
-  CLASSIC_RED_BLACK: 'Classic Red & Black',
-};
+const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
+  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#c0392b' },
+  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#1e7a3d' },
+  { value: 'SUMMER', label: 'Summer', accent: '#f59e0b' },
+];
+
+const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
+  TEMPLATE_OPTIONS.map(t => [t.value, t.label])
+);
 
 export default function Labels() {
   const qc = useQueryClient();
@@ -36,6 +42,7 @@ export default function Labels() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
 
   const { data: storesData } = useQuery({
@@ -54,8 +61,8 @@ export default function Labels() {
   const saveMutation = useMutation({
     mutationFn: () =>
       editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim() })
-        : labelsApi.create({ storeId: selectedStoreId!, productName: formProductName.trim(), priceText: formPriceText.trim() }),
+        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate })
+        : labelsApi.create({ storeId: selectedStoreId!, productName: formProductName.trim(), priceText: formPriceText.trim(), template: formTemplate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels', selectedStoreId] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
@@ -79,6 +86,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormTemplate('CLASSIC_RED_BLACK');
     setShowModal(true);
   }
 
@@ -86,6 +94,7 @@ export default function Labels() {
     setEditingLabel(label);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormTemplate(label.template);
     setShowModal(true);
   }
 
@@ -94,6 +103,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormTemplate('CLASSIC_RED_BLACK');
   }
 
   function toggleSelected(id: string) {
@@ -147,6 +157,20 @@ export default function Labels() {
                 placeholder='e.g. "$3.99" or "2 for $5"'
                 maxLength={40}
               />
+              <div style={m.label}>Template</div>
+              <div style={m.templateRow}>
+                {TEMPLATE_OPTIONS.map(t => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    style={{ ...m.templateChip, ...(formTemplate === t.value ? m.templateChipActive : {}) }}
+                    onClick={() => setFormTemplate(t.value)}
+                  >
+                    <span style={{ ...m.templateSwatch, background: t.accent }} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <div style={m.actions}>
                 <button style={m.cancelBtn} onClick={closeModal}>Cancel</button>
                 <button
@@ -352,6 +376,15 @@ const m: Record<string, CSSProperties> = {
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
+  templateRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 8 },
+  templateChip: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    border: '1.5px solid #ddd', borderRadius: 20,
+    padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#444',
+    background: '#fff', cursor: 'pointer',
+  },
+  templateChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
+  templateSwatch: { width: 10, height: 10, borderRadius: 5, display: 'inline-block' },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   cancelBtn: {
     background: '#f4f4f4', border: 'none', borderRadius: 10,
