@@ -20,9 +20,10 @@ export interface BarcodeResult {
 type Phase = 'scanning' | 'loading' | 'found' | 'naming' | 'done';
 
 interface Props {
-  visible:  boolean;
-  onClose:  () => void;
-  onResult: (result: BarcodeResult) => void;
+  visible:      boolean;
+  onClose:      () => void;
+  onResult:     (result: BarcodeResult) => void;
+  hideQuantity?: boolean;
 }
 
 function mapOFFCategory(tags: string[]): string | null {
@@ -40,7 +41,7 @@ function mapOFFCategory(tags: string[]): string | null {
   return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
-export default function BarcodeScannerModal({ visible, onClose, onResult }: Props) {
+export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase,        setPhase]        = useState<Phase>('scanning');
   const [lastCode,     setLastCode]     = useState('');
@@ -136,7 +137,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
     setFoundSource(src);
     setQuantity('');
     setPhase('found');
-    setTimeout(() => qtyRef.current?.focus(), 300);
+    if (!hideQuantity) setTimeout(() => qtyRef.current?.focus(), 300);
   }
 
   // ── Confirm found product ──────────────────────────────────────────────────
@@ -297,21 +298,25 @@ export default function BarcodeScannerModal({ visible, onClose, onResult }: Prop
               {/* Barcode */}
               <Text style={st.barcodeSmall}>{barcode}</Text>
 
-              {/* Qty input */}
-              <Text style={st.fieldLabel}>Quantity  <Text style={st.fieldLabelSub}>(optional — leave blank if not needed)</Text></Text>
-              <TextInput
-                ref={qtyRef}
-                style={[st.fieldInput, st.qtyInput]}
-                value={quantity}
-                onChangeText={setQuantity}
-                placeholder="e.g. 5"
-                placeholderTextColor="#B0B8C4"
-                keyboardType="numeric"
-                returnKeyType="done"
-                onSubmitEditing={handleConfirmFound}
-                maxLength={10}
-                selectTextOnFocus
-              />
+              {/* Qty input — hidden for callers that don't use quantity (e.g. Labels) */}
+              {!hideQuantity && (
+                <>
+                  <Text style={st.fieldLabel}>Quantity  <Text style={st.fieldLabelSub}>(optional — leave blank if not needed)</Text></Text>
+                  <TextInput
+                    ref={qtyRef}
+                    style={[st.fieldInput, st.qtyInput]}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    placeholder="e.g. 5"
+                    placeholderTextColor="#B0B8C4"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={handleConfirmFound}
+                    maxLength={10}
+                    selectTextOnFocus
+                  />
+                </>
+              )}
 
               {/* Add button */}
               <TouchableOpacity
