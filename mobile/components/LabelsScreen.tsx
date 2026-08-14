@@ -12,6 +12,7 @@ import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import { printLabels } from '../utils/printLabels';
+import { useAuthStore } from '../store/authStore';
 
 interface Label {
   id: string;
@@ -30,6 +31,8 @@ const TEMPLATES: { value: string; label: string; color: string }[] = [
 
 export default function LabelsScreen() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const accentColor = user?.role === 'STORE_MANAGER' ? COLORS.managerPrimary : COLORS.secondary;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showScanner, setShowScanner] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -96,7 +99,8 @@ export default function LabelsScreen() {
       Toast.show({ type: 'success', text1: editingLabel ? 'Label updated' : 'Label added' });
       closeForm();
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to save label' });
+      const e = err.response?.data?.error;
+      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to save label' });
     } finally {
       setSaving(false);
     }
@@ -125,7 +129,8 @@ export default function LabelsScreen() {
       Toast.show({ type: 'success', text1: 'Label removed' });
       closeForm();
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to remove label' });
+      const e = err.response?.data?.error;
+      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to remove label' });
     } finally {
       setSaving(false);
     }
@@ -157,6 +162,7 @@ export default function LabelsScreen() {
       <BarcodeScannerModal
         visible={showScanner}
         hideQuantity
+        confirmLabel="Continue"
         onClose={() => setShowScanner(false)}
         onResult={(result) => { setShowScanner(false); openCreateForm(result); }}
       />
@@ -204,7 +210,7 @@ export default function LabelsScreen() {
                 {TEMPLATES.map(t => (
                   <TouchableOpacity
                     key={t.value}
-                    style={[s.templateChip, formTemplate === t.value && s.templateChipActive]}
+                    style={[s.templateChip, formTemplate === t.value && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
                     onPress={() => setFormTemplate(t.value)}
                     accessibilityRole="button"
                     accessibilityLabel={`Use ${t.label} template`}
@@ -216,7 +222,7 @@ export default function LabelsScreen() {
               </View>
 
               <TouchableOpacity
-                style={[s.saveBtn, (!formProductName.trim() || !formPriceText.trim() || saving) && s.saveBtnDim]}
+                style={[s.saveBtn, { backgroundColor: accentColor }, (!formProductName.trim() || !formPriceText.trim() || saving) && s.saveBtnDim]}
                 onPress={handleSave}
                 disabled={!formProductName.trim() || !formPriceText.trim() || saving}
                 activeOpacity={0.85}
@@ -275,7 +281,7 @@ export default function LabelsScreen() {
                   accessibilityState={{ checked }}
                   accessibilityLabel={`Select ${item.productName} for printing`}
                 >
-                  <View style={[s.checkboxBox, checked && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary }]}>
+                  <View style={[s.checkboxBox, checked && { backgroundColor: accentColor, borderColor: accentColor }]}>
                     {checked && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
                   </View>
                 </TouchableOpacity>
@@ -296,7 +302,7 @@ export default function LabelsScreen() {
 
       <View style={s.footer}>
         <TouchableOpacity
-          style={s.scanBtn}
+          style={[s.scanBtn, { backgroundColor: accentColor }]}
           onPress={() => setShowScanner(true)}
           activeOpacity={0.85}
           accessibilityRole="button"
@@ -306,7 +312,7 @@ export default function LabelsScreen() {
           <Text style={s.scanBtnText}>New Label</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.printBtn, (selectedIds.size === 0 || printing) && s.printBtnDim]}
+          style={[s.printBtn, { backgroundColor: accentColor }, (selectedIds.size === 0 || printing) && s.printBtnDim]}
           onPress={() => handlePrint(false)}
           disabled={selectedIds.size === 0 || printing}
           activeOpacity={0.85}
@@ -316,14 +322,14 @@ export default function LabelsScreen() {
           {printing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.printBtnText}>Print ({selectedIds.size})</Text>}
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.shareBtn, (selectedIds.size === 0 || printing) && s.printBtnDim]}
+          style={[s.shareBtn, { borderColor: accentColor }, (selectedIds.size === 0 || printing) && s.printBtnDim]}
           onPress={() => handlePrint(true)}
           disabled={selectedIds.size === 0 || printing}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel={`Export ${selectedIds.size} selected labels as PDF`}
         >
-          <Text style={s.shareBtnText}>PDF</Text>
+          <Text style={[s.shareBtnText, { color: accentColor }]}>PDF</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -360,20 +366,20 @@ const s = StyleSheet.create({
   },
   scanBtn: {
     flex: 1.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: COLORS.secondary, borderRadius: 12, paddingVertical: 14,
+    borderRadius: 12, paddingVertical: 14,
   },
   scanBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   printBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.managerPrimary, borderRadius: 12, paddingVertical: 14,
+    borderRadius: 12, paddingVertical: 14,
   },
   printBtnDim: { opacity: 0.4 },
   printBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   shareBtn: {
     flex: 0.6, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.managerPrimary, borderRadius: 12, paddingVertical: 14,
+    backgroundColor: '#fff', borderWidth: 1.5, borderRadius: 12, paddingVertical: 14,
   },
-  shareBtnText: { color: COLORS.managerPrimary, fontSize: 14, fontWeight: '700' },
+  shareBtnText: { fontSize: 14, fontWeight: '700' },
   formOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   formSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
   formScroll: { padding: 20, paddingBottom: 40 },
@@ -395,11 +401,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
   },
-  templateChipActive: { borderColor: COLORS.secondary, backgroundColor: '#eff6ff' },
   templateSwatch: { width: 10, height: 10, borderRadius: 5 },
   templateChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   saveBtn: {
-    backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 16,
+    borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center', marginTop: 24,
   },
   saveBtnDim: { opacity: 0.4 },

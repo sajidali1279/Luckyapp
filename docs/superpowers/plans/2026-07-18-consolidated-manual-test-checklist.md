@@ -126,3 +126,9 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Tap "PDF" instead → confirm the native share sheet opens with a Labels.pdf attachment
 - [ ] Repeat the "New Label" flow as Employee (not Store Manager) → confirm identical access — full create/edit/delete, no restrictions relative to Store Manager
 - [ ] As Customer or logged out, confirm `/labels` endpoints return 401/403 (the loosened permission still stops at Employee, not Customer)
+- [ ] In the Labels scan flow, confirm the "found" screen does NOT show a Quantity field (this screen passes `hideQuantity` to `BarcodeScannerModal`)
+- [ ] Regression: open Order List (Manager) and use its barcode scan/quick-add → confirm the Quantity field still appears exactly as before (this shared modal was modified to support Labels — must not regress its original caller)
+- [ ] Regression: open Stock Request (Employee) and use its barcode scan flow → confirm the Quantity field still appears exactly as before (same shared-modal concern)
+- [ ] Print a selection where none of the selected labels have a barcode → confirm it still prints correctly (this skips the JsBarcode script entirely, a different code path than the barcode case already covered above)
+- [ ] After saving a brand-new label, confirm it's automatically checked/selected in the list without having to tap its checkbox
+- [ ] Repeat the full print/PDF flow on iOS (not just Android) at least once — the PDF share sheet and the scan-modal-to-form handoff are platform-sensitive and the rest of this checklist only mandates an Android pass

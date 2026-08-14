@@ -24,6 +24,7 @@ interface Props {
   onClose:      () => void;
   onResult:     (result: BarcodeResult) => void;
   hideQuantity?: boolean;
+  confirmLabel?: string;
 }
 
 function mapOFFCategory(tags: string[]): string | null {
@@ -41,7 +42,7 @@ function mapOFFCategory(tags: string[]): string | null {
   return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
-export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false }: Props) {
+export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false, confirmLabel = 'Add to List' }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase,        setPhase]        = useState<Phase>('scanning');
   const [lastCode,     setLastCode]     = useState('');
@@ -324,10 +325,10 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 onPress={handleConfirmFound}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Add product to list"
+                accessibilityLabel={confirmLabel}
               >
                 <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
-                <Text style={st.addBtnText}>Add to List</Text>
+                <Text style={st.addBtnText}>{confirmLabel}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -412,13 +413,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 disabled={!productName.trim() || saving}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Save and add product to list"
+                accessibilityLabel={`Save & ${confirmLabel}`}
               >
                 {saving
                   ? <ActivityIndicator color="#fff" />
                   : <>
                       <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
-                      <Text style={st.addBtnText}>Save & Add to List</Text>
+                      <Text style={st.addBtnText}>{`Save & ${confirmLabel}`}</Text>
                     </>
                 }
               </TouchableOpacity>

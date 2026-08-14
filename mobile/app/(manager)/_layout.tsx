@@ -8,7 +8,7 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
-  HeadphonesIcon, CalendarIcon, AlertTriangleIcon,
+  HeadphonesIcon, CalendarIcon, AlertTriangleIcon, PrinterIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -85,7 +85,7 @@ export default function ManagerLayout() {
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
         { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: 'Store Catalog' },
-        { route: '/(manager)/labels',     icon: (p) => <TagIcon {...p} />,       label: 'Labels' },
+        { route: '/(manager)/labels',     icon: (p) => <PrinterIcon {...p} />,   label: 'Labels' },
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending + storeReqPending },
         { route: '/(manager)/disputes',   icon: (p) => <AlertTriangleIcon {...p} />, label: t('nav.disputes'), badge: disputesPending },
       ],
