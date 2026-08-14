@@ -325,7 +325,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 onPress={handleConfirmFound}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={confirmLabel}
+                accessibilityLabel="Add product to list"
               >
                 <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
                 <Text style={st.addBtnText}>{confirmLabel}</Text>
@@ -413,7 +413,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 disabled={!productName.trim() || saving}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={`Save & ${confirmLabel}`}
+                accessibilityLabel="Save and add product to list"
               >
                 {saving
                   ? <ActivityIndicator color="#fff" />
