@@ -112,5 +112,17 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Edit a label's price → table updates immediately
 - [ ] Select both labels, click "Print Selected" → a new tab opens, the print dialog fires automatically, and both labels render in a grid styled with the red/black template
 - [ ] Delete a label → disappears from the table and from a subsequent print selection
-- [ ] Log in as a Store Manager (or check the API directly) → confirm no "Labels" nav item appears, and `/labels/*` endpoints return 403
-- [ ] Switch to a different store in the sidebar → confirm the label table and any selection checkboxes reset to that store's own labels (no cross-store leakage)
+- [ ] (Superseded by section 11 below — Labels is now a chain-wide catalog with no per-store sidebar, and Store Manager/Employee have full mobile access as of 2026-08-14.)
+
+## 11. Mobile label creation (2026-08-14)
+
+- [ ] As Store Manager, open the new "Labels" tab (Inventory group) → confirm it shows the same catalog admin web's Labels page shows
+- [ ] Tap "New Label", scan a barcode that's genuinely new (not in the catalog yet) → name it, enter a price, pick a template, save → confirm it appears in the mobile list immediately, and in admin web's Labels page after a refresh
+- [ ] Scan that same barcode again → confirm it opens the existing label's *edit* form pre-filled, not a blank create form (no duplicate created)
+- [ ] Edit a label's price from mobile → confirm admin web reflects the new price after a refresh
+- [ ] Edit a label's price from admin web → confirm mobile reflects the new price after a pull-to-refresh
+- [ ] Delete a label from mobile → confirm it disappears from admin web's Labels page too
+- [ ] Select 2+ labels (including at least one with a barcode) and tap "Print" → confirm the OS print flow opens and the output visually matches admin web's template (border/text-only legibility, working barcode, QR code, correct template colors)
+- [ ] Tap "PDF" instead → confirm the native share sheet opens with a Labels.pdf attachment
+- [ ] Repeat the "New Label" flow as Employee (not Store Manager) → confirm identical access — full create/edit/delete, no restrictions relative to Store Manager
+- [ ] As Customer or logged out, confirm `/labels` endpoints return 401/403 (the loosened permission still stops at Employee, not Customer)
