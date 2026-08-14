@@ -6,6 +6,7 @@ export interface PrintableLabel {
   id: string;
   productName: string;
   priceText: string;
+  isDeal?: boolean;
   barcode?: string | null;
   template: string;
 }
@@ -61,20 +62,32 @@ const TEMPLATES: Record<string, TemplateStyle> = {
   },
 };
 
+function renderPrice(label: PrintableLabel, priceColor: string): string {
+  if (label.isDeal) {
+    return `<div class="price-deal" style="color: ${priceColor};">${esc(label.priceText)}</div>`;
+  }
+  return `<div class="price-regular" style="color: ${priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>`;
+}
+
 function renderLabel(label: PrintableLabel): string {
   const t = TEMPLATES[label.template] || TEMPLATES.CLASSIC_RED_BLACK;
   const barcode = label.barcode?.trim();
-  const cls = barcode ? 'label has-barcode' : 'label';
+  const sideClass = barcode ? 'label-side' : 'label-side no-barcode';
   return `
-    <div class="${cls}" style="border: ${t.border}; border-top: ${t.borderTop};">
-      <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
-      <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
-      <div class="label-price" style="color: ${t.priceColor};">${esc(label.priceText)}</div>
-      ${barcode ? `
-      <div class="label-barcode-wrap">
-        <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
-        <div class="label-barcode-val">${esc(barcode)}</div>
-      </div>` : ''}
+    <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
+      <div class="watermark">LUCKY STOP</div>
+      <div class="label-main">
+        <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
+        ${renderPrice(label, t.priceColor)}
+      </div>
+      <div class="${sideClass}">
+        <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
+        ${barcode ? `
+        <div class="label-barcode-wrap">
+          <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
+          <div class="label-barcode-val">${esc(barcode)}</div>
+        </div>` : ''}
+      </div>
     </div>
   `;
 }
@@ -87,7 +100,7 @@ export function printLabels(labels: PrintableLabel[]): void {
       document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
         try {
           JsBarcode(el, el.getAttribute('data-barcode'), {
-            format: 'CODE128', width: 1.5, height: 40,
+            format: 'CODE128', width: 1.3, height: 34,
             displayValue: false, margin: 0, lineColor: '#000'
           });
           var w = parseFloat(el.getAttribute('width') || '0');
@@ -108,72 +121,122 @@ export function printLabels(labels: PrintableLabel[]): void {
   <meta charset="UTF-8">
   <title>Print Labels</title>
   <style>
-    @page { size: A4; margin: 10mm; }
+    @page { size: A4; margin: 7mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 6mm;
+      grid-template-columns: repeat(3, 63.5mm);
+      grid-auto-rows: 31.75mm;
+      gap: 2mm;
     }
+    /* Every label is the exact same fixed physical size — sized to fit a
+       standard 1.25in-tall shelf-channel/data-strip holder — regardless of
+       whether it carries a barcode. Content is organized to fit inside,
+       never the other way around. */
     .label {
       position: relative;
-      aspect-ratio: 3 / 2;
-      border-radius: 5px;
+      width: 63.5mm;
+      height: 31.75mm;
+      border-radius: 3px;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 2.5mm 7mm 2.5mm 2.5mm;
+      flex-direction: row;
+      align-items: stretch;
+      padding: 1.5mm;
+      overflow: hidden;
       page-break-inside: avoid;
       /* Defense-in-depth only — the real fix for legibility is that every
          template gets its contrast from text/border color, never a fill. */
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
-    .label-qr {
+    .watermark {
       position: absolute;
-      bottom: 1mm;
-      right: 1mm;
-      width: 6mm;
-      height: 6mm;
+      inset: 0;
+      z-index: -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13pt;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: rgba(204, 41, 54, 0.08);
+      white-space: nowrap;
+    }
+    .label-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-right: 1.5mm;
     }
     .label-name {
-      font-size: 7pt;
+      font-size: 7.5pt;
       font-weight: 700;
-      margin-bottom: 1.5mm;
+      line-height: 1.15;
+      text-align: left;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-    .label-price {
-      font-size: 11pt;
+    .price-regular {
+      font-size: 25pt;
       font-weight: 900;
+      line-height: 1;
+      text-align: left;
     }
-    /* Barcode labels drop the fixed aspect-ratio and grow to fit the extra
-       row instead — only labels that actually carry a barcode get taller,
-       everything else stays at the compact size above. */
-    .label.has-barcode {
-      aspect-ratio: auto;
+    .price-dollar {
+      font-size: 12pt;
+      font-weight: 700;
+      margin-right: 0.5mm;
     }
-    .label.has-barcode .label-qr {
-      width: 4.5mm;
-      height: 4.5mm;
+    .price-deal {
+      font-size: 14pt;
+      font-weight: 900;
+      line-height: 1.05;
+      text-align: left;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .label-side {
+      width: 17mm;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1mm;
+    }
+    .label-qr {
+      width: 9mm;
+      height: 9mm;
+    }
+    /* No barcode to share the column with — let the QR grow into the
+       freed-up space instead of leaving it blank. */
+    .label-side.no-barcode .label-qr {
+      width: 15mm;
+      height: 15mm;
     }
     .label-barcode-wrap {
       width: 100%;
-      margin-top: 1mm;
+      text-align: center;
     }
     .label-barcode {
       display: block;
       width: 100%;
-      max-width: 20mm;
       height: 6.5mm;
-      margin: 0 auto;
     }
     .label-barcode-val {
-      font-size: 5.5pt;
+      font-size: 5pt;
       color: #555;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
       margin-top: 0.3mm;
+      word-break: break-all;
     }
   </style>
   <script>window.onload = () => window.print();</script>

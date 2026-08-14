@@ -18,6 +18,7 @@ interface Label {
   id: string;
   productName: string;
   priceText: string;
+  isDeal: boolean;
   barcode: string | null;
   template: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ export default function LabelsScreen() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  const [formIsDeal, setFormIsDeal] = useState(false);
   const [formBarcode, setFormBarcode] = useState<string | null>(null);
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [saving, setSaving] = useState(false);
@@ -59,6 +61,7 @@ export default function LabelsScreen() {
     setEditingLabel(null);
     setFormProductName(scanned.name);
     setFormPriceText('');
+    setFormIsDeal(false);
     setFormBarcode(scanned.barcode);
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
@@ -68,6 +71,7 @@ export default function LabelsScreen() {
     setEditingLabel(label);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormIsDeal(label.isDeal);
     setFormBarcode(label.barcode);
     setFormTemplate(label.template);
     setShowForm(true);
@@ -78,6 +82,7 @@ export default function LabelsScreen() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormIsDeal(false);
     setFormBarcode(null);
     setFormTemplate('CLASSIC_RED_BLACK');
   }
@@ -89,9 +94,9 @@ export default function LabelsScreen() {
     setSaving(true);
     try {
       if (editingLabel) {
-        await labelsApi.update(editingLabel.id, { productName, priceText, barcode: formBarcode, template: formTemplate });
+        await labelsApi.update(editingLabel.id, { productName, priceText, isDeal: formIsDeal, barcode: formBarcode, template: formTemplate });
       } else {
-        const res = await labelsApi.create({ productName, priceText, barcode: formBarcode, template: formTemplate });
+        const res = await labelsApi.create({ productName, priceText, isDeal: formIsDeal, barcode: formBarcode, template: formTemplate });
         const newId = res.data?.data?.id;
         if (newId) setSelectedIds(prev => new Set(prev).add(newId));
       }
@@ -192,18 +197,58 @@ export default function LabelsScreen() {
                 onChangeText={setFormProductName}
                 placeholder="e.g. Monster Energy 16oz"
                 placeholderTextColor="#B0B8C4"
-                maxLength={120}
-              />
-
-              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price / Deal Text</Text>
-              <TextInput
-                style={s.fieldInput}
-                value={formPriceText}
-                onChangeText={setFormPriceText}
-                placeholder='e.g. "$3.99" or "2 for $5"'
-                placeholderTextColor="#B0B8C4"
                 maxLength={40}
               />
+
+              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price Type</Text>
+              <View style={s.templateRow}>
+                <TouchableOpacity
+                  style={[s.templateChip, !formIsDeal && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+                  onPress={() => { setFormIsDeal(false); setFormPriceText(formPriceText.replace(/[^0-9.]/g, '')); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Regular price"
+                >
+                  <Text style={s.templateChipText}>Regular Price</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.templateChip, formIsDeal && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+                  onPress={() => setFormIsDeal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Deal"
+                >
+                  <Text style={s.templateChipText}>Deal</Text>
+                </TouchableOpacity>
+              </View>
+
+              {formIsDeal ? (
+                <>
+                  <Text style={[s.fieldLabel, { marginTop: 16 }]}>Deal Text</Text>
+                  <TextInput
+                    style={s.fieldInput}
+                    value={formPriceText}
+                    onChangeText={setFormPriceText}
+                    placeholder='e.g. "2 for $5" or "BOGO"'
+                    placeholderTextColor="#B0B8C4"
+                    maxLength={20}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price</Text>
+                  <View style={s.priceInputWrap}>
+                    <Text style={s.priceInputDollar}>$</Text>
+                    <TextInput
+                      style={[s.fieldInput, s.priceInput]}
+                      value={formPriceText}
+                      onChangeText={t => setFormPriceText(t.replace(/[^0-9.]/g, ''))}
+                      placeholder="3.99"
+                      placeholderTextColor="#B0B8C4"
+                      keyboardType="decimal-pad"
+                      maxLength={7}
+                    />
+                  </View>
+                </>
+              )}
 
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>Template</Text>
               <View style={s.templateRow}>
@@ -289,7 +334,7 @@ export default function LabelsScreen() {
                   <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardName}>{item.productName}</Text>
-                    <Text style={s.cardPrice}>{item.priceText}</Text>
+                    <Text style={s.cardPrice}>{item.isDeal ? item.priceText : `$${item.priceText}`}</Text>
                     {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
                   </View>
                   <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
@@ -403,6 +448,11 @@ const s = StyleSheet.create({
   },
   templateSwatch: { width: 10, height: 10, borderRadius: 5 },
   templateChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  priceInputWrap: { position: 'relative', justifyContent: 'center' },
+  priceInputDollar: {
+    position: 'absolute', left: 14, fontSize: 15, fontWeight: '700', color: COLORS.textMuted, zIndex: 1,
+  },
+  priceInput: { paddingLeft: 26 },
   saveBtn: {
     borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', justifyContent: 'center', marginTop: 24,

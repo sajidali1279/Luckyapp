@@ -14,6 +14,7 @@ interface Label {
   id: string;
   productName: string;
   priceText: string;
+  isDeal: boolean;
   barcode: string | null;
   template: string;
   updatedAt: string;
@@ -36,6 +37,7 @@ export default function Labels() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  const [formIsDeal, setFormIsDeal] = useState(false);
   const [formBarcode, setFormBarcode] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
@@ -48,7 +50,8 @@ export default function Labels() {
 
   function applyPreset(preset: (typeof LABEL_PRESETS)[number]) {
     setFormProductName(preset.name);
-    setFormPriceText(preset.priceText);
+    setFormIsDeal(false);
+    setFormPriceText(preset.priceText.replace(/^\$/, ''));
     setShowSuggestions(false);
   }
 
@@ -61,8 +64,8 @@ export default function Labels() {
   const saveMutation = useMutation({
     mutationFn: () =>
       editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), barcode: formBarcode.trim() || null, template: formTemplate })
-        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), barcode: formBarcode.trim() || null, template: formTemplate }),
+        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), isDeal: formIsDeal, barcode: formBarcode.trim() || null, template: formTemplate })
+        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), isDeal: formIsDeal, barcode: formBarcode.trim() || null, template: formTemplate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
@@ -86,6 +89,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormIsDeal(false);
     setFormBarcode('');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowModal(true);
@@ -95,6 +99,7 @@ export default function Labels() {
     setEditingLabel(label);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormIsDeal(label.isDeal);
     setFormBarcode(label.barcode || '');
     setFormTemplate(label.template);
     setShowModal(true);
@@ -105,6 +110,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
+    setFormIsDeal(label.isDeal);
     setFormBarcode(label.barcode || '');
     setFormTemplate(label.template);
     setShowModal(true);
@@ -115,6 +121,7 @@ export default function Labels() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
+    setFormIsDeal(false);
     setFormBarcode('');
     setFormTemplate('CLASSIC_RED_BLACK');
   }
@@ -162,7 +169,7 @@ export default function Labels() {
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   placeholder="e.g. Monster Energy 16oz"
-                  maxLength={120}
+                  maxLength={40}
                   autoComplete="off"
                   autoFocus
                 />
@@ -177,14 +184,51 @@ export default function Labels() {
                   </div>
                 )}
               </div>
-              <div style={m.label}>Price / Deal Text *</div>
-              <input
-                style={m.input}
-                value={formPriceText}
-                onChange={e => setFormPriceText(e.target.value)}
-                placeholder='e.g. "$3.99" or "2 for $5"'
-                maxLength={40}
-              />
+              <div style={m.label}>Price Type</div>
+              <div style={m.templateRow}>
+                <button
+                  type="button"
+                  style={{ ...m.templateChip, ...(!formIsDeal ? m.templateChipActive : {}) }}
+                  onClick={() => { setFormIsDeal(false); setFormPriceText(formPriceText.replace(/[^0-9.]/g, '')); }}
+                >
+                  Regular Price
+                </button>
+                <button
+                  type="button"
+                  style={{ ...m.templateChip, ...(formIsDeal ? m.templateChipActive : {}) }}
+                  onClick={() => setFormIsDeal(true)}
+                >
+                  Deal
+                </button>
+              </div>
+
+              {formIsDeal ? (
+                <>
+                  <div style={m.label}>Deal Text *</div>
+                  <input
+                    style={m.input}
+                    value={formPriceText}
+                    onChange={e => setFormPriceText(e.target.value)}
+                    placeholder='e.g. "2 for $5" or "BOGO"'
+                    maxLength={20}
+                  />
+                </>
+              ) : (
+                <>
+                  <div style={m.label}>Price *</div>
+                  <div style={m.priceInputWrap}>
+                    <span style={m.priceInputDollar}>$</span>
+                    <input
+                      style={{ ...m.input, ...m.priceInput }}
+                      value={formPriceText}
+                      onChange={e => setFormPriceText(e.target.value.replace(/[^0-9.]/g, ''))}
+                      placeholder="3.99"
+                      inputMode="decimal"
+                      maxLength={7}
+                    />
+                  </div>
+                </>
+              )}
               <div style={m.label}>Barcode (optional)</div>
               <input
                 style={m.input}
@@ -274,7 +318,7 @@ export default function Labels() {
                       <span style={s.itemName}>{label.productName}</span>
                       {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
                     </TableCell>
-                    <TableCell style={s.td}>{label.priceText}</TableCell>
+                    <TableCell style={s.td}>{label.isDeal ? label.priceText : `$${label.priceText}`}</TableCell>
                     <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
                     <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                     <TableCell style={s.td}>
@@ -380,6 +424,12 @@ const m: Record<string, CSSProperties> = {
   },
   templateChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
   templateSwatch: { width: 10, height: 10, borderRadius: 5, display: 'inline-block' },
+  priceInputWrap: { position: 'relative' as const },
+  priceInputDollar: {
+    position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)',
+    fontSize: 15, fontWeight: 700, color: '#667', pointerEvents: 'none' as const,
+  },
+  priceInput: { paddingLeft: 26 },
   sugg: {
     position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
     border: '1.5px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 10px 10px',
