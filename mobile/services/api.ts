@@ -325,6 +325,15 @@ export const scannedProductApi = {
   },
 };
 
+export const labelsApi = {
+  getAll: () => api.get('/labels'),
+  create: (data: { productName: string; priceText: string; barcode?: string | null; template?: string }) =>
+    api.post('/labels', data),
+  update: (labelId: string, data: { productName?: string; priceText?: string; barcode?: string | null; template?: string }) =>
+    api.patch(`/labels/${labelId}`, data),
+  delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+};
+
 export const employeeRequestApi = {
   getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
   getPendingCount: () => api.get('/employee-requests/pending-count'),
