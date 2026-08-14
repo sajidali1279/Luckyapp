@@ -463,10 +463,10 @@ router.delete('/scanned-products/:id',              authenticate, requireRole(Ro
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
 // ─── Labels (printable shelf/price tags, chain-wide catalog) ────────────────────
-router.get   ('/labels',                authenticate, requireRole(Role.SUPER_ADMIN), getAllLabels);
-router.post  ('/labels',                authenticate, requireRole(Role.SUPER_ADMIN), createLabel);
-router.patch ('/labels/:labelId',       authenticate, requireRole(Role.SUPER_ADMIN), updateLabel);
-router.delete('/labels/:labelId',       authenticate, requireRole(Role.SUPER_ADMIN), deleteLabel);
+router.get   ('/labels',                authenticate, requireRole(Role.EMPLOYEE), getAllLabels);
+router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE), createLabel);
+router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);
+router.delete('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), deleteLabel);
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
