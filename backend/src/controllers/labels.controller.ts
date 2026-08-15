@@ -102,3 +102,32 @@ export async function deleteLabel(req: AuthRequest, res: Response) {
 
   res.json({ success: true, data: deleted });
 }
+
+const printLabelsSchema = z.object({
+  labelIds: z.array(z.string().uuid()).min(1),
+});
+
+export async function markLabelsPrinted(req: AuthRequest, res: Response) {
+  const parsed = printLabelsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    return;
+  }
+
+  const { labelIds } = parsed.data;
+  const storeId = req.user!.storeIds?.[0] ?? null;
+
+  await prisma.label.updateMany({
+    where: { id: { in: labelIds } },
+    data: { printedAt: new Date() },
+  });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'PRINT_LABEL', entity: 'label',
+    details: { count: labelIds.length, labelIds },
+    storeId,
+  });
+
+  res.json({ success: true, data: { printedCount: labelIds.length } });
+}

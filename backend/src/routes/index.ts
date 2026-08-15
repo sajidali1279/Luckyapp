@@ -67,7 +67,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
-import { getAllLabels, createLabel, updateLabel, deleteLabel } from '../controllers/labels.controller';
+import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -465,6 +465,7 @@ router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(
 // ─── Labels (printable shelf/price tags, chain-wide catalog) ────────────────────
 router.get   ('/labels',                authenticate, requireRole(Role.EMPLOYEE), getAllLabels);
 router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE), createLabel);
+router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE), markLabelsPrinted);
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);
 router.delete('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), deleteLabel);
 
