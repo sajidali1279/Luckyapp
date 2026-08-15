@@ -45,12 +45,32 @@ export default function LabelsScreen() {
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [showNameSugg, setShowNameSugg] = useState(false);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['mobile-labels'],
     queryFn: labelsApi.getAll,
   });
   const labels: Label[] = data?.data?.data || [];
+
+  // "Fill as you go": as the catalog grows, suggest matching product names
+  // from labels the chain has already created — picking one auto-fills the
+  // price too, so a repeat item takes one tap instead of full re-entry.
+  // Only offered while creating (not editing) an existing label.
+  const nameQuery = formProductName.trim().toLowerCase();
+  const nameSuggestions = !editingLabel && nameQuery
+    ? labels
+        .filter(l => l.productName.toLowerCase().includes(nameQuery))
+        .filter((l, i, arr) => arr.findIndex(x => x.productName.toLowerCase() === l.productName.toLowerCase()) === i)
+        .slice(0, 6)
+    : [];
+
+  function applyNameSuggestion(label: Label) {
+    setFormProductName(label.productName);
+    setFormPriceText(label.priceText);
+    setFormIsDeal(label.isDeal);
+    setShowNameSugg(false);
+  }
 
   function openCreateForm(scanned: BarcodeResult) {
     const existing = labels.find(l => l.barcode && l.barcode === scanned.barcode);
@@ -190,14 +210,34 @@ export default function LabelsScreen() {
               </View>
 
               <Text style={s.fieldLabel}>Product Name</Text>
-              <TextInput
-                style={s.fieldInput}
-                value={formProductName}
-                onChangeText={setFormProductName}
-                placeholder="e.g. Monster Energy 16oz"
-                placeholderTextColor="#B0B8C4"
-                maxLength={40}
-              />
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={s.fieldInput}
+                  value={formProductName}
+                  onChangeText={t => { setFormProductName(t); setShowNameSugg(true); }}
+                  onFocus={() => setShowNameSugg(nameSuggestions.length > 0)}
+                  onBlur={() => setTimeout(() => setShowNameSugg(false), 130)}
+                  placeholder="e.g. Monster Energy 16oz"
+                  placeholderTextColor="#B0B8C4"
+                  maxLength={40}
+                />
+                {showNameSugg && nameSuggestions.length > 0 && (
+                  <View style={s.nameSugg}>
+                    {nameSuggestions.map(l => (
+                      <TouchableOpacity
+                        key={l.id}
+                        style={s.nameSuggRow}
+                        onPress={() => applyNameSuggestion(l)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Use ${l.productName}, ${l.isDeal ? l.priceText : '$' + l.priceText}`}
+                      >
+                        <Text style={s.nameSuggText} numberOfLines={1}>{l.productName}</Text>
+                        <Text style={s.nameSuggPrice}>{l.isDeal ? l.priceText : `$${l.priceText}`}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
 
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price Type</Text>
               <View style={s.templateRow}>
@@ -444,6 +484,19 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: COLORS.text,
   },
+  nameSugg: {
+    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border, borderTopWidth: 0,
+    borderRadius: 12, borderTopLeftRadius: 0, borderTopRightRadius: 0,
+    maxHeight: 220, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 6,
+  },
+  nameSuggRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
+  },
+  nameSuggText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text, marginRight: 8 },
+  nameSuggPrice: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
   templateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   templateChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
