@@ -33,6 +33,11 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Store Requests
   SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#f59e0b', bg: '#f59e0b18', icon: '📋' },
   ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  // Labels
+  CREATE_LABEL:              { label: 'Create Label',           color: '#1D3557', bg: '#1D355718', icon: '🏷️' },
+  UPDATE_LABEL:              { label: 'Update Label',           color: '#1D3557', bg: '#1D355718', icon: '✏️' },
+  DELETE_LABEL:              { label: 'Delete Label',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  PRINT_LABEL:               { label: 'Print Label(s)',         color: '#0f5132', bg: '#0f513218', icon: '🖨️' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
