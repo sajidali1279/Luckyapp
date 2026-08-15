@@ -137,7 +137,9 @@ export default function Labels() {
   function handlePrintSelected() {
     const toPrint = labels.filter(l => selectedIds.has(l.id));
     if (toPrint.length === 0) return;
+    labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
     printLabels(toPrint);
+    qc.invalidateQueries({ queryKey: ['labels'] });
   }
 
   return (
