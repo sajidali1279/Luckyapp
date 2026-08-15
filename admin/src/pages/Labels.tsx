@@ -1,7 +1,7 @@
 import { useState, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi } from '../services/api';
+import { labelsApi, storesApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -17,6 +17,8 @@ interface Label {
   isDeal: boolean;
   barcode: string | null;
   template: string;
+  createdByStoreId: string | null;
+  printedAt: string | null;
   updatedAt: string;
 }
 
@@ -42,6 +44,9 @@ export default function Labels() {
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [search, setSearch] = useState('');
+  const [storeFilter, setStoreFilter] = useState('');
+  const [printFilter, setPrintFilter] = useState<'all' | 'unprinted' | 'printed'>('all');
 
   const nameQuery = formProductName.trim().toLowerCase();
   const suggestions = nameQuery
@@ -60,6 +65,44 @@ export default function Labels() {
     queryFn: labelsApi.getAll,
   });
   const labels: Label[] = data?.data?.data || [];
+
+  const { data: storesData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => storesApi.getAll(),
+  });
+  const stores: any[] = storesData?.data?.data || [];
+  const storeNameById: Record<string, string> = Object.fromEntries(stores.map((st: any) => [st.id, st.name]));
+
+  const filteredLabels = labels.filter(l => {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const matchesName = l.productName.toLowerCase().includes(q);
+      const matchesBarcode = !!l.barcode && l.barcode.toLowerCase().includes(q);
+      if (!matchesName && !matchesBarcode) return false;
+    }
+    if (storeFilter === '__none__') {
+      if (l.createdByStoreId) return false;
+    } else if (storeFilter && l.createdByStoreId !== storeFilter) {
+      return false;
+    }
+    if (printFilter === 'unprinted' && l.printedAt) return false;
+    if (printFilter === 'printed' && !l.printedAt) return false;
+    return true;
+  });
+
+  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredLabels.forEach(l => next.delete(l.id));
+      } else {
+        filteredLabels.forEach(l => next.add(l.id));
+      }
+      return next;
+    });
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -286,28 +329,68 @@ export default function Labels() {
           </div>
         </div>
 
+        {!isError && !isLoading && labels.length > 0 && (
+          <div style={s.filterRow}>
+            <input
+              style={s.searchInput}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by product name or barcode…"
+            />
+            <select style={s.filterSelect} value={storeFilter} onChange={e => setStoreFilter(e.target.value)}>
+              <option value="">All Stores</option>
+              <option value="__none__">Admin Web (no store)</option>
+              {stores.map((st: any) => (
+                <option key={st.id} value={st.id}>{st.name}</option>
+              ))}
+            </select>
+            <div style={s.printFilterRow}>
+              {(['all', 'unprinted', 'printed'] as const).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  style={{ ...s.printFilterChip, ...(printFilter === f ? s.printFilterChipActive : {}) }}
+                  onClick={() => setPrintFilter(f)}
+                >
+                  {f === 'all' ? 'All' : f === 'unprinted' ? 'Ready to Print' : 'Printed'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isError ? (
           <ErrorState message="Failed to load labels." onRetry={refetch} />
         ) : isLoading ? (
-          <TableSkeleton columns={6} />
+          <TableSkeleton columns={8} />
         ) : labels.length === 0 ? (
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>🏷️</div>
             <div style={s.emptyTitle}>No labels yet</div>
             <div style={s.emptySub}>Add a label to start building a print batch</div>
           </div>
+        ) : filteredLabels.length === 0 ? (
+          <div style={s.emptyBox}>
+            <div style={s.emptyIcon}>🔍</div>
+            <div style={s.emptyTitle}>No labels match your filters</div>
+            <div style={s.emptySub}>Try clearing the search, store, or print-status filter</div>
+          </div>
         ) : (
           <div style={s.tableWrap}>
             <Table style={s.table}>
               <TableHeader>
                 <TableRow>
-                  {['', 'Product', 'Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
-                    <TableHead key={h} style={s.th}>{h}</TableHead>
+                  {['', 'Product', 'Price / Deal', 'Template', 'Store', 'Status', 'Updated', 'Actions'].map(h => (
+                    <TableHead key={h} style={s.th}>
+                      {h === '' ? (
+                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} title="Select all" />
+                      ) : h}
+                    </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {labels.map((label, i) => (
+                {filteredLabels.map((label, i) => (
                   <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                     <TableCell style={s.td}>
                       <input
@@ -322,6 +405,12 @@ export default function Labels() {
                     </TableCell>
                     <TableCell style={s.td}>{label.isDeal ? label.priceText : `$${label.priceText}`}</TableCell>
                     <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
+                    <TableCell style={s.td}>
+                      {label.createdByStoreId ? (storeNameById[label.createdByStoreId] || 'Unknown store') : <span style={{ color: TEXT_MUTED }}>Admin Web</span>}
+                    </TableCell>
+                    <TableCell style={s.td}>
+                      {label.printedAt ? <span style={s.printedBadge}>✓ Printed</span> : <span style={s.readyBadge}>Ready to Print</span>}
+                    </TableCell>
                     <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                     <TableCell style={s.td}>
                       <div style={{ display: 'flex', gap: 6 }}>
@@ -357,6 +446,24 @@ const s: Record<string, CSSProperties> = {
     padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
+
+  filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
+  searchInput: {
+    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
+    padding: '9px 14px', fontSize: 14, outline: 'none',
+  },
+  filterSelect: {
+    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
+    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+  },
+  printFilterRow: { display: 'flex', gap: 6 },
+  printFilterChip: {
+    borderWidth: 1.5, borderStyle: 'solid', borderColor: '#ddd', borderRadius: 20, padding: '8px 14px',
+    fontSize: 13, fontWeight: 600, color: '#444', background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap',
+  },
+  printFilterChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
+  printedBadge: { fontSize: 13, fontWeight: 600, color: '#0f5132' },
+  readyBadge: { fontSize: 13, fontWeight: 600, color: '#b7791f' },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
