@@ -90,13 +90,14 @@ export default function LabelsScreen() {
   async function handleSave() {
     const productName = formProductName.trim();
     const priceText = formPriceText.trim();
+    const barcode = formBarcode?.trim() || null;
     if (!productName || !priceText || saving) return;
     setSaving(true);
     try {
       if (editingLabel) {
-        await labelsApi.update(editingLabel.id, { productName, priceText, isDeal: formIsDeal, barcode: formBarcode, template: formTemplate });
+        await labelsApi.update(editingLabel.id, { productName, priceText, isDeal: formIsDeal, barcode, template: formTemplate });
       } else {
-        const res = await labelsApi.create({ productName, priceText, isDeal: formIsDeal, barcode: formBarcode, template: formTemplate });
+        const res = await labelsApi.create({ productName, priceText, isDeal: formIsDeal, barcode, template: formTemplate });
         const newId = res.data?.data?.id;
         if (newId) setSelectedIds(prev => new Set(prev).add(newId));
       }
@@ -183,13 +184,6 @@ export default function LabelsScreen() {
                 </TouchableOpacity>
               </View>
 
-              {formBarcode && (
-                <View style={s.barcodeChip}>
-                  <Text style={s.barcodeChipLabel}>Barcode</Text>
-                  <Text style={s.barcodeChipValue}>{formBarcode}</Text>
-                </View>
-              )}
-
               <Text style={s.fieldLabel}>Product Name</Text>
               <TextInput
                 style={s.fieldInput}
@@ -249,6 +243,16 @@ export default function LabelsScreen() {
                   </View>
                 </>
               )}
+
+              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Barcode (optional)</Text>
+              <TextInput
+                style={s.fieldInput}
+                value={formBarcode || ''}
+                onChangeText={t => setFormBarcode(t)}
+                placeholder="Scan or type the product's UPC/EAN"
+                placeholderTextColor="#B0B8C4"
+                maxLength={40}
+              />
 
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>Template</Text>
               <View style={s.templateRow}>
@@ -430,12 +434,6 @@ const s = StyleSheet.create({
   formScroll: { padding: 20, paddingBottom: 40 },
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   formTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-  barcodeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#1E293B', borderRadius: 10, padding: 12, marginBottom: 16,
-  },
-  barcodeChipLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  barcodeChipValue: { fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
   fieldInput: {
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
