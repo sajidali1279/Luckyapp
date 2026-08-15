@@ -46,10 +46,16 @@ export default function LabelsScreen() {
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [showNameSugg, setShowNameSugg] = useState(false);
+  const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
+
+  const storeId = user?.storeIds?.[0];
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['mobile-labels'],
-    queryFn: labelsApi.getAll,
+    queryKey: ['mobile-labels', viewMode, storeId],
+    queryFn: () =>
+      viewMode === 'ready' && storeId
+        ? labelsApi.getReadyToPrint(storeId)
+        : labelsApi.getAll(),
   });
   const labels: Label[] = data?.data?.data || [];
 
@@ -180,7 +186,9 @@ export default function LabelsScreen() {
     if (toPrint.length === 0 || printing) return;
     setPrinting(true);
     try {
+      labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
       await printLabels({ labels: toPrint, shareAsPdf });
+      await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: err?.message });
     } finally {
@@ -344,7 +352,28 @@ export default function LabelsScreen() {
 
       <View style={s.header}>
         <Text style={s.headerTitle}>Labels</Text>
-        <Text style={s.headerSub}>{labels.length} in the shared catalog</Text>
+        <Text style={s.headerSub}>
+          {viewMode === 'ready' ? `${labels.length} ready to print` : `${labels.length} in the shared catalog`}
+        </Text>
+      </View>
+
+      <View style={s.viewToggleRow}>
+        <TouchableOpacity
+          style={[s.viewToggleChip, viewMode === 'ready' && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+          onPress={() => setViewMode('ready')}
+          accessibilityRole="button"
+          accessibilityLabel="Show labels ready to print for my store"
+        >
+          <Text style={s.viewToggleText}>Ready to Print</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.viewToggleChip, viewMode === 'catalog' && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+          onPress={() => setViewMode('catalog')}
+          accessibilityRole="button"
+          accessibilityLabel="Show the full shared catalog"
+        >
+          <Text style={s.viewToggleText}>Full Catalog</Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -352,8 +381,10 @@ export default function LabelsScreen() {
       ) : labels.length === 0 ? (
         <View style={s.center}>
           <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
-          <Text style={s.emptyTitle}>No labels yet</Text>
-          <Text style={s.emptySub}>Scan an item to create the first one</Text>
+          <Text style={s.emptyTitle}>{viewMode === 'ready' ? 'Nothing to print' : 'No labels yet'}</Text>
+          <Text style={s.emptySub}>
+            {viewMode === 'ready' ? 'Scan an item to add one, or check the Full Catalog' : 'Scan an item to create the first one'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -436,6 +467,11 @@ const s = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
   headerSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+  viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
+  viewToggleChip: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
+  },
+  viewToggleText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginTop: 8 },
   emptySub: { fontSize: 14, color: COLORS.textMuted },
   list: { paddingHorizontal: 16, paddingBottom: 100, gap: 10 },
