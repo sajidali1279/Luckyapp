@@ -132,3 +132,14 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] Print a selection where none of the selected labels have a barcode → confirm it still prints correctly (this skips the JsBarcode script entirely, a different code path than the barcode case already covered above)
 - [ ] After saving a brand-new label, confirm it's automatically checked/selected in the list without having to tap its checkbox
 - [ ] Repeat the full print/PDF flow on iOS (not just Android) at least once — the PDF share sheet and the scan-modal-to-form handoff are platform-sensitive and the rest of this checklist only mandates an Android pass
+
+## 12. Store-scoped label print queue + print tracking (2026-08-14)
+
+- [ ] As Store Manager, scan a new item → confirm it appears in "Ready to Print" for your store immediately
+- [ ] As an Employee at the *same* store, confirm they see that same item in their own "Ready to Print" view (shared queue)
+- [ ] Select it and tap Print → confirm it disappears from "Ready to Print" (after refresh) and still shows up in "Full Catalog"
+- [ ] Edit that label's price from "Full Catalog" → confirm it reappears in "Ready to Print"
+- [ ] As a Store Manager at a *different* store, confirm neither store's items appear in the other's "Ready to Print," but both show together in "Full Catalog"
+- [ ] As DevAdmin/SuperAdmin, create and print a label from admin web → confirm it never appears in any store's "Ready to Print" queue
+- [ ] As DevAdmin/SuperAdmin, open Activity Log and filter by store and by action → confirm `CREATE_LABEL`/`UPDATE_LABEL`/`DELETE_LABEL`/`PRINT_LABEL` events appear with proper icons, correctly attributed to the store where the action happened (or no store, for admin-web actions)
+- [ ] Tap PDF instead of Print → confirm it also marks the labels as printed (not just the native Print button)
