@@ -211,6 +211,11 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
+          <optgroup label="── Labels ──">
+            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','PRINT_LABEL'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
         </select>
 
         <select style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>

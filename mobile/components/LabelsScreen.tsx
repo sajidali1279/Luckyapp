@@ -59,13 +59,23 @@ export default function LabelsScreen() {
   });
   const labels: Label[] = data?.data?.data || [];
 
+  // Unfiltered catalog query, used only for barcode-dedupe lookup and name
+  // autocomplete — the view-scoped `labels` above only contains this store's
+  // unprinted labels in "Ready to Print" mode, which would otherwise miss
+  // already-printed labels and cause re-scans to create duplicates.
+  const { data: catalogData } = useQuery({
+    queryKey: ['mobile-labels', 'catalog-all'],
+    queryFn: labelsApi.getAll,
+  });
+  const allLabels: Label[] = catalogData?.data?.data || [];
+
   // "Fill as you go": as the catalog grows, suggest matching product names
   // from labels the chain has already created — picking one auto-fills the
   // price too, so a repeat item takes one tap instead of full re-entry.
   // Only offered while creating (not editing) an existing label.
   const nameQuery = formProductName.trim().toLowerCase();
   const nameSuggestions = !editingLabel && nameQuery
-    ? labels
+    ? allLabels
         .filter(l => l.productName.toLowerCase().includes(nameQuery))
         .filter((l, i, arr) => arr.findIndex(x => x.productName.toLowerCase() === l.productName.toLowerCase()) === i)
         .slice(0, 6)
@@ -79,7 +89,7 @@ export default function LabelsScreen() {
   }
 
   function openCreateForm(scanned: BarcodeResult) {
-    const existing = labels.find(l => l.barcode && l.barcode === scanned.barcode);
+    const existing = allLabels.find(l => l.barcode && l.barcode === scanned.barcode);
     if (existing) {
       openEditForm(existing);
       return;
@@ -186,9 +196,10 @@ export default function LabelsScreen() {
     if (toPrint.length === 0 || printing) return;
     setPrinting(true);
     try {
-      labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
       await printLabels({ labels: toPrint, shareAsPdf });
+      labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+      setSelectedIds(new Set());
     } catch (err: any) {
       Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: err?.message });
     } finally {
