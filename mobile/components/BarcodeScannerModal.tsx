@@ -150,18 +150,26 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   // ── Save manually named product ────────────────────────────────────────────
   async function handleSaveAndAdd() {
     const name = productName.trim();
+    const cat = category.trim();
     if (!name || saving) return;
     setSaving(true);
+    // Silently submit a brand-new category for DevAdmin approval — same
+    // pipeline Order List/Stock Request already feed, so a category typed
+    // here (from any caller of this modal, including Labels) doesn't
+    // silently bypass approval.
+    if (cat && !approvedCats.some(c => c.toLowerCase() === cat.toLowerCase())) {
+      orderCategoriesApi.submitNew(cat).catch(() => {});
+    }
     try {
-      await scannedProductApi.save({ barcode, name, category: category.trim() || undefined, source: 'manual' });
-      onResult({ name, category: category.trim() || null, barcode, quantity: '', source: 'manual' });
+      await scannedProductApi.save({ barcode, name, category: cat || undefined, source: 'manual' });
+      onResult({ name, category: cat || null, barcode, quantity: '', source: 'manual' });
       setPhase('done');
     } catch (err: any) {
       setSaving(false);
       const msg = err?.response?.data?.error || err?.message || 'Could not save product. Check your connection.';
       Alert.alert('Save failed', msg, [
         { text: 'Add anyway (won\'t remember)', onPress: () => {
-          onResult({ name, category: category.trim() || null, barcode, quantity: '', source: 'manual' });
+          onResult({ name, category: cat || null, barcode, quantity: '', source: 'manual' });
           setPhase('done');
         }},
         { text: 'Try again', style: 'cancel' },

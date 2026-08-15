@@ -91,6 +91,7 @@ export default function LabelsScreen() {
     const productName = formProductName.trim();
     const priceText = formPriceText.trim();
     const barcode = formBarcode?.trim() || null;
+    const wasCreate = !editingLabel;
     if (!productName || !priceText || saving) return;
     setSaving(true);
     try {
@@ -104,6 +105,10 @@ export default function LabelsScreen() {
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
       Toast.show({ type: 'success', text1: editingLabel ? 'Label updated' : 'Label added' });
       closeForm();
+      // Creating (not editing) drops straight back into scanning so a
+      // manager/employee can keep working down a shelf without re-tapping
+      // "New Label" for every item — tap the scanner's X to stop.
+      if (wasCreate) setShowScanner(true);
     } catch (err: any) {
       const e = err.response?.data?.error;
       Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to save label' });
@@ -175,7 +180,7 @@ export default function LabelsScreen() {
 
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={closeForm}>
         <View style={s.formOverlay}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.formSheet}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.formSheet}>
             <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
               <View style={s.formHeader}>
                 <Text style={s.formTitle}>{editingLabel ? 'Edit Label' : 'New Label'}</Text>
