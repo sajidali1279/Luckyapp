@@ -503,15 +503,19 @@ enum LabelTemplate {
 // every store. If a store ever needs a different price on one item, that's
 // a future per-store override, not modeled here.
 model Label {
-  id          String        @id @default(uuid())
-  productName String
-  priceText   String        // Regular mode: just the number ("3.99"), $ is added at render time. Deal mode: freeform ("2 for $5", "BOGO").
-  isDeal      Boolean       @default(false) // false = Regular Price (priceText is a plain number, rendered with a fixed "$"), true = Deal (priceText is freeform, rendered as-is)
-  barcode     String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/deal
-  template    LabelTemplate @default(CLASSIC_RED_BLACK)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  productName      String
+  priceText        String        // Regular mode: just the number ("3.99"), $ is added at render time. Deal mode: freeform ("2 for $5", "BOGO").
+  isDeal           Boolean       @default(false) // false = Regular Price (priceText is a plain number, rendered with a fixed "$"), true = Deal (priceText is freeform, rendered as-is)
+  barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/deal
+  template         LabelTemplate @default(CLASSIC_RED_BLACK)
+  createdByStoreId String?       // which store's employee/manager created this — null for admin-web-created labels. Set once at creation, never changed by edits.
+  createdById      String?       // which user created this. Set once at creation, never changed by edits.
+  printedAt        DateTime?     // null = ready to print. Set when printed (POST /labels/print); reset to null by any subsequent edit.
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
+  @@index([createdByStoreId, printedAt])
   @@map("labels")
 }
 
