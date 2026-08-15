@@ -14,7 +14,13 @@ const createLabelSchema = z.object({
 });
 
 export async function getAllLabels(req: AuthRequest, res: Response) {
+  const { storeId, unprinted } = req.query;
+  const where: Record<string, unknown> = {};
+  if (typeof storeId === 'string' && storeId) where.createdByStoreId = storeId;
+  if (unprinted === 'true') where.printedAt = null;
+
   const labels = await prisma.label.findMany({
+    where,
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -28,12 +34,21 @@ export async function createLabel(req: AuthRequest, res: Response) {
     return;
   }
 
-  const label = await prisma.label.create({ data: parsed.data });
+  const storeId = req.user!.storeIds?.[0] ?? null;
+
+  const label = await prisma.label.create({
+    data: {
+      ...parsed.data,
+      createdByStoreId: storeId,
+      createdById: req.user!.id,
+    },
+  });
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
     details: { productName: label.productName, priceText: label.priceText },
+    storeId,
   });
 
   res.status(201).json({ success: true, data: label });
@@ -56,15 +71,18 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     return;
   }
 
+  const storeId = req.user!.storeIds?.[0] ?? null;
+
   const label = await prisma.label.update({
     where: { id: labelId },
-    data: parsed.data,
+    data: { ...parsed.data, printedAt: null },
   });
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'UPDATE_LABEL', entity: 'label', entityId: label.id,
     details: { productName: label.productName, priceText: label.priceText },
+    storeId,
   });
 
   res.json({ success: true, data: label });
@@ -79,6 +97,7 @@ export async function deleteLabel(req: AuthRequest, res: Response) {
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'DELETE_LABEL', entity: 'label', entityId: deleted.id,
     details: { productName: deleted.productName },
+    storeId: req.user!.storeIds?.[0] ?? null,
   });
 
   res.json({ success: true, data: deleted });
