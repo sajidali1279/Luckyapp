@@ -88,6 +88,34 @@ function ScanTab() {
   const nameRef  = useRef<TextInput>(null);
   const qc       = useQueryClient();
 
+  // The camera fires onBarcodeScanned on every frame it can decode, not once
+  // per code — without a confirmation delay, a brief/incidental read (camera
+  // shake, a neighboring product's barcode drifting into frame) gets acted
+  // on immediately. Require the same code to be read consistently for
+  // SCAN_CONFIRM_DELAY_MS before it's accepted.
+  const SCAN_CONFIRM_DELAY_MS = 400;
+  const pendingCodeRef  = useRef<string | null>(null);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearPendingScan() {
+    pendingCodeRef.current = null;
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+  }
+
+  function handleBarcodeDetected(result: { data: string }) {
+    if (phase !== 'ready') return;
+    if (result.data === pendingCodeRef.current) return;
+    pendingCodeRef.current = result.data;
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    confirmTimerRef.current = setTimeout(() => {
+      confirmTimerRef.current = null;
+      handleBarcode(result);
+    }, SCAN_CONFIRM_DELAY_MS);
+  }
+
   async function handleBarcode({ data }: { data: string }) {
     if (phase !== 'ready' || data === lastCode.current) return;
     lastCode.current = data;
@@ -137,6 +165,7 @@ function ScanTab() {
   function resetToReady() {
     setPhase('ready');
     lastCode.current = '';
+    clearPendingScan();
   }
 
   async function handleSaveName() {
@@ -184,7 +213,7 @@ function ScanTab() {
         <CameraView
           style={StyleSheet.absoluteFillObject}
           facing="back"
-          onBarcodeScanned={phase === 'ready' ? handleBarcode : undefined}
+          onBarcodeScanned={phase === 'ready' ? handleBarcodeDetected : undefined}
           barcodeScannerSettings={{ barcodeTypes: ['ean13','ean8','upc_a','upc_e','code128','code39','itf14'] }}
         />
         {/* Dark edges */}

@@ -67,14 +67,33 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   const qtyRef      = useRef<TextInput>(null);
   const nameRef     = useRef<TextInput>(null);
 
+  // The camera fires onBarcodeScanned on every frame it can decode, not
+  // once per code — without a confirmation delay, a brief/incidental read
+  // (camera shake, a neighboring product's barcode drifting into frame)
+  // gets acted on immediately. Require the same code to be read
+  // consistently for SCAN_CONFIRM_DELAY_MS before it's accepted.
+  const pendingCodeRef  = useRef<string | null>(null);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearPendingScan() {
+    pendingCodeRef.current = null;
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+  }
+
   useEffect(() => {
     if (visible) {
       setPhase('scanning'); setLastCode(''); setBarcode('');
       setFoundName(''); setFoundCat(null); setQuantity('');
       setProductName(''); setCategory(''); setSaving(false); setLookupError('');
+      clearPendingScan();
       orderCategoriesApi.getApproved()
         .then(r => setApprovedCats(r.data?.data || []))
         .catch(() => {});
+    } else {
+      clearPendingScan();
     }
   }, [visible]);
 
@@ -85,7 +104,21 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     setShowCatSugg(true);
   }, [category, approvedCats]);
 
-  // ── Barcode scanned callback ───────────────────────────────────────────────
+  const SCAN_CONFIRM_DELAY_MS = 400;
+
+  // ── Barcode scanned callback (fires on every camera frame) ─────────────────
+  function handleBarcodeDetected(result: { data: string }) {
+    if (phase !== 'scanning') return;
+    if (result.data === pendingCodeRef.current) return; // already confirming this code
+    pendingCodeRef.current = result.data;
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    confirmTimerRef.current = setTimeout(() => {
+      confirmTimerRef.current = null;
+      handleScan(result);
+    }, SCAN_CONFIRM_DELAY_MS);
+  }
+
+  // ── Confirmed scan — actually look up/act on the code ───────────────────────
   async function handleScan({ data }: { data: string }) {
     if (phase !== 'scanning' || data === lastCode) return;
     setLastCode(data);
@@ -185,6 +218,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     setBarcode('');
     setProductName('');
     setCategory('');
+    clearPendingScan();
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -249,7 +283,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
             <CameraView
               style={StyleSheet.absoluteFillObject}
               facing="back"
-              onBarcodeScanned={phase === 'scanning' ? handleScan : undefined}
+              onBarcodeScanned={phase === 'scanning' ? handleBarcodeDetected : undefined}
               barcodeScannerSettings={{ barcodeTypes: ['ean13','ean8','upc_a','upc_e','code128','code39','itf14'] }}
             />
             <View style={st.overlayTop} />
