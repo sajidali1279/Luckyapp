@@ -10,9 +10,14 @@ export interface PrintableLabel {
   id: string;
   productName: string;
   priceText: string;
-  isDeal?: boolean;
+  dealText?: string | null;
   barcode?: string | null;
   template: string;
+}
+
+export interface PrintableLabelEntry {
+  label: PrintableLabel;
+  quantity: number;
 }
 
 // Static QR code pointing at the Lucky Stop app/signup page — same on every
@@ -63,23 +68,19 @@ const TEMPLATES: Record<string, TemplateStyle> = {
   },
 };
 
-function renderPrice(label: PrintableLabel, priceColor: string): string {
-  if (label.isDeal) {
-    return `<div class="price-deal" style="color: ${priceColor};">${esc(label.priceText)}</div>`;
-  }
-  return `<div class="price-regular" style="color: ${priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>`;
-}
-
 function renderLabel(label: PrintableLabel): string {
   const t = TEMPLATES[label.template] || TEMPLATES.CLASSIC_RED_BLACK;
   const barcode = label.barcode?.trim();
+  const deal = label.dealText?.trim();
   const sideClass = barcode ? 'label-side' : 'label-side no-barcode';
+  const mainClass = deal ? 'label-main has-deal' : 'label-main';
   return `
     <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
       <div class="watermark">LUCKY STOP</div>
-      <div class="label-main">
+      <div class="${mainClass}">
         <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
-        ${renderPrice(label, t.priceColor)}
+        <div class="price-regular" style="color: ${t.priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
+        ${deal ? `<div class="price-deal" style="color: ${t.nameColor};">${esc(deal)}</div>` : ''}
       </div>
       <div class="${sideClass}">
         <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
@@ -93,7 +94,8 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
-function buildHtml(labels: PrintableLabel[]): string {
+function buildHtml(entries: PrintableLabelEntry[]): string {
+  const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
   const hasAnyBarcode = labels.some(l => l.barcode?.trim());
   // IMPORTANT: this script is placed at the end of <body> (see below), never
   // in <head> — a <head> script would run before the <svg> elements it
@@ -185,26 +187,37 @@ function buildHtml(labels: PrintableLabel[]): string {
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    /* A deal line takes up vertical space the 2-line name normally has, so
+       the name clamps to 1 line whenever a deal is present. */
+    .label-main.has-deal .label-name {
+      -webkit-line-clamp: 1;
+    }
     .price-regular {
       font-size: 25pt;
       font-weight: 900;
       line-height: 1;
       text-align: left;
     }
+    .label-main.has-deal .price-regular {
+      font-size: 18pt;
+    }
     .price-dollar {
       font-size: 12pt;
       font-weight: 700;
       margin-right: 0.5mm;
     }
+    .label-main.has-deal .price-dollar {
+      font-size: 9pt;
+    }
     .price-deal {
-      font-size: 14pt;
-      font-weight: 900;
-      line-height: 1.05;
+      font-size: 8pt;
+      font-weight: 700;
+      line-height: 1.1;
       text-align: left;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      white-space: nowrap;
       overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
     .label-side {
       width: 17mm;
@@ -253,13 +266,13 @@ function buildHtml(labels: PrintableLabel[]): string {
 }
 
 export async function printLabels({
-  labels,
+  entries,
   shareAsPdf = false,
 }: {
-  labels: PrintableLabel[];
+  entries: PrintableLabelEntry[];
   shareAsPdf?: boolean;
 }): Promise<void> {
-  const html = buildHtml(labels);
+  const html = buildHtml(entries);
 
   if (shareAsPdf) {
     const { uri } = await Print.printToFileAsync({ html });

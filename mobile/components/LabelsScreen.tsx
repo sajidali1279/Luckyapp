@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   FlatList, ActivityIndicator, Modal, ScrollView, Alert,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,14 +11,14 @@ import { labelsApi } from '../services/api';
 import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
-import { printLabels } from '../utils/printLabels';
+import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
 
 interface Label {
   id: string;
   productName: string;
   priceText: string;
-  isDeal: boolean;
+  dealText: string | null;
   barcode: string | null;
   template: string;
   updatedAt: string;
@@ -35,18 +35,37 @@ export default function LabelsScreen() {
   const { user } = useAuthStore();
   const accentColor = user?.role === 'STORE_MANAGER' ? COLORS.managerPrimary : COLORS.secondary;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showScanner, setShowScanner] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
-  const [formIsDeal, setFormIsDeal] = useState(false);
+  const [formDealText, setFormDealText] = useState('');
   const [formBarcode, setFormBarcode] = useState<string | null>(null);
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [showNameSugg, setShowNameSugg] = useState(false);
   const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { height: screenHeight } = useWindowDimensions();
+
+  // KeyboardAvoidingView's automatic height adjustment is unreliable inside
+  // a React Native Modal on Android — this sheet is pinned to the bottom via
+  // formOverlay's justifyContent, and KeyboardAvoidingView's 'height'
+  // behavior doesn't consistently shrink it enough to clear the keyboard
+  // when it's hosted in a Modal's separate native window. Tracking real
+  // keyboard height directly and capping formSheet's maxHeight with it is a
+  // safety net that works regardless of whether KeyboardAvoidingView's own
+  // logic succeeds.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'android' ? 'keyboardDidShow' : 'keyboardWillShow';
+    const hideEvent = Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide';
+    const showSub = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   const storeId = user?.storeIds?.[0];
 
@@ -84,7 +103,7 @@ export default function LabelsScreen() {
   function applyNameSuggestion(label: Label) {
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
-    setFormIsDeal(label.isDeal);
+    setFormDealText(label.dealText || '');
     setShowNameSugg(false);
   }
 
@@ -97,7 +116,7 @@ export default function LabelsScreen() {
     setEditingLabel(null);
     setFormProductName(scanned.name);
     setFormPriceText('');
-    setFormIsDeal(false);
+    setFormDealText('');
     setFormBarcode(scanned.barcode);
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
@@ -107,7 +126,7 @@ export default function LabelsScreen() {
     setEditingLabel(label);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
-    setFormIsDeal(label.isDeal);
+    setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode);
     setFormTemplate(label.template);
     setShowForm(true);
@@ -118,7 +137,7 @@ export default function LabelsScreen() {
     setEditingLabel(null);
     setFormProductName('');
     setFormPriceText('');
-    setFormIsDeal(false);
+    setFormDealText('');
     setFormBarcode(null);
     setFormTemplate('CLASSIC_RED_BLACK');
   }
@@ -126,15 +145,16 @@ export default function LabelsScreen() {
   async function handleSave() {
     const productName = formProductName.trim();
     const priceText = formPriceText.trim();
+    const dealText = formDealText.trim() || null;
     const barcode = formBarcode?.trim() || null;
     const wasCreate = !editingLabel;
     if (!productName || !priceText || saving) return;
     setSaving(true);
     try {
       if (editingLabel) {
-        await labelsApi.update(editingLabel.id, { productName, priceText, isDeal: formIsDeal, barcode, template: formTemplate });
+        await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, template: formTemplate });
       } else {
-        const res = await labelsApi.create({ productName, priceText, isDeal: formIsDeal, barcode, template: formTemplate });
+        const res = await labelsApi.create({ productName, priceText, dealText, barcode, template: formTemplate });
         const newId = res.data?.data?.id;
         if (newId) setSelectedIds(prev => new Set(prev).add(newId));
       }
@@ -189,17 +209,33 @@ export default function LabelsScreen() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    setQuantities(prev => {
+      if (prev[id] !== undefined) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: 1 };
+    });
   }
+
+  function setQuantity(id: string, qty: number) {
+    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
+  }
+
+  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
 
   async function handlePrint(shareAsPdf: boolean) {
     const toPrint = labels.filter(l => selectedIds.has(l.id));
     if (toPrint.length === 0 || printing) return;
     setPrinting(true);
     try {
-      await printLabels({ labels: toPrint, shareAsPdf });
+      const entries: PrintableLabelEntry[] = toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
+      await printLabels({ entries, shareAsPdf });
       labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
       setSelectedIds(new Set());
+      setQuantities({});
     } catch (err: any) {
       Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: err?.message });
     } finally {
@@ -219,7 +255,10 @@ export default function LabelsScreen() {
 
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={closeForm}>
         <View style={s.formOverlay}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.formSheet}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[s.formSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 24 }]}
+          >
             <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
               <View style={s.formHeader}>
                 <Text style={s.formTitle}>{editingLabel ? 'Edit Label' : 'New Label'}</Text>
@@ -248,65 +287,39 @@ export default function LabelsScreen() {
                         style={s.nameSuggRow}
                         onPress={() => applyNameSuggestion(l)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Use ${l.productName}, ${l.isDeal ? l.priceText : '$' + l.priceText}`}
+                        accessibilityLabel={`Use ${l.productName}, $${l.priceText}${l.dealText ? ', ' + l.dealText : ''}`}
                       >
                         <Text style={s.nameSuggText} numberOfLines={1}>{l.productName}</Text>
-                        <Text style={s.nameSuggPrice}>{l.isDeal ? l.priceText : `$${l.priceText}`}</Text>
+                        <Text style={s.nameSuggPrice}>${l.priceText}{l.dealText ? ` · ${l.dealText}` : ''}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
               </View>
 
-              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price Type</Text>
-              <View style={s.templateRow}>
-                <TouchableOpacity
-                  style={[s.templateChip, !formIsDeal && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
-                  onPress={() => { setFormIsDeal(false); setFormPriceText(formPriceText.replace(/[^0-9.]/g, '')); }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Regular price"
-                >
-                  <Text style={s.templateChipText}>Regular Price</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.templateChip, formIsDeal && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
-                  onPress={() => setFormIsDeal(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Deal"
-                >
-                  <Text style={s.templateChipText}>Deal</Text>
-                </TouchableOpacity>
+              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price</Text>
+              <View style={s.priceInputWrap}>
+                <Text style={s.priceInputDollar}>$</Text>
+                <TextInput
+                  style={[s.fieldInput, s.priceInput]}
+                  value={formPriceText}
+                  onChangeText={t => setFormPriceText(t.replace(/[^0-9.]/g, ''))}
+                  placeholder="3.99"
+                  placeholderTextColor="#B0B8C4"
+                  keyboardType="decimal-pad"
+                  maxLength={7}
+                />
               </View>
 
-              {formIsDeal ? (
-                <>
-                  <Text style={[s.fieldLabel, { marginTop: 16 }]}>Deal Text</Text>
-                  <TextInput
-                    style={s.fieldInput}
-                    value={formPriceText}
-                    onChangeText={setFormPriceText}
-                    placeholder='e.g. "2 for $5" or "BOGO"'
-                    placeholderTextColor="#B0B8C4"
-                    maxLength={20}
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={[s.fieldLabel, { marginTop: 16 }]}>Price</Text>
-                  <View style={s.priceInputWrap}>
-                    <Text style={s.priceInputDollar}>$</Text>
-                    <TextInput
-                      style={[s.fieldInput, s.priceInput]}
-                      value={formPriceText}
-                      onChangeText={t => setFormPriceText(t.replace(/[^0-9.]/g, ''))}
-                      placeholder="3.99"
-                      placeholderTextColor="#B0B8C4"
-                      keyboardType="decimal-pad"
-                      maxLength={7}
-                    />
-                  </View>
-                </>
-              )}
+              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Deal (optional)</Text>
+              <TextInput
+                style={s.fieldInput}
+                value={formDealText}
+                onChangeText={setFormDealText}
+                placeholder='e.g. "2 for $5" or "BOGO" — shown alongside the price above'
+                placeholderTextColor="#B0B8C4"
+                maxLength={20}
+              />
 
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>Barcode (optional)</Text>
               <TextInput
@@ -425,11 +438,35 @@ export default function LabelsScreen() {
                   <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardName}>{item.productName}</Text>
-                    <Text style={s.cardPrice}>{item.isDeal ? item.priceText : `$${item.priceText}`}</Text>
+                    <Text style={s.cardPrice}>${item.priceText}</Text>
+                    {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
                     {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
                   </View>
                   <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
                 </TouchableOpacity>
+                {checked && (
+                  <View style={s.qtyStepper}>
+                    <TouchableOpacity
+                      style={s.qtyBtn}
+                      onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) - 1)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease copies"
+                    >
+                      <Text style={s.qtyBtnText}>−</Text>
+                    </TouchableOpacity>
+                    <Text style={s.qtyValue}>{quantities[item.id] ?? 1}</Text>
+                    <TouchableOpacity
+                      style={s.qtyBtn}
+                      onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) + 1)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase copies"
+                    >
+                      <Text style={s.qtyBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           }}
@@ -453,9 +490,9 @@ export default function LabelsScreen() {
           disabled={selectedIds.size === 0 || printing}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={`Print ${selectedIds.size} selected labels`}
+          accessibilityLabel={`Print ${totalCopies} label copies`}
         >
-          {printing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.printBtnText}>Print ({selectedIds.size})</Text>}
+          {printing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.printBtnText}>Print ({totalCopies})</Text>}
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.shareBtn, { borderColor: accentColor }, (selectedIds.size === 0 || printing) && s.printBtnDim]}
@@ -463,7 +500,7 @@ export default function LabelsScreen() {
           disabled={selectedIds.size === 0 || printing}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={`Export ${selectedIds.size} selected labels as PDF`}
+          accessibilityLabel={`Export ${totalCopies} label copies as PDF`}
         >
           <Text style={[s.shareBtnText, { color: accentColor }]}>PDF</Text>
         </TouchableOpacity>
@@ -500,7 +537,15 @@ const s = StyleSheet.create({
   templateDot: { width: 8, height: 8, borderRadius: 4 },
   cardName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   cardPrice: { fontSize: 14, fontWeight: '700', color: COLORS.danger, marginTop: 2 },
+  cardDeal: { fontSize: 12, fontWeight: '600', color: '#b7791f', marginTop: 1 },
   cardBarcode: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
+  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  qtyBtn: {
+    width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qtyBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.text, lineHeight: 18 },
+  qtyValue: { fontSize: 14, fontWeight: '700', color: COLORS.text, minWidth: 20, textAlign: 'center' },
   footer: {
     flexDirection: 'row', gap: 8, padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, backgroundColor: '#fff',
