@@ -72,17 +72,25 @@ function renderLabel(label: PrintableLabel): string {
   const barcode = label.barcode?.trim();
   const deal = label.dealText?.trim();
   const sideClass = barcode ? 'label-side' : 'label-side no-barcode';
-  const mainClass = deal ? 'label-main has-deal' : 'label-main';
+  // A long name gets a smaller font tier instead of being clamped to fewer
+  // lines — the name always keeps its full 2 lines, it just shrinks to fit.
+  const nameClass = deal
+    ? (label.productName.length > 30 ? 'label-name has-deal-long' : 'label-name has-deal')
+    : 'label-name';
+  const priceGroupClass = deal ? 'price-group has-deal' : 'price-group';
   return `
     <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
       <div class="watermark">LUCKY STOP</div>
-      <div class="${mainClass}">
-        <div class="label-name" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
-        <div class="price-regular" style="color: ${t.priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
-        ${deal ? `<div class="price-deal" style="color: ${t.nameColor};">${esc(deal)}</div>` : ''}
+      <div class="label-main">
+        <div class="${nameClass}" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
+        <div class="${priceGroupClass}">
+          <div class="price-regular" style="color: ${t.priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
+          ${deal ? `<div class="price-deal" style="color: ${t.priceColor}; border-color: ${t.priceColor};">${esc(deal)}</div>` : ''}
+        </div>
       </div>
       <div class="${sideClass}">
         <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
+        <div class="label-qr-caption">Scan to Join</div>
         ${barcode ? `
         <div class="label-barcode-wrap">
           <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
@@ -184,37 +192,49 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    /* A deal line takes up vertical space the 2-line name normally has, so
-       the name clamps to 1 line whenever a deal is present. */
-    .label-main.has-deal .label-name {
-      -webkit-line-clamp: 1;
+    /* The name always keeps its full 2 lines — a deal shrinks the font
+       instead of cutting a line off, so long names still read in full. */
+    .label-name.has-deal { font-size: 6.5pt; }
+    .label-name.has-deal-long { font-size: 5.8pt; }
+    .price-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
+    .price-group.has-deal { gap: 0.6mm; }
     .price-regular {
       font-size: 25pt;
       font-weight: 900;
       line-height: 1;
       text-align: left;
     }
-    .label-main.has-deal .price-regular {
-      font-size: 18pt;
+    .price-group.has-deal .price-regular {
+      font-size: 15pt;
     }
     .price-dollar {
       font-size: 12pt;
       font-weight: 700;
       margin-right: 0.5mm;
     }
-    .label-main.has-deal .price-dollar {
-      font-size: 9pt;
+    .price-group.has-deal .price-dollar {
+      font-size: 7pt;
     }
+    /* Deal text is meant to grab attention on its own, not read like a
+       caption under the price — bold, in the template's bright accent
+       color, with a border-only "badge" outline (never a background fill,
+       so it stays legible with print backgrounds off by default). */
     .price-deal {
-      font-size: 8pt;
-      font-weight: 700;
-      line-height: 1.1;
+      font-size: 11pt;
+      font-weight: 800;
+      line-height: 1.15;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 100%;
+      border: 1.2pt solid;
+      border-radius: 2.5pt;
+      padding: 0.4mm 1.5mm;
     }
     .label-side {
       width: 17mm;
@@ -223,7 +243,15 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1mm;
+      gap: 0.6mm;
+    }
+    .label-qr-caption {
+      font-size: 5pt;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #555;
+      text-align: center;
+      white-space: nowrap;
     }
     .label-qr {
       width: 9mm;
