@@ -43,11 +43,16 @@ export default function Labels() {
   const [formBarcode, setFormBarcode] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
+  const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState('');
   const [printFilter, setPrintFilter] = useState<'all' | 'unprinted' | 'printed'>('all');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  // Raw in-progress text for the qty inputs, separate from `quantities` (the
+  // committed numeric source of truth) — lets a user backspace a field to
+  // empty and retype without it snapping back to "1" on every keystroke.
+  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
 
   const nameQuery = formProductName.trim().toLowerCase();
   const suggestions = nameQuery
@@ -91,6 +96,7 @@ export default function Labels() {
   });
 
   const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
 
   function toggleSelectAll() {
     setSelectedIds(prev => {
@@ -111,10 +117,33 @@ export default function Labels() {
       }
       return next;
     });
+    if (allFilteredSelected) {
+      setQtyDrafts(prev => {
+        const next = { ...prev };
+        filteredLabels.forEach(l => { delete next[l.id]; });
+        return next;
+      });
+    }
   }
 
   function setQuantity(id: string, qty: number) {
     setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
+  }
+
+  function handleQtyDraftChange(id: string, raw: string) {
+    setQtyDrafts(prev => ({ ...prev, [id]: raw }));
+  }
+
+  function commitQtyDraft(id: string) {
+    setQtyDrafts(prev => {
+      const raw = prev[id];
+      if (raw === undefined) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    const raw = qtyDrafts[id];
+    if (raw !== undefined) setQuantity(id, parseInt(raw, 10));
   }
 
   const saveMutation = useMutation({
@@ -127,7 +156,10 @@ export default function Labels() {
       toast.success(editingLabel ? 'Label updated' : 'Label added');
       closeModal();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to save label'),
+    onError: (e: any) => {
+      const err = e.response?.data?.error;
+      toast.error(typeof err === 'string' ? err : 'Failed to save label');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -138,7 +170,10 @@ export default function Labels() {
       toast.success('Label removed');
       setConfirmDelete(null);
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to remove label'),
+    onError: (e: any) => {
+      const err = e.response?.data?.error;
+      toast.error(typeof err === 'string' ? err : 'Failed to remove label');
+    },
   });
 
   function openAddModal() {
@@ -196,15 +231,43 @@ export default function Labels() {
       }
       return { ...prev, [id]: 1 };
     });
+    setQtyDrafts(prev => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function buildPrintEntries() {
+    const toPrint = labels.filter(l => selectedIds.has(l.id));
+    return toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
+  }
+
+  function runPrint(entries: PrintableLabelEntry[]) {
+    // Only log the print (and mark labels as printed, dropping them out of
+    // their store's mobile "Ready to Print" queue) if the print window
+    // actually opened — a blocked pop-up must not silently mark labels done.
+    const opened = printLabels(entries);
+    if (opened) {
+      labelsApi.print(entries.map(e => e.label.id)).catch(() => {});
+      qc.invalidateQueries({ queryKey: ['labels'] });
+    }
   }
 
   function handlePrintSelected() {
-    const toPrint = labels.filter(l => selectedIds.has(l.id));
-    if (toPrint.length === 0) return;
-    const entries: PrintableLabelEntry[] = toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
-    labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
-    printLabels(entries);
-    qc.invalidateQueries({ queryKey: ['labels'] });
+    const entries = buildPrintEntries();
+    if (entries.length === 0) return;
+    // A selection this large almost always came from "select all" rather
+    // than deliberately hand-picking each row — confirm first, since
+    // printing marks every affected label printed chain-wide, immediately
+    // dropping it out of whichever store's mobile "Ready to Print" queue it
+    // came from, not just the admin viewer's own context.
+    if (entries.length > 5) {
+      setPendingBulkPrint(entries);
+      return;
+    }
+    runPrint(entries);
   }
 
   return (
@@ -217,6 +280,19 @@ export default function Labels() {
         danger
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmModal
+        open={!!pendingBulkPrint}
+        title="Print This Many Labels?"
+        message={
+          pendingBulkPrint
+            ? `You're about to print ${pendingBulkPrint.length} labels (${pendingBulkPrint.reduce((sum, e) => sum + e.quantity, 0)} total copies) from potentially multiple stores. This marks all of them printed and removes them from wherever they came from in each store's "Ready to Print" queue. Continue?`
+            : ''
+        }
+        confirmLabel="Print"
+        onConfirm={() => { if (pendingBulkPrint) runPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
+        onCancel={() => setPendingBulkPrint(null)}
       />
 
       {showModal && (
@@ -320,7 +396,7 @@ export default function Labels() {
               onClick={handlePrintSelected}
               disabled={selectedIds.size === 0}
             >
-              🖨️ Print Selected ({selectedIds.size})
+              🖨️ Print Selected ({totalCopies})
             </button>
             <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
           </div>
@@ -410,9 +486,10 @@ export default function Labels() {
                         min={1}
                         max={999}
                         style={{ ...s.qtyInput, ...(selectedIds.has(label.id) ? {} : s.qtyInputDim) }}
-                        value={quantities[label.id] ?? 1}
+                        value={qtyDrafts[label.id] ?? String(quantities[label.id] ?? 1)}
                         disabled={!selectedIds.has(label.id)}
-                        onChange={e => setQuantity(label.id, parseInt(e.target.value, 10))}
+                        onChange={e => handleQtyDraftChange(label.id, e.target.value)}
+                        onBlur={() => commitQtyDraft(label.id)}
                       />
                     </TableCell>
                     <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>

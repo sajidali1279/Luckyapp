@@ -101,9 +101,9 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
-export function printLabels(entries: PrintableLabelEntry[]): void {
+export function printLabels(entries: PrintableLabelEntry[]): boolean {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
-  const hasAnyBarcode = labels.some(l => l.barcode?.trim());
+  const hasAnyBarcode = entries.some(e => e.label.barcode?.trim());
   const barcodeScript = hasAnyBarcode
     ? `<script>
     function renderBarcodes() {
@@ -179,10 +179,15 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      align-items: flex-start;
+      /* stretch (not flex-start) so children get a real width to shrink
+         against — flex-start sizes children to fit-content, which makes
+         max-width/ellipsis/line-clamp below resolve against a circular,
+         effectively-unconstrained width and never actually engage. */
+      align-items: stretch;
       padding-right: 1.5mm;
     }
     .label-name {
+      min-width: 0;
       font-size: 7.5pt;
       font-weight: 700;
       line-height: 1.15;
@@ -191,15 +196,17 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      word-break: break-word;
     }
     /* The name always keeps its full 2 lines — a deal shrinks the font
        instead of cutting a line off, so long names still read in full. */
     .label-name.has-deal { font-size: 6.5pt; }
     .label-name.has-deal-long { font-size: 5.8pt; }
     .price-group {
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
     }
     .price-group.has-deal { gap: 0.6mm; }
     .price-regular {
@@ -224,6 +231,8 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
        color, with a border-only "badge" outline (never a background fill,
        so it stays legible with print backgrounds off by default). */
     .price-deal {
+      min-width: 0;
+      max-width: 100%;
       font-size: 11pt;
       font-weight: 800;
       line-height: 1.15;
@@ -231,7 +240,6 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
       border: 1.2pt solid;
       border-radius: 2.5pt;
       padding: 0.4mm 1.5mm;
@@ -256,6 +264,7 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
     .label-qr {
       width: 9mm;
       height: 9mm;
+      flex-shrink: 0;
     }
     /* No barcode to share the column with — let the QR grow into the
        freed-up space instead of leaving it blank. */
@@ -265,6 +274,7 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
     }
     .label-barcode-wrap {
       width: 100%;
+      flex-shrink: 0;
       text-align: center;
     }
     .label-barcode {
@@ -291,7 +301,8 @@ export function printLabels(entries: PrintableLabelEntry[]): void {
 </html>`;
 
   const win = window.open('', '_blank');
-  if (!win) { alert('Please allow pop-ups to print labels.'); return; }
+  if (!win) { alert('Please allow pop-ups to print labels.'); return false; }
   win.document.write(html);
   win.document.close();
+  return true;
 }

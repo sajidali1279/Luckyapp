@@ -104,7 +104,7 @@ function renderLabel(label: PrintableLabel): string {
 
 function buildHtml(entries: PrintableLabelEntry[]): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
-  const hasAnyBarcode = labels.some(l => l.barcode?.trim());
+  const hasAnyBarcode = entries.some(e => e.label.barcode?.trim());
   // IMPORTANT: this script is placed at the end of <body> (see below), never
   // in <head> — a <head> script would run before the <svg> elements it
   // targets exist in the DOM and silently render nothing. Admin web shipped
@@ -182,10 +182,15 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      align-items: flex-start;
+      /* stretch (not flex-start) so children get a real width to shrink
+         against — flex-start sizes children to fit-content, which makes
+         max-width/ellipsis/line-clamp below resolve against a circular,
+         effectively-unconstrained width and never actually engage. */
+      align-items: stretch;
       padding-right: 1.5mm;
     }
     .label-name {
+      min-width: 0;
       font-size: 7.5pt;
       font-weight: 700;
       line-height: 1.15;
@@ -194,15 +199,17 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      word-break: break-word;
     }
     /* The name always keeps its full 2 lines — a deal shrinks the font
        instead of cutting a line off, so long names still read in full. */
     .label-name.has-deal { font-size: 6.5pt; }
     .label-name.has-deal-long { font-size: 5.8pt; }
     .price-group {
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
     }
     .price-group.has-deal { gap: 0.6mm; }
     .price-regular {
@@ -227,6 +234,8 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
        color, with a border-only "badge" outline (never a background fill,
        so it stays legible with print backgrounds off by default). */
     .price-deal {
+      min-width: 0;
+      max-width: 100%;
       font-size: 11pt;
       font-weight: 800;
       line-height: 1.15;
@@ -234,7 +243,6 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
       border: 1.2pt solid;
       border-radius: 2.5pt;
       padding: 0.4mm 1.5mm;
@@ -259,6 +267,7 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
     .label-qr {
       width: 9mm;
       height: 9mm;
+      flex-shrink: 0;
     }
     /* No barcode to share the column with — let the QR grow into the
        freed-up space instead of leaving it blank. */
@@ -268,6 +277,7 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
     }
     .label-barcode-wrap {
       width: 100%;
+      flex-shrink: 0;
       text-align: center;
     }
     .label-barcode {
