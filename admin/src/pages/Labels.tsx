@@ -250,7 +250,7 @@ export default function Labels() {
     // actually opened — a blocked pop-up must not silently mark labels done.
     const opened = printLabels(entries);
     if (opened) {
-      labelsApi.print(entries.map(e => e.label.id)).catch(() => {});
+      labelsApi.print(entries.map(e => ({ labelId: e.label.id, quantity: e.quantity }))).catch(() => {});
       qc.invalidateQueries({ queryKey: ['labels'] });
     }
   }

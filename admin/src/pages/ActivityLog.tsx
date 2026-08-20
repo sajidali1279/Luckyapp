@@ -88,6 +88,11 @@ function fmtDetails(details: string | null): string {
     if (d.type)                   parts.push(d.type.replace(/_/g, ' ').toLowerCase());
     if (d.priority)               parts.push(d.priority.toLowerCase() + ' priority');
     if (d.submitterName)          parts.push(`from ${d.submitterName}`);
+    // Labels
+    if (d.productName)            parts.push(d.productName);
+    if (d.priceText)              parts.push(`$${d.priceText}`);
+    if (d.labelCount != null)     parts.push(`${d.labelCount} label${d.labelCount === 1 ? '' : 's'}`);
+    if (d.totalCopies != null)    parts.push(`${d.totalCopies} cop${d.totalCopies === 1 ? 'y' : 'ies'} printed`);
     return parts.join(' · ');
   } catch {
     return '';

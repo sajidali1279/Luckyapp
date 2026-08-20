@@ -104,7 +104,10 @@ export async function deleteLabel(req: AuthRequest, res: Response) {
 }
 
 const printLabelsSchema = z.object({
-  labelIds: z.array(z.string().uuid()).min(1),
+  items: z.array(z.object({
+    labelId: z.string().uuid(),
+    quantity: z.number().int().min(1).max(999).default(1),
+  })).min(1),
 });
 
 export async function markLabelsPrinted(req: AuthRequest, res: Response) {
@@ -114,7 +117,9 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { labelIds } = parsed.data;
+  const { items } = parsed.data;
+  const labelIds = items.map(i => i.labelId);
+  const totalCopies = items.reduce((sum, i) => sum + i.quantity, 0);
   const storeId = req.user!.storeIds?.[0] ?? null;
 
   await prisma.label.updateMany({
@@ -125,9 +130,9 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'PRINT_LABEL', entity: 'label',
-    details: { count: labelIds.length, labelIds },
+    details: { labelCount: labelIds.length, totalCopies, labelIds },
     storeId,
   });
 
-  res.json({ success: true, data: { printedCount: labelIds.length } });
+  res.json({ success: true, data: { printedCount: labelIds.length, totalCopies } });
 }

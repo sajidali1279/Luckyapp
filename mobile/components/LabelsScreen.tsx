@@ -21,6 +21,7 @@ interface Label {
   dealText: string | null;
   barcode: string | null;
   template: string;
+  createdByStoreId: string | null;
   updatedAt: string;
 }
 
@@ -225,14 +226,12 @@ export default function LabelsScreen() {
 
   const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
 
-  async function handlePrint(shareAsPdf: boolean) {
-    const toPrint = labels.filter(l => selectedIds.has(l.id));
-    if (toPrint.length === 0 || printing) return;
+  async function runPrint(toPrint: Label[], shareAsPdf: boolean) {
     setPrinting(true);
     try {
       const entries: PrintableLabelEntry[] = toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
       await printLabels({ entries, shareAsPdf });
-      labelsApi.print(toPrint.map(l => l.id)).catch(() => {});
+      labelsApi.print(entries.map(e => ({ labelId: e.label.id, quantity: e.quantity }))).catch(() => {});
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
       setSelectedIds(new Set());
       setQuantities({});
@@ -241,6 +240,30 @@ export default function LabelsScreen() {
     } finally {
       setPrinting(false);
     }
+  }
+
+  function handlePrint(shareAsPdf: boolean) {
+    const toPrint = labels.filter(l => selectedIds.has(l.id));
+    if (toPrint.length === 0 || printing) return;
+    // The Full Catalog view (unlike Ready to Print) can include labels
+    // scanned in by a different store — printing one marks it printed
+    // chain-wide, immediately dropping it out of that other store's own
+    // Ready to Print queue. Warn before doing that by accident; still fully
+    // allowed if it's intentional (e.g. reprinting a shared item on
+    // someone's behalf).
+    const otherStoreCount = toPrint.filter(l => l.createdByStoreId && l.createdByStoreId !== storeId).length;
+    if (otherStoreCount > 0) {
+      Alert.alert(
+        otherStoreCount === 1 ? '1 label is from another store' : `${otherStoreCount} labels are from other stores`,
+        "Printing will mark them printed and remove them from that store's own Ready to Print queue. Continue?",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Print Anyway', onPress: () => runPrint(toPrint, shareAsPdf) },
+        ]
+      );
+      return;
+    }
+    runPrint(toPrint, shareAsPdf);
   }
 
   return (

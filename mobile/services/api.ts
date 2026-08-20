@@ -332,7 +332,7 @@ export const labelsApi = {
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
-  print: (labelIds: string[]) => api.post('/labels/print', { labelIds }),
+  print: (items: { labelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
 };
 
