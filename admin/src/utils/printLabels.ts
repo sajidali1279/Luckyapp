@@ -31,71 +31,32 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-interface TemplateStyle {
-  border: string;
-  borderTop: string;
-  nameColor: string;
-  priceColor: string;
-  icon?: string;
-}
+// Each template maps to a CSS class (below) that carries its whole look —
+// border style, corner radius, stripe placement, and (for two of them) font
+// family all vary per template, not just color, so they read as genuinely
+// different label styles at a glance rather than the same shape recolored.
+// Icons are still per-template text content, so they stay data here.
+const TEMPLATE_CLASS: Record<string, string> = {
+  CLASSIC_RED_BLACK: 'tmpl-classic',
+  CHRISTMAS_WINTER: 'tmpl-christmas',
+  SUMMER: 'tmpl-summer',
+  CLEARANCE: 'tmpl-clearance',
+  INDEPENDENCE_DAY: 'tmpl-independence',
+  HALLOWEEN: 'tmpl-halloween',
+  PREMIUM: 'tmpl-premium',
+};
 
-// Every template gets its look from borders + text color only, never a
-// background-color fill — browsers don't print background graphics unless
-// the user explicitly opts in via the print dialog, so a design that relies
-// on a background fill for contrast (e.g. white text on a dark card) prints
-// invisible by default. Keep this rule for any future template too.
-const TEMPLATES: Record<string, TemplateStyle> = {
-  CLASSIC_RED_BLACK: {
-    border: '3px solid #1a1a1a',
-    borderTop: '8px solid #b91c1c',
-    nameColor: '#1a1a1a',
-    priceColor: '#dc2626',
-  },
-  CHRISTMAS_WINTER: {
-    border: '3px solid #14532d',
-    borderTop: '8px solid #b91c1c',
-    nameColor: '#14532d',
-    priceColor: '#b91c1c',
-    icon: '❆ ',
-  },
-  SUMMER: {
-    border: '3px solid #ea580c',
-    borderTop: '8px solid #0e7490',
-    nameColor: '#0e7490',
-    priceColor: '#f97316',
-    icon: '☀ ',
-  },
-  CLEARANCE: {
-    border: '3px solid #1a1a1a',
-    borderTop: '8px solid #dc2626',
-    nameColor: '#1a1a1a',
-    priceColor: '#dc2626',
-    icon: '🔥 ',
-  },
-  INDEPENDENCE_DAY: {
-    border: '3px solid #1e3a8a',
-    borderTop: '8px solid #b91c1c',
-    nameColor: '#1e3a8a',
-    priceColor: '#b91c1c',
-    icon: '★ ',
-  },
-  HALLOWEEN: {
-    border: '3px solid #1a1a1a',
-    borderTop: '8px solid #7c3aed',
-    nameColor: '#1a1a1a',
-    priceColor: '#ea580c',
-    icon: '🎃 ',
-  },
-  PREMIUM: {
-    border: '3px solid #1a2744',
-    borderTop: '8px solid #b8860b',
-    nameColor: '#1a2744',
-    priceColor: '#b8860b',
-  },
+const TEMPLATE_ICONS: Record<string, string> = {
+  CHRISTMAS_WINTER: '❆ ',
+  SUMMER: '☀ ',
+  CLEARANCE: '🔥 ',
+  INDEPENDENCE_DAY: '★ ',
+  HALLOWEEN: '🎃 ',
 };
 
 function renderLabel(label: PrintableLabel): string {
-  const t = TEMPLATES[label.template] || TEMPLATES.CLASSIC_RED_BLACK;
+  const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
+  const icon = TEMPLATE_ICONS[label.template] || '';
   const barcode = label.barcode?.trim();
   const deal = label.dealText?.trim();
   const sideClass = barcode ? 'label-side' : 'label-side no-barcode';
@@ -106,13 +67,13 @@ function renderLabel(label: PrintableLabel): string {
     : 'label-name';
   const priceGroupClass = deal ? 'price-group has-deal' : 'price-group';
   return `
-    <div class="label" style="border: ${t.border}; border-top: ${t.borderTop};">
+    <div class="label ${cssClass}">
       <div class="watermark">LUCKY STOP</div>
       <div class="label-main">
-        <div class="${nameClass}" style="color: ${t.nameColor};">${t.icon || ''}${esc(label.productName)}</div>
+        <div class="${nameClass}">${icon}${esc(label.productName)}</div>
         <div class="${priceGroupClass}">
-          <div class="price-regular" style="color: ${t.priceColor};"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
-          ${deal ? `<div class="price-deal" style="color: ${t.priceColor}; border-color: ${t.priceColor};">${esc(deal)}</div>` : ''}
+          <div class="price-regular"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
+          ${deal ? `<div class="price-deal">${esc(deal)}</div>` : ''}
         </div>
       </div>
       <div class="${sideClass}">
@@ -187,6 +148,48 @@ export function printLabels(entries: PrintableLabelEntry[]): boolean {
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
+    /* Templates: each gets a genuinely different frame, not just a
+       different color — border style, corner radius, stripe placement, and
+       (for two of them) font family all vary, so they read as distinct
+       label styles at a glance. Every one still gets its contrast from
+       text/border color only, never a background fill (see the rule
+       above) — the outline-based double borders below are exempt from
+       that concern since outline-color, like border-color, prints by
+       default even with background graphics off. */
+    .tmpl-classic { border: 3px solid #1a1a1a; border-top: 8px solid #b91c1c; }
+    .tmpl-classic .label-name { color: #1a1a1a; }
+    .tmpl-classic .price-regular, .tmpl-classic .price-dollar { color: #dc2626; }
+    .tmpl-classic .price-deal { color: #dc2626; border-color: #dc2626; }
+
+    .tmpl-christmas { border: 3px dashed #14532d; border-top: 8px solid #b91c1c; }
+    .tmpl-christmas .label-name { color: #14532d; }
+    .tmpl-christmas .price-regular, .tmpl-christmas .price-dollar { color: #b91c1c; }
+    .tmpl-christmas .price-deal { color: #b91c1c; border-color: #b91c1c; }
+
+    .tmpl-summer { border: 3px solid #ea580c; border-radius: 10px; border-bottom: 8px solid #0e7490; }
+    .tmpl-summer .label-name { color: #0e7490; }
+    .tmpl-summer .price-regular, .tmpl-summer .price-dollar { color: #f97316; }
+    .tmpl-summer .price-deal { color: #f97316; border-color: #f97316; }
+
+    .tmpl-clearance { border: 5px solid #1a1a1a; border-top: 8px solid #dc2626; }
+    .tmpl-clearance .label-name { color: #1a1a1a; letter-spacing: 0.3px; }
+    .tmpl-clearance .price-regular, .tmpl-clearance .price-dollar { color: #dc2626; }
+    .tmpl-clearance .price-deal { color: #dc2626; border-color: #dc2626; }
+
+    .tmpl-independence { border: 2px solid #1e3a8a; outline: 2px solid #b91c1c; outline-offset: -5px; }
+    .tmpl-independence .label-name { color: #1e3a8a; }
+    .tmpl-independence .price-regular, .tmpl-independence .price-dollar { color: #b91c1c; }
+    .tmpl-independence .price-deal { color: #b91c1c; border-color: #b91c1c; }
+
+    .tmpl-halloween { border: 3px dashed #7c3aed; border-top: 8px solid #ea580c; }
+    .tmpl-halloween .label-name { color: #1a1a1a; font-style: italic; }
+    .tmpl-halloween .price-regular, .tmpl-halloween .price-dollar { color: #ea580c; }
+    .tmpl-halloween .price-deal { color: #ea580c; border-color: #ea580c; }
+
+    .tmpl-premium { border: 1px solid #1a2744; outline: 1px solid #b8860b; outline-offset: -4px; font-family: Georgia, 'Times New Roman', serif; }
+    .tmpl-premium .label-name { color: #1a2744; }
+    .tmpl-premium .price-regular, .tmpl-premium .price-dollar { color: #b8860b; }
+    .tmpl-premium .price-deal { color: #b8860b; border-color: #b8860b; }
     .watermark {
       position: absolute;
       inset: 0;
