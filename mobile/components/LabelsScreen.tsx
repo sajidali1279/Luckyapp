@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  FlatList, ActivityIndicator, Modal, ScrollView, Alert,
+  FlatList, SectionList, ActivityIndicator, Modal, ScrollView, Alert,
   KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { labelsApi } from '../services/api';
+import { labelsApi, storesApi } from '../services/api';
 import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
@@ -53,6 +53,7 @@ export default function LabelsScreen() {
   const [printing, setPrinting] = useState(false);
   const [showNameSugg, setShowNameSugg] = useState(false);
   const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
+  const [search, setSearch] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { height: screenHeight } = useWindowDimensions();
 
@@ -92,6 +93,52 @@ export default function LabelsScreen() {
     queryFn: labelsApi.getAll,
   });
   const allLabels: Label[] = catalogData?.data?.data || [];
+
+  const { data: storesData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => storesApi.getAll(),
+  });
+  const storeNameById: Record<string, string> = Object.fromEntries(
+    (storesData?.data?.data || []).map((st: any) => [st.id, st.name])
+  );
+
+  const filteredLabels = labels.filter(l => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return l.productName.toLowerCase().includes(q) || (!!l.barcode && l.barcode.toLowerCase().includes(q));
+  });
+
+  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredLabels.forEach(l => next.delete(l.id));
+      else filteredLabels.forEach(l => next.add(l.id));
+      return next;
+    });
+    setQuantities(prev => {
+      const next = { ...prev };
+      if (allFilteredSelected) filteredLabels.forEach(l => { delete next[l.id]; });
+      else filteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
+      return next;
+    });
+  }
+
+  // Full Catalog spans every store — group it so staff aren't scrolling past
+  // other stores' items to find their own. Ready to Print is already scoped
+  // to just this store, so grouping would be a no-op there.
+  const catalogSections = viewMode === 'catalog'
+    ? Object.entries(
+        filteredLabels.reduce((groups: Record<string, Label[]>, l) => {
+          const key = l.createdByStoreId ? (storeNameById[l.createdByStoreId] || 'Unknown Store') : 'Admin Web';
+          (groups[key] = groups[key] || []).push(l);
+          return groups;
+        }, {})
+      )
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([title, data]) => ({ title, data }))
+    : [];
 
   // "Fill as you go": as the catalog grows, suggest matching product names
   // from labels the chain has already created — picking one auto-fills the
@@ -427,6 +474,31 @@ export default function LabelsScreen() {
         </TouchableOpacity>
       </View>
 
+      {!isLoading && labels.length > 0 && (
+        <View style={s.toolbarRow}>
+          <TextInput
+            style={s.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search name or barcode…"
+            placeholderTextColor="#B0B8C4"
+          />
+          <TouchableOpacity
+            style={s.selectAllBtn}
+            onPress={toggleSelectAll}
+            disabled={filteredLabels.length === 0}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: allFilteredSelected }}
+            accessibilityLabel="Select all visible labels"
+          >
+            <View style={[s.checkboxBox, allFilteredSelected && { backgroundColor: accentColor, borderColor: accentColor }]}>
+              {allFilteredSelected && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
+            </View>
+            <Text style={s.selectAllText}>All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
       ) : labels.length === 0 ? (
@@ -437,66 +509,33 @@ export default function LabelsScreen() {
             {viewMode === 'ready' ? 'Scan an item to add one, or check the Full Catalog' : 'Scan an item to create the first one'}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={labels}
+      ) : filteredLabels.length === 0 ? (
+        <View style={s.center}>
+          <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
+          <Text style={s.emptyTitle}>No matches</Text>
+          <Text style={s.emptySub}>Try a different name or barcode</Text>
+        </View>
+      ) : viewMode === 'catalog' ? (
+        <SectionList
+          sections={catalogSections}
           keyExtractor={l => l.id}
           contentContainerStyle={s.list}
           refreshing={isRefetching}
           onRefresh={refetch}
-          renderItem={({ item }) => {
-            const checked = selectedIds.has(item.id);
-            const tmpl = TEMPLATES.find(t => t.value === item.template) || TEMPLATES[0];
-            return (
-              <View style={s.card}>
-                <TouchableOpacity
-                  style={s.checkbox}
-                  onPress={() => toggleSelected(item.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked }}
-                  accessibilityLabel={`Select ${item.productName} for printing`}
-                >
-                  <View style={[s.checkboxBox, checked && { backgroundColor: accentColor, borderColor: accentColor }]}>
-                    {checked && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.cardBody} onPress={() => openEditForm(item)} accessibilityRole="button" accessibilityLabel={`Edit ${item.productName}`}>
-                  <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.cardName}>{item.productName}</Text>
-                    <Text style={s.cardPrice}>${item.priceText}</Text>
-                    {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
-                    {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
-                  </View>
-                  <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
-                </TouchableOpacity>
-                {checked && (
-                  <View style={s.qtyStepper}>
-                    <TouchableOpacity
-                      style={s.qtyBtn}
-                      onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) - 1)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease copies"
-                    >
-                      <Text style={s.qtyBtnText}>−</Text>
-                    </TouchableOpacity>
-                    <Text style={s.qtyValue}>{quantities[item.id] ?? 1}</Text>
-                    <TouchableOpacity
-                      style={s.qtyBtn}
-                      onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) + 1)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase copies"
-                    >
-                      <Text style={s.qtyBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            );
-          }}
+          stickySectionHeadersEnabled
+          renderSectionHeader={({ section }) => (
+            <Text style={s.sectionHeader}>{section.title} ({section.data.length})</Text>
+          )}
+          renderItem={({ item }) => renderLabelCard(item)}
+        />
+      ) : (
+        <FlatList
+          data={filteredLabels}
+          keyExtractor={l => l.id}
+          contentContainerStyle={s.list}
+          refreshing={isRefetching}
+          onRefresh={refetch}
+          renderItem={({ item }) => renderLabelCard(item)}
         />
       )}
 
@@ -534,6 +573,60 @@ export default function LabelsScreen() {
       </View>
     </SafeAreaView>
   );
+
+  function renderLabelCard(item: Label) {
+    const checked = selectedIds.has(item.id);
+    const tmpl = TEMPLATES.find(t => t.value === item.template) || TEMPLATES[0];
+    return (
+      <View style={s.card}>
+        <TouchableOpacity
+          style={s.checkbox}
+          onPress={() => toggleSelected(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked }}
+          accessibilityLabel={`Select ${item.productName} for printing`}
+        >
+          <View style={[s.checkboxBox, checked && { backgroundColor: accentColor, borderColor: accentColor }]}>
+            {checked && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.cardBody} onPress={() => openEditForm(item)} accessibilityRole="button" accessibilityLabel={`Edit ${item.productName}`}>
+          <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardName}>{item.productName}</Text>
+            <Text style={s.cardPrice}>${item.priceText}</Text>
+            {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
+            {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
+          </View>
+          <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+        </TouchableOpacity>
+        {checked && (
+          <View style={s.qtyStepper}>
+            <TouchableOpacity
+              style={s.qtyBtn}
+              onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) - 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease copies"
+            >
+              <Text style={s.qtyBtnText}>−</Text>
+            </TouchableOpacity>
+            <Text style={s.qtyValue}>{quantities[item.id] ?? 1}</Text>
+            <TouchableOpacity
+              style={s.qtyBtn}
+              onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) + 1)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Increase copies"
+            >
+              <Text style={s.qtyBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  }
 }
 
 const s = StyleSheet.create({
@@ -547,6 +640,17 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
   },
   viewToggleText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  toolbarRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 12 },
+  searchInput: {
+    flex: 1, backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: COLORS.text,
+  },
+  selectAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 4 },
+  selectAllText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  sectionHeader: {
+    fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5,
+    backgroundColor: COLORS.background, paddingVertical: 6,
+  },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginTop: 8 },
   emptySub: { fontSize: 14, color: COLORS.textMuted },
   list: { paddingHorizontal: 16, paddingBottom: 100, gap: 10 },

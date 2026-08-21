@@ -66,6 +66,12 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
 
   const qtyRef      = useRef<TextInput>(null);
   const nameRef     = useRef<TextInput>(null);
+  const manualInputRef = useRef<TextInput>(null);
+
+  // Manual entry — a fallback for a worn/damaged barcode, or just faster
+  // than lining up the camera when the number's already visible/known.
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualBarcode,   setManualBarcode]   = useState('');
 
   // The camera fires onBarcodeScanned on every frame it can decode, not
   // once per code — without a confirmation delay, a brief/incidental read
@@ -88,6 +94,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
       setPhase('scanning'); setLastCode(''); setBarcode('');
       setFoundName(''); setFoundCat(null); setQuantity('');
       setProductName(''); setCategory(''); setSaving(false); setLookupError('');
+      setShowManualEntry(false); setManualBarcode('');
       clearPendingScan();
       orderCategoriesApi.getApproved()
         .then(r => setApprovedCats(r.data?.data || []))
@@ -163,6 +170,14 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     // 3. Not found anywhere → naming form
     setPhase('naming');
     setTimeout(() => nameRef.current?.focus(), 300);
+  }
+
+  function submitManualBarcode() {
+    const code = manualBarcode.trim();
+    if (!code) return;
+    setShowManualEntry(false);
+    setManualBarcode('');
+    handleScan({ data: code });
   }
 
   function showFound(name: string, cat: string | null, src: 'catalog' | 'openfoodfacts') {
@@ -305,9 +320,63 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                   <Text style={st.statusText}>Looking up product…</Text>
                 </View>
               ) : (
-                <Text style={st.statusText}>Point camera at a barcode</Text>
+                <>
+                  <Text style={st.statusText}>Point camera at a barcode</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowManualEntry(true)}
+                    style={st.manualEntryLink}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Enter barcode manually instead of scanning"
+                  >
+                    <Text style={st.manualEntryLinkText}>Enter barcode manually</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </View>
+
+            {showManualEntry && (
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={st.manualEntryOverlay}
+              >
+                <View style={st.manualEntryCard}>
+                  <Text style={st.manualEntryTitle}>Enter Barcode</Text>
+                  <TextInput
+                    ref={manualInputRef}
+                    style={st.manualEntryInput}
+                    value={manualBarcode}
+                    onChangeText={setManualBarcode}
+                    placeholder="Type the barcode number"
+                    placeholderTextColor="#B0B8C4"
+                    autoFocus
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={submitManualBarcode}
+                  />
+                  <View style={st.manualEntryRow}>
+                    <TouchableOpacity
+                      style={st.manualEntryCancel}
+                      onPress={() => { setShowManualEntry(false); setManualBarcode(''); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel manual entry"
+                    >
+                      <Text style={st.manualEntryCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[st.manualEntrySubmit, !manualBarcode.trim() && st.addBtnDim]}
+                      onPress={submitManualBarcode}
+                      disabled={!manualBarcode.trim()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Look up this barcode"
+                    >
+                      <Text style={st.manualEntrySubmitText}>Look Up</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            )}
           </View>
 
         /* ── Found — show details + qty input ────────────────────────────── */
@@ -595,4 +664,37 @@ const st = StyleSheet.create({
 
   scanAgainBtn:  { alignItems: 'center', marginTop: 16, paddingVertical: 12 },
   scanAgainText: { fontSize: 14, color: COLORS.secondary, fontWeight: '600' },
+
+  manualEntryLink: { marginTop: 14, paddingVertical: 6, paddingHorizontal: 10 },
+  manualEntryLinkText: {
+    color: '#fff', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  manualEntryOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+    padding: 24,
+  },
+  manualEntryCard: {
+    width: '100%', maxWidth: 340,
+    backgroundColor: '#fff', borderRadius: 16, padding: 20,
+  },
+  manualEntryTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
+  manualEntryInput: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 16, color: COLORS.text,
+  },
+  manualEntryRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  manualEntryCancel: {
+    flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  manualEntryCancelText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
+  manualEntrySubmit: {
+    flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12,
+    backgroundColor: COLORS.secondary,
+  },
+  manualEntrySubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
