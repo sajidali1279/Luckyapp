@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import { COLORS } from '../constants';
-import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon } from './Icons';
+import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
@@ -64,6 +64,7 @@ export default function LabelsScreen() {
   const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { height: screenHeight } = useWindowDimensions();
 
@@ -561,9 +562,6 @@ export default function LabelsScreen() {
 
       <View style={s.header}>
         <Text style={s.headerTitle}>Labels</Text>
-        <Text style={s.headerSub}>
-          {viewMode === 'ready' ? `${labels.length} ready to print` : `${labels.length} in the shared catalog`}
-        </Text>
       </View>
 
       <View style={s.viewToggleRow}>
@@ -573,7 +571,7 @@ export default function LabelsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Show labels ready to print for my store"
         >
-          <Text style={s.viewToggleText}>Ready to Print</Text>
+          <Text style={s.viewToggleText}>Ready to Print{viewMode === 'ready' ? ` · ${labels.length}` : ''}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.viewToggleChip, viewMode === 'catalog' && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
@@ -581,7 +579,7 @@ export default function LabelsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Show the full shared catalog"
         >
-          <Text style={s.viewToggleText}>Full Catalog</Text>
+          <Text style={s.viewToggleText}>Full Catalog{viewMode === 'catalog' ? ` · ${labels.length}` : ''}</Text>
         </TouchableOpacity>
       </View>
 
@@ -607,10 +605,22 @@ export default function LabelsScreen() {
             </View>
             <Text style={s.selectAllText}>All</Text>
           </TouchableOpacity>
+          {(availableCategories.length > 0 || hasUncategorized) && (
+            <TouchableOpacity
+              style={[s.filterIconBtn, (showCategoryFilter || categoryFilter !== null) && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+              onPress={() => setShowCategoryFilter(v => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showCategoryFilter }}
+              accessibilityLabel={categoryFilter !== null ? 'Category filter active, toggle category filter chips' : 'Toggle category filter chips'}
+            >
+              <FilterIcon size={16} color={showCategoryFilter || categoryFilter !== null ? accentColor : COLORS.textMuted} strokeWidth={2.25} />
+              {categoryFilter !== null && <View style={[s.filterActiveDot, { backgroundColor: accentColor }]} />}
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
-      {!isLoading && labels.length > 0 && (availableCategories.length > 0 || hasUncategorized) && (
+      {!isLoading && labels.length > 0 && showCategoryFilter && (availableCategories.length > 0 || hasUncategorized) && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryFilterRow}>
           <TouchableOpacity
             style={[s.categoryChip, categoryFilter === null && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
@@ -806,10 +816,9 @@ export default function LabelsScreen() {
 const s = StyleSheet.create({
   fill: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
-  headerSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
+  viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 10 },
   viewToggleChip: {
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
   },
@@ -821,6 +830,13 @@ const s = StyleSheet.create({
   },
   selectAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 4 },
   selectAllText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  filterIconBtn: {
+    width: 36, height: 36, borderRadius: 10, borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
+  filterActiveDot: {
+    position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: 3.5,
+  },
   categoryFilterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
   categoryChip: {
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6,
