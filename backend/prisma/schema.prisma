@@ -512,6 +512,7 @@ model Label {
   priceText        String        // Always the regular unit price, a plain number ("3.99") — $ is added at render time. Always required, always shown.
   dealText         String?       // Optional freeform deal text ("2 for $5", "BOGO"), shown alongside priceText only when present.
   barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/dealText
+  category         String?       // freeform, same approval pipeline as Order List/Stock Request (OrderCategory) — not constrained by an enum here
   template         LabelTemplate @default(CLASSIC_RED_BLACK)
   createdByStoreId String?       // which store's employee/manager created this — null for admin-web-created labels. Set once at creation, never changed by edits.
   createdById      String?       // which user created this. Set once at creation, never changed by edits.

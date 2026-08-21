@@ -1,7 +1,7 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, storesApi } from '../services/api';
+import { labelsApi, storesApi, orderCategoriesApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -16,11 +16,15 @@ interface Label {
   priceText: string;
   dealText: string | null;
   barcode: string | null;
+  category: string | null;
   template: string;
   createdByStoreId: string | null;
   printedAt: string | null;
   updatedAt: string;
 }
+
+// Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
+const UNCATEGORIZED = '__uncategorized__';
 
 const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
   { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#b91c1c' },
@@ -45,13 +49,18 @@ export default function Labels() {
   const [formPriceText, setFormPriceText] = useState('');
   const [formDealText, setFormDealText] = useState('');
   const [formBarcode, setFormBarcode] = useState('');
+  const [formCategory, setFormCategory] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [approvedCats, setApprovedCats] = useState<string[]>([]);
+  const [catSuggs, setCatSuggs] = useState<string[]>([]);
+  const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState('');
   const [printFilter, setPrintFilter] = useState<'all' | 'unprinted' | 'printed'>('all');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   // Raw in-progress text for the qty inputs, separate from `quantities` (the
   // committed numeric source of truth) — lets a user backspace a field to
@@ -68,6 +77,21 @@ export default function Labels() {
     setFormPriceText(preset.priceText.replace(/^\$/, ''));
     setShowSuggestions(false);
   }
+
+  useEffect(() => {
+    if (showModal) {
+      orderCategoriesApi.getApproved()
+        .then(r => setApprovedCats(r.data?.data || []))
+        .catch(() => {});
+    }
+  }, [showModal]);
+
+  useEffect(() => {
+    if (!formCategory.trim()) { setCatSuggs([]); return; }
+    const q = formCategory.toLowerCase();
+    setCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    setShowCatSugg(true);
+  }, [formCategory, approvedCats]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['labels'],
@@ -96,8 +120,19 @@ export default function Labels() {
     }
     if (printFilter === 'unprinted' && l.printedAt) return false;
     if (printFilter === 'printed' && !l.printedAt) return false;
+    if (categoryFilter === UNCATEGORIZED) {
+      if (l.category) return false;
+    } else if (categoryFilter && l.category !== categoryFilter) {
+      return false;
+    }
     return true;
   });
+
+  // Category dropdown reflects what's actually present in the catalog right now.
+  const availableCategories = Array.from(
+    new Set(labels.map(l => l.category).filter((c): c is string => !!c))
+  ).sort();
+  const hasUncategorized = labels.some(l => !l.category);
 
   const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
   const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
@@ -151,10 +186,19 @@ export default function Labels() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, template: formTemplate })
-        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, template: formTemplate }),
+    mutationFn: () => {
+      const category = formCategory.trim() || null;
+      // Silently submit a brand-new category for review — same pipeline
+      // mobile's BarcodeScannerModal/Order List/Stock Request/Labels feed —
+      // so freeform category text stays governed by one approval queue
+      // regardless of which surface it was typed on.
+      if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
+        orderCategoriesApi.submitNew(category).catch(() => {});
+      }
+      return editingLabel
+        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, category, template: formTemplate })
+        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, category, template: formTemplate });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
@@ -186,6 +230,7 @@ export default function Labels() {
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode('');
+    setFormCategory('');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowModal(true);
   }
@@ -196,6 +241,7 @@ export default function Labels() {
     setFormPriceText(label.priceText);
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode || '');
+    setFormCategory(label.category || '');
     setFormTemplate(label.template);
     setShowModal(true);
   }
@@ -207,6 +253,7 @@ export default function Labels() {
     setFormPriceText(label.priceText);
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode || '');
+    setFormCategory(label.category || '');
     setFormTemplate(label.template);
     setShowModal(true);
   }
@@ -218,6 +265,7 @@ export default function Labels() {
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode('');
+    setFormCategory('');
     setFormTemplate('CLASSIC_RED_BLACK');
   }
 
@@ -359,6 +407,28 @@ export default function Labels() {
                 placeholder="Scan or type the product's UPC/EAN — for order lookups, not tied to the price/deal above"
                 maxLength={40}
               />
+              <div style={m.label}>Category (optional)</div>
+              <div style={{ position: 'relative' as const }}>
+                <input
+                  style={m.input}
+                  value={formCategory}
+                  onChange={e => { setFormCategory(e.target.value); setShowCatSugg(true); }}
+                  onFocus={() => setShowCatSugg(catSuggs.length > 0)}
+                  onBlur={() => setTimeout(() => setShowCatSugg(false), 150)}
+                  placeholder="e.g. Groceries, Frozen Foods…"
+                  maxLength={100}
+                  autoComplete="off"
+                />
+                {showCatSugg && catSuggs.length > 0 && (
+                  <div style={m.sugg}>
+                    {catSuggs.map(c => (
+                      <div key={c} style={m.suggRow} onMouseDown={() => { setFormCategory(c); setShowCatSugg(false); }}>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={m.label}>Template</div>
               <div style={m.templateRow}>
                 {TEMPLATE_OPTIONS.map(t => (
@@ -421,6 +491,15 @@ export default function Labels() {
                 <option key={st.id} value={st.id}>{st.name}</option>
               ))}
             </select>
+            {(availableCategories.length > 0 || hasUncategorized) && (
+              <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                <option value="">All Categories</option>
+                {availableCategories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+                {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
+              </select>
+            )}
             <div style={s.printFilterRow}>
               {(['all', 'unprinted', 'printed'] as const).map(f => (
                 <button
@@ -439,7 +518,7 @@ export default function Labels() {
         {isError ? (
           <ErrorState message="Failed to load labels." onRetry={refetch} />
         ) : isLoading ? (
-          <TableSkeleton columns={9} />
+          <TableSkeleton columns={10} />
         ) : labels.length === 0 ? (
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>🏷️</div>
@@ -450,14 +529,14 @@ export default function Labels() {
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>🔍</div>
             <div style={s.emptyTitle}>No labels match your filters</div>
-            <div style={s.emptySub}>Try clearing the search, store, or print-status filter</div>
+            <div style={s.emptySub}>Try clearing the search, store, category, or print-status filter</div>
           </div>
         ) : (
           <div style={s.tableWrap}>
             <Table style={s.table}>
               <TableHeader>
                 <TableRow>
-                  {['', 'Product', 'Price / Deal', 'Qty', 'Template', 'Store', 'Status', 'Updated', 'Actions'].map(h => (
+                  {['', 'Product', 'Category', 'Price / Deal', 'Qty', 'Template', 'Store', 'Status', 'Updated', 'Actions'].map(h => (
                     <TableHead key={h} style={s.th}>
                       {h === '' ? (
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} title="Select all" />
@@ -479,6 +558,9 @@ export default function Labels() {
                     <TableCell style={s.td}>
                       <span style={s.itemName}>{label.productName}</span>
                       {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
+                    </TableCell>
+                    <TableCell style={s.td}>
+                      {label.category ? label.category : <span style={{ color: TEXT_MUTED }}>—</span>}
                     </TableCell>
                     <TableCell style={s.td}>
                       ${label.priceText}

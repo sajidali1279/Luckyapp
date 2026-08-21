@@ -10,6 +10,7 @@ const createLabelSchema = z.object({
   priceText: z.string().min(1).max(7),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
+  category: z.string().max(100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
 });
 
@@ -47,7 +48,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
-    details: { productName: label.productName, priceText: label.priceText },
+    details: { productName: label.productName, priceText: label.priceText, category: label.category },
     storeId,
   });
 
@@ -59,6 +60,7 @@ const updateLabelSchema = z.object({
   priceText: z.string().min(1).max(7).optional(),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
+  category: z.string().max(100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate).optional(),
 });
 
@@ -81,7 +83,7 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'UPDATE_LABEL', entity: 'label', entityId: label.id,
-    details: { productName: label.productName, priceText: label.priceText },
+    details: { productName: label.productName, priceText: label.priceText, category: label.category },
     storeId,
   });
 

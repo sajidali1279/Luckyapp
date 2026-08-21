@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { labelsApi, storesApi } from '../services/api';
+import { labelsApi, storesApi, orderCategoriesApi } from '../services/api';
 import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
@@ -20,10 +20,15 @@ interface Label {
   priceText: string;
   dealText: string | null;
   barcode: string | null;
+  category: string | null;
   template: string;
   createdByStoreId: string | null;
   updatedAt: string;
 }
+
+// Sentinel for the "Uncategorized" filter chip — distinct from `null`
+// (which means "no filter, show everything").
+const UNCATEGORIZED = '__uncategorized__';
 
 const TEMPLATES: { value: string; label: string; color: string }[] = [
   { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', color: '#b91c1c' },
@@ -48,12 +53,17 @@ export default function LabelsScreen() {
   const [formPriceText, setFormPriceText] = useState('');
   const [formDealText, setFormDealText] = useState('');
   const [formBarcode, setFormBarcode] = useState<string | null>(null);
+  const [formCategory, setFormCategory] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [showNameSugg, setShowNameSugg] = useState(false);
+  const [approvedCats, setApprovedCats] = useState<string[]>([]);
+  const [catSuggs, setCatSuggs] = useState<string[]>([]);
+  const [showCatSugg, setShowCatSugg] = useState(false);
   const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { height: screenHeight } = useWindowDimensions();
 
@@ -72,6 +82,21 @@ export default function LabelsScreen() {
     const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
+
+  useEffect(() => {
+    if (showForm) {
+      orderCategoriesApi.getApproved()
+        .then(r => setApprovedCats(r.data?.data || []))
+        .catch(() => {});
+    }
+  }, [showForm]);
+
+  useEffect(() => {
+    if (!formCategory.trim()) { setCatSuggs([]); return; }
+    const q = formCategory.toLowerCase();
+    setCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    setShowCatSugg(true);
+  }, [formCategory, approvedCats]);
 
   const storeId = user?.storeIds?.[0];
 
@@ -94,6 +119,16 @@ export default function LabelsScreen() {
   });
   const allLabels: Label[] = catalogData?.data?.data || [];
 
+  // A search hitting zero results in the current view might still exist
+  // elsewhere in the shared catalog (e.g. already printed, or created by
+  // another store) — check the unfiltered catalog before offering to
+  // create a new label, so we never create a duplicate barcode.
+  const searchTerm = search.trim();
+  const isBarcodeLikeSearch = /^\d{4,}$/.test(searchTerm);
+  const existingBarcodeMatch = isBarcodeLikeSearch
+    ? allLabels.find(l => l.barcode === searchTerm)
+    : undefined;
+
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
     queryFn: () => storesApi.getAll(),
@@ -103,10 +138,22 @@ export default function LabelsScreen() {
   );
 
   const filteredLabels = labels.filter(l => {
+    if (categoryFilter === UNCATEGORIZED) {
+      if (l.category) return false;
+    } else if (categoryFilter) {
+      if (l.category !== categoryFilter) return false;
+    }
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return l.productName.toLowerCase().includes(q) || (!!l.barcode && l.barcode.toLowerCase().includes(q));
   });
+
+  // Category chips reflect what's actually present in the current view
+  // (Ready to Print vs Full Catalog), not every category in the system.
+  const availableCategories = Array.from(
+    new Set(labels.map(l => l.category).filter((c): c is string => !!c))
+  ).sort();
+  const hasUncategorized = labels.some(l => !l.category);
 
   const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
 
@@ -170,8 +217,26 @@ export default function LabelsScreen() {
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode(scanned.barcode);
+    setFormCategory(scanned.category || '');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
+  }
+
+  // Used when a search for a barcode/name comes up empty everywhere in the
+  // catalog — skips the dedupe lookup above since we already know there's
+  // no match, and pre-fills whichever field the search term looks like.
+  function openQuickAddFromSearch() {
+    const term = searchTerm;
+    if (!term) return;
+    setEditingLabel(null);
+    setFormProductName(isBarcodeLikeSearch ? '' : term);
+    setFormPriceText('');
+    setFormDealText('');
+    setFormBarcode(isBarcodeLikeSearch ? term : null);
+    setFormCategory('');
+    setFormTemplate('CLASSIC_RED_BLACK');
+    setShowForm(true);
+    setSearch('');
   }
 
   function openEditForm(label: Label) {
@@ -180,6 +245,7 @@ export default function LabelsScreen() {
     setFormPriceText(label.priceText);
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode);
+    setFormCategory(label.category || '');
     setFormTemplate(label.template);
     setShowForm(true);
   }
@@ -191,6 +257,7 @@ export default function LabelsScreen() {
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode(null);
+    setFormCategory('');
     setFormTemplate('CLASSIC_RED_BLACK');
   }
 
@@ -199,14 +266,20 @@ export default function LabelsScreen() {
     const priceText = formPriceText.trim();
     const dealText = formDealText.trim() || null;
     const barcode = formBarcode?.trim() || null;
+    const category = formCategory.trim() || null;
     const wasCreate = !editingLabel;
     if (!productName || !priceText || saving) return;
     setSaving(true);
+    // Silently submit a brand-new category for DevAdmin approval — same
+    // pipeline BarcodeScannerModal/Order List/Stock Request already feed.
+    if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
+      orderCategoriesApi.submitNew(category).catch(() => {});
+    }
     try {
       if (editingLabel) {
-        await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, template: formTemplate });
+        await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, category, template: formTemplate });
       } else {
-        const res = await labelsApi.create({ productName, priceText, dealText, barcode, template: formTemplate });
+        const res = await labelsApi.create({ productName, priceText, dealText, barcode, category, template: formTemplate });
         const newId = res.data?.data?.id;
         if (newId) setSelectedIds(prev => new Set(prev).add(newId));
       }
@@ -405,6 +478,35 @@ export default function LabelsScreen() {
                 maxLength={40}
               />
 
+              <Text style={[s.fieldLabel, { marginTop: 16 }]}>Category (optional)</Text>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={s.fieldInput}
+                  value={formCategory}
+                  onChangeText={t => { setFormCategory(t); setShowCatSugg(true); }}
+                  onFocus={() => setShowCatSugg(catSuggs.length > 0)}
+                  onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
+                  placeholder="e.g. Groceries, Frozen Foods…"
+                  placeholderTextColor="#B0B8C4"
+                  maxLength={100}
+                />
+                {showCatSugg && catSuggs.length > 0 && (
+                  <View style={s.nameSugg}>
+                    {catSuggs.map(c => (
+                      <TouchableOpacity
+                        key={c}
+                        style={s.nameSuggRow}
+                        onPress={() => { setFormCategory(c); setShowCatSugg(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Use category ${c}`}
+                      >
+                        <Text style={s.nameSuggText}>{c}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>Template</Text>
               <View style={s.templateRow}>
                 {TEMPLATES.map(t => (
@@ -499,6 +601,40 @@ export default function LabelsScreen() {
         </View>
       )}
 
+      {!isLoading && labels.length > 0 && (availableCategories.length > 0 || hasUncategorized) && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryFilterRow}>
+          <TouchableOpacity
+            style={[s.categoryChip, categoryFilter === null && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+            onPress={() => setCategoryFilter(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Show all categories"
+          >
+            <Text style={s.categoryChipText}>All</Text>
+          </TouchableOpacity>
+          {availableCategories.map(c => (
+            <TouchableOpacity
+              key={c}
+              style={[s.categoryChip, categoryFilter === c && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+              onPress={() => setCategoryFilter(categoryFilter === c ? null : c)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by category ${c}`}
+            >
+              <Text style={s.categoryChipText}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+          {hasUncategorized && (
+            <TouchableOpacity
+              style={[s.categoryChip, categoryFilter === UNCATEGORIZED && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
+              onPress={() => setCategoryFilter(categoryFilter === UNCATEGORIZED ? null : UNCATEGORIZED)}
+              accessibilityRole="button"
+              accessibilityLabel="Filter to uncategorized labels"
+            >
+              <Text style={s.categoryChipText}>Uncategorized</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      )}
+
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
       ) : labels.length === 0 ? (
@@ -513,7 +649,35 @@ export default function LabelsScreen() {
         <View style={s.center}>
           <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
           <Text style={s.emptyTitle}>No matches</Text>
-          <Text style={s.emptySub}>Try a different name or barcode</Text>
+          {existingBarcodeMatch ? (
+            <>
+              <Text style={s.emptySub}>That barcode is already in the catalog</Text>
+              <TouchableOpacity
+                style={[s.quickAddBtn, { backgroundColor: accentColor }]}
+                onPress={() => { const match = existingBarcodeMatch; setSearch(''); openEditForm(match); }}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${existingBarcodeMatch.productName}`}
+              >
+                <Text style={s.quickAddBtnText}>Open "{existingBarcodeMatch.productName}"</Text>
+              </TouchableOpacity>
+            </>
+          ) : searchTerm ? (
+            <>
+              <Text style={s.emptySub}>Try a different name or barcode</Text>
+              <TouchableOpacity
+                style={[s.quickAddBtn, { backgroundColor: accentColor }]}
+                onPress={openQuickAddFromSearch}
+                accessibilityRole="button"
+                accessibilityLabel={isBarcodeLikeSearch ? `Add barcode ${searchTerm} as new label` : `Add ${searchTerm} as new label`}
+              >
+                <Text style={s.quickAddBtnText}>
+                  {isBarcodeLikeSearch ? `Add barcode "${searchTerm}" as new label` : `Add "${searchTerm}" as new label`}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={s.emptySub}>No labels in this category</Text>
+          )}
         </View>
       ) : viewMode === 'catalog' ? (
         <SectionList
@@ -595,6 +759,7 @@ export default function LabelsScreen() {
           <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
           <View style={{ flex: 1 }}>
             <Text style={s.cardName}>{item.productName}</Text>
+            {item.category && <Text style={s.cardCategory}>{item.category}</Text>}
             <Text style={s.cardPrice}>${item.priceText}</Text>
             {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
             {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
@@ -647,6 +812,13 @@ const s = StyleSheet.create({
   },
   selectAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 4 },
   selectAllText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  categoryFilterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
+  categoryChip: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  categoryChipText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
+  quickAddBtn: { borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, marginTop: 16 },
+  quickAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   sectionHeader: {
     fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5,
     backgroundColor: COLORS.background, paddingVertical: 6,
@@ -667,6 +839,7 @@ const s = StyleSheet.create({
   cardBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   templateDot: { width: 8, height: 8, borderRadius: 4 },
   cardName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  cardCategory: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
   cardPrice: { fontSize: 14, fontWeight: '700', color: COLORS.danger, marginTop: 2 },
   cardDeal: { fontSize: 12, fontWeight: '600', color: '#b7791f', marginTop: 1 },
   cardBarcode: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },

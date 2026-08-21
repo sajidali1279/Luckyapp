@@ -328,9 +328,9 @@ export const scannedProductApi = {
 export const labelsApi = {
   getAll: () => api.get('/labels'),
   getReadyToPrint: (storeId: string) => api.get(`/labels?storeId=${encodeURIComponent(storeId)}&unprinted=true`),
-  create: (data: { productName: string; priceText: string; dealText?: string | null; barcode?: string | null; template?: string }) =>
+  create: (data: { productName: string; priceText: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.post('/labels', data),
-  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; template?: string }) =>
+  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
   print: (items: { labelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
