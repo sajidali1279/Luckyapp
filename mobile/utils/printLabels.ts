@@ -126,28 +126,35 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
   <meta charset="UTF-8">
   <title>Print Labels</title>
   <style>
-    @page { size: A4; margin: 7mm; }
+    /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
+       (Avery 5160-compatible — e.g. the Walmart "3000 Mailing Address
+       Labels" box), 30 labels/sheet, 3 columns x 10 rows, on US Letter.
+       Margins and gap are the sheet's actual die-cut positions, not chosen
+       for density — printing outside these exact numbers means labels
+       land on the sticker seams instead of centered on each sticker. */
+    @page { size: letter; margin: 0.5in 0.1875in; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, 63.5mm);
-      grid-auto-rows: 31.75mm;
-      gap: 2mm;
+      grid-template-columns: repeat(3, 2.625in);
+      grid-auto-rows: 1in;
+      column-gap: 0.125in;
+      row-gap: 0;
     }
-    /* Every label is the exact same fixed physical size — sized to fit a
-       standard 1.25in-tall shelf-channel/data-strip holder — regardless of
+    /* Every label is the exact same fixed physical size — matching the
+       sheet's actual die-cut label size (1in x 2.625in) — regardless of
        whether it carries a barcode. Content is organized to fit inside,
        never the other way around. */
     .label {
       position: relative;
-      width: 63.5mm;
-      height: 31.75mm;
+      width: 2.625in;
+      height: 1in;
       border-radius: 3px;
       display: flex;
       flex-direction: row;
       align-items: stretch;
-      padding: 1.5mm;
+      padding: 1.2mm;
       overflow: hidden;
       page-break-inside: avoid;
       print-color-adjust: exact;
@@ -161,37 +168,37 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
        above) — the outline-based double borders below are exempt from
        that concern since outline-color, like border-color, prints by
        default even with background graphics off. */
-    .tmpl-classic { border: 3px solid #1a1a1a; border-top: 8px solid #b91c1c; }
+    .tmpl-classic { border: 2px solid #1a1a1a; border-top: 6px solid #b91c1c; }
     .tmpl-classic .label-name { color: #1a1a1a; }
     .tmpl-classic .price-regular, .tmpl-classic .price-dollar { color: #dc2626; }
     .tmpl-classic .price-deal { color: #dc2626; border-color: #dc2626; }
 
-    .tmpl-christmas { border: 3px dashed #14532d; border-top: 8px solid #b91c1c; }
+    .tmpl-christmas { border: 2px dashed #14532d; border-top: 6px solid #b91c1c; }
     .tmpl-christmas .label-name { color: #14532d; }
     .tmpl-christmas .price-regular, .tmpl-christmas .price-dollar { color: #b91c1c; }
     .tmpl-christmas .price-deal { color: #b91c1c; border-color: #b91c1c; }
 
-    .tmpl-summer { border: 3px solid #ea580c; border-radius: 10px; border-bottom: 8px solid #0e7490; }
+    .tmpl-summer { border: 2px solid #ea580c; border-radius: 8px; border-bottom: 6px solid #0e7490; }
     .tmpl-summer .label-name { color: #0e7490; }
     .tmpl-summer .price-regular, .tmpl-summer .price-dollar { color: #f97316; }
     .tmpl-summer .price-deal { color: #f97316; border-color: #f97316; }
 
-    .tmpl-clearance { border: 5px solid #1a1a1a; border-top: 8px solid #dc2626; }
+    .tmpl-clearance { border: 4px solid #1a1a1a; border-top: 6px solid #dc2626; }
     .tmpl-clearance .label-name { color: #1a1a1a; letter-spacing: 0.3px; }
     .tmpl-clearance .price-regular, .tmpl-clearance .price-dollar { color: #dc2626; }
     .tmpl-clearance .price-deal { color: #dc2626; border-color: #dc2626; }
 
-    .tmpl-independence { border: 2px solid #1e3a8a; outline: 2px solid #b91c1c; outline-offset: -5px; }
+    .tmpl-independence { border: 1.5px solid #1e3a8a; outline: 1.5px solid #b91c1c; outline-offset: -3.5px; }
     .tmpl-independence .label-name { color: #1e3a8a; }
     .tmpl-independence .price-regular, .tmpl-independence .price-dollar { color: #b91c1c; }
     .tmpl-independence .price-deal { color: #b91c1c; border-color: #b91c1c; }
 
-    .tmpl-halloween { border: 3px dashed #7c3aed; border-top: 8px solid #ea580c; }
+    .tmpl-halloween { border: 2px dashed #7c3aed; border-top: 6px solid #ea580c; }
     .tmpl-halloween .label-name { color: #1a1a1a; font-style: italic; }
     .tmpl-halloween .price-regular, .tmpl-halloween .price-dollar { color: #ea580c; }
     .tmpl-halloween .price-deal { color: #ea580c; border-color: #ea580c; }
 
-    .tmpl-premium { border: 1px solid #1a2744; outline: 1px solid #b8860b; outline-offset: -4px; font-family: Georgia, 'Times New Roman', serif; }
+    .tmpl-premium { border: 1px solid #1a2744; outline: 1px solid #b8860b; outline-offset: -3px; font-family: Georgia, 'Times New Roman', serif; }
     .tmpl-premium .label-name { color: #1a2744; }
     .tmpl-premium .price-regular, .tmpl-premium .price-dollar { color: #b8860b; }
     .tmpl-premium .price-deal { color: #b8860b; border-color: #b8860b; }
@@ -202,9 +209,9 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13pt;
+      font-size: 10pt;
       font-weight: 800;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       color: rgba(204, 41, 54, 0.08);
       white-space: nowrap;
     }
@@ -219,13 +226,13 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
          max-width/ellipsis/line-clamp below resolve against a circular,
          effectively-unconstrained width and never actually engage. */
       align-items: stretch;
-      padding-right: 1.5mm;
+      padding-right: 1.2mm;
     }
     .label-name {
       min-width: 0;
-      font-size: 7.5pt;
+      font-size: 6.5pt;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.1;
       text-align: left;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -235,31 +242,31 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
     }
     /* The name always keeps its full 2 lines — a deal shrinks the font
        instead of cutting a line off, so long names still read in full. */
-    .label-name.has-deal { font-size: 6.5pt; }
-    .label-name.has-deal-long { font-size: 5.8pt; }
+    .label-name.has-deal { font-size: 5.5pt; }
+    .label-name.has-deal-long { font-size: 5pt; }
     .price-group {
       min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: stretch;
     }
-    .price-group.has-deal { gap: 0.6mm; }
+    .price-group.has-deal { gap: 0.4mm; }
     .price-regular {
-      font-size: 25pt;
+      font-size: 20pt;
       font-weight: 900;
       line-height: 1;
       text-align: left;
     }
     .price-group.has-deal .price-regular {
-      font-size: 15pt;
+      font-size: 12pt;
     }
     .price-dollar {
-      font-size: 12pt;
+      font-size: 10pt;
       font-weight: 700;
-      margin-right: 0.5mm;
+      margin-right: 0.4mm;
     }
     .price-group.has-deal .price-dollar {
-      font-size: 7pt;
+      font-size: 6pt;
     }
     /* Deal text is meant to grab attention on its own, not read like a
        caption under the price — bold, in the template's bright accent
@@ -268,16 +275,16 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
     .price-deal {
       min-width: 0;
       max-width: 100%;
-      font-size: 11pt;
+      font-size: 9pt;
       font-weight: 800;
-      line-height: 1.15;
+      line-height: 1.1;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      border: 1.2pt solid;
-      border-radius: 2.5pt;
-      padding: 0.4mm 1.5mm;
+      border: 1pt solid;
+      border-radius: 2pt;
+      padding: 0.3mm 1mm;
     }
     .label-side {
       width: 17mm;
@@ -286,10 +293,10 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.6mm;
+      gap: 0.4mm;
     }
     .label-qr-caption {
-      font-size: 5pt;
+      font-size: 4.5pt;
       font-weight: 700;
       letter-spacing: 0.2px;
       color: #555;
@@ -297,15 +304,15 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       white-space: nowrap;
     }
     .label-qr {
-      width: 9mm;
-      height: 9mm;
+      width: 7mm;
+      height: 7mm;
       flex-shrink: 0;
     }
     /* No barcode to share the column with — let the QR grow into the
        freed-up space instead of leaving it blank. */
     .label-side.no-barcode .label-qr {
-      width: 15mm;
-      height: 15mm;
+      width: 14mm;
+      height: 14mm;
     }
     .label-barcode-wrap {
       width: 100%;
@@ -315,13 +322,13 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
     .label-barcode {
       display: block;
       width: 100%;
-      height: 6.5mm;
+      height: 5mm;
     }
     .label-barcode-val {
-      font-size: 5pt;
+      font-size: 4.5pt;
       color: #555;
       letter-spacing: 0.2px;
-      margin-top: 0.3mm;
+      margin-top: 0.2mm;
       word-break: break-all;
     }
   </style>
