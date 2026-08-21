@@ -44,10 +44,11 @@ export default function InventoryAnalytics() {
   const [period,   setPeriod]   = useState('30');
   const [category, setCategory] = useState('');
 
-  // Stores list for filter
+  // Stores list for filter — getAccessible() scopes to just a Store
+  // Manager's own store instead of 403ing (getAll() is SuperAdmin+ only).
   const { data: storesData } = useQuery({
-    queryKey: ['all-stores'],
-    queryFn: storesApi.getAll,
+    queryKey: ['accessible-stores'],
+    queryFn: storesApi.getAccessible,
     staleTime: 5 * 60 * 1000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data || [];

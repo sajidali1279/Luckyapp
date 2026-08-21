@@ -329,9 +329,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/" icon={<LayoutDashboard size={16} />} label="Dashboard" end />
-              {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/inventory-analytics" icon={<Package size={16} />} label="Inventory Intelligence" />
-              )}
+              <SidebarNavItem to="/inventory-analytics" icon={<Package size={16} />} label="Inventory Intelligence" />
               {isDevAdmin && (
                 <SidebarNavItem to="/analytics" icon={<TrendingUp size={16} />} label="Analytics" />
               )}
@@ -380,11 +378,11 @@ export function AppSidebar() {
                 <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
-              <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={categoriesPendingCount} />
-              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned Products" />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
+                <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={categoriesPendingCount} />
               )}
+              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned Products" />
+              <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}

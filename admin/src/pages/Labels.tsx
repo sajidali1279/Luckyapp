@@ -99,9 +99,12 @@ export default function Labels() {
   });
   const labels: Label[] = data?.data?.data || [];
 
+  // getAccessible() scopes to just a Store Manager's own store instead of
+  // 403ing (getAll() is SuperAdmin+ only) — this page is now reachable by
+  // Store Manager too, mirroring their existing full mobile access.
   const { data: storesData } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storesApi.getAll(),
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.getAccessible(),
   });
   const stores: any[] = storesData?.data?.data || [];
   const storeNameById: Record<string, string> = Object.fromEntries(stores.map((st: any) => [st.id, st.name]));

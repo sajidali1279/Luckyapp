@@ -154,6 +154,11 @@ export const disputesApi = {
 
 export const storesApi = {
   getAll: () => api.get('/stores'),
+  // SuperAdmin+ only. For any store-filter UI a Store Manager might also
+  // reach, use getAccessible() instead — it returns everything for
+  // SuperAdmin+ but scopes down to just the caller's own store(s) for a
+  // Store Manager, so the same query works for both without branching.
+  getAccessible: () => api.get('/stores/accessible'),
   getOne: (storeId: string) => api.get(`/stores/${storeId}`),
   update: (storeId: string, data: object) => api.patch(`/stores/${storeId}`, data),
   updateGasPrices: (storeId: string, data: object) => api.patch(`/stores/${storeId}/gas-prices`, data),

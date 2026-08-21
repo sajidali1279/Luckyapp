@@ -114,7 +114,7 @@ export default function StoreManagerDashboard() {
           { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#2DC653' },
           { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#7C3AED' },
           { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#0369a1' },
-          { icon: '📋', label: 'Order Lists', desc: 'Inventory order lists and requests', to: '/order-list', color: '#b45309' },
+          { icon: '🏷️', label: 'Labels', desc: 'Create and print shelf/price labels', to: '/labels', color: '#b45309' },
         ].map((a) => (
           <button key={a.to} style={s.actionCard} onClick={() => navigate(a.to)}>
             <div style={{ ...s.actionIcon, background: a.color + '18', color: a.color }}>{a.icon}</div>
