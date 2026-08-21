@@ -46,24 +46,51 @@ interface TemplateStyle {
 // invisible by default. Keep this rule for any future template too.
 const TEMPLATES: Record<string, TemplateStyle> = {
   CLASSIC_RED_BLACK: {
-    border: '3px solid #111',
-    borderTop: '8px solid #c0392b',
-    nameColor: '#111',
-    priceColor: '#e63946',
+    border: '3px solid #1a1a1a',
+    borderTop: '8px solid #b91c1c',
+    nameColor: '#1a1a1a',
+    priceColor: '#dc2626',
   },
   CHRISTMAS_WINTER: {
-    border: '3px solid #1e7a3d',
-    borderTop: '8px solid #c0392b',
-    nameColor: '#1e7a3d',
-    priceColor: '#c0392b',
+    border: '3px solid #14532d',
+    borderTop: '8px solid #b91c1c',
+    nameColor: '#14532d',
+    priceColor: '#b91c1c',
     icon: '❆ ',
   },
   SUMMER: {
     border: '3px solid #ea580c',
-    borderTop: '8px solid #0891b2',
-    nameColor: '#0c4a6e',
-    priceColor: '#ea580c',
+    borderTop: '8px solid #0e7490',
+    nameColor: '#0e7490',
+    priceColor: '#f97316',
     icon: '☀ ',
+  },
+  CLEARANCE: {
+    border: '3px solid #1a1a1a',
+    borderTop: '8px solid #dc2626',
+    nameColor: '#1a1a1a',
+    priceColor: '#dc2626',
+    icon: '🔥 ',
+  },
+  INDEPENDENCE_DAY: {
+    border: '3px solid #1e3a8a',
+    borderTop: '8px solid #b91c1c',
+    nameColor: '#1e3a8a',
+    priceColor: '#b91c1c',
+    icon: '★ ',
+  },
+  HALLOWEEN: {
+    border: '3px solid #1a1a1a',
+    borderTop: '8px solid #7c3aed',
+    nameColor: '#1a1a1a',
+    priceColor: '#ea580c',
+    icon: '🎃 ',
+  },
+  PREMIUM: {
+    border: '3px solid #1a2744',
+    borderTop: '8px solid #b8860b',
+    nameColor: '#1a2744',
+    priceColor: '#b8860b',
   },
 };
 

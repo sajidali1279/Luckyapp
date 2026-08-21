@@ -23,9 +23,13 @@ interface Label {
 }
 
 const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
-  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#c0392b' },
-  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#1e7a3d' },
-  { value: 'SUMMER', label: 'Summer', accent: '#f59e0b' },
+  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#b91c1c' },
+  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#14532d' },
+  { value: 'SUMMER', label: 'Summer', accent: '#ea580c' },
+  { value: 'CLEARANCE', label: 'Clearance', accent: '#dc2626' },
+  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1e3a8a' },
+  { value: 'HALLOWEEN', label: 'Halloween', accent: '#7c3aed' },
+  { value: 'PREMIUM', label: 'Premium / Top Shelf', accent: '#b8860b' },
 ];
 
 const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(

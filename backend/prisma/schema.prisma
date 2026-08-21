@@ -497,6 +497,10 @@ enum LabelTemplate {
   CLASSIC_RED_BLACK
   CHRISTMAS_WINTER
   SUMMER
+  CLEARANCE
+  INDEPENDENCE_DAY
+  HALLOWEEN
+  PREMIUM
 }
 
 // Chain-wide catalog, not per-store — the same product/price applies to

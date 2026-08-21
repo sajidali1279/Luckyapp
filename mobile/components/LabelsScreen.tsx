@@ -26,9 +26,13 @@ interface Label {
 }
 
 const TEMPLATES: { value: string; label: string; color: string }[] = [
-  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', color: '#c0392b' },
-  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', color: '#1e7a3d' },
-  { value: 'SUMMER', label: 'Summer', color: '#f59e0b' },
+  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', color: '#b91c1c' },
+  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', color: '#14532d' },
+  { value: 'SUMMER', label: 'Summer', color: '#ea580c' },
+  { value: 'CLEARANCE', label: 'Clearance', color: '#dc2626' },
+  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', color: '#1e3a8a' },
+  { value: 'HALLOWEEN', label: 'Halloween', color: '#7c3aed' },
+  { value: 'PREMIUM', label: 'Premium / Top Shelf', color: '#b8860b' },
 ];
 
 export default function LabelsScreen() {
