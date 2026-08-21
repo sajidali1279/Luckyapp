@@ -1,7 +1,7 @@
 import { useState, useEffect, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, storesApi, orderCategoriesApi } from '../services/api';
+import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -188,6 +188,7 @@ export default function Labels() {
   const saveMutation = useMutation({
     mutationFn: () => {
       const category = formCategory.trim() || null;
+      const barcode = formBarcode.trim() || null;
       // Silently submit a brand-new category for review — same pipeline
       // mobile's BarcodeScannerModal/Order List/Stock Request/Labels feed —
       // so freeform category text stays governed by one approval queue
@@ -195,9 +196,15 @@ export default function Labels() {
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
       }
+      // Keep the shared scan-lookup cache (ScannedProduct) in sync — admin
+      // has no camera, but a barcode typed/corrected here should still be
+      // recognized the next time someone scans it on mobile.
+      if (barcode) {
+        scannedProductApi.save({ barcode, name: formProductName.trim(), category: category || undefined }).catch(() => {});
+      }
       return editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, category, template: formTemplate })
-        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode: formBarcode.trim() || null, category, template: formTemplate });
+        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate })
+        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
