@@ -142,7 +142,10 @@ export default function Offers() {
   const { data: historyData } = useQuery({
     queryKey: ['offers-history'], queryFn: () => offersApi.getHistory(), enabled: showHistory,
   });
-  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  // getAccessible() avoids a pointless 403 for Store Manager (getAll() is
+  // SuperAdmin+ only) — the store picker this feeds is already hidden for
+  // that role, but there's no reason to fire a call guaranteed to fail.
+  const { data: storesData } = useQuery({ queryKey: ['accessible-stores'], queryFn: () => storesApi.getAccessible() });
 
   const offers: any[] = data?.data?.data || [];
   const pastOffers: any[] = historyData?.data?.data || [];

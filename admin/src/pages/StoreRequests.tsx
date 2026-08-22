@@ -175,6 +175,10 @@ export default function StoreRequests() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data || [];
 
+  // A Store Manager with exactly one assigned store never needs to pick —
+  // auto-select it. A Store Manager with multiple stores (a supported case,
+  // see requireStoreAccess/allStoresAccess) still needs the sidebar picker
+  // below, just without the SuperAdmin-only "All Stores" aggregate option.
   const effectiveStoreId = isStoreManager && stores.length === 1
     ? stores[0]?.id
     : selectedStoreId;
@@ -318,27 +322,33 @@ export default function StoreRequests() {
         onConfirm={() => { if (confirmAcceptTarget) respondMutation.mutate({ id: confirmAcceptTarget.id, status: 'ACCEPTED', note: '' }); setConfirmAcceptTarget(null); }}
         onCancel={() => setConfirmAcceptTarget(null)}
       />
-      {/* ── Sidebar (Chat style) ── */}
-      {!isStoreManager && (
+      {/* ── Sidebar (Chat style) — hidden only when there's nothing to pick:
+          a single-store Store Manager is auto-selected above. A Store
+          Manager with multiple stores still needs this to choose one. ── */}
+      {(!isStoreManager || stores.length > 1) && (
         <div style={s.sidebar}>
           <div style={s.sidebarTop}>
             <div style={s.sidebarTitle}>Requests</div>
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
           <div style={s.storeList}>
-            <button
-              style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
-              onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
-            >
-              <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #6b7280)', fontSize: 18 }}>
-                🏬
-              </div>
-              <div style={s.storeBtnInfo}>
-                <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? '#1D3557' : '#212529' }}>All Stores</div>
-                <div style={s.storeBtnCity}>Every location</div>
-              </div>
-              {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
-            </button>
+            {/* "All Stores" is a cross-store aggregate backed by a SuperAdmin-only
+                endpoint — never offered to Store Manager, even a multi-store one. */}
+            {!isStoreManager && (
+              <button
+                style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
+                onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
+              >
+                <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #6b7280)', fontSize: 18 }}>
+                  🏬
+                </div>
+                <div style={s.storeBtnInfo}>
+                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? '#1D3557' : '#212529' }}>All Stores</div>
+                  <div style={s.storeBtnCity}>Every location</div>
+                </div>
+                {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
+              </button>
+            )}
             {stores.map((store, i) => {
               const active = store.id === selectedStoreId;
               const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];

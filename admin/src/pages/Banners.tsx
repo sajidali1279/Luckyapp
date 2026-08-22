@@ -25,9 +25,13 @@ export default function Banners() {
     queryFn: () => bannersApi.getActive(),
   });
 
+  // getAccessible() scopes to just a Store Manager's own store instead of
+  // 403ing (getAll() is SuperAdmin+ only) — needed so the banner list below
+  // can resolve a store-scoped banner's name instead of showing a generic
+  // "Specific Store" fallback.
   const { data: storesData } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storesApi.getAll(),
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.getAccessible(),
   });
   const stores: any[] = storesData?.data?.data || [];
 
