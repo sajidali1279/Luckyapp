@@ -378,6 +378,32 @@ export async function getRequestsPendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
+// ─── GET /schedule/requests/pending-by-store ──────────────────────────────────
+// Same as getRequestsPendingCount, but broken out per store so a multi-store
+// viewer's store list can show which store(s) actually have a pending
+// request, instead of one combined number with no indication of where.
+
+export async function getRequestsPendingCountByStore(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  const storeIds = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user.role)
+    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
+    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: {} });
+    return;
+  }
+
+  const grouped = await prisma.shiftRequest.groupBy({
+    by: ['storeId'],
+    where: { storeId: { in: storeIds }, status: RequestStatus.PENDING },
+    _count: { _all: true },
+  });
+
+  res.json({ success: true, data: Object.fromEntries(grouped.map((g) => [g.storeId, g._count._all])) });
+}
+
 // ─── PATCH /schedule/requests/:requestId ──────────────────────────────────────
 
 const updateRequestSchema = z.object({

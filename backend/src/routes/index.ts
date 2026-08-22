@@ -38,7 +38,7 @@ import {
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, clearAllNotifications, broadcastNotification } from '../controllers/notifications.controller';
-import { getMyChatStores, getMessages, sendMessage, getUnreadCount as getChatUnreadCount } from '../controllers/chat.controller';
+import { getMyChatStores, getMessages, sendMessage, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount } from '../controllers/productRequest.controller';
 import {
@@ -78,6 +78,7 @@ import {
   createShiftRequest,
   getStoreRequests,
   getRequestsPendingCount as getShiftRequestsPendingCount,
+  getRequestsPendingCountByStore,
   updateShiftRequest,
   getStoreEmployees,
   getVacancies,
@@ -339,12 +340,14 @@ router.get('/schedule/store/:storeId/day', authenticate, requireRole(Role.EMPLOY
 router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedule);
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
 router.get('/schedule/requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getShiftRequestsPendingCount); // Badge count
+router.get('/schedule/requests/pending-by-store', authenticate, requireRole(Role.STORE_MANAGER), getRequestsPendingCountByStore); // Per-store breakdown for multi-store sidebar
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
 router.get('/schedule/vacancies', authenticate, getVacancies);                                       // Vacant shift slots (all roles)
 
 // ─── Store Chat ───────────────────────────────────────────────────────────────
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
 router.get('/chat/unread-count', authenticate, getChatUnreadCount);                                  // Badge count across accessible stores
+router.get('/chat/unread-by-store', authenticate, getChatUnreadCountByStore);                        // Per-store breakdown for multi-store sidebar
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
 

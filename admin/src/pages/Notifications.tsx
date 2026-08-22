@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { superAdminApi, devAdminApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -81,6 +81,7 @@ function timeAgo(iso: string) {
 
 export default function Notifications() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [activeTab, setActiveTab] = useState<TabKey>('all');
@@ -95,6 +96,12 @@ export default function Notifications() {
 
   function persistRead(next: Set<string>) {
     try { localStorage.setItem('admin-notif-read-v2', JSON.stringify([...next])); } catch {}
+    // AppSidebar's own Notifications badge reads this same localStorage key
+    // but only re-checks it when its identically-keyed query re-renders —
+    // invalidating here makes the badge drop immediately instead of waiting
+    // for its next 60s poll.
+    qc.invalidateQueries({ queryKey: ['dev-admin-notifications'] });
+    qc.invalidateQueries({ queryKey: ['super-admin-notifications'] });
   }
 
   function markRead(ids: string[]) {

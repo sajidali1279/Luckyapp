@@ -107,6 +107,40 @@ export async function getUnreadCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
+// ─── GET /chat/unread-by-store ────────────────────────────────────────────────
+// Same computation as getUnreadCount, but broken out per store so a
+// multi-store viewer's own store-picker sidebar can show which specific
+// store(s) actually have something unread, instead of one combined number
+// with no indication of where it is.
+
+export async function getUnreadCountByStore(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  const storeIds = PLATFORM_ADMIN_ROLES.includes(user.role)
+    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
+    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: {} });
+    return;
+  }
+
+  const reads = await prisma.chatRead.findMany({
+    where: { userId: user.id, storeId: { in: storeIds } },
+    select: { storeId: true, lastReadAt: true },
+  });
+  const readMap = new Map(reads.map((r) => [r.storeId, r.lastReadAt]));
+
+  const counts = await Promise.all(storeIds.map(async (storeId) => {
+    const count = await prisma.chatMessage.count({
+      where: { storeId, userId: { not: user.id }, createdAt: { gt: readMap.get(storeId) ?? new Date(0) } },
+    });
+    return [storeId, count] as const;
+  }));
+
+  res.json({ success: true, data: Object.fromEntries(counts) });
+}
+
 // ─── POST /chat/:storeId/messages ─────────────────────────────────────────────
 
 export async function sendMessage(req: AuthRequest, res: Response) {

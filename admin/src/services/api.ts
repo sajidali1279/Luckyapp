@@ -209,6 +209,7 @@ export const schedulingApi = {
   getStoreEmployees: (storeId: string) => api.get(`/schedule/store/${storeId}/employees`),
   getVacancies: () => api.get('/schedule/vacancies'),
   getPendingCount: () => api.get('/schedule/requests/pending-count'),
+  getPendingCountByStore: () => api.get('/schedule/requests/pending-by-store'),
 };
 
 export const chatApi = {
@@ -218,6 +219,7 @@ export const chatApi = {
   sendMessage: (storeId: string, text: string) =>
     api.post(`/chat/${storeId}/messages`, { text }),
   getUnreadCount: () => api.get('/chat/unread-count'),
+  getUnreadCountByStore: () => api.get('/chat/unread-by-store'),
 };
 
 export const catalogApi = {

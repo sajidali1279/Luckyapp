@@ -135,7 +135,14 @@ export function AppSidebar() {
     refetchInterval: 60_000,
     retry: false,
   });
-  const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead).length;
+  // Mirrors Notifications.tsx's own isEffectivelyRead(n) = n.isRead || locally
+  // dismissed — without this, marking a notification read on that page never
+  // reduced this badge at all, since it only ever checked the server-derived
+  // `isRead` (itself computed fresh from live business state, not a per-user
+  // flag the "mark read" action could actually flip).
+  let dismissedNotificationIds: Set<string> = new Set();
+  try { dismissedNotificationIds = new Set(JSON.parse(localStorage.getItem('admin-notif-read-v2') || '[]')); } catch { /* ignore malformed storage */ }
+  const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead && !dismissedNotificationIds.has(n.id)).length;
 
   const { data: supportUnreadData } = useQuery({
     queryKey: ['support-unread'],

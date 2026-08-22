@@ -86,6 +86,18 @@ export default function Chat() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data || [];
 
+  // Per-store unread breakdown — only relevant for the multi-store sidebar
+  // below (a single-store Store Manager has nowhere else it could be).
+  // Same combined number as the sidebar nav's own Chat badge, just split out
+  // per store so it's obvious which one actually has something unread.
+  const { data: unreadByStoreData } = useQuery({
+    queryKey: ['chat-unread-by-store'],
+    queryFn: () => chatApi.getUnreadCountByStore(),
+    enabled: !isStoreManager,
+    refetchInterval: 30000,
+  });
+  const unreadByStore: Record<string, number> = unreadByStoreData?.data?.data || {};
+
   useEffect(() => {
     if (stores.length > 0 && !selectedStoreId) setSelectedStoreId(stores[0].id);
   }, [stores, selectedStoreId]);
@@ -212,6 +224,9 @@ export default function Chat() {
                     </div>
                     <div style={s.storeBtnCity}>{store.city}</div>
                   </div>
+                  {unreadByStore[store.id] > 0 && (
+                    <div style={s.storeUnreadBadge}>{unreadByStore[store.id] > 99 ? '99+' : unreadByStore[store.id]}</div>
+                  )}
                   {isActive && <div style={s.activeIndicator} />}
                 </button>
               );
@@ -423,6 +438,11 @@ const s: Record<string, React.CSSProperties> = {
   activeIndicator: {
     width: 8, height: 8, borderRadius: 4,
     background: '#2DC653', flexShrink: 0,
+  },
+  storeUnreadBadge: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 20, height: 20, borderRadius: 10, padding: '0 6px', flexShrink: 0,
+    background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 800,
   },
 
   // ── Chat panel ──

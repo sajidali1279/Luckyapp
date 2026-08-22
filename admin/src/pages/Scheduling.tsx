@@ -96,6 +96,18 @@ export default function Scheduling() {
     refetchInterval: 60000,
   });
 
+  // Per-store pending-request breakdown — only relevant for the multi-store
+  // sidebar below (a single-store manager has nowhere else it could be).
+  // Same combined number as the sidebar nav's own Scheduling badge, just
+  // split out per store so it's obvious which one actually needs a look.
+  const { data: pendingByStoreData } = useQuery({
+    queryKey: ['schedule-pending-by-store'],
+    queryFn: () => schedulingApi.getPendingCountByStore(),
+    enabled: !isStoreManager,
+    refetchInterval: 30000,
+  });
+  const pendingByStoreId: Record<string, number> = pendingByStoreData?.data?.data || {};
+
   // ── Mutations ──
   const assignMutation = useMutation({
     mutationFn: (data: object) => schedulingApi.assignShift(data),
@@ -219,6 +231,7 @@ export default function Scheduling() {
               const active = selectedStoreId === store.id;
               const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
               const vac = vacancyByStoreId[store.id] || 0;
+              const pendingReqs = pendingByStoreId[store.id] || 0;
               return (
                 <button
                   key={store.id}
@@ -232,6 +245,7 @@ export default function Scheduling() {
                     <div style={{ ...s.storeBtnName, color: active ? '#1D3557' : '#212529' }}>{store.name}</div>
                     <div style={s.storeBtnCity}>{store.city}</div>
                   </div>
+                  {pendingReqs > 0 && <span style={s.pendingReqBadge}>{pendingReqs}</span>}
                   {vac > 0 && <span style={s.vacBadge}>{vac}</span>}
                   {active && <div style={s.activeIndicator} />}
                 </button>
@@ -607,6 +621,7 @@ const s: Record<string, React.CSSProperties> = {
   storeBtnCity: { fontSize: 14, color: '#5a6472', marginTop: 1 },
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
   vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  pendingReqBadge: { background: '#b45309', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
   // ── Chat Panel ──
   chatPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
