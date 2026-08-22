@@ -86,14 +86,15 @@ export default function Chat() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data || [];
 
-  // Per-store unread breakdown — only relevant for the multi-store sidebar
-  // below (a single-store Store Manager has nowhere else it could be).
-  // Same combined number as the sidebar nav's own Chat badge, just split out
-  // per store so it's obvious which one actually has something unread.
+  // Per-store unread breakdown — only relevant once the multi-store sidebar
+  // below is actually visible (a single-store Store Manager has nowhere else
+  // it could be). Same combined number as the sidebar nav's own Chat badge,
+  // just split out per store so it's obvious which one actually has
+  // something unread.
   const { data: unreadByStoreData } = useQuery({
     queryKey: ['chat-unread-by-store'],
     queryFn: () => chatApi.getUnreadCountByStore(),
-    enabled: !isStoreManager,
+    enabled: !isStoreManager || stores.length > 1,
     refetchInterval: 30000,
   });
   const unreadByStore: Record<string, number> = unreadByStoreData?.data?.data || {};
@@ -180,8 +181,10 @@ export default function Chat() {
 
   return (
     <div style={s.container}>
-      {/* ── Sidebar ── */}
-      {!isStoreManager && (
+      {/* ── Sidebar — hidden only when there's nothing to pick: a single-store
+          Store Manager is auto-selected above. A Store Manager assigned to
+          more than one store still needs this to switch between them. ── */}
+      {(!isStoreManager || stores.length > 1) && (
         <div style={s.sidebar}>
           <div style={s.sidebarTop}>
             <div style={s.sidebarTitle}>Messages</div>

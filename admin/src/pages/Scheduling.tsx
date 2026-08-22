@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
@@ -44,27 +44,31 @@ export default function Scheduling() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isStoreManager = user?.role === 'STORE_MANAGER';
-  const managerStoreId = isStoreManager ? (user?.storeIds?.[0] ?? null) : null;
 
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(managerStoreId);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [addModal, setAddModal] = useState<{ day: string; shiftType: string } | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [activeTab, setActiveTab] = useState<'schedule' | 'requests'>('schedule');
 
   // ── Queries ──
-  // SuperAdmin+: fetch all stores for the sidebar selector
+  // getAccessible() returns every store for SuperAdmin+, and just the
+  // caller's own store(s) for a Store Manager — including a Store Manager
+  // with more than one assigned store, which getOne(storeIds[0]) (the old
+  // approach here) could never see past.
   const { data: storesData, isLoading: storesLoading } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storesApi.getAll(),
-    enabled: !isStoreManager,
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.getAccessible(),
   });
+  const stores: any[] = storesData?.data?.data || [];
 
-  // StoreManager: fetch just their own store for the header
-  const { data: myStoreData } = useQuery({
-    queryKey: ['store', managerStoreId],
-    queryFn: () => storesApi.getOne(managerStoreId!),
-    enabled: isStoreManager && !!managerStoreId,
-  });
+  // A Store Manager doesn't need to pick a store the way SuperAdmin+ does —
+  // auto-select their first one. They can still switch via the sidebar below
+  // if they manage more than one.
+  useEffect(() => {
+    if (isStoreManager && !selectedStoreId && (storesData?.data?.data?.length ?? 0) > 0) {
+      setSelectedStoreId(storesData!.data.data[0].id);
+    }
+  }, [isStoreManager, selectedStoreId, storesData]);
 
   const { data: scheduleData, isLoading: scheduleLoading, isError: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: ['schedule', selectedStoreId],
@@ -96,14 +100,15 @@ export default function Scheduling() {
     refetchInterval: 60000,
   });
 
-  // Per-store pending-request breakdown — only relevant for the multi-store
-  // sidebar below (a single-store manager has nowhere else it could be).
-  // Same combined number as the sidebar nav's own Scheduling badge, just
-  // split out per store so it's obvious which one actually needs a look.
+  // Per-store pending-request breakdown — only relevant once the multi-store
+  // sidebar below is actually visible (a single-store manager has nowhere
+  // else it could be). Same combined number as the sidebar nav's own
+  // Scheduling badge, just split out per store so it's obvious which one
+  // actually needs a look.
   const { data: pendingByStoreData } = useQuery({
     queryKey: ['schedule-pending-by-store'],
     queryFn: () => schedulingApi.getPendingCountByStore(),
-    enabled: !isStoreManager,
+    enabled: !isStoreManager || stores.length > 1,
     refetchInterval: 30000,
   });
   const pendingByStoreId: Record<string, number> = pendingByStoreData?.data?.data || {};
@@ -143,10 +148,6 @@ export default function Scheduling() {
   });
 
   // ── Data ──
-  // For SuperAdmin+: list from getAll. For StoreManager: single-item list from getOne.
-  const stores: any[] = isStoreManager
-    ? (myStoreData?.data?.data ? [myStoreData.data.data] : [])
-    : (storesData?.data?.data || []);
   const grouped: Record<string, any[]> = scheduleData?.data?.data?.grouped || {};
   const roster: any[] = rosterData?.data?.data?.roster || [];
   const todayDay: string = rosterData?.data?.data?.day || '';
@@ -211,8 +212,10 @@ export default function Scheduling() {
 
   return (
     <div style={s.page}>
-      {/* ── Sidebar — hidden for store managers (they only manage one store) ── */}
-      {!isStoreManager && <div style={s.sidebar}>
+      {/* ── Sidebar — hidden only when there's nothing to pick: a single-store
+          manager is auto-selected above. A Store Manager assigned to more
+          than one store still needs this to switch between them. ── */}
+      {(!isStoreManager || stores.length > 1) && <div style={s.sidebar}>
         <div style={s.sidebarTop}>
           <div style={s.sidebarTitle}>Scheduling</div>
           <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
