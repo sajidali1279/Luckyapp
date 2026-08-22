@@ -36,3 +36,6 @@ mobile/credentials/
 mobile/google-play-service-account.json
 .worktrees/
 .superpowers/
+
+# Confidential internal-only reference docs — NEVER commit
+docs/confidential/
