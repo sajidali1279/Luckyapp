@@ -69,10 +69,12 @@ export default function Customers() {
     enabled: isSuperAdmin,
   });
 
+  // Fetch regardless of which tab is active — otherwise the Disputes tab's
+  // own pending badge below reads 0 until the user has already clicked into
+  // it once, hiding the exact thing the sidebar's badge was pointing at.
   const { data: disputesData, isLoading: disputesLoading, isError: disputesError, refetch: refetchDisputes } = useQuery({
     queryKey: ['disputes', disputeStore, disputeStatus],
     queryFn: () => disputesApi.getAll({ storeId: disputeStore || undefined, status: disputeStatus || undefined }),
-    enabled: activeTab === 'disputes',
   });
 
   const toggleMutation = useMutation({

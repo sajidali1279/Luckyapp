@@ -56,9 +56,13 @@ export default function Transactions() {
 
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
 
-  // Filters
+  // Filters — default to Pending, since that's what the sidebar's own
+  // Transactions badge counts (Pending + Flagged combined; the status
+  // dropdown below is single-select so Pending is the closer match of the
+  // two, and Flagged rows are still visually called out via the row
+  // background/badge below once you're on the unfiltered "All Statuses" view).
   const [selectedStore, setSelectedStore] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [from, setFrom] = useState(monthAgoStr());
   const [to, setTo] = useState(todayStr());

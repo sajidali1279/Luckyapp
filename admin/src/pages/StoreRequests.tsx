@@ -194,10 +194,15 @@ export default function StoreRequests() {
   });
   const requests: StoreRequest[] = requestsData?.data?.data || [];
 
+  // Fetch Product/Stock data regardless of which tab is active (not just when
+  // that tab is selected) — otherwise the tab switcher's own pending badges
+  // below read as 0 until the user has already clicked into that tab once,
+  // which is exactly the "no linkage" gap the sidebar's combined badge count
+  // was supposed to point at.
   const { data: prData, isLoading: prLoading, isError: prIsError, refetch: refetchProducts } = useQuery({
     queryKey: ['product-requests', effectiveStoreId, prStatusFilter],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!, prStatusFilter || undefined),
-    enabled: !!effectiveStoreId && !isAllStores && activeTab === 'product',
+    enabled: !!effectiveStoreId && !isAllStores,
     refetchInterval: 15000,
   });
   const productRequests: ProductRequest[] = prData?.data?.data || [];
@@ -205,14 +210,14 @@ export default function StoreRequests() {
   const { data: stockData, isLoading: stockLoadingStore, isError: stockIsErrorStore, refetch: refetchStockStore } = useQuery({
     queryKey: ['stock-requests', effectiveStoreId, stockStatusFilter],
     queryFn: () => employeeRequestApi.getForStore(effectiveStoreId!, stockStatusFilter || undefined),
-    enabled: !!effectiveStoreId && !isAllStores && activeTab === 'stock',
+    enabled: !!effectiveStoreId && !isAllStores,
     refetchInterval: 15000,
   });
 
   const { data: stockAllData, isLoading: stockLoadingAll, isError: stockIsErrorAll, refetch: refetchStockAll } = useQuery({
     queryKey: ['stock-requests-all', stockStatusFilter],
     queryFn: () => employeeRequestApi.adminGetAll({ status: stockStatusFilter || undefined }),
-    enabled: isAllStores && activeTab === 'stock',
+    enabled: isAllStores,
     refetchInterval: 15000,
   });
 
@@ -417,6 +422,7 @@ export default function StoreRequests() {
                   title={isAllStores ? 'Select a single store to view this tab' : undefined}
                 >
                   🔔 Store Alerts
+                  {pending.length > 0 && <span style={s.tabBadge}>{pending.length}</span>}
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'stock' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('stock')}>
                   📦 Stock Requests

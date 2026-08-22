@@ -49,7 +49,10 @@ function downloadBillsCSV(invoices: any[]) {
 
 export default function Billing() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('stores');
+  // Default straight to the Monthly Bills tab, pre-filtered to Unpaid — the
+  // same thing the sidebar's own Billing badge is counting, so opening this
+  // page from that badge doesn't land on an unrelated tab/filter.
+  const [tab, setTab] = useState<Tab>('monthly');
   const [showSeedConfirm, setShowSeedConfirm] = useState(false);
   const [confirmDeleteChargeId, setConfirmDeleteChargeId] = useState<string | null>(null);
 
@@ -60,7 +63,13 @@ export default function Billing() {
 
   // ── Monthly billing state ────────────────────────────────────────────────────
   const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('unpaid');
+
+  const { data: billingPendingData } = useQuery({
+    queryKey: ['billing-pending-count'],
+    queryFn: () => billingApi.getPendingCount(),
+  });
+  const billingPendingCount: number = billingPendingData?.data?.data?.count ?? 0;
 
   // ── Settings state ───────────────────────────────────────────────────────────
   const [editingRate, setEditingRate] = useState(false);
@@ -325,7 +334,10 @@ export default function Billing() {
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <div style={s.tabs}>
         <button style={tab === 'stores' ? s.tabActive : s.tab} onClick={() => setTab('stores')}>🏪 Stores</button>
-        <button style={tab === 'monthly' ? s.tabActive : s.tab} onClick={() => setTab('monthly')}>🗓️ Monthly Bills</button>
+        <button style={tab === 'monthly' ? s.tabActive : s.tab} onClick={() => setTab('monthly')}>
+          🗓️ Monthly Bills
+          {billingPendingCount > 0 && <span style={s.tabBadge}>{billingPendingCount}</span>}
+        </button>
         <button style={tab === 'manual' ? s.tabActive : s.tab} onClick={() => setTab('manual')}>🧾 Manual Charges</button>
         <button style={tab === 'settings' ? s.tabActive : s.tab} onClick={() => setTab('settings')}>⚙️ Platform Settings</button>
       </div>
@@ -1478,6 +1490,11 @@ const s: Record<string, React.CSSProperties> = {
   tabs: { display: 'flex', gap: 6, marginBottom: 20 },
   tab: { padding: '9px 18px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6c757d' },
   tabActive: { padding: '9px 18px', background: '#1D3557', border: '1px solid #1D3557', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff' },
+  tabBadge: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
+    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+  },
 
   // Table
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },

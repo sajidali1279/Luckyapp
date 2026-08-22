@@ -26,6 +26,9 @@ export default function SuperAdminBilling() {
 
   const totalOutstanding = invoices.filter((i) => !i.isPaid).reduce((s: number, i: any) => s + i.totalDevCut, 0);
   const totalPaid = invoices.filter((i) => i.isPaid).reduce((s: number, i: any) => s + i.totalDevCut, 0);
+  // Unpaid-first so the invoice(s) actually needing action aren't buried
+  // below already-settled ones — matches the "Unpaid Total" card above it.
+  const sortedInvoices = [...invoices].sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
 
   return (
     <div style={s.page}>
@@ -77,7 +80,7 @@ export default function SuperAdminBilling() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.map((inv: any) => (
+              {sortedInvoices.map((inv: any) => (
                 <Fragment key={inv.period}>
                   <TableRow
                     style={{ ...s.tr, background: expanded === inv.period ? '#f0f4ff' : undefined }}

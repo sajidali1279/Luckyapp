@@ -73,9 +73,10 @@ type NavItem = {
 
 function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
   const location = useLocation();
+  const toPath = to.split('?')[0];
   const isActive = isEnd
-    ? location.pathname === to
-    : location.pathname === to || location.pathname.startsWith(to + '/');
+    ? location.pathname === toPath
+    : location.pathname === toPath || location.pathname.startsWith(toPath + '/');
 
   return (
     <SidebarMenuItem>
@@ -370,7 +371,7 @@ export function AppSidebar() {
                 <SidebarNavItem to="/staff" icon={<Users size={16} />} label="Staff" />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/customers" icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
+                <SidebarNavItem to={disputesPendingCount > 0 ? '/customers?tab=disputes' : '/customers'} icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (

@@ -1149,6 +1149,16 @@ export default function OrderListPage() {
   const canEdit        = isDevAdmin;
   const canClose       = isDevAdmin || isSuperAdmin;
 
+  // Same source of truth as the sidebar's own "Order List" badge — shown
+  // here too so the Categories tab isn't a blank guess when that badge
+  // pointed you at this page.
+  const { data: categoriesPendingData } = useQuery({
+    queryKey: ['categories-pending-count'],
+    queryFn: () => orderCategoriesApi.getPendingCount(),
+    enabled: isDevAdmin,
+  });
+  const categoriesPendingCount: number = categoriesPendingData?.data?.data?.count ?? 0;
+
   return (
     <div style={s.page}>
       <div style={s.pageHeader}>
@@ -1169,6 +1179,7 @@ export default function OrderListPage() {
         {isDevAdmin && (
           <button style={{ ...s.tab, ...(tab === 'categories' && s.tabActive) }} onClick={() => setTab('categories')}>
             Categories
+            {categoriesPendingCount > 0 && <span style={s.tabBadge}>{categoriesPendingCount}</span>}
           </button>
         )}
       </div>
@@ -1192,6 +1203,11 @@ const s: Record<string, React.CSSProperties> = {
   tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
   tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
   tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
+  tabBadge: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
+    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+  },
   tabContent: {},
 
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },

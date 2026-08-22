@@ -125,6 +125,10 @@ export default function Careers() {
   });
 
   const applications: Application[] = data?.data?.data?.applications ?? [];
+  // Same "new" definition the sidebar's own Careers badge counts by — shown
+  // here too so the Applications tab isn't a blank guess when that badge
+  // pointed you at this page.
+  const newAppCount = applications.filter(a => a.status === 'NEW').length;
   const total: number = data?.data?.data?.total ?? 0;
   const stores = storesData?.data?.data ?? [];
   const openings: JobOpening[] = openingsData?.data?.data ?? [];
@@ -226,6 +230,7 @@ export default function Careers() {
           <button key={tab} style={{ ...s.tab, ...(mainTab === tab ? s.tabActive : {}), fontSize: 16, padding: '9px 22px' }}
             onClick={() => setMainTab(tab)}>
             {tab === 'openings' ? '📋 Job Openings' : '📩 Applications'}
+            {tab === 'applications' && newAppCount > 0 && <span style={s.tabBadge}>{newAppCount}</span>}
           </button>
         ))}
       </div>
@@ -516,6 +521,11 @@ const s: Record<string, React.CSSProperties> = {
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
   tabActive: { background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557' },
+  tabBadge: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
+    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+  },
 
   filters: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
   select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, background: '#fff', cursor: 'pointer', minWidth: 180 },
