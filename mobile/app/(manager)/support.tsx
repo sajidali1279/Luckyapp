@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { supportApi } from '../../services/api';
-import { useAuthStore, isAdmin } from '../../store/authStore';
+import { useAuthStore, isStoreManagerOrAbove } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon, CheckCircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
@@ -357,13 +357,13 @@ export default function SupportScreen() {
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const qc = useQueryClient();
 
-  if (!isAdmin(user?.role)) {
+  if (!isStoreManagerOrAbove(user?.role)) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.center}>
           <HeadphonesIcon size={52} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyTitle}>Access Restricted</Text>
-          <Text style={s.emptyText}>Support is available to Admin roles only.</Text>
+          <Text style={s.emptyText}>Support is available to Store Managers and above.</Text>
         </View>
       </SafeAreaView>
     );

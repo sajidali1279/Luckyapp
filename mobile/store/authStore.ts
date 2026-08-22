@@ -129,3 +129,4 @@ export const useAuthStore = create<AuthState>((set) => ({
 export const isEmployee = (role?: UserRole) => ['EMPLOYEE', 'STORE_MANAGER', 'SUPER_ADMIN', 'DEV_ADMIN'].includes(role || '');
 export const isAdmin = (role?: UserRole) => ['SUPER_ADMIN', 'DEV_ADMIN'].includes(role || '');
 export const isDevAdmin = (role?: UserRole) => role === 'DEV_ADMIN';
+export const isStoreManagerOrAbove = (role?: UserRole) => ['STORE_MANAGER', 'SUPER_ADMIN', 'DEV_ADMIN'].includes(role || '');

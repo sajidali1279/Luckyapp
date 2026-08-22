@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
 import { notificationsApi, employeeRequestApi, productRequestApi, storeRequestApi, chatApi, supportApi, schedulingApi, disputeApi } from '../../services/api';
-import { useAuthStore, isAdmin } from '../../store/authStore';
+import { useAuthStore, isStoreManagerOrAbove } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
@@ -60,7 +60,7 @@ export default function ManagerLayout() {
   const { data: supportUnreadData } = useQuery({
     queryKey: ['support-unread'],
     queryFn: () => supportApi.getUnreadCount(),
-    enabled: isAdmin(user?.role),
+    enabled: isStoreManagerOrAbove(user?.role),
     refetchInterval: 30000,
   });
   const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
@@ -109,7 +109,7 @@ export default function ManagerLayout() {
       items: [
         { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />,        label: t('nav.alerts'), badge: unreadCount },
         { route: '/(manager)/leaderboard',   icon: (p) => <TrophyIcon {...p} />,     label: t('nav.staffRankings') },
-        ...(isAdmin(user?.role) ? [{ route: '/(manager)/support', icon: (p: any) => <HeadphonesIcon {...p} />, label: t('nav.support'), badge: supportUnread } as NavItem] : []),
+        ...(isStoreManagerOrAbove(user?.role) ? [{ route: '/(manager)/support', icon: (p: any) => <HeadphonesIcon {...p} />, label: t('nav.support'), badge: supportUnread } as NavItem] : []),
         { route: '/(manager)/guide',         icon: (p) => <BookOpenIcon {...p} />,   label: t('nav.guide') },
         { route: '/(manager)/profile',       icon: (p) => <UserIcon {...p} />,       label: t('nav.profile') },
       ],
