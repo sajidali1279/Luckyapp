@@ -21,7 +21,7 @@ export default function Notices() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isStoreManager = user?.role === 'STORE_MANAGER';
-  const ownStoreId = user?.storeIds?.[0];
+  const ownStoreIds: string[] = user?.storeIds || [];
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -71,13 +71,16 @@ export default function Notices() {
     if (!title.trim()) { toast.error('Title is required'); return; }
     if (!body.trim()) { toast.error('Notice text is required'); return; }
     if (!endDate) { toast.error('End date is required'); return; }
-    if (storeTarget === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
+    if (!isStoreManager && storeTarget === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
+    if (isStoreManager && ownStoreIds.length > 1 && !storeId) { toast.error('Select which of your stores'); return; }
 
     createMutation.mutate({
       title: title.trim(),
       body: body.trim(),
       endDate: new Date(endDate + 'T23:59:59').toISOString(),
-      ...(storeTarget === 'SPECIFIC_STORE' && storeId ? { storeId } : {}),
+      ...(isStoreManager
+        ? (ownStoreIds.length > 1 && storeId ? { storeId } : {})
+        : (storeTarget === 'SPECIFIC_STORE' && storeId ? { storeId } : {})),
     });
   }
 
@@ -130,10 +133,20 @@ export default function Notices() {
           <label style={s.label}>Expires *</label>
           <input style={{ ...s.input, maxWidth: 200 }} type="date" value={endDate} min={todayStr()} onChange={(e) => setEndDate(e.target.value)} />
 
-          {isStoreManager ? (
+          {isStoreManager && ownStoreIds.length <= 1 ? (
             <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
               📍 This notice will appear for your store only
             </div>
+          ) : isStoreManager ? (
+            <>
+              <label style={s.label}>Post To *</label>
+              <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                <option value="">-- Choose your store --</option>
+                {stores.map((store: any) => (
+                  <option key={store.id} value={store.id}>{store.name}{store.city ? ` — ${store.city}` : ''}</option>
+                ))}
+              </select>
+            </>
           ) : (
             <>
               <label style={s.label}>Apply To</label>
@@ -184,7 +197,7 @@ export default function Notices() {
                     <span style={s.tagDate}>Expires {fmtDate(notice.endDate)}</span>
                   </div>
                 </div>
-                {(!isStoreManager || notice.storeId === ownStoreId) && (
+                {(!isStoreManager || (notice.storeId && ownStoreIds.includes(notice.storeId))) && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {status.label === 'Active' && (
                       <button style={s.deactivateBtn} onClick={() => setConfirmDeactivateId(notice.id)}>Deactivate</button>

@@ -14,11 +14,15 @@ export async function createNotice(req: AuthRequest, res: Response) {
     return;
   }
 
-  // A Store Manager can only ever post a notice scoped to their own store
-  // — never a chain-wide one, regardless of what storeId was requested.
+  // A Store Manager can only ever post a notice scoped to one of their own
+  // stores — never chain-wide, and never a store they're not assigned to.
+  // Honor a requested storeId if it's genuinely one of theirs (a manager
+  // with more than one store picks which); otherwise fall back to their
+  // first store.
   let storeId: string | null = req.body.storeId || null;
   if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
-    const ownStoreId = user.storeIds?.[0];
+    const requested = req.body.storeId as string | undefined;
+    const ownStoreId = requested && user.storeIds?.includes(requested) ? requested : user.storeIds?.[0];
     if (!ownStoreId) { res.status(400).json({ success: false, error: 'No store assigned to your account' }); return; }
     storeId = ownStoreId;
   }

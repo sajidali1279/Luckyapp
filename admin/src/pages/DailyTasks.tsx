@@ -41,7 +41,7 @@ export default function DailyTasks() {
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isStoreManager = user?.role === 'STORE_MANAGER';
-  const ownStoreId = user?.storeIds?.[0];
+  const ownStoreIds: string[] = user?.storeIds || [];
   const qc = useQueryClient();
 
   const [scopeFilter, setScopeFilter] = useState<string>('global');
@@ -94,7 +94,9 @@ export default function DailyTasks() {
 
   function openAdd() {
     setEditTask(null);
-    setForm({ ...EMPTY_FORM, storeId: isStoreManager ? (ownStoreId || '') : (scopeFilter === 'global' ? '' : scopeFilter) });
+    // Single-store manager: locked to their one store. Multi-store manager:
+    // no default — they must pick which of their stores in the modal below.
+    setForm({ ...EMPTY_FORM, storeId: isStoreManager ? (ownStoreIds.length === 1 ? ownStoreIds[0] : '') : (scopeFilter === 'global' ? '' : scopeFilter) });
     setModalOpen(true);
   }
 
@@ -108,6 +110,7 @@ export default function DailyTasks() {
 
   function handleSave() {
     if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (isStoreManager && ownStoreIds.length > 1 && !form.storeId) { toast.error('Select which of your stores'); return; }
     if (editTask) updateMutation.mutate({ id: editTask.id, d: form });
     else createMutation.mutate(form);
   }
@@ -211,7 +214,7 @@ export default function DailyTasks() {
                             <span style={s.storeBadge}>🏪 {task.store.name}</span>
                           )}
                         </div>
-                        {(!isStoreManager || task.storeId === ownStoreId) && (
+                        {(!isStoreManager || (task.storeId !== null && ownStoreIds.includes(task.storeId))) && (
                           <div style={s.taskActions}>
                             <button style={s.editBtn} onClick={() => openEdit(task)} title="Edit">
                               <Pencil size={13} />
@@ -258,10 +261,18 @@ export default function DailyTasks() {
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             />
 
-            {isStoreManager ? (
+            {isStoreManager && ownStoreIds.length <= 1 ? (
               <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 14, color: '#1D3557', fontWeight: 600, marginTop: 14 }}>
                 📍 This task will apply to your store only
               </div>
+            ) : isStoreManager ? (
+              <>
+                <label style={s.fieldLabel}>Store</label>
+                <select style={s.input} value={form.storeId} onChange={e => setForm(f => ({ ...f, storeId: e.target.value }))}>
+                  <option value="">-- Choose your store --</option>
+                  {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                </select>
+              </>
             ) : (
               <>
                 <label style={s.fieldLabel}>Store (leave blank for all stores)</label>

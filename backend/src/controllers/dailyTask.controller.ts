@@ -63,11 +63,13 @@ export async function adminGetTasks(req: AuthRequest, res: Response) {
     const { storeId } = req.query;
 
     // A Store Manager (below SuperAdmin) can only ever see chain-wide tasks
-    // plus their own store's — ignore any other storeId they pass.
+    // plus their own store(s)' — ignore any other storeId they pass. Uses
+    // the manager's FULL store list, not just the first one, so a manager
+    // assigned to more than one store sees all of them.
     if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
-      const ownStoreId = (user as any).storeIds?.[0];
+      const ownStoreIds: string[] = (user as any).storeIds || [];
       const tasks = await prisma.dailyTask.findMany({
-        where: { OR: [{ storeId: null }, ...(ownStoreId ? [{ storeId: ownStoreId }] : [])] },
+        where: { OR: [{ storeId: null }, ...(ownStoreIds.length ? [{ storeId: { in: ownStoreIds } }] : [])] },
         include: { store: { select: { id: true, name: true } } },
         orderBy: [{ shift: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
       });
@@ -97,11 +99,15 @@ export async function createTask(req: AuthRequest, res: Response) {
     const { shift, title, description, sortOrder } = req.body;
     if (!shift || !title) return res.status(400).json({ error: 'shift and title are required' });
 
-    // A Store Manager can only ever create a task scoped to their own store
-    // — never a chain-wide one, regardless of what storeId was requested.
+    // A Store Manager can only ever create a task scoped to one of their own
+    // stores — never chain-wide, and never a store they're not assigned to.
+    // Honors a requested storeId if it's genuinely theirs (a manager with
+    // more than one store picks which); otherwise falls back to their first.
     let storeId: string | null = req.body.storeId || null;
     if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
-      const ownStoreId = (user as any).storeIds?.[0];
+      const ownStoreIds: string[] = (user as any).storeIds || [];
+      const requested = req.body.storeId as string | undefined;
+      const ownStoreId = requested && ownStoreIds.includes(requested) ? requested : ownStoreIds[0];
       if (!ownStoreId) return res.status(400).json({ error: 'No store assigned to your account' });
       storeId = ownStoreId;
     }
@@ -126,8 +132,8 @@ export async function updateTask(req: AuthRequest, res: Response) {
     if (!isAdmin) {
       const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
       if (!existing) return res.status(404).json({ error: 'Task not found' });
-      const ownStoreId = (user as any).storeIds?.[0];
-      if (existing.storeId === null || existing.storeId !== ownStoreId) {
+      const ownStoreIds: string[] = (user as any).storeIds || [];
+      if (existing.storeId === null || !ownStoreIds.includes(existing.storeId)) {
         return res.status(403).json({ error: 'You can only edit your own store\'s tasks' });
       }
     }
@@ -161,8 +167,8 @@ export async function deleteTask(req: AuthRequest, res: Response) {
     if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
       const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
       if (!existing) return res.status(404).json({ error: 'Task not found' });
-      const ownStoreId = (user as any).storeIds?.[0];
-      if (existing.storeId === null || existing.storeId !== ownStoreId) {
+      const ownStoreIds: string[] = (user as any).storeIds || [];
+      if (existing.storeId === null || !ownStoreIds.includes(existing.storeId)) {
         return res.status(403).json({ error: 'You can only delete your own store\'s tasks' });
       }
     }
