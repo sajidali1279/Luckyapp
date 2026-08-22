@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { Role } from '@prisma/client';
+import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreManagers } from '../utils/push';
 
@@ -86,11 +88,21 @@ export async function getTodayReports(req: AuthRequest, res: Response) {
 
 // GET /daily-reports?storeId=xxx&date=YYYY-MM-DD  (manager view — any date)
 export async function getReportsByDate(req: AuthRequest, res: Response) {
+  const user = req.user!;
   const { storeId, date } = req.query as { storeId?: string; date?: string };
 
   const where: any = {};
-  if (storeId) where.storeId = storeId;
-  if (date)    where.reportDate = date;
+  if (date) where.reportDate = date;
+
+  // A Store Manager (below SuperAdmin) can only ever see their own store's
+  // reports — ignore any other storeId they pass and fall back to their own.
+  if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
+    if (storeId) where.storeId = storeId;
+  } else {
+    const ownStoreId = storeId && (user as any).storeIds?.includes(storeId) ? storeId : (user as any).storeIds?.[0];
+    if (!ownStoreId) { res.status(400).json({ success: false, error: 'No store assigned to your account' }); return; }
+    where.storeId = ownStoreId;
+  }
 
   const reports = await prisma.dailyReport.findMany({
     where,

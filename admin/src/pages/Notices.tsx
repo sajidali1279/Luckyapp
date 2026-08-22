@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { noticesApi, storesApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -18,6 +19,9 @@ function noticeStatus(notice: any): { label: string; color: string; bg: string }
 
 export default function Notices() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isStoreManager = user?.role === 'STORE_MANAGER';
+  const ownStoreId = user?.storeIds?.[0];
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -32,7 +36,7 @@ export default function Notices() {
     queryFn: () => noticesApi.getAll(),
   });
 
-  const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  const { data: storesData } = useQuery({ queryKey: ['accessible-stores'], queryFn: () => storesApi.getAccessible() });
   const stores: any[] = storesData?.data?.data || [];
 
   const createMutation = useMutation({
@@ -126,20 +130,28 @@ export default function Notices() {
           <label style={s.label}>Expires *</label>
           <input style={{ ...s.input, maxWidth: 200 }} type="date" value={endDate} min={todayStr()} onChange={(e) => setEndDate(e.target.value)} />
 
-          <label style={s.label}>Apply To</label>
-          <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-            <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
-            <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-          </select>
-          {storeTarget === 'SPECIFIC_STORE' && (
+          {isStoreManager ? (
+            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
+              📍 This notice will appear for your store only
+            </div>
+          ) : (
             <>
-              <label style={s.label}>Select Store *</label>
-              <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">-- Choose a store --</option>
-                {stores.map((store: any) => (
-                  <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
-                ))}
+              <label style={s.label}>Apply To</label>
+              <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
+                <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
+                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
               </select>
+              {storeTarget === 'SPECIFIC_STORE' && (
+                <>
+                  <label style={s.label}>Select Store *</label>
+                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                    <option value="">-- Choose a store --</option>
+                    {stores.map((store: any) => (
+                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </>
           )}
 
@@ -172,12 +184,14 @@ export default function Notices() {
                     <span style={s.tagDate}>Expires {fmtDate(notice.endDate)}</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {status.label === 'Active' && (
-                    <button style={s.deactivateBtn} onClick={() => setConfirmDeactivateId(notice.id)}>Deactivate</button>
-                  )}
-                  <button style={s.deleteBtn} onClick={() => setConfirmDeleteId(notice.id)}>Delete</button>
-                </div>
+                {(!isStoreManager || notice.storeId === ownStoreId) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {status.label === 'Active' && (
+                      <button style={s.deactivateBtn} onClick={() => setConfirmDeactivateId(notice.id)}>Deactivate</button>
+                    )}
+                    <button style={s.deleteBtn} onClick={() => setConfirmDeleteId(notice.id)}>Delete</button>
+                  </div>
+                )}
               </div>
             );
           })}

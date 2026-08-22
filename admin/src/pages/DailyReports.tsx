@@ -151,8 +151,8 @@ export default function DailyReports() {
   const [date, setDate] = useState(todayStr());
 
   const { data: storesData } = useQuery({
-    queryKey: ['stores'],
-    queryFn: storesApi.getAll,
+    queryKey: ['accessible-stores'],
+    queryFn: storesApi.getAccessible,
   });
   const stores: Store[] = storesData?.data?.data ?? [];
   const storeMap = useMemo(() => Object.fromEntries(stores.map(s => [s.id, s.name])), [stores]);

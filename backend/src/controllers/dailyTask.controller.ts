@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import { ShiftType } from '@prisma/client';
+import { ShiftType, Role } from '@prisma/client';
 import prisma from '../config/prisma';
+import { AuthRequest } from '../types';
+import { hasMinRole } from '../middleware/auth';
 
 const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sortOrder: number }[] = [
   // ── Opening (Morning Shift) ──
@@ -55,9 +57,24 @@ export async function getTasks(req: Request, res: Response) {
 }
 
 // GET /admin/daily-tasks?storeId=xxx|global  — admin panel
-export async function adminGetTasks(req: Request, res: Response) {
+export async function adminGetTasks(req: AuthRequest, res: Response) {
   try {
+    const user = req.user!;
     const { storeId } = req.query;
+
+    // A Store Manager (below SuperAdmin) can only ever see chain-wide tasks
+    // plus their own store's — ignore any other storeId they pass.
+    if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
+      const ownStoreId = (user as any).storeIds?.[0];
+      const tasks = await prisma.dailyTask.findMany({
+        where: { OR: [{ storeId: null }, ...(ownStoreId ? [{ storeId: ownStoreId }] : [])] },
+        include: { store: { select: { id: true, name: true } } },
+        orderBy: [{ shift: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+      });
+      res.json({ data: tasks });
+      return;
+    }
+
     const tasks = await prisma.dailyTask.findMany({
       where: storeId === 'global'
         ? { storeId: null }
@@ -74,12 +91,23 @@ export async function adminGetTasks(req: Request, res: Response) {
 }
 
 // POST /admin/daily-tasks
-export async function createTask(req: Request, res: Response) {
+export async function createTask(req: AuthRequest, res: Response) {
   try {
-    const { shift, title, description, storeId, sortOrder } = req.body;
+    const user = req.user!;
+    const { shift, title, description, sortOrder } = req.body;
     if (!shift || !title) return res.status(400).json({ error: 'shift and title are required' });
+
+    // A Store Manager can only ever create a task scoped to their own store
+    // — never a chain-wide one, regardless of what storeId was requested.
+    let storeId: string | null = req.body.storeId || null;
+    if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
+      const ownStoreId = (user as any).storeIds?.[0];
+      if (!ownStoreId) return res.status(400).json({ error: 'No store assigned to your account' });
+      storeId = ownStoreId;
+    }
+
     const task = await prisma.dailyTask.create({
-      data: { shift, title: title.trim(), description: description?.trim() || null, storeId: storeId || null, sortOrder: sortOrder ?? 0 },
+      data: { shift, title: title.trim(), description: description?.trim() || null, storeId, sortOrder: sortOrder ?? 0 },
       include: { store: { select: { id: true, name: true } } },
     });
     res.status(201).json({ data: task });
@@ -89,9 +117,21 @@ export async function createTask(req: Request, res: Response) {
 }
 
 // PATCH /admin/daily-tasks/:id
-export async function updateTask(req: Request, res: Response) {
+export async function updateTask(req: AuthRequest, res: Response) {
   try {
+    const user = req.user!;
     const { id } = req.params;
+    const isAdmin = hasMinRole(user.role, Role.SUPER_ADMIN);
+
+    if (!isAdmin) {
+      const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
+      if (!existing) return res.status(404).json({ error: 'Task not found' });
+      const ownStoreId = (user as any).storeIds?.[0];
+      if (existing.storeId === null || existing.storeId !== ownStoreId) {
+        return res.status(403).json({ error: 'You can only edit your own store\'s tasks' });
+      }
+    }
+
     const { shift, title, description, storeId, sortOrder, isActive } = req.body;
     const task = await prisma.dailyTask.update({
       where: { id },
@@ -99,7 +139,8 @@ export async function updateTask(req: Request, res: Response) {
         ...(shift && { shift }),
         ...(title && { title: title.trim() }),
         ...(description !== undefined && { description: description?.trim() || null }),
-        ...(storeId !== undefined && { storeId: storeId || null }),
+        // A Store Manager can't reassign a task away from their own store.
+        ...(isAdmin && storeId !== undefined && { storeId: storeId || null }),
         ...(sortOrder !== undefined && { sortOrder }),
         ...(isActive !== undefined && { isActive }),
       },
@@ -112,9 +153,21 @@ export async function updateTask(req: Request, res: Response) {
 }
 
 // DELETE /admin/daily-tasks/:id
-export async function deleteTask(req: Request, res: Response) {
+export async function deleteTask(req: AuthRequest, res: Response) {
   try {
-    await prisma.dailyTask.delete({ where: { id: req.params.id } });
+    const user = req.user!;
+    const { id } = req.params;
+
+    if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
+      const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
+      if (!existing) return res.status(404).json({ error: 'Task not found' });
+      const ownStoreId = (user as any).storeIds?.[0];
+      if (existing.storeId === null || existing.storeId !== ownStoreId) {
+        return res.status(403).json({ error: 'You can only delete your own store\'s tasks' });
+      }
+    }
+
+    await prisma.dailyTask.delete({ where: { id } });
     res.json({ message: 'Deleted' });
   } catch (e) {
     res.status(500).json({ error: 'Failed to delete task' });

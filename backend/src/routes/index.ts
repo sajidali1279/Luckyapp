@@ -350,10 +350,10 @@ router.post('/chat/:storeId/messages', authenticate, sendMessage);              
 
 // ─── Redemption Catalog ───────────────────────────────────────────────────────
 router.get('/catalog', authenticate, getCatalog);
-router.get('/catalog/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllCatalog);
-router.post('/catalog', authenticate, requireRole(Role.SUPER_ADMIN), createCatalogItem);
-router.patch('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateCatalogItem);
-router.delete('/catalog/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteCatalogItem);
+router.get('/catalog/all', authenticate, requireRole(Role.STORE_MANAGER), getAllCatalog);
+router.post('/catalog', authenticate, requireRole(Role.STORE_MANAGER), createCatalogItem);
+router.patch('/catalog/:id', authenticate, requireRole(Role.STORE_MANAGER), updateCatalogItem);
+router.delete('/catalog/:id', authenticate, requireRole(Role.STORE_MANAGER), deleteCatalogItem);
 // Customer-initiated redemption (hold + 30-min expiry)
 router.post('/catalog/redeem', authenticate, customerInitiateRedemption);
 router.get('/catalog/my-redemptions', authenticate, getMyRedemptions);
@@ -372,12 +372,12 @@ router.post('/promotions/:id/publish', authenticate, requireRole(Role.DEV_ADMIN)
 router.patch('/promotions/:id/reject', authenticate, requireRole(Role.DEV_ADMIN), rejectPromotion);                              // DevAdmin rejects
 router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), deletePromotion);                                    // DevAdmin deletes
 
-// ─── Support (SuperAdmin → DevAdmin) ─────────────────────────────────────────
-router.post('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), createThread);
-router.get('/support/threads', authenticate, requireRole(Role.SUPER_ADMIN), getThreads);
-router.get('/support/unread-count', authenticate, requireRole(Role.SUPER_ADMIN), getSupportUnreadCount);
-router.get('/support/threads/:threadId', authenticate, requireRole(Role.SUPER_ADMIN), getThread);
-router.post('/support/threads/:threadId/messages', authenticate, requireRole(Role.SUPER_ADMIN), sendSupportMessage);
+// ─── Support (StoreManager+ submit/view own threads → DevAdmin inbox) ────────
+router.post('/support/threads', authenticate, requireRole(Role.STORE_MANAGER), createThread);
+router.get('/support/threads', authenticate, requireRole(Role.STORE_MANAGER), getThreads);
+router.get('/support/unread-count', authenticate, requireRole(Role.STORE_MANAGER), getSupportUnreadCount);
+router.get('/support/threads/:threadId', authenticate, requireRole(Role.STORE_MANAGER), getThread);
+router.post('/support/threads/:threadId/messages', authenticate, requireRole(Role.STORE_MANAGER), sendSupportMessage);
 router.patch('/support/threads/:threadId/resolve', authenticate, requireRole(Role.DEV_ADMIN), resolveThread);
 // DevAdmin also needs to read threads and send messages
 router.get('/support/inbox', authenticate, requireRole(Role.DEV_ADMIN), getThreads);
@@ -514,22 +514,22 @@ router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRol
 // ─── Daily Reports ────────────────────────────────────────────────────────────
 router.post('/daily-reports',       authenticate, requireRole(Role.EMPLOYEE), upload.single('image'), createReport);
 router.get('/daily-reports/today',  authenticate, requireRole(Role.EMPLOYEE), getTodayReports);
-router.get('/daily-reports',        authenticate, requireRole(Role.SUPER_ADMIN), getReportsByDate);
+router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER), getReportsByDate);
 
 // ─── Daily Tasks ──────────────────────────────────────────────────────────────
 router.get('/daily-tasks',               authenticate, getTasks);
-router.get('/admin/daily-tasks',         authenticate, requireRole(Role.SUPER_ADMIN), adminGetTasks);
+router.get('/admin/daily-tasks',         authenticate, requireRole(Role.STORE_MANAGER), adminGetTasks);
 router.post('/admin/daily-tasks/seed',   authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
-router.post('/admin/daily-tasks',        authenticate, requireRole(Role.SUPER_ADMIN), createTask);
-router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.SUPER_ADMIN), updateTask);
-router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteTask);
+router.post('/admin/daily-tasks',        authenticate, requireRole(Role.STORE_MANAGER), createTask);
+router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.STORE_MANAGER), updateTask);
+router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.STORE_MANAGER), deleteTask);
 
 // ─── Admin Notices (HQ broadcast → pinned banner in store chat) ──────────────
 router.get('/notices/active',        authenticate, requireRole(Role.EMPLOYEE),    getActiveNotices);
-router.get('/admin/notices',         authenticate, requireRole(Role.SUPER_ADMIN), getAllNotices);
-router.post('/admin/notices',        authenticate, requireRole(Role.SUPER_ADMIN), createNotice);
-router.patch('/admin/notices/:id',   authenticate, requireRole(Role.SUPER_ADMIN), deactivateNotice);
-router.delete('/admin/notices/:id',  authenticate, requireRole(Role.SUPER_ADMIN), deleteNotice);
+router.get('/admin/notices',         authenticate, requireRole(Role.STORE_MANAGER), getAllNotices);
+router.post('/admin/notices',        authenticate, requireRole(Role.STORE_MANAGER), createNotice);
+router.patch('/admin/notices/:id',   authenticate, requireRole(Role.STORE_MANAGER), deactivateNotice);
+router.delete('/admin/notices/:id',  authenticate, requireRole(Role.STORE_MANAGER), deleteNotice);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────
 // Scoped to this one route (not app.use('/api/disputes', ...)) so it only limits

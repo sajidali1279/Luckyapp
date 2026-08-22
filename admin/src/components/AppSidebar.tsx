@@ -123,7 +123,6 @@ export function AppSidebar() {
 
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const isStoreManager = user?.role === 'STORE_MANAGER';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
   const roleLabel = ROLE_LABELS[user?.role || ''] || user?.role || '';
   const avatarColor = ROLE_COLOR[user?.role || ''] || 'oklch(0.50 0.22 27)';
@@ -346,12 +345,8 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" />
               <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
-              {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
-              )}
-              {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
-              )}
+              <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
+              <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
               {isDevAdmin && (
                 <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" badge={promotionsPendingCount} />
               )}
@@ -398,12 +393,8 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" badge={transactionsPendingCount} />
-              {!isStoreManager && (
-                <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
-              )}
-              {!isStoreManager && (
-                <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
-              )}
+              <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
+              <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
                   <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Tier Rates" />
@@ -438,14 +429,22 @@ export function AppSidebar() {
                     label="Notifications"
                     badge={unreadCount}
                   />
-                  {(isDevAdmin || isSuperAdmin) && (
-                    <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" badge={supportUnread} />
-                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           </>
         )}
+
+        <SidebarSeparator />
+
+        {/* Support — StoreManager+ (submits/views own tickets; DevAdmin gets the full inbox) */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarNavItem to="/support" icon={<Headphones size={16} />} label="Support" badge={supportUnread} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         <SidebarSeparator />
 

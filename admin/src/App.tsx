@@ -123,10 +123,16 @@ export default function App() {
               <Route path="/store-requests" element={<StoreRequests />} />
               <Route path="/scanned-products" element={<ScannedProducts />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
-              {/* Labels accessible to StoreManager+ — mirrors their existing full mobile access */}
+              {/* Labels, Notices, Catalog, Daily Reports, Daily Tasks, and Support are all
+                  accessible to StoreManager+ — mirrors mobile access / backend endpoints that
+                  already scope down to the caller's own store for anyone below SuperAdmin. */}
               <Route path="/labels" element={<Labels />} />
+              <Route path="/notices" element={<Notices />} />
+              <Route path="/catalog" element={<Catalog />} />
+              <Route path="/daily-reports" element={<DailyReports />} />
+              <Route path="/daily-tasks" element={<DailyTasks />} />
+              <Route path="/support" element={<Support />} />
               <Route element={<SuperAdminOnly />}>
-                <Route path="/notices" element={<Notices />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/hot-food" element={<HotFood />} />
                 <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
@@ -135,16 +141,12 @@ export default function App() {
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/rates" element={<Rates />} />
-                <Route path="/support" element={<Support />} />
                 <Route path="/stores" element={<Stores />} />
                 <Route path="/activity" element={<ActivityLog />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
-                <Route path="/daily-reports" element={<DailyReports />} />
-                <Route path="/daily-tasks" element={<DailyTasks />} />
-                {/* Catalog/Careers: write endpoints are SuperAdmin+ only server-side; this route
-                    gate was previously missing, letting a Store Manager reach the page directly
-                    by URL and see fully-enabled buttons that would 403 on click. */}
-                <Route path="/catalog" element={<Catalog />} />
+                {/* Careers: write endpoints are SuperAdmin+ only server-side; this route gate
+                    was previously missing, letting a Store Manager reach the page directly by
+                    URL and see fully-enabled buttons that would 403 on click. */}
                 <Route path="/careers" element={<Careers />} />
                 {/* Order List admin view is a cross-store browsing/reporting tool backed by a
                     SuperAdmin-only endpoint (/order-lists/admin/all) — a Store Manager's real

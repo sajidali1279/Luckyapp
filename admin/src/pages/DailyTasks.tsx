@@ -40,6 +40,8 @@ const EMPTY_FORM = { shift: 'OPENING' as Shift, title: '', description: '', stor
 export default function DailyTasks() {
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isStoreManager = user?.role === 'STORE_MANAGER';
+  const ownStoreId = user?.storeIds?.[0];
   const qc = useQueryClient();
 
   const [scopeFilter, setScopeFilter] = useState<string>('global');
@@ -50,15 +52,18 @@ export default function DailyTasks() {
   const [confirmSeed, setConfirmSeed] = useState(false);
 
   const { data: storesData } = useQuery({
-    queryKey: ['stores-list'],
-    queryFn: () => storesApi.getAll(),
+    queryKey: ['accessible-stores'],
+    queryFn: () => storesApi.getAccessible(),
     staleTime: 10 * 60_000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
 
+  // A Store Manager always gets chain-wide + their own store's tasks combined
+  // (the backend ignores any storeId filter for that role) — the scope
+  // filter dropdown below is SuperAdmin+ only, so its value doesn't matter here.
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['daily-tasks-admin', scopeFilter],
-    queryFn: () => dailyTaskApi.getAll(scopeFilter === 'global' ? 'global' : scopeFilter || undefined),
+    queryKey: ['daily-tasks-admin', isStoreManager ? 'mine' : scopeFilter],
+    queryFn: () => dailyTaskApi.getAll(isStoreManager ? undefined : (scopeFilter === 'global' ? 'global' : scopeFilter || undefined)),
   });
   const tasks: DailyTask[] = data?.data?.data ?? [];
 
@@ -89,7 +94,7 @@ export default function DailyTasks() {
 
   function openAdd() {
     setEditTask(null);
-    setForm({ ...EMPTY_FORM, storeId: scopeFilter === 'global' ? '' : scopeFilter });
+    setForm({ ...EMPTY_FORM, storeId: isStoreManager ? (ownStoreId || '') : (scopeFilter === 'global' ? '' : scopeFilter) });
     setModalOpen(true);
   }
 
@@ -155,14 +160,16 @@ export default function DailyTasks() {
         </div>
       </div>
 
-      {/* Scope filter */}
-      <div style={s.filterRow}>
-        <label style={s.filterLabel}>Showing tasks for:</label>
-        <select style={s.select} value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
-          <option value="global">🌐 All Stores (Chain-wide)</option>
-          {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
-        </select>
-      </div>
+      {/* Scope filter — StoreManager always sees chain-wide + their own store combined */}
+      {!isStoreManager && (
+        <div style={s.filterRow}>
+          <label style={s.filterLabel}>Showing tasks for:</label>
+          <select style={s.select} value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
+            <option value="global">🌐 All Stores (Chain-wide)</option>
+            {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {/* Content */}
       {isError ? (
@@ -204,14 +211,16 @@ export default function DailyTasks() {
                             <span style={s.storeBadge}>🏪 {task.store.name}</span>
                           )}
                         </div>
-                        <div style={s.taskActions}>
-                          <button style={s.editBtn} onClick={() => openEdit(task)} title="Edit">
-                            <Pencil size={13} />
-                          </button>
-                          <button style={s.deleteBtn} onClick={() => setDeleteId(task.id)} title="Delete">
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
+                        {(!isStoreManager || task.storeId === ownStoreId) && (
+                          <div style={s.taskActions}>
+                            <button style={s.editBtn} onClick={() => openEdit(task)} title="Edit">
+                              <Pencil size={13} />
+                            </button>
+                            <button style={s.deleteBtn} onClick={() => setDeleteId(task.id)} title="Delete">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -249,11 +258,19 @@ export default function DailyTasks() {
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             />
 
-            <label style={s.fieldLabel}>Store (leave blank for all stores)</label>
-            <select style={s.input} value={form.storeId} onChange={e => setForm(f => ({ ...f, storeId: e.target.value }))}>
-              <option value="">🌐 All Stores (Chain-wide)</option>
-              {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
-            </select>
+            {isStoreManager ? (
+              <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 14, color: '#1D3557', fontWeight: 600, marginTop: 14 }}>
+                📍 This task will apply to your store only
+              </div>
+            ) : (
+              <>
+                <label style={s.fieldLabel}>Store (leave blank for all stores)</label>
+                <select style={s.input} value={form.storeId} onChange={e => setForm(f => ({ ...f, storeId: e.target.value }))}>
+                  <option value="">🌐 All Stores (Chain-wide)</option>
+                  {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                </select>
+              </>
+            )}
 
             <div style={s.modalFooter}>
               <button style={s.cancelBtn} onClick={closeModal}>Cancel</button>
