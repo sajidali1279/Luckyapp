@@ -14,23 +14,21 @@ export interface Notice {
   storeId: string | null;
 }
 
-export function usePinnedNotice(storeId: string | null | undefined) {
-  const { data } = useQuery({
-    queryKey: ['active-notices'],
-    queryFn: () => noticesApi.getActive(),
-    staleTime: 60_000,
-  });
-  const allNotices: Notice[] = data?.data?.data || [];
-  const relevantNotices = allNotices.filter((n) => !n.storeId || n.storeId === storeId);
+// Gas-price-update notices (auto-created by updateGasPrices on the backend)
+// get their own dedicated home-screen card instead of the generic pinned
+// banner — this prefix is how we tell them apart from a normal admin notice.
+const GAS_PRICE_TITLE_PREFIX = '⛽ Gas Prices Updated';
+function isGasPriceNotice(title: string) {
+  return title.startsWith(GAS_PRICE_TITLE_PREFIX);
+}
 
+function useDismissedNoticeIds() {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     AsyncStorage.getItem(DISMISSED_NOTICES_KEY).then((raw) => {
       if (raw) { try { setDismissedIds(new Set(JSON.parse(raw))); } catch {} }
     });
   }, []);
-
-  const notice = relevantNotices.find((n) => !dismissedIds.has(n.id)) || null;
 
   function dismiss(id: string) {
     setDismissedIds((prev) => {
@@ -40,6 +38,42 @@ export function usePinnedNotice(storeId: string | null | undefined) {
       return next;
     });
   }
+
+  return { dismissedIds, dismiss };
+}
+
+export function usePinnedNotice(storeId: string | null | undefined) {
+  const { data } = useQuery({
+    queryKey: ['active-notices'],
+    queryFn: () => noticesApi.getActive(),
+    staleTime: 60_000,
+  });
+  const allNotices: Notice[] = data?.data?.data || [];
+  const relevantNotices = allNotices.filter(
+    (n) => (!n.storeId || n.storeId === storeId) && !isGasPriceNotice(n.title)
+  );
+
+  const { dismissedIds, dismiss } = useDismissedNoticeIds();
+  const notice = relevantNotices.find((n) => !dismissedIds.has(n.id)) || null;
+
+  return { notice, dismiss };
+}
+
+/** Gas-price-update notices for this store, surfaced separately so the home
+ * screen can show them as their own dedicated "acknowledge" card. */
+export function useGasPriceNotice(storeId: string | null | undefined) {
+  const { data } = useQuery({
+    queryKey: ['active-notices'],
+    queryFn: () => noticesApi.getActive(),
+    staleTime: 60_000,
+  });
+  const allNotices: Notice[] = data?.data?.data || [];
+  const relevantNotices = allNotices.filter(
+    (n) => n.storeId === storeId && isGasPriceNotice(n.title)
+  );
+
+  const { dismissedIds, dismiss } = useDismissedNoticeIds();
+  const notice = relevantNotices.find((n) => !dismissedIds.has(n.id)) || null;
 
   return { notice, dismiss };
 }
@@ -74,7 +108,50 @@ export default function NoticeBanner({ notice, onDismiss }: { notice: Notice; on
   );
 }
 
+/** Dedicated home-screen card for a pending gas/diesel price update — more
+ * prominent than the generic pinned notice banner, with an explicit
+ * Acknowledge action instead of a small dismiss X. */
+export function GasPriceNoticeCard({ notice, onAcknowledge }: { notice: Notice; onAcknowledge: () => void }) {
+  return (
+    <View style={s.gasCard}>
+      <View style={s.gasIconWrap}>
+        <Text style={{ fontSize: 20 }}>⛽</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.gasTitle}>Gas Price Change Requested</Text>
+        <Text style={s.gasBody}>{notice.body}</Text>
+        <TouchableOpacity
+          style={s.gasAckBtn}
+          onPress={onAcknowledge}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Acknowledge gas price change"
+        >
+          <Text style={s.gasAckBtnText}>Acknowledge</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  gasCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca',
+    borderRadius: 14, padding: 14, marginHorizontal: 16, marginTop: 12,
+  },
+  gasIconWrap: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#fee2e2',
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  gasTitle: { fontSize: 14, fontWeight: '800', color: '#991b1b', marginBottom: 3 },
+  gasBody: { fontSize: 13, color: '#7f1d1d', lineHeight: 18, marginBottom: 10 },
+  gasAckBtn: {
+    alignSelf: 'flex-start', backgroundColor: '#dc2626',
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10,
+  },
+  gasAckBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
   noticeBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: '#fffbeb', borderBottomWidth: 1, borderBottomColor: '#fde68a',

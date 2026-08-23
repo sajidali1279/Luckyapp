@@ -14,7 +14,7 @@ import {
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
   BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
-import NoticeBanner, { usePinnedNotice } from '../../components/NoticeBanner';
+import NoticeBanner, { usePinnedNotice, useGasPriceNotice, GasPriceNoticeCard } from '../../components/NoticeBanner';
 import DashboardWatermark from '../../components/DashboardWatermark';
 
 function getGreeting() {
@@ -142,6 +142,7 @@ export default function EmployeeHomeScreen() {
   const isRefreshing = offersRefetching;
 
   const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(storeId);
+  const { notice: gasPriceNotice, dismiss: dismissGasPriceNotice } = useGasPriceNotice(storeId);
 
   return (
     <View style={s.root}>
@@ -212,6 +213,10 @@ export default function EmployeeHomeScreen() {
           )}
         </SafeAreaView>
       </Animated.View>
+
+      {gasPriceNotice && (
+        <GasPriceNoticeCard notice={gasPriceNotice} onAcknowledge={() => dismissGasPriceNotice(gasPriceNotice.id)} />
+      )}
 
       {pinnedNotice && (
         <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
