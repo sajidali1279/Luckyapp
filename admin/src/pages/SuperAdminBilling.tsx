@@ -24,8 +24,16 @@ export default function SuperAdminBilling() {
 
   const invoices: any[] = data?.data?.data ?? [];
 
-  const totalOutstanding = invoices.filter((i) => !i.isPaid).reduce((s: number, i: any) => s + i.totalDevCut, 0);
-  const totalPaid = invoices.filter((i) => i.isPaid).reduce((s: number, i: any) => s + i.totalDevCut, 0);
+  // A period's `isPaid` flag is all-or-nothing (false the moment any one
+  // charge in it is unpaid), so summing whole-period totalDevCut into these
+  // buckets would count already-paid charges as outstanding the instant a
+  // single other charge in the same period is still unpaid. Sum per-charge
+  // amounts by their own isPaid instead, so a partially-paid period splits
+  // correctly between the two cards.
+  const totalOutstanding = invoices.reduce((s: number, i: any) =>
+    s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0);
+  const totalPaid = invoices.reduce((s: number, i: any) =>
+    s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0);
   // Unpaid-first so the invoice(s) actually needing action aren't buried
   // below already-settled ones — matches the "Unpaid Total" card above it.
   const sortedInvoices = [...invoices].sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
@@ -80,7 +88,9 @@ export default function SuperAdminBilling() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedInvoices.map((inv: any) => (
+              {sortedInvoices.map((inv: any) => {
+                const paidCount = inv.stores.filter((r: any) => r.isPaid).length;
+                return (
                 <Fragment key={inv.period}>
                   <TableRow
                     style={{ ...s.tr, background: expanded === inv.period ? '#f0f4ff' : undefined }}
@@ -109,6 +119,8 @@ export default function SuperAdminBilling() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
                         {inv.isPaid ? (
                           <span style={s.badgePaid}>✓ Paid</span>
+                        ) : paidCount > 0 ? (
+                          <span style={s.badgeUnpaid}>◐ {paidCount}/{inv.stores.length} Paid</span>
                         ) : (
                           <span style={s.badgeUnpaid}>Unpaid</span>
                         )}
@@ -135,7 +147,7 @@ export default function SuperAdminBilling() {
                           <Table style={{ ...s.table, margin: 0 }}>
                             <TableHeader>
                               <TableRow>
-                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Dev Cut'].map((h) => (
+                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Dev Cut', 'Status'].map((h) => (
                                   <TableHead key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</TableHead>
                                 ))}
                               </TableRow>
@@ -151,6 +163,10 @@ export default function SuperAdminBilling() {
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
                                     <TableCell style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</TableCell>
+                                    <TableCell style={s.td}>
+                                      <span style={row.isPaid ? s.badgePaid : s.badgeUnpaid}>{row.isPaid ? '✓ Paid' : 'Unpaid'}</span>
+                                      {row.isPaid && row.paidAt && <div style={s.sub}>{new Date(row.paidAt).toLocaleDateString()}</div>}
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                             </TableBody>
@@ -160,7 +176,8 @@ export default function SuperAdminBilling() {
                     </TableRow>
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}

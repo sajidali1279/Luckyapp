@@ -565,7 +565,7 @@ export default function Billing() {
                               <Table style={{ width: '100%', fontSize: 15 }}>
                                 <TableHeader>
                                   <TableRow>
-                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', ''].map((h) => (
+                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Status', ''].map((h) => (
                                       <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
                                     ))}
                                   </TableRow>
@@ -597,6 +597,9 @@ export default function Billing() {
                                           <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : '—'}</TableCell>
                                           <TableCell style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</TableCell>
                                           <TableCell style={s.catTd}>
+                                            <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                                          </TableCell>
+                                          <TableCell style={s.catTd}>
                                             <button
                                               style={{ padding: '4px 10px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
                                               onClick={() => setInvoiceView({ record: r, period: inv.period })}
@@ -613,6 +616,7 @@ export default function Billing() {
                                     <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                     <TableCell style={{ ...s.catTd, color: '#E63946', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
+                                    <TableCell style={s.catTd}></TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                   </TableRow>
                                 </TableFooter>

@@ -10,7 +10,7 @@ export function downloadInvoicePdf(invoice: {
   totalVolume: number;
   isPaid: boolean;
   paidAt: string | null;
-  stores: { store: { name: string; city: string } | null; amount: number; txCount: number; cashbackIssued: number; description?: string | null }[];
+  stores: { store: { name: string; city: string } | null; amount: number; txCount: number; cashbackIssued: number; description?: string | null; isPaid?: boolean }[];
 }) {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const [y, m] = invoice.period.split('-').map(Number);
@@ -33,6 +33,7 @@ export function downloadInvoicePdf(invoice: {
         <td style="text-align:right">${row.txCount}</td>
         <td style="text-align:right">${fmt$(row.cashbackIssued)}</td>
         <td style="text-align:right; font-weight:600; color:#c0392b">${fmt$(row.amount)}</td>
+        <td style="text-align:right">${row.isPaid ? '✓ Paid' : 'Unpaid'}</td>
       </tr>
     `).join('');
 
@@ -142,6 +143,7 @@ export function downloadInvoicePdf(invoice: {
         <th style="text-align:right">Transactions</th>
         <th style="text-align:right">Cashback Issued</th>
         <th style="text-align:right">Platform Fee</th>
+        <th style="text-align:right">Status</th>
       </tr>
     </thead>
     <tbody>

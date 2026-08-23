@@ -781,7 +781,7 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
     byPeriod[r.period].totalCashback += n?.cashbackIssued ?? 0;
     byPeriod[r.period].totalTxns     += n?.txCount ?? 0;
     byPeriod[r.period].totalVolume   += n?.purchaseVolume ?? 0;
-    byPeriod[r.period].stores.push({ store: r.store, amount: amt, billingType: r.billingType, txCount: n?.txCount ?? 0, cashbackIssued: n?.cashbackIssued ?? 0, description: n?.description ?? null });
+    byPeriod[r.period].stores.push({ store: r.store, amount: amt, billingType: r.billingType, txCount: n?.txCount ?? 0, cashbackIssued: n?.cashbackIssued ?? 0, description: n?.description ?? null, isPaid: r.isPaid, paidAt: r.paidAt });
     if (!r.isPaid) byPeriod[r.period].isPaid = false;
     if (r.isPaid && r.paidAt && !byPeriod[r.period].paidAt) byPeriod[r.period].paidAt = r.paidAt;
   }
