@@ -530,10 +530,11 @@ export default function CustomerHome() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
-  const { data: gasPricesData } = useQuery({
+  const { data: gasPricesData, refetch: refetchGasPrices } = useQuery({
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
-    staleTime: 30 * 60 * 1000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
 
@@ -661,6 +662,7 @@ export default function CustomerHome() {
   function onRefresh() {
     refetchBanners();
     refetchOffers();
+    refetchGasPrices();
   }
 
   async function placeHotFoodOrder() {
