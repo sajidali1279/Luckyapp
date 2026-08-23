@@ -181,7 +181,7 @@ export default function Chat() {
 
   return (
     <div style={s.container}>
-      {/* ── Sidebar — hidden only when there's nothing to pick: a single-store
+      {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
           Store Manager is auto-selected above. A Store Manager assigned to
           more than one store still needs this to switch between them. ── */}
       {(!isStoreManager || stores.length > 1) && (

@@ -132,7 +132,7 @@ export default function Transactions() {
     mutationFn: ({ id, action }: { id: string; action: 'APPROVE' | 'REJECT' }) =>
       pointsApi.reviewFlagged(id, action),
     onSuccess: (_res, { action }) => {
-      toast.success(action === 'APPROVE' ? 'Transaction approved — points credited' : 'Flagged transaction rejected');
+      toast.success(action === 'APPROVE' ? 'Transaction approved - points credited' : 'Flagged transaction rejected');
       qc.invalidateQueries({ queryKey: ['all-transactions'] });
       qc.invalidateQueries({ queryKey: ['transactions'] });
     },
@@ -180,7 +180,7 @@ export default function Transactions() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error('Export failed — try again');
+      toast.error('Export failed - try again');
     } finally {
       setExporting(false);
     }
@@ -321,18 +321,18 @@ export default function Transactions() {
                     </div>
                   </TableCell>
                   <TableCell style={s.td}>
-                    <div style={{ fontWeight: 600 }}>{tx.customer?.name || '—'}</div>
+                    <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
                     <div style={{ fontSize: 13, color: '#adb5bd' }}>{tx.customer?.phone}</div>
                   </TableCell>
                   <TableCell style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></TableCell>
                   <TableCell style={s.td}><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></TableCell>
                   {isSuperAdmin && (
-                    <TableCell style={s.td}><span style={{ fontSize: 15, color: '#1D3557', fontWeight: 600 }}>{tx.store?.name || '—'}</span></TableCell>
+                    <TableCell style={s.td}><span style={{ fontSize: 15, color: '#1D3557', fontWeight: 600 }}>{tx.store?.name || ' - '}</span></TableCell>
                   )}
                   <TableCell style={s.td}>
-                    <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || '—'}</span>
+                    <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
                   </TableCell>
-                  <TableCell style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || '—'}</TableCell>
+                  <TableCell style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
                   <TableCell style={s.td}>
                     <div>
                       <span style={{ ...s.badge, background: STATUS_COLORS[tx.status] || '#dee2e6' }}>
@@ -350,7 +350,7 @@ export default function Transactions() {
                   <TableCell style={s.td}>
                     {tx.receiptImageUrl ? (
                       <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
-                    ) : '—'}
+                    ) : ' - '}
                   </TableCell>
                   <TableCell style={s.td}>
                     {tx.status === 'PENDING' && (

@@ -366,7 +366,7 @@ export default function ChatScreen() {
             ListEmptyComponent={
               <View style={s.noMsgs}>
                 <MessageCircleIcon size={40} color="#d1d5db" strokeWidth={1.5} />
-                <Text style={s.noMsgsText}>No messages yet — say hello!</Text>
+                <Text style={s.noMsgsText}>No messages yet - say hello!</Text>
               </View>
             }
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}

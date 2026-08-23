@@ -87,7 +87,7 @@ export default function WelcomeBonusCard() {
             </View>
           )}
 
-          {/* Claimed but not yet confirmed — show code */}
+          {/* Claimed but not yet confirmed - show code */}
           {bonus.claimed && !bonus.confirmed && (
             <>
               <Text style={st.pickTitle}>You chose:</Text>
@@ -106,7 +106,7 @@ export default function WelcomeBonusCard() {
             </>
           )}
 
-          {/* Not yet claimed — show choice grid */}
+          {/* Not yet claimed - show choice grid */}
           {!bonus.claimed && (
             <>
               <Text style={st.pickTitle}>Pick your free item for today:</Text>

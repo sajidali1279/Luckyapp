@@ -113,7 +113,7 @@ export default function Notices() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>📌 Important Notices</h1>
-          <p style={s.sub}>Posted as a pinned banner at the top of store chat — for time-sensitive HQ announcements</p>
+          <p style={s.sub}>Posted as a pinned banner at the top of store chat - for time-sensitive HQ announcements</p>
         </div>
         <button style={s.addBtn} onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ New Notice'}
@@ -143,7 +143,7 @@ export default function Notices() {
               <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                 <option value="">-- Choose your store --</option>
                 {stores.map((store: any) => (
-                  <option key={store.id} value={store.id}>{store.name}{store.city ? ` — ${store.city}` : ''}</option>
+                  <option key={store.id} value={store.id}>{store.name}{store.city ? ` - ${store.city}` : ''}</option>
                 ))}
               </select>
             </>
@@ -160,7 +160,7 @@ export default function Notices() {
                   <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                     <option value="">-- Choose a store --</option>
                     {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                      <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
                     ))}
                   </select>
                 </>

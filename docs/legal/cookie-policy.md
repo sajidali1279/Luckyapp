@@ -1,6 +1,6 @@
 # Cookie Policy
 
-**Lucky Stop Loyalty Platform — Admin Portal**  
+**Lucky Stop Loyalty Platform - Admin Portal**  
 **Operated by:** Cliff Industries (sksajidali1279@gmail.com)  
 **Applies to:** admin.luckystop.cliffindus.com  
 **Last Updated:** May 2026
@@ -11,7 +11,7 @@
 
 Cookies are small text files placed on your device when you visit a website. They are widely used to make websites work correctly, remember your preferences, and provide analytics to site operators.
 
-This Cookie Policy applies to the Lucky Stop admin portal only. The Lucky Stop mobile app does not use cookies — it uses secure tokens stored on the device.
+This Cookie Policy applies to the Lucky Stop admin portal only. The Lucky Stop mobile app does not use cookies - it uses secure tokens stored on the device.
 
 ---
 
@@ -58,7 +58,7 @@ You can control and delete cookies through your browser settings:
 
 **Note:** Disabling strictly necessary cookies will prevent you from logging in to the admin portal.
 
-You can also clear all cookies for the admin portal by logging out — this removes the session cookie immediately.
+You can also clear all cookies for the admin portal by logging out - this removes the session cookie immediately.
 
 ---
 
@@ -77,7 +77,7 @@ If we introduce new cookies or change how we use existing ones, we will update t
 ## Contact
 
 Questions about this Cookie Policy:  
-**Cliff Industries** — sksajidali1279@gmail.com
+**Cliff Industries** - sksajidali1279@gmail.com
 
 ---
 

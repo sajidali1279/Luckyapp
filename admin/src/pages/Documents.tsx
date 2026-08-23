@@ -18,6 +18,7 @@ import storeOwnerOverviewMd  from '../../../docs/business/store-owner-overview.m
 import cashierQuickRefMd     from '../../../docs/operational/cashier-quick-reference.md?raw';
 import newStoreChecklistMd   from '../../../docs/operational/new-store-setup-checklist.md?raw';
 import changelogMd           from '../../../docs/operational/changelog.md?raw';
+import uptimeMonitoringMd    from '../../../docs/operational/uptime-monitoring.md?raw';
 import dpaMd                 from '../../../docs/legal/data-processing-agreement.md?raw';
 import slaMd                 from '../../../docs/legal/service-level-agreement.md?raw';
 import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
@@ -60,7 +61,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'merchant-agreement',
     title: 'Merchant Agreement',
-    description: 'B2B contract between Cliff Industries and store operators — SLA, fees, DPA.',
+    description: 'B2B contract between Cliff Industries and store operators - SLA, fees, DPA.',
     icon: '🤝',
     content: merchantAgreementMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -79,7 +80,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'super-admin-manual',
     title: 'Super Admin Manual',
-    description: 'Full HQ portal guide — stores, staff, offers, analytics, audit logs.',
+    description: 'Full HQ portal guide - stores, staff, offers, analytics, audit logs.',
     icon: '👑',
     content: superAdminManualMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -126,7 +127,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'data-processing-agreement',
     title: 'Data Processing Agreement',
-    description: 'DPA between Cliff Industries (Processor) and store operators (Controller) — CCPA/privacy compliance.',
+    description: 'DPA between Cliff Industries (Processor) and store operators (Controller) - CCPA/privacy compliance.',
     icon: '🔐',
     content: dpaMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -144,7 +145,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'cookie-policy',
     title: 'Cookie Policy',
-    description: 'Cookies and local storage used by the admin portal — what, why, and how to manage them.',
+    description: 'Cookies and local storage used by the admin portal - what, why, and how to manage them.',
     icon: '🍪',
     content: cookiePolicyMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -153,7 +154,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'acceptable-use-policy',
     title: 'Acceptable Use Policy',
-    description: 'Platform rules for all roles — prohibited uses, fraud prevention, enforcement, and reporting.',
+    description: 'Platform rules for all roles - prohibited uses, fraud prevention, enforcement, and reporting.',
     icon: '📜',
     content: aupMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -163,7 +164,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'store-owner-pitch',
     title: 'Store Owner Pitch',
-    description: 'Sales pitch for prospective store owners — value proposition, features, pricing, and onboarding.',
+    description: 'Sales pitch for prospective store owners - value proposition, features, pricing, and onboarding.',
     icon: '📊',
     content: storeOwnerPitchMd,
     roles: ['DEV_ADMIN'],
@@ -172,7 +173,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'store-owner-overview',
     title: 'Store Owner Overview',
-    description: 'Operational overview for onboarded store owners — what they have, how it works, support.',
+    description: 'Operational overview for onboarded store owners - what they have, how it works, support.',
     icon: '🏬',
     content: storeOwnerOverviewMd,
     roles: ['DEV_ADMIN'],
@@ -182,7 +183,7 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'cashier-quick-reference',
     title: 'Cashier Quick Reference',
-    description: 'One-page printable guide for cashiers — scan flow, redemption, common issues, and rules.',
+    description: 'One-page printable guide for cashiers - scan flow, redemption, common issues, and rules.',
     icon: '🖨️',
     content: cashierQuickRefMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
@@ -200,10 +201,19 @@ const ALL_DOCS: Doc[] = [
   {
     id: 'changelog',
     title: 'Platform Changelog',
-    description: 'Release notes and feature history — what changed, when, and which roles it affects.',
+    description: 'Release notes and feature history - what changed, when, and which roles it affects.',
     icon: '📝',
     content: changelogMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
+    category: 'operational',
+  },
+  {
+    id: 'uptime-monitoring',
+    title: 'Uptime Monitoring Setup',
+    description: 'UptimeRobot configuration for the API and admin portal, backing the SLA uptime commitment.',
+    icon: '📡',
+    content: uptimeMonitoringMd,
+    roles: ['DEV_ADMIN'],
     category: 'operational',
   },
 ];

@@ -98,7 +98,7 @@ export default function DailyTasksScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Daily Tasks</Text>
-          <Text style={styles.headerSub}>Your shift checklist — resets each day</Text>
+          <Text style={styles.headerSub}>Your shift checklist - resets each day</Text>
         </View>
       </View>
 
@@ -148,7 +148,7 @@ export default function DailyTasksScreen() {
             return (
               <FadeSlideIn key={shift} delay={Math.min(shiftIdx * 40, 200)}>
                 <View style={styles.section}>
-                  {/* Shift header — tappable to expand/collapse */}
+                  {/* Shift header - tappable to expand/collapse */}
                   <TouchableOpacity
                     style={[styles.shiftHeader, { backgroundColor: cfg.bg }]}
                     onPress={() => toggleExpand(shift)}

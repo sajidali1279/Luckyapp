@@ -69,7 +69,7 @@ export default function EmployeeLeaderboardScreen() {
           </View>
         </View>
 
-        {/* Store selector — shown only if assigned to multiple stores */}
+        {/* Store selector - shown only if assigned to multiple stores */}
         {storeIds.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.storePills}>
             {storeIds.map((id) => (

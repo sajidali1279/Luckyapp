@@ -716,7 +716,7 @@ export default function HotFood() {
       {view === 'availability' && (
         <>
           <p style={pg.availabilityHint}>
-            Turn a store off before advertising or launching pickup there — customers won't see hot food ordering
+            Turn a store off before advertising or launching pickup there - customers won't see hot food ordering
             at that location, and any attempt to place an order will be rejected server-side.
           </p>
           {stores.length === 0 ? (

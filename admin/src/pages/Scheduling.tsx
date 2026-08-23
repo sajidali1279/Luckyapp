@@ -212,7 +212,7 @@ export default function Scheduling() {
 
   return (
     <div style={s.page}>
-      {/* ── Sidebar — hidden only when there's nothing to pick: a single-store
+      {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
           manager is auto-selected above. A Store Manager assigned to more
           than one store still needs this to switch between them. ── */}
       {(!isStoreManager || stores.length > 1) && <div style={s.sidebar}>
@@ -278,7 +278,7 @@ export default function Scheduling() {
                   {selectedStore?.city}, {selectedStore?.state}
                 </div>
               </div>
-              {/* Shift toggle — SuperAdmin+ only (requires PATCH /stores/:storeId) */}
+              {/* Shift toggle - SuperAdmin+ only (requires PATCH /stores/:storeId) */}
               {!isStoreManager && (
                 <div style={s.shiftToggle}>
                   <button
@@ -310,7 +310,7 @@ export default function Scheduling() {
               <div style={s.vacancyBanner}>
                 <span style={s.vacancyBannerIcon}>⚠️</span>
                 <div style={{ flex: 1 }}>
-                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> —{' '}
+                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> - {' '}
                   {selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
                   {selectedStoreVacancies.vacancies.length > 4 ? ` +${selectedStoreVacancies.vacancies.length - 4} more` : ''}
                 </div>
@@ -410,7 +410,7 @@ export default function Scheduling() {
                                           setAddModal({ day: day.key, shiftType: shift.key });
                                           setSelectedEmployeeId('');
                                         }}
-                                        title={noEmployees ? 'No staff assigned to this store yet — add staff first' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
+                                        title={noEmployees ? 'No staff assigned to this store yet - add staff first' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
                                       >
                                         +
                                       </button>
@@ -478,7 +478,7 @@ export default function Scheduling() {
         <div style={s.modalOverlay} onClick={() => setAddModal(null)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <h3 style={s.modalTitle}>
-              Assign Employee — {DAYS.find((d) => d.key === addModal.day)?.label},{' '}
+              Assign Employee - {DAYS.find((d) => d.key === addModal.day)?.label},{' '}
               {SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label}{' '}
               ({SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
             </h3>

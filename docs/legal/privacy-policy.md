@@ -1,7 +1,7 @@
-# Lucky Stop Loyalty App — Privacy Policy
+# Lucky Stop Loyalty App - Privacy Policy
 
 **Effective Date:** June 1, 2026
-**Last Updated:** May 30, 2026
+**Last Updated:** July 31, 2026
 **Version:** 1.0
 
 ---
@@ -109,7 +109,7 @@ When you use the App, we automatically collect:
 - **App version:** The version of the Lucky Stop app installed on your device.
 - **Login timestamps:** Records of when you log in and out of the App.
 - **Failed login attempts:** Tracked for security purposes; repeated failures may temporarily lock your account.
-- **Biometric authentication preference:** Whether you have enabled Face ID, Touch ID, or device biometric login. We do **not** store your biometric data — this is handled entirely by your device's operating system.
+- **Biometric authentication preference:** Whether you have enabled Face ID, Touch ID, or device biometric login. We do **not** store your biometric data - this is handled entirely by your device's operating system.
 
 ### 3.4 Interaction and Usage Data
 
@@ -157,7 +157,7 @@ You are not required to provide optional information (recovery email, profile ph
 
 ### 3.9 Location Information
 
-If you grant permission, we access your device's precise geolocation (via GPS/location services) **only while the App is in the foreground and actively in use** — we do not access or track your location in the background. This is used to:
+If you grant permission, we access your device's precise geolocation (via GPS/location services) **only while the App is in the foreground and actively in use** - we do not access or track your location in the background. This is used to:
 
 - Identify the Lucky Stop location nearest you, so the App can show you that store's promotions, banners, and (where offered) hot food ordering.
 - Determine whether the nearest store sells age-restricted products, so the App can present the existing age-confirmation step (see Section 12) in the appropriate context.
@@ -393,7 +393,7 @@ You may request a copy of your personal information in a structured, commonly us
 To exercise any of the above rights, contact us at:
 - **In-App:** Profile → Delete My Account (for account deletion)
 - **Email:** support@luckystop.cliffindus.com
-- **Subject line:** "Privacy Request — [Your Request Type]"
+- **Subject line:** "Privacy Request - [Your Request Type]"
 
 We will respond to your request within **45 days**. If we need additional time, we will notify you and explain the reason for the delay. We may need to verify your identity before fulfilling your request.
 
@@ -496,7 +496,7 @@ The App may request access to your device's precise location (GPS/location servi
 
 ### How It's Processed
 
-Your coordinates are used **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public within the App). They are never transmitted to or stored on our servers, and are not retained after the calculation completes — see Section 9 for our data retention practices generally.
+Your coordinates are used **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public within the App). They are never transmitted to or stored on our servers, and are not retained after the calculation completes - see Section 9 for our data retention practices generally.
 
 ### Your Control
 
@@ -574,7 +574,7 @@ Your continued use of the App after the effective date of any updates constitute
 
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
-**Lucky Stop — Privacy Team**
+**Lucky Stop - Privacy Team**
 - **Email:** support@luckystop.cliffindus.com
 - **Subject line:** "Privacy Inquiry"
 - **Response time:** We aim to respond to all privacy inquiries within **10 business days**.
@@ -596,20 +596,20 @@ For account deletion requests, use the "Delete My Account" feature in the App (P
 | **Credits** | In-app loyalty points that can be redeemed for products or rewards at Lucky Stop locations. |
 | **DEV_ADMIN** | The platform developer/operator with the highest level of system access. |
 | **Employee** | A Lucky Stop store-level cashier or staff member who uses the App to process customer transactions. |
-| **FCM** | Firebase Cloud Messaging — Google's push notification delivery service. |
+| **FCM** | Firebase Cloud Messaging - Google's push notification delivery service. |
 | **Geolocation** | Your device's precise physical coordinates, accessed only with your permission and processed on-device (see Section 15). |
-| **JWT** | JSON Web Token — a secure token format used for API authentication. |
-| **OTP** | One-Time Password — a time-limited code sent to your phone number for identity verification. |
+| **JWT** | JSON Web Token - a secure token format used for API authentication. |
+| **OTP** | One-Time Password - a time-limited code sent to your phone number for identity verification. |
 | **Personal Information** | Any information that identifies or can be used to identify an individual. |
 | **Processor** | An entity that processes personal information on behalf of the Controller. |
 | **QR Code** | A unique machine-readable code assigned to each customer account for in-store identification. |
-| **RBAC** | Role-Based Access Control — a security model that restricts system access based on user roles. |
+| **RBAC** | Role-Based Access Control - a security model that restricts system access based on user roles. |
 | **SecureStore** | Expo's device-level encrypted storage used for JWT tokens on mobile devices. |
 | **Services** | The Lucky Stop App, web administration portal, and associated backend services. |
 | **Store Manager** | A Lucky Stop employee with management-level access for one or more store locations. |
 | **Super Admin** | A Lucky Stop headquarters administrator with access to all stores and platform-wide settings. |
 | **Tier** | A loyalty program level (Bronze, Silver, Gold, Diamond, or Platinum) based on points accumulated. |
-| **TLS** | Transport Layer Security — a cryptographic protocol for securing data in transit. |
+| **TLS** | Transport Layer Security - a cryptographic protocol for securing data in transit. |
 
 ---
 

@@ -1,9 +1,9 @@
-# Lucky Stop Platform — Store Manager User Manual
+# Lucky Stop Platform - Store Manager User Manual
 
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.4 | Last Updated: July 21, 2026
+**Version:** 1.5 | Last Updated: August 23, 2026
 
 ---
 
@@ -11,24 +11,25 @@
 
 1. [Your Role and Responsibilities](#1-your-role-and-responsibilities)
 2. [Getting Started](#2-getting-started)
-3. [Mobile App — Manager Dashboard](#3-mobile-app--manager-dashboard)
-4. [Order Lists — Procurement Management](#4-order-lists--procurement-management)
-5. [Employee Item Requests — Reviewing](#5-employee-item-requests--reviewing)
-6. [Store Alerts — Operations](#6-store-alerts--operations)
-7. [Offers — Creating and Managing Promotions](#7-offers--creating-and-managing-promotions)
-8. [Banners — Managing Store Banners](#8-banners--managing-store-banners)
-9. [Transactions — Reviewing Store Activity](#9-transactions--reviewing-store-activity)
-10. [Scheduling — Staff Schedule Management](#10-scheduling--staff-schedule-management)
+3. [Mobile App - Manager Dashboard](#3-mobile-app--manager-dashboard)
+4. [Order Lists - Procurement Management](#4-order-lists--procurement-management)
+5. [Employee Item Requests - Reviewing](#5-employee-item-requests--reviewing)
+6. [Store Alerts - Operations](#6-store-alerts--operations)
+7. [Offers - Creating and Managing Promotions](#7-offers--creating-and-managing-promotions)
+8. [Banners - Managing Store Banners](#8-banners--managing-store-banners)
+9. [Transactions - Reviewing Store Activity](#9-transactions--reviewing-store-activity)
+10. [Scheduling - Staff Schedule Management](#10-scheduling--staff-schedule-management)
 11. [Store Chat](#11-store-chat)
 12. [Hot Food Management](#12-hot-food-management)
-13. [Customer Product Requests](#13-customer-product-requests)
-14. [Leaderboard — Employee Performance](#14-leaderboard--employee-performance)
-15. [Notifications](#15-notifications)
-16. [Profile and Account Settings](#16-profile-and-account-settings)
-17. [Web Admin Portal for Managers](#17-web-admin-portal-for-managers)
-18. [Disputes — Missing Points Reports](#18-disputes--missing-points-reports)
-19. [Common Tasks — Quick Reference](#19-common-tasks--quick-reference)
-20. [Troubleshooting](#20-troubleshooting)
+13. [Shelf/Price Labels](#13-shelfprice-labels)
+14. [Customer Product Requests](#14-customer-product-requests)
+15. [Leaderboard - Employee Performance](#15-leaderboard--employee-performance)
+16. [Notifications](#16-notifications)
+17. [Profile and Account Settings](#17-profile-and-account-settings)
+18. [Web Admin Portal for Managers](#18-web-admin-portal-for-managers)
+19. [Disputes - Missing Points Reports](#19-disputes--missing-points-reports)
+20. [Common Tasks - Quick Reference](#20-common-tasks--quick-reference)
+21. [Troubleshooting](#21-troubleshooting)
 
 ---
 
@@ -37,11 +38,11 @@
 As a **Store Manager**, you are responsible for the day-to-day operational management of your assigned Lucky Stop location(s) through the Lucky Stop platform. Your key responsibilities include:
 
 - **Reviewing and approving inventory requests** from employees.
-- **Managing your store's procurement order lists** — tracking what needs to be ordered, what has been ordered, and what has been received.
+- **Managing your store's procurement order lists** - tracking what needs to be ordered, what has been ordered, and what has been received.
 - **Creating and managing store-specific promotional offers** for your location.
 - **Managing banners** displayed to customers who shop at your store.
-- **Managing employee schedules** — creating shift templates and approving/denying time-off requests.
-- **Reviewing transactions** — auditing purchases, reviewing flagged transactions, and ensuring receipt quality.
+- **Managing employee schedules** - creating shift templates and approving/denying time-off requests.
+- **Reviewing transactions** - auditing purchases, reviewing flagged transactions, and ensuring receipt quality.
 - **Monitoring store performance** through your dashboard and analytics.
 - **Managing store operational requests** (supply issues, work orders) submitted by employees.
 - **Participating in store team chat** with your employees.
@@ -50,7 +51,7 @@ As a **Store Manager**, you are responsible for the day-to-day operational manag
 **What Store Managers cannot do:**
 - Access data from other stores (unless assigned to multiple stores).
 - Create or delete customer accounts.
-- Create platform-wide (all stores) offers — only store-specific offers.
+- Create platform-wide (all stores) offers - only store-specific offers.
 - Access billing management.
 
 ---
@@ -85,7 +86,7 @@ You also have access to the web portal at **admin.luckystop.cliffindus.com** for
 
 ---
 
-## 3. Mobile App — Manager Dashboard
+## 3. Mobile App - Manager Dashboard
 
 Your home dashboard shows your store's real-time performance:
 
@@ -109,7 +110,7 @@ The bell icon shows unread notifications. Tap to view them.
 
 ---
 
-## 4. Order Lists — Procurement Management
+## 4. Order Lists - Procurement Management
 
 The Order List is your digital procurement tool. Instead of paper lists, you maintain a live, shareable order list that tracks what items your store needs, what has been ordered from suppliers, and what has arrived.
 
@@ -134,7 +135,7 @@ If your store has no active list:
 
 **Manual entry:**
 1. On the active order list, tap **+ Add Item**.
-2. Type the item name — the app will suggest matching items based on your history.
+2. Type the item name - the app will suggest matching items based on your history.
 3. Set:
    - **Quantity:** How much you need (e.g., "2 cases," "6 units").
    - **Category:** Select from the available categories.
@@ -179,16 +180,16 @@ Tap the **Print** button (printer icon) at the top of the active order list to g
 
 The PDF includes:
 - Lucky Stop header with store name, list name, and the date printed.
-- Items grouped by status: **Urgent**, **Needed**, **Ordered**, **Received** — each with a checkbox column for paper mark-off.
+- Items grouped by status: **Urgent**, **Needed**, **Ordered**, **Received** - each with a checkbox column for paper mark-off.
 - A barcode under each item that has a matching product in your store's catalog, so you can scan directly off the printout at the supplier.
 - A summary count at the top (total items, how many in each status group).
 
 **Two output options appear when you tap Print:**
 
-- **Print Directly** — opens the device's native print dialog (AirPrint on iPhone, system print on Android). Send straight to a connected or wireless printer.
-- **Share as PDF** — saves the PDF and opens the share sheet so you can send it via email, WhatsApp, Messages, or save to Files.
+- **Print Directly** - opens the device's native print dialog (AirPrint on iPhone, system print on Android). Send straight to a connected or wireless printer.
+- **Share as PDF** - saves the PDF and opens the share sheet so you can send it via email, WhatsApp, Messages, or save to Files.
 
-> No internet connection is needed to share the PDF once it's generated — useful if you're in a back office with poor signal.
+> No internet connection is needed to share the PDF once it's generated - useful if you're in a back office with poor signal.
 
 ### 4.9 Closing a List
 
@@ -198,13 +199,13 @@ When all items have been ordered and/or received:
 3. Optionally add closing notes.
 4. Tap **Close**.
 
-The closed list moves to History, and **a new active list opens automatically** in the same action — your store is never left without an active order list.
+The closed list moves to History, and **a new active list opens automatically** in the same action - your store is never left without an active order list.
 
-**Note:** Closing a list does not delete it — it remains in history for review.
+**Note:** Closing a list does not delete it - it remains in history for review.
 
 ### 4.10 Standing Order Instructions
 
-Each store can keep a short standing note (up to 300 characters) pinned to the top of the order list screen — for anything a supplier or the next shift should always see (e.g., delivery-day reminders, a preferred vendor contact, dock-access instructions). Tap the instructions banner → **Edit** → type your note → **Save**. It persists across closed/reopened lists until you change it.
+Each store can keep a short standing note (up to 300 characters) pinned to the top of the order list screen - for anything a supplier or the next shift should always see (e.g., delivery-day reminders, a preferred vendor contact, dock-access instructions). Tap the instructions banner → **Edit** → type your note → **Save**. It persists across closed/reopened lists until you change it.
 
 ### 4.11 Viewing List History
 
@@ -223,7 +224,7 @@ If items from a previous list are still needed:
 
 ---
 
-## 5. Employee Item Requests — Reviewing
+## 5. Employee Item Requests - Reviewing
 
 Employees can submit requests for items they notice are low in stock or that customers have requested. As manager, you review these requests and decide whether to add them to the active order list.
 
@@ -253,11 +254,11 @@ Tap a request to open it. You will see each individual line item:
 For each line item, you choose:
 - **Accept:** The item will be added to the active order list. If there is no active list, one will need to be opened first.
 - **Reject:** The item will not be added. You can optionally select a rejection reason and add a note for the employee:
-  - **No Supplier** — We don't have a supplier for this item.
-  - **Out of Budget** — Cannot order this currently.
-  - **In Stock** — Item is already in stock.
-  - **Duplicate** — Already on the order list.
-  - **Other** — Provide a custom note.
+  - **No Supplier** - We don't have a supplier for this item.
+  - **Out of Budget** - Cannot order this currently.
+  - **In Stock** - Item is already in stock.
+  - **Duplicate** - Already on the order list.
+  - **Other** - Provide a custom note.
 
 ### 5.4 Submitting Your Review
 
@@ -272,13 +273,13 @@ Switch to the **History** tab in the Requests screen to see all previously revie
 
 ### 5.6 Rejection Log
 
-View items that have been rejected (across all employee requests) in the **Rejected Items** log. This helps identify patterns — if employees repeatedly request items that get rejected, discuss the reason with your team.
+View items that have been rejected (across all employee requests) in the **Rejected Items** log. This helps identify patterns - if employees repeatedly request items that get rejected, discuss the reason with your team.
 
 ---
 
-## 6. Store Alerts — Operations
+## 6. Store Alerts - Operations
 
-Store Alerts are maintenance and supply issues employees flag for store-level operational attention (product requests from customers have their own **Products** tab — see Section 13).
+Store Alerts are maintenance and supply issues employees flag for store-level operational attention (product requests from customers have their own **Products** tab - see Section 14).
 
 ### 6.1 Types of Store Alerts
 
@@ -310,7 +311,7 @@ For high-priority requests (e.g., a broken refrigerator), use the Support Ticket
 
 ---
 
-## 7. Offers — Creating and Managing Promotions
+## 7. Offers - Creating and Managing Promotions
 
 As a Store Manager, you can create offers specific to your store that will appear to customers who shop at your location.
 
@@ -350,7 +351,7 @@ Go to **History** → tap an expired offer → tap **Reuse Offer**. Set new date
 
 ---
 
-## 8. Banners — Managing Store Banners
+## 8. Banners - Managing Store Banners
 
 Banners are promotional images shown to customers at the top of their home screen. You can create banners specific to your store.
 
@@ -376,7 +377,7 @@ Tap the banner → tap **Delete**. The banner is removed immediately.
 
 ---
 
-## 9. Transactions — Reviewing Store Activity
+## 9. Transactions - Reviewing Store Activity
 
 ### 9.1 Viewing Your Store's Transactions
 
@@ -396,7 +397,7 @@ The Transactions view shows all qualifying purchases at your store with:
 |---|---|
 | **Approved** | Processed normally, points credited. |
 | **Pending** | Processing in progress (should resolve quickly). |
-| **Flagged** | System flagged for review — requires your attention. |
+| **Flagged** | System flagged for review - requires your attention. |
 | **Rejected** | You or HQ rejected this transaction. |
 
 ### 9.3 Reviewing Flagged Transactions
@@ -408,7 +409,7 @@ Flagged transactions appear prominently in the transactions list and may be show
 3. Check the purchase amount and details.
 4. Choose:
    - **Approve:** Transaction stands, points are confirmed.
-   - **Reject:** Transaction is invalid — points are reversed.
+   - **Reject:** Transaction is invalid - points are reversed.
 5. Tap your decision.
 
 **Common reasons transactions are flagged:**
@@ -425,7 +426,7 @@ If you determine a transaction is fraudulent or erroneous:
 
 ---
 
-## 10. Scheduling — Staff Schedule Management
+## 10. Scheduling - Staff Schedule Management
 
 ### 10.1 Understanding the Schedule System
 
@@ -497,7 +498,7 @@ Navigate to **Chat** in the bottom navigation.
 
 - All staff assigned to your store (employees + you) can see and send messages.
 - Messages show the sender's name, role, and timestamp.
-- There is one chat channel per store — there are no private or direct messages.
+- There is one chat channel per store - there are no private or direct messages.
 
 ### 11.3 Best Practices for Chat
 
@@ -518,7 +519,7 @@ Tap **Hot Food** in the menu. This section is only visible to Admin-level roles 
 ### 12.2 Hot Food Catalog
 
 The catalog lists all items that can appear on the customer-facing menu. For each item you can:
-- **Enable or disable** it at your store — disabled items do not show to customers.
+- **Enable or disable** it at your store - disabled items do not show to customers.
 - Set the **estimated preparation time** (shown to customers when ordering).
 
 ### 12.3 Live Orders
@@ -530,16 +531,40 @@ Your employees manage the order states (In Progress → Ready → Complete), but
 ### 12.4 Things to Note
 
 - If you run out of an item, disable it in the catalog immediately to prevent new orders.
-- Customers pay at the counter when picking up — hot food orders are not prepaid in the app.
+- Customers pay at the counter when picking up - hot food orders are not prepaid in the app.
 - Hot food purchases earn loyalty points on the transaction like any other purchase.
 
 ---
 
-## 13. Customer Product Requests
+## 13. Shelf/Price Labels
+
+Print ready-to-use shelf and price tags for products at your store, either from the mobile app or the web admin portal. The catalog is shared chain-wide, so labels added by any store are visible to everyone, with your own store's not-yet-printed labels surfaced first.
+
+### 13.1 Creating a Label
+
+Tap **Labels** in the menu, then **+ Add Label**.
+- Scan a barcode to auto-fill the product name from the shared Scanned Products catalog, or enter one manually.
+- Set the regular price, an optional deal price, and a category.
+- Save. The label is added to the chain-wide catalog immediately.
+
+### 13.2 Printing Labels
+
+- The Labels screen defaults to **Ready to Print**: labels from your store that haven't been printed yet. Toggle to **Full Catalog** to see everything, including labels other stores added.
+- Select one or more labels (search and select-all are available for large batches), then **Print** to generate a formatted PDF sized for a standard Avery 5160 address-label sheet.
+- If you select a label another store created, a confirmation prompt appears before printing, so two stores scanning at the same time don't print each other's tags by mistake.
+
+### 13.3 Things to Note
+
+- The catalog is shared chain-wide by design; any store's added labels are visible to everyone, the same way the Scanned Products catalog works.
+- Every print is logged (who, which store, how many) to the developer's Activity Log.
+
+---
+
+## 14. Customer Product Requests
 
 Customers can submit requests for specific products to be stocked at your store. These appear in your Requests section.
 
-### 13.1 Viewing Product Requests
+### 14.1 Viewing Product Requests
 
 Navigate to **Requests** → **Products** tab.
 
@@ -548,7 +573,7 @@ You will see each request with:
 - Description from the customer.
 - Date submitted.
 
-### 13.2 Responding to a Product Request
+### 14.2 Responding to a Product Request
 
 1. Tap the request.
 2. Choose:
@@ -560,9 +585,9 @@ Customer product requests are good feedback for store inventory decisions. Consi
 
 ---
 
-## 14. Leaderboard — Employee Performance
+## 15. Leaderboard - Employee Performance
 
-### 14.1 Viewing Employee Performance
+### 15.1 Viewing Employee Performance
 
 Navigate to **Leaderboard** in the bottom navigation. The employee leaderboard for your store shows:
 - Employee name.
@@ -570,11 +595,11 @@ Navigate to **Leaderboard** in the bottom navigation. The employee leaderboard f
 - Total number of ratings.
 - Ratings breakdown.
 
-### 14.2 How Ratings Work
+### 15.2 How Ratings Work
 
-After each qualifying transaction, customers may be prompted to rate the employee who served them (on a 1–5 scale). Ratings are anonymous to the employee — they only see their aggregate score.
+After each qualifying transaction, customers may be prompted to rate the employee who served them (on a 1–5 scale). Ratings are anonymous to the employee - they only see their aggregate score.
 
-### 14.3 Using Leaderboard Data
+### 15.3 Using Leaderboard Data
 
 - Use leaderboard data for performance reviews.
 - Recognize high-performing employees.
@@ -582,13 +607,13 @@ After each qualifying transaction, customers may be prompted to rate the employe
 
 ---
 
-## 15. Notifications
+## 16. Notifications
 
-### 15.1 Accessing Notifications
+### 16.1 Accessing Notifications
 
 Tap the **bell icon** in the app. A badge shows unread notifications.
 
-### 15.2 Types of Notifications You Receive
+### 16.2 Types of Notifications You Receive
 
 - **Stock request:** New inventory request submitted by an employee.
 - **Store alert:** New operational alert submitted by an employee.
@@ -598,59 +623,59 @@ Tap the **bell icon** in the app. A badge shows unread notifications.
 - **Platform broadcasts:** Important announcements from Lucky Stop HQ.
 - **Order list updates:** If employees mark items as ordered or received.
 
-### 15.3 Managing Notifications
+### 16.3 Managing Notifications
 
 - Tap a notification to go directly to the related item.
 - Tap **Mark All Read** to clear the unread badge.
 
 ---
 
-## 16. Profile and Account Settings
+## 17. Profile and Account Settings
 
-### 16.1 Accessing Profile
+### 17.1 Accessing Profile
 
 Tap **Profile** in the bottom navigation.
 
-### 16.2 Updating Your Name
+### 17.2 Updating Your Name
 
 Profile → **Update Name** → enter your name → **Save Name**.
 
-### 16.3 Changing Your PIN
+### 17.3 Changing Your PIN
 
 Profile → **Change PIN** → enter current PIN → enter new PIN → confirm → **Change PIN**.
 - PIN must be 4 digits.
-- Your PIN history is tracked — you cannot reuse recent PINs.
+- Your PIN history is tracked - you cannot reuse recent PINs.
 
-### 16.4 Recovery Email
+### 17.4 Recovery Email
 
 Profile → **Recovery Email** → enter your email address → **Save Email**.
 This email is used if you ever need to recover access to your account.
 
-### 16.5 Profile Photo
+### 17.5 Profile Photo
 
 Tap your avatar image at the top of the Profile screen → select a photo from your library → photo uploads automatically.
 
-### 16.6 Biometric Login
+### 17.6 Biometric Login
 
 Enable Face ID / Touch ID / device biometric for faster login.
 Profile → **Biometric Login** → toggle on → confirm with biometric.
 
-### 16.7 Language
+### 17.7 Language
 
 Profile → **Preferences** → **Language** → select English or Español → **Save**.
 The app switches to your chosen language immediately and remembers it across sessions.
 
-### 16.8 Sign Out
+### 17.8 Sign Out
 
 Profile → **Sign Out** (at the bottom). You will need to log in again with your phone number, OTP, and PIN.
 
 ---
 
-## 17. Web Admin Portal for Managers
+## 18. Web Admin Portal for Managers
 
 The web admin portal at **admin.luckystop.cliffindus.com** provides a larger-screen experience for detailed reporting and management.
 
-### 17.1 What Managers Can Access in the Portal
+### 18.1 What Managers Can Access in the Portal
 
 - **Store Manager Dashboard:** Your store's performance metrics with charts.
 - **Transactions:** Full transaction history with filtering and export.
@@ -663,10 +688,18 @@ The web admin portal at **admin.luckystop.cliffindus.com** provides a larger-scr
 - **Chat:** Store team chat.
 - **Leaderboard:** Employee performance rankings.
 - **Inventory Analytics (Inventory Intelligence):** Detailed ordering trends.
+- **Labels:** Create, edit, and print shelf/price labels for your store from the shared chain-wide catalog (see Section 13).
+- **Notices:** View important notices posted for your store.
+- **Catalog:** Browse the redemption catalog customers can redeem credits against.
+- **Daily Reports:** Submit and review your store's opening/closing shift reports.
+- **Daily Tasks:** Manage the checklist items employees see for opening and closing shifts.
+- **Support:** Open and track support tickets with the developer.
 - **Notifications:** View and manage notifications.
 - **Profile:** Your account settings.
 
-### 17.2 Inventory Analytics — Detailed View
+If you manage more than one store, use the store picker to switch between them - each of the above (including per-store badge counts) reflects the store currently selected, not just the first one on your list.
+
+### 18.2 Inventory Analytics - Detailed View
 
 The web portal provides richer inventory analytics than the mobile app:
 - **Top Items chart:** Bar chart of most-ordered items by frequency.
@@ -678,27 +711,27 @@ Use this data in your monthly planning to anticipate order volumes and identify 
 
 ---
 
-## 18. Disputes — Missing Points Reports
+## 19. Disputes - Missing Points Reports
 
-Customers can report missing or incorrect points two ways: a generic "Report Missing Points" form, or — for a specific past purchase — a **Dispute This Transaction** button on that transaction's detail view in their app. Both land in the same queue for your store.
+Customers can report missing or incorrect points two ways: a generic "Report Missing Points" form, or - for a specific past purchase - a **Dispute This Transaction** button on that transaction's detail view in their app. Both land in the same queue for your store.
 
-**This is a mobile-only feature** — dispute review is not available in the web admin portal for Store Managers (that's a Super Admin/HQ-level view). In the mobile app, tap **Disputes** in the bottom navigation (badge shows pending count).
+**This is a mobile-only feature** - dispute review is not available in the web admin portal for Store Managers (that's a Super Admin/HQ-level view). In the mobile app, tap **Disputes** in the bottom navigation (badge shows pending count).
 
-### 18.1 Reviewing a Dispute
+### 19.1 Reviewing a Dispute
 
 Filter by status (Pending, Approved, Rejected). If the dispute was filed against a specific transaction, its details and receipt photo are shown inline; otherwise you're working from the customer's written description.
 
-### 18.2 Resolving a Dispute
+### 19.2 Resolving a Dispute
 
 Tap a dispute → choose:
 - **Approve:** enter the points/credit amount to award, add a note, and confirm. Points are credited immediately.
 - **Reject:** add a note explaining why, and confirm.
 
-Disputes are also reachable from your notification feed — tapping a dispute push jumps straight to the matching entry.
+Disputes are also reachable from your notification feed - tapping a dispute push jumps straight to the matching entry.
 
 ---
 
-## 19. Common Tasks — Quick Reference
+## 20. Common Tasks - Quick Reference
 
 | Task | Where | Steps |
 |---|---|---|
@@ -722,21 +755,21 @@ Disputes are also reachable from your notification feed — tapping a dispute pu
 
 ---
 
-## 20. Troubleshooting
+## 21. Troubleshooting
 
 **Problem: I can't see my order list.**
 - Ensure you are logged in to the correct store account.
 - If no list exists, tap "Open New List."
-- Check your internet connection — the order list requires connectivity.
+- Check your internet connection - the order list requires connectivity.
 
-**Problem: Employee item request won't submit — says no active order list.**
+**Problem: Employee item request won't submit - says no active order list.**
 - You must have an active order list before accepting employee requests.
 - Open a new list first, then process the employee request.
 
 **Problem: An employee says their request wasn't received.**
 - Ask them to check if the request shows "Submitted" status in their app.
 - Check your Requests → Employee Requests screen and confirm the request appears.
-- If not visible, they may have encountered a connectivity error — ask them to resubmit.
+- If not visible, they may have encountered a connectivity error - ask them to resubmit.
 
 **Problem: A transaction is stuck in "Pending."**
 - Pending transactions should resolve within seconds. If stuck, ask the employee to check their internet connection.

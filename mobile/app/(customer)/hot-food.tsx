@@ -48,9 +48,9 @@ type Tab = 'menu' | 'orders';
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS: Record<OrderStatus, { label: string; color: string; bg: string; emoji: string; detail: string }> = {
-  PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED', emoji: '⏳', detail: 'Your order was received — waiting for the kitchen to accept' },
+  PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED', emoji: '⏳', detail: 'Your order was received - waiting for the kitchen to accept' },
   ACCEPTED:  { label: 'Preparing', color: '#3B82F6', bg: '#EFF6FF', emoji: '👨‍🍳', detail: 'The kitchen is working on your order' },
-  READY:     { label: 'Ready!',    color: '#16A34A', bg: '#F0FDF4', emoji: '✅', detail: 'Your order is ready — head to the counter to pick it up' },
+  READY:     { label: 'Ready!',    color: '#16A34A', bg: '#F0FDF4', emoji: '✅', detail: 'Your order is ready - head to the counter to pick it up' },
   COMPLETED: { label: 'Picked Up', color: '#94A3B8', bg: '#F8FAFC', emoji: '🎉', detail: 'Enjoy your food!' },
   CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEF2F2', emoji: '❌', detail: 'This order was cancelled' },
 };
@@ -346,7 +346,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText}>Place Order — {fmtPrice(total)}</Text>}
+                : <Text style={cs.placeBtnText}>Place Order - {fmtPrice(total)}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -582,7 +582,7 @@ export default function CustomerHotFoodScreen() {
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>🍽️</Text>
               <Text style={s.emptyTitle}>No items available</Text>
-              <Text style={s.emptySub}>Hot food isn't available at this store right now — check back later.</Text>
+              <Text style={s.emptySub}>Hot food isn't available at this store right now - check back later.</Text>
             </View>
           ) : (
             <FadeSlideIn style={{ flex: 1 }}>

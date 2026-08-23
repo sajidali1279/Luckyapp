@@ -17,7 +17,7 @@ The store operator named in the accompanying Merchant Agreement ("Controller")
 
 **"Processing"** means any operation performed on Personal Data, including collection, storage, retrieval, use, disclosure, or deletion.
 
-**"Data Subject"** means any individual whose Personal Data is processed under this Agreement — primarily customers and employees of the Controller.
+**"Data Subject"** means any individual whose Personal Data is processed under this Agreement - primarily customers and employees of the Controller.
 
 **"Applicable Privacy Law"** means the California Consumer Privacy Act (CCPA), the Children's Online Privacy Protection Act (COPPA), and any other applicable federal or state privacy legislation.
 
@@ -56,7 +56,7 @@ Cliff Industries agrees to:
 - Process Personal Data only on documented instructions from the Controller, except where required by law
 - Ensure that personnel with access to Personal Data are bound by confidentiality obligations
 - Implement and maintain appropriate technical and organizational security measures as described in Section 6
-- Not sell, rent, or share Personal Data with third parties except as necessary to provide the services (see Section 5 — Subprocessors)
+- Not sell, rent, or share Personal Data with third parties except as necessary to provide the services (see Section 5 - Subprocessors)
 - Assist the Controller in responding to data subject rights requests within 10 business days of receiving a verified request
 - Delete or return all Personal Data upon termination of the Merchant Agreement, at the Controller's written request, within 30 days
 
@@ -151,5 +151,5 @@ In the event of a conflict between this Data Processing Agreement and the Mercha
 
 ---
 
-*Cliff Industries — Lucky Stop Loyalty Platform*  
+*Cliff Industries - Lucky Stop Loyalty Platform*  
 *Last updated: May 2026*

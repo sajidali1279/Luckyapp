@@ -90,7 +90,7 @@ export default function ForgotPinScreen() {
       setResendCooldown(60);
       Toast.show({ type: 'success', text1: 'New code sent!' });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to resend — try again' });
+      Toast.show({ type: 'error', text1: 'Failed to resend - try again' });
     } finally {
       setResending(false);
     }
@@ -113,7 +113,7 @@ export default function ForgotPinScreen() {
       setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
-        Toast.show({ type: 'error', text1: 'Wrong code — try again' });
+        Toast.show({ type: 'error', text1: 'Wrong code - try again' });
       } else if (code === 'auth/code-expired') {
         Toast.show({ type: 'error', text1: 'Code expired', text2: 'Tap Resend to get a new one' });
       } else {
@@ -163,7 +163,7 @@ export default function ForgotPinScreen() {
       <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
-          {/* Step indicator — 3 steps */}
+          {/* Step indicator - 3 steps */}
           {step !== 'done' && (
             <View style={s.steps}>
               {(['phone', 'verify', 'reset'] as Step[]).map((st, i) => {

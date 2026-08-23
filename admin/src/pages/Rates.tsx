@@ -250,7 +250,7 @@ export default function Rates() {
                 </TableHead>
                 <TableHead style={s.th}>
                   Gas ¢ / gallon
-                  <div style={s.thSub}>optional — overrides % for gas & diesel</div>
+                  <div style={s.thSub}>optional - overrides % for gas & diesel</div>
                 </TableHead>
                 <TableHead style={s.th}>
                   Min $ earned to reach tier
@@ -277,7 +277,7 @@ export default function Rates() {
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
                           <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? '—'}+ earned`}
+                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? ' - '}+ earned`}
                           </div>
                         </div>
                       </div>
@@ -367,7 +367,7 @@ export default function Rates() {
         <div>
           <h2 style={s.sectionTitle}>📦 Category Bonus Rates</h2>
           <p style={s.sectionSubtitle}>
-            This bonus adds to the tier base rate on every purchase in this category — it's not a
+            This bonus adds to the tier base rate on every purchase in this category - it's not a
             promotion, it's a permanent part of the rate. The columns to the right show the
             resulting total cashback % for each tier.
           </p>
@@ -427,7 +427,7 @@ export default function Rates() {
                         </div>
                       </TableCell>
                       <TableCell style={s.td} colSpan={7}>
-                        <span style={s.perGallonBadge}>⛽ ¢/gallon mode — configure per-tier rates below</span>
+                        <span style={s.perGallonBadge}>⛽ ¢/gallon mode - configure per-tier rates below</span>
                       </TableCell>
                     </TableRow>
                   );
@@ -494,7 +494,7 @@ export default function Rates() {
           <h2 style={s.sectionTitle}>⛽ Gas & Diesel Mode</h2>
           <p style={s.sectionSubtitle}>
             Choose how cashback is calculated for gas and diesel. In ¢/gallon mode each tier earns a flat
-            rate per gallon pumped — active promotions still stack on top as a % of the purchase amount.
+            rate per gallon pumped - active promotions still stack on top as a % of the purchase amount.
           </p>
         </div>
       </div>
@@ -515,7 +515,7 @@ export default function Rates() {
             ⛽ ¢ / gallon
           </button>
 
-          {/* Live status — based on DB state, not local toggle */}
+          {/* Live status - based on DB state, not local toggle */}
           {tiers.some(t => t.gasCentsPerGallon != null) ? (
             <span style={s.liveBadge}>● LIVE: ¢/gallon</span>
           ) : (
@@ -532,7 +532,7 @@ export default function Rates() {
         {/* Unsaved reminder when ¢/gallon is selected but nothing is saved yet */}
         {showPerGallon && !tiers.some(t => t.gasCentsPerGallon != null) && (
           <div style={s.gasModeWarning}>
-            ⚠️ ¢/gallon mode is not active yet — enter a rate for each tier below and click <strong>Save</strong> to switch.
+            ⚠️ ¢/gallon mode is not active yet - enter a rate for each tier below and click <strong>Save</strong> to switch.
           </div>
         )}
 
@@ -572,7 +572,7 @@ export default function Rates() {
                         <div>
                           <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
                           <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? '—'}+ earned`}
+                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? ' - '}+ earned`}
                           </div>
                         </div>
                       </div>
@@ -627,11 +627,11 @@ export default function Rates() {
           <div style={s.calcBox}>
             <div style={s.calcRow}>
               <span>{highestTier ? `${TIER_META[highestTier.tier as TierKey].emoji} ${highestTier.tier[0] + highestTier.tier.slice(1).toLowerCase()} tier base rate` : 'Tier base rate'}</span>
-              <span style={{ color: '#F4A226', fontWeight: 700 }}>{highestTier ? fmtPct(highestTier.cashbackRate) : '—'}</span>
+              <span style={{ color: '#F4A226', fontWeight: 700 }}>{highestTier ? fmtPct(highestTier.cashbackRate) : ' - '}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
               <span>Customer earns on $50</span>
-              <span style={{ fontWeight: 800 }}>{highestTier ? `= $${(50 * highestTier.cashbackRate).toFixed(2)}` : '—'}</span>
+              <span style={{ fontWeight: 800 }}>{highestTier ? `= $${(50 * highestTier.cashbackRate).toFixed(2)}` : ' - '}</span>
             </div>
           </div>
         </div>
@@ -646,11 +646,11 @@ export default function Rates() {
             <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>1 gal</span></div>
             <div style={s.calcRow}>
               <span>{highestGasTier ? `${TIER_META[highestGasTier.tier as TierKey].emoji} ${highestGasTier.tier[0] + highestGasTier.tier.slice(1).toLowerCase()} flat rate` : 'Flat rate'}</span>
-              <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : '—'}</span>
+              <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : ' - '}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(1 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : '—'}</span>
+              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(1 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : ' - '}</span>
             </div>
           </div>
         </div>

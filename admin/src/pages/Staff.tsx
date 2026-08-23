@@ -266,7 +266,7 @@ export default function Staff() {
                               {initial}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={s.memberName}>{member.name || '—'}</div>
+                              <div style={s.memberName}>{member.name || ' - '}</div>
                               <div style={s.memberPhone}>{member.phone}</div>
                             </div>
                             <div style={{ ...s.activeDot, background: member.isActive ? '#2DC653' : '#E63946' }} title={member.isActive ? 'Active' : 'Inactive'} />
@@ -420,7 +420,7 @@ export default function Staff() {
                   <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                     <option value="">Select a store…</option>
                     {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name}{store.city ? ` — ${store.city}` : ''}</option>
+                      <option key={store.id} value={store.id}>{store.name}{store.city ? ` - ${store.city}` : ''}</option>
                     ))}
                   </select>
                 </div>

@@ -217,7 +217,7 @@ export default function LoginScreen() {
       setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
-        Toast.show({ type: 'error', text1: 'Wrong code — try again' });
+        Toast.show({ type: 'error', text1: 'Wrong code - try again' });
       } else if (code === 'auth/code-expired') {
         Toast.show({ type: 'error', text1: 'Code expired', text2: 'Tap Resend to get a new one' });
       } else {
@@ -237,7 +237,7 @@ export default function LoginScreen() {
       setResendCooldown(60);
       Toast.show({ type: 'success', text1: 'New code sent!' });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to resend — try again' });
+      Toast.show({ type: 'error', text1: 'Failed to resend - try again' });
     } finally {
       setResending(false);
     }
@@ -546,7 +546,7 @@ export default function LoginScreen() {
                 onBlur={() => setFocusedInput(null)}
               />
               <Text style={styles.pinHint}>
-                Remember your PIN — it replaces a password. You'll need it every time you sign in.
+                Remember your PIN - it replaces a password. You'll need it every time you sign in.
               </Text>
             </>
           )}

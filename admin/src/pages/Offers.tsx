@@ -38,32 +38,32 @@ const TEMPLATES: Template[] = [
   { icon: '🧊', group: 'Groceries', title: 'Frozen Food Frenzy', description: 'Earn 10% on all frozen food items this week. Great deals on freezer favorites.', bonusRate: '5', category: 'FROZEN_FOODS' },
   { icon: '🥗', group: 'Groceries', title: 'Healthy Choice Week', description: 'Earn bonus credits on all fresh and frozen foods. Eating well pays off at Lucky Stop.', bonusRate: '5', category: 'FRESH_FOODS' },
   // 🎉 Seasonal
-  { icon: '☀️', group: 'Seasonal', title: 'Summer Road Trip Bonus', description: 'All summer long — earn double points on gas. Hit the road and rack up rewards at Lucky Stop.', bonusRate: '3', category: 'GAS' },
+  { icon: '☀️', group: 'Seasonal', title: 'Summer Road Trip Bonus', description: 'All summer long - earn double points on gas. Hit the road and rack up rewards at Lucky Stop.', bonusRate: '3', category: 'GAS' },
   { icon: '🎄', group: 'Seasonal', title: 'Holiday Bonus Weekend', description: 'Earn 2x on all purchases during the holiday weekend. Happy holidays from Lucky Stop!', bonusRate: '5', category: '' },
   { icon: '🎓', group: 'Seasonal', title: 'Back to School Special', description: 'Extra credits on snacks, drinks, and groceries all August. Fuel up for the school year!', bonusRate: '5', category: 'GROCERIES' },
   { icon: '🎆', group: 'Seasonal', title: 'Fourth of July Flash Sale', description: '3x points on all purchases on July 4th only. Celebrate and save at Lucky Stop!', bonusRate: '10', category: '' },
   { icon: '🏈', group: 'Seasonal', title: 'Game Day Double Points', description: 'Double points on all snacks and beverages on game day. Score big rewards at Lucky Stop.', bonusRate: '5', category: 'HOT_FOODS' },
-  { icon: '🎊', group: 'Seasonal', title: 'New Year Triple Points', description: 'Start the new year right — triple points on all purchases for the first 3 days of January.', bonusRate: '10', category: '' },
+  { icon: '🎊', group: 'Seasonal', title: 'New Year Triple Points', description: 'Start the new year right - triple points on all purchases for the first 3 days of January.', bonusRate: '10', category: '' },
   // 💎 Loyalty
   { icon: '💎', group: 'Loyalty', title: 'Thank You Month', description: 'Every purchase earns 2x cashback this month. Our way of saying thank you to our loyal customers.', bonusRate: '5', category: '' },
-  { icon: '⚡', group: 'Loyalty', title: 'Flash 24-Hour Sale', description: "Triple points for exactly 24 hours — today only! Don't miss this limited-time Lucky Stop deal.", bonusRate: '10', category: '' },
+  { icon: '⚡', group: 'Loyalty', title: 'Flash 24-Hour Sale', description: "Triple points for exactly 24 hours - today only! Don't miss this limited-time Lucky Stop deal.", bonusRate: '10', category: '' },
   { icon: '💰', group: 'Loyalty', title: 'Big Spender Bonus', description: 'Earn 3x points on any single purchase over $50 this week. Bigger purchase, bigger rewards.', bonusRate: '10', category: '' },
   { icon: '🌟', group: 'Loyalty', title: 'Weekend Double Points', description: 'Every Saturday and Sunday, earn double cashback on all purchases store-wide.', bonusRate: '5', category: '' },
   { icon: '🎁', group: 'Loyalty', title: 'Surprise Bonus Week', description: 'Surprise! All customers earn extra cashback on every purchase this week. No limits, no exclusions.', bonusRate: '5', category: '' },
   // 🥤 Products
   { icon: '🥤', group: 'Products', title: 'Coca-Cola Double Points Day', description: 'Buy any Coca-Cola product today and earn double cashback. Classic taste, better rewards at Lucky Stop!', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🥤', group: 'Products', title: 'Coke Variety Pack Bonus', description: 'Pick up a Coke, Diet Coke, Coke Zero, or Sprite and earn 2x points. Mix and match — all Coca-Cola products included.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🔵', group: 'Products', title: 'Pepsi Points Fiesta', description: 'Earn double cashback on all Pepsi products this week. Pepsi, Diet Pepsi, Mountain Dew — all count!', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🥤', group: 'Products', title: 'Coke Variety Pack Bonus', description: 'Pick up a Coke, Diet Coke, Coke Zero, or Sprite and earn 2x points. Mix and match - all Coca-Cola products included.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🔵', group: 'Products', title: 'Pepsi Points Fiesta', description: 'Earn double cashback on all Pepsi products this week. Pepsi, Diet Pepsi, Mountain Dew - all count!', bonusRate: '5', category: 'GROCERIES' },
   { icon: '🔵', group: 'Products', title: 'Pepsi Weekend Rush', description: 'Grab a cold Pepsi this weekend and earn 3x points. The refreshing choice that keeps on rewarding.', bonusRate: '7', category: 'GROCERIES' },
   { icon: '🟢', group: 'Products', title: 'Monster Energy Madness', description: 'Fuel your day with Monster Energy and earn triple cashback on every can. All Monster flavors included!', bonusRate: '10', category: 'GROCERIES' },
   { icon: '🟢', group: 'Products', title: 'Monster Monday Boost', description: 'Start your week with a Monster Energy and earn 3x points every Monday. Stay charged, stay rewarded.', bonusRate: '10', category: 'GROCERIES' },
   { icon: '🐂', group: 'Products', title: 'Red Bull Give You Wings Deal', description: 'Red Bull earns you double cashback all week long. Pick up your favorite flavor and soar with rewards.', bonusRate: '7', category: 'GROCERIES' },
   { icon: '🐂', group: 'Products', title: 'Red Bull 4-Pack Bonus', description: 'Buy a Red Bull 4-pack and earn 3x points. The more cans, the more credits back in your Lucky Stop wallet.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🟡', group: 'Products', title: "Frito-Lay Snack Attack", description: "Double points on all Frito-Lay snacks this week — Lay's, Doritos, Cheetos, Fritos, and more. Snack big, earn big!", bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🟡', group: 'Products', title: "Frito-Lay Snack Attack", description: "Double points on all Frito-Lay snacks this week - Lay's, Doritos, Cheetos, Fritos, and more. Snack big, earn big!", bonusRate: '7', category: 'GROCERIES' },
   { icon: '🟡', group: 'Products', title: 'Game Day Frito-Lay Bundle', description: "Stock up on Doritos, Lay's, and Tostitos for game day and earn 2x cashback. Snack smarter at Lucky Stop.", bonusRate: '5', category: 'GROCERIES' },
-  { icon: '☕', group: 'Products', title: 'Coffee Lover Bonus', description: 'Earn 3x points on all hot coffee purchases this week. Whether it\'s your morning cup or afternoon pick-me-up — you\'re covered.', bonusRate: '10', category: 'HOT_FOODS' },
+  { icon: '☕', group: 'Products', title: 'Coffee Lover Bonus', description: 'Earn 3x points on all hot coffee purchases this week. Whether it\'s your morning cup or afternoon pick-me-up - you\'re covered.', bonusRate: '10', category: 'HOT_FOODS' },
   { icon: '☕', group: 'Products', title: 'Morning Coffee Double Points', description: 'First coffee of the day earns double cashback before 10am every day this week. Wake up and earn at Lucky Stop.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Dasani, Aquafina, Smartwater — stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Dasani, Aquafina, Smartwater - stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
   { icon: '💧', group: 'Products', title: 'Water Case Bonus', description: 'Buy a case of water and earn 3x points instantly. Stock up at Lucky Stop and save big on your balance.', bonusRate: '10', category: 'GROCERIES' },
 ];
 
@@ -201,7 +201,7 @@ export default function Offers() {
     setEndDate(endOfMonthStr());
     setShowForm(true);
     setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
-    toast.success('Form filled from past offer — update the dates and submit');
+    toast.success('Form filled from past offer - update the dates and submit');
   }
 
   function handleCreate(e: React.FormEvent) {
@@ -269,7 +269,7 @@ export default function Offers() {
       : 'All Categories';
     const durationLabel = { today: 'Today', '3d': '3 Days', '1w': 'This Week', '2w': '2 Weeks', '1m': 'This Month' }[quickDuration];
     const bonusDisplay = useCpg ? `+${cpg}¢/gal` : `+${bonus}%`;
-    const autoTitle = `${bonusDisplay} ${catLabel} Bonus — ${durationLabel}`;
+    const autoTitle = `${bonusDisplay} ${catLabel} Bonus - ${durationLabel}`;
 
     const now = new Date();
     const end = new Date(now);
@@ -353,7 +353,7 @@ export default function Offers() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>📢 Offers & Promotions</h1>
-          <p style={s.sub}>Promotions boost cashback automatically — Deals display price specials in the app</p>
+          <p style={s.sub}>Promotions boost cashback automatically - Deals display price specials in the app</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {mainTab === 'promotions' && (
@@ -423,7 +423,7 @@ export default function Offers() {
               </div>
             </div>
 
-            {/* Bonus — mode toggle for GAS/DIESEL */}
+            {/* Bonus - mode toggle for GAS/DIESEL */}
             <div style={s.quickGroup}>
               {(quickCategory === 'GAS' || quickCategory === 'DIESEL') && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -526,7 +526,7 @@ export default function Offers() {
       {showTemplates && (
         <div style={s.suggestionsBox}>
           <h3 style={s.suggestTitle}>💡 Promotion Templates</h3>
-          <p style={s.suggestSub}>Click any template to instantly pre-fill the form — you just set the dates and submit.</p>
+          <p style={s.suggestSub}>Click any template to instantly pre-fill the form - you just set the dates and submit.</p>
           <div style={s.groupTabs}>
             {TEMPLATE_GROUPS.map((g) => (
               <button key={g} style={{ ...s.groupTab, ...(activeGroup === g ? s.groupTabActive : {}) }} onClick={() => setActiveGroup(g)}>
@@ -641,7 +641,7 @@ export default function Offers() {
                         style={{ ...s.input, width: 120 }}
                         value={bonusRate} onChange={e => setBonusRate(e.target.value)}
                         placeholder="e.g. 3" />
-                      <span style={s.unit}>% bonus — same for all tiers</span>
+                      <span style={s.unit}>% bonus - same for all tiers</span>
                     </div>
                     <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
                       style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
@@ -699,7 +699,7 @@ export default function Offers() {
                       <select style={{ ...s.input, marginTop: 8 }} value={storeId} onChange={e => setStoreId(e.target.value)}>
                         <option value="">-- Choose a store --</option>
                         {stores.map((store: any) => (
-                          <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                          <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
                         ))}
                       </select>
                     </>
@@ -714,7 +714,7 @@ export default function Offers() {
             <div style={s.formSection}>
               <div style={s.formSectionLabel}>4 · Title & Image</div>
               <input style={s.input} value={title} onChange={e => setTitle(e.target.value)} placeholder="Leave blank to auto-generate" />
-              <textarea style={{ ...s.input, height: 70, resize: 'vertical', marginTop: 8 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional — auto-generated if blank)" />
+              <textarea style={{ ...s.input, height: 70, resize: 'vertical', marginTop: 8 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional - auto-generated if blank)" />
               <input ref={fileRef} type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={{ ...s.input, marginTop: 8 }} />
             </div>
           )}
@@ -755,7 +755,7 @@ export default function Offers() {
               ) : (
                 <>
                   <p style={{ color: '#6c757d', fontSize: 15, margin: '0 0 16px' }}>
-                    {pastPromotions.length} past promotions — click ♻️ Reuse on any to pre-fill the form.
+                    {pastPromotions.length} past promotions - click ♻️ Reuse on any to pre-fill the form.
                   </p>
                   <div style={s.grid}>
                     {pastPromotions.map((offer: any) => (
@@ -813,7 +813,7 @@ export default function Offers() {
                       <select style={s.input} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
                         <option value="">-- Choose a store --</option>
                         {stores.map((store: any) => (
-                          <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                          <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
                         ))}
                       </select>
                     </>

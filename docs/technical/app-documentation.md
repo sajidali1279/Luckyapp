@@ -1,7 +1,7 @@
-# Lucky Stop Loyalty Platform — Technical Documentation
+# Lucky Stop Loyalty Platform - Technical Documentation
 
-**Version:** 1.4
-**Last Updated:** July 21, 2026
+**Version:** 1.5
+**Last Updated:** August 23, 2026
 **Maintained By:** Cliff Industries (sksajidali1279@gmail.com)
 
 ---
@@ -21,7 +21,7 @@
 11. [Image Storage and Upload](#11-image-storage-and-upload)
 12. [Mobile App Architecture](#12-mobile-app-architecture)
 13. [Admin Portal Architecture](#13-admin-portal-architecture)
-14. [POS Integration — Receipt QR Tokens](#14-pos-integration--receipt-qr-tokens)
+14. [POS Integration - Receipt QR Tokens](#14-pos-integration--receipt-qr-tokens)
 15. [Environment Variables](#15-environment-variables)
 16. [Deployment Infrastructure](#16-deployment-infrastructure)
 17. [Billing System](#17-billing-system)
@@ -143,7 +143,7 @@ The Lucky Stop Loyalty Platform is a multi-tenant, multi-role SaaS loyalty rewar
 | node-cron | 4.2.1 | Scheduled jobs (billing generation) |
 | Resend SDK | 6.1.3 | Transactional email delivery |
 | TypeScript | 5.4.2 | Static typing |
-| ts-node | — | TypeScript execution |
+| ts-node | - | TypeScript execution |
 
 ### Mobile App
 
@@ -157,10 +157,10 @@ The Lucky Stop Loyalty Platform is a multi-tenant, multi-role SaaS loyalty rewar
 | Zustand | 5.0.1 | Client state management |
 | Axios | 1.7.9 | HTTP client |
 | React Native Firebase | 21.13.0 | Firebase Auth (phone OTP) |
-| Expo Secure Store | — | Encrypted JWT storage |
-| Expo Image Picker | — | Camera / photo library access |
-| Expo Local Authentication | — | Biometric (Face ID / Touch ID) |
-| Expo Notifications | — | Push notification handling |
+| Expo Secure Store | - | Encrypted JWT storage |
+| Expo Image Picker | - | Camera / photo library access |
+| Expo Local Authentication | - | Biometric (Face ID / Touch ID) |
+| Expo Notifications | - | Push notification handling |
 | React Hook Form | 7.54.0 | Form management |
 | Zod | 3.x | Form validation |
 
@@ -189,10 +189,10 @@ The platform has five roles in descending order of access:
 | Role | Code | Description |
 |---|---|---|
 | Developer Admin | `DEV_ADMIN` | Full platform access including billing management, API key management, deletion |
-| Super Administrator | `SUPER_ADMIN` | All stores — staff management, offers, catalog, analytics, customer management |
-| Store Manager | `STORE_MANAGER` | Assigned store(s) — transactions, scheduling, offers, order lists, employee requests |
-| Employee / Cashier | `EMPLOYEE` | Assigned store — transaction processing, item requests, scheduling, chat |
-| Customer | `CUSTOMER` | Personal account — loyalty program, redemptions, catalog |
+| Super Administrator | `SUPER_ADMIN` | All stores - staff management, offers, catalog, analytics, customer management |
+| Store Manager | `STORE_MANAGER` | Assigned store(s) - transactions, scheduling, offers, order lists, employee requests |
+| Employee / Cashier | `EMPLOYEE` | Assigned store - transaction processing, item requests, scheduling, chat |
+| Customer | `CUSTOMER` | Personal account - loyalty program, redemptions, catalog |
 
 ### Role Helper Functions (authStore.ts)
 
@@ -245,10 +245,10 @@ The `User.allStoresAccess` boolean allows `SUPER_ADMIN` and `DEV_ADMIN` users to
 All authenticated requests include the JWT in the `Authorization: Bearer <token>` header. The `authenticate` middleware:
 1. Extracts the JWT from the header.
 2. Verifies the signature using `JWT_SECRET`.
-3. **Live-checks the account** — looks up `isActive` by user ID in the database and rejects with 401 (`Account no longer active. Please sign in again.`) if the account was deleted or deactivated, even though the JWT signature itself is still valid.
+3. **Live-checks the account** - looks up `isActive` by user ID in the database and rejects with 401 (`Account no longer active. Please sign in again.`) if the account was deleted or deactivated, even though the JWT signature itself is still valid.
 4. Attaches the decoded JWT payload to `req.user`.
 
-**Why the live check matters (added 2026-07-10):** a JWT's signature stays valid for its full `JWT_EXPIRES_IN` lifetime (up to 7 days) regardless of what happens to the account afterward. Before this check existed, a deactivated or deleted account's existing token kept working until it naturally expired — including on iOS, where `expo-secure-store` is backed by the Keychain and survives an app delete/reinstall, so a stale session could outlive the account indefinitely. This also means an admin's "deactivate user" action now takes effect immediately on every subsequent request, not just on the account's next fresh login.
+**Why the live check matters (added 2026-07-10):** a JWT's signature stays valid for its full `JWT_EXPIRES_IN` lifetime (up to 7 days) regardless of what happens to the account afterward. Before this check existed, a deactivated or deleted account's existing token kept working until it naturally expired - including on iOS, where `expo-secure-store` is backed by the Keychain and survives an app delete/reinstall, so a stale session could outlive the account indefinitely. This also means an admin's "deactivate user" action now takes effect immediately on every subsequent request, not just on the account's next fresh login.
 
 ### 5.2 PIN Security
 
@@ -265,13 +265,13 @@ JWT_SECRET    = [32+ character random secret]
 JWT_EXPIRES_IN = '7d' (configurable)
 ```
 
-JWTs are stored client-side in `expo-secure-store` (mobile) — a device-level encrypted key-value store. They are never stored in `AsyncStorage` or `localStorage`.
+JWTs are stored client-side in `expo-secure-store` (mobile) - a device-level encrypted key-value store. They are never stored in `AsyncStorage` or `localStorage`.
 
 ### 5.4 PIN Reset Flow
 
 1. Customer provides phone number.
 2. Firebase sends an OTP to the phone.
-3. Customer verifies OTP — Firebase returns an ID token.
+3. Customer verifies OTP - Firebase returns an ID token.
 4. Client calls `POST /auth/verify-firebase-reset` with the Firebase token.
 5. Server verifies the token, extracts the phone, generates a short-lived `resetToken` (stored in `OtpCode` table).
 6. Client calls `POST /auth/reset-pin` with `{ resetToken, newPin }`.
@@ -381,7 +381,7 @@ model PointsTransaction {
 ```
 
 **Key points:**
-- `receiptImageHash` is unique — prevents the same receipt from being used twice across all transactions.
+- `receiptImageHash` is unique - prevents the same receipt from being used twice across all transactions.
 - `devCut` and `storeCost` are pre-calculated at transaction creation time.
 - `fraudFlags` stores reasons if the transaction was auto-flagged.
 
@@ -416,7 +416,7 @@ model UserNotification {
 }
 ```
 
-**Key point:** `expiresAt` is used for offer notifications — set to the offer's end date so stale notifications automatically disappear from the user's inbox.
+**Key point:** `expiresAt` is used for offer notifications - set to the offer's end date so stale notifications automatically disappear from the user's inbox.
 
 #### OrderList / OrderListItem
 ```prisma
@@ -452,6 +452,27 @@ model OrderListItem {
 }
 ```
 
+#### Label
+
+```prisma
+model Label {
+  id               String        @id @default(uuid())
+  productName      String
+  priceText        String          // regular unit price, e.g. "3.99"
+  dealText         String?         // optional freeform deal text, e.g. "2 for $5"
+  barcode          String?
+  category         String?         // freeform, same approval pipeline as Order List's OrderCategory
+  template         LabelTemplate @default(CLASSIC_RED_BLACK)
+  createdByStoreId String?         // null for admin-web-created labels
+  createdById      String?
+  printedAt        DateTime?       // null = ready to print; reset to null on any edit
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+```
+
+**Key point:** the catalog is chain-wide, not scoped to `createdByStoreId` at the query level; that field only drives the "Ready to Print" filter (labels from the current store with `printedAt: null`) and the cross-store print confirmation warning. A print event calls `POST /labels/print`, which sets `printedAt` on the printed labels and writes a `PRINT_LABEL` entry to the Audit Log (Section 19).
+
 ### Full Enum Reference
 
 ```typescript
@@ -480,6 +501,7 @@ enum CategoryStatus { PENDING | APPROVED | REJECTED }
 enum EmployeeRequestType { LOW_STOCK | CUSTOMER_REQUEST }
 enum DayOfWeek { MON | TUE | WED | THU | FRI | SAT | SUN }
 enum PromoStatus { PENDING | APPROVED | REJECTED }
+enum LabelTemplate { CLASSIC_RED_BLACK | CHRISTMAS_WINTER | SUMMER | CLEARANCE | INDEPENDENCE_DAY | HALLOWEEN | PREMIUM }
 ```
 
 ---
@@ -574,7 +596,7 @@ if (newTier !== customer.tier) {
 
 ### 8.3 Tier Period Reset
 
-A cron job (or manual trigger by DevAdmin) resets `periodPoints` for all users at the end of the tier period. The `tier` field is preserved — users start the new period at their current tier.
+A cron job (or manual trigger by DevAdmin) resets `periodPoints` for all users at the end of the tier period. The `tier` field is preserved - users start the new period at their current tier.
 
 ---
 
@@ -588,8 +610,8 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
-| POST | /auth/register | Public | — | Register customer with Firebase OTP |
-| POST | /auth/login | Public | — | Login with phone + PIN |
+| POST | /auth/register | Public | - | Register customer with Firebase OTP |
+| POST | /auth/login | Public | - | Login with phone + PIN |
 | GET | /auth/me | JWT | Any | Get current user profile |
 | PATCH | /auth/profile | JWT | Any | Update display name |
 | POST | /auth/profile/avatar | JWT | Any | Upload profile picture (multipart) |
@@ -742,6 +764,16 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | POST | /order-lists/store/:storeId/restore-items | JWT | STORE_MANAGER+ | Restore items from closed list |
 | GET | /order-lists/admin/all | JWT | SUPER_ADMIN | All lists across stores |
 
+### Labels
+
+| Method | Path | Auth | Role | Description |
+|---|---|---|---|---|
+| GET | /labels | JWT | EMPLOYEE+ | Chain-wide label catalog |
+| POST | /labels | JWT | EMPLOYEE+ | Create a label |
+| PATCH | /labels/:labelId | JWT | EMPLOYEE+ | Update a label (resets `printedAt` to null) |
+| DELETE | /labels/:labelId | JWT | EMPLOYEE+ | Delete a label |
+| POST | /labels/print | JWT | EMPLOYEE+ | Mark labels printed; logs a `PRINT_LABEL` audit event |
+
 ### Employee Item Requests
 
 | Method | Path | Auth | Role | Description |
@@ -763,6 +795,12 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | GET | /billing/analytics | JWT | DEV_ADMIN | Billing analytics |
 | PATCH | /billing/stores/:storeId | JWT | DEV_ADMIN | Update store billing config |
 | POST | /billing/generate-monthly | JWT | DEV_ADMIN | Generate monthly bills |
+| POST | /billing/stores/:storeId/records | JWT | DEV_ADMIN | Add a manual/custom charge. `:storeId` accepts the literal `chain` as a reserved sentinel, meaning a chain-wide charge billed to the SuperAdmin rather than one store (stored as a null `storeId`) |
+| GET | /billing/extra-charges | JWT | DEV_ADMIN | List manual/custom charges, with the typed reason parsed out as `description` |
+| PATCH | /billing/records/:recordId/paid | JWT | DEV_ADMIN | Mark one charge paid (per-charge, not per-period) |
+| PATCH | /billing/records/:recordId | JWT | DEV_ADMIN | Edit a charge's amount/description |
+| DELETE | /billing/records/:recordId | JWT | DEV_ADMIN | Delete an unpaid charge |
+| GET | /billing/monthly-records | JWT | DEV_ADMIN | All billing records, grouped by period |
 | GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates |
 | PUT | /billing/tier-rates/:tier | JWT | SUPER_ADMIN | Update tier rate |
 | GET | /billing/category-rates | JWT | EMPLOYEE+ | Category cashback rates |
@@ -845,7 +883,7 @@ Every notification carries a real, ready-to-navigate destination computed server
 - Mobile has a single OS-level tap listener (root `_layout.tsx`) that reads `actionUrl` from the notification response and routes there via Expo Router, for all three launch states. A consume-once guard (`clearLastNotificationResponseAsync`) stops a cold-start tap from replaying itself on a later, unrelated relaunch.
 - Destination screens implement a shared "highlight" treatment (`PulseHighlight` component + `useHighlightParam` hook) that scrolls to and briefly pulses the specific row a notification pointed at (a request, a dispute, an alert), driven by a `highlight=<id>` query param on the route.
 - Admin's bell-feed notifications reuse the same `actionUrl` pattern (already existed there before the mobile-side work) rather than a separate mechanism.
-- **Known gap, by design, not a bug:** notification types with no real destination screen to link to (e.g. a customer-facing "your hot food order is ready" push — there's no dedicated order-status screen yet) simply omit `actionUrl`; tapping them just opens the app.
+- **Known gap, by design, not a bug:** notification types with no real destination screen to link to (e.g. a customer-facing "your hot food order is ready" push - there's no dedicated order-status screen yet) simply omit `actionUrl`; tapping them just opens the app.
 
 ---
 
@@ -890,7 +928,7 @@ Receipt images are uploaded after transaction initiation. After upload:
 mobile/
 ├── app/
 │   ├── _layout.tsx           # Root layout, loads auth state
-│   ├── index.tsx             # Auth gate — routes to appropriate area
+│   ├── index.tsx             # Auth gate - routes to appropriate area
 │   ├── role-tour.tsx         # First-time role tutorial
 │   ├── (auth)/
 │   │   ├── welcome.tsx       # Registration screen
@@ -960,7 +998,7 @@ mobile/
 
 ### 12.2 Navigation Structure
 
-- **Unauthenticated:** `(auth)` group — welcome, login, forgot-pin.
+- **Unauthenticated:** `(auth)` group - welcome, login, forgot-pin.
 - **Customer:** Tab navigator with Home, Catalog, History, Notifications, Profile.
 - **Employee:** Drawer navigator with Home as default, Scan, Schedule, Chat, etc.
 - **Manager:** Drawer navigator with Home as default, Order List, Requests, Offers, etc.
@@ -1031,7 +1069,7 @@ Pluralization uses the i18next `_one` / `_other` suffix convention (e.g., `store
 **Behavior on error:**
 - Renders a fallback screen with a warning icon, "Something went wrong", "Your account and points are safe.", and a "Try Again" button.
 - The "Try Again" button resets boundary state (`hasError: false`), allowing the app to re-render without requiring a full restart.
-- `componentDidCatch` logs the error to `console.error` — replace with `Sentry.captureException(error)` when crash reporting is added.
+- `componentDidCatch` logs the error to `console.error` - replace with `Sentry.captureException(error)` when crash reporting is added.
 
 **Placement:** `<ErrorBoundary>` wraps `<QueryClientProvider>` in `_layout.tsx`, so it catches errors from any screen across all roles.
 
@@ -1084,7 +1122,7 @@ The Navbar component uses the user's role to determine which navigation items ar
 
 ---
 
-## 14. POS Integration — Receipt QR Tokens
+## 14. POS Integration - Receipt QR Tokens
 
 For stores with QR-capable receipt printers, the platform supports automated receipt QR tokens:
 
@@ -1101,7 +1139,7 @@ For stores with QR-capable receipt printers, the platform supports automated rec
 6. App calls `GET /points/receipt-token/:tokenId` to preview the amount.
 7. Customer taps **Claim Points** → `POST /points/self-grant` → points credited.
 
-Each `txRef` per store is unique — prevents double-scanning the same receipt.
+Each `txRef` per store is unique - prevents double-scanning the same receipt.
 
 ---
 
@@ -1187,12 +1225,12 @@ eas build --profile development --platform all
 eas build --profile preview --platform android
 ```
 
-**Production releases do not use EAS's cloud build service** — to avoid EAS build credits, both platforms build via dedicated GitHub Actions workflows that run a bare local build instead:
+**Production releases do not use EAS's cloud build service** - to avoid EAS build credits, both platforms build via dedicated GitHub Actions workflows that run a bare local build instead:
 
-- **`.github/workflows/build-android.yml`** — `expo prebuild --clean` + Gradle `bundleRelease` (AAB, the format Play Console requires) on a standard Linux runner. Manually triggered (`workflow_dispatch`); uploads the AAB as a workflow artifact for manual Play Console upload — does not auto-submit.
-- **`.github/workflows/build-ios.yml`** — `macos-latest` runner: decodes the distribution certificate, provisioning profile, and `GoogleService-Info.plist` from GitHub Secrets into a temporary keychain, archives via `xcodebuild`, exports a signed `.ipa`, and **auto-uploads to App Store Connect** via `xcrun altool --upload-app` (API-key auth — `xcodebuild -exportArchive -destination upload` does not reliably support non-interactive API-key auth in CI). Still requires a manual "Submit for Review" step in App Store Connect itself. The pinned Xcode version (`xcode-select -s`) must be re-checked after every Expo SDK bump — SDK upgrades have broken this build twice by requiring a newer Xcode/Swift than the runner's default.
+- **`.github/workflows/build-android.yml`** - `expo prebuild --clean` + Gradle `bundleRelease` (AAB, the format Play Console requires) on a standard Linux runner. Manually triggered (`workflow_dispatch`); uploads the AAB as a workflow artifact for manual Play Console upload - does not auto-submit.
+- **`.github/workflows/build-ios.yml`** - `macos-latest` runner: decodes the distribution certificate, provisioning profile, and `GoogleService-Info.plist` from GitHub Secrets into a temporary keychain, archives via `xcodebuild`, exports a signed `.ipa`, and **auto-uploads to App Store Connect** via `xcrun altool --upload-app` (API-key auth - `xcodebuild -exportArchive -destination upload` does not reliably support non-interactive API-key auth in CI). Still requires a manual "Submit for Review" step in App Store Connect itself. The pinned Xcode version (`xcode-select -s`) must be re-checked after every Expo SDK bump - SDK upgrades have broken this build twice by requiring a newer Xcode/Swift than the runner's default.
 
-**No OTA updates are configured** (no `expo-updates` dependency) — every code change, including a pure JS/TSX-only change, requires a full new native build and a fresh store submission to reach any installed device.
+**No OTA updates are configured** (no `expo-updates` dependency) - every code change, including a pure JS/TSX-only change, requires a full new native build and a fresh store submission to reach any installed device.
 
 Both apps are live publicly: iOS App Store (`id6787270736`), Google Play (`com.luckystop.app`).
 
@@ -1233,6 +1271,14 @@ DevAdmin triggers `POST /billing/generate-monthly` to create `BillingRecord` ent
 - Total dev cut this month/quarter/year.
 - Per-store revenue breakdown.
 - Transaction volume trends.
+
+### 17.5 Manual Charges and Chain-Wide Billing
+
+`BillingRecord.storeId` is nullable: `null` means a chain-wide charge billed to the SuperAdmin/chain as a whole rather than one specific store, the same convention used by `AdminNotice.storeId`/`DailyTask.storeId` elsewhere in the schema. `POST /billing/stores/:storeId/records` treats the literal string `chain` as a reserved sentinel in the `:storeId` route param, mapping it to `null` server-side rather than adding a second route.
+
+A `CUSTOM`-type `BillingRecord`'s `notes` column holds a different JSON shape than every other billing type: `{ description }` instead of the full compound breakdown (`txCount`, `purchaseVolume`, `categories`, etc.). Any code reading `notes` off a `BillingRecord` must branch on `billingType === 'CUSTOM'` before assuming the compound shape is present - the admin frontend's invoice views (`admin/src/pages/Billing.tsx`, `SuperAdminBilling.tsx`) do this by nulling out the parsed notes object for `CUSTOM` records and reading `description` separately.
+
+Paid status is tracked per `BillingRecord`, not per billing period: `getSuperAdminInvoices` groups every record in a period into one consolidated invoice object, but each per-store row it returns carries its own `isPaid`/`paidAt`, and the invoice's own `isPaid` flag is only `true` when every record in that period is paid. Any summary total (Outstanding Balance, Total Paid) must aggregate by each record's own `isPaid`, not by the period-level flag, or a period with a mix of paid and unpaid charges will report its entire total as outstanding.
 
 ---
 
@@ -1282,7 +1328,7 @@ audit({
 })
 ```
 
-This creates an `AuditLog` record. The audit log is append-only — records are never deleted or modified. Super Admins can search and filter the audit log via the Admin Portal.
+This creates an `AuditLog` record. The audit log is append-only - records are never deleted or modified. Super Admins can search and filter the audit log via the Admin Portal.
 
 ### Audited Actions (Examples)
 
@@ -1318,7 +1364,7 @@ Handles managed workflow builds for iOS and Android. OTA updates can be pushed w
 
 ### Backend
 
-`backend/src/index.ts` imports `express-async-errors` as its very first line, before any routes are mounted. This is load-bearing: **Express 4's built-in routing does not forward a thrown/rejected error from an `async` handler to error middleware** — without this import, a controller that throws just hangs the request forever with no response ever sent (the only trace is a swallowed `unhandledRejection` log). `express-async-errors` monkey-patches Express so every async handler's errors flow into the standard error-handling pipeline automatically, whether or not that specific controller has its own try/catch.
+`backend/src/index.ts` imports `express-async-errors` as its very first line, before any routes are mounted. This is load-bearing: **Express 4's built-in routing does not forward a thrown/rejected error from an `async` handler to error middleware** - without this import, a controller that throws just hangs the request forever with no response ever sent (the only trace is a swallowed `unhandledRejection` log). `express-async-errors` monkey-patches Express so every async handler's errors flow into the standard error-handling pipeline automatically, whether or not that specific controller has its own try/catch.
 
 A catch-all error middleware is registered last, after all routes:
 
@@ -1329,7 +1375,7 @@ app.use((err: Error, _req, res, _next) => {
 });
 ```
 
-Individual controllers may still add their own try/catch for a more specific error message/status — that's the pattern below — but it is no longer required for correctness the way it was before `express-async-errors` was added (2026-07-10, commit `cf899e9`); an uncaught throw now always reaches this handler instead of hanging.
+Individual controllers may still add their own try/catch for a more specific error message/status - that's the pattern below - but it is no longer required for correctness the way it was before `express-async-errors` was added (2026-07-10, commit `cf899e9`); an uncaught throw now always reaches this handler instead of hanging.
 
 ```typescript
 try {
@@ -1345,7 +1391,7 @@ Auth errors return 401.
 Permission errors return 403.
 Not found returns 404.
 
-`process.on('unhandledRejection', ...)` / `process.on('uncaughtException', ...)` handlers log to the console as a last-resort safety net (Render logs), but should not be relied on as the primary error path — `express-async-errors` + the middleware above is.
+`process.on('unhandledRejection', ...)` / `process.on('uncaughtException', ...)` handlers log to the console as a last-resort safety net (Render logs), but should not be relied on as the primary error path - `express-async-errors` + the middleware above is.
 
 ### Mobile App
 

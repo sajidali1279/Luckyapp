@@ -117,7 +117,7 @@ export default function CustomerLeaderboardScreen() {
           ))}
         </View>
 
-        {/* Store picker — only when store tab active */}
+        {/* Store picker - only when store tab active */}
         {tab === 'store' && stores.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.storePickerRow}>
             {stores.map((store: any) => (

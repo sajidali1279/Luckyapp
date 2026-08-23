@@ -252,7 +252,7 @@ export default function Careers() {
                     </div>
                     <div style={s.opMeta}>
                       {POSITION_LABELS[op.position] ?? op.position}
-                      {op.store ? ` · ${op.store.name} — ${op.store.city}` : ' · Any Location'}
+                      {op.store ? ` · ${op.store.name} - ${op.store.city}` : ' · Any Location'}
                       {op.payRange ? ` · ${op.payRange}` : ''}
                       {op.employType !== 'BOTH' ? ` · ${op.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}` : ''}
                     </div>
@@ -293,7 +293,7 @@ export default function Careers() {
         <select style={s.select} value={selectedStore} onChange={e => setSelectedStore(e.target.value)}>
           <option value="">All Stores</option>
           {stores.map((st: any) => (
-            <option key={st.id} value={st.id}>{st.name} — {st.city}</option>
+            <option key={st.id} value={st.id}>{st.name} - {st.city}</option>
           ))}
         </select>
       </div>
@@ -328,7 +328,7 @@ export default function Careers() {
                       <div style={s.appPhone}>{app.phone}</div>
                     </TableCell>
                     <TableCell style={s.td}>{POSITION_LABELS[app.position] ?? app.position}</TableCell>
-                    <TableCell style={s.td}>{app.store ? `${app.store.name} — ${app.store.city}` : 'Any'}</TableCell>
+                    <TableCell style={s.td}>{app.store ? `${app.store.name} - ${app.store.city}` : 'Any'}</TableCell>
                     <TableCell style={s.td}>
                       <span style={s.avail}>{app.availability.type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</span>
                     </TableCell>
@@ -377,7 +377,7 @@ export default function Careers() {
                 <label style={s.label}>Store (optional)</label>
                 <select style={s.input} value={openingForm.storeId} onChange={e => setOpeningForm(f => ({ ...f, storeId: e.target.value }))}>
                   <option value="">Any Location</option>
-                  {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                  {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
                 </select>
               </div>
               <div style={{ flex: 1 }}>
@@ -435,7 +435,7 @@ export default function Careers() {
                 <div style={s.sectionTitle}>Preferences</div>
                 <div style={s.row}>
                   <span style={s.rowLabel}>Store</span>
-                  <span>{app.store ? `${app.store.name} — ${app.store.city}` : 'Any location'}</span>
+                  <span>{app.store ? `${app.store.name} - ${app.store.city}` : 'Any location'}</span>
                 </div>
                 <div style={s.row}>
                   <span style={s.rowLabel}>Type</span>

@@ -153,8 +153,8 @@ export default function SuperAdminBilling() {
                                 .map((row: any, i: number) => (
                                   <TableRow key={row.store?.id ?? `chain-${i}`} style={s.tr}>
                                     <TableCell style={s.td}><strong>{row.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong></TableCell>
-                                    <TableCell style={s.td}>{row.store?.city ?? '—'}</TableCell>
-                                    <TableCell style={s.td}>{row.description || '—'}</TableCell>
+                                    <TableCell style={s.td}>{row.store?.city ?? ' - '}</TableCell>
+                                    <TableCell style={s.td}>{row.description || ' - '}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
                                     <TableCell style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</TableCell>
@@ -190,7 +190,7 @@ export default function SuperAdminBilling() {
       <div style={s.infoBox}>
         <div style={s.infoTitle}>About Platform Fees</div>
         <div style={s.infoText}>
-          Platform fees are calculated as a percentage of the cashback credits issued to your customers each month. When your employees grant points, a small developer cut is taken from the cashback pool — you are billed for that amount monthly.
+          Platform fees are calculated as a percentage of the cashback credits issued to your customers each month. When your employees grant points, a small developer cut is taken from the cashback pool - you are billed for that amount monthly.
         </div>
       </div>
     </div>

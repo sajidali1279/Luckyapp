@@ -526,7 +526,7 @@ export default function EmployeeScanScreen() {
       // Keep the captured photo — most failures here are transient network/server
       // errors unrelated to the photo itself, so let the cashier just retry the
       // upload instead of forcing a full camera retake.
-      Toast.show({ type: 'error', text1: 'Upload failed — tap Upload to retry', text2: err.response?.data?.error });
+      Toast.show({ type: 'error', text1: 'Upload failed - tap Upload to retry', text2: err.response?.data?.error });
     } finally {
       setLoading(false);
     }
@@ -756,11 +756,11 @@ export default function EmployeeScanScreen() {
             </View>
           )}
 
-          {/* Pending Catalog Redemptions — customer-initiated holds awaiting confirmation */}
+          {/* Pending Catalog Redemptions - customer-initiated holds awaiting confirmation */}
           {pendingRedemptions.length > 0 && (
             <View style={s.pendingSection}>
               <Text style={s.pendingSectionTitle}>Pending Redemptions ({pendingRedemptions.length})</Text>
-              <Text style={s.pendingSectionSub}>Customer redeemed these — confirm to complete</Text>
+              <Text style={s.pendingSectionSub}>Customer redeemed these - confirm to complete</Text>
               {pendingRedemptions.map((r) => {
                 const expiresAt = new Date(r.expiresAt);
                 const msLeft = expiresAt.getTime() - Date.now();
@@ -843,7 +843,7 @@ export default function EmployeeScanScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Tier Benefit — show when available */}
+          {/* Tier Benefit - show when available */}
           {benefitAvailable && (
             <TouchableOpacity
               style={[s.modeCard, { borderColor: tierCfg.color + '60' }]}
@@ -863,7 +863,7 @@ export default function EmployeeScanScreen() {
                 <Text style={s.modeSub}>
                   {benefitType === 'SILVER_FOUNTAIN'
                     ? `${silverRemaining} refills left this period`
-                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier — 1 refill per day`}
+                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier - 1 refill per day`}
                 </Text>
               </View>
               {loading ? (
@@ -876,7 +876,7 @@ export default function EmployeeScanScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Catalog Redeem — show when catalog has items and customer has balance */}
+          {/* Catalog Redeem - show when catalog has items and customer has balance */}
           {catalogItems.length > 0 && (
             <TouchableOpacity
               style={[s.modeCard, { borderColor: '#9B5DE5' + '50' }]}
@@ -898,7 +898,7 @@ export default function EmployeeScanScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Welcome Bonus — show when customer has an unconfirmed claim for today */}
+          {/* Welcome Bonus - show when customer has an unconfirmed claim for today */}
           {welcomeBonus && (
             <TouchableOpacity
               style={[s.modeCard, { borderColor: '#F59E0B60' }]}
@@ -913,7 +913,7 @@ export default function EmployeeScanScreen() {
               </View>
               <View style={s.modeBody}>
                 <Text style={[s.modeTitle, { color: '#D97706' }]}>Welcome Bonus · Day {welcomeBonus.day}</Text>
-                <Text style={s.modeSub}>{welcomeBonus.rewardLabel} — CODE: {welcomeBonus.claimCode}</Text>
+                <Text style={s.modeSub}>{welcomeBonus.rewardLabel} - CODE: {welcomeBonus.claimCode}</Text>
               </View>
               {loading
                 ? <ActivityIndicator color="#F59E0B" style={{ marginRight: 4 }} />
@@ -929,7 +929,7 @@ export default function EmployeeScanScreen() {
       {step === 'grant-amount' && (
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
-          {/* Customer summary — Grant Points is the fast-path default from scan, so this
+          {/* Customer summary - Grant Points is the fast-path default from scan, so this
               step needs its own tier/balance confirmation (the mode-select screen used to
               show this before every action). "See other options" routes back to mode-select
               for Redeem/Benefit/Catalog/Welcome Bonus without re-scanning. */}
@@ -989,7 +989,7 @@ export default function EmployeeScanScreen() {
           )}
 
           {/* Category grid */}
-          <Text style={s.fieldLabel}>{lineItems.length > 0 ? 'Next Item — Category' : 'Category'}</Text>
+          <Text style={s.fieldLabel}>{lineItems.length > 0 ? 'Next Item - Category' : 'Category'}</Text>
           <View style={s.catGrid}>
             {CATEGORIES.filter(c => {
               const enabled = storeId ? (storeGasPrices[storeId]?.enabledCategories ?? []) : [];
@@ -1031,7 +1031,7 @@ export default function EmployeeScanScreen() {
           {isGasCat && (
             <View style={s.gasBox}>
               <View style={s.gasRow}>
-                {/* Price per gallon — editable, auto-filled from store */}
+                {/* Price per gallon - editable, auto-filled from store */}
                 <View style={[s.amountBox, { flex: 1 }]}>
                   <Text style={s.amountDollar}>$</Text>
                   <TextInput
@@ -1043,11 +1043,11 @@ export default function EmployeeScanScreen() {
                     onChangeText={setGasPricePerGallon}
                   />
                 </View>
-                {/* Gallons — auto-calculated, read-only display */}
+                {/* Gallons - auto-calculated, read-only display */}
                 <View style={[s.amountBox, { flex: 1, backgroundColor: '#f0f8f0', borderColor: '#2DC653' }]}>
                   <Text style={[s.gasUnit, { color: '#2DC653' }]}>gal</Text>
                   <Text style={[s.amountInput, { fontSize: 28, color: validGallons ? '#1a7a1a' : COLORS.textMuted, textAlignVertical: 'center' }]}>
-                    {validGallons ? parsedGallons.toFixed(3) : '—'}
+                    {validGallons ? parsedGallons.toFixed(3) : ' - '}
                   </Text>
                 </View>
               </View>
@@ -1234,7 +1234,7 @@ export default function EmployeeScanScreen() {
           amount={`+${Math.round(pointsAwarded * 100)} pts`}
           amountColor={COLORS.success}
           sub={customerInfo?.name || customerInfo?.phone}
-          sub2={transactionIds.length > 1 ? `${transactionIds.length} categories — cashback credited` : 'Cashback credited to their account'}
+          sub2={transactionIds.length > 1 ? `${transactionIds.length} categories - cashback credited` : 'Cashback credited to their account'}
           extraNode={
             <>
               {gasBonusAwarded > 0 && (
@@ -1290,7 +1290,7 @@ export default function EmployeeScanScreen() {
 
           <View style={s.redeemInfo}>
             <Text style={s.redeemInfoText}>
-              Customer's entire balance will be checked — redemption will fail if insufficient funds.
+              Customer's entire balance will be checked - redemption will fail if insufficient funds.
             </Text>
           </View>
 
@@ -1415,7 +1415,7 @@ export default function EmployeeScanScreen() {
               {loading
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={s.primaryBtnText}>
-                    {selectedCatalogItem ? `Redeem — ${selectedCatalogItem.pointsCost.toLocaleString()} pts` : 'Select a reward'}
+                    {selectedCatalogItem ? `Redeem - ${selectedCatalogItem.pointsCost.toLocaleString()} pts` : 'Select a reward'}
                   </Text>}
             </TouchableOpacity>
             <TouchableOpacity

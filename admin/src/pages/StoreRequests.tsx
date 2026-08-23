@@ -267,7 +267,7 @@ export default function StoreRequests() {
     mutationFn: ({ requestId, lines }: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
       employeeRequestApi.reviewRequest(requestId, { lines }),
     onSuccess: () => {
-      toast.success('Request reviewed — accepted items added to the order list');
+      toast.success('Request reviewed - accepted items added to the order list');
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
@@ -327,7 +327,7 @@ export default function StoreRequests() {
         onConfirm={() => { if (confirmAcceptTarget) respondMutation.mutate({ id: confirmAcceptTarget.id, status: 'ACCEPTED', note: '' }); setConfirmAcceptTarget(null); }}
         onCancel={() => setConfirmAcceptTarget(null)}
       />
-      {/* ── Sidebar (Chat style) — hidden only when there's nothing to pick:
+      {/* ── Sidebar (Chat style) - hidden only when there's nothing to pick:
           a single-store Store Manager is auto-selected above. A Store
           Manager with multiple stores still needs this to choose one. ── */}
       {(!isStoreManager || stores.length > 1) && (
@@ -338,7 +338,7 @@ export default function StoreRequests() {
           </div>
           <div style={s.storeList}>
             {/* "All Stores" is a cross-store aggregate backed by a SuperAdmin-only
-                endpoint — never offered to Store Manager, even a multi-store one. */}
+                endpoint - never offered to Store Manager, even a multi-store one. */}
             {!isStoreManager && (
               <button
                 style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
@@ -758,7 +758,7 @@ export default function StoreRequests() {
                 {respondTarget.description && <div style={s.previewNotes}>"{respondTarget.description}"</div>}
               </div>
             </div>
-            <div style={s.modalLabel}>Custom decline note <span style={s.optionalTag}>(optional — default message sent if blank)</span></div>
+            <div style={s.modalLabel}>Custom decline note <span style={s.optionalTag}>(optional - default message sent if blank)</span></div>
             <textarea
               style={s.noteInput}
               placeholder="Product supply unavailable with current set of vendors but request is identified, validated, stored for future references."
@@ -884,7 +884,7 @@ export default function StoreRequests() {
                         {line.quantity && `Qty: ${line.quantity}`}
                         {line.quantity && line.category && ' · '}
                         {line.category}
-                        {line.notes && `  —  ${line.notes}`}
+                        {line.notes && ` - ${line.notes}`}
                       </div>
                     )}
                     {!linePending ? (
@@ -895,7 +895,7 @@ export default function StoreRequests() {
                         color: line.status === 'ACCEPTED' ? '#065f46' : '#9f1239',
                         borderColor: line.status === 'ACCEPTED' ? '#86efac' : '#fecaca',
                       }}>
-                        {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? ` — ${line.rejectionReason}` : ''}`}
+                        {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? ` - ${line.rejectionReason}` : ''}`}
                       </span>
                     ) : (
                       <>

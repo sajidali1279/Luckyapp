@@ -22,9 +22,9 @@ const BAR_COLORS = [
 ];
 
 const RANK = [
-  { bg: '#FEF9C3', color: '#A16207', border: '#FDE047' }, // 1 — gold
-  { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' }, // 2 — silver
-  { bg: '#FEF0E6', color: '#C2410C', border: '#FED7AA' }, // 3 — bronze
+  { bg: '#FEF9C3', color: '#A16207', border: '#FDE047' }, // 1 - gold
+  { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' }, // 2 - silver
+  { bg: '#FEF0E6', color: '#C2410C', border: '#FED7AA' }, // 3 - bronze
 ];
 
 function getGreeting() {
@@ -208,10 +208,10 @@ export default function ManagerHome() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Quick stat cards — overlap header ── */}
+        {/* ── Quick stat cards - overlap header ── */}
         <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
           <View style={s.quickRow}>
-            {/* Order List — wide card with needed/ordered breakdown */}
+            {/* Order List - wide card with needed/ordered breakdown */}
             <TouchableOpacity
               style={[s.quickCard, s.quickCardWide]}
               onPress={() => router.push('/(manager)/order-list')}
@@ -247,7 +247,7 @@ export default function ManagerHome() {
                 </>
               ) : (
                 <>
-                  <Text style={s.quickValue}>—</Text>
+                  <Text style={s.quickValue}> - </Text>
                   <Text style={s.quickSub}>No open list</Text>
                 </>
               )}

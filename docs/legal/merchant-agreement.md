@@ -1,4 +1,4 @@
-# Lucky Stop Loyalty Platform — Merchant Services Agreement
+# Lucky Stop Loyalty Platform - Merchant Services Agreement
 
 **Effective Date:** ________________, 2026
 **Agreement Version:** 1.0
@@ -51,9 +51,9 @@ Collectively referred to as the "Parties."
 20. [Non-Compete and Non-Solicitation](#20-non-compete-and-non-solicitation)
 21. [Modification of Agreement](#21-modification-of-agreement)
 22. [General Provisions](#22-general-provisions)
-23. [Schedule A — Store Details](#schedule-a--store-details)
-24. [Schedule B — Fee Schedule](#schedule-b--fee-schedule)
-25. [Schedule C — Service Level Agreement Detail](#schedule-c--service-level-agreement-detail)
+23. [Schedule A - Store Details](#schedule-a--store-details)
+24. [Schedule B - Fee Schedule](#schedule-b--fee-schedule)
+25. [Schedule C - Service Level Agreement Detail](#schedule-c--service-level-agreement-detail)
 
 ---
 
@@ -242,7 +242,7 @@ The combined rate borne by the Merchant is specified in Schedule B.
 
 ### 5.2 Example Calculation
 
-*(Example only — actual rates are specified in Schedule B)*
+*(Example only - actual rates are specified in Schedule B)*
 
 For a $100 qualifying purchase:
 - Customer receives 5% cashback = 500 points ($5.00 value to the customer).
@@ -684,7 +684,7 @@ This Agreement may be executed in counterparts (including digital/electronic sig
 
 ## Signatures
 
-**SERVICE PROVIDER — Cliff Industries**
+**SERVICE PROVIDER - Cliff Industries**
 
 Signature: _______________________________
 Name: ___________________________________
@@ -693,7 +693,7 @@ Date: ____________________________________
 
 ---
 
-**MERCHANT — Store Operator**
+**MERCHANT - Store Operator**
 
 Signature: _______________________________
 Name: ___________________________________
@@ -702,7 +702,7 @@ Date: ____________________________________
 
 ---
 
-## Schedule A — Store Details
+## Schedule A - Store Details
 
 *List each Lucky Stop store location covered by this Agreement:*
 
@@ -716,12 +716,12 @@ Date: ____________________________________
 
 ---
 
-## Schedule B — Fee Schedule
+## Schedule B - Fee Schedule
 
 | Item | Amount |
 |---|---|
 | **Monthly Subscription Fee (per active store)** | $________.__ / month |
-| **Transaction Fee (Dev Cut) — percentage of qualifying purchase** | _____% per transaction |
+| **Transaction Fee (Dev Cut) - percentage of qualifying purchase** | _____% per transaction |
 | **Customer Cashback Rate** | 5% (borne by Merchant) |
 | **Total Merchant cost per qualifying transaction** | Customer Cashback Rate + Dev Cut |
 | **Payment Method** | ACH Bank Transfer / Credit Card |
@@ -732,7 +732,7 @@ Date: ____________________________________
 
 ---
 
-## Schedule C — Service Level Agreement Detail
+## Schedule C - Service Level Agreement Detail
 
 | Metric | Target |
 |---|---|

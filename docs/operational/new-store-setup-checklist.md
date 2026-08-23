@@ -4,7 +4,7 @@
 
 ---
 
-## Phase 1 — Before Anything Else
+## Phase 1 - Before Anything Else
 
 - [ ] Merchant Agreement signed and on file
 - [ ] Store owner has been briefed on the Store Owner Overview doc
@@ -14,13 +14,13 @@
 
 ---
 
-## Phase 2 — Platform Configuration (You Do This)
+## Phase 2 - Platform Configuration (You Do This)
 
 ### Store Record
 - [ ] Create store in the database (via admin portal or direct DB entry)
   - Store name (exactly as it should appear in the app)
   - Address
-  - GPS coordinates (lat/lng) — use Google Maps to verify
+  - GPS coordinates (lat/lng) - use Google Maps to verify
   - `minimumAge` field: set to `21` only for liquor/alcohol-primary stores, otherwise leave null
 - [ ] Verify store appears in the location detection test (open mobile app, stand near store or spoof GPS)
 - [ ] Confirm store radius (default 2-mile detection radius)
@@ -46,7 +46,7 @@
 
 ---
 
-## Phase 3 — Employee Setup
+## Phase 3 - Employee Setup
 
 - [ ] Manager adds at least 2 employee accounts before go-live
 - [ ] Each employee logs in and completes setup (name, PIN)
@@ -61,7 +61,7 @@
 
 ---
 
-## Phase 4 — Go-Live Confirmation
+## Phase 4 - Go-Live Confirmation
 
 - [ ] Store owner walkthrough complete (confirm they understand the admin portal)
 - [ ] Manager confirmed comfortable with the scheduling and order list features
@@ -72,12 +72,12 @@
 
 ---
 
-## Phase 5 — Post-Launch (First 30 Days)
+## Phase 5 - Post-Launch (First 30 Days)
 
-- [ ] **Day 3:** Check transaction log — confirm scans are happening correctly
-- [ ] **Day 7:** Follow up with manager — any staff confusion or issues?
-- [ ] **Day 14:** Review analytics — transaction count, points issued, active customers
-- [ ] **Day 30:** Check-in call or message with store owner — satisfaction, feature requests
+- [ ] **Day 3:** Check transaction log - confirm scans are happening correctly
+- [ ] **Day 7:** Follow up with manager - any staff confusion or issues?
+- [ ] **Day 14:** Review analytics - transaction count, points issued, active customers
+- [ ] **Day 30:** Check-in call or message with store owner - satisfaction, feature requests
 - [ ] Update changelog with go-live date and store number
 
 ---

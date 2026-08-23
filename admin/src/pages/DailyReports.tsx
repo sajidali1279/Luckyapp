@@ -96,8 +96,8 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
           <div style={s.section}>
             <div style={s.sectionLabel}>Today's Prices</div>
             <div style={s.dataGrid}>
-              <DataCell label="Gas ($/gal)" value={report.gasPrice != null ? `$${report.gasPrice.toFixed(3)}` : '—'} />
-              <DataCell label="Diesel ($/gal)" value={report.dieselPrice != null ? `$${report.dieselPrice.toFixed(3)}` : '—'} />
+              <DataCell label="Gas ($/gal)" value={report.gasPrice != null ? `$${report.gasPrice.toFixed(3)}` : ' - '} />
+              <DataCell label="Diesel ($/gal)" value={report.dieselPrice != null ? `$${report.dieselPrice.toFixed(3)}` : ' - '} />
             </div>
           </div>
 
@@ -105,10 +105,10 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
           <div style={s.section}>
             <div style={s.sectionLabel}>Gas Inventory</div>
             <div style={s.dataGrid}>
-              <DataCell label="Regular" value={report.regGasGal != null ? `${report.regGasGal.toLocaleString()} gal` : '—'} />
-              <DataCell label="Mid-Grade" value={report.midGradeGasGal != null ? `${report.midGradeGasGal.toLocaleString()} gal` : '—'} />
-              <DataCell label="Premium" value={report.premiumGasGal != null ? `${report.premiumGasGal.toLocaleString()} gal` : '—'} />
-              <DataCell label="Cigs Count" value={report.cigsCount != null ? report.cigsCount.toLocaleString() : '—'} />
+              <DataCell label="Regular" value={report.regGasGal != null ? `${report.regGasGal.toLocaleString()} gal` : ' - '} />
+              <DataCell label="Mid-Grade" value={report.midGradeGasGal != null ? `${report.midGradeGasGal.toLocaleString()} gal` : ' - '} />
+              <DataCell label="Premium" value={report.premiumGasGal != null ? `${report.premiumGasGal.toLocaleString()} gal` : ' - '} />
+              <DataCell label="Cigs Count" value={report.cigsCount != null ? report.cigsCount.toLocaleString() : ' - '} />
             </div>
           </div>
 

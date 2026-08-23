@@ -131,7 +131,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
             {/* Drawer header */}
             <View style={[s.drawerHeader, { backgroundColor: bgColor, paddingTop: insets.top + 16 }]}>
               <TouchableOpacity style={s.drawerHeaderLeft} onPress={() => navigate('profile')} activeOpacity={0.75}>
-                {/* Avatar — photo or initial */}
+                {/* Avatar - photo or initial */}
                 {user?.avatarUrl ? (
                   <Image
                     source={{ uri: user.avatarUrl, cache: 'reload' }}
@@ -157,7 +157,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               </TouchableOpacity>
             </View>
 
-            {/* Nav groups — scrollable */}
+            {/* Nav groups - scrollable */}
             <ScrollView
               style={s.drawerBody}
               showsVerticalScrollIndicator={false}

@@ -1,4 +1,4 @@
-# Lucky Stop Loyalty Program — Official Program Terms
+# Lucky Stop Loyalty Program - Official Program Terms
 
 **Effective Date:** June 1, 2026
 **Last Updated:** May 30, 2026
@@ -23,8 +23,8 @@ Participation in the Program is voluntary and subject to these Program Terms, wh
 5. [Tier Benefits](#5-tier-benefits)
 6. [Bonus Points and Promotional Rates](#6-bonus-points-and-promotional-rates)
 7. [Welcome Bonus](#7-welcome-bonus)
-8. [Redeeming Points — In-Store Credits](#8-redeeming-points--in-store-credits)
-9. [Redeeming Points — Redemption Catalog](#9-redeeming-points--redemption-catalog)
+8. [Redeeming Points - In-Store Credits](#8-redeeming-points--in-store-credits)
+9. [Redeeming Points - Redemption Catalog](#9-redeeming-points--redemption-catalog)
 10. [Catalog Item Conditions](#10-catalog-item-conditions)
 11. [QR Code and Account Identification](#11-qr-code-and-account-identification)
 12. [Transaction Disputes](#12-transaction-disputes)
@@ -269,7 +269,7 @@ To claim your Welcome Bonus:
 
 ---
 
-## 8. Redeeming Points — In-Store Credits
+## 8. Redeeming Points - In-Store Credits
 
 ### 8.1 How In-Store Credit Redemption Works
 
@@ -298,7 +298,7 @@ The redemption value of points is displayed in the App. Points have no cash valu
 
 ---
 
-## 9. Redeeming Points — Redemption Catalog
+## 9. Redeeming Points - Redemption Catalog
 
 ### 9.1 The Catalog
 
@@ -316,7 +316,7 @@ Each catalog item displays:
 
 1. Browse the Redemption Catalog within the App.
 2. Select the desired item and tap **Redeem**.
-3. Review and confirm the redemption — points are deducted from your balance immediately.
+3. Review and confirm the redemption - points are deducted from your balance immediately.
 4. You will receive a **unique redemption code** with an expiration date and time.
 5. Visit a participating Lucky Stop location and present the redemption code (displayed in the App) to the cashier.
 6. The cashier will confirm the redemption in the App.
@@ -361,7 +361,7 @@ You are responsible for:
 
 ### 11.3 Lost or Compromised QR Codes
 
-If you suspect your QR code has been used by an unauthorized person, contact us immediately. Your QR code is linked to your account's phone number — as long as you can authenticate via phone OTP, you maintain control of your account.
+If you suspect your QR code has been used by an unauthorized person, contact us immediately. Your QR code is linked to your account's phone number - as long as you can authenticate via phone OTP, you maintain control of your account.
 
 ### 11.4 QR Code on Lost Phone
 
@@ -519,7 +519,7 @@ Program changes will be communicated via:
 
 The Program is active at all participating Lucky Stop convenience store locations. Participating locations are listed within the App. Lucky Stop may add or remove participating locations from the Program at any time.
 
-Points earned at any participating location may be redeemed at any participating location — there is no restriction on which store you use your points.
+Points earned at any participating location may be redeemed at any participating location - there is no restriction on which store you use your points.
 
 ---
 
@@ -527,9 +527,9 @@ Points earned at any participating location may be redeemed at any participating
 
 For all Program-related questions, disputes, or support:
 
-**Lucky Stop Loyalty — Customer Support**
+**Lucky Stop Loyalty - Customer Support**
 - **Email:** support@luckystop.cliffindus.com
-- **Subject line:** "Loyalty Program — [Your Inquiry]"
+- **Subject line:** "Loyalty Program - [Your Inquiry]"
 - **In-App:** Profile → Contact Support
 - **Response Time:** 5–10 business days
 

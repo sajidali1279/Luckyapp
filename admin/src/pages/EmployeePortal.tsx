@@ -119,7 +119,7 @@ function NewRequestTab() {
       })),
     }),
     onSuccess: () => {
-      toast.success('Request submitted — your manager will review it');
+      toast.success('Request submitted - your manager will review it');
       setCart([]);
       setNote('');
       setSearch('');
@@ -396,7 +396,7 @@ function MyRequestsTab() {
                         {line.status === 'REJECTED' && line.rejectionReason && (
                           <div style={s.rejReason}>
                             Reason: {line.rejectionReason.replace(/_/g, ' ').toLowerCase()}
-                            {line.rejectionNote && ` — ${line.rejectionNote}`}
+                            {line.rejectionNote && ` - ${line.rejectionNote}`}
                           </div>
                         )}
                       </div>

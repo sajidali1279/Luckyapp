@@ -217,7 +217,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   // in the header above, so a plain-text row here would be pure duplication.
   const staffInfoRows: InfoRowDef[] = [
     { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Store', value: storeCount > 0 ? t('profile.storeCount', { count: storeCount }) : t('profile.noStoreAssigned') },
-    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Phone', value: user?.phone || '—' },
+    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Phone', value: user?.phone || ' - ' },
   ];
 
   const customerInfoRows: InfoRowDef[] = [
@@ -263,7 +263,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <Text style={s.headerPhone}>{user?.phone}</Text>
           </View>
 
-          {/* Right badge — balance for customer, role pill for staff */}
+          {/* Right badge - balance for customer, role pill for staff */}
           {isCustomer ? (
             <View style={s.balanceBadge}>
               <Text style={s.balanceBadgeAmt}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
@@ -397,7 +397,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
-        {/* Recovery Email — customers only */}
+        {/* Recovery Email - customers only */}
         {isCustomer && (
           <>
             <TouchableOpacity
@@ -443,7 +443,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           </>
         )}
 
-        {/* Promote Your Business — customers only */}
+        {/* Promote Your Business - customers only */}
         {isCustomer && (
           <>
             <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.advertising')}</Text>
@@ -577,7 +577,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
 
-        {/* ── Missing Points Reports (customers only) — view + file reports live together on my-disputes ── */}
+        {/* ── Missing Points Reports (customers only) - view + file reports live together on my-disputes ── */}
         {isCustomer && (
           <>
             <TouchableOpacity
@@ -645,7 +645,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <Text style={s.signOutText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
 
-        {/* ── Delete Account — customers only ── */}
+        {/* ── Delete Account - customers only ── */}
         {isCustomer && (
           <TouchableOpacity
             style={s.deleteAccountBtn}

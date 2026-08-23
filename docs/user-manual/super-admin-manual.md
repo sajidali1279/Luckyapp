@@ -1,9 +1,9 @@
-# Lucky Stop Platform — Super Administrator User Manual
+# Lucky Stop Platform - Super Administrator User Manual
 
 **Role:** Super Admin (Lucky Stop HQ)
 **Access Level:** All stores, all features (except billing management)
 **Platform:** Web Admin Portal (admin.luckystop.cliffindus.com) + Mobile App
-**Version:** 1.4 | Last Updated: July 21, 2026
+**Version:** 1.5 | Last Updated: August 23, 2026
 
 ---
 
@@ -11,17 +11,17 @@
 
 1. [Your Role and Responsibilities](#1-your-role-and-responsibilities)
 2. [Accessing the Platform](#2-accessing-the-platform)
-3. [Dashboard — Overview](#3-dashboard--overview)
+3. [Dashboard - Overview](#3-dashboard--overview)
 4. [Managing Stores](#4-managing-stores)
 5. [Managing Staff Accounts](#5-managing-staff-accounts)
 6. [Managing Customers](#6-managing-customers)
-7. [Transactions — Viewing and Auditing](#7-transactions--viewing-and-auditing)
+7. [Transactions - Viewing and Auditing](#7-transactions--viewing-and-auditing)
 8. [Offers Management](#8-offers-management)
 9. [Banners Management](#9-banners-management)
 10. [Redemption Catalog Management](#10-redemption-catalog-management)
-11. [Notifications — Broadcasting Messages](#11-notifications--broadcasting-messages)
+11. [Notifications - Broadcasting Messages](#11-notifications--broadcasting-messages)
 12. [Leaderboard](#12-leaderboard)
-13. [Careers — Job Applications](#13-careers--job-applications)
+13. [Careers - Job Applications](#13-careers--job-applications)
 14. [Business Promotions](#14-business-promotions)
 15. [Billing and Invoices](#15-billing-and-invoices)
 16. [Tier Rates Configuration](#16-tier-rates-configuration)
@@ -32,7 +32,7 @@
 21. [Requests Hub & Procurement](#21-requests-hub--procurement)
 22. [Daily Reports](#22-daily-reports)
 23. [Daily Tasks](#23-daily-tasks)
-24. [Common Tasks — Quick Reference](#24-common-tasks--quick-reference)
+24. [Common Tasks - Quick Reference](#24-common-tasks--quick-reference)
 25. [Troubleshooting](#25-troubleshooting)
 
 ---
@@ -61,7 +61,7 @@ As a **Super Administrator**, you are a Lucky Stop headquarters-level user with 
 
 1. Open a web browser and navigate to: **admin.luckystop.cliffindus.com**
 2. Enter your registered phone number.
-3. You will receive a One-Time Password (OTP) via SMS — enter it to log in.
+3. You will receive a One-Time Password (OTP) via SMS - enter it to log in.
 4. Enter your 4-digit PIN.
 5. You are now logged into the Admin Portal.
 
@@ -88,7 +88,7 @@ Most administrative functions are only available through the web portal.
 
 ---
 
-## 3. Dashboard — Overview
+## 3. Dashboard - Overview
 
 The Dashboard is the first screen you see after logging in. It provides a real-time snapshot of platform-wide activity.
 
@@ -136,7 +136,7 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 | **Hot Food** | Hot food menu/order oversight (SuperAdmin only) |
 | **Chat** | Store chat monitoring |
 | **Scheduling** | Schedule overview |
-| **Requests** | Unified hub — Alerts, Stock, Product requests |
+| **Requests** | Unified hub - Alerts, Stock, Product requests |
 | **Order List** | Store procurement order lists |
 | **Scanned Products** | Chain-wide barcode → product catalog |
 | **Careers** | Job applications |
@@ -260,7 +260,7 @@ When an employee leaves the company:
 2. Click **Deactivate Account**.
 3. Confirm the deactivation.
 
-The account is immediately deactivated — the employee will not be able to log in. Their historical transaction records are preserved for audit purposes.
+The account is immediately deactivated - the employee will not be able to log in. Their historical transaction records are preserved for audit purposes.
 
 **Do this promptly when an employee is terminated.** Delays in deactivating accounts are a security risk.
 
@@ -324,11 +324,11 @@ From a customer's detail page, you can see every transaction associated with the
 
 ### 6.7 Reviewing Disputes
 
-Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view — both land in the same queue here.
+Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view - both land in the same queue here.
 
 1. Navigate to **Customers** → click the **Disputes** tab. A count badge shows how many are pending.
 2. Filter by **Store** and **Status** (Pending, Approved, Rejected).
-3. Click a dispute to open it. If it was filed against a specific transaction, that transaction's details and receipt photo are shown inline — otherwise you're working from the customer's written description alone.
+3. Click a dispute to open it. If it was filed against a specific transaction, that transaction's details and receipt photo are shown inline - otherwise you're working from the customer's written description alone.
 4. Click **Resolve**:
    - **Approve:** enter the points/credit amount to award, add an internal note, and confirm. Points are credited immediately.
    - **Reject:** add a note explaining why, and confirm. No points are credited.
@@ -337,7 +337,7 @@ A dispute tapped from a push notification scrolls to and highlights the matching
 
 ---
 
-## 7. Transactions — Viewing and Auditing
+## 7. Transactions - Viewing and Auditing
 
 ### 7.1 All Transactions
 
@@ -354,7 +354,7 @@ Navigate to **Transactions** in the sidebar. This shows all qualifying transacti
 |---|---|
 | **Approved** | Transaction processed and points credited. |
 | **Pending** | Transaction initiated but not yet fully processed (rare). |
-| **Flagged** | System flagged this transaction for potential issues — requires manager review. |
+| **Flagged** | System flagged this transaction for potential issues - requires manager review. |
 | **Rejected** | Transaction was rejected by a store manager. Points not credited. |
 
 ### 7.3 Reviewing a Transaction
@@ -498,7 +498,7 @@ Navigate to **Catalog** in the sidebar. You will see all catalog items, active a
 
 ---
 
-## 11. Notifications — Broadcasting Messages
+## 11. Notifications - Broadcasting Messages
 
 ### 11.1 Sending a Broadcast Notification
 
@@ -525,7 +525,7 @@ To send a push notification to customers or staff:
 - Keep titles short (under 50 characters for full display on most devices).
 - Keep the body informative and action-oriented.
 - Test messages with a small audience (Store Staff) before broadcasting to all customers.
-- Avoid sending multiple broadcasts on the same day — notification fatigue reduces engagement.
+- Avoid sending multiple broadcasts on the same day - notification fatigue reduces engagement.
 
 ---
 
@@ -549,7 +549,7 @@ Use this to recognize top-performing staff.
 
 ---
 
-## 13. Careers — Job Applications
+## 13. Careers - Job Applications
 
 ### 13.1 Viewing Applications
 
@@ -595,10 +595,11 @@ As a Super Admin, you have visibility into the published promotions feed but do 
 
 ### 15.1 Viewing Your Invoices
 
-Navigate to **Billing** in the sidebar (Super Admin view). You will see:
+Navigate to **Billing** in the sidebar (Super Admin view, labeled "My Billing"). You will see:
 - Your store subscription billing history.
-- Monthly invoice summaries.
-- Payment status for each period.
+- Monthly invoice summaries, expandable to a per-charge Store Breakdown table.
+- Payment status for each period, and for each individual charge within it. A period with some charges paid and others still outstanding shows a partial "N/M Paid" badge rather than a flat Unpaid label, and the Outstanding Balance / Total Paid totals reflect each charge's own status.
+- The reason typed in for any manual/custom charge, shown in a Reason column. A manual charge billed to the chain as a whole (not tied to one store) appears as "All Stores (Chain-wide)".
 
 ### 15.2 What Super Admins Can See
 
@@ -758,7 +759,7 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 
 ## 20. Important Notices
 
-Notices are pinned announcements shown at the top of every affected store's staff chat — for time-sensitive HQ messages (e.g. a health inspection, a system outage window) that shouldn't get lost in normal chat traffic.
+Notices are pinned announcements shown at the top of every affected store's staff chat - for time-sensitive HQ messages (e.g. a health inspection, a system outage window) that shouldn't get lost in normal chat traffic.
 
 ### 20.1 Posting a Notice
 
@@ -766,7 +767,7 @@ Notices are pinned announcements shown at the top of every affected store's staf
 2. Click **New Notice**.
 3. Fill in:
    - **Title** (max 100 characters).
-   - **Body** — the message text.
+   - **Body** - the message text.
    - **Target:** All Stores, or a specific store.
    - **End Date:** when the notice stops showing (defaults to one week out).
 4. Click **Post Notice**.
@@ -779,7 +780,7 @@ Each notice shows a status: **Active**, **Expired** (past its end date), or **De
 
 ## 21. Requests Hub & Procurement
 
-This is where store-level inventory operations — stock alerts, item requests, and order lists — are coordinated across the chain.
+This is where store-level inventory operations - stock alerts, item requests, and order lists - are coordinated across the chain.
 
 ### 21.1 The Requests Hub
 
@@ -789,7 +790,7 @@ Navigate to **Requests** in the sidebar (badge shows total pending count). It ha
 - **Stock:** Employee item requests awaiting a manager decision (Accept → added to the store's order list, or Deny).
 - **Product:** Customer product requests forwarded from the App.
 
-Select a store from the store picker at the top, or choose **All Stores** to see pending stock requests across every location at once (the All Stores view only applies to the Stock tab — Alerts and Product require a single store to be selected).
+Select a store from the store picker at the top, or choose **All Stores** to see pending stock requests across every location at once (the All Stores view only applies to the Stock tab - Alerts and Product require a single store to be selected).
 
 ### 21.2 Order Lists
 
@@ -804,8 +805,17 @@ Navigate to **Order List** in the sidebar. Each store maintains one active procu
 Navigate to **Scanned Products** in the sidebar. This is the chain-wide barcode → product name/category/brand catalog that gets built up automatically as managers scan items while building order lists on mobile.
 
 - **Search** by product name.
-- **+ Add Product** to seed or correct an entry manually (barcode, name, category, brand) without waiting for it to be scanned first — saving the same barcode again updates the existing entry rather than creating a duplicate.
+- **+ Add Product** to seed or correct an entry manually (barcode, name, category, brand) without waiting for it to be scanned first - saving the same barcode again updates the existing entry rather than creating a duplicate.
 - **Delete** to remove an incorrect entry; the next scan of that barcode will prompt for a fresh name.
+
+### 21.4 Shelf/Price Labels
+
+Navigate to **Labels** in the sidebar. This is a chain-wide catalog of printable shelf tags, shared across all stores, built up by DevAdmin, SuperAdmin, and Store Managers alike.
+
+- **Add a label** by scanning a barcode (the product name autocompletes from the shared Scanned Products catalog) or typing one in manually. Set the regular price, an optional deal price, and a category.
+- **Filter** by store, print status ("Ready to Print" vs. already printed), or category chips.
+- **Search and select-all** to work through a batch quickly.
+- **Print** generates a formatted PDF sized to a real 1in x 2-5/8in address-label sheet (Avery 5160), across 7 available templates including seasonal designs. Every print logs a PRINT_LABEL event to the Activity Log, recording who printed, which store, and how many labels.
 
 ---
 
@@ -827,7 +837,7 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 
 ---
 
-## 24. Common Tasks — Quick Reference
+## 24. Common Tasks - Quick Reference
 
 | Task | Where to Go | Steps |
 |---|---|---|
@@ -880,7 +890,7 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 - If it's a store-specific offer, confirm the customer is shopping at that store.
 
 **Problem: A store manager says they can't see their order list.**
-- Confirm the store actually has an open order list — the Order Lists tab flags stores with none.
+- Confirm the store actually has an open order list - the Order Lists tab flags stores with none.
 - Confirm the manager's account is still assigned to that store under Staff.
 
 **Problem: The Activity Log shows an unauthorized action.**

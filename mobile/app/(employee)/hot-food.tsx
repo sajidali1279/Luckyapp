@@ -532,7 +532,7 @@ function MenuItemCard({
       </View>
 
       <View style={s.menuCardRight}>
-        {/* Edit button — only for store-specific items */}
+        {/* Edit button - only for store-specific items */}
         {item.source === 'menu' && (
           <TouchableOpacity
             style={s.editBtn}
@@ -730,7 +730,7 @@ export default function HotFoodOrders() {
           </View>
         </View>
 
-        {/* Add item button — only visible on MENU tab */}
+        {/* Add item button - only visible on MENU tab */}
         {activeTab === 'MENU' && (
           <TouchableOpacity
             style={s.addItemBtn}
@@ -805,7 +805,7 @@ export default function HotFoodOrders() {
             ListEmptyComponent={
               <View style={s.empty}>
                 <InboxIcon size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No menu items yet — tap "Add Item" to get started.</Text>
+                <Text style={s.emptyText}>No menu items yet - tap "Add Item" to get started.</Text>
               </View>
             }
           />

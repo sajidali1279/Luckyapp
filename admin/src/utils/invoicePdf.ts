@@ -19,7 +19,7 @@ export function downloadInvoicePdf(invoice: {
   const issuedDate = new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const paidDate = invoice.paidAt
     ? new Date(invoice.paidAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : '—';
+    : ' - ';
 
   const fmt$ = (n: number) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -28,8 +28,8 @@ export function downloadInvoicePdf(invoice: {
     .map((row) => `
       <tr>
         <td>${esc(row.store?.name ?? '🔗 All Stores (Chain-wide)')}</td>
-        <td>${esc(row.store?.city ?? '—')}</td>
-        <td>${row.description ? esc(row.description) : '—'}</td>
+        <td>${esc(row.store?.city ?? ' - ')}</td>
+        <td>${row.description ? esc(row.description) : ' - '}</td>
         <td style="text-align:right">${row.txCount}</td>
         <td style="text-align:right">${fmt$(row.cashbackIssued)}</td>
         <td style="text-align:right; font-weight:600; color:#c0392b">${fmt$(row.amount)}</td>
@@ -41,7 +41,7 @@ export function downloadInvoicePdf(invoice: {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Invoice ${invoiceNumber} — Lucky Stop</title>
+  <title>Invoice ${invoiceNumber} - Lucky Stop</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #222; padding: 48px; font-size: 13px; }

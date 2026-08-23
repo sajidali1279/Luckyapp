@@ -157,7 +157,7 @@ export default function ActivityLog() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>🔍 Activity Log</h1>
-          <p style={s.sub}>All staff actions — grants, redemptions, offers, banners, account changes</p>
+          <p style={s.sub}>All staff actions - grants, redemptions, offers, banners, account changes</p>
         </div>
         <button style={s.refreshBtn} onClick={() => refetch()}>↻ Refresh</button>
       </div>
@@ -183,7 +183,7 @@ export default function ActivityLog() {
         <div style={s.alertBox}>
           <strong>⚠️ High-Risk Actions (last 24h):</strong>
           {' '}{stats.recentHighRisk.length} sensitive action{stats.recentHighRisk.length !== 1 ? 's' : ''} detected
-          {' '}(deletions, user toggles, PIN resets) — review below.
+          {' '}(deletions, user toggles, PIN resets) - review below.
         </div>
       )}
 

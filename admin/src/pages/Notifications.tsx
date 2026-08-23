@@ -228,7 +228,7 @@ export default function Notifications() {
   const EMPTY_STATES: Record<TabKey, { icon: string; title: string; text: string }> = {
     all:          { icon: '✅', title: 'All clear!',              text: 'No notifications right now. Billing alerts and activity updates will appear here.' },
     billing:      { icon: '💳', title: 'No billing alerts',       text: 'All invoices are settled and up to date.' },
-    transactions: { icon: '🧾', title: 'No transaction alerts',   text: 'No rejected transactions to review — everything looks good.' },
+    transactions: { icon: '🧾', title: 'No transaction alerts',   text: 'No rejected transactions to review - everything looks good.' },
     scheduling:   { icon: '📅', title: 'No pending requests',     text: 'No pending time-off or fill-in requests from employees.' },
     customers:    { icon: '🏪', title: 'No customer alerts',      text: 'Customer activity updates will appear here.' },
     send:         { icon: '',   title: '',                         text: '' },
@@ -357,9 +357,9 @@ export default function Notifications() {
             <div style={sp.field}>
               <label style={sp.label}>Store</label>
               <select style={sp.select} value={bStoreId} onChange={(e) => setBStoreId(e.target.value)}>
-                <option value="">— Select a store —</option>
+                <option value="">- Select a store -</option>
                 {stores.map((st) => (
-                  <option key={st.id} value={st.id}>{st.name} — {st.city}</option>
+                  <option key={st.id} value={st.id}>{st.name} - {st.city}</option>
                 ))}
               </select>
             </div>
@@ -487,7 +487,7 @@ export default function Notifications() {
                   </div>
                 )}
 
-                {/* Action row — stop propagation so card click doesn't double-fire */}
+                {/* Action row - stop propagation so card click doesn't double-fire */}
                 <div style={s.actionRow} onClick={e => e.stopPropagation()}>
                   {n.actionUrl && (
                     <button

@@ -445,7 +445,7 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Support — StoreManager+ (submits/views own tickets; DevAdmin gets the full inbox) */}
+        {/* Support - StoreManager+ (submits/views own tickets; DevAdmin gets the full inbox) */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

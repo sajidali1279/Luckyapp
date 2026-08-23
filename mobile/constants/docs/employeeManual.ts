@@ -1,25 +1,25 @@
 // Auto-generated from docs — do not edit directly
-const employeeManual = `# Lucky Stop Platform — Employee (Cashier) User Manual
+const employeeManual = `# Lucky Stop Platform - Employee (Cashier) User Manual
 
 **Role:** Employee / Cashier
-**Access Level:** Assigned store(s) only — transaction processing and store tools
+**Access Level:** Assigned store(s) only - transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.4 | Last Updated: July 21, 2026
+**Version:** 1.5 | Last Updated: August 23, 2026
 
 ---
 
 ## Table of Contents
 
 1. [Your Role and Responsibilities](#1-your-role-and-responsibilities)
-2. [Getting Started — First Login](#2-getting-started--first-login)
-3. [Employee Dashboard — Home Screen](#3-employee-dashboard--home-screen)
+2. [Getting Started - First Login](#2-getting-started--first-login)
+3. [Employee Dashboard - Home Screen](#3-employee-dashboard--home-screen)
 4. [Processing a Loyalty Transaction (Main Workflow)](#4-processing-a-loyalty-transaction-main-workflow)
-5. [Granting Points — Step by Step](#5-granting-points--step-by-step)
-6. [Uploading the Receipt — MANDATORY](#6-uploading-the-receipt--mandatory)
+5. [Granting Points - Step by Step](#5-granting-points--step-by-step)
+6. [Uploading the Receipt - MANDATORY](#6-uploading-the-receipt--mandatory)
 7. [Redeeming Customer Credits In-Store](#7-redeeming-customer-credits-in-store)
-8. [Catalog Redemptions — Confirming Customer Rewards](#8-catalog-redemptions--confirming-customer-rewards)
-9. [Welcome Bonus — New Customers](#9-welcome-bonus--new-customers)
-10. [Tier Benefits — Claiming for Customers](#10-tier-benefits--claiming-for-customers)
+8. [Catalog Redemptions - Confirming Customer Rewards](#8-catalog-redemptions--confirming-customer-rewards)
+9. [Welcome Bonus - New Customers](#9-welcome-bonus--new-customers)
+10. [Tier Benefits - Claiming for Customers](#10-tier-benefits--claiming-for-customers)
 11. [Submitting Item Requests to the Manager](#11-submitting-item-requests-to-the-manager)
 12. [Submitting Store Operational Requests](#12-submitting-store-operational-requests)
 13. [Work Schedule](#13-work-schedule)
@@ -27,10 +27,11 @@ const employeeManual = `# Lucky Stop Platform — Employee (Cashier) User Manual
 15. [Notifications](#15-notifications)
 16. [Your Leaderboard Ranking](#16-your-leaderboard-ranking)
 17. [Profile and Account Settings](#17-profile-and-account-settings)
-18. [Hot Food — Orders and Menu Management](#18-hot-food--orders-and-menu-management)
-19. [Critical Rules — Read These Carefully](#19-critical-rules--read-these-carefully)
-20. [Common Situations — Quick Reference](#20-common-situations--quick-reference)
-21. [Troubleshooting](#21-troubleshooting)
+18. [Hot Food - Orders and Menu Management](#18-hot-food--orders-and-menu-management)
+19. [Shelf/Price Labels](#19-shelfprice-labels)
+20. [Critical Rules - Read These Carefully](#20-critical-rules--read-these-carefully)
+21. [Common Situations - Quick Reference](#21-common-situations--quick-reference)
+22. [Troubleshooting](#22-troubleshooting)
 
 ---
 
@@ -38,9 +39,9 @@ const employeeManual = `# Lucky Stop Platform — Employee (Cashier) User Manual
 
 As a **Lucky Stop Employee/Cashier**, you are the primary interface between the Lucky Stop Loyalty Program and our customers. Your responsibilities on the platform include:
 
-- **Processing loyalty transactions** — scanning customer QR codes, entering purchase details, and uploading receipt photos for every qualifying purchase.
-- **Processing in-store credit redemptions** — applying customer credits against purchases.
-- **Confirming catalog redemptions** — verifying and completing customer reward claims.
+- **Processing loyalty transactions** - scanning customer QR codes, entering purchase details, and uploading receipt photos for every qualifying purchase.
+- **Processing in-store credit redemptions** - applying customer credits against purchases.
+- **Confirming catalog redemptions** - verifying and completing customer reward claims.
 - **Processing welcome bonuses** for new customers.
 - **Claiming tier benefits** for eligible customers.
 - **Submitting inventory requests** to your manager when items are low or customers request something.
@@ -52,7 +53,7 @@ As a **Lucky Stop Employee/Cashier**, you are the primary interface between the 
 
 ---
 
-## 2. Getting Started — First Login
+## 2. Getting Started - First Login
 
 ### 2.1 Your Account
 
@@ -68,7 +69,7 @@ Your manager or Lucky Stop HQ has created your account. They will give you:
 2. Open the app → tap **Log In**.
 3. Enter your **phone number**.
 4. Enter your **initial PIN**.
-5. **IMPORTANT — Change your PIN immediately:**
+5. **IMPORTANT - Change your PIN immediately:**
    - Tap **Profile** (bottom right).
    - Tap **Change PIN**.
    - Enter the initial PIN as "Current PIN."
@@ -84,7 +85,7 @@ After changing your PIN:
 
 ---
 
-## 3. Employee Dashboard — Home Screen
+## 3. Employee Dashboard - Home Screen
 
 When you log in, you see the Employee Dashboard:
 
@@ -93,10 +94,10 @@ When you log in, you see the Employee Dashboard:
 - Today's schedule (if assigned).
 
 **Quick Action Buttons:**
-- **Scan QR** — Immediately open the QR scanner to process a customer transaction.
-- **My Requests** — View your submitted item and store requests.
-- **Schedule** — View your schedule.
-- **Chat** — Open store team chat.
+- **Scan QR** - Immediately open the QR scanner to process a customer transaction.
+- **My Requests** - View your submitted item and store requests.
+- **Schedule** - View your schedule.
+- **Chat** - Open store team chat.
 
 **Stats (for your information):**
 - Transactions you have processed today.
@@ -114,7 +115,7 @@ This is the most important thing you do on the platform. Every time a customer m
 
 1. Customer opens their Lucky Stop app and shows you their QR code.
 2. You scan their QR code in the app.
-3. You see the customer's name, tier, and points balance — verify it's the right customer.
+3. You see the customer's name, tier, and points balance - verify it's the right customer.
 4. You enter the purchase amount and category.
 5. You take a photo of the receipt and upload it.
 6. Points are credited to the customer.
@@ -123,7 +124,7 @@ This is the most important thing you do on the platform. Every time a customer m
 
 ---
 
-## 5. Granting Points — Step by Step
+## 5. Granting Points - Step by Step
 
 ### Step 1: Open the Scanner
 
@@ -182,7 +183,7 @@ The customer sees their new points balance update immediately in their app. They
 
 ---
 
-## 6. Uploading the Receipt — MANDATORY
+## 6. Uploading the Receipt - MANDATORY
 
 **This step is not optional. Every single transaction requires a receipt photo.**
 
@@ -200,10 +201,10 @@ The receipt photo is Lucky Stop's fraud protection. It proves the purchase happe
 1. On the receipt upload screen, tap **Take Photo**.
 2. Lay the receipt flat on the counter.
 3. Ensure the entire receipt is visible in the camera frame.
-4. Ensure there is good lighting — avoid dark shadows across the receipt.
+4. Ensure there is good lighting - avoid dark shadows across the receipt.
 5. Hold the phone steady and wait for the camera to focus.
 6. Tap the shutter button.
-7. Review the photo — it should clearly show:
+7. Review the photo - it should clearly show:
    - The store name/logo.
    - Date and time.
    - All line items and amounts.
@@ -260,7 +261,7 @@ The credits are deducted from the customer's balance and applied as a discount. 
 
 ---
 
-## 8. Catalog Redemptions — Confirming Customer Rewards
+## 8. Catalog Redemptions - Confirming Customer Rewards
 
 Customers can redeem points for specific catalog items (rewards) through the app. When they do, they receive a unique **redemption code** displayed on their phone. They bring this code to your register for you to confirm.
 
@@ -298,7 +299,7 @@ The customer will need to go back to their app, cancel the expired redemption (t
 
 ---
 
-## 9. Welcome Bonus — New Customers
+## 9. Welcome Bonus - New Customers
 
 When a new customer first registers on the Lucky Stop App, they may be eligible for a Welcome Bonus. They must claim it at a store.
 
@@ -322,7 +323,7 @@ The welcome bonus is credited to the customer's account. It cannot be claimed ag
 
 ---
 
-## 10. Tier Benefits — Claiming for Customers
+## 10. Tier Benefits - Claiming for Customers
 
 Customers who reach certain tier levels (e.g., Gold, Diamond, Platinum) may be entitled to a special in-store benefit claimable once per tier period.
 
@@ -350,7 +351,7 @@ When you notice that a product is running low or a customer asks for something t
 
 Tap **Stock Request** in the bottom navigation → tap **+ New Request**.
 
-> **Note:** This is a separate bottom-nav tab from **Requests** (Section 12) — Stock Request is for procurement (items to add to the order list); Requests is for store alerts (supplies, maintenance, low-stock flags).
+> **Note:** This is a separate bottom-nav tab from **Requests** (Section 12) - Stock Request is for procurement (items to add to the order list); Requests is for store alerts (supplies, maintenance, low-stock flags).
 
 ### Step 2: Fill in the Request Details
 
@@ -363,7 +364,7 @@ Tap **Stock Request** in the bottom navigation → tap **+ New Request**.
 
 Each request can include multiple items. For each item:
 1. Tap **+ Add Item**.
-2. Type the item name — the app suggests matching items from your store's history.
+2. Type the item name - the app suggests matching items from your store's history.
 3. Set:
    - **Quantity:** How much is needed.
    - **Category:** Product category.
@@ -390,7 +391,7 @@ When your manager reviews the request, you receive a notification. Open the requ
 
 ## 12. Submitting Store Operational Requests
 
-If there is a store supply issue, maintenance problem, or any operational concern — including a customer asking for something you don't carry — submit an Alert to your manager.
+If there is a store supply issue, maintenance problem, or any operational concern - including a customer asking for something you don't carry - submit an Alert to your manager.
 
 ### Step 1: Navigate to Requests
 
@@ -399,14 +400,14 @@ Tap **Requests** in the bottom navigation → select an alert type.
 ### Step 2: Fill in the Alert
 
 - **Type:**
-  - **Low Stock Alert** — A section or product is running very low.
-  - **Store Supplies** — Need store supplies (cleaning, packaging, etc.).
-  - **Customer Asking** — A customer wants something you don't carry.
-  - **Work Order** — Equipment broken or needs maintenance.
+  - **Low Stock Alert** - A section or product is running very low.
+  - **Store Supplies** - Need store supplies (cleaning, packaging, etc.).
+  - **Customer Asking** - A customer wants something you don't carry.
+  - **Work Order** - Equipment broken or needs maintenance.
 - **Priority:**
-  - **Low** — Non-urgent, address when possible.
-  - **Medium** — Needs attention soon.
-  - **High** — Urgent, needs immediate attention.
+  - **Low** - Non-urgent, address when possible.
+  - **Medium** - Needs attention soon.
+  - **High** - Urgent, needs immediate attention.
 - **Notes:** Describe the issue clearly. The more specific, the better (e.g., "Refrigerator unit 3 in the back is making a loud noise and not cooling below 45°F").
 
 ### Step 3: Submit
@@ -435,8 +436,8 @@ If you need time off or want to pick up an extra shift:
 1. Navigate to **Schedule** → tap **+ Request**.
 2. Select:
    - **Request Type:**
-     - **Time Off** — You cannot work on a specific date.
-     - **Fill In** — You are available to work on a date you're not currently scheduled.
+     - **Time Off** - You cannot work on a specific date.
+     - **Fill In** - You are available to work on a date you're not currently scheduled.
    - **Date:** The specific date.
    - **Shift Type:** Opening, Middle, or Closing.
    - **Notes:** Reason for the request (optional but helpful).
@@ -463,7 +464,7 @@ Tap **Chat** in the bottom navigation.
 - Type your message and tap **Send**.
 - Messages include your name, role, and the time sent.
 - All staff at your store see all messages.
-- There are no private messages — everything is visible to your manager.
+- There are no private messages - everything is visible to your manager.
 
 ### 14.3 What Chat Is For
 
@@ -554,7 +555,7 @@ Profile → **Sign Out** (at the bottom of the screen).
 
 ---
 
-## 18. Hot Food — Orders and Menu Management
+## 18. Hot Food - Orders and Menu Management
 
 If your store has an active hot food menu, you have two responsibilities: fulfilling customer orders and keeping the menu up to date.
 
@@ -565,12 +566,12 @@ Tap **Hot Food Orders** in the menu (or the Hot Food tab on your home screen). T
 Orders appear with the customer's name, items ordered, total, and how long ago the order was placed.
 
 **Order flow:**
-1. A new order arrives in **Pending** — tap **Accept Order** once you start preparing it.
-2. When the food is ready, tap **Mark Ready** — the customer gets a push notification to come pick it up.
+1. A new order arrives in **Pending** - tap **Accept Order** once you start preparing it.
+2. When the food is ready, tap **Mark Ready** - the customer gets a push notification to come pick it up.
 3. When the customer arrives and picks up at the counter, tap **Complete**.
-4. Payment and loyalty points are handled at the register as a normal transaction — not through the app.
+4. Payment and loyalty points are handled at the register as a normal transaction - not through the app.
 
-If an order needs to be cancelled after it is marked Ready, tap the red X button next to Complete and confirm. Use this sparingly — contact your manager for any recurring issues.
+If an order needs to be cancelled after it is marked Ready, tap the red X button next to Complete and confirm. Use this sparingly - contact your manager for any recurring issues.
 
 Keep an eye on the notification badge on the Hot Food tab so orders don't sit unnoticed.
 
@@ -578,31 +579,50 @@ Keep an eye on the notification badge on the Hot Food tab so orders don't sit un
 
 Tap the **Menu** tab to see every item currently on your store's hot food menu. From here you can:
 
-**Toggle availability:** Each item has an **Available / Sold Out** button. Tap it to flip an item's status in real time — customers immediately stop seeing sold-out items in the order screen. Use this whenever an item runs out mid-shift.
+**Toggle availability:** Each item has an **Available / Sold Out** button. Tap it to flip an item's status in real time - customers immediately stop seeing sold-out items in the order screen. Use this whenever an item runs out mid-shift.
 
 **Add a new item:**
 1. Tap **+ Add Item** in the top-right corner.
 2. Tap the photo area to take a photo or pick one from your library (optional but recommended).
 3. Fill in the item name, category (e.g. Roller Grill, Pizza, Sandwiches), price, estimated preparation time, and an optional short description.
-4. As you type the category, suggestions from existing categories appear — tap one to reuse it, or type your own.
+4. As you type the category, suggestions from existing categories appear - tap one to reuse it, or type your own.
 5. Tap **Add to Menu**. The item is live immediately.
 
 **Edit or remove an item:**
 1. Tap the pencil icon on any store-created item.
 2. Update any field or swap the photo.
-3. Tap **Save Changes** — or tap **Remove from Menu** at the bottom to delete the item entirely (requires confirmation).
+3. Tap **Save Changes** - or tap **Remove from Menu** at the bottom to delete the item entirely (requires confirmation).
 
 > Items marked **Catalog** come from the shared Lucky Stop catalog managed centrally. These can be toggled available/sold out but cannot be edited or deleted at the store level.
 
 ### 18.3 Things to Know
 
-- Always keep the menu accurate — if an item is unavailable, mark it Sold Out right away rather than letting customers order something you can't make.
+- Always keep the menu accurate - if an item is unavailable, mark it Sold Out right away rather than letting customers order something you can't make.
 - Category names are shared across your store's menu. Use consistent names (capitalise the same way each time) so items group cleanly.
-- Pricing changes take effect immediately for new orders — existing open orders are not affected.
+- Pricing changes take effect immediately for new orders - existing open orders are not affected.
 
 ---
 
-## 19. Critical Rules — Read These Carefully
+## 19. Shelf/Price Labels
+
+Tap **Labels** in the menu to create and print shelf/price tags for products at your store. The catalog is shared chain-wide, so labels added by any store are visible to everyone, with your own store's not-yet-printed labels surfaced first under **Ready to Print**.
+
+### 19.1 Creating a Label
+
+Tap **+ Add Label**.
+- Scan the item's barcode to auto-fill the product name from the shared Scanned Products catalog, or enter one manually.
+- Set the regular price, an optional deal price, and a category.
+- Save. The label is added to the chain-wide catalog immediately.
+
+### 19.2 Printing Labels
+
+- **Ready to Print** shows labels from your store that haven't been printed yet. Toggle to **Full Catalog** to see everything, including labels other stores added.
+- Select one or more labels (search and select-all help with large batches), then **Print** to generate a formatted PDF sized for a standard Avery 5160 address-label sheet, or share it as a file.
+- Selecting a label another store created shows a confirmation prompt first, so two stores scanning at the same time don't print each other's tags by mistake.
+
+---
+
+## 20. Critical Rules - Read These Carefully
 
 These rules are not negotiable. Violating them can result in disciplinary action or termination.
 
@@ -618,7 +638,7 @@ Do not scan your own QR code or process a transaction that grants points to your
 
 ### Rule 3: Do Not Process Transactions for Family or Friends Who Are Not Genuine Customers
 
-Only process transactions for customers who have actually made a purchase at your store, with a valid receipt. Granting points for fake or exaggerated purchases — even for friends or family — is fraud.
+Only process transactions for customers who have actually made a purchase at your store, with a valid receipt. Granting points for fake or exaggerated purchases - even for friends or family - is fraud.
 
 ### Rule 4: Enter the Exact Amount from the Receipt
 
@@ -637,18 +657,18 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 
 ---
 
-## 20. Common Situations — Quick Reference
+## 21. Common Situations - Quick Reference
 
 | Situation | What to Do |
 |---|---|
 | Customer QR code won't scan | Check lighting, ask customer to increase brightness, try again from a different angle |
-| Customer forgot to show QR code before payment | Cannot process retroactively — next time, QR code must be shown first |
-| Customer has no receipt | Cannot process — explain receipt is required for every transaction |
+| Customer forgot to show QR code before payment | Cannot process retroactively - next time, QR code must be shown first |
+| Customer has no receipt | Cannot process - explain receipt is required for every transaction |
 | Receipt photo is blurry | Tap Retake and take another photo in better lighting |
 | Customer wants to redeem their credits | Scan QR → Redeem Credits → enter amount |
 | Customer has a catalog reward code | Scan QR → Pending Catalog Redemptions → confirm |
 | New customer has a welcome bonus | Scan QR → Welcome Bonus → Claim |
-| Customer says they didn't get their points | Check their transaction history (visible after scan) — if processing error, ask manager |
+| Customer says they didn't get their points | Check their transaction history (visible after scan) - if processing error, ask manager |
 | Store is out of a product | Stock Request → New Request → Low Stock |
 | Refrigerator is broken | Requests → Work Order → High priority |
 | I want to request time off | Schedule → New Request → Time Off → select date |
@@ -656,7 +676,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 
 ---
 
-## 21. Troubleshooting
+## 22. Troubleshooting
 
 **Problem: The app won't open or keeps crashing.**
 - Force-close the app and reopen it.
@@ -681,7 +701,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 **Problem: A transaction I processed is showing as "Flagged."**
 - Your manager has been notified to review it.
 - They will either approve or reject the transaction.
-- If you believe it was processed correctly, your manager may ask you about it — be ready to explain.
+- If you believe it was processed correctly, your manager may ask you about it - be ready to explain.
 
 **Problem: An employee request I submitted shows no response from the manager.**
 - Allow 24 hours for the manager to review requests.

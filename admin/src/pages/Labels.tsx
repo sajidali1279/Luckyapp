@@ -406,7 +406,7 @@ export default function Labels() {
                 style={m.input}
                 value={formDealText}
                 onChange={e => setFormDealText(e.target.value)}
-                placeholder='e.g. "2 for $5" or "BOGO" — shown alongside the price above'
+                placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
                 maxLength={20}
               />
               <div style={m.label}>Barcode (optional)</div>
@@ -414,7 +414,7 @@ export default function Labels() {
                 style={m.input}
                 value={formBarcode}
                 onChange={e => setFormBarcode(e.target.value)}
-                placeholder="Scan or type the product's UPC/EAN — for order lookups, not tied to the price/deal above"
+                placeholder="Scan or type the product's UPC/EAN - for order lookups, not tied to the price/deal above"
                 maxLength={40}
               />
               <div style={m.label}>Category (optional)</div>
@@ -472,7 +472,7 @@ export default function Labels() {
         <div style={s.pageHeader}>
           <div>
             <h1 style={s.pageTitle}>🏷️ Labels</h1>
-            <p style={s.pageSub}>Chain-wide catalog of printable shelf/price tags — one list, every store.</p>
+            <p style={s.pageSub}>Chain-wide catalog of printable shelf/price tags - one list, every store.</p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
@@ -570,7 +570,7 @@ export default function Labels() {
                       {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
                     </TableCell>
                     <TableCell style={s.td}>
-                      {label.category ? label.category : <span style={{ color: TEXT_MUTED }}>—</span>}
+                      {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
                     </TableCell>
                     <TableCell style={s.td}>
                       ${label.priceText}

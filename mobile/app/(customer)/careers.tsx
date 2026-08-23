@@ -186,12 +186,12 @@ export default function CareersScreen() {
         ) : openings.length === 0 ? (
           <View style={st.emptyCard}>
             <Text style={st.emptyText}>No openings posted yet.</Text>
-            <Text style={st.emptySubText}>Check back soon — we're always growing!</Text>
+            <Text style={st.emptySubText}>Check back soon - we're always growing!</Text>
           </View>
         ) : (
           openings.map(opening => {
             const meta = POSITION_META[opening.position] ?? { emoji: '💼', desc: '' };
-            const location = opening.store ? `${opening.store.name} — ${opening.store.city}` : 'Any Location';
+            const location = opening.store ? `${opening.store.name} - ${opening.store.city}` : 'Any Location';
             return (
               <View key={opening.id} style={st.posCard}>
                 <View style={st.posTop}>
@@ -256,7 +256,7 @@ export default function CareersScreen() {
               >
                 <Text style={st.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={st.modalTitle}>Apply — {positionLabel}</Text>
+              <Text style={st.modalTitle}>Apply - {positionLabel}</Text>
               <View style={{ width: 60 }} />
             </View>
 

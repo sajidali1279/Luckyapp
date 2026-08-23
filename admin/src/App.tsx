@@ -124,7 +124,7 @@ export default function App() {
               <Route path="/scanned-products" element={<ScannedProducts />} />
               <Route path="/inventory-analytics" element={<InventoryAnalytics />} />
               {/* Labels, Notices, Catalog, Daily Reports, Daily Tasks, and Support are all
-                  accessible to StoreManager+ — mirrors mobile access / backend endpoints that
+                  accessible to StoreManager+ - mirrors mobile access / backend endpoints that
                   already scope down to the caller's own store for anyone below SuperAdmin. */}
               <Route path="/labels" element={<Labels />} />
               <Route path="/notices" element={<Notices />} />
@@ -149,7 +149,7 @@ export default function App() {
                     URL and see fully-enabled buttons that would 403 on click. */}
                 <Route path="/careers" element={<Careers />} />
                 {/* Order List admin view is a cross-store browsing/reporting tool backed by a
-                    SuperAdmin-only endpoint (/order-lists/admin/all) — a Store Manager's real
+                    SuperAdmin-only endpoint (/order-lists/admin/all) - a Store Manager's real
                     order-list workflow (scan, quick-add, open/close their own store) already
                     lives on mobile; this page was never meant to serve that role. */}
                 <Route path="/order-list" element={<OrderList />} />

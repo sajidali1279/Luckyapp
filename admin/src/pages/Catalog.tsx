@@ -83,7 +83,7 @@ function CatalogModal({
         </div>
         <form onSubmit={handleSubmit} style={m.form}>
 
-          {/* Company selector — DevAdmin sees all options; SuperAdmin locked to Lucky Stop */}
+          {/* Company selector - DevAdmin sees all options; SuperAdmin locked to Lucky Stop */}
           <label style={m.label}>Company / Store Chain *</label>
           {isDevAdmin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -260,7 +260,7 @@ function ChainSection({
                       {{ IN_STORE: '🛒 In-Store', GAS: '⛽ Gas', HOT_FOODS: '🌮 Hot Foods' }[item.category as string] || item.category}
                     </span>
                   </TableCell>
-                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || '—'}</span></TableCell>
+                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || ' - '}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
                   </TableCell>

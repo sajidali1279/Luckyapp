@@ -1,7 +1,7 @@
-# Lucky Stop Loyalty App — Terms of Service
+# Lucky Stop Loyalty App - Terms of Service
 
 **Effective Date:** June 1, 2026
-**Last Updated:** May 30, 2026
+**Last Updated:** July 31, 2026
 **Version:** 1.0
 
 ---
@@ -436,7 +436,7 @@ If you believe your account was suspended or terminated in error, you may contac
 
 ### 19.1 Lucky Stop Ownership
 
-The Lucky Stop App and all related content, features, and functionality — including but not limited to all text, graphics, logos, icons, images, software, data compilations, and the arrangement thereof — are owned by Lucky Stop or its licensors and are protected by United States and international intellectual property laws.
+The Lucky Stop App and all related content, features, and functionality - including but not limited to all text, graphics, logos, icons, images, software, data compilations, and the arrangement thereof - are owned by Lucky Stop or its licensors and are protected by United States and international intellectual property laws.
 
 You are granted a limited, non-exclusive, non-transferable, revocable license to use the App for personal, non-commercial purposes in accordance with these Terms. This license does not include:
 - The right to sublicense, sell, or transfer the App or any content.
@@ -612,7 +612,7 @@ These Terms are written in English. Any translation is provided for convenience 
 
 For questions, concerns, or notices regarding these Terms:
 
-**Lucky Stop — Legal / Support**
+**Lucky Stop - Legal / Support**
 - **Email:** support@luckystop.cliffindus.com
 - **Subject:** "Terms of Service Inquiry"
 - **Response Time:** 10 business days

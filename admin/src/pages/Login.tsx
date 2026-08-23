@@ -186,8 +186,8 @@ export default function Login() {
                 PINs can only be reset by an administrator.
               </p>
               <ul style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
-                <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees & Managers</span> — ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
-                <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins</span> — contact your Lucky Stop developer to reset your PIN.</li>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees & Managers</span> - ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
+                <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins</span> - contact your Lucky Stop developer to reset your PIN.</li>
               </ul>
               <button
                 onClick={() => setShowForgot(false)}

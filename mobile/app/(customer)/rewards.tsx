@@ -67,7 +67,7 @@ function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number 
       <View style={pb.container}>
         <View style={pb.row}>
           <Text style={pb.tierLabel}>{cfg.emoji} {cfg.label}</Text>
-          <Text style={pb.maxLabel}>Max tier — Platinum!</Text>
+          <Text style={pb.maxLabel}>Max tier - Platinum!</Text>
         </View>
         <View style={pb.track}><View style={[pb.fill, { width: '100%', backgroundColor: cfg.color }]} /></View>
       </View>
@@ -217,7 +217,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
             accessibilityRole="button"
             accessibilityLabel={`Confirm redeem ${item.title} for ${item.pointsCost.toLocaleString()} points`}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={md.confirmBtnText}>Redeem Now — {item.pointsCost.toLocaleString()} pts</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={md.confirmBtnText}>Redeem Now - {item.pointsCost.toLocaleString()} pts</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             style={md.cancelBtn}
@@ -523,7 +523,7 @@ export default function RewardsScreen() {
                 <Text style={r.emptyTitle}>
                   {activeCategory === 'ALL' ? 'No rewards yet' : `No ${getCatCfg(activeCategory).label} rewards yet`}
                 </Text>
-                <Text style={r.emptySub}>Check back soon — new rewards are added regularly</Text>
+                <Text style={r.emptySub}>Check back soon - new rewards are added regularly</Text>
               </View>
             )
           ) : null
@@ -570,7 +570,7 @@ export default function RewardsScreen() {
                 <Text style={[bm.statusText, { color: benefitStatus.available ? COLORS.success : '#F4A226' }]}>
                   {tier === 'SILVER'
                     ? `${benefitStatus.silverRemaining} refills remaining this period`
-                    : benefitStatus.available ? '✓ Refill available today' : '✗ Refill used today — resets tomorrow'}
+                    : benefitStatus.available ? '✓ Refill available today' : '✗ Refill used today - resets tomorrow'}
                 </Text>
               </View>
             )}
@@ -580,8 +580,8 @@ export default function RewardsScreen() {
               <Text style={bm.stepsTitle}>How to claim at the register</Text>
               {[
                 { n: '1', text: 'Open the app and go to your QR code on the Home tab' },
-                { n: '2', text: 'Show the cashier your QR and ask for your free fountain refill — bring your own cup' },
-                { n: '3', text: 'The cashier will scan your QR and apply the benefit — nothing else needed' },
+                { n: '2', text: 'Show the cashier your QR and ask for your free fountain refill - bring your own cup' },
+                { n: '3', text: 'The cashier will scan your QR and apply the benefit - nothing else needed' },
               ].map(step => (
                 <View key={step.n} style={bm.stepRow}>
                   <View style={[bm.stepNum, { backgroundColor: tierCfg.color }]}>

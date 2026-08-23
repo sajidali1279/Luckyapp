@@ -206,7 +206,7 @@ export default function EmployeeHomeScreen() {
             <View style={s.promoStrip}>
               <FlameIcon size={16} color="#fff" strokeWidth={2} />
               <Text style={s.promoStripText}>
-                {promotions.length} promo{promotions.length > 1 ? 's' : ''} active — bonus cashback applied automatically
+                {promotions.length} promo{promotions.length > 1 ? 's' : ''} active - bonus cashback applied automatically
               </Text>
             </View>
           )}
@@ -294,7 +294,7 @@ export default function EmployeeHomeScreen() {
                   </Text>
                   <Text style={[s.hotFoodTileSub, pendingCount > 0 && s.hotFoodTileSubActive]}>
                     {pendingCount > 0
-                      ? `${pendingCount} order${pendingCount > 1 ? 's' : ''} waiting — tap to manage`
+                      ? `${pendingCount} order${pendingCount > 1 ? 's' : ''} waiting - tap to manage`
                       : 'No pending orders right now'}
                   </Text>
                 </View>
@@ -401,7 +401,7 @@ export default function EmployeeHomeScreen() {
                   <Text style={s.dailyReportSub}>
                     {reportSubmitted
                       ? `✓ Submitted by ${todaysReports[0].submittedBy?.name || todaysReports[0].submittedBy?.phone || 'a teammate'} at ${fmtTime(todaysReports[0].createdAt)}`
-                      : "Not submitted yet — tap to fill it out"}
+                      : "Not submitted yet - tap to fill it out"}
                   </Text>
                 </View>
               </View>

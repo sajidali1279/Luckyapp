@@ -56,7 +56,7 @@ const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: s
 
 const CANNED_REPLIES = [
   "Thank you for reaching out! I'll look into this shortly.",
-  "This has been noted — I'll update you once it's resolved.",
+  "This has been noted - I'll update you once it's resolved.",
   "Can you provide more details so I can assist better?",
   "The issue has been fixed. Please let me know if anything else comes up.",
   "This is a known issue we're working on. Expected resolution: within 48 hours.",
@@ -212,7 +212,7 @@ export default function Support() {
               { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#dc2626' },
               { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#059669' },
               {
-                val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : '—',
+                val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : ' - ',
                 label: 'Avg Response Time', color: '#7c3aed',
               },
             ].map((sc, i) => (

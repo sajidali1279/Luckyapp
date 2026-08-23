@@ -452,7 +452,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
 
   return (
     <View style={qa.wrapper}>
-      {/* Item suggestion dropdown — shown when name input is focused */}
+      {/* Item suggestion dropdown - shown when name input is focused */}
       {showItemSugg && itemSuggestions.length > 0 && (
         <View style={qa.suggBox}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
@@ -473,7 +473,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
         </View>
       )}
 
-      {/* Category suggestion dropdown — shown when category input is focused */}
+      {/* Category suggestion dropdown - shown when category input is focused */}
       {showCatSugg && !showItemSugg && catSuggestions.length > 0 && (
         <View style={qa.suggBox}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
@@ -828,7 +828,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               })}
             </View>
 
-            {/* Category — inline autocomplete */}
+            {/* Category - inline autocomplete */}
             <Text style={s.label}>Category</Text>
             <View style={s.catAutoRow}>
               <TextInput
@@ -1346,7 +1346,7 @@ export default function ManagerOrderListScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
       qc.invalidateQueries({ queryKey: ['order-list-history', selectedStoreId] });
-      Toast.show({ type: 'success', text1: 'List closed — order placed' });
+      Toast.show({ type: 'success', text1: 'List closed - order placed' });
     },
     onError: () => Toast.show({ type: 'error', text1: 'Failed to close list' }),
   });
@@ -1483,7 +1483,7 @@ export default function ManagerOrderListScreen() {
             })}
           </ScrollView>
 
-          {/* Scroll-edge fades — hint that the tab row scrolls */}
+          {/* Scroll-edge fades - hint that the tab row scrolls */}
           <View style={s.storeTabFadeLeft} pointerEvents="none">
             <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
               <Defs>
@@ -1629,7 +1629,7 @@ export default function ManagerOrderListScreen() {
               >
                 <Text style={s.instructionsLabel}>📋 Standing instructions</Text>
                 <Text style={selectedStore?.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
-                  {selectedStore?.orderInstructions || 'No standing instructions — tap to add'}
+                  {selectedStore?.orderInstructions || 'No standing instructions - tap to add'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1647,7 +1647,7 @@ export default function ManagerOrderListScreen() {
             >
               <ClipboardIcon size={16} color="#fff" strokeWidth={2.5} />
               <Text style={s.reqBannerText}>
-                {pendingRequestCount} employee request{pendingRequestCount !== 1 ? 's' : ''} waiting — tap to review
+                {pendingRequestCount} employee request{pendingRequestCount !== 1 ? 's' : ''} waiting - tap to review
               </Text>
               <Text style={s.reqBannerArrow}>›</Text>
             </TouchableOpacity>
@@ -1674,7 +1674,7 @@ export default function ManagerOrderListScreen() {
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.URGENT.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
                       <ZapIcon size={12} color={SECTION_HEADER_COLORS.URGENT.text} strokeWidth={2.25} />
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>URGENT — {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>URGENT - {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {urgentItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1686,7 +1686,7 @@ export default function ManagerOrderListScreen() {
                 {neededItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.NEEDED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>Needed — {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>Needed - {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {neededItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1698,7 +1698,7 @@ export default function ManagerOrderListScreen() {
                 {orderedItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.ORDERED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>Ordered — {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>Ordered - {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {orderedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1710,7 +1710,7 @@ export default function ManagerOrderListScreen() {
                 {receivedItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.RECEIVED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>Received — {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>Received - {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
                     </View>
                     {receivedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1723,7 +1723,7 @@ export default function ManagerOrderListScreen() {
               </FadeSlideIn>
             )}
 
-            {/* Quick Add Bar — always pinned at bottom */}
+            {/* Quick Add Bar - always pinned at bottom */}
             <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
           </KeyboardAvoidingView>
         </>

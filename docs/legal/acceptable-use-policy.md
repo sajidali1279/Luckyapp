@@ -3,7 +3,7 @@
 **Lucky Stop Loyalty Platform**  
 **Operated by:** Cliff Industries (sksajidali1279@gmail.com)  
 **Effective Date:** May 2026  
-**Applies to:** All users of the Lucky Stop platform — store operators, managers, employees, and customers
+**Applies to:** All users of the Lucky Stop platform - store operators, managers, employees, and customers
 
 ---
 
@@ -15,7 +15,7 @@ Violations of this policy may result in immediate account suspension, permanent 
 
 ---
 
-## 2. Prohibited Uses — All Users
+## 2. Prohibited Uses - All Users
 
 The following are prohibited for every user regardless of role:
 
@@ -45,7 +45,7 @@ The following are prohibited for every user regardless of role:
 
 ---
 
-## 3. Prohibited Uses — Store Operators and Employees
+## 3. Prohibited Uses - Store Operators and Employees
 
 In addition to Section 2, the following are prohibited for store operators, managers, and employees:
 
@@ -58,7 +58,7 @@ In addition to Section 2, the following are prohibited for store operators, mana
 
 ---
 
-## 4. Prohibited Uses — Customers
+## 4. Prohibited Uses - Customers
 
 In addition to Section 2, the following are prohibited for customers:
 
@@ -110,5 +110,5 @@ Cliff Industries may update this policy at any time. Significant changes will be
 
 ---
 
-*Cliff Industries — Lucky Stop Loyalty Platform*  
+*Cliff Industries - Lucky Stop Loyalty Platform*  
 *Last updated: May 2026*

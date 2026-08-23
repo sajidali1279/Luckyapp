@@ -13,7 +13,7 @@ export interface BarcodeResult {
   name:     string;
   category: string | null;
   barcode:  string;
-  quantity: string;          // always present — empty string if user skipped
+  quantity: string;          // always present - empty string if user skipped
   source:   'catalog' | 'openfoodfacts' | 'manual';
 }
 
@@ -410,10 +410,10 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
               {/* Barcode */}
               <Text style={st.barcodeSmall}>{barcode}</Text>
 
-              {/* Qty input — hidden for callers that don't use quantity (e.g. Labels) */}
+              {/* Qty input - hidden for callers that don't use quantity (e.g. Labels) */}
               {!hideQuantity && (
                 <>
-                  <Text style={st.fieldLabel}>Quantity  <Text style={st.fieldLabelSub}>(optional — leave blank if not needed)</Text></Text>
+                  <Text style={st.fieldLabel}>Quantity  <Text style={st.fieldLabelSub}>(optional - leave blank if not needed)</Text></Text>
                   <TextInput
                     ref={qtyRef}
                     style={[st.fieldInput, st.qtyInput]}
@@ -470,7 +470,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
 
               <Text style={st.namingHint}>
                 This barcode isn't in your store catalog or Open Food Facts yet.{'\n'}
-                Name it once — future scans will show it instantly.
+                Name it once - future scans will show it instantly.
               </Text>
 
               <Text style={st.fieldLabel}>Product name  <Text style={st.fieldLabelRequired}>*</Text></Text>

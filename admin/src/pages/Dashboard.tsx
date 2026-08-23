@@ -373,7 +373,7 @@ function RecentTransactions({ txs }: { txs: any[] }) {
             <div style={{ ...s.recentDot, background: STATUS_DOT[tx.status] || '#dee2e6' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>
-              <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || '—'}</div>
+              <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '}</div>
             </div>
             <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
               <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
@@ -491,7 +491,7 @@ export default function Dashboard() {
           <h1 style={s.welcomeTitle}>{greeting()}, {user?.name?.split(' ')[0] || 'Admin'} 👋</h1>
           <p style={s.welcomeSub}>
             {isDevAdmin
-              ? 'Full system access — billing, analytics, and platform settings.'
+              ? 'Full system access - billing, analytics, and platform settings.'
               : `Managing ${loadingStores ? '…' : activeStores} Lucky Stop locations across the network.`}
           </p>
         </div>
@@ -600,7 +600,7 @@ export default function Dashboard() {
           {/* Store performance */}
           {platform?.storeRanking?.length > 0 && (
             <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
-              <SectionHeader title="Store Performance — This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
+              <SectionHeader title="Store Performance - This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
               <div style={s.storeTable}>
                 <div style={s.storeTableHeader}>
                   <span style={s.storeColName}>Store</span>
@@ -648,7 +648,7 @@ export default function Dashboard() {
       {/* ── Analytics Charts (DevAdmin only) ── */}
       {isDevAdmin && analytics && (
         <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
-          <SectionHeader title="Last 30 Days — Activity" action={{ label: 'Full Analytics', to: '/analytics' }} />
+          <SectionHeader title="Last 30 Days - Activity" action={{ label: 'Full Analytics', to: '/analytics' }} />
           <div style={s.chartsRow}>
             <div style={s.chartBox}>
               <div style={s.chartTitle}>Daily Transactions</div>
@@ -716,7 +716,7 @@ export default function Dashboard() {
         <div className="dash-fade-in" style={{ animationDelay: '240ms' }}>
           <SectionHeader
             title="Live Cashback Rates Today"
-            subtitle="Effective rate each Bronze customer earns per category right now — tier base + category bonus + active promotions."
+            subtitle="Effective rate each Bronze customer earns per category right now - tier base + category bonus + active promotions."
             action={{ label: 'Edit Rates', to: '/rates' }}
           />
           <div style={s.ratesGrid}>

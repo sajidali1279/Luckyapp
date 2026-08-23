@@ -104,7 +104,7 @@ export default function Customers() {
     mutationFn: ({ id, action, note, amt }: { id: string; action: 'APPROVED' | 'REJECTED'; note: string; amt?: number }) =>
       disputesApi.resolve(id, { action, resolvedNote: note, creditedAmt: amt }),
     onSuccess: (_res, { action }) => {
-      toast.success(action === 'APPROVED' ? 'Dispute approved — points credited' : 'Dispute rejected');
+      toast.success(action === 'APPROVED' ? 'Dispute approved - points credited' : 'Dispute rejected');
       qc.invalidateQueries({ queryKey: ['disputes'] });
       setResolveTarget(null);
       setResolveNote('');
@@ -197,7 +197,7 @@ export default function Customers() {
           ) : disputesLoading ? (
             <CardSkeleton count={3} />
           ) : disputes.length === 0 ? (
-            <div style={s.emptyState}><div style={{ fontSize: 48 }}>✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear — no missing points reports</div></div>
+            <div style={s.emptyState}><div style={{ fontSize: 48 }}>✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear - no missing points reports</div></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {disputes.map((d: any) => (
@@ -360,7 +360,7 @@ export default function Customers() {
             {confirmTarget.isActive && (
               <div style={{ marginBottom: 16, textAlign: 'left' }}>
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                  Reason (optional — shown as fraud flag)
+                  Reason (optional - shown as fraud flag)
                 </label>
                 <input
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none' }}

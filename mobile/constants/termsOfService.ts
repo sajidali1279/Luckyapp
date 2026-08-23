@@ -1,4 +1,4 @@
-export const TERMS_OF_SERVICE = `# Lucky Stop Loyalty App — Terms of Service
+export const TERMS_OF_SERVICE = `# Lucky Stop Loyalty App - Terms of Service
 
 **Effective Date:** June 1, 2026
 **Last Updated:** May 30, 2026
@@ -204,7 +204,7 @@ These Terms constitute the entire agreement between you and Lucky Stop regarding
 
 ## 28. Contact Information
 
-**Lucky Stop — Legal / Support**
+**Lucky Stop - Legal / Support**
 Email: support@luckystop.cliffindus.com
 Response Time: 10 business days
 

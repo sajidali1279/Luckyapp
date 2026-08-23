@@ -134,7 +134,7 @@ export default function ScannedProducts() {
                 style={m.input}
                 value={newCategory}
                 onChange={e => setNewCategory(e.target.value)}
-                placeholder="Optional — e.g. Drinks"
+                placeholder="Optional - e.g. Drinks"
                 maxLength={100}
               />
               <div style={m.label}>Brand</div>
@@ -142,7 +142,7 @@ export default function ScannedProducts() {
                 style={m.input}
                 value={newBrand}
                 onChange={e => setNewBrand(e.target.value)}
-                placeholder="Optional — e.g. Monster"
+                placeholder="Optional - e.g. Monster"
                 maxLength={100}
               />
               <div style={m.hint}>
@@ -216,8 +216,8 @@ export default function ScannedProducts() {
                     <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                       <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
                       <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
-                      <TableCell style={s.td}>{p.category || '—'}</TableCell>
-                      <TableCell style={s.td}>{p.brand || '—'}</TableCell>
+                      <TableCell style={s.td}>{p.category || ' - '}</TableCell>
+                      <TableCell style={s.td}>{p.brand || ' - '}</TableCell>
                       <TableCell style={s.td}>
                         <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
                       </TableCell>

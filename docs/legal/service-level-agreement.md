@@ -46,9 +46,9 @@ The following are excluded from uptime calculations:
 
 | Severity | Definition | Response Time | Resolution Target |
 |---|---|---|---|
-| **Critical** | Platform fully down during business hours — no transactions can be processed | 2 hours | 4 hours |
-| **High** | Core feature broken (scanning, redemption) — significant business impact | 4 hours | 8 hours |
-| **Medium** | Non-core feature degraded (analytics, scheduling) — workaround available | 1 business day | 3 business days |
+| **Critical** | Platform fully down during business hours - no transactions can be processed | 2 hours | 4 hours |
+| **High** | Core feature broken (scanning, redemption) - significant business impact | 4 hours | 8 hours |
+| **Medium** | Non-core feature degraded (analytics, scheduling) - workaround available | 1 business day | 3 business days |
 | **Low** | Minor issue, cosmetic bug, documentation request | 2 business days | Next release cycle |
 
 **Business hours:** Monday–Friday, 9am–6pm Central Time.  
@@ -94,8 +94,8 @@ Service credits are the subscriber's sole remedy for downtime and do not affect 
 
 - Database backups are performed daily with a minimum 7-day retention
 - Receipt photo backups follow the storage provider's (Cloudinary) redundancy guarantees
-- Recovery Point Objective (RPO): 24 hours — in a worst-case data loss scenario, up to 24 hours of data may be unrecoverable
-- Recovery Time Objective (RTO): 4 hours — the platform will be restored within 4 hours of a confirmed catastrophic failure
+- Recovery Point Objective (RPO): 24 hours - in a worst-case data loss scenario, up to 24 hours of data may be unrecoverable
+- Recovery Time Objective (RTO): 4 hours - the platform will be restored within 4 hours of a confirmed catastrophic failure
 
 ---
 
@@ -113,5 +113,5 @@ Cliff Industries may update this SLA with 30 days' written notice. Continued use
 
 ---
 
-*Cliff Industries — Lucky Stop Loyalty Platform*  
+*Cliff Industries - Lucky Stop Loyalty Platform*  
 *Last updated: May 2026*

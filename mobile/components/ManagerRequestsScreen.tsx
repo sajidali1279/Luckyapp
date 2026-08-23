@@ -590,7 +590,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Quick flags from your team — mark handled once you've dealt with it.</Text>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Quick flags from your team - mark handled once you've dealt with it.</Text>
           </>
         )}
 
@@ -620,7 +620,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Multi-item requests from your team — accepted items get added straight to your Order List.</Text>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Multi-item requests from your team - accepted items get added straight to your Order List.</Text>
           </>
         )}
 

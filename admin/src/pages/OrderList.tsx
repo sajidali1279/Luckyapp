@@ -97,8 +97,8 @@ function printList(list: OrderList) {
     ${items.map(item => `
       <tr>
         <td style="padding:10px 12px;font-weight:600;color:#1E293B">${item.name}</td>
-        <td style="padding:10px 12px;color:#64748B">${item.quantity || '—'}</td>
-        <td style="padding:10px 12px;color:#64748B">${item.notes || '—'}</td>
+        <td style="padding:10px 12px;color:#64748B">${item.quantity || ' - '}</td>
+        <td style="padding:10px 12px;color:#64748B">${item.notes || ' - '}</td>
         <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
       </tr>
     `).join('')}
@@ -132,7 +132,7 @@ function printList(list: OrderList) {
 
   const win = window.open('', '_blank');
   if (!win) {
-    toast.error('Popups are blocked — allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
+    toast.error('Popups are blocked - allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
     return;
   }
   win.document.write(html);
@@ -201,7 +201,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
     mutationFn: (vars: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT' }[] }) =>
       employeeRequestApi.reviewRequest(vars.requestId, { lines: vars.lines }),
     onSuccess: () => {
-      toast.success('Done — accepted items added to list');
+      toast.success('Done - accepted items added to list');
       setLineActions({});
       setExpandedId(null);
       // The Requests hub's Stock tab reviews the same underlying requests —
@@ -309,7 +309,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                     style={p.quickTile}
                     onClick={() => quickAdd(item)}
                     disabled={addMut.isPending}
-                    title={`Add ${item.name}${item.category ? ' — ' + item.category : ''}`}
+                    title={`Add ${item.name}${item.category ? ' - ' + item.category : ''}`}
                   >
                     <span style={p.tileName}>{item.name}</span>
                     {item.category && <span style={p.tileCat}>{item.category}</span>}
@@ -461,7 +461,7 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
         <div style={p.sectionLabel}>↺ Restore Items</div>
         {restorableItems.length === 0 ? (
           <div style={{ fontSize: 13, color: '#94A3B8', padding: '4px 0' }}>
-            All items on this list were received — nothing to restore.
+            All items on this list were received - nothing to restore.
           </div>
         ) : (
           <>
@@ -689,7 +689,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           >
             <span style={s.instructionsLabel}>📋 Standing instructions</span>
             <span style={list.store.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
-              {list.store.orderInstructions || (canClose ? 'No standing instructions — click to add' : 'No standing instructions')}
+              {list.store.orderInstructions || (canClose ? 'No standing instructions - click to add' : 'No standing instructions')}
             </span>
           </div>
         )}
@@ -733,7 +733,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                     return (
                       <div key={item.id} style={s.itemRow}>
                         <div style={s.itemRowMain}>
-                          {/* Status chip — click to advance */}
+                          {/* Status chip - click to advance */}
                           <button
                             style={{
                               ...s.statusChip,
@@ -757,7 +757,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           {/* Priority pill */}
                           <span style={{ ...s.priorityPill, background: pc.bg, color: pc.text }}>{pc.label}</span>
 
-                          {/* Qty — click to edit inline */}
+                          {/* Qty - click to edit inline */}
                           {isEditingQty ? (
                             <input
                               style={s.qtyEditInput}
@@ -997,7 +997,7 @@ function CategoriesTab() {
     mutationFn: ({ id, data }: { id: string; data: object }) => orderCategoriesApi.adminUpdate(id, data),
     onSuccess: (_r, vars: any) => {
       const wasApprove = (vars.data as any).status === 'APPROVED';
-      toast.success(wasApprove ? 'Category approved — all list items updated' : 'Category updated');
+      toast.success(wasApprove ? 'Category approved - all list items updated' : 'Category updated');
       qc.invalidateQueries({ queryKey: ['order-categories-admin'] });
       setEditingId(null);
       setApprovingId(null);
@@ -1050,7 +1050,7 @@ function CategoriesTab() {
 
       {pendingCount > 0 && (
         <div style={s.approveHint}>
-          ℹ️ When approving, you can edit the name to fix typos — the correction will automatically apply to every item on every list.
+          ℹ️ When approving, you can edit the name to fix typos - the correction will automatically apply to every item on every list.
         </div>
       )}
 

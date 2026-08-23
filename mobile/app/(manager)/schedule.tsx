@@ -364,7 +364,7 @@ export default function ManagerScheduleScreen() {
                     <Text style={[s.overviewDay, isToday && s.overviewDayToday]}>{DAY_SHORT[day]}</Text>
                     <View style={s.overviewShifts}>
                       {dayTemplates.length === 0 ? (
-                        <Text style={s.overviewEmpty}>—</Text>
+                        <Text style={s.overviewEmpty}> - </Text>
                       ) : (
                         SHIFT_ORDER.map((shift) => {
                           const onShift = dayTemplates.filter((t: any) => t.shiftType === shift);

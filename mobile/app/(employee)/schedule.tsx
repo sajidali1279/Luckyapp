@@ -427,7 +427,7 @@ export default function ScheduleScreen() {
                       )}
 
                       <Text style={s.modalLabel}>
-                        {fmtMonthDay(requestModal.date)} · {requestModal.storeName} — Pick a shift
+                        {fmtMonthDay(requestModal.date)} · {requestModal.storeName} - Pick a shift
                       </Text>
                       {dayRosterLoading ? (
                         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />

@@ -259,7 +259,7 @@ function ScanTab() {
 
         {phase === 'needs_name' && (
           <View>
-            <Text style={s.namingLabel}>Not in any database — enter a name:</Text>
+            <Text style={s.namingLabel}>Not in any database - enter a name:</Text>
             <TextInput
               ref={nameRef}
               style={s.namingInput}
@@ -431,7 +431,7 @@ function ManualTab() {
         </View>
 
         <Text style={[s.fieldLabel, { marginTop: 16 }]}>
-          Barcode  <Text style={s.optional}>(optional — enter if you have it)</Text>
+          Barcode  <Text style={s.optional}>(optional - enter if you have it)</Text>
         </Text>
         <TextInput
           style={s.fieldInput}
@@ -460,7 +460,7 @@ function ManualTab() {
 
         {recentItems.length > 0 && (
           <View style={{ marginTop: 28 }}>
-            <Text style={s.recentHeader}>Added this session — {recentItems.length}</Text>
+            <Text style={s.recentHeader}>Added this session - {recentItems.length}</Text>
             {recentItems.map((item, i) => (
               <View key={i} style={s.recentRow}>
                 <CheckCircleIcon size={13} color="#16A34A" strokeWidth={2.5} />

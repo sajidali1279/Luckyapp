@@ -133,7 +133,7 @@ function ReportCard({ report }: { report: DailyReport }) {
         <Text style={rc.chevron}>{expanded ? '▲' : '▼'}</Text>
       </View>
 
-      {/* Quick summary — always visible */}
+      {/* Quick summary - always visible */}
       <View style={rc.pills}>
         {report.gasPrice != null && (
           <View style={rc.pill}><Text style={rc.pillText}>⛽ ${report.gasPrice.toFixed(3)}</Text></View>
@@ -590,7 +590,7 @@ export default function DailyReportScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* FAB — always available so any employee can add another report */}
+      {/* FAB - always available so any employee can add another report */}
       <TouchableOpacity
         style={s.fab}
         onPress={() => setShowForm(true)}

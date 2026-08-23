@@ -81,7 +81,7 @@ export default function StoreManagerDashboard() {
           <h1 style={s.welcomeTitle}>{greeting()}, {user?.name?.split(' ')[0] || 'Manager'} 👋</h1>
           <p style={s.welcomeSub}>
             {isLoading ? 'Loading store info…' : summary?.store
-              ? `${summary.store.name} — ${summary.store.city}`
+              ? `${summary.store.name} - ${summary.store.city}`
               : 'Store Dashboard'}
           </p>
         </div>

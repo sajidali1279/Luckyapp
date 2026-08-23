@@ -219,7 +219,7 @@ export default function RequestProductScreen() {
                   accessibilityLabel={selectedStore ? `Change selected store, currently ${selectedStore.name}` : 'Select a store for this product request'}
                 >
                   <Text style={[styles.storePickerText, !selectedStore && styles.placeholder]}>
-                    {selectedStore ? `${selectedStore.name} — ${selectedStore.city}, ${selectedStore.state}` : 'Select a store…'}
+                    {selectedStore ? `${selectedStore.name} - ${selectedStore.city}, ${selectedStore.state}` : 'Select a store…'}
                   </Text>
                   <ChevronRightIcon size={16} color="#adb5bd" strokeWidth={1.5} />
                 </TouchableOpacity>

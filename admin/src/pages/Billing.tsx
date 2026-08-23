@@ -389,15 +389,15 @@ export default function Billing() {
                         {isEditing ? (
                           needsSubscription(activeType)
                             ? <input type="number" min="0" step="0.01" placeholder="e.g. 99" value={billingForm.subscriptionPrice} onChange={(e) => setBillingForm((f) => ({ ...f, subscriptionPrice: e.target.value }))} style={s.input} />
-                            : <span style={s.na}>—</span>
-                        ) : needsSubscription(store.billingType) ? `${fmt$(store.subscriptionPrice)}/mo` : <span style={s.na}>—</span>}
+                            : <span style={s.na}> - </span>
+                        ) : needsSubscription(store.billingType) ? `${fmt$(store.subscriptionPrice)}/mo` : <span style={s.na}> - </span>}
                       </TableCell>
                       <TableCell style={s.td}>
                         {isEditing ? (
                           needsTransactionFee(activeType)
                             ? <input type="number" min="0" max="1" step="0.001" placeholder="e.g. 0.02" value={billingForm.transactionFeeRate} onChange={(e) => setBillingForm((f) => ({ ...f, transactionFeeRate: e.target.value }))} style={s.input} />
-                            : <span style={s.na}>—</span>
-                        ) : needsTransactionFee(store.billingType) ? fmtPct(store.transactionFeeRate) : <span style={s.na}>—</span>}
+                            : <span style={s.na}> - </span>
+                        ) : needsTransactionFee(store.billingType) ? fmtPct(store.transactionFeeRate) : <span style={s.na}> - </span>}
                       </TableCell>
                       <TableCell style={s.td}>
                         <span style={s.volValue}>{fmt$(rev.last30Days.purchaseVolume)}</span>
@@ -494,7 +494,7 @@ export default function Billing() {
           </div>
 
           <p style={s.monthlyHint}>
-            Each bill is one compound record per store — subscription fee + transaction fee + full cashback breakdown. Rates are captured from actual transaction data so changing rates later won't alter historical bills. "Backfill All Missing" generates every month since each store's creation date.
+            Each bill is one compound record per store - subscription fee + transaction fee + full cashback breakdown. Rates are captured from actual transaction data so changing rates later won't alter historical bills. "Backfill All Missing" generates every month since each store's creation date.
           </p>
 
           {monthlyLoading ? (
@@ -564,7 +564,7 @@ export default function Billing() {
                         <TableRow>
                           <TableCell colSpan={7} style={s.expandedCell}>
                             <div style={{ padding: '16px 20px' }}>
-                              <div style={s.billSectionTitle}>Per-Store Breakdown — {inv.period}</div>
+                              <div style={s.billSectionTitle}>Per-Store Breakdown - {inv.period}</div>
                               <Table style={{ width: '100%', fontSize: 15 }}>
                                 <TableHeader>
                                   <TableRow>
@@ -596,8 +596,8 @@ export default function Billing() {
                                             )}
                                           </TableCell>
                                           <TableCell style={s.catTd}>{n?.txCount ?? 0}</TableCell>
-                                          <TableCell style={s.catTd}>{n ? fmt$(n.purchaseVolume) : '—'}</TableCell>
-                                          <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : '—'}</TableCell>
+                                          <TableCell style={s.catTd}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
+                                          <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : ' - '}</TableCell>
                                           <TableCell style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</TableCell>
                                           <TableCell style={s.catTd}>
                                             <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
@@ -716,9 +716,9 @@ export default function Billing() {
                   <label style={s.fieldLabel}>Store *</label>
                   <select style={s.input} value={manualForm.storeId}
                     onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}>
-                    <option value="">— Select a store —</option>
-                    <option value="chain">🔗 All Stores (Chain-wide) — one charge to SuperAdmin</option>
-                    {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                    <option value="">- Select a store -</option>
+                    <option value="chain">🔗 All Stores (Chain-wide) - one charge to SuperAdmin</option>
+                    {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
                   </select>
                 </div>
                 <div style={ec.formField}>
@@ -751,7 +751,7 @@ export default function Billing() {
 
               {manualDone && (
                 <div style={ec.successBox}>
-                  <strong>✅ Charge added</strong> — {manualDone.storeId ? allStores.find((st: any) => st.id === manualDone.storeId)?.name : 'All Stores (Chain-wide)'},{' '}
+                  <strong>✅ Charge added</strong> - {manualDone.storeId ? allStores.find((st: any) => st.id === manualDone.storeId)?.name : 'All Stores (Chain-wide)'},{' '}
                   {fmt$(parseFloat(manualDone.amount))} for <strong>{manualDone.period}</strong>
                 </div>
               )}
@@ -771,7 +771,7 @@ export default function Billing() {
               <div style={ec.filterRow}>
                 <select style={ec.filterSelect} value={ecStoreFilter} onChange={e => setEcStoreFilter(e.target.value)}>
                   <option value="">All Stores</option>
-                  {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
+                  {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
                 </select>
                 <input style={ec.filterSelect} type="month" value={ecPeriodFilter}
                   onChange={e => setEcPeriodFilter(e.target.value)}
@@ -922,7 +922,7 @@ export default function Billing() {
                   <TableRow style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
                     <TableHead style={s.th}>Tier</TableHead>
                     <TableHead style={s.th}>Cashback %</TableHead>
-                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional — overrides % for gas)</span></TableHead>
+                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional - overrides % for gas)</span></TableHead>
                     <TableHead style={s.th}></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -983,7 +983,7 @@ export default function Billing() {
           <div style={s.settingsCard}>
             <h3 style={s.settingsCardTitle}>💰 Dev Cut Rate (Global Default)</h3>
             <p style={s.settingsCardDesc}>
-              Your cut billed to each store — a % of <strong>total purchase amount</strong> per transaction.
+              Your cut billed to each store - a % of <strong>total purchase amount</strong> per transaction.
               Each store can have its own rate (set in the Stores tab). This is the fallback default.
             </p>
 
@@ -1018,7 +1018,7 @@ export default function Billing() {
                   placeholder="e.g. 0.04"
                   autoFocus
                 />
-                <span style={{ color: '#6c757d', fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : '—'}</span>
+                <span style={{ color: '#6c757d', fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : ' - '}</span>
                 <button style={s.saveBtn} onClick={saveRate} disabled={updateRate.isPending}>{updateRate.isPending ? '…' : 'Save'}</button>
                 <button style={s.cancelBtn} onClick={() => setEditingRate(false)}>Cancel</button>
               </div>
@@ -1045,8 +1045,8 @@ export default function Billing() {
             <div style={s.infoList}>
               <InfoItem icon="🏪" text="Stores pay a fixed monthly subscription fee (set per store on the Stores tab)." />
               <InfoItem icon="💵" text="When an employee grants points, the store 'owes' the cashback amount to the customer." />
-              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of the cashback issued) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback. You earn a slice of the cashback pool — not the full purchase amount.`} />
-              <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken — the cut was already collected at grant time." />
+              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of the cashback issued) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback. You earn a slice of the cashback pool - not the full purchase amount.`} />
+              <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken - the cut was already collected at grant time." />
               <InfoItem icon="📅" text="Use the Monthly Bills tab to generate and track subscription invoices for each store." />
             </div>
           </div>
@@ -1166,8 +1166,8 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
           <div style={inv2.metaRow}>
             <div style={inv2.metaBox}>
               <div style={inv2.metaLabel}>Bill To</div>
-              <div style={inv2.metaValue}>Lucky Stop — All Stores</div>
-              <div style={inv2.metaSub}>{stores.length} locations — consolidated invoice</div>
+              <div style={inv2.metaValue}>Lucky Stop - All Stores</div>
+              <div style={inv2.metaSub}>{stores.length} locations - consolidated invoice</div>
             </div>
             <div style={inv2.metaBox}>
               <div style={inv2.metaLabel}>Invoice Details</div>
@@ -1220,10 +1220,10 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
                       {isManual && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
                     </TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : '—'}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: '#adb5bd' }}>—</span>}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: '#adb5bd' }}> - </span>}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#E63946', fontWeight: 600 }}>{fmt$(n?.devCutEarned ?? r.amount)}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : '—'}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'center' }}>
                       <span style={r.isPaid ? inv2.paidTag : inv2.unpaidTag}>{r.isPaid ? '✓' : '⏳'}</span>
@@ -1245,7 +1245,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
               </TableRow>
               <TableRow style={{ background: '#1D3557' }}>
                 <TableCell colSpan={6} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
-                  Grand Total — All Stores
+                  Grand Total - All Stores
                 </TableCell>
                 <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 900, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>
                 <TableCell style={inv2.tableTd}></TableCell>
@@ -1258,7 +1258,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
             <div style={{ background: '#d1fae5', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
-                <div style={{ fontWeight: 800, color: '#065f46', fontSize: 15 }}>All Stores — Payment Confirmed</div>
+                <div style={{ fontWeight: 800, color: '#065f46', fontSize: 15 }}>All Stores - Payment Confirmed</div>
                 {inv.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>Paid on {new Date(inv.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>}
               </div>
             </div>
@@ -1268,7 +1268,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
               <div>
                 <div style={{ fontWeight: 800, color: '#92400e', fontSize: 15 }}>Payment Outstanding</div>
                 <div style={{ fontSize: 15, color: '#b45309', marginTop: 2 }}>
-                  {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid — use "Mark Paid" to confirm receipt
+                  {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid - use "Mark Paid" to confirm receipt
                 </div>
               </div>
             </div>
@@ -1405,8 +1405,8 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
               {n?.subscriptionFee != null && n.subscriptionFee > 0 && (
                 <TableRow>
                   <TableCell style={inv.tableTd}>Monthly Subscription Fee</TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</TableCell>
                 </TableRow>
               )}
@@ -1415,8 +1415,8 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                   <TableCell style={inv.tableTd}>
                     <div style={{ fontWeight: 600 }}>{manualDescription || 'Manual Charge'}</div>
                   </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(record.amount)}</TableCell>
                 </TableRow>
               )}
@@ -1424,7 +1424,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                 ? n.categories.map((cat) => (
                     <TableRow key={cat.category}>
                       <TableCell style={inv.tableTd}>
-                        <div style={{ fontWeight: 600 }}>Transaction Fee — {cat.category}</div>
+                        <div style={{ fontWeight: 600 }}>Transaction Fee - {cat.category}</div>
                         <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)})
                         </div>

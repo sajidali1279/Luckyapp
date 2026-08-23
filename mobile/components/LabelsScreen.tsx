@@ -473,7 +473,7 @@ export default function LabelsScreen() {
                 style={s.fieldInput}
                 value={formDealText}
                 onChangeText={setFormDealText}
-                placeholder='e.g. "2 for $5" or "BOGO" — shown alongside the price above'
+                placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
                 placeholderTextColor="#B0B8C4"
                 maxLength={20}
               />

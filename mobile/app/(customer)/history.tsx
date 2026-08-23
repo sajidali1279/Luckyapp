@@ -115,7 +115,7 @@ export default function HistoryScreen() {
             isFetchingNextPage
               ? <View style={s.footerLoader}><ActivityIndicator color={COLORS.primary} /></View>
               : transactions.length > 0
-                ? <Text style={s.footerEnd}>— All transactions loaded —</Text>
+                ? <Text style={s.footerEnd}>- All transactions loaded -</Text>
                 : null
           }
           renderItem={({ item }) => {

@@ -83,7 +83,7 @@ export default function Banners() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>Banners</h1>
-          <p style={s.sub}>Promotional images shown in the customer app — target all stores or one location</p>
+          <p style={s.sub}>Promotional images shown in the customer app - target all stores or one location</p>
         </div>
         <button style={s.addBtn} onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ New Banner'}
@@ -98,7 +98,7 @@ export default function Banners() {
           <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
 
           <label style={s.label}>Link (optional)</label>
-          <input style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... — shown as a 'Visit' button when tapped in the app" />
+          <input style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... - shown as a 'Visit' button when tapped in the app" />
 
           {isStoreManager ? (
             <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
@@ -117,7 +117,7 @@ export default function Banners() {
                   <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                     <option value="">-- Choose a store --</option>
                     {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name} — {store.city}, {store.state}</option>
+                      <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
                     ))}
                   </select>
                 </>

@@ -344,7 +344,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             style={[f.detailInput, { minHeight: 56, textAlignVertical: 'top', paddingTop: 10 }]}
             value={note}
             onChangeText={setNote}
-            placeholder="Any context — e.g. running low since Monday"
+            placeholder="Any context - e.g. running low since Monday"
             placeholderTextColor="#B0B8C4"
             maxLength={300}
             multiline
@@ -478,7 +478,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
                         {line.status === 'REJECTED' && line.rejectionReason && (
                           <Text style={m.rejText}>
                             {REJECTION_LABELS[line.rejectionReason] || line.rejectionReason}
-                            {line.rejectionNote ? ` — ${line.rejectionNote}` : ''}
+                            {line.rejectionNote ? ` - ${line.rejectionNote}` : ''}
                           </Text>
                         )}
                       </View>

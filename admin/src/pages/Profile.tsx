@@ -57,7 +57,7 @@ export default function Profile() {
     setPinLoading(true);
     try {
       await authApi.changePin(currentPin, newPin);
-      toast.success('PIN changed — please sign in again');
+      toast.success('PIN changed - please sign in again');
       setTimeout(() => { logout(); window.location.href = '/login'; }, 1500);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to change PIN');

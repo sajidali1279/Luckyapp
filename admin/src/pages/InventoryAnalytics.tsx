@@ -85,7 +85,7 @@ export default function InventoryAnalytics() {
       <div style={s.header}>
         <div>
           <h1 style={s.title}>Inventory Intelligence</h1>
-          <p style={s.sub}>Order history across {stores.length} stores — {totalItems} items tracked</p>
+          <p style={s.sub}>Order history across {stores.length} stores - {totalItems} items tracked</p>
         </div>
         <button style={s.refreshBtn} onClick={() => refetch()} aria-label="Refresh analytics data">↺ Refresh</button>
       </div>
@@ -209,7 +209,7 @@ export default function InventoryAnalytics() {
                   <TableRow key={`${item.name}-${idx}`} style={idx % 2 === 0 ? {} : s.rowAlt}>
                     <TableCell style={s.td}>{idx + 1}</TableCell>
                     <TableCell style={s.td}>{item.name}</TableCell>
-                    <TableCell style={{ ...s.td, color: '#5a6472' }}>{item.category || '—'}</TableCell>
+                    <TableCell style={{ ...s.td, color: '#5a6472' }}>{item.category || ' - '}</TableCell>
                     <TableCell style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{item.orderCount}</TableCell>
                   </TableRow>
                 ))}

@@ -148,7 +148,7 @@ export default function DailyTasks() {
           <div style={s.iconWrap}><ListChecks size={20} color="#fff" /></div>
           <div>
             <h1 style={s.title}>Daily Tasks</h1>
-            <p style={s.subtitle}>Employee shift checklists — {totalTasks} task{totalTasks !== 1 ? 's' : ''} loaded</p>
+            <p style={s.subtitle}>Employee shift checklists - {totalTasks} task{totalTasks !== 1 ? 's' : ''} loaded</p>
           </div>
         </div>
         <div style={s.headerActions}>
@@ -163,7 +163,7 @@ export default function DailyTasks() {
         </div>
       </div>
 
-      {/* Scope filter — StoreManager always sees chain-wide + their own store combined */}
+      {/* Scope filter - StoreManager always sees chain-wide + their own store combined */}
       {!isStoreManager && (
         <div style={s.filterRow}>
           <label style={s.filterLabel}>Showing tasks for:</label>

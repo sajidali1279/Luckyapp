@@ -127,10 +127,10 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
   <title>Print Labels</title>
   <style>
     /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
-       (Avery 5160-compatible — e.g. the Walmart "3000 Mailing Address
+       (Avery 5160-compatible - e.g. the Walmart "3000 Mailing Address
        Labels" box), 30 labels/sheet, 3 columns x 10 rows, on US Letter.
        Margins and gap are the sheet's actual die-cut positions, not chosen
-       for density — printing outside these exact numbers means labels
+       for density - printing outside these exact numbers means labels
        land on the sticker seams instead of centered on each sticker. */
     @page { size: letter; margin: 0.5in 0.1875in; }
     * { box-sizing: border-box; margin: 0; padding: 0; }

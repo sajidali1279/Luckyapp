@@ -1,6 +1,6 @@
 # Uptime Monitoring Setup
 
-Free uptime monitoring using UptimeRobot — takes about 5 minutes to configure.
+Free uptime monitoring using UptimeRobot - takes about 5 minutes to configure.
 
 ## What Gets Monitored
 
@@ -30,7 +30,7 @@ HTTP `200` = healthy. HTTP `503` = database unreachable (backend up, DB down). A
 1. Go to [uptimerobot.com](https://uptimerobot.com) and create a free account.
 2. Click **+ Add New Monitor**.
 
-### Monitor 1 — API Backend
+### Monitor 1 - API Backend
 
 | Field | Value |
 |-------|-------|
@@ -43,7 +43,7 @@ HTTP `200` = healthy. HTTP `503` = database unreachable (backend up, DB down). A
 Under **Advanced Settings**:
 - **Keyword Monitoring**: enable, set keyword to `"status":"ok"`, set to alert if keyword is NOT present. This catches the `503 degraded` case where the server responds but the DB is down.
 
-### Monitor 2 — Admin Portal
+### Monitor 2 - Admin Portal
 
 | Field | Value |
 |-------|-------|
@@ -53,7 +53,7 @@ Under **Advanced Settings**:
 | Monitoring Interval | 5 minutes |
 | Alert Contacts | Your email |
 
-No keyword needed — just check for HTTP 200.
+No keyword needed - just check for HTTP 200.
 
 ## Alert Notifications
 
@@ -70,7 +70,7 @@ No keyword needed — just check for HTTP 200.
 
 ## What to Do When You Get an Alert
 
-1. Check the Render dashboard at [dashboard.render.com](https://dashboard.render.com) — look for deploy failures or service crashes.
+1. Check the Render dashboard at [dashboard.render.com](https://dashboard.render.com) - look for deploy failures or service crashes.
 2. Check the Neon console for database connectivity issues.
 3. If the API is down but Render shows it running, check logs in the Render dashboard for runtime errors.
 4. If it's just slow (not down), check Render metrics for memory or CPU spikes.

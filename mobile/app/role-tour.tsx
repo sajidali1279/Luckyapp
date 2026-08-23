@@ -21,7 +21,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '📱',
         title: 'Show Your QR Code',
-        subtitle: 'Your unique QR code lives on your home screen. Show it to any cashier before you pay — they scan it and you earn points automatically.',
+        subtitle: 'Your unique QR code lives on your home screen. Show it to any cashier before you pay - they scan it and you earn points automatically.',
       },
       {
         emoji: '🎁',
@@ -31,7 +31,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '👑',
         title: 'Level Up Your Tier',
-        subtitle: 'Earn more points each period to unlock higher tiers — from Bronze all the way to Platinum. Higher tier = higher cashback rate, free refills, and gas bonuses.',
+        subtitle: 'Earn more points each period to unlock higher tiers - from Bronze all the way to Platinum. Higher tier = higher cashback rate, free refills, and gas bonuses.',
       },
     ],
   },
@@ -94,7 +94,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '🔔',
         title: 'Stay on Top of Alerts',
-        subtitle: 'Your Notifications tab shows billing status, pending shift requests from employees, and important platform alerts — all in one place.',
+        subtitle: 'Your Notifications tab shows billing status, pending shift requests from employees, and important platform alerts - all in one place.',
       },
     ],
   },
@@ -115,7 +115,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '🔍',
         title: 'Full Audit Access',
-        subtitle: 'The Activity Log tracks every action across all stores and all users — who did what, when, and on which record. Full platform control from one dashboard.',
+        subtitle: 'The Activity Log tracks every action across all stores and all users - who did what, when, and on which record. Full platform control from one dashboard.',
       },
     ],
   },

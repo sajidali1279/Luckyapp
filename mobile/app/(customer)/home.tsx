@@ -162,10 +162,10 @@ type PromoKind = 'cashback' | 'rewards' | 'tiers' | 'network';
 type PromoSlide = { id: PromoKind; bg: string; deco: string; eyebrow: string; headline: string; body: string; cta: string | null; route: string | null };
 
 const PROMO_SLIDES: PromoSlide[] = [
-  { id: 'cashback', bg: '#B91C1C', deco: '#FDE68A', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase — automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
-  { id: 'rewards',  bg: '#C2410C', deco: '#FCD34D', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items — no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
+  { id: 'cashback', bg: '#B91C1C', deco: '#FDE68A', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase - automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
+  { id: 'rewards',  bg: '#C2410C', deco: '#FCD34D', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items - no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
   { id: 'tiers',   bg: '#5B21B6', deco: '#C4B5FD', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
-  { id: 'network', bg: '#0F766E', deco: '#5EEAD4', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop — shop anywhere',       cta: null,             route: null },
+  { id: 'network', bg: '#0F766E', deco: '#5EEAD4', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop - shop anywhere',       cta: null,             route: null },
 ];
 
 function promoIcon(kind: PromoKind, size: number) {
@@ -837,12 +837,12 @@ export default function CustomerHome() {
               </Text>
             </View>
           ) : (
-            <Text style={styles.tierProgressMaxText}>✦ Platinum — Max tier achieved</Text>
+            <Text style={styles.tierProgressMaxText}>✦ Platinum - Max tier achieved</Text>
           )}
         </View>
       </Animated.View>
 
-      {/* QR section removed — accessible via floating QR button */}
+      {/* QR section removed - accessible via floating QR button */}
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <WelcomeBonusCard />
       </Animated.View>
@@ -1354,7 +1354,7 @@ export default function CustomerHome() {
                 accessibilityRole="button"
                 accessibilityLabel={confirming21 ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
               >
-                <Text style={ag.confirmBtnText}>{confirming21 ? 'Confirming…' : 'I am 21 or older — Continue'}</Text>
+                <Text style={ag.confirmBtnText}>{confirming21 ? 'Confirming…' : 'I am 21 or older - Continue'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={ag.backBtn}
@@ -1398,14 +1398,14 @@ export default function CustomerHome() {
                   <View style={om.badgeRow}>
                     <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
                       <GasPumpIcon size={13} color="#c04000" strokeWidth={2} />
-                      <Text style={[om.badgeText, { color: '#c04000' }]}>+{selectedOffer.gasBonusCentsPerGallon}¢ per gallon — auto-applied</Text>
+                      <Text style={[om.badgeText, { color: '#c04000' }]}>+{selectedOffer.gasBonusCentsPerGallon}¢ per gallon - auto-applied</Text>
                     </View>
                   </View>
                 ) : selectedOffer.bonusRate ? (
                   <View style={om.badgeRow}>
                     <View style={om.badge}>
                       <PercentIcon size={13} color={COLORS.primary} strokeWidth={2} />
-                      <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback — auto-applied</Text>
+                      <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback - auto-applied</Text>
                     </View>
                   </View>
                 ) : selectedOffer.dealText && selectedOffer.imageUrl ? (

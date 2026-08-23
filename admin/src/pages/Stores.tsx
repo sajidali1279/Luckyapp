@@ -113,7 +113,7 @@ export default function Stores() {
       qc.invalidateQueries({ queryKey: ['stores'] });
       // Clear the inline form for this store
       setGasForms((prev) => { const n = { ...prev }; delete n[storeId]; return n; });
-      toast.success('⛽ Gas prices updated — staff notified');
+      toast.success('⛽ Gas prices updated - staff notified');
     },
     onError: () => toast.error('Failed to update gas prices'),
   });
@@ -169,7 +169,7 @@ export default function Stores() {
       const key = res.data.data.apiKey;
       setApiKeys((p) => ({ ...p, [storeId]: key }));
       setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
-      toast.success('API key regenerated — update config.json on the store PC');
+      toast.success('API key regenerated - update config.json on the store PC');
     } catch { toast.error('Failed to regenerate API key'); }
   }
 
@@ -238,12 +238,12 @@ export default function Stores() {
       const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
       const results = await res.json();
-      if (!results.length) { toast.error('Address not found — try a more specific address'); return; }
+      if (!results.length) { toast.error('Address not found - try a more specific address'); return; }
       const { lat, lon } = results[0];
       setForm((f) => ({ ...f, latitude: parseFloat(lat).toFixed(6), longitude: parseFloat(lon).toFixed(6) }));
-      toast.success('Coordinates filled in — verify they look correct!');
+      toast.success('Coordinates filled in - verify they look correct!');
     } catch {
-      toast.error('Geocoding failed — check your connection');
+      toast.error('Geocoding failed - check your connection');
     } finally {
       setGeocoding(false);
     }
@@ -463,12 +463,12 @@ export default function Stores() {
             <div style={s.modalHeader}>
               <div style={s.modalTitle}>🗂️ POS Keyword Mappings</div>
               <div style={s.modalSub}>
-                {stores.find((st) => st.id === kwStoreId)?.name} — Map POS receipt labels to Lucky Stop categories
+                {stores.find((st) => st.id === kwStoreId)?.name} - Map POS receipt labels to Lucky Stop categories
               </div>
             </div>
             <div style={s.kwHint}>
               When the printer-agent parses a receipt, it checks these keywords first (case-insensitive, partial match).
-              If a line contains the keyword, it's classified into the chosen category — overriding the built-in patterns.
+              If a line contains the keyword, it's classified into the chosen category - overriding the built-in patterns.
               <br /><br />
               <strong>Example:</strong> your POS prints "FUEL GRD 1" → add keyword <code>fuel grd</code> → GAS
             </div>
@@ -477,7 +477,7 @@ export default function Stores() {
             {kwLoading ? (
               <div style={{ padding: '20px 0', color: '#6c757d', textAlign: 'center' }}>Loading…</div>
             ) : kwMappings.length === 0 ? (
-              <div style={s.kwEmpty}>No custom mappings yet — built-in keyword patterns will be used.</div>
+              <div style={s.kwEmpty}>No custom mappings yet - built-in keyword patterns will be used.</div>
             ) : (
               <div style={s.kwList}>
                 {kwMappings.map((m) => {
@@ -576,7 +576,7 @@ export default function Stores() {
             {/* Coordinates */}
             <div style={s.sectionLabel}>Location Coordinates</div>
             <div style={s.geocodeHint}>
-              Fill in the address above, then click <strong>Auto-fill</strong> to get coordinates automatically — or enter them manually.
+              Fill in the address above, then click <strong>Auto-fill</strong> to get coordinates automatically - or enter them manually.
             </div>
             <button style={s.geocodeBtn} onClick={geocodeAddress} disabled={geocoding}>
               {geocoding ? '⏳ Looking up…' : '🔍 Auto-fill from Address'}
