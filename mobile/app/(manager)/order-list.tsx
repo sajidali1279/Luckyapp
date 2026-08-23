@@ -1324,12 +1324,23 @@ export default function ManagerOrderListScreen() {
   const pendingRequestCount: number = (reqData?.data?.data || []).length;
 
   // ── Categories ───────────────────────────────────────────────────────────
-  const { data: catData } = useQuery({
+  const { data: catData, refetch: refetchCategories } = useQuery({
     queryKey: ['order-categories'],
     queryFn: orderCategoriesApi.getApproved,
     staleTime: 10 * 60 * 1000,
   });
   const categories: string[] = catData?.data?.data || [];
+
+  // Pull-to-refresh on the active list should refresh everything else this
+  // screen shows too, not just the list itself — stores/categories/the
+  // QuickAddBar's own most-ordered-items cache all had long staleTimes with
+  // no refresh path of their own.
+  function handleRefresh() {
+    refetchList();
+    refetchStores();
+    refetchCategories();
+    if (selectedStoreId) qc.invalidateQueries({ queryKey: ['quick-items-mobile', selectedStoreId] });
+  }
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const openListMutation = useMutation({
@@ -1668,7 +1679,7 @@ export default function ManagerOrderListScreen() {
                 contentContainerStyle={{ paddingBottom: 8 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={refetchList} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+                refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={handleRefresh} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
               >
                 {urgentItems.length > 0 && (
                   <>

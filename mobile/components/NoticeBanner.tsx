@@ -45,7 +45,7 @@ function normalizeStoreIds(input: StoreIdInput): string[] {
 
 export function usePinnedNotice(storeIdInput: StoreIdInput) {
   const storeIds = normalizeStoreIds(storeIdInput);
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ['active-notices'],
     queryFn: () => noticesApi.getActive(),
     staleTime: 60_000,
@@ -58,7 +58,7 @@ export function usePinnedNotice(storeIdInput: StoreIdInput) {
   const { dismissedIds, dismiss } = useDismissedNoticeIds();
   const notice = relevantNotices.find((n) => !dismissedIds.has(n.id)) || null;
 
-  return { notice, dismiss };
+  return { notice, dismiss, refetch };
 }
 
 export default function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {

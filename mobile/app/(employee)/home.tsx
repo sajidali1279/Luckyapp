@@ -83,7 +83,7 @@ export default function EmployeeHomeScreen() {
   const isOffTomorrow = !tomorrowTemplate || approvedOffTomorrow;
 
   const todayISO = todayStr();
-  const { data: reportData } = useQuery({
+  const { data: reportData, refetch: refetchTodayReport } = useQuery({
     queryKey: ['daily-reports-today', storeId, todayISO],
     queryFn: () => dailyReportApi.getToday(storeId!, todayISO),
     enabled: !!storeId,
@@ -92,7 +92,7 @@ export default function EmployeeHomeScreen() {
   const todaysReports: any[] = reportData?.data?.data || [];
   const reportSubmitted = todaysReports.length > 0;
 
-  const { data: tasksData } = useQuery({
+  const { data: tasksData, refetch: refetchDailyTasks } = useQuery({
     queryKey: ['daily-tasks', storeId],
     queryFn: () => dailyTaskApi.getTasks(storeId),
     enabled: !!storeId && !!todayTemplate,
@@ -146,7 +146,7 @@ export default function EmployeeHomeScreen() {
   // A notice may be scoped to any store the employee is assigned to, not
   // just storeIds[0] — pass the full list so a multi-store employee sees
   // notices for every store they work at, not only their first one.
-  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(user?.storeIds);
+  const { notice: pinnedNotice, dismiss: dismissNotice, refetch: refetchNotice } = usePinnedNotice(user?.storeIds);
 
   // Gas/diesel price: GPS-resolved for multi-store employees so they see
   // (and grant points against) the price for the store they're actually
@@ -248,7 +248,13 @@ export default function EmployeeHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => { refetchOffers(); refetchGasPrices(); }}
+            onRefresh={() => {
+              refetchOffers();
+              refetchGasPrices();
+              refetchTodayReport();
+              refetchDailyTasks();
+              refetchNotice();
+            }}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />

@@ -72,7 +72,7 @@ export default function ManagerHome() {
     )).start();
   }, []);
 
-  const { data: storesData } = useQuery({
+  const { data: storesData, refetch: refetchStores } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: storesApi.accessible,
     staleTime: 5 * 60 * 1000,
@@ -91,7 +91,7 @@ export default function ManagerHome() {
   const neededCount  = activeListItems.filter(i => i.status === 'PENDING').length;
   const orderedCount = activeListItems.filter(i => i.status === 'ORDERED').length;
 
-  const { data: catListData } = useQuery({
+  const { data: catListData, refetch: refetchCategories } = useQuery({
     queryKey: ['order-categories-approved'],
     queryFn: () => orderCategoriesApi.getApproved(),
     staleTime: 10 * 60 * 1000,
@@ -121,7 +121,7 @@ export default function ManagerHome() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchStores(), refetchCategories()]);
     setRefreshing(false);
   }
 

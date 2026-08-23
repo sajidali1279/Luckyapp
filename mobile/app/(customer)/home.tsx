@@ -6,7 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
@@ -420,6 +420,7 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
 
 /* ─── Main screen ─────────────────────────────────────────── */
 export default function CustomerHome() {
+  const qc = useQueryClient();
   const { user, token, setAuth } = useAuthStore();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -607,7 +608,7 @@ export default function CustomerHome() {
     enabled: locationReady,
   });
 
-  const { data: hotFoodData } = useQuery({
+  const { data: hotFoodData, refetch: refetchHotFoodMenu } = useQuery({
     queryKey: ['hot-food-customer-menu', nearestStore?.id],
     queryFn: () => hotFoodApi.getCustomerMenu(nearestStore!.id),
     enabled: !!nearestStore,
@@ -615,7 +616,7 @@ export default function CustomerHome() {
   });
   const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
 
-  const { data: catalogData } = useQuery({
+  const { data: catalogData, refetch: refetchCatalog } = useQuery({
     queryKey: ['catalog-active'],
     queryFn: () => catalogApi.getActive(),
     staleTime: 10 * 60 * 1000,
@@ -663,6 +664,9 @@ export default function CustomerHome() {
     refetchBanners();
     refetchOffers();
     refetchGasPrices();
+    refetchHotFoodMenu();
+    refetchCatalog();
+    qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
   }
 
   async function placeHotFoodOrder() {
