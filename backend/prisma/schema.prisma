@@ -563,16 +563,16 @@ model Redemption {
 
 model BillingRecord {
   id          String   @id @default(uuid())
-  storeId     String
+  storeId     String?  // null = chain-wide charge (billed to the SuperAdmin/chain as a whole, not one store)
   billingType BillingType
   amount      Float
   period      String
-  notes       String?  // JSON: full compound breakdown (rates, categories, fee split)
+  notes       String?  // JSON: full compound breakdown (rates, categories, fee split) OR { description } for a manual/CUSTOM charge
   isPaid      Boolean  @default(false)
   paidAt      DateTime?
   createdAt   DateTime @default(now())
 
-  store Store @relation(fields: [storeId], references: [id])
+  store Store? @relation(fields: [storeId], references: [id])
 
   @@map("billing_records")
 }

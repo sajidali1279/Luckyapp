@@ -574,17 +574,22 @@ export default function Billing() {
                                   {inv.stores
                                     .sort((a: any, b: any) => b.amount - a.amount)
                                     .map((r: any) => {
-                                      const n: BillNotes | null = r.notes;
+                                      const isManual = r.billingType === 'CUSTOM';
+                                      const n: BillNotes | null = isManual ? null : r.notes;
+                                      const manualDescription: string = isManual ? (r.notes?.description ?? '') : '';
                                       return (
                                         <TableRow key={r.id}>
                                           <TableCell style={s.catTd}>
-                                            <strong>{r.store?.name}</strong>
+                                            <strong>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong>
                                             <div style={s.cityLabel}>{r.store?.city}</div>
                                             {n?.generatedBy === 'cron' && (
                                               <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2ff', color: '#4338ca', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>🤖 Auto</span>
                                             )}
                                             {n?.generatedBy === 'manual' && (
                                               <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#f0fdf4', color: '#166534', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
+                                            )}
+                                            {isManual && (
+                                              <div style={s.cityLabel}>{manualDescription || 'Manual charge'}</div>
                                             )}
                                           </TableCell>
                                           <TableCell style={s.catTd}>{n?.txCount ?? 0}</TableCell>
@@ -705,6 +710,7 @@ export default function Billing() {
                   <select style={s.input} value={manualForm.storeId}
                     onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}>
                     <option value="">— Select a store —</option>
+                    <option value="chain">🔗 All Stores (Chain-wide) — one charge to SuperAdmin</option>
                     {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} — {st.city}</option>)}
                   </select>
                 </div>
@@ -738,7 +744,7 @@ export default function Billing() {
 
               {manualDone && (
                 <div style={ec.successBox}>
-                  <strong>✅ Charge added</strong> — {allStores.find((st: any) => st.id === manualDone.storeId)?.name},{' '}
+                  <strong>✅ Charge added</strong> — {manualDone.storeId ? allStores.find((st: any) => st.id === manualDone.storeId)?.name : 'All Stores (Chain-wide)'},{' '}
                   {fmt$(parseFloat(manualDone.amount))} for <strong>{manualDone.period}</strong>
                 </div>
               )}
@@ -800,7 +806,7 @@ export default function Billing() {
                       return (
                         <TableRow key={charge.id}>
                           <TableCell style={s.td}>
-                            <strong>{charge.store?.name ?? '—'}</strong>
+                            <strong>{charge.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong>
                             {charge.store?.city && <div style={s.cityLabel}>{charge.store.city}</div>}
                           </TableCell>
                           <TableCell style={s.td}>
@@ -1196,12 +1202,15 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
             </TableHeader>
             <TableBody>
               {stores.map((r: any, i: number) => {
-                const n: BillNotes | null = r.notes;
+                const isManual = r.billingType === 'CUSTOM';
+                const n: BillNotes | null = isManual ? null : r.notes;
+                const manualDescription: string = isManual ? (r.notes?.description ?? '') : '';
                 return (
                   <TableRow key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
                     <TableCell style={inv2.tableTd}>
-                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? '—'}</div>
+                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</div>
                       {r.store?.city && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{r.store.city}</div>}
+                      {isManual && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
                     </TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : '—'}</TableCell>
@@ -1274,8 +1283,14 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
 }
 
 function InvoiceModal({ record, period, onClose }: { record: any; period: string; onClose: () => void }) {
-  const n: BillNotes | null = record.notes;
+  // Manual/CUSTOM charges store `{ description }` in notes, not the full
+  // compound BillNotes breakdown — keep both shapes straight so we don't
+  // read categories/txCount/etc. off a record that never had them.
+  const isManualCharge = record.billingType === 'CUSTOM';
+  const n: BillNotes | null = isManualCharge ? null : record.notes;
+  const manualDescription: string = isManualCharge ? (record.notes?.description ?? '') : '';
   const store = record.store;
+  const totalAmount = n ? n.totalAmountOwed : record.amount;
   const invNum = `INV-${period.replace('-', '')}-${record.id.slice(-6).toUpperCase()}`;
 
   const periodLabel = n?.periodStart && n?.periodEnd
@@ -1348,7 +1363,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
           <div style={inv.metaRow}>
             <div style={inv.metaBox}>
               <div style={inv.metaLabel}>Bill To</div>
-              <div style={inv.metaValue}>{store?.name || 'Store'}</div>
+              <div style={inv.metaValue}>{store?.name || (record.storeId ? 'Store' : '🔗 All Stores (Chain-wide)')}</div>
               {store?.city && <div style={inv.metaSub}>{store.city}</div>}
               {store?.address && <div style={inv.metaSub}>{store.address}</div>}
             </div>
@@ -1388,7 +1403,17 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</TableCell>
                 </TableRow>
               )}
-              {n && n.categories.length > 0
+              {isManualCharge && (
+                <TableRow>
+                  <TableCell style={inv.tableTd}>
+                    <div style={{ fontWeight: 600 }}>{manualDescription || 'Manual Charge'}</div>
+                  </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}>—</TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(record.amount)}</TableCell>
+                </TableRow>
+              )}
+              {n && n.categories && n.categories.length > 0
                 ? n.categories.map((cat) => (
                     <TableRow key={cat.category}>
                       <TableCell style={inv.tableTd}>
@@ -1420,16 +1445,22 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
             <TableFooter>
               <TableRow style={{ background: '#f8f9fa' }}>
                 <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, textAlign: 'right' }}>Subtotal</TableCell>
-                <TableCell style={{ ...inv.tableTd, fontWeight: 800 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</TableCell>
+                <TableCell style={{ ...inv.tableTd, fontWeight: 800 }}>{fmt$(totalAmount)}</TableCell>
               </TableRow>
               <TableRow style={{ background: '#1D3557' }}>
                 <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', textAlign: 'right', fontSize: 15 }}>Total Amount Owed</TableCell>
-                <TableCell style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', fontSize: 15 }}>{n ? fmt$(n.totalAmountOwed) : fmt$(record.amount)}</TableCell>
+                <TableCell style={{ ...inv.tableTd, fontWeight: 800, color: '#fff', fontSize: 15 }}>{fmt$(totalAmount)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
 
           {/* Summary box */}
+          {isManualCharge && (
+            <div style={inv.notesBox}>
+              <div style={inv.notesTitle}>Charge Reason</div>
+              <div style={inv.noteRow}><span>{manualDescription || 'No reason provided'}</span></div>
+            </div>
+          )}
           {n && (
             <div style={inv.notesBox}>
               <div style={inv.notesTitle}>Bill Breakdown</div>

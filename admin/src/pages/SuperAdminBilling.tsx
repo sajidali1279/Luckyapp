@@ -135,7 +135,7 @@ export default function SuperAdminBilling() {
                           <Table style={{ ...s.table, margin: 0 }}>
                             <TableHeader>
                               <TableRow>
-                                {['Store', 'City', 'Transactions', 'Cashback Issued', 'Dev Cut'].map((h) => (
+                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Dev Cut'].map((h) => (
                                   <TableHead key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</TableHead>
                                 ))}
                               </TableRow>
@@ -143,10 +143,11 @@ export default function SuperAdminBilling() {
                             <TableBody>
                               {inv.stores
                                 .sort((a: any, b: any) => b.amount - a.amount)
-                                .map((row: any) => (
-                                  <TableRow key={row.store.id} style={s.tr}>
-                                    <TableCell style={s.td}><strong>{row.store.name}</strong></TableCell>
-                                    <TableCell style={s.td}>{row.store.city}</TableCell>
+                                .map((row: any, i: number) => (
+                                  <TableRow key={row.store?.id ?? `chain-${i}`} style={s.tr}>
+                                    <TableCell style={s.td}><strong>{row.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong></TableCell>
+                                    <TableCell style={s.td}>{row.store?.city ?? '—'}</TableCell>
+                                    <TableCell style={s.td}>{row.description || '—'}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
                                     <TableCell style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</TableCell>

@@ -10,8 +10,9 @@ export function downloadInvoicePdf(invoice: {
   totalVolume: number;
   isPaid: boolean;
   paidAt: string | null;
-  stores: { store: { name: string; city: string }; amount: number; txCount: number; cashbackIssued: number }[];
+  stores: { store: { name: string; city: string } | null; amount: number; txCount: number; cashbackIssued: number; description?: string | null }[];
 }) {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const [y, m] = invoice.period.split('-').map(Number);
   const monthName = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const invoiceNumber = `INV-${invoice.period.replace('-', '')}`;
@@ -26,8 +27,9 @@ export function downloadInvoicePdf(invoice: {
     .sort((a, b) => b.amount - a.amount)
     .map((row) => `
       <tr>
-        <td>${row.store.name}</td>
-        <td>${row.store.city}</td>
+        <td>${esc(row.store?.name ?? '🔗 All Stores (Chain-wide)')}</td>
+        <td>${esc(row.store?.city ?? '—')}</td>
+        <td>${row.description ? esc(row.description) : '—'}</td>
         <td style="text-align:right">${row.txCount}</td>
         <td style="text-align:right">${fmt$(row.cashbackIssued)}</td>
         <td style="text-align:right; font-weight:600; color:#c0392b">${fmt$(row.amount)}</td>
@@ -63,7 +65,7 @@ export function downloadInvoicePdf(invoice: {
     .date-item .val { font-size: 14px; font-weight: 600; color: #222; margin-top: 3px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     th { background: #1D3557; color: #fff; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    th:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align: right; }
     td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 12px; }
     tr:last-child td { border-bottom: none; }
     tr:nth-child(even) { background: #f9f9f9; }
@@ -136,6 +138,7 @@ export function downloadInvoicePdf(invoice: {
       <tr>
         <th>Store</th>
         <th>City</th>
+        <th>Reason</th>
         <th style="text-align:right">Transactions</th>
         <th style="text-align:right">Cashback Issued</th>
         <th style="text-align:right">Platform Fee</th>

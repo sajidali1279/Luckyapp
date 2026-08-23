@@ -193,7 +193,11 @@ export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
 }
 
 export async function createBillingRecord(req: AuthRequest, res: Response) {
-  const { storeId } = req.params;
+  // 'chain' is a reserved sentinel (never a real store id) meaning: bill the
+  // chain/SuperAdmin as a whole, not any one store — see BillingRecord.storeId
+  // in schema.prisma for the same null-means-chain-wide convention used by
+  // AdminNotice/DailyTask.
+  const storeId = req.params.storeId === 'chain' ? null : req.params.storeId;
   const { amount, period, billingType, description } = req.body as { amount: number; period: string; billingType: BillingType; description?: string };
   const notes = billingType === 'CUSTOM' && description ? JSON.stringify({ description }) : undefined;
   const record = await prisma.billingRecord.create({ data: { storeId, amount, period, billingType, ...(notes ? { notes } : {}) } });
@@ -885,7 +889,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     }
     byPeriod[bill.period].total += amt;
     byPeriod[bill.period].storeCount++;
-    byPeriod[bill.period].stores.push({ name: bill.store.name, city: bill.store.city, amount: amt });
+    byPeriod[bill.period].stores.push({ name: bill.store?.name ?? 'All Stores (Chain-wide)', city: bill.store?.city ?? '', amount: amt });
     if (!bill.isPaid) byPeriod[bill.period].isPaid = false;
     if (bill.isPaid && bill.paidAt) byPeriod[bill.period].paidAt = bill.paidAt.toISOString();
   }
