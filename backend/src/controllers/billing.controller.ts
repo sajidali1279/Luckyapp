@@ -1469,6 +1469,19 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     gasPriceUrlEmployee(),
   );
 
+  // Pinned in-app notice as a backup to the push above — persists on the
+  // employee home screen / chat banner until dismissed, so a missed or
+  // disabled push notification doesn't mean the price change goes unseen.
+  prisma.adminNotice.create({
+    data: {
+      title: '⛽ Gas Prices Updated',
+      body: `${priceText}. Please update the pump price display.`,
+      storeId,
+      endDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      createdById: req.user!.id,
+    },
+  }).catch(() => { /* non-critical */ });
+
   // In-app only → all customers (no push — routine daily change)
   prisma.user.findMany({ where: { role: 'CUSTOMER', isActive: true }, select: { id: true } })
     .then((customers) => {
