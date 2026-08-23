@@ -520,6 +520,7 @@ export default function Billing() {
               <TableBody>
                 {consolidatedInvoices.map((inv: any) => {
                   const isExp = expandedBill === inv.period;
+                  const paidCount = inv.stores.filter((r: any) => r.isPaid).length;
                   return (
                     <Fragment key={inv.period}>
                       <TableRow style={isExp ? s.rowExpanded : undefined}>
@@ -538,7 +539,9 @@ export default function Billing() {
                           )}
                         </TableCell>
                         <TableCell style={s.td}>
-                          <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>{inv.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                          <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>
+                            {inv.isPaid ? '✓ Paid' : paidCount > 0 ? `◐ ${paidCount}/${inv.stores.length} Paid` : '⏳ Unpaid'}
+                          </span>
                           {inv.isPaid && inv.paidAt && <div style={s.cityLabel}>{new Date(inv.paidAt).toLocaleDateString()}</div>}
                         </TableCell>
                         <TableCell style={s.td}>
@@ -638,8 +641,8 @@ export default function Billing() {
               <span>
                 <strong>{consolidatedInvoices.length}</strong> invoices ·{' '}
                 Total Dev Cut: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
-                Collected: <strong style={{ color: '#2DC653' }}>{fmt$((consolidatedInvoices as any[]).filter((i) => i.isPaid).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
-                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$((consolidatedInvoices as any[]).filter((i) => !i.isPaid).reduce((s, i) => s + i.totalDevCut, 0))}</strong>
+                Collected: <strong style={{ color: '#2DC653' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
+                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
               </span>
             </div>
           )}
