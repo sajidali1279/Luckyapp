@@ -151,10 +151,11 @@ export default function EmployeeHomeScreen() {
   // Gas/diesel price: GPS-resolved for multi-store employees so they see
   // (and grant points against) the price for the store they're actually
   // standing in, not just their first assignment.
-  const { data: gasPricesData } = useQuery({
+  const { data: gasPricesData, refetch: refetchGasPrices } = useQuery({
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
   const allStoresWithPrices: any[] = gasPricesData?.data?.data || [];
   const currentStoreId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
@@ -247,7 +248,7 @@ export default function EmployeeHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => { refetchOffers(); }}
+            onRefresh={() => { refetchOffers(); refetchGasPrices(); }}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
           />

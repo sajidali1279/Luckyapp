@@ -265,19 +265,26 @@ export default function EmployeeScanScreen() {
   const storeId = useCurrentStoreId(allStoresRaw, user?.storeIds);
 
   useEffect(() => {
-    storesApi.getGasPrices().then((res) => {
-      const stores = res.data.data ?? [];
-      setAllStoresRaw(stores);
-      const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }> = {};
-      for (const store of stores) {
-        map[store.id] = {
-          gasPricePerGallon: store.gasPricePerGallon,
-          dieselPricePerGallon: store.dieselPricePerGallon,
-          enabledCategories: store.enabledCategories ?? [],
-        };
-      }
-      setStoreGasPrices(map);
-    }).catch(() => {});
+    // Refetched periodically (not just once on mount) so a price the admin
+    // changes mid-shift is reflected before it's auto-filled into a
+    // transaction, not just whatever was current when the screen opened.
+    function loadGasPrices() {
+      storesApi.getGasPrices().then((res) => {
+        const stores = res.data.data ?? [];
+        setAllStoresRaw(stores);
+        const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }> = {};
+        for (const store of stores) {
+          map[store.id] = {
+            gasPricePerGallon: store.gasPricePerGallon,
+            dieselPricePerGallon: store.dieselPricePerGallon,
+            enabledCategories: store.enabledCategories ?? [],
+          };
+        }
+        setStoreGasPrices(map);
+      }).catch(() => {});
+    }
+    loadGasPrices();
+    const gasPricesInterval = setInterval(loadGasPrices, 60_000);
 
     storesApi.getTierRates().then((res) => {
       const map: Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }> = {};
@@ -294,6 +301,8 @@ export default function EmployeeScanScreen() {
       }
       setCategoryRates(map);
     }).catch(() => {});
+
+    return () => clearInterval(gasPricesInterval);
   }, []);
 
   function selectCategory(cat: Category) {
