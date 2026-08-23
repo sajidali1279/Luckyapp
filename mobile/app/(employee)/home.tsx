@@ -141,8 +141,11 @@ export default function EmployeeHomeScreen() {
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = offersRefetching;
 
-  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(storeId);
-  const { notice: gasPriceNotice, dismiss: dismissGasPriceNotice } = useGasPriceNotice(storeId);
+  // A notice may be scoped to any store the employee is assigned to, not
+  // just storeIds[0] — pass the full list so a multi-store employee sees
+  // notices for every store they work at, not only their first one.
+  const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(user?.storeIds);
+  const { notice: gasPriceNotice, dismiss: dismissGasPriceNotice } = useGasPriceNotice(user?.storeIds);
 
   return (
     <View style={s.root}>

@@ -42,7 +42,17 @@ function useDismissedNoticeIds() {
   return { dismissedIds, dismiss };
 }
 
-export function usePinnedNotice(storeId: string | null | undefined) {
+// Accepts either one store (e.g. ChatScreen's currently-selected store) or
+// every store an employee is assigned to (e.g. the home screen) — a
+// multi-store employee's relevant notices aren't all scoped to storeIds[0].
+type StoreIdInput = string | (string | null | undefined)[] | null | undefined;
+function normalizeStoreIds(input: StoreIdInput): string[] {
+  if (!input) return [];
+  return (Array.isArray(input) ? input : [input]).filter((id): id is string => !!id);
+}
+
+export function usePinnedNotice(storeIdInput: StoreIdInput) {
+  const storeIds = normalizeStoreIds(storeIdInput);
   const { data } = useQuery({
     queryKey: ['active-notices'],
     queryFn: () => noticesApi.getActive(),
@@ -50,7 +60,7 @@ export function usePinnedNotice(storeId: string | null | undefined) {
   });
   const allNotices: Notice[] = data?.data?.data || [];
   const relevantNotices = allNotices.filter(
-    (n) => (!n.storeId || n.storeId === storeId) && !isGasPriceNotice(n.title)
+    (n) => (!n.storeId || storeIds.includes(n.storeId)) && !isGasPriceNotice(n.title)
   );
 
   const { dismissedIds, dismiss } = useDismissedNoticeIds();
@@ -59,9 +69,10 @@ export function usePinnedNotice(storeId: string | null | undefined) {
   return { notice, dismiss };
 }
 
-/** Gas-price-update notices for this store, surfaced separately so the home
- * screen can show them as their own dedicated "acknowledge" card. */
-export function useGasPriceNotice(storeId: string | null | undefined) {
+/** Gas-price-update notices across the given store(s), surfaced separately
+ * so the home screen can show them as their own dedicated "acknowledge" card. */
+export function useGasPriceNotice(storeIdInput: StoreIdInput) {
+  const storeIds = normalizeStoreIds(storeIdInput);
   const { data } = useQuery({
     queryKey: ['active-notices'],
     queryFn: () => noticesApi.getActive(),
@@ -69,7 +80,7 @@ export function useGasPriceNotice(storeId: string | null | undefined) {
   });
   const allNotices: Notice[] = data?.data?.data || [];
   const relevantNotices = allNotices.filter(
-    (n) => n.storeId === storeId && isGasPriceNotice(n.title)
+    (n) => !!n.storeId && storeIds.includes(n.storeId) && isGasPriceNotice(n.title)
   );
 
   const { dismissedIds, dismiss } = useDismissedNoticeIds();
