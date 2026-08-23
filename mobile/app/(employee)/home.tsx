@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect, useState } from 'react';
-import { offersApi, hotFoodApi, notificationsApi, schedulingApi, dailyReportApi, dailyTaskApi } from '../../services/api';
+import { offersApi, hotFoodApi, notificationsApi, schedulingApi, dailyReportApi, dailyTaskApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
@@ -14,8 +14,10 @@ import {
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
   BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
-import NoticeBanner, { usePinnedNotice, useGasPriceNotice, GasPriceNoticeCard } from '../../components/NoticeBanner';
+import NoticeBanner, { usePinnedNotice } from '../../components/NoticeBanner';
 import DashboardWatermark from '../../components/DashboardWatermark';
+import GasPriceCard from '../../components/GasPriceCard';
+import { useCurrentStoreId } from '../../utils/geo';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -145,7 +147,18 @@ export default function EmployeeHomeScreen() {
   // just storeIds[0] — pass the full list so a multi-store employee sees
   // notices for every store they work at, not only their first one.
   const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice(user?.storeIds);
-  const { notice: gasPriceNotice, dismiss: dismissGasPriceNotice } = useGasPriceNotice(user?.storeIds);
+
+  // Gas/diesel price: GPS-resolved for multi-store employees so they see
+  // (and grant points against) the price for the store they're actually
+  // standing in, not just their first assignment.
+  const { data: gasPricesData } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 5 * 60_000,
+  });
+  const allStoresWithPrices: any[] = gasPricesData?.data?.data || [];
+  const currentStoreId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
+  const currentStorePrices = allStoresWithPrices.find((s: any) => s.id === currentStoreId);
 
   return (
     <View style={s.root}>
@@ -206,6 +219,13 @@ export default function EmployeeHomeScreen() {
             </View>
           )}
 
+          <GasPriceCard
+            gasPrice={currentStorePrices?.gasPricePerGallon}
+            dieselPrice={currentStorePrices?.dieselPricePerGallon}
+            gasUpdatedAt={currentStorePrices?.gasPriceUpdatedAt}
+            dieselUpdatedAt={currentStorePrices?.dieselPriceUpdatedAt}
+          />
+
           {promotions.length > 0 && (
             <View style={s.promoStrip}>
               <FlameIcon size={16} color="#fff" strokeWidth={2} />
@@ -216,10 +236,6 @@ export default function EmployeeHomeScreen() {
           )}
         </SafeAreaView>
       </Animated.View>
-
-      {gasPriceNotice && (
-        <GasPriceNoticeCard notice={gasPriceNotice} onAcknowledge={() => dismissGasPriceNotice(gasPriceNotice.id)} />
-      )}
 
       {pinnedNotice && (
         <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />

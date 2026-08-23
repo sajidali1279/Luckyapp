@@ -1445,14 +1445,17 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     return;
   }
 
-  const updateData: Record<string, unknown> = { gasPriceUpdatedAt: new Date() };
-  if (gasPricePerGallon    !== undefined) updateData.gasPricePerGallon    = gasPricePerGallon;
-  if (dieselPricePerGallon !== undefined) updateData.dieselPricePerGallon = dieselPricePerGallon;
+  // Each commodity tracks its own updatedAt — a diesel-only edit must not
+  // make mobile's "change needed" indicator blink for gas too, and vice versa.
+  const now = new Date();
+  const updateData: Record<string, unknown> = {};
+  if (gasPricePerGallon    !== undefined) { updateData.gasPricePerGallon    = gasPricePerGallon;    updateData.gasPriceUpdatedAt    = now; }
+  if (dieselPricePerGallon !== undefined) { updateData.dieselPricePerGallon = dieselPricePerGallon; updateData.dieselPriceUpdatedAt = now; }
 
   const store = await prisma.store.update({
     where: { id: storeId },
     data: updateData,
-    select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true },
+    select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true },
   });
 
   const parts: string[] = [];
@@ -1468,19 +1471,6 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     'GAS_PRICE_UPDATE',
     gasPriceUrlEmployee(),
   );
-
-  // Pinned in-app notice as a backup to the push above — persists on the
-  // employee home screen / chat banner until dismissed, so a missed or
-  // disabled push notification doesn't mean the price change goes unseen.
-  prisma.adminNotice.create({
-    data: {
-      title: '⛽ Gas Prices Updated',
-      body: `${priceText}. Please update the pump price display.`,
-      storeId,
-      endDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
-      createdById: req.user!.id,
-    },
-  }).catch(() => { /* non-critical */ });
 
   // In-app only → all customers (no push — routine daily change)
   prisma.user.findMany({ where: { role: 'CUSTOMER', isActive: true }, select: { id: true } })
@@ -1527,7 +1517,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
     where: { isActive: true },
     select: {
       id: true, name: true, address: true, city: true, state: true, phone: true,
-      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true,
       latitude: true, longitude: true, enabledCategories: true, minimumAge: true, hotFoodEnabled: true,
     },
     orderBy: { name: 'asc' },

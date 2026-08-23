@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { pointsApi, catalogApi, storesApi, welcomeBonusApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, TIER_CONFIG } from '../../constants';
+import { useCurrentStoreId } from '../../utils/geo';
 import {
   CameraIcon, XIcon, ReceiptIcon, CreditCardIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
@@ -247,19 +248,28 @@ export default function EmployeeScanScreen() {
   const [welcomeBonus, setWelcomeBonus] = useState<any>(null);
   const [confirmedWelcomeBonus, setConfirmedWelcomeBonus] = useState<any>(null);
 
-  const storeId = user?.storeIds?.[0];
-
   // Store gas prices + enabled categories (fetched once on mount)
   const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }>>({});
+  // Raw store list (with lat/lon) for GPS-resolving which of the employee's
+  // assigned stores they're currently at — see useCurrentStoreId below.
+  const [allStoresRaw, setAllStoresRaw] = useState<any[]>([]);
   // Tier rates: cashbackRate (%) and gasCentsPerGallon per tier
   const [tierRates, setTierRates] = useState<Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }>>({});
   // Category bonus rates: additive on top of tier base rate
   const [categoryRates, setCategoryRates] = useState<Record<string, number>>({});
 
+  // Every transaction below (points grant, redemption, tier claim, catalog
+  // redemption, welcome bonus) is recorded against this store — GPS-resolved
+  // for multi-store employees so it reflects the store they're actually
+  // standing in, not just their first assignment.
+  const storeId = useCurrentStoreId(allStoresRaw, user?.storeIds);
+
   useEffect(() => {
     storesApi.getGasPrices().then((res) => {
+      const stores = res.data.data ?? [];
+      setAllStoresRaw(stores);
       const map: Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }> = {};
-      for (const store of res.data.data ?? []) {
+      for (const store of stores) {
         map[store.id] = {
           gasPricePerGallon: store.gasPricePerGallon,
           dieselPricePerGallon: store.dieselPricePerGallon,
