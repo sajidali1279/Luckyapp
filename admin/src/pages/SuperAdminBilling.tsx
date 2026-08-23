@@ -54,11 +54,6 @@ export default function SuperAdminBilling() {
           <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#E63946' : '#2DC653' }}>{fmt$(totalOutstanding)}</div>
           <div style={s.cardSub}>{invoices.filter((i) => !i.isPaid).length} unpaid invoice{invoices.filter((i) => !i.isPaid).length !== 1 ? 's' : ''}</div>
         </div>
-        <div style={{ ...s.card, borderTop: '3px solid #2DC653' }}>
-          <div style={s.cardLabel}>Total Paid (All Time)</div>
-          <div style={{ ...s.cardValue, color: '#2DC653' }}>{fmt$(totalPaid)}</div>
-          <div style={s.cardSub}>{invoices.filter((i) => i.isPaid).length} paid invoice{invoices.filter((i) => i.isPaid).length !== 1 ? 's' : ''}</div>
-        </div>
         <div style={{ ...s.card, borderTop: '3px solid #1D3557' }}>
           <div style={s.cardLabel}>Total Invoices</div>
           <div style={s.cardValue}>{invoices.length}</div>
