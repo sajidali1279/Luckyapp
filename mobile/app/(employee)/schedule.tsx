@@ -35,9 +35,22 @@ export default function ScheduleScreen() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const todayKey = getTodayDayKey();
-  const weekDates = getCurrentWeekDates();
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekDates = getCurrentWeekDates(weekOffset);
 
   const [selectedDayKey, setSelectedDayKey] = useState(todayKey);
+
+  // Requesting time off for next Monday while today is Sunday needs next
+  // week's dates on screen — the strip below only ever showed the current
+  // Mon-Sun week, so there was no way to reach that day at all.
+  function goThisWeek() {
+    setWeekOffset(0);
+    setSelectedDayKey(todayKey);
+  }
+  function goNextWeek() {
+    setWeekOffset(1);
+    setSelectedDayKey('MON');
+  }
 
   const [requestModal, setRequestModal] = useState<{
     storeId: string; storeName: string; shiftType: string; date: Date;
@@ -140,12 +153,34 @@ export default function ScheduleScreen() {
           </View>
         </View>
 
+        {/* ── Week Toggle ── */}
+        <View style={s.weekToggle}>
+          <TouchableOpacity
+            style={[s.weekToggleBtn, weekOffset === 0 && s.weekToggleBtnActive]}
+            onPress={goThisWeek}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="View this week"
+          >
+            <Text style={[s.weekToggleText, weekOffset === 0 && s.weekToggleTextActive]}>This Week</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.weekToggleBtn, weekOffset === 1 && s.weekToggleBtnActive]}
+            onPress={goNextWeek}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="View next week"
+          >
+            <Text style={[s.weekToggleText, weekOffset === 1 && s.weekToggleTextActive]}>Next Week</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* ── Week Calendar Strip ── */}
         {!isLoading && (
           <View style={s.calendarStrip}>
             {weekDates.map(({ key, date }) => {
               const isSelected = key === selectedDayKey;
-              const isToday = key === todayKey;
+              const isToday = weekOffset === 0 && key === todayKey;
               const template = templateByDay[key];
               const shiftColor = template ? SHIFT_COLORS[template.shiftType] : null;
               const dayISO = fmtDateISO(date);
@@ -205,17 +240,19 @@ export default function ScheduleScreen() {
         ) : (
           <FadeSlideIn>
             {/* ── Selected Day Detail ── */}
-            {selectedDayData && (
-              <View style={[s.dayCard, selectedDayKey === todayKey && s.dayCardToday]}>
+            {selectedDayData && (() => {
+              const isViewingToday = weekOffset === 0 && selectedDayKey === todayKey;
+              return (
+              <View style={[s.dayCard, isViewingToday && s.dayCardToday]}>
                 {/* Day header */}
                 <View style={s.dayCardHeader}>
                   <View>
-                    <Text style={[s.dayName, selectedDayKey === todayKey && s.dayNameToday]}>
+                    <Text style={[s.dayName, isViewingToday && s.dayNameToday]}>
                       {DAY_LABELS[selectedDayKey]}
                     </Text>
                     <Text style={s.dayDate}>{fmtMonthDay(selectedDayData.date)}</Text>
                   </View>
-                  {selectedDayKey === todayKey && (
+                  {isViewingToday && (
                     <View style={s.todayBadge}><Text style={s.todayBadgeText}>Today</Text></View>
                   )}
                 </View>
@@ -299,14 +336,15 @@ export default function ScheduleScreen() {
                   </View>
                 )}
               </View>
-            )}
+              );
+            })()}
 
             {/* ── Week Overview ── */}
-            <Text style={s.sectionLabel}>This Week</Text>
+            <Text style={s.sectionLabel}>{weekOffset === 0 ? 'This Week' : 'Next Week'}</Text>
             <View style={s.weekOverview}>
               {weekDates.map(({ key, date }) => {
                 const template = templateByDay[key];
-                const isToday = key === todayKey;
+                const isToday = weekOffset === 0 && key === todayKey;
                 const shiftColor = template ? SHIFT_COLORS[template.shiftType] : null;
                 return (
                   <TouchableOpacity
@@ -546,6 +584,19 @@ const s = StyleSheet.create({
   },
   summaryNum: { color: COLORS.white, fontSize: 20, fontWeight: '900' },
   summaryLbl: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
+
+  // Week toggle
+  weekToggle: {
+    flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 12,
+  },
+  weekToggleBtn: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  weekToggleBtnActive: { backgroundColor: COLORS.white, borderColor: COLORS.white },
+  weekToggleText: { color: 'rgba(255,255,255,0.65)', fontSize: 12.5, fontWeight: '700' },
+  weekToggleTextActive: { color: COLORS.primary },
 
   // Calendar strip
   calendarStrip: {

@@ -46,11 +46,12 @@ export function formatShiftTime(shift: ShiftKey, compact = false): string {
   return `${fmtHour(start, compact)}${dash}${fmtHour(end, compact)}`;
 }
 
-export function getCurrentWeekDates(): { key: DayKey; date: Date }[] {
+/** weekOffset 0 = the calendar week containing today, 1 = next week, -1 = last week, etc. */
+export function getCurrentWeekDates(weekOffset = 0): { key: DayKey; date: Date }[] {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7) + weekOffset * 7);
   monday.setHours(0, 0, 0, 0);
   return DAY_ORDER.map((key, i) => {
     const d = new Date(monday);
