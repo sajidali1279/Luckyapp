@@ -21,6 +21,7 @@
     "buffer": "^6.0.3",
     "date-fns": "^4.1.0",
     "expo": "~55.0.28",
+    "expo-build-properties": "~55.0.17",
     "expo-camera": "~55.0.21",
     "expo-constants": "~55.0.15",
     "expo-device": "~55.0.19",

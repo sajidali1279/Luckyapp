@@ -2,7 +2,7 @@
   "expo": {
     "name": "Lucky Stop",
     "slug": "luckystop",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/store-icon-512.png",
@@ -38,6 +38,15 @@
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
       "./plugins/withAdiRegistration",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
       [
         "expo-camera",
         {
