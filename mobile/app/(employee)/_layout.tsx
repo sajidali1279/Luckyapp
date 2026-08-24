@@ -14,12 +14,12 @@ import {
 export default function EmployeeLayout() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
 
+  // Across every store the employee is assigned to, not just their first —
+  // otherwise a multi-store employee's badge only ever reflected one store.
   const { data: hotFoodCountData } = useQuery({
-    queryKey: ['hot-food-pending-count', storeId],
-    queryFn: () => hotFoodApi.getPendingCount(storeId!),
-    enabled: !!storeId,
+    queryKey: ['hot-food-pending-count'],
+    queryFn: () => hotFoodApi.getMyStoresPendingCount(),
     refetchInterval: 30_000,
   });
   const hotFoodCount: number = hotFoodCountData?.data?.data?.count ?? 0;

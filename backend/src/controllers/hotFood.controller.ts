@@ -487,6 +487,18 @@ export async function getStorePendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
+// GET /hot-food/orders/my-stores/pending-count — badge count across every
+// store the caller is assigned to (an employee/manager working more than
+// one store previously only ever saw their first store's count).
+export async function getMyStoresPendingCount(req: AuthRequest, res: Response) {
+  const storeIds = req.user!.storeIds ?? [];
+  if (storeIds.length === 0) { res.json({ success: true, data: { count: 0 } }); return; }
+  const count = await prisma.hotFoodOrder.count({
+    where: { storeId: { in: storeIds }, status: 'PENDING' },
+  });
+  res.json({ success: true, data: { count } });
+}
+
 // GET /hot-food/orders/admin/pending-count — badge count for DevAdmin/SuperAdmin, all stores
 export async function getAdminPendingCount(req: AuthRequest, res: Response) {
   const count = await prisma.hotFoodOrder.count({ where: { status: 'PENDING' } });

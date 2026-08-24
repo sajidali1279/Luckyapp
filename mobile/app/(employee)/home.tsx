@@ -108,10 +108,12 @@ export default function EmployeeHomeScreen() {
     return () => clearInterval(id);
   }, [shiftTasks.length]);
 
+  // Same query key as (employee)/_layout.tsx's tab badge — shares one cache
+  // entry, and now covers every store the employee is assigned to rather
+  // than just storeIds[0].
   const { data: pendingData } = useQuery({
-    queryKey: ['hot-food-pending-count', storeId],
-    queryFn: () => hotFoodApi.getPendingCount(storeId!),
-    enabled: !!storeId,
+    queryKey: ['hot-food-pending-count'],
+    queryFn: () => hotFoodApi.getMyStoresPendingCount(),
     refetchInterval: 20_000,
   });
   const pendingCount: number = pendingData?.data?.data?.count ?? 0;

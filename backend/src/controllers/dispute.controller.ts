@@ -144,6 +144,16 @@ export async function getStorePendingDisputeCount(req: AuthRequest, res: Respons
   res.json({ success: true, data: { count } });
 }
 
+// GET /disputes/my-stores/pending-count — badge count across every store the
+// manager is assigned to (a multi-store manager previously only ever saw
+// their first store's pending-dispute count on the tab bar).
+export async function getMyStoresPendingDisputeCount(req: AuthRequest, res: Response) {
+  const storeIds = req.user!.storeIds ?? [];
+  if (storeIds.length === 0) { res.json({ success: true, data: { count: 0 } }); return; }
+  const count = await prisma.pointsDispute.count({ where: { storeId: { in: storeIds }, status: 'PENDING' } });
+  res.json({ success: true, data: { count } });
+}
+
 export async function getAllDisputes(req: AuthRequest, res: Response) {
   const { status, storeId } = req.query as { status?: string; storeId?: string };
   const disputes = await prisma.pointsDispute.findMany({

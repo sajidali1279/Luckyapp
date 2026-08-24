@@ -159,6 +159,7 @@ export const disputeApi = {
   getForStore: (storeId: string, status?: string) =>
     api.get(`/disputes/store/${storeId}${status ? `?status=${status}` : ''}`),
   getPendingCount: (storeId: string) => api.get(`/disputes/store/${storeId}/pending-count`),
+  getMyStoresPendingCount: () => api.get('/disputes/my-stores/pending-count'),
   resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
     api.patch(`/disputes/${id}/resolve`, data),
 };
@@ -394,6 +395,7 @@ export const hotFoodApi = {
   updateStatus:   (orderId: string, status: string, estimatedMinutes?: number) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
   getPendingCount: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
+  getMyStoresPendingCount: () => api.get('/hot-food/orders/my-stores/pending-count'),
   // Toggle legacy menu item availability
   updateItemAvailability: (itemId: string, isAvailable: boolean) =>
     api.patch(`/hot-food/menu/${itemId}`, { isAvailable }),

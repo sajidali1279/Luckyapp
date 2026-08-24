@@ -117,7 +117,7 @@ import {
   updateOpening,
   deleteOpening,
 } from '../controllers/jobOpenings.controller';
-import { submitDispute, getMyDisputes, getStoreDisputes, getStorePendingDisputeCount, getAllDisputes, getPendingDisputeCount, resolveDispute } from '../controllers/dispute.controller';
+import { submitDispute, getMyDisputes, getStoreDisputes, getStorePendingDisputeCount, getMyStoresPendingDisputeCount, getAllDisputes, getPendingDisputeCount, resolveDispute } from '../controllers/dispute.controller';
 import {
   getMenu as getHotFoodMenu,
   createItem as createHotFoodItem,
@@ -133,6 +133,7 @@ import {
   getMyOrders as getMyHotFoodOrders,
   getStoreOrders,
   getStorePendingCount,
+  getMyStoresPendingCount,
   getAdminPendingCount as getHotFoodAdminPendingCount,
   getCatalog as getHotFoodCatalog,
   createCatalogItem as createHotFoodCatalogItem,
@@ -497,6 +498,7 @@ router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),  
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
 // Orders — employee per-store board
 router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), getStorePendingCount);
+router.get('/hot-food/orders/my-stores/pending-count',       authenticate, requireRole(Role.EMPLOYEE), getMyStoresPendingCount);
 router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE), getStoreOrders);
 // Employee availability management (all items + catalog availability toggle)
 router.get('/hot-food/store/:storeId/all-items',                                  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreAllItems);
@@ -542,6 +544,7 @@ router.post('/disputes',                          authenticate, requireRole(Role
 router.get('/disputes/mine',                      authenticate, requireRole(Role.CUSTOMER),     getMyDisputes);
 router.get('/disputes/store/:storeId',            authenticate, requireRole(Role.STORE_MANAGER), getStoreDisputes);
 router.get('/disputes/store/:storeId/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getStorePendingDisputeCount); // Badge count
+router.get('/disputes/my-stores/pending-count',      authenticate, requireRole(Role.STORE_MANAGER), getMyStoresPendingDisputeCount); // Badge count, all assigned stores
 router.get('/disputes/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   getAllDisputes);
 router.get('/disputes/pending-count',              authenticate, requireRole(Role.SUPER_ADMIN),   getPendingDisputeCount);
 router.patch('/disputes/:id/resolve',             authenticate, requireRole(Role.STORE_MANAGER), resolveDispute);

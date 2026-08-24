@@ -14,7 +14,6 @@ import {
 export default function ManagerLayout() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
@@ -65,10 +64,11 @@ export default function ManagerLayout() {
   });
   const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
 
+  // Across every store the manager is assigned to, not just their first —
+  // otherwise a multi-store manager's badge only ever reflected one store.
   const { data: disputesCountData } = useQuery({
-    queryKey: ['disputes-pending-count', storeId],
-    queryFn: () => disputeApi.getPendingCount(storeId!),
-    enabled: !!storeId,
+    queryKey: ['disputes-pending-count'],
+    queryFn: () => disputeApi.getMyStoresPendingCount(),
     refetchInterval: 60000,
   });
   const disputesPending: number = disputesCountData?.data?.data?.count ?? 0;
