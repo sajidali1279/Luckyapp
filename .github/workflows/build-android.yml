@@ -90,10 +90,10 @@ jobs:
           # ── 1. Inject release signingConfig block ──────────────────────────────
           release_block = (
               "\n        release {\n"
-              "            storeFile file(MYAPP_UPLOAD_STORE_FILE)\n"
-              "            storePassword MYAPP_UPLOAD_STORE_PASSWORD\n"
-              "            keyAlias MYAPP_UPLOAD_KEY_ALIAS\n"
-              "            keyPassword MYAPP_UPLOAD_KEY_PASSWORD\n"
+              "            storeFile file(project.property('MYAPP_UPLOAD_STORE_FILE'))\n"
+              "            storePassword project.property('MYAPP_UPLOAD_STORE_PASSWORD')\n"
+              "            keyAlias project.property('MYAPP_UPLOAD_KEY_ALIAS')\n"
+              "            keyPassword project.property('MYAPP_UPLOAD_KEY_PASSWORD')\n"
               "        }"
           )
           # The debug signingConfig ends with "        }\n    }" (closing debug, then signingConfigs).
