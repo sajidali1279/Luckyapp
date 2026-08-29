@@ -67,6 +67,7 @@ jobs:
       - name: Configure release signing properties
         working-directory: ./mobile/android
         run: |
+          echo "" >> gradle.properties
           cat >> gradle.properties << EOF
           MYAPP_UPLOAD_STORE_FILE=/tmp/release.keystore
           MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
