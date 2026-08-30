@@ -112,15 +112,19 @@ export default function StoreLabelsPanel() {
       }));
   }
 
-  function runPrint(entries: PrintableLabelEntry[]) {
+  async function runPrint(entries: PrintableLabelEntry[]) {
     const opened = printLabels(entries);
     if (opened) {
       const printItems = entries.map(e => {
         const source = items.find(i => i.id === e.label.id)!;
         return { storeLabelId: source.storeLabelId!, quantity: e.quantity };
       });
-      labelsApi.print(printItems).catch(() => {});
-      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      try {
+        await labelsApi.print(printItems);
+        qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      } catch {
+        toast.error('Printed, but failed to update status — refresh to check');
+      }
       setSelectedIds(new Set());
       setQuantities({});
     }
