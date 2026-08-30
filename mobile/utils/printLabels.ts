@@ -5,6 +5,7 @@
  */
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { JSBARCODE_SOURCE } from './jsbarcodeSource';
 
 export interface PrintableLabel {
   id: string;
@@ -95,29 +96,34 @@ function renderLabel(label: PrintableLabel): string {
 function buildHtml(entries: PrintableLabelEntry[]): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
   const hasAnyBarcode = entries.some(e => e.label.barcode?.trim());
-  // IMPORTANT: this script is placed at the end of <body> (see below), never
-  // in <head> — a <head> script would run before the <svg> elements it
-  // targets exist in the DOM and silently render nothing. Admin web shipped
-  // exactly this bug once; this file starts from the fixed version.
+  // IMPORTANT: JsBarcode is bundled inline (see jsbarcodeSource.ts), not
+  // loaded from a CDN via <script src>. expo-print's native print/PDF
+  // pipeline is not guaranteed to wait for an external network request to
+  // finish before it snapshots the page, so the CDN version silently
+  // printed an empty <svg> (only the plain-text barcode number, which is
+  // static HTML, ever showed up) — this only ever worked reliably in a real
+  // browser tab (admin web's window.print()), never in expo-print's WebView.
+  // Inlining the library as a plain <script> makes it execute synchronously
+  // in document order, with no network dependency, so it's also reliable
+  // offline. This script still runs at the end of <body>, after the <svg>
+  // elements it targets exist in the DOM.
   const barcodeScript = hasAnyBarcode
-    ? `<script>
-    function renderBarcodes() {
-      document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
-        try {
-          JsBarcode(el, el.getAttribute('data-barcode'), {
-            format: 'CODE128', width: 1.3, height: 34,
-            displayValue: false, margin: 0, lineColor: '#000'
-          });
-          var w = parseFloat(el.getAttribute('width') || '0');
-          var h = parseFloat(el.getAttribute('height') || '0');
-          if (w && h) el.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-          el.removeAttribute('width');
-          el.removeAttribute('height');
-        } catch (e) { el.style.display = 'none'; }
-      });
-    }
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" onload="renderBarcodes()"></script>`
+    ? `<script>${JSBARCODE_SOURCE}</script>
+  <script>
+    document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
+      try {
+        JsBarcode(el, el.getAttribute('data-barcode'), {
+          format: 'CODE128', width: 1.3, height: 34,
+          displayValue: false, margin: 0, lineColor: '#000'
+        });
+        var w = parseFloat(el.getAttribute('width') || '0');
+        var h = parseFloat(el.getAttribute('height') || '0');
+        if (w && h) el.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+        el.removeAttribute('width');
+        el.removeAttribute('height');
+      } catch (e) { el.style.display = 'none'; }
+    });
+  </script>`
     : '';
 
   return `<!DOCTYPE html>
