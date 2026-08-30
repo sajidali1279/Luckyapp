@@ -1,14 +1,14 @@
 import { useState, useEffect, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
+import { labelsApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED } from '../lib/theme';
-import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { LABEL_PRESETS } from '../data/labelPresets';
+import StoreLabelsPanel from '../components/StoreLabelsPanel';
 
 interface Label {
   id: string;
@@ -19,7 +19,6 @@ interface Label {
   category: string | null;
   template: string;
   createdByStoreId: string | null;
-  printedAt: string | null;
   updatedAt: string;
 }
 
@@ -42,7 +41,7 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 
 export default function Labels() {
   const qc = useQueryClient();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'catalog' | 'store'>('catalog');
   const [showModal, setShowModal] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
@@ -52,20 +51,12 @@ export default function Labels() {
   const [formCategory, setFormCategory] = useState('');
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [confirmDelete, setConfirmDelete] = useState<Label | null>(null);
-  const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
   const [catSuggs, setCatSuggs] = useState<string[]>([]);
   const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
-  const [storeFilter, setStoreFilter] = useState('');
-  const [printFilter, setPrintFilter] = useState<'all' | 'unprinted' | 'printed'>('all');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  // Raw in-progress text for the qty inputs, separate from `quantities` (the
-  // committed numeric source of truth) — lets a user backspace a field to
-  // empty and retype without it snapping back to "1" on every keystroke.
-  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
 
   const nameQuery = formProductName.trim().toLowerCase();
   const suggestions = nameQuery
@@ -96,18 +87,9 @@ export default function Labels() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['labels'],
     queryFn: labelsApi.getAll,
+    enabled: viewMode === 'catalog',
   });
   const labels: Label[] = data?.data?.data || [];
-
-  // getAccessible() scopes to just a Store Manager's own store instead of
-  // 403ing (getAll() is SuperAdmin+ only) — this page is now reachable by
-  // Store Manager too, mirroring their existing full mobile access.
-  const { data: storesData } = useQuery({
-    queryKey: ['accessible-stores'],
-    queryFn: () => storesApi.getAccessible(),
-  });
-  const stores: any[] = storesData?.data?.data || [];
-  const storeNameById: Record<string, string> = Object.fromEntries(stores.map((st: any) => [st.id, st.name]));
 
   const filteredLabels = labels.filter(l => {
     if (search.trim()) {
@@ -116,13 +98,6 @@ export default function Labels() {
       const matchesBarcode = !!l.barcode && l.barcode.toLowerCase().includes(q);
       if (!matchesName && !matchesBarcode) return false;
     }
-    if (storeFilter === '__none__') {
-      if (l.createdByStoreId) return false;
-    } else if (storeFilter && l.createdByStoreId !== storeFilter) {
-      return false;
-    }
-    if (printFilter === 'unprinted' && l.printedAt) return false;
-    if (printFilter === 'printed' && !l.printedAt) return false;
     if (categoryFilter === UNCATEGORIZED) {
       if (l.category) return false;
     } else if (categoryFilter && l.category !== categoryFilter) {
@@ -131,77 +106,18 @@ export default function Labels() {
     return true;
   });
 
-  // Category dropdown reflects what's actually present in the catalog right now.
   const availableCategories = Array.from(
     new Set(labels.map(l => l.category).filter((c): c is string => !!c))
   ).sort();
   const hasUncategorized = labels.some(l => !l.category);
 
-  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
-  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
-
-  function toggleSelectAll() {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (allFilteredSelected) {
-        filteredLabels.forEach(l => next.delete(l.id));
-      } else {
-        filteredLabels.forEach(l => next.add(l.id));
-      }
-      return next;
-    });
-    setQuantities(prev => {
-      const next = { ...prev };
-      if (allFilteredSelected) {
-        filteredLabels.forEach(l => { delete next[l.id]; });
-      } else {
-        filteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
-      }
-      return next;
-    });
-    if (allFilteredSelected) {
-      setQtyDrafts(prev => {
-        const next = { ...prev };
-        filteredLabels.forEach(l => { delete next[l.id]; });
-        return next;
-      });
-    }
-  }
-
-  function setQuantity(id: string, qty: number) {
-    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
-  }
-
-  function handleQtyDraftChange(id: string, raw: string) {
-    setQtyDrafts(prev => ({ ...prev, [id]: raw }));
-  }
-
-  function commitQtyDraft(id: string) {
-    setQtyDrafts(prev => {
-      const raw = prev[id];
-      if (raw === undefined) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    const raw = qtyDrafts[id];
-    if (raw !== undefined) setQuantity(id, parseInt(raw, 10));
-  }
-
   const saveMutation = useMutation({
     mutationFn: () => {
       const category = formCategory.trim() || null;
       const barcode = formBarcode.trim() || null;
-      // Silently submit a brand-new category for review — same pipeline
-      // mobile's BarcodeScannerModal/Order List/Stock Request/Labels feed —
-      // so freeform category text stays governed by one approval queue
-      // regardless of which surface it was typed on.
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
       }
-      // Keep the shared scan-lookup cache (ScannedProduct) in sync — admin
-      // has no camera, but a barcode typed/corrected here should still be
-      // recognized the next time someone scans it on mobile.
       if (barcode) {
         scannedProductApi.save({ barcode, name: formProductName.trim(), category: category || undefined }).catch(() => {});
       }
@@ -211,7 +127,9 @@ export default function Labels() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['store-labels'] });
       toast.success(editingLabel ? 'Label updated' : 'Label added');
+      if (editingLabel) toast('Affected stores were flagged to reprint', { icon: '🔄' });
       closeModal();
     },
     onError: (e: any) => {
@@ -222,9 +140,8 @@ export default function Labels() {
 
   const deleteMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.delete(labelId),
-    onSuccess: (_res, labelId) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['labels'] });
-      setSelectedIds(prev => { const next = new Set(prev); next.delete(labelId); return next; });
       toast.success('Label removed');
       setConfirmDelete(null);
     },
@@ -257,7 +174,6 @@ export default function Labels() {
   }
 
   function duplicateLabel(label: Label) {
-    // editingLabel stays null so Save creates a new label instead of updating this one.
     setEditingLabel(null);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText);
@@ -279,82 +195,16 @@ export default function Labels() {
     setFormTemplate('CLASSIC_RED_BLACK');
   }
 
-  function toggleSelected(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    setQuantities(prev => {
-      if (prev[id] !== undefined) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      }
-      return { ...prev, [id]: 1 };
-    });
-    setQtyDrafts(prev => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  }
-
-  function buildPrintEntries() {
-    const toPrint = labels.filter(l => selectedIds.has(l.id));
-    return toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
-  }
-
-  function runPrint(entries: PrintableLabelEntry[]) {
-    // Only log the print (and mark labels as printed, dropping them out of
-    // their store's mobile "Ready to Print" queue) if the print window
-    // actually opened — a blocked pop-up must not silently mark labels done.
-    const opened = printLabels(entries);
-    if (opened) {
-      labelsApi.print(entries.map(e => ({ labelId: e.label.id, quantity: e.quantity }))).catch(() => {});
-      qc.invalidateQueries({ queryKey: ['labels'] });
-    }
-  }
-
-  function handlePrintSelected() {
-    const entries = buildPrintEntries();
-    if (entries.length === 0) return;
-    // A selection this large almost always came from "select all" rather
-    // than deliberately hand-picking each row — confirm first, since
-    // printing marks every affected label printed chain-wide, immediately
-    // dropping it out of whichever store's mobile "Ready to Print" queue it
-    // came from, not just the admin viewer's own context.
-    if (entries.length > 5) {
-      setPendingBulkPrint(entries);
-      return;
-    }
-    runPrint(entries);
-  }
-
   return (
     <div style={s.page}>
       <ConfirmModal
         open={!!confirmDelete}
         title="Remove Label"
-        message={`Remove the label for "${confirmDelete?.productName}"? It will no longer appear in future print batches.`}
+        message={`Remove the label for "${confirmDelete?.productName}"? It will no longer appear in any store's catalog.`}
         confirmLabel="Remove"
         danger
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
         onCancel={() => setConfirmDelete(null)}
-      />
-
-      <ConfirmModal
-        open={!!pendingBulkPrint}
-        title="Print This Many Labels?"
-        message={
-          pendingBulkPrint
-            ? `You're about to print ${pendingBulkPrint.length} labels (${pendingBulkPrint.reduce((sum, e) => sum + e.quantity, 0)} total copies) from potentially multiple stores. This marks all of them printed and removes them from wherever they came from in each store's "Ready to Print" queue. Continue?`
-            : ''
-        }
-        confirmLabel="Print"
-        onConfirm={() => { if (pendingBulkPrint) runPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
-        onCancel={() => setPendingBulkPrint(null)}
       />
 
       {showModal && (
@@ -389,7 +239,7 @@ export default function Labels() {
                   </div>
                 )}
               </div>
-              <div style={m.label}>Price *</div>
+              <div style={m.label}>Base Price *</div>
               <div style={m.priceInputWrap}>
                 <span style={m.priceInputDollar}>$</span>
                 <input
@@ -401,7 +251,10 @@ export default function Labels() {
                   maxLength={7}
                 />
               </div>
-              <div style={m.label}>Deal (optional)</div>
+              {editingLabel && (
+                <div style={m.hint}>Editing this flags every store still using the base price to reprint. A store with its own price override is unaffected.</div>
+              )}
+              <div style={m.label}>Deal (optional, chain-wide)</div>
               <input
                 style={m.input}
                 value={formDealText}
@@ -472,142 +325,112 @@ export default function Labels() {
         <div style={s.pageHeader}>
           <div>
             <h1 style={s.pageTitle}>🏷️ Labels</h1>
-            <p style={s.pageSub}>Chain-wide catalog of printable shelf/price tags - one list, every store.</p>
+            <p style={s.pageSub}>
+              {viewMode === 'catalog' ? 'Chain-wide catalog and base prices.' : 'Per-store pricing, overrides, and printing.'}
+            </p>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              style={{ ...s.printBtn, ...(selectedIds.size === 0 ? s.printBtnDim : {}) }}
-              onClick={handlePrintSelected}
-              disabled={selectedIds.size === 0}
-            >
-              🖨️ Print Selected ({totalCopies})
-            </button>
+          {viewMode === 'catalog' && (
             <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
-          </div>
+          )}
         </div>
 
-        {!isError && !isLoading && labels.length > 0 && (
-          <div style={s.filterRow}>
-            <input
-              style={s.searchInput}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by product name or barcode…"
-            />
-            <select style={s.filterSelect} value={storeFilter} onChange={e => setStoreFilter(e.target.value)}>
-              <option value="">All Stores</option>
-              <option value="__none__">Admin Web (no store)</option>
-              {stores.map((st: any) => (
-                <option key={st.id} value={st.id}>{st.name}</option>
-              ))}
-            </select>
-            {(availableCategories.length > 0 || hasUncategorized) && (
-              <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                <option value="">All Categories</option>
-                {availableCategories.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
-              </select>
-            )}
-            <div style={s.printFilterRow}>
-              {(['all', 'unprinted', 'printed'] as const).map(f => (
-                <button
-                  key={f}
-                  type="button"
-                  style={{ ...s.printFilterChip, ...(printFilter === f ? s.printFilterChipActive : {}) }}
-                  onClick={() => setPrintFilter(f)}
-                >
-                  {f === 'all' ? 'All' : f === 'unprinted' ? 'Ready to Print' : 'Printed'}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <div style={s.viewToggleRow}>
+          <button
+            type="button"
+            style={{ ...s.viewToggleChip, ...(viewMode === 'catalog' ? s.viewToggleChipActive : {}) }}
+            onClick={() => setViewMode('catalog')}
+          >
+            Catalog
+          </button>
+          <button
+            type="button"
+            style={{ ...s.viewToggleChip, ...(viewMode === 'store' ? s.viewToggleChipActive : {}) }}
+            onClick={() => setViewMode('store')}
+          >
+            By Store
+          </button>
+        </div>
 
-        {isError ? (
-          <ErrorState message="Failed to load labels." onRetry={refetch} />
-        ) : isLoading ? (
-          <TableSkeleton columns={10} />
-        ) : labels.length === 0 ? (
-          <div style={s.emptyBox}>
-            <div style={s.emptyIcon}>🏷️</div>
-            <div style={s.emptyTitle}>No labels yet</div>
-            <div style={s.emptySub}>Add a label to start building a print batch</div>
-          </div>
-        ) : filteredLabels.length === 0 ? (
-          <div style={s.emptyBox}>
-            <div style={s.emptyIcon}>🔍</div>
-            <div style={s.emptyTitle}>No labels match your filters</div>
-            <div style={s.emptySub}>Try clearing the search, store, category, or print-status filter</div>
-          </div>
+        {viewMode === 'store' ? (
+          <StoreLabelsPanel />
         ) : (
-          <div style={s.tableWrap}>
-            <Table style={s.table}>
-              <TableHeader>
-                <TableRow>
-                  {['', 'Product', 'Category', 'Price / Deal', 'Qty', 'Template', 'Store', 'Status', 'Updated', 'Actions'].map(h => (
-                    <TableHead key={h} style={s.th}>
-                      {h === '' ? (
-                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} title="Select all" />
-                      ) : h}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLabels.map((label, i) => (
-                  <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                    <TableCell style={s.td}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(label.id)}
-                        onChange={() => toggleSelected(label.id)}
-                      />
-                    </TableCell>
-                    <TableCell style={s.td}>
-                      <span style={s.itemName}>{label.productName}</span>
-                      {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
-                    </TableCell>
-                    <TableCell style={s.td}>
-                      {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
-                    </TableCell>
-                    <TableCell style={s.td}>
-                      ${label.priceText}
-                      {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
-                    </TableCell>
-                    <TableCell style={s.td}>
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        style={{ ...s.qtyInput, ...(selectedIds.has(label.id) ? {} : s.qtyInputDim) }}
-                        value={qtyDrafts[label.id] ?? String(quantities[label.id] ?? 1)}
-                        disabled={!selectedIds.has(label.id)}
-                        onChange={e => handleQtyDraftChange(label.id, e.target.value)}
-                        onBlur={() => commitQtyDraft(label.id)}
-                      />
-                    </TableCell>
-                    <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
-                    <TableCell style={s.td}>
-                      {label.createdByStoreId ? (storeNameById[label.createdByStoreId] || 'Unknown store') : <span style={{ color: TEXT_MUTED }}>Admin Web</span>}
-                    </TableCell>
-                    <TableCell style={s.td}>
-                      {label.printedAt ? <span style={s.printedBadge}>✓ Printed</span> : <span style={s.readyBadge}>Ready to Print</span>}
-                    </TableCell>
-                    <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
-                    <TableCell style={s.td}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
-                        <button style={s.duplicateBtn} onClick={() => duplicateLabel(label)}>Duplicate</button>
-                        <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            {!isError && !isLoading && labels.length > 0 && (
+              <div style={s.filterRow}>
+                <input
+                  style={s.searchInput}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by product name or barcode…"
+                />
+                {(availableCategories.length > 0 || hasUncategorized) && (
+                  <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                    <option value="">All Categories</option>
+                    {availableCategories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                    {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {isError ? (
+              <ErrorState message="Failed to load labels." onRetry={refetch} />
+            ) : isLoading ? (
+              <TableSkeleton columns={7} />
+            ) : labels.length === 0 ? (
+              <div style={s.emptyBox}>
+                <div style={s.emptyIcon}>🏷️</div>
+                <div style={s.emptyTitle}>No labels yet</div>
+                <div style={s.emptySub}>Add a label to start building the catalog</div>
+              </div>
+            ) : filteredLabels.length === 0 ? (
+              <div style={s.emptyBox}>
+                <div style={s.emptyIcon}>🔍</div>
+                <div style={s.emptyTitle}>No labels match your filters</div>
+                <div style={s.emptySub}>Try clearing the search or category filter</div>
+              </div>
+            ) : (
+              <div style={s.tableWrap}>
+                <Table style={s.table}>
+                  <TableHeader>
+                    <TableRow>
+                      {['Product', 'Category', 'Base Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
+                        <TableHead key={h} style={s.th}>{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLabels.map((label, i) => (
+                      <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                        <TableCell style={s.td}>
+                          <span style={s.itemName}>{label.productName}</span>
+                          {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
+                        </TableCell>
+                        <TableCell style={s.td}>
+                          {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
+                        </TableCell>
+                        <TableCell style={s.td}>
+                          ${label.priceText}
+                          {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
+                        </TableCell>
+                        <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
+                        <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
+                        <TableCell style={s.td}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
+                            <button style={s.duplicateBtn} onClick={() => duplicateLabel(label)}>Duplicate</button>
+                            <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -616,20 +439,22 @@ export default function Labels() {
 
 const s: Record<string, CSSProperties> = {
   page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
-  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
   pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
   pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
-  printBtn: {
-    padding: '10px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
-    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  },
-  printBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
   addBtn: {
     padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
+
+  viewToggleRow: { display: 'flex', gap: 8 },
+  viewToggleChip: {
+    borderWidth: 1.5, borderStyle: 'solid', borderColor: '#ddd', borderRadius: 20, padding: '8px 16px',
+    fontSize: 13, fontWeight: 700, color: '#444', background: '#fff', cursor: 'pointer',
+  },
+  viewToggleChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
 
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   searchInput: {
@@ -640,14 +465,6 @@ const s: Record<string, CSSProperties> = {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
     fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
   },
-  printFilterRow: { display: 'flex', gap: 6 },
-  printFilterChip: {
-    borderWidth: 1.5, borderStyle: 'solid', borderColor: '#ddd', borderRadius: 20, padding: '8px 14px',
-    fontSize: 13, fontWeight: 600, color: '#444', background: '#fff', cursor: 'pointer', whiteSpace: 'nowrap',
-  },
-  printFilterChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
-  printedBadge: { fontSize: 13, fontWeight: 600, color: '#0f5132' },
-  readyBadge: { fontSize: 13, fontWeight: 600, color: '#b7791f' },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
@@ -663,11 +480,6 @@ const s: Record<string, CSSProperties> = {
   itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
   barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
   dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
-  qtyInput: {
-    width: 52, padding: '6px 8px', borderRadius: 8, border: '1.5px solid #ddd',
-    fontSize: 14, textAlign: 'center' as const,
-  },
-  qtyInputDim: { opacity: 0.4 },
   editBtn: {
     background: '#eff6ff', color: '#1D3557', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
@@ -709,6 +521,7 @@ const m: Record<string, CSSProperties> = {
   closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888', lineHeight: 1 },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
   label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
+  hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   input: {
     border: '1.5px solid #ddd', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
