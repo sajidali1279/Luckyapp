@@ -9,6 +9,7 @@ import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
+import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 
 interface Label {
   id: string;
@@ -57,6 +58,9 @@ export default function Labels() {
   const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
 
   const nameQuery = formProductName.trim().toLowerCase();
   const suggestions = nameQuery
@@ -110,6 +114,72 @@ export default function Labels() {
     new Set(labels.map(l => l.category).filter((c): c is string => !!c))
   ).sort();
   const hasUncategorized = labels.some(l => !l.category);
+
+  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setQuantities(prev => {
+      if (prev[id] !== undefined) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: 1 };
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredLabels.forEach(l => next.delete(l.id));
+      else filteredLabels.forEach(l => next.add(l.id));
+      return next;
+    });
+    setQuantities(prev => {
+      const next = { ...prev };
+      if (allFilteredSelected) filteredLabels.forEach(l => { delete next[l.id]; });
+      else filteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
+      return next;
+    });
+  }
+
+  function setQuantity(id: string, qty: number) {
+    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
+  }
+
+  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
+
+  // Catalog printing is a plain reference print at the base/chain-wide
+  // price — it never touches any store's StoreLabel or printedAt, matching
+  // how admin-web printing always worked before per-store pricing existed
+  // (admin-created/printed labels were never tied to a specific store's
+  // queue). Store-scoped, tracked printing lives on the "By Store" tab.
+  function runCatalogPrint(entries: PrintableLabelEntry[]) {
+    const opened = printLabels(entries);
+    if (opened) {
+      setSelectedIds(new Set());
+      setQuantities({});
+    } else {
+      toast.error('Print window was blocked — allow pop-ups and try again');
+    }
+  }
+
+  function handlePrintSelected() {
+    const entries: PrintableLabelEntry[] = labels
+      .filter(l => selectedIds.has(l.id))
+      .map(l => ({ label: l, quantity: quantities[l.id] ?? 1 }));
+    if (entries.length === 0) return;
+    if (entries.length > 5) {
+      setPendingBulkPrint(entries);
+      return;
+    }
+    runCatalogPrint(entries);
+  }
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -205,6 +275,15 @@ export default function Labels() {
         danger
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmModal
+        open={!!pendingBulkPrint}
+        title="Print This Many Labels?"
+        message={pendingBulkPrint ? `You're about to print ${pendingBulkPrint.length} labels (${pendingBulkPrint.reduce((sum, e) => sum + e.quantity, 0)} total copies) at their base/chain-wide price. Continue?` : ''}
+        confirmLabel="Print"
+        onConfirm={() => { if (pendingBulkPrint) runCatalogPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
+        onCancel={() => setPendingBulkPrint(null)}
       />
 
       {showModal && (
@@ -330,7 +409,14 @@ export default function Labels() {
             </p>
           </div>
           {viewMode === 'catalog' && (
-            <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {selectedIds.size > 0 && (
+                <button style={s.printBtn} onClick={handlePrintSelected}>
+                  🖨️ Print Selected ({totalCopies})
+                </button>
+              )}
+              <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
+            </div>
           )}
         </div>
 
@@ -378,7 +464,7 @@ export default function Labels() {
             {isError ? (
               <ErrorState message="Failed to load labels." onRetry={refetch} />
             ) : isLoading ? (
-              <TableSkeleton columns={7} />
+              <TableSkeleton columns={8} />
             ) : labels.length === 0 ? (
               <div style={s.emptyBox}>
                 <div style={s.emptyIcon}>🏷️</div>
@@ -396,36 +482,57 @@ export default function Labels() {
                 <Table style={s.table}>
                   <TableHeader>
                     <TableRow>
-                      {['Product', 'Category', 'Base Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
+                      <TableHead style={s.th}>
+                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                      </TableHead>
+                      {['Product', 'Category', 'Base Price / Deal', 'Template', 'Qty', 'Updated', 'Actions'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredLabels.map((label, i) => (
-                      <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                        <TableCell style={s.td}>
-                          <span style={s.itemName}>{label.productName}</span>
-                          {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
-                        </TableCell>
-                        <TableCell style={s.td}>
-                          {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
-                        </TableCell>
-                        <TableCell style={s.td}>
-                          ${label.priceText}
-                          {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
-                        </TableCell>
-                        <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
-                        <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
-                        <TableCell style={s.td}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
-                            <button style={s.duplicateBtn} onClick={() => duplicateLabel(label)}>Duplicate</button>
-                            <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredLabels.map((label, i) => {
+                      const checked = selectedIds.has(label.id);
+                      return (
+                        <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                          <TableCell style={s.td}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} />
+                          </TableCell>
+                          <TableCell style={s.td}>
+                            <span style={s.itemName}>{label.productName}</span>
+                            {label.barcode && <span style={s.barcodeBadge} title={`Barcode: ${label.barcode}`}>|||| {label.barcode}</span>}
+                          </TableCell>
+                          <TableCell style={s.td}>
+                            {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
+                          </TableCell>
+                          <TableCell style={s.td}>
+                            ${label.priceText}
+                            {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
+                          </TableCell>
+                          <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
+                          <TableCell style={s.td}>
+                            {checked && (
+                              <input
+                                type="number"
+                                min={1}
+                                max={999}
+                                style={s.qtyInput}
+                                value={quantities[label.id] ?? 1}
+                                onChange={e => setQuantity(label.id, parseInt(e.target.value, 10))}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
+                          <TableCell style={s.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button style={s.editBtn} onClick={() => openEditModal(label)}>Edit</button>
+                              <button style={s.duplicateBtn} onClick={() => duplicateLabel(label)}>Duplicate</button>
+                              <button style={s.deleteBtn} onClick={() => setConfirmDelete(label)}>Delete</button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -447,6 +554,14 @@ const s: Record<string, CSSProperties> = {
   addBtn: {
     padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  },
+  printBtn: {
+    padding: '10px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
+    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  },
+  qtyInput: {
+    width: 52, padding: '6px 8px', borderRadius: 8, border: '1.5px solid #ddd',
+    fontSize: 14, textAlign: 'center' as const,
   },
 
   viewToggleRow: { display: 'flex', gap: 8 },
