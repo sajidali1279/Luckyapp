@@ -102,8 +102,14 @@ export const labelsApi = {
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
-  print: (items: { labelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
+  print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+  getStoreLabels: (storeId: string, unprinted?: boolean) =>
+    api.get(`/store-labels?storeId=${encodeURIComponent(storeId)}${unprinted ? '&unprinted=true' : ''}`),
+  addToStore: (labelId: string, storeId: string, priceText?: string | null) =>
+    api.post('/store-labels', { labelId, storeId, priceText }),
+  updateStoreLabel: (storeLabelId: string, priceText: string | null) =>
+    api.patch(`/store-labels/${storeLabelId}`, { priceText }),
 };
 
 export const noticesApi = {
