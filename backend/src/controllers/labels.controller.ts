@@ -5,10 +5,18 @@ import { AuthRequest } from '../types';
 import { LabelTemplate, Role } from '@prisma/client';
 import { audit } from '../utils/audit';
 import { resolveEffectivePrice } from '../utils/labelPricing';
+import { hasMinRole } from '../middleware/auth';
 
-function canTouchStore(user: { role: Role; storeIds?: string[] }, storeId: string): boolean {
-  if (user.role === Role.DEV_ADMIN || user.role === Role.SUPER_ADMIN) return true;
-  return !!user.storeIds?.includes(storeId);
+// SUPER_ADMIN+ always has access; below that, a StoreManager needs either
+// allStoresAccess or an explicit UserStoreRole for this specific store.
+// Matches hasStoreAccess in orderList.controller.ts — see that file for the
+// canonical version of this check.
+async function canTouchStore(userId: string, userRole: Role, storeId: string): Promise<boolean> {
+  if (hasMinRole(userRole, Role.SUPER_ADMIN)) return true;
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { allStoresAccess: true } });
+  if (dbUser?.allStoresAccess) return true;
+  const access = await prisma.userStoreRole.findUnique({ where: { userId_storeId: { userId, storeId } } });
+  return !!access;
 }
 
 const createLabelSchema = z.object({
@@ -60,7 +68,7 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'storeId is required' });
     return;
   }
-  if (!canTouchStore(req.user!, storeId)) {
+  if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
     return;
   }
@@ -224,7 +232,7 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
   }
   const { labelId, storeId, priceText } = parsed.data;
 
-  if (!canTouchStore(req.user!, storeId)) {
+  if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
     return;
   }
@@ -270,7 +278,7 @@ export async function updateStoreLabel(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Store label not found' });
     return;
   }
-  if (!canTouchStore(req.user!, existing.storeId)) {
+  if (!(await canTouchStore(req.user!.id, req.user!.role, existing.storeId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
     return;
   }
@@ -305,10 +313,11 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   const totalCopies = items.reduce((sum, i) => sum + i.quantity, 0);
 
   const rows = await prisma.storeLabel.findMany({ where: { id: { in: storeLabelIds } } });
-  const disallowed = rows.some(r => !canTouchStore(req.user!, r.storeId));
-  if (disallowed) {
-    res.status(403).json({ success: false, error: "You don't have access to one of those stores" });
-    return;
+  for (const r of rows) {
+    if (!(await canTouchStore(req.user!.id, req.user!.role, r.storeId))) {
+      res.status(403).json({ success: false, error: "You don't have access to one of those stores" });
+      return;
+    }
   }
 
   await prisma.storeLabel.updateMany({
