@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  FlatList, SectionList, ActivityIndicator, Modal, ScrollView, Alert,
+  FlatList, ActivityIndicator, Modal, ScrollView, Alert,
   KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -151,7 +151,6 @@ export default function LabelsScreen() {
 
   const isLoading = viewMode === 'ready' ? myPrintsLoading : false;
   const isRefetching = viewMode === 'ready' ? myPrintsRefetching : false;
-  const labels: Label[] = viewMode === 'catalog' ? allLabels : [];
   const refetch = viewMode === 'ready' ? refetchMyPrints : (() => qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] }));
 
   // A search hitting zero results in the current view might still exist
@@ -164,15 +163,7 @@ export default function LabelsScreen() {
     ? allLabels.find(l => l.barcode === searchTerm)
     : undefined;
 
-  const { data: storesData } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storesApi.getAll(),
-  });
-  const storeNameById: Record<string, string> = Object.fromEntries(
-    (storesData?.data?.data || []).map((st: any) => [st.id, st.name])
-  );
-
-  const filteredLabels = labels.filter(l => {
+  const filteredCatalog = allLabels.filter(l => {
     if (categoryFilter === UNCATEGORIZED) {
       if (l.category) return false;
     } else if (categoryFilter) {
@@ -183,44 +174,41 @@ export default function LabelsScreen() {
     return l.productName.toLowerCase().includes(q) || (!!l.barcode && l.barcode.toLowerCase().includes(q));
   });
 
-  // Category chips reflect what's actually present in the current view
-  // (Ready to Print vs Full Catalog), not every category in the system.
-  const availableCategories = Array.from(
-    new Set(labels.map(l => l.category).filter((c): c is string => !!c))
-  ).sort();
-  const hasUncategorized = labels.some(l => !l.category);
+  const filteredMyPrints = myPrints.filter(l => {
+    if (categoryFilter === UNCATEGORIZED) {
+      if (l.category) return false;
+    } else if (categoryFilter) {
+      if (l.category !== categoryFilter) return false;
+    }
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return l.productName.toLowerCase().includes(q) || (!!l.barcode && l.barcode.toLowerCase().includes(q));
+  });
 
-  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+  // Category chips reflect what's actually present in the current view.
+  const availableCategories = Array.from(
+    new Set((viewMode === 'catalog' ? allLabels : myPrints).map(l => l.category).filter((c): c is string => !!c))
+  ).sort();
+  const hasUncategorized = (viewMode === 'catalog' ? allLabels : myPrints).some(l => !l.category);
+
+  const allFilteredSelected = filteredMyPrints.length > 0 && filteredMyPrints.every(l => l.storeLabelId && selectedIds.has(l.storeLabelId));
 
   function toggleSelectAll() {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (allFilteredSelected) filteredLabels.forEach(l => next.delete(l.id));
-      else filteredLabels.forEach(l => next.add(l.id));
+      const ids = filteredMyPrints.map(l => l.storeLabelId).filter((id): id is string => !!id);
+      if (allFilteredSelected) ids.forEach(id => next.delete(id));
+      else ids.forEach(id => next.add(id));
       return next;
     });
     setQuantities(prev => {
       const next = { ...prev };
-      if (allFilteredSelected) filteredLabels.forEach(l => { delete next[l.id]; });
-      else filteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
+      const ids = filteredMyPrints.map(l => l.storeLabelId).filter((id): id is string => !!id);
+      if (allFilteredSelected) ids.forEach(id => { delete next[id]; });
+      else ids.forEach(id => { if (!(id in next)) next[id] = 1; });
       return next;
     });
   }
-
-  // Full Catalog spans every store — group it so staff aren't scrolling past
-  // other stores' items to find their own. Ready to Print is already scoped
-  // to just this store, so grouping would be a no-op there.
-  const catalogSections = viewMode === 'catalog'
-    ? Object.entries(
-        filteredLabels.reduce((groups: Record<string, Label[]>, l) => {
-          const key = l.createdByStoreId ? (storeNameById[l.createdByStoreId] || 'Unknown Store') : 'Admin Web';
-          (groups[key] = groups[key] || []).push(l);
-          return groups;
-        }, {})
-      )
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([title, data]) => ({ title, data }))
-    : [];
 
   // "Fill as you go": as the catalog grows, suggest matching product names
   // from labels the chain has already created — picking one auto-fills the
@@ -393,35 +381,44 @@ export default function LabelsScreen() {
     }
   }
 
-  function toggleSelected(id: string) {
+  function toggleSelected(storeLabelId: string) {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(storeLabelId)) next.delete(storeLabelId); else next.add(storeLabelId);
       return next;
     });
     setQuantities(prev => {
-      if (prev[id] !== undefined) {
+      if (prev[storeLabelId] !== undefined) {
         const next = { ...prev };
-        delete next[id];
+        delete next[storeLabelId];
         return next;
       }
-      return { ...prev, [id]: 1 };
+      return { ...prev, [storeLabelId]: 1 };
     });
   }
 
-  function setQuantity(id: string, qty: number) {
-    setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
+  function setQuantity(storeLabelId: string, qty: number) {
+    setQuantities(prev => ({ ...prev, [storeLabelId]: Math.max(1, Math.min(999, qty || 1)) }));
   }
 
   const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
 
-  async function runPrint(toPrint: Label[], shareAsPdf: boolean) {
+  async function handlePrint(shareAsPdf: boolean) {
+    const toPrint = myPrints.filter(l => l.storeLabelId && selectedIds.has(l.storeLabelId));
+    if (toPrint.length === 0 || printing) return;
     setPrinting(true);
     try {
-      const entries: PrintableLabelEntry[] = toPrint.map(label => ({ label, quantity: quantities[label.id] ?? 1 }));
+      const entries: PrintableLabelEntry[] = toPrint.map(item => ({
+        label: {
+          id: item.id, productName: item.productName, priceText: item.priceText,
+          dealText: item.dealText, barcode: item.barcode, template: item.template,
+        },
+        quantity: quantities[item.storeLabelId!] ?? 1,
+      }));
       await printLabels({ entries, shareAsPdf });
-      labelsApi.print(entries.map(e => ({ labelId: e.label.id, quantity: e.quantity }))).catch(() => {});
-      await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+      const printItems = toPrint.map(item => ({ storeLabelId: item.storeLabelId!, quantity: quantities[item.storeLabelId!] ?? 1 }));
+      labelsApi.print(printItems).catch(() => {});
+      await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       setSelectedIds(new Set());
       setQuantities({});
     } catch (err: any) {
@@ -429,30 +426,6 @@ export default function LabelsScreen() {
     } finally {
       setPrinting(false);
     }
-  }
-
-  function handlePrint(shareAsPdf: boolean) {
-    const toPrint = labels.filter(l => selectedIds.has(l.id));
-    if (toPrint.length === 0 || printing) return;
-    // The Full Catalog view (unlike Ready to Print) can include labels
-    // scanned in by a different store — printing one marks it printed
-    // chain-wide, immediately dropping it out of that other store's own
-    // Ready to Print queue. Warn before doing that by accident; still fully
-    // allowed if it's intentional (e.g. reprinting a shared item on
-    // someone's behalf).
-    const otherStoreCount = toPrint.filter(l => l.createdByStoreId && l.createdByStoreId !== storeId).length;
-    if (otherStoreCount > 0) {
-      Alert.alert(
-        otherStoreCount === 1 ? '1 label is from another store' : `${otherStoreCount} labels are from other stores`,
-        "Printing will mark them printed and remove them from that store's own Ready to Print queue. Continue?",
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Print Anyway', onPress: () => runPrint(toPrint, shareAsPdf) },
-        ]
-      );
-      return;
-    }
-    runPrint(toPrint, shareAsPdf);
   }
 
   return (
@@ -615,30 +588,105 @@ export default function LabelsScreen() {
         </View>
       </Modal>
 
+      <Modal visible={!!addSheetItem} animationType="fade" transparent onRequestClose={() => setAddSheetItem(null)}>
+        <View style={s.addSheetOverlay}>
+          <View style={s.addSheetCard}>
+            <Text style={s.formTitle}>{addSheetItem?.productName}</Text>
+            <Text style={s.addSheetSub}>Base price: ${addSheetItem?.priceText}</Text>
+            <TouchableOpacity
+              style={[s.saveBtn, { backgroundColor: accentColor, marginTop: 16 }]}
+              onPress={() => { setAddSheetPriceMode('base'); confirmAddToMyPrints(); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Add at $${addSheetItem?.priceText}`}
+            >
+              <Text style={s.saveBtnText}>Add at ${addSheetItem?.priceText}</Text>
+            </TouchableOpacity>
+            {addSheetPriceMode === 'custom' ? (
+              <>
+                <Text style={[s.fieldLabel, { marginTop: 16 }]}>My price</Text>
+                <View style={s.priceInputWrap}>
+                  <Text style={s.priceInputDollar}>$</Text>
+                  <TextInput
+                    style={[s.fieldInput, s.priceInput]}
+                    value={addSheetPrice}
+                    onChangeText={t => setAddSheetPrice(t.replace(/[^0-9.]/g, ''))}
+                    placeholder={addSheetItem?.priceText}
+                    placeholderTextColor="#B0B8C4"
+                    keyboardType="decimal-pad"
+                    maxLength={7}
+                    autoFocus
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[s.saveBtn, { backgroundColor: accentColor, marginTop: 12 }, !addSheetPrice.trim() && s.saveBtnDim]}
+                  onPress={confirmAddToMyPrints}
+                  disabled={!addSheetPrice.trim()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm custom price"
+                >
+                  <Text style={s.saveBtnText}>Confirm ${addSheetPrice || '0.00'}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={{ marginTop: 12, alignItems: 'center' }}
+                onPress={() => setAddSheetPriceMode('custom')}
+                accessibilityRole="button"
+                accessibilityLabel="Use a different price for my store"
+              >
+                <Text style={{ color: accentColor, fontWeight: '700', fontSize: 14 }}>Use a different price for my store</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => setAddSheetItem(null)} accessibilityRole="button" accessibilityLabel="Cancel">
+              <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <View style={s.header}>
         <Text style={s.headerTitle}>Labels</Text>
       </View>
+
+      {!storeId && (
+        <View style={s.storePickerRow}>
+          <Text style={s.storePickerLabel}>Which store are you at?</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {allStores.map((st: any) => (
+              <TouchableOpacity
+                key={st.id}
+                style={[s.categoryChip, { borderColor: accentColor }]}
+                onPress={() => setManualStoreId(st.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${st.name}`}
+              >
+                <Text style={s.categoryChipText}>{st.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={s.viewToggleRow}>
         <TouchableOpacity
           style={[s.viewToggleChip, viewMode === 'ready' && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
           onPress={() => setViewMode('ready')}
           accessibilityRole="button"
-          accessibilityLabel="Show labels ready to print for my store"
+          accessibilityLabel="Show my store's prints"
         >
-          <Text style={s.viewToggleText}>Ready to Print{viewMode === 'ready' ? ` · ${labels.length}` : ''}</Text>
+          <Text style={s.viewToggleText}>My Prints{viewMode === 'ready' ? ` · ${myPrints.length}` : ''}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.viewToggleChip, viewMode === 'catalog' && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
           onPress={() => setViewMode('catalog')}
           accessibilityRole="button"
-          accessibilityLabel="Show the full shared catalog"
+          accessibilityLabel="Browse the full catalog"
         >
-          <Text style={s.viewToggleText}>Full Catalog{viewMode === 'catalog' ? ` · ${labels.length}` : ''}</Text>
+          <Text style={s.viewToggleText}>Catalog{viewMode === 'catalog' ? ` · ${allLabels.length}` : ''}</Text>
         </TouchableOpacity>
       </View>
 
-      {!isLoading && labels.length > 0 && (
+      {!!storeId && (viewMode === 'catalog' ? allLabels.length > 0 : !isLoading && myPrints.length > 0) && (
         <View style={s.toolbarRow}>
           <TextInput
             style={s.searchInput}
@@ -647,19 +695,21 @@ export default function LabelsScreen() {
             placeholder="Search name or barcode…"
             placeholderTextColor="#B0B8C4"
           />
-          <TouchableOpacity
-            style={s.selectAllBtn}
-            onPress={toggleSelectAll}
-            disabled={filteredLabels.length === 0}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: allFilteredSelected }}
-            accessibilityLabel="Select all visible labels"
-          >
-            <View style={[s.checkboxBox, allFilteredSelected && { backgroundColor: accentColor, borderColor: accentColor }]}>
-              {allFilteredSelected && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
-            </View>
-            <Text style={s.selectAllText}>All</Text>
-          </TouchableOpacity>
+          {viewMode === 'ready' && (
+            <TouchableOpacity
+              style={s.selectAllBtn}
+              onPress={toggleSelectAll}
+              disabled={filteredMyPrints.length === 0}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: allFilteredSelected }}
+              accessibilityLabel="Select all visible labels"
+            >
+              <View style={[s.checkboxBox, allFilteredSelected && { backgroundColor: accentColor, borderColor: accentColor }]}>
+                {allFilteredSelected && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
+              </View>
+              <Text style={s.selectAllText}>All</Text>
+            </TouchableOpacity>
+          )}
           {(availableCategories.length > 0 || hasUncategorized) && (
             <TouchableOpacity
               style={[s.filterIconBtn, (showCategoryFilter || categoryFilter !== null) && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
@@ -675,7 +725,7 @@ export default function LabelsScreen() {
         </View>
       )}
 
-      {!isLoading && labels.length > 0 && showCategoryFilter && (availableCategories.length > 0 || hasUncategorized) && (
+      {!!storeId && (viewMode === 'catalog' ? allLabels.length > 0 : !isLoading && myPrints.length > 0) && showCategoryFilter && (availableCategories.length > 0 || hasUncategorized) && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryFilterRow}>
           <TouchableOpacity
             style={[s.categoryChip, categoryFilter === null && { borderColor: accentColor, backgroundColor: '#eff6ff' }]}
@@ -709,71 +759,65 @@ export default function LabelsScreen() {
         </ScrollView>
       )}
 
-      {isLoading ? (
+      {!storeId ? null : viewMode === 'catalog' ? (
+        filteredCatalog.length === 0 ? (
+          <View style={s.center}>
+            <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
+            <Text style={s.emptyTitle}>No matches</Text>
+            {existingBarcodeMatch ? (
+              <>
+                <Text style={s.emptySub}>That barcode is already in the catalog</Text>
+                <TouchableOpacity
+                  style={[s.quickAddBtn, { backgroundColor: accentColor }]}
+                  onPress={() => { const match = existingBarcodeMatch; setSearch(''); openEditForm(match); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${existingBarcodeMatch.productName}`}
+                >
+                  <Text style={s.quickAddBtnText}>Open "{existingBarcodeMatch.productName}"</Text>
+                </TouchableOpacity>
+              </>
+            ) : searchTerm ? (
+              <>
+                <Text style={s.emptySub}>Try a different name or barcode</Text>
+                <TouchableOpacity
+                  style={[s.quickAddBtn, { backgroundColor: accentColor }]}
+                  onPress={openQuickAddFromSearch}
+                  accessibilityRole="button"
+                  accessibilityLabel={isBarcodeLikeSearch ? `Add barcode ${searchTerm} as new label` : `Add ${searchTerm} as new label`}
+                >
+                  <Text style={s.quickAddBtnText}>
+                    {isBarcodeLikeSearch ? `Add barcode "${searchTerm}" as new label` : `Add "${searchTerm}" as new label`}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={s.emptySub}>No labels yet — scan an item to create the first one</Text>
+            )}
+          </View>
+        ) : (
+          <FlatList
+            data={filteredCatalog}
+            keyExtractor={l => l.id}
+            contentContainerStyle={s.list}
+            renderItem={({ item }) => renderCatalogCard(item)}
+          />
+        )
+      ) : myPrintsLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>
-      ) : labels.length === 0 ? (
+      ) : filteredMyPrints.length === 0 ? (
         <View style={s.center}>
           <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
-          <Text style={s.emptyTitle}>{viewMode === 'ready' ? 'Nothing to print' : 'No labels yet'}</Text>
-          <Text style={s.emptySub}>
-            {viewMode === 'ready' ? 'Scan an item to add one, or check the Full Catalog' : 'Scan an item to create the first one'}
-          </Text>
+          <Text style={s.emptyTitle}>Nothing to print</Text>
+          <Text style={s.emptySub}>Add an item from the Catalog, or scan a new one</Text>
         </View>
-      ) : filteredLabels.length === 0 ? (
-        <View style={s.center}>
-          <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />
-          <Text style={s.emptyTitle}>No matches</Text>
-          {existingBarcodeMatch ? (
-            <>
-              <Text style={s.emptySub}>That barcode is already in the catalog</Text>
-              <TouchableOpacity
-                style={[s.quickAddBtn, { backgroundColor: accentColor }]}
-                onPress={() => { const match = existingBarcodeMatch; setSearch(''); openEditForm(match); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${existingBarcodeMatch.productName}`}
-              >
-                <Text style={s.quickAddBtnText}>Open "{existingBarcodeMatch.productName}"</Text>
-              </TouchableOpacity>
-            </>
-          ) : searchTerm ? (
-            <>
-              <Text style={s.emptySub}>Try a different name or barcode</Text>
-              <TouchableOpacity
-                style={[s.quickAddBtn, { backgroundColor: accentColor }]}
-                onPress={openQuickAddFromSearch}
-                accessibilityRole="button"
-                accessibilityLabel={isBarcodeLikeSearch ? `Add barcode ${searchTerm} as new label` : `Add ${searchTerm} as new label`}
-              >
-                <Text style={s.quickAddBtnText}>
-                  {isBarcodeLikeSearch ? `Add barcode "${searchTerm}" as new label` : `Add "${searchTerm}" as new label`}
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <Text style={s.emptySub}>No labels in this category</Text>
-          )}
-        </View>
-      ) : viewMode === 'catalog' ? (
-        <SectionList
-          sections={catalogSections}
-          keyExtractor={l => l.id}
-          contentContainerStyle={s.list}
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          stickySectionHeadersEnabled
-          renderSectionHeader={({ section }) => (
-            <Text style={s.sectionHeader}>{section.title} ({section.data.length})</Text>
-          )}
-          renderItem={({ item }) => renderLabelCard(item)}
-        />
       ) : (
         <FlatList
-          data={filteredLabels}
+          data={filteredMyPrints}
           keyExtractor={l => l.id}
           contentContainerStyle={s.list}
           refreshing={isRefetching}
           onRefresh={refetch}
-          renderItem={({ item }) => renderLabelCard(item)}
+          renderItem={({ item }) => renderMyPrintCard(item)}
         />
       )}
 
@@ -812,14 +856,47 @@ export default function LabelsScreen() {
     </SafeAreaView>
   );
 
-  function renderLabelCard(item: Label) {
-    const checked = selectedIds.has(item.id);
+  function renderCatalogCard(item: Label) {
+    const tmpl = TEMPLATES.find(t => t.value === item.template) || TEMPLATES[0];
+    return (
+      <View style={s.card}>
+        <TouchableOpacity style={s.cardBody} onPress={() => openEditForm(item)} accessibilityRole="button" accessibilityLabel={`Edit ${item.productName}`}>
+          <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cardName}>{item.productName}</Text>
+            {item.category && <Text style={s.cardCategory}>{item.category}</Text>}
+            <Text style={s.cardPrice}>${item.priceText} base</Text>
+            {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
+            {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
+          </View>
+          <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+        </TouchableOpacity>
+        {item.myStoreLabel ? (
+          <View style={s.inQueueBadge}>
+            <Text style={s.inQueueBadgeText}>{item.myStoreLabel.printedAt ? 'Printed' : 'In My Prints'}</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[s.addToPrintsBtn, { backgroundColor: accentColor }]}
+            onPress={() => openAddSheet(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${item.productName} to my prints`}
+          >
+            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  function renderMyPrintCard(item: StoreLabelItem) {
+    const checked = !!item.storeLabelId && selectedIds.has(item.storeLabelId);
     const tmpl = TEMPLATES.find(t => t.value === item.template) || TEMPLATES[0];
     return (
       <View style={s.card}>
         <TouchableOpacity
           style={s.checkbox}
-          onPress={() => toggleSelected(item.id)}
+          onPress={() => item.storeLabelId && toggleSelected(item.storeLabelId)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="checkbox"
           accessibilityState={{ checked }}
@@ -829,32 +906,31 @@ export default function LabelsScreen() {
             {checked && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={s.cardBody} onPress={() => openEditForm(item)} accessibilityRole="button" accessibilityLabel={`Edit ${item.productName}`}>
+        <View style={s.cardBody}>
           <View style={[s.templateDot, { backgroundColor: tmpl.color }]} />
           <View style={{ flex: 1 }}>
             <Text style={s.cardName}>{item.productName}</Text>
             {item.category && <Text style={s.cardCategory}>{item.category}</Text>}
-            <Text style={s.cardPrice}>${item.priceText}</Text>
+            <Text style={s.cardPrice}>${item.priceText}{item.hasOverride ? ' (my price)' : ''}</Text>
             {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
             {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
           </View>
-          <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
-        </TouchableOpacity>
-        {checked && (
+        </View>
+        {checked && item.storeLabelId && (
           <View style={s.qtyStepper}>
             <TouchableOpacity
               style={s.qtyBtn}
-              onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) - 1)}
+              onPress={() => setQuantity(item.storeLabelId!, (quantities[item.storeLabelId!] ?? 1) - 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Decrease copies"
             >
               <Text style={s.qtyBtnText}>−</Text>
             </TouchableOpacity>
-            <Text style={s.qtyValue}>{quantities[item.id] ?? 1}</Text>
+            <Text style={s.qtyValue}>{quantities[item.storeLabelId!] ?? 1}</Text>
             <TouchableOpacity
               style={s.qtyBtn}
-              onPress={() => setQuantity(item.id, (quantities[item.id] ?? 1) + 1)}
+              onPress={() => setQuantity(item.storeLabelId!, (quantities[item.storeLabelId!] ?? 1) + 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Increase copies"
@@ -899,10 +975,14 @@ const s = StyleSheet.create({
   categoryChipText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
   quickAddBtn: { borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, marginTop: 16 },
   quickAddBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  sectionHeader: {
-    fontSize: 12, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5,
-    backgroundColor: COLORS.background, paddingVertical: 6,
-  },
+  storePickerRow: { paddingHorizontal: 20, marginBottom: 10, gap: 6 },
+  storePickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
+  addToPrintsBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  inQueueBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#F0F0F0' },
+  inQueueBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+  addSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  addSheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 340 },
+  addSheetSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, marginTop: 8 },
   emptySub: { fontSize: 14, color: COLORS.textMuted },
   list: { paddingHorizontal: 16, paddingBottom: 100, gap: 10 },
