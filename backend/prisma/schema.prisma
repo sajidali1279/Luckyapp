@@ -323,6 +323,7 @@ model Store {
   employeeRatings    EmployeeRating[]
   keywordMappings    StoreKeywordMapping[]
   jobApplications    JobApplication[]
+  storeLabels        StoreLabel[]
   jobOpenings        JobOpening[]
   productRequests    ProductRequest[]
   orderLists         OrderList[]
@@ -506,25 +507,47 @@ enum LabelTemplate {
   PREMIUM
 }
 
-// Chain-wide catalog, not per-store — the same product/price applies to
-// every store. If a store ever needs a different price on one item, that's
-// a future per-store override, not modeled here.
+// The chain-wide catalog fact — name, barcode, template, and a BASE price.
+// Per-store pricing and per-store print status live on StoreLabel, not
+// here — a store's effective price is always
+// storeLabel?.priceText ?? label.priceText (see resolveEffectivePrice).
 model Label {
   id               String        @id @default(uuid())
   productName      String
-  priceText        String        // Always the regular unit price, a plain number ("3.99") — $ is added at render time. Always required, always shown.
-  dealText         String?       // Optional freeform deal text ("2 for $5", "BOGO"), shown alongside priceText only when present.
+  priceText        String        // chain-wide BASE price — what a store sees until it sets its own override
+  dealText         String?       // chain-wide only, not store-overridable (see design spec for why)
   barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/dealText
   category         String?       // freeform, same approval pipeline as Order List/Stock Request (OrderCategory) — not constrained by an enum here
   template         LabelTemplate @default(CLASSIC_RED_BLACK)
-  createdByStoreId String?       // which store's employee/manager created this — null for admin-web-created labels. Set once at creation, never changed by edits.
+  createdByStoreId String?       // which store first created this catalog entry — history only, no longer drives print-queue membership
   createdById      String?       // which user created this. Set once at creation, never changed by edits.
-  printedAt        DateTime?     // null = ready to print. Set when printed (POST /labels/print); reset to null by any subsequent edit.
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  @@index([createdByStoreId, printedAt])
+  storeLabels StoreLabel[]
+
+  @@index([createdByStoreId])
   @@map("labels")
+}
+
+// One store's own copy of a catalog Label — an optional price override and
+// its own independent print status. priceText null = inherit Label's base
+// price. printedAt null = this store still needs to print it.
+model StoreLabel {
+  id        String    @id @default(uuid())
+  labelId   String
+  storeId   String
+  priceText String?
+  printedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([labelId, storeId])
+  @@index([storeId, printedAt])
+  @@map("store_labels")
 }
 
 // ─── Rewards (future catalog) ─────────────────────────────────────────────────

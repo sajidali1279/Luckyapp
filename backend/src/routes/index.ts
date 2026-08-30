@@ -67,7 +67,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
-import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted } from '../controllers/labels.controller';
+import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -472,6 +472,9 @@ router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE)
 router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE), markLabelsPrinted);
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);
 router.delete('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), deleteLabel);
+router.get   ('/store-labels',          authenticate, requireRole(Role.EMPLOYEE), getStoreLabels);
+router.post  ('/store-labels',          authenticate, requireRole(Role.EMPLOYEE), upsertStoreLabel);
+router.patch ('/store-labels/:storeLabelId', authenticate, requireRole(Role.EMPLOYEE), updateStoreLabel);
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
