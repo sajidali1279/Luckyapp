@@ -9,10 +9,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import { COLORS } from '../constants';
-import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon } from './Icons';
+import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
+import { useCurrentStoreId } from '../utils/geo';
 
 interface Label {
   id: string;
@@ -23,6 +24,25 @@ interface Label {
   category: string | null;
   template: string;
   createdByStoreId: string | null;
+  updatedAt: string;
+  // Only present in responses from getAllWithMyStore(storeId) when a
+  // storeId was actually supplied — absent (not just null) otherwise, e.g.
+  // when no store has resolved yet. Always check truthiness, not `!== null`.
+  myStoreLabel?: { effectivePrice: string; printedAt: string | null } | null;
+}
+
+interface StoreLabelItem {
+  id: string;
+  storeLabelId: string | null;
+  productName: string;
+  barcode: string | null;
+  category: string | null;
+  template: string;
+  basePriceText: string;
+  dealText: string | null;
+  priceText: string;
+  hasOverride: boolean;
+  printedAt: string | null;
   updatedAt: string;
 }
 
@@ -47,6 +67,10 @@ export default function LabelsScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showScanner, setShowScanner] = useState(false);
+  const [manualStoreId, setManualStoreId] = useState<string | undefined>(undefined);
+  const [addSheetItem, setAddSheetItem] = useState<Label | null>(null);
+  const [addSheetPriceMode, setAddSheetPriceMode] = useState<'base' | 'custom'>('base');
+  const [addSheetPrice, setAddSheetPrice] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
@@ -61,7 +85,6 @@ export default function LabelsScreen() {
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
   const [catSuggs, setCatSuggs] = useState<string[]>([]);
   const [showCatSugg, setShowCatSugg] = useState(false);
-  const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
@@ -99,26 +122,37 @@ export default function LabelsScreen() {
     setShowCatSugg(true);
   }, [formCategory, approvedCats]);
 
-  const storeId = user?.storeIds?.[0];
+  const [viewMode, setViewMode] = useState<'ready' | 'catalog'>('ready');
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['mobile-labels', viewMode, storeId],
-    queryFn: () =>
-      viewMode === 'ready' && storeId
-        ? labelsApi.getReadyToPrint(storeId)
-        : labelsApi.getAll(),
+  const { data: storesListData } = useQuery({
+    queryKey: ['stores'],
+    queryFn: () => storesApi.getAll(),
   });
-  const labels: Label[] = data?.data?.data || [];
+  const allStores: any[] = storesListData?.data?.data || [];
 
-  // Unfiltered catalog query, used only for barcode-dedupe lookup and name
-  // autocomplete — the view-scoped `labels` above only contains this store's
-  // unprinted labels in "Ready to Print" mode, which would otherwise miss
-  // already-printed labels and cause re-scans to create duplicates.
+  const resolvedStoreId = useCurrentStoreId(allStores, user?.storeIds);
+  const storeId = manualStoreId ?? resolvedStoreId;
+
+  // Every catalog item, annotated with this store's own StoreLabel (if any)
+  // when a store is known — powers both the Catalog view's "already added"
+  // status and the dedupe/autocomplete lookups below.
   const { data: catalogData } = useQuery({
-    queryKey: ['mobile-labels', 'catalog-all'],
-    queryFn: labelsApi.getAll,
+    queryKey: ['mobile-labels', 'catalog-all', storeId],
+    queryFn: () => labelsApi.getAllWithMyStore(storeId),
   });
   const allLabels: Label[] = catalogData?.data?.data || [];
+
+  const { data: myPrintsData, isLoading: myPrintsLoading, refetch: refetchMyPrints, isRefetching: myPrintsRefetching } = useQuery({
+    queryKey: ['store-labels', storeId, 'unprinted'],
+    queryFn: () => labelsApi.getStoreLabels(storeId!, true),
+    enabled: !!storeId,
+  });
+  const myPrints: StoreLabelItem[] = myPrintsData?.data?.data || [];
+
+  const isLoading = viewMode === 'ready' ? myPrintsLoading : false;
+  const isRefetching = viewMode === 'ready' ? myPrintsRefetching : false;
+  const labels: Label[] = viewMode === 'catalog' ? allLabels : [];
+  const refetch = viewMode === 'ready' ? refetchMyPrints : (() => qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] }));
 
   // A search hitting zero results in the current view might still exist
   // elsewhere in the shared catalog (e.g. already printed, or created by
@@ -205,6 +239,27 @@ export default function LabelsScreen() {
     setFormPriceText(label.priceText);
     setFormDealText(label.dealText || '');
     setShowNameSugg(false);
+  }
+
+  function openAddSheet(label: Label) {
+    setAddSheetItem(label);
+    setAddSheetPriceMode('base');
+    setAddSheetPrice('');
+  }
+
+  async function confirmAddToMyPrints() {
+    if (!addSheetItem || !storeId) return;
+    const priceText = addSheetPriceMode === 'custom' ? addSheetPrice.trim() || null : null;
+    try {
+      await labelsApi.addToStore(addSheetItem.id, storeId, priceText);
+      await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
+      Toast.show({ type: 'success', text1: 'Added to My Prints' });
+      setAddSheetItem(null);
+    } catch (err: any) {
+      const e = err.response?.data?.error;
+      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to add' });
+    }
   }
 
   function openCreateForm(scanned: BarcodeResult) {
