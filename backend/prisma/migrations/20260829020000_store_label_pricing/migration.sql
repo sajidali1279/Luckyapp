@@ -42,3 +42,6 @@ WHERE "createdByStoreId" IS NOT NULL;
 
 -- AlterTable
 ALTER TABLE "labels" DROP COLUMN "printedAt";
+
+-- CreateIndex
+CREATE INDEX "labels_createdByStoreId_idx" ON "labels"("createdByStoreId");

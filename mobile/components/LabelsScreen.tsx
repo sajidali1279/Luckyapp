@@ -323,9 +323,7 @@ export default function LabelsScreen() {
       if (editingLabel) {
         await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, category, template: formTemplate });
       } else {
-        const res = await labelsApi.create({ productName, priceText, dealText, barcode, category, template: formTemplate });
-        const newId = res.data?.data?.id;
-        if (newId) setSelectedIds(prev => new Set(prev).add(newId));
+        await labelsApi.create({ productName, priceText, dealText, barcode, category, template: formTemplate, storeId });
       }
       // Keep the shared scan-lookup cache (ScannedProduct) in sync — labels
       // typed/edited directly here (quick-add from search, or correcting an
@@ -337,6 +335,7 @@ export default function LabelsScreen() {
         scannedProductApi.save({ barcode, name: productName, category: category || undefined, source: 'manual' }).catch(() => {});
       }
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+      await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       Toast.show({ type: 'success', text1: editingLabel ? 'Label updated' : 'Label added' });
       closeForm();
       // Creating (not editing) drops straight back into scanning so a
@@ -371,6 +370,7 @@ export default function LabelsScreen() {
       const deletedId = editingLabel.id;
       setSelectedIds(prev => { const next = new Set(prev); next.delete(deletedId); return next; });
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+      await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       Toast.show({ type: 'success', text1: 'Label removed' });
       closeForm();
     } catch (err: any) {
@@ -417,8 +417,13 @@ export default function LabelsScreen() {
       }));
       await printLabels({ entries, shareAsPdf });
       const printItems = toPrint.map(item => ({ storeLabelId: item.storeLabelId!, quantity: quantities[item.storeLabelId!] ?? 1 }));
-      labelsApi.print(printItems).catch(() => {});
+      try {
+        await labelsApi.print(printItems);
+      } catch {
+        Toast.show({ type: 'error', text1: 'Printed, but failed to update status', text2: 'Pull to refresh to check' });
+      }
       await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
       setSelectedIds(new Set());
       setQuantities({});
     } catch (err: any) {

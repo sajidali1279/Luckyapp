@@ -26,6 +26,7 @@ const createLabelSchema = z.object({
   barcode: z.string().max(40).optional().nullable(),
   category: z.string().max(100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
+  storeId: z.string().uuid().optional(),
 });
 
 // GET /labels — the global catalog (base price only). ?myStoreId=X is
@@ -35,6 +36,13 @@ const createLabelSchema = z.object({
 // StoreLabel (if any) so a caller can show "already in my queue" inline.
 export async function getAllLabels(req: AuthRequest, res: Response) {
   const { myStoreId } = req.query;
+
+  if (typeof myStoreId === 'string' && myStoreId) {
+    if (!(await canTouchStore(req.user!.id, req.user!.role, myStoreId))) {
+      res.status(403).json({ success: false, error: "You don't have access to that store" });
+      return;
+    }
+  }
 
   const labels = await prisma.label.findMany({
     orderBy: { updatedAt: 'desc' },
@@ -114,11 +122,18 @@ export async function createLabel(req: AuthRequest, res: Response) {
     return;
   }
 
-  const creatorStoreId = req.user!.storeIds?.[0] ?? null;
+  const { storeId: requestedStoreId, ...labelData } = parsed.data;
+
+  if (requestedStoreId && !(await canTouchStore(req.user!.id, req.user!.role, requestedStoreId))) {
+    res.status(403).json({ success: false, error: "You don't have access to that store" });
+    return;
+  }
+
+  const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
 
   const label = await prisma.label.create({
     data: {
-      ...parsed.data,
+      ...labelData,
       createdByStoreId: creatorStoreId,
       createdById: req.user!.id,
       ...(creatorStoreId
