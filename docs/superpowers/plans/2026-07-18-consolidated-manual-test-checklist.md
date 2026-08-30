@@ -143,3 +143,15 @@ Types worth spot-checking (don't need all of them, but cover a few different one
 - [ ] As DevAdmin/SuperAdmin, create and print a label from admin web → confirm it never appears in any store's "Ready to Print" queue
 - [ ] As DevAdmin/SuperAdmin, open Activity Log and filter by store and by action → confirm `CREATE_LABEL`/`UPDATE_LABEL`/`DELETE_LABEL`/`PRINT_LABEL` events appear with proper icons, correctly attributed to the store where the action happened (or no store, for admin-web actions)
 - [ ] Tap PDF instead of Print → confirm it also marks the labels as printed (not just the native Print button)
+
+## 13. Per-store label pricing + print tracking (2026-08-29)
+
+- [ ] Create a brand-new item at Store A → confirm it appears in Store A's My Prints at the entered price, and in the global Catalog at that same price as the base
+- [ ] From Store B, add that same item from Catalog at the base price → confirm Store B's My Prints shows the same price with no retyping
+- [ ] Store A prints their copy → confirm Store A's copy drops out of My Prints while Store B's (untouched, unprinted) is unaffected
+- [ ] Store B sets their own override price and prints → confirm Store A's already-printed copy stays printed
+- [ ] Admin edits the base price from the Catalog tab → confirm every store still on the base price gets flagged for reprint; a store with its own override does not
+- [ ] Admin edits Store B's override directly from the By Store view → confirm only Store B's print status resets
+- [ ] Admin's By Store view for a store that has never touched a given item still shows that item with the resolved (base) price, with an "Add" action instead of being omitted
+- [ ] As a multi-store Employee/Manager, confirm the resolved store follows physical location (GPS) rather than always defaulting to the first assigned store
+- [ ] As a user with zero store assignments (if reachable in practice), confirm the manual store-picker row appears instead of an error
