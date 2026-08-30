@@ -1,4 +1,4 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, useMemo, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { scannedProductApi } from '../services/api';
@@ -24,6 +24,12 @@ const SOURCE_META: Record<string, { label: string; bg: string; color: string }> 
   openfoodfacts: { label: 'Open Food Facts',  bg: '#eaf7ee', color: '#1e7a3d' },
 };
 
+// A category with more than this many items collapses to a preview with a
+// "Show all" expander, so the page isn't dominated by whichever category
+// happens to have the most entries — matches the same pattern used in
+// mobile's Browse tab (mobile/app/(manager)/catalog.tsx).
+const CATEGORY_PREVIEW_COUNT = 5;
+
 export default function ScannedProducts() {
   const qc = useQueryClient();
   const [search, setSearch]         = useState('');
@@ -43,11 +49,30 @@ export default function ScannedProducts() {
     return () => clearTimeout(t);
   }, [search]);
 
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['scanned-products', debSearch],
     queryFn: () => scannedProductApi.list(debSearch.trim() || undefined),
   });
   const products: ScannedProduct[] = data?.data?.data || [];
+
+  const grouped = useMemo(() => {
+    const map: Record<string, ScannedProduct[]> = {};
+    products.forEach(p => {
+      const cat = p.category || 'Uncategorized';
+      (map[cat] = map[cat] || []).push(p);
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [products]);
+
+  function toggleExpanded(cat: string) {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => scannedProductApi.delete(id),
@@ -190,7 +215,7 @@ export default function ScannedProducts() {
 
         {/* Content */}
         {isLoading ? (
-          <TableSkeleton columns={8} />
+          <TableSkeleton columns={7} />
         ) : products.length === 0 ? (
           <div style={s.emptyBox}>
             <div style={s.emptyIcon}>📦</div>
@@ -200,43 +225,60 @@ export default function ScannedProducts() {
             </div>
           </div>
         ) : (
-          <div style={s.tableWrap}>
-            <Table style={s.table}>
-              <TableHeader>
-                <TableRow>
-                  {['Barcode', 'Name', 'Category', 'Brand', 'Source', 'Scans', 'Last Scanned', ''].map(h => (
-                    <TableHead key={h} style={s.th}>{h}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((p, i) => {
-                  const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f3f4f6', color: '#4b5563' };
-                  return (
-                    <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                      <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
-                      <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
-                      <TableCell style={s.td}>{p.category || ' - '}</TableCell>
-                      <TableCell style={s.td}>{p.brand || ' - '}</TableCell>
-                      <TableCell style={s.td}>
-                        <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
-                      </TableCell>
-                      <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
-                      <TableCell style={s.td}>{new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
-                      <TableCell style={s.td}>
-                        <button
-                          style={s.deleteBtn}
-                          onClick={() => handleDelete(p)}
-                          disabled={deletingId === p.id}
-                        >
-                          {deletingId === p.id ? '…' : 'Delete'}
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {grouped.map(([cat, catItems]) => {
+              const isExpanded = expandedCats.has(cat);
+              const visibleItems = isExpanded ? catItems : catItems.slice(0, CATEGORY_PREVIEW_COUNT);
+              const hiddenCount = catItems.length - visibleItems.length;
+              return (
+                <div key={cat} style={s.tableWrap}>
+                  <div style={s.catHeader}>
+                    <span style={s.catName}>{cat}</span>
+                    <span style={s.catBadge}>{catItems.length}</span>
+                  </div>
+                  <Table style={s.table}>
+                    <TableHeader>
+                      <TableRow>
+                        {['Barcode', 'Name', 'Brand', 'Source', 'Scans', 'Last Scanned', ''].map(h => (
+                          <TableHead key={h} style={s.th}>{h}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleItems.map((p, i) => {
+                        const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f3f4f6', color: '#4b5563' };
+                        return (
+                          <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                            <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
+                            <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
+                            <TableCell style={s.td}>{p.brand || ' - '}</TableCell>
+                            <TableCell style={s.td}>
+                              <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
+                            </TableCell>
+                            <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
+                            <TableCell style={s.td}>{new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
+                            <TableCell style={s.td}>
+                              <button
+                                style={s.deleteBtn}
+                                onClick={() => handleDelete(p)}
+                                disabled={deletingId === p.id}
+                              >
+                                {deletingId === p.id ? '…' : 'Delete'}
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  {(hiddenCount > 0 || (isExpanded && catItems.length > CATEGORY_PREVIEW_COUNT)) && (
+                    <button style={s.showMoreBtn} onClick={() => toggleExpanded(cat)}>
+                      {hiddenCount > 0 ? `Show all ${catItems.length} in ${cat}` : 'Show fewer'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -268,6 +310,19 @@ const s: Record<string, CSSProperties> = {
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+  },
+  catHeader: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '12px 16px', borderBottom: '1px solid #eee',
+  },
+  catName: { fontSize: 14, fontWeight: 800, color: '#1D3557', textTransform: 'uppercase', letterSpacing: 0.4 },
+  catBadge: {
+    fontSize: 12, fontWeight: 700, color: '#1D3557', background: '#1D355718',
+    borderRadius: 10, padding: '2px 9px',
+  },
+  showMoreBtn: {
+    width: '100%', padding: '11px 16px', background: '#f9f9fc', border: 'none',
+    borderTop: '1px solid #eee', color: '#1D3557', fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {

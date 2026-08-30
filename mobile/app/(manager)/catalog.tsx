@@ -478,8 +478,14 @@ function ManualTab() {
 
 // ─── Browse Tab ───────────────────────────────────────────────────────────────
 
+// A category with more than this many items collapses to a preview with a
+// "Show all" expander, so scrolling through the catalog isn't dominated by
+// whichever category happens to have the most entries.
+const CATEGORY_PREVIEW_COUNT = 5;
+
 function BrowseTab() {
   const [searchQ, setSearchQ] = useState('');
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -523,6 +529,14 @@ function BrowseTab() {
     return 'manual';
   };
 
+  function toggleExpanded(cat: string) {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
+
   return (
     <View style={s.flex}>
       <View style={s.searchBar}>
@@ -560,36 +574,61 @@ function BrowseTab() {
         <FadeSlideIn>
           <Text style={s.totalLabel}>{items.length} product{items.length !== 1 ? 's' : ''} in catalog</Text>
 
-          {grouped.map(([cat, catItems]) => (
-            <View key={cat}>
-              <View style={s.catHeader}>
-                <Text style={s.catName}>{cat}</Text>
-                <View style={s.catBadge}><Text style={s.catCount}>{catItems.length}</Text></View>
-              </View>
-              {catItems.map((item: any) => (
-                <View key={item.id} style={s.itemRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={s.itemMeta}>
-                      {sourceLabel(item.source, item.barcode)}
-                      {item.barcode && !item.barcode.startsWith('NOBARCODE_') ? `  ·  ${item.barcode}` : ''}
-                      {item.scanCount > 1 ? `  ·  scanned ${item.scanCount}×` : ''}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={s.delBtn}
-                    onPress={() => confirmDelete(item.id, item.name)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    disabled={deleteMut.isPending}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${item.name} from catalog`}
-                  >
-                    <Trash2Icon size={15} color="#EF4444" strokeWidth={2} />
-                  </TouchableOpacity>
+          {grouped.map(([cat, catItems]) => {
+            const isExpanded = expandedCats.has(cat);
+            const visibleItems = isExpanded ? catItems : catItems.slice(0, CATEGORY_PREVIEW_COUNT);
+            const hiddenCount = catItems.length - visibleItems.length;
+            return (
+              <View key={cat}>
+                <View style={s.catHeader}>
+                  <Text style={s.catName}>{cat}</Text>
+                  <View style={s.catBadge}><Text style={s.catCount}>{catItems.length}</Text></View>
                 </View>
-              ))}
-            </View>
-          ))}
+                {visibleItems.map((item: any) => (
+                  <View key={item.id} style={s.itemRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={s.itemMeta}>
+                        {sourceLabel(item.source, item.barcode)}
+                        {item.barcode && !item.barcode.startsWith('NOBARCODE_') ? `  ·  ${item.barcode}` : ''}
+                        {item.scanCount > 1 ? `  ·  scanned ${item.scanCount}×` : ''}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={s.delBtn}
+                      onPress={() => confirmDelete(item.id, item.name)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      disabled={deleteMut.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${item.name} from catalog`}
+                    >
+                      <Trash2Icon size={15} color="#EF4444" strokeWidth={2} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {hiddenCount > 0 && (
+                  <TouchableOpacity
+                    style={s.showMoreRow}
+                    onPress={() => toggleExpanded(cat)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show ${hiddenCount} more in ${cat}`}
+                  >
+                    <Text style={s.showMoreText}>Show all {catItems.length} in {cat}</Text>
+                  </TouchableOpacity>
+                )}
+                {isExpanded && catItems.length > CATEGORY_PREVIEW_COUNT && (
+                  <TouchableOpacity
+                    style={s.showMoreRow}
+                    onPress={() => toggleExpanded(cat)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Collapse ${cat}`}
+                  >
+                    <Text style={s.showMoreText}>Show fewer</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
         </FadeSlideIn>
         </ScrollView>
       )}
@@ -885,6 +924,8 @@ const s = StyleSheet.create({
   itemName:    { fontSize: 14, fontWeight: '600', color: COLORS.text },
   itemMeta:    { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   delBtn:      { paddingLeft: 12, paddingVertical: 4 },
+  showMoreRow: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, alignItems: 'center' },
+  showMoreText:{ fontSize: 13, fontWeight: '700', color: COLORS.managerPrimary },
 
   // Photo tab
   photoHint:     { fontSize: 13, color: COLORS.textMuted, lineHeight: 19, marginBottom: 18 },
