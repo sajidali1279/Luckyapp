@@ -534,13 +534,14 @@ model Label {
 // its own independent print status. priceText null = inherit Label's base
 // price. printedAt null = this store still needs to print it.
 model StoreLabel {
-  id        String    @id @default(uuid())
-  labelId   String
-  storeId   String
-  priceText String?
-  printedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(uuid())
+  labelId     String
+  storeId     String
+  priceText   String?
+  printedAt   DateTime?
+  everPrinted Boolean   @default(false) // set once, true forever — printedAt alone resets on every reprint-triggering edit, so this is the only way to tell "never printed" (new) apart from "was printed, now stale" (needs reprint)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)

@@ -9,6 +9,8 @@ import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
+import CoverageView from '../components/CoverageView';
+import PrintTray from '../components/PrintTray';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 
 interface Label {
@@ -42,7 +44,7 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 
 export default function Labels() {
   const qc = useQueryClient();
-  const [viewMode, setViewMode] = useState<'catalog' | 'store'>('catalog');
+  const [viewMode, setViewMode] = useState<'catalog' | 'store' | 'coverage'>('catalog');
   const [showModal, setShowModal] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
@@ -60,6 +62,7 @@ export default function Labels() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
 
   const nameQuery = formProductName.trim().toLowerCase();
@@ -131,6 +134,16 @@ export default function Labels() {
       }
       return { ...prev, [id]: 1 };
     });
+    setPriceOverrides(prev => {
+      if (prev[id] === undefined) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function setPrintPrice(id: string, price: string) {
+    setPriceOverrides(prev => ({ ...prev, [id]: price }));
   }
 
   function toggleSelectAll() {
@@ -152,8 +165,6 @@ export default function Labels() {
     setQuantities(prev => ({ ...prev, [id]: Math.max(1, Math.min(999, qty || 1)) }));
   }
 
-  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
-
   // Catalog printing is a plain reference print at the base/chain-wide
   // price — it never touches any store's StoreLabel or printedAt, matching
   // how admin-web printing always worked before per-store pricing existed
@@ -164,15 +175,23 @@ export default function Labels() {
     if (opened) {
       setSelectedIds(new Set());
       setQuantities({});
+      setPriceOverrides({});
     } else {
       toast.error('Print window was blocked — allow pop-ups and try again');
     }
   }
 
-  function handlePrintSelected() {
-    const entries: PrintableLabelEntry[] = labels
+  function buildCatalogPrintEntries(): PrintableLabelEntry[] {
+    return labels
       .filter(l => selectedIds.has(l.id))
-      .map(l => ({ label: l, quantity: quantities[l.id] ?? 1 }));
+      .map(l => ({
+        label: { ...l, priceText: priceOverrides[l.id] ?? l.priceText },
+        quantity: quantities[l.id] ?? 1,
+      }));
+  }
+
+  function handlePrintSelected() {
+    const entries = buildCatalogPrintEntries();
     if (entries.length === 0) return;
     if (entries.length > 5) {
       setPendingBulkPrint(entries);
@@ -405,16 +424,15 @@ export default function Labels() {
           <div>
             <h1 style={s.pageTitle}>🏷️ Labels</h1>
             <p style={s.pageSub}>
-              {viewMode === 'catalog' ? 'Chain-wide catalog and base prices.' : 'Per-store pricing, overrides, and printing.'}
+              {viewMode === 'catalog'
+                ? 'Chain-wide catalog and base prices.'
+                : viewMode === 'store'
+                ? 'Per-store pricing, overrides, and printing.'
+                : 'Which stores have each item — and which are missing it.'}
             </p>
           </div>
           {viewMode === 'catalog' && (
             <div style={{ display: 'flex', gap: 10 }}>
-              {selectedIds.size > 0 && (
-                <button style={s.printBtn} onClick={handlePrintSelected}>
-                  🖨️ Print Selected ({totalCopies})
-                </button>
-              )}
               <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
             </div>
           )}
@@ -435,12 +453,22 @@ export default function Labels() {
           >
             By Store
           </button>
+          <button
+            type="button"
+            style={{ ...s.viewToggleChip, ...(viewMode === 'coverage' ? s.viewToggleChipActive : {}) }}
+            onClick={() => setViewMode('coverage')}
+          >
+            Coverage
+          </button>
         </div>
 
         {viewMode === 'store' ? (
           <StoreLabelsPanel />
+        ) : viewMode === 'coverage' ? (
+          <CoverageView />
         ) : (
-          <>
+          <div style={s.catalogLayout}>
+          <div style={s.catalogMain}>
             {!isError && !isLoading && labels.length > 0 && (
               <div style={s.filterRow}>
                 <input
@@ -464,7 +492,7 @@ export default function Labels() {
             {isError ? (
               <ErrorState message="Failed to load labels." onRetry={refetch} />
             ) : isLoading ? (
-              <TableSkeleton columns={8} />
+              <TableSkeleton columns={7} />
             ) : labels.length === 0 ? (
               <div style={s.emptyBox}>
                 <div style={s.emptyIcon}>🏷️</div>
@@ -485,7 +513,7 @@ export default function Labels() {
                       <TableHead style={s.th}>
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
                       </TableHead>
-                      {['Product', 'Category', 'Base Price / Deal', 'Template', 'Qty', 'Updated', 'Actions'].map(h => (
+                      {['Product', 'Category', 'Base Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
                     </TableRow>
@@ -510,18 +538,6 @@ export default function Labels() {
                             {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
                           </TableCell>
                           <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
-                          <TableCell style={s.td}>
-                            {checked && (
-                              <input
-                                type="number"
-                                min={1}
-                                max={999}
-                                style={s.qtyInput}
-                                value={quantities[label.id] ?? 1}
-                                onChange={e => setQuantity(label.id, parseInt(e.target.value, 10))}
-                              />
-                            )}
-                          </TableCell>
                           <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                           <TableCell style={s.td}>
                             <div style={{ display: 'flex', gap: 6 }}>
@@ -537,7 +553,29 @@ export default function Labels() {
                 </Table>
               </div>
             )}
-          </>
+          </div>
+
+          {selectedIds.size > 0 && (
+            <PrintTray
+              items={labels
+                .filter(l => selectedIds.has(l.id))
+                .map(l => ({
+                  id: l.id,
+                  productName: l.productName,
+                  priceText: priceOverrides[l.id] ?? l.priceText,
+                  dealText: l.dealText,
+                  quantity: quantities[l.id] ?? 1,
+                }))}
+              editablePrice
+              onQuantityChange={setQuantity}
+              onPriceChange={setPrintPrice}
+              onRemove={toggleSelected}
+              onPrint={handlePrintSelected}
+              onClear={() => { setSelectedIds(new Set()); setQuantities({}); setPriceOverrides({}); }}
+              printLabelText="Print"
+            />
+          )}
+          </div>
         )}
       </div>
     </div>
@@ -555,14 +593,8 @@ const s: Record<string, CSSProperties> = {
     padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
-  printBtn: {
-    padding: '10px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
-    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  },
-  qtyInput: {
-    width: 52, padding: '6px 8px', borderRadius: 8, border: '1.5px solid #ddd',
-    fontSize: 14, textAlign: 'center' as const,
-  },
+  catalogLayout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
+  catalogMain: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   viewToggleRow: { display: 'flex', gap: 8 },
   viewToggleChip: {

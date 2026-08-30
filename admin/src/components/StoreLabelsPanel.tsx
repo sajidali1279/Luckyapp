@@ -7,6 +7,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from './TableSkeleton';
 import { TEXT_MUTED } from '../lib/theme';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
+import PrintTray from './PrintTray';
+import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge } from '../utils/labelStatus';
 
 interface StoreLabel {
   id: string;
@@ -20,12 +22,19 @@ interface StoreLabel {
   priceText: string;
   hasOverride: boolean;
   printedAt: string | null;
+  status: LabelPrintStatus;
+  createdAt: string;
   updatedAt: string;
 }
+
+// Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
+const UNCATEGORIZED = '__uncategorized__';
 
 export default function StoreLabelsPanel() {
   const qc = useQueryClient();
   const [storeId, setStoreId] = useState('');
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [editingPrice, setEditingPrice] = useState<StoreLabel | null>(null);
@@ -44,6 +53,26 @@ export default function StoreLabelsPanel() {
     enabled: !!storeId,
   });
   const items: StoreLabel[] = data?.data?.data || [];
+
+  const filteredItems = items.filter((item) => {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const matchesName = item.productName.toLowerCase().includes(q);
+      const matchesBarcode = !!item.barcode && item.barcode.toLowerCase().includes(q);
+      if (!matchesName && !matchesBarcode) return false;
+    }
+    if (categoryFilter === UNCATEGORIZED) {
+      if (item.category) return false;
+    } else if (categoryFilter && item.category !== categoryFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  const availableCategories = Array.from(
+    new Set(items.map((i) => i.category).filter((c): c is string => !!c))
+  ).sort();
+  const hasUncategorized = items.some((i) => !i.category);
 
   const addMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.addToStore(labelId, storeId),
@@ -76,6 +105,21 @@ export default function StoreLabelsPanel() {
     onError: () => toast.error('Failed to revert'),
   });
 
+  // Inline price edits made directly in the print tray — same override
+  // mutation "Set Price" uses, just triggered from the review-before-print
+  // panel instead of its own modal.
+  const trayPriceMutation = useMutation({
+    mutationFn: ({ item, price }: { item: StoreLabel; price: string }) =>
+      item.storeLabelId
+        ? labelsApi.updateStoreLabel(item.storeLabelId, price)
+        : labelsApi.addToStore(item.id, storeId, price),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      toast.success('Price updated for this store');
+    },
+    onError: () => toast.error('Failed to update price'),
+  });
+
   function toggleSelected(item: StoreLabel) {
     if (!item.storeLabelId) return;
     setSelectedIds(prev => {
@@ -98,7 +142,23 @@ export default function StoreLabelsPanel() {
     setQuantities(prev => ({ ...prev, [storeLabelId]: Math.max(1, Math.min(999, qty || 1)) }));
   }
 
-  const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
+  function removeFromSelection(storeLabelId: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(storeLabelId);
+      return next;
+    });
+    setQuantities(prev => {
+      const next = { ...prev };
+      delete next[storeLabelId];
+      return next;
+    });
+  }
+
+  function changeTrayPrice(storeLabelId: string, price: string) {
+    const item = items.find(i => i.storeLabelId === storeLabelId);
+    if (item) trayPriceMutation.mutate({ item, price });
+  }
 
   function buildPrintEntries(): PrintableLabelEntry[] {
     return items
@@ -181,23 +241,35 @@ export default function StoreLabelsPanel() {
       )}
 
       <div style={s.pickerRow}>
-        <select style={s.storeSelect} value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); }}>
+        <select style={s.storeSelect} value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); setSearch(''); setCategoryFilter(''); }}>
           <option value="">Choose a store…</option>
           {stores.map((st: any) => (
             <option key={st.id} value={st.id}>{st.name}</option>
           ))}
         </select>
-        {storeId && (
-          <button
-            style={{ ...s.printBtn, ...(selectedIds.size === 0 ? s.printBtnDim : {}) }}
-            onClick={handlePrintSelected}
-            disabled={selectedIds.size === 0}
-          >
-            🖨️ Print Selected ({totalCopies})
-          </button>
+        {storeId && items.length > 0 && (
+          <>
+            <input
+              style={s.searchInput}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by product name or barcode…"
+            />
+            {(availableCategories.length > 0 || hasUncategorized) && (
+              <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                <option value="">All Categories</option>
+                {availableCategories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+                {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
+              </select>
+            )}
+          </>
         )}
       </div>
 
+      <div style={s.layout}>
+      <div style={s.main}>
       {!storeId ? (
         <div style={s.emptyBox}>
           <div style={s.emptyIcon}>🏪</div>
@@ -205,25 +277,31 @@ export default function StoreLabelsPanel() {
           <div style={s.emptySub}>See every catalog item's price and print status at that store</div>
         </div>
       ) : isLoading ? (
-        <TableSkeleton columns={6} />
+        <TableSkeleton columns={5} />
       ) : items.length === 0 ? (
         <div style={s.emptyBox}>
           <div style={s.emptyIcon}>🏷️</div>
           <div style={s.emptyTitle}>The catalog is empty</div>
           <div style={s.emptySub}>Add a label from the Catalog tab first</div>
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div style={s.emptyBox}>
+          <div style={s.emptyIcon}>🔍</div>
+          <div style={s.emptyTitle}>No items match your filters</div>
+          <div style={s.emptySub}>Try clearing the search or category filter</div>
+        </div>
       ) : (
         <div style={s.tableWrap}>
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
-                {['', 'Product', 'Price', 'Qty', 'Status', 'Actions'].map(h => (
+                {['', 'Product', 'Price', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item, i) => (
+              {filteredItems.map((item, i) => (
                 <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                   <TableCell style={s.td}>
                     {item.storeLabelId && (
@@ -242,24 +320,13 @@ export default function StoreLabelsPanel() {
                     {item.hasOverride && <span style={s.overrideBadge}>override</span>}
                   </TableCell>
                   <TableCell style={s.td}>
-                    {item.storeLabelId && selectedIds.has(item.storeLabelId) && (
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        style={s.qtyInput}
-                        value={quantities[item.storeLabelId] ?? 1}
-                        onChange={e => setQuantity(item.storeLabelId!, parseInt(e.target.value, 10))}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell style={s.td}>
-                    {!item.storeLabelId ? (
-                      <span style={{ color: TEXT_MUTED }}>Not added</span>
-                    ) : item.printedAt ? (
-                      <span style={s.printedBadge}>✓ Printed</span>
-                    ) : (
-                      <span style={s.readyBadge}>Ready to Print</span>
+                    <span style={{ ...s.statusBadge, color: STATUS_COLOR[item.status], background: STATUS_BG[item.status] }}>
+                      {STATUS_LABEL[item.status]}
+                    </span>
+                    {item.status !== 'not_added' && item.status !== 'printed' && (
+                      <span style={s.ageText}>
+                        {formatAge(daysSince(item.status === 'new' ? item.createdAt : item.updatedAt))}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell style={s.td}>
@@ -282,6 +349,32 @@ export default function StoreLabelsPanel() {
           </Table>
         </div>
       )}
+      </div>
+
+      {selectedIds.size > 0 && (
+        <PrintTray
+          items={items
+            .filter(i => i.storeLabelId && selectedIds.has(i.storeLabelId))
+            .map(i => ({
+              id: i.storeLabelId!,
+              productName: i.productName,
+              priceText: i.priceText,
+              dealText: i.dealText,
+              quantity: quantities[i.storeLabelId!] ?? 1,
+              status: i.status as Exclude<LabelPrintStatus, 'not_added'>,
+              ageLabel: i.status !== 'printed' ? formatAge(daysSince(i.status === 'new' ? i.createdAt : i.updatedAt)) : undefined,
+              hasOverride: i.hasOverride,
+            }))}
+          editablePrice
+          onQuantityChange={setQuantity}
+          onPriceChange={changeTrayPrice}
+          onRemove={removeFromSelection}
+          onPrint={handlePrintSelected}
+          onClear={() => { setSelectedIds(new Set()); setQuantities({}); }}
+          printLabelText="Print"
+        />
+      )}
+      </div>
     </div>
   );
 }
@@ -293,11 +386,16 @@ const s: Record<string, CSSProperties> = {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',
     fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer', minWidth: 220,
   },
-  printBtn: {
-    padding: '10px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
-    color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  searchInput: {
+    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
+    padding: '9px 14px', fontSize: 14, outline: 'none',
   },
-  printBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
+  filterSelect: {
+    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
+    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+  },
+  layout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
+  main: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
@@ -315,12 +413,8 @@ const s: Record<string, CSSProperties> = {
     marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#b7791f',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
   },
-  printedBadge: { fontSize: 13, fontWeight: 600, color: '#0f5132' },
-  readyBadge: { fontSize: 13, fontWeight: 600, color: '#b7791f' },
-  qtyInput: {
-    width: 52, padding: '6px 8px', borderRadius: 8, border: '1.5px solid #ddd',
-    fontSize: 14, textAlign: 'center' as const,
-  },
+  statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },
+  ageText: { marginLeft: 8, fontSize: 12, color: TEXT_MUTED },
   addBtn: {
     background: '#eff6ff', color: '#1D3557', border: 'none',
     borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',

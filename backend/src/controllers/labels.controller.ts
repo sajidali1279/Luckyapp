@@ -19,6 +19,17 @@ async function canTouchStore(userId: string, userRole: Role, storeId: string): P
   return !!access;
 }
 
+type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
+
+// printedAt alone can't tell "never printed" apart from "was printed, then a
+// later edit reset it" — both look identical (null). everPrinted never
+// resets, so it's the only reliable way to split those two states apart.
+function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean } | null): PrintStatus {
+  if (!storeLabel) return 'not_added';
+  if (storeLabel.printedAt) return 'printed';
+  return storeLabel.everPrinted ? 'needs_reprint' : 'new';
+}
+
 const createLabelSchema = z.object({
   productName: z.string().min(1).max(40),
   priceText: z.string().min(1).max(7),
@@ -100,6 +111,8 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
       priceText: resolveEffectivePrice(label, storeLabel),
       hasOverride: !!storeLabel?.priceText,
       printedAt: storeLabel?.printedAt ?? null,
+      status: printStatus(storeLabel),
+      createdAt: (storeLabel?.createdAt ?? label.createdAt).toISOString(),
       updatedAt: (storeLabel?.updatedAt ?? label.updatedAt).toISOString(),
     };
   });
@@ -337,7 +350,7 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
 
   await prisma.storeLabel.updateMany({
     where: { id: { in: storeLabelIds } },
-    data: { printedAt: new Date() },
+    data: { printedAt: new Date(), everPrinted: true },
   });
 
   const storeId = rows[0]?.storeId ?? req.user!.storeIds?.[0] ?? null;
@@ -349,4 +362,96 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   });
 
   res.json({ success: true, data: { printedCount: storeLabelIds.length, totalCopies } });
+}
+
+// GET /labels/coverage — SuperAdmin+ only. Every catalog label against
+// every active store in one shot, for the cross-store coverage view. Fetches
+// the three tables independently and stitches them in memory instead of a
+// per-label query, since this is meant to render the whole catalog x store
+// grid at once (currently ~90 labels x ~12 stores — trivial either way, but
+// N+1 here would mean 90 round trips for no reason).
+export async function getLabelsCoverage(req: AuthRequest, res: Response) {
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    res.status(403).json({ success: false, error: 'Requires SuperAdmin access' });
+    return;
+  }
+
+  const [labels, stores, storeLabels] = await Promise.all([
+    prisma.label.findMany({ orderBy: { updatedAt: 'desc' } }),
+    prisma.store.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.storeLabel.findMany(),
+  ]);
+
+  const byLabel = new Map<string, typeof storeLabels>();
+  for (const sl of storeLabels) {
+    if (!byLabel.has(sl.labelId)) byLabel.set(sl.labelId, []);
+    byLabel.get(sl.labelId)!.push(sl);
+  }
+
+  const data = labels.map((label) => {
+    const rows = byLabel.get(label.id) ?? [];
+    const byStore = new Map(rows.map((r) => [r.storeId, r]));
+    const coverage = stores.map((store) => {
+      const sl = byStore.get(store.id) ?? null;
+      return {
+        storeId: store.id,
+        storeLabelId: sl?.id ?? null,
+        status: printStatus(sl),
+        priceText: sl ? resolveEffectivePrice(label, sl) : null,
+        hasOverride: !!sl?.priceText,
+      };
+    });
+    return {
+      id: label.id,
+      productName: label.productName,
+      category: label.category,
+      basePriceText: label.priceText,
+      dealText: label.dealText,
+      addedCount: coverage.filter((c) => c.status !== 'not_added').length,
+      coverage,
+    };
+  });
+
+  res.json({ success: true, data: { stores, labels: data } });
+}
+
+// POST /labels/:labelId/push-to-all — SuperAdmin+ only. Adds this label, at
+// its base price, to every active store that doesn't already have it —
+// closing the "add once, chase 12 stores individually" gap the coverage
+// view exists to surface. Stores that already have this label (in any
+// state) are left untouched, so this is safe to call repeatedly.
+export async function pushLabelToAllStores(req: AuthRequest, res: Response) {
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    res.status(403).json({ success: false, error: 'Requires SuperAdmin access' });
+    return;
+  }
+
+  const { labelId } = req.params;
+  const label = await prisma.label.findUnique({ where: { id: labelId } });
+  if (!label) {
+    res.status(404).json({ success: false, error: 'Label not found' });
+    return;
+  }
+
+  const [stores, existing] = await Promise.all([
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true } }),
+    prisma.storeLabel.findMany({ where: { labelId }, select: { storeId: true } }),
+  ]);
+  const existingIds = new Set(existing.map((e) => e.storeId));
+  const missing = stores.filter((s) => !existingIds.has(s.id));
+
+  if (missing.length > 0) {
+    await prisma.storeLabel.createMany({
+      data: missing.map((s) => ({ labelId, storeId: s.id, priceText: null })),
+    });
+  }
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'PUSH_LABEL_TO_ALL_STORES', entity: 'label', entityId: labelId,
+    details: { productName: label.productName, storesAdded: missing.length },
+    storeId: null,
+  });
+
+  res.json({ success: true, data: { added: missing.length } });
 }

@@ -110,6 +110,8 @@ export const labelsApi = {
     api.post('/store-labels', { labelId, storeId, priceText }),
   updateStoreLabel: (storeLabelId: string, priceText: string | null) =>
     api.patch(`/store-labels/${storeLabelId}`, { priceText }),
+  getCoverage: () => api.get('/labels/coverage'),
+  pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),
 };
 
 export const noticesApi = {
