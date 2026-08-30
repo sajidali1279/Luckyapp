@@ -328,12 +328,19 @@ export const scannedProductApi = {
 
 export const labelsApi = {
   getAll: () => api.get('/labels'),
-  getReadyToPrint: (storeId: string) => api.get(`/labels?storeId=${encodeURIComponent(storeId)}&unprinted=true`),
+  getAllWithMyStore: (myStoreId?: string) =>
+    api.get(`/labels${myStoreId ? `?myStoreId=${encodeURIComponent(myStoreId)}` : ''}`),
+  getStoreLabels: (storeId: string, unprinted?: boolean) =>
+    api.get(`/store-labels?storeId=${encodeURIComponent(storeId)}${unprinted ? '&unprinted=true' : ''}`),
+  addToStore: (labelId: string, storeId: string, priceText?: string | null) =>
+    api.post('/store-labels', { labelId, storeId, priceText }),
+  updateStoreLabel: (storeLabelId: string, priceText: string | null) =>
+    api.patch(`/store-labels/${storeLabelId}`, { priceText }),
   create: (data: { productName: string; priceText: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
-  print: (items: { labelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
+  print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
 };
 
