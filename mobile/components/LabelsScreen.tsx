@@ -799,6 +799,8 @@ export default function LabelsScreen() {
             data={filteredCatalog}
             keyExtractor={l => l.id}
             contentContainerStyle={s.list}
+            refreshing={isRefetching}
+            onRefresh={refetch}
             renderItem={({ item }) => renderCatalogCard(item)}
           />
         )
