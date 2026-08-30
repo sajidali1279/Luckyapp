@@ -364,6 +364,51 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { printedCount: storeLabelIds.length, totalCopies } });
 }
 
+// GET /labels/lookup?storeId=X&barcode=Y — mobile Price Check. Resolves a
+// single scanned barcode straight to this store's price, without pulling
+// the whole catalog down for a one-item lookup.
+export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response) {
+  const { storeId, barcode } = req.query;
+  if (typeof storeId !== 'string' || !storeId || typeof barcode !== 'string' || !barcode) {
+    res.status(400).json({ success: false, error: 'storeId and barcode are required' });
+    return;
+  }
+  if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
+    res.status(403).json({ success: false, error: "You don't have access to that store" });
+    return;
+  }
+
+  const label = await prisma.label.findFirst({
+    where: { barcode },
+    include: { storeLabels: { where: { storeId } } },
+  });
+
+  if (!label) {
+    res.json({ success: true, data: { found: false, barcode } });
+    return;
+  }
+
+  const storeLabel = label.storeLabels[0] ?? null;
+  res.json({
+    success: true,
+    data: {
+      found: true,
+      id: label.id,
+      productName: label.productName,
+      barcode: label.barcode,
+      category: label.category,
+      template: label.template,
+      basePriceText: label.priceText,
+      dealText: label.dealText,
+      storeLabelId: storeLabel?.id ?? null,
+      priceText: storeLabel ? resolveEffectivePrice(label, storeLabel) : null,
+      hasOverride: !!storeLabel?.priceText,
+      printedAt: storeLabel?.printedAt ?? null,
+      status: printStatus(storeLabel),
+    },
+  });
+}
+
 // GET /labels/coverage — SuperAdmin+ only. Every catalog label against
 // every active store in one shot, for the cross-store coverage view. Fetches
 // the three tables independently and stitches them in memory instead of a
@@ -404,6 +449,7 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
     return {
       id: label.id,
       productName: label.productName,
+      barcode: label.barcode,
       category: label.category,
       basePriceText: label.priceText,
       dealText: label.dealText,

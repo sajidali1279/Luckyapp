@@ -13,7 +13,7 @@ const UNCATEGORIZED = '__uncategorized__';
 interface CoverageStore { id: string; name: string; }
 interface CoverageEntry { storeId: string; storeLabelId: string | null; status: LabelPrintStatus; priceText: string | null; hasOverride: boolean; }
 interface CoverageLabel {
-  id: string; productName: string; category: string | null; basePriceText: string; dealText: string | null;
+  id: string; productName: string; barcode: string | null; category: string | null; basePriceText: string; dealText: string | null;
   addedCount: number; coverage: CoverageEntry[];
 }
 
@@ -36,7 +36,12 @@ export default function CoverageView() {
   const totalStores = stores.length;
 
   const filtered = useMemo(() => labels.filter(l => {
-    if (search.trim() && !l.productName.toLowerCase().includes(search.trim().toLowerCase())) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const matchesName = l.productName.toLowerCase().includes(q);
+      const matchesBarcode = !!l.barcode && l.barcode.toLowerCase().includes(q);
+      if (!matchesName && !matchesBarcode) return false;
+    }
     if (categoryFilter === UNCATEGORIZED) {
       if (l.category) return false;
     } else if (categoryFilter && l.category !== categoryFilter) {
@@ -91,7 +96,7 @@ export default function CoverageView() {
             style={s.searchInput}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by product name…"
+            placeholder="Search by product name or barcode…"
           />
           {(availableCategories.length > 0 || hasUncategorized) && (
             <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>

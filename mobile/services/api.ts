@@ -342,6 +342,8 @@ export const labelsApi = {
     api.patch(`/labels/${labelId}`, data),
   print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+  lookupByBarcode: (storeId: string, barcode: string) =>
+    api.get(`/labels/lookup?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(barcode)}`),
 };
 
 export const employeeRequestApi = {

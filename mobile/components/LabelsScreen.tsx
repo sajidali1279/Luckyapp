@@ -9,8 +9,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import { COLORS } from '../constants';
-import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon } from './Icons';
+import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon, DollarSignIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
+import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
 import { useCurrentStoreId } from '../utils/geo';
@@ -67,6 +68,7 @@ export default function LabelsScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showScanner, setShowScanner] = useState(false);
+  const [showPriceCheck, setShowPriceCheck] = useState(false);
   const [manualStoreId, setManualStoreId] = useState<string | undefined>(undefined);
   const [addSheetItem, setAddSheetItem] = useState<Label | null>(null);
   const [addSheetPriceMode, setAddSheetPriceMode] = useState<'base' | 'custom'>('base');
@@ -443,6 +445,14 @@ export default function LabelsScreen() {
         onResult={(result) => { setShowScanner(false); openCreateForm(result); }}
       />
 
+      {!!storeId && (
+        <PriceCheckModal
+          visible={showPriceCheck}
+          onClose={() => setShowPriceCheck(false)}
+          storeId={storeId}
+        />
+      )}
+
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={closeForm}>
         <View style={s.formOverlay}>
           <KeyboardAvoidingView
@@ -649,8 +659,19 @@ export default function LabelsScreen() {
         </View>
       </Modal>
 
-      <View style={s.header}>
+      <View style={[s.header, s.headerRow]}>
         <Text style={s.headerTitle}>Labels</Text>
+        {!!storeId && (
+          <TouchableOpacity
+            style={[s.priceCheckBtn, { borderColor: accentColor }]}
+            onPress={() => setShowPriceCheck(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Check a price by scanning a barcode"
+          >
+            <DollarSignIcon size={16} color={accentColor} strokeWidth={2.25} />
+            <Text style={[s.priceCheckBtnText, { color: accentColor }]}>Price Check</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {!storeId && (
@@ -955,7 +976,13 @@ const s = StyleSheet.create({
   fill: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
+  priceCheckBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  priceCheckBtnText: { fontSize: 13, fontWeight: '700' },
   viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 10 },
   viewToggleChip: {
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
