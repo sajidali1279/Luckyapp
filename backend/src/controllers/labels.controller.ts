@@ -110,6 +110,7 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
       storeLabelId: storeLabel?.id ?? null,
       priceText: resolveEffectivePrice(label, storeLabel),
       hasOverride: !!storeLabel?.priceText,
+      overrideExpiresAt: storeLabel?.overrideExpiresAt?.toISOString() ?? null,
       printedAt: storeLabel?.printedAt ?? null,
       status: printStatus(storeLabel),
       createdAt: (storeLabel?.createdAt ?? label.createdAt).toISOString(),
@@ -246,6 +247,7 @@ const upsertStoreLabelSchema = z.object({
   labelId: z.string().uuid(),
   storeId: z.string().uuid(),
   priceText: z.string().min(1).max(7).optional().nullable(),
+  expiresAt: z.string().min(1).optional().nullable(),
 });
 
 // POST /store-labels — "Add from Catalog." Upserts a store's own copy of a
@@ -258,7 +260,7 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: parsed.error.flatten() });
     return;
   }
-  const { labelId, storeId, priceText } = parsed.data;
+  const { labelId, storeId, priceText, expiresAt } = parsed.data;
 
   if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
@@ -271,17 +273,28 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
     return;
   }
 
+  if (expiresAt) {
+    const parsedDate = new Date(expiresAt);
+    if (isNaN(parsedDate.getTime())) {
+      res.status(400).json({ success: false, error: 'Invalid expiresAt date' });
+      return;
+    }
+  }
+
   const existing = await prisma.storeLabel.findUnique({
     where: { labelId_storeId: { labelId, storeId } },
   });
 
   const nextPriceText = priceText ?? null;
+  // An expiry only means anything alongside an actual override — never
+  // persisted against the base price.
+  const nextExpiresAt = nextPriceText && expiresAt ? new Date(expiresAt) : null;
   const priceIsChanging = !existing || resolveEffectivePrice(label, existing) !== resolveEffectivePrice(label, { priceText: nextPriceText });
 
   const storeLabel = await prisma.storeLabel.upsert({
     where: { labelId_storeId: { labelId, storeId } },
-    create: { labelId, storeId, priceText: nextPriceText },
-    update: priceIsChanging ? { priceText: nextPriceText, printedAt: null } : {},
+    create: { labelId, storeId, priceText: nextPriceText, overrideExpiresAt: nextExpiresAt },
+    update: priceIsChanging ? { priceText: nextPriceText, overrideExpiresAt: nextExpiresAt, printedAt: null } : { overrideExpiresAt: nextExpiresAt },
   });
 
   res.status(existing ? 200 : 201).json({ success: true, data: storeLabel });
@@ -289,6 +302,7 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
 
 const updateStoreLabelSchema = z.object({
   priceText: z.string().min(1).max(7).optional().nullable(),
+  expiresAt: z.string().min(1).optional().nullable(),
 });
 
 // PATCH /store-labels/:storeLabelId — edit or clear (pass null) one store's
@@ -311,9 +325,20 @@ export async function updateStoreLabel(req: AuthRequest, res: Response) {
     return;
   }
 
+  if (parsed.data.expiresAt) {
+    const parsedDate = new Date(parsed.data.expiresAt);
+    if (isNaN(parsedDate.getTime())) {
+      res.status(400).json({ success: false, error: 'Invalid expiresAt date' });
+      return;
+    }
+  }
+
+  const nextPriceText = parsed.data.priceText ?? null;
+  const nextExpiresAt = nextPriceText && parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null;
+
   const storeLabel = await prisma.storeLabel.update({
     where: { id: storeLabelId },
-    data: { priceText: parsed.data.priceText ?? null, printedAt: null },
+    data: { priceText: nextPriceText, overrideExpiresAt: nextExpiresAt, printedAt: null },
   });
 
   res.json({ success: true, data: storeLabel });

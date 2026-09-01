@@ -106,10 +106,10 @@ export const labelsApi = {
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
   getStoreLabels: (storeId: string, unprinted?: boolean) =>
     api.get(`/store-labels?storeId=${encodeURIComponent(storeId)}${unprinted ? '&unprinted=true' : ''}`),
-  addToStore: (labelId: string, storeId: string, priceText?: string | null) =>
-    api.post('/store-labels', { labelId, storeId, priceText }),
-  updateStoreLabel: (storeLabelId: string, priceText: string | null) =>
-    api.patch(`/store-labels/${storeLabelId}`, { priceText }),
+  addToStore: (labelId: string, storeId: string, priceText?: string | null, expiresAt?: string | null) =>
+    api.post('/store-labels', { labelId, storeId, priceText, expiresAt }),
+  updateStoreLabel: (storeLabelId: string, priceText: string | null, expiresAt?: string | null) =>
+    api.patch(`/store-labels/${storeLabelId}`, { priceText, expiresAt }),
   getCoverage: () => api.get('/labels/coverage'),
   pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),
 };

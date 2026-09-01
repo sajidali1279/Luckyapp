@@ -21,6 +21,7 @@ interface StoreLabel {
   dealText: string | null;
   priceText: string;
   hasOverride: boolean;
+  overrideExpiresAt: string | null;
   printedAt: string | null;
   status: LabelPrintStatus;
   createdAt: string;
@@ -39,6 +40,7 @@ export default function StoreLabelsPanel() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [editingPrice, setEditingPrice] = useState<StoreLabel | null>(null);
   const [priceDraft, setPriceDraft] = useState('');
+  const [expiryDraft, setExpiryDraft] = useState('');
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
 
   const { data: storesData } = useQuery({
@@ -84,14 +86,19 @@ export default function StoreLabelsPanel() {
   });
 
   const priceMutation = useMutation({
-    mutationFn: () =>
-      editingPrice!.storeLabelId
-        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, priceDraft.trim())
-        : labelsApi.addToStore(editingPrice!.id, storeId, priceDraft.trim()),
+    mutationFn: () => {
+      // A date picked as "ends Sep 8" means the sale runs through the end of
+      // that day, not that it lapses at midnight going into it.
+      const expiresAtIso = expiryDraft ? new Date(`${expiryDraft}T23:59:59`).toISOString() : null;
+      return editingPrice!.storeLabelId
+        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, priceDraft.trim(), expiresAtIso)
+        : labelsApi.addToStore(editingPrice!.id, storeId, priceDraft.trim(), expiresAtIso);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       toast.success('Price updated for this store');
       setEditingPrice(null);
+      setExpiryDraft('');
     },
     onError: () => toast.error('Failed to update price'),
   });
@@ -232,7 +239,7 @@ export default function StoreLabelsPanel() {
       />
 
       {editingPrice && (
-        <div style={m.overlay} onClick={() => setEditingPrice(null)}>
+        <div style={m.overlay} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }}>
           <div style={m.modal} onClick={e => e.stopPropagation()}>
             <h3 style={m.title}>Price at {stores.find(st => st.id === storeId)?.name}</h3>
             <p style={m.sub}>{editingPrice.productName} — base price ${editingPrice.basePriceText}</p>
@@ -246,8 +253,16 @@ export default function StoreLabelsPanel() {
                 autoFocus
               />
             </div>
+            <div style={m.expiryLabel}>Ends on <span style={m.expiryLabelSub}>(optional — reverts to base price automatically, no expiry = stays until changed)</span></div>
+            <input
+              type="date"
+              style={m.expiryInput}
+              value={expiryDraft}
+              onChange={e => setExpiryDraft(e.target.value)}
+              min={new Date().toISOString().slice(0, 10)}
+            />
             <div style={m.actions}>
-              <button style={m.cancelBtn} onClick={() => setEditingPrice(null)}>Cancel</button>
+              <button style={m.cancelBtn} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }}>Cancel</button>
               <button
                 style={{ ...m.saveBtn, ...(!priceDraft.trim() ? m.saveBtnDim : {}) }}
                 disabled={!priceDraft.trim() || priceMutation.isPending}
@@ -341,6 +356,11 @@ export default function StoreLabelsPanel() {
                   <TableCell style={s.td}>
                     ${item.priceText}
                     {item.hasOverride && <span style={s.overrideBadge}>override</span>}
+                    {item.overrideExpiresAt && (
+                      <span style={s.expiryBadge}>
+                        ends {new Date(item.overrideExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell style={s.td}>
                     <span style={{ ...s.statusBadge, color: STATUS_COLOR[item.status], background: STATUS_BG[item.status] }}>
@@ -357,7 +377,7 @@ export default function StoreLabelsPanel() {
                       {!item.storeLabelId ? (
                         <button style={s.addBtn} onClick={() => addMutation.mutate(item.id)}>Add at ${item.basePriceText}</button>
                       ) : (
-                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? item.priceText : ''); }}>
+                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? item.priceText : ''); setExpiryDraft(item.overrideExpiresAt ? item.overrideExpiresAt.slice(0, 10) : ''); }}>
                           Set Price
                         </button>
                       )}
@@ -436,6 +456,10 @@ const s: Record<string, CSSProperties> = {
     marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#b7791f',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
   },
+  expiryBadge: {
+    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#7c3aed',
+    background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px',
+  },
   statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },
   ageText: { marginLeft: 8, fontSize: 12, color: TEXT_MUTED },
   addBtn: {
@@ -480,6 +504,12 @@ const m: Record<string, CSSProperties> = {
     border: '1.5px solid #ddd', borderRadius: 10, paddingLeft: 26,
     padding: '10px 14px 10px 26px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
+  },
+  expiryLabel: { fontSize: 12.5, fontWeight: 700, color: '#333', marginTop: 14, marginBottom: 6 },
+  expiryLabelSub: { fontWeight: 400, color: TEXT_MUTED },
+  expiryInput: {
+    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',
+    fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const,
   },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 },
   cancelBtn: {
