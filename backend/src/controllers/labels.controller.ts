@@ -453,6 +453,7 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
       category: label.category,
       basePriceText: label.priceText,
       dealText: label.dealText,
+      template: label.template,
       addedCount: coverage.filter((c) => c.status !== 'not_added').length,
       coverage,
     };

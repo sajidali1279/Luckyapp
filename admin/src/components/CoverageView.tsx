@@ -7,14 +7,16 @@ import TableSkeleton from './TableSkeleton';
 import ErrorState from './ErrorState';
 import { TEXT_MUTED } from '../lib/theme';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../utils/labelStatus';
+import BulkPrintWizard, { BulkPrintStoreGroup } from './BulkPrintWizard';
 
 const UNCATEGORIZED = '__uncategorized__';
+const PRINTABLE_STATUSES: LabelPrintStatus[] = ['new', 'needs_reprint'];
 
 interface CoverageStore { id: string; name: string; }
 interface CoverageEntry { storeId: string; storeLabelId: string | null; status: LabelPrintStatus; priceText: string | null; hasOverride: boolean; }
 interface CoverageLabel {
   id: string; productName: string; barcode: string | null; category: string | null; basePriceText: string; dealText: string | null;
-  addedCount: number; coverage: CoverageEntry[];
+  template: string; addedCount: number; coverage: CoverageEntry[];
 }
 
 // Cross-store view: one row per catalog item, showing how many of the chain's
@@ -26,6 +28,8 @@ export default function CoverageView() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPrintQueue, setBulkPrintQueue] = useState<BulkPrintStoreGroup[] | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['labels-coverage'],
@@ -52,6 +56,17 @@ export default function CoverageView() {
 
   const availableCategories = Array.from(new Set(labels.map(l => l.category).filter((c): c is string => !!c))).sort();
   const hasUncategorized = labels.some(l => !l.category);
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every(l => selectedIds.has(l.id));
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filtered.forEach(l => next.delete(l.id));
+      else filtered.forEach(l => next.add(l.id));
+      return next;
+    });
+  }
 
   function invalidateAll() {
     qc.invalidateQueries({ queryKey: ['labels-coverage'] });
@@ -85,11 +100,50 @@ export default function CoverageView() {
     });
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  // Only stores where the selected item's status is 'new' or 'needs_reprint'
+  // go into the queue — a store that's already printed and up to date at the
+  // current price gets skipped automatically, not reprinted for no reason.
+  function startBulkPrint() {
+    const groups = new Map<string, BulkPrintStoreGroup>();
+    for (const label of labels) {
+      if (!selectedIds.has(label.id)) continue;
+      for (const c of label.coverage) {
+        if (!c.storeLabelId || !PRINTABLE_STATUSES.includes(c.status)) continue;
+        const store = stores.find(st => st.id === c.storeId);
+        if (!store) continue;
+        if (!groups.has(store.id)) groups.set(store.id, { storeId: store.id, storeName: store.name, items: [] });
+        groups.get(store.id)!.items.push({
+          storeLabelId: c.storeLabelId,
+          entry: {
+            label: { id: label.id, productName: label.productName, priceText: c.priceText ?? label.basePriceText, dealText: label.dealText, barcode: label.barcode, template: label.template },
+            quantity: 1,
+          },
+        });
+      }
+    }
+    const queue = [...groups.values()];
+    if (queue.length === 0) {
+      toast('Nothing to print — every selected item is already up to date everywhere', { icon: 'ℹ️' });
+      return;
+    }
+    setBulkPrintQueue(queue);
+  }
+
   if (isError) return <ErrorState message="Failed to load coverage." onRetry={refetch} />;
-  if (isLoading) return <TableSkeleton columns={5} />;
+  if (isLoading) return <TableSkeleton columns={6} />;
 
   return (
     <div style={s.wrap}>
+      {bulkPrintQueue && <BulkPrintWizard queue={bulkPrintQueue} onClose={() => { setBulkPrintQueue(null); setSelectedIds(new Set()); }} />}
+
       {labels.length > 0 && (
         <div style={s.filterRow}>
           <input
@@ -104,6 +158,11 @@ export default function CoverageView() {
               {availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
               {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
             </select>
+          )}
+          {selectedIds.size > 0 && (
+            <button style={s.bulkPrintBtn} onClick={startBulkPrint}>
+              🖨️ Print for All Stores ({selectedIds.size} item{selectedIds.size === 1 ? '' : 's'})
+            </button>
           )}
         </div>
       )}
@@ -124,6 +183,9 @@ export default function CoverageView() {
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
+                <TableHead style={s.th}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                </TableHead>
                 {['Product', 'Category', 'Base Price', 'Coverage', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
                 ))}
@@ -138,6 +200,9 @@ export default function CoverageView() {
                 return (
                   <Fragment key={label.id}>
                     <TableRow style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                      <TableCell style={s.td}>
+                        <input type="checkbox" checked={selectedIds.has(label.id)} onChange={() => toggleSelected(label.id)} />
+                      </TableCell>
                       <TableCell style={s.td}>
                         <button style={s.expandBtn} onClick={() => toggleExpanded(label.id)} aria-label={isExpanded ? 'Collapse' : 'Expand'}>
                           {isExpanded ? '▾' : '▸'}
@@ -168,7 +233,7 @@ export default function CoverageView() {
                     </TableRow>
                     {isExpanded && (
                       <TableRow>
-                        <TableCell style={s.expandedCell} colSpan={5}>
+                        <TableCell style={s.expandedCell} colSpan={6}>
                           <div style={s.chipRow}>
                             {label.coverage.map(c => {
                               const store = stores.find(st => st.id === c.storeId);
@@ -215,6 +280,10 @@ const s: Record<string, CSSProperties> = {
   filterSelect: {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
     fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+  },
+  bulkPrintBtn: {
+    background: '#0f5132', color: '#fff', border: 'none',
+    borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
   },
 
   tableWrap: {

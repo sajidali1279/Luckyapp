@@ -142,6 +142,26 @@ export default function StoreLabelsPanel() {
     setQuantities(prev => ({ ...prev, [storeLabelId]: Math.max(1, Math.min(999, qty || 1)) }));
   }
 
+  // "Not added" rows have no storeLabelId and no checkbox at all — select-all
+  // only ever targets the rows that are actually selectable.
+  const selectableFilteredItems = filteredItems.filter((i): i is StoreLabel & { storeLabelId: string } => !!i.storeLabelId);
+  const allFilteredSelected = selectableFilteredItems.length > 0 && selectableFilteredItems.every(i => selectedIds.has(i.storeLabelId));
+
+  function toggleSelectAll() {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) selectableFilteredItems.forEach(i => next.delete(i.storeLabelId));
+      else selectableFilteredItems.forEach(i => next.add(i.storeLabelId));
+      return next;
+    });
+    setQuantities(prev => {
+      const next = { ...prev };
+      if (allFilteredSelected) selectableFilteredItems.forEach(i => { delete next[i.storeLabelId]; });
+      else selectableFilteredItems.forEach(i => { if (!(i.storeLabelId in next)) next[i.storeLabelId] = 1; });
+      return next;
+    });
+  }
+
   function removeFromSelection(storeLabelId: string) {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -295,7 +315,10 @@ export default function StoreLabelsPanel() {
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
-                {['', 'Product', 'Price', 'Status', 'Actions'].map(h => (
+                <TableHead style={s.th}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                </TableHead>
+                {['Product', 'Price', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
                 ))}
               </TableRow>
