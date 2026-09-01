@@ -5,6 +5,7 @@ import { employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -364,7 +365,7 @@ function MyRequestsTab() {
                     {req.note && ` · "${req.note}"`}
                   </div>
                 </div>
-                <span style={{ color: '#94A3B8', fontSize: 18 }}>{isOpen ? '▲' : '▼'}</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 18 }}>{isOpen ? '▲' : '▼'}</span>
               </div>
 
               {isOpen && (
@@ -403,7 +404,7 @@ function MyRequestsTab() {
                     );
                   })}
                   {req.reviewedBy && (
-                    <div style={{ fontSize: 12, color: '#94A3B8', paddingTop: 4 }}>Reviewed by {req.reviewedBy.name}</div>
+                    <div style={{ fontSize: 12, color: TEXT_MUTED, paddingTop: 4 }}>Reviewed by {req.reviewedBy.name}</div>
                   )}
                 </div>
               )}
@@ -434,21 +435,21 @@ const s: Record<string, React.CSSProperties> = {
   section:    { marginBottom: 20 },
 
   label:      { fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 },
-  optional:   { fontSize: 12, fontWeight: 500, color: '#5a6472' },
+  optional:   { fontSize: 12, fontWeight: 500, color: TEXT_MUTED },
 
   typeRow:    { display: 'flex', gap: 10 },
   typeBtn:    { flex: 1, padding: '12px 10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 14, fontWeight: 600, color: '#64748B', cursor: 'pointer', transition: 'all 0.15s' },
   typeBtnActive: { background: '#EFF6FF', borderColor: '#2563EB', color: '#1D4ED8' },
-  typeHint:   { fontSize: 12, color: '#94A3B8', marginTop: 8 },
+  typeHint:   { fontSize: 12, color: TEXT_MUTED, marginTop: 8 },
 
   input:      { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
   searchInput:{ width: '100%', padding: '12px 80px 12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', fontSize: 15, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
   addInlineBtn:{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', padding: '6px 14px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  searchHint: { fontSize: 12, color: '#94A3B8', marginTop: 6 },
+  searchHint: { fontSize: 12, color: TEXT_MUTED, marginTop: 6 },
 
   sugg:       { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 10px 10px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 240, overflowY: 'auto' },
   suggRow:    { padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F8FAFC' },
-  suggCat:    { fontSize: 12, color: '#94A3B8', padding: '2px 8px', background: '#F1F5F9', borderRadius: 8 },
+  suggCat:    { fontSize: 12, color: TEXT_MUTED, padding: '2px 8px', background: '#F1F5F9', borderRadius: 8 },
 
   cartItem:   { background: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0', padding: '12px 14px' },
   cartItemTop:{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -461,7 +462,7 @@ const s: Record<string, React.CSSProperties> = {
   removeBtn:  { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 4 },
 
   submitBtn:  { width: '100%', padding: '14px 0', borderRadius: 12, background: 'linear-gradient(135deg, #1D3557 0%, #2563EB 100%)', color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.15s' },
-  emptyHint:  { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 10 },
+  emptyHint:  { fontSize: 13, color: TEXT_MUTED, textAlign: 'center', marginTop: 10 },
 
   statusPill: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, marginLeft: 8, display: 'inline-block' },
 
@@ -473,6 +474,6 @@ const s: Record<string, React.CSSProperties> = {
   rejReason:{ fontSize: 12, color: '#DC2626', marginTop: 6, background: '#FEF2F2', padding: '4px 8px', borderRadius: 6 },
 
   refreshBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#64748B', background: '#fff', cursor: 'pointer' },
-  loading:    { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
-  empty:      { padding: '32px 0', textAlign: 'center', color: '#94A3B8', fontSize: 14, lineHeight: 1.8 },
+  loading:    { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
+  empty:      { padding: '32px 0', textAlign: 'center', color: TEXT_MUTED, fontSize: 14, lineHeight: 1.8 },
 };

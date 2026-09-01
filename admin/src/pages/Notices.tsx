@@ -6,14 +6,15 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function oneWeekOutStr() { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
 function noticeStatus(notice: any): { label: string; color: string; bg: string } {
-  if (!notice.isActive) return { label: 'Deactivated', color: '#6c757d', bg: '#f1f3f5' };
-  if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: '#6c757d', bg: '#f1f3f5' };
+  if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#f1f3f5' };
+  if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: TEXT_MUTED, bg: '#f1f3f5' };
   return { label: 'Active', color: '#16a34a', bg: '#f0fdf4' };
 }
 
@@ -218,7 +219,7 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#5a6472', marginTop: 4, fontSize: 15 },
+  sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
@@ -241,8 +242,8 @@ const s: Record<string, React.CSSProperties> = {
   tagStatus: { display: 'inline-block', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 },
   tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagDate: { display: 'inline-block', background: '#f8f9fa', color: '#5a6472', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
+  tagDate: { display: 'inline-block', background: '#f8f9fa', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
   deactivateBtn: { background: '#fffbeb', color: '#b45309', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fde68a', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
-  empty: { color: '#5a6472', textAlign: 'center', padding: 60, fontSize: 14 },
+  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 };

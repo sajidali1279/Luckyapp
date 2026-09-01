@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 export default function Banners() {
   const qc = useQueryClient();
@@ -168,7 +169,7 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#5a6472', marginTop: 4, fontSize: 15 },
+  sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
@@ -188,10 +189,10 @@ const s: Record<string, React.CSSProperties> = {
   img: { width: 220, height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' },
-  cardDate: { color: '#5a6472', fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
+  cardDate: { color: TEXT_MUTED, fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
   tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagLink: { display: 'inline-block', background: '#f0fdf4', color: '#16a34a', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
-  empty: { color: '#5a6472', textAlign: 'center', padding: 60, fontSize: 14 },
+  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 };

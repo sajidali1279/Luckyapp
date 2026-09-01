@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -299,7 +300,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
             />
           )}
           {filteredQuickItems.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#94A3B8', padding: '8px 0' }}>No matches.</div>
+            <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '8px 0' }}>No matches.</div>
           ) : (
             <div style={p.quickGridScroll}>
               <div style={p.quickGrid}>
@@ -324,7 +325,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       {canEdit && quickItems.length === 0 && (
         <div style={p.section}>
           <div style={p.sectionLabel}>Quick Add</div>
-          <div style={{ fontSize: 13, color: '#94A3B8', padding: '12px 0' }}>
+          <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '12px 0' }}>
             Quick Add tiles appear here after items have been ordered. Start adding items manually to build your history.
           </div>
         </div>
@@ -360,7 +361,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                   >
                     ✓ Accept All
                   </button>
-                  <span style={{ color: '#94A3B8', marginLeft: 8, fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
+                  <span style={{ color: TEXT_MUTED, marginLeft: 8, fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
                 </div>
 
                 {isOpen && (
@@ -412,7 +413,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       )}
 
       {!canEdit && pending.length === 0 && (
-        <div style={{ padding: '20px 16px', color: '#94A3B8', fontSize: 13, textAlign: 'center' }}>
+        <div style={{ padding: '20px 16px', color: TEXT_MUTED, fontSize: 13, textAlign: 'center' }}>
           {list.status === 'CLOSED' ? 'This list is closed.' : 'No pending requests.'}
         </div>
       )}
@@ -460,7 +461,7 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
       <div style={p.section}>
         <div style={p.sectionLabel}>↺ Restore Items</div>
         {restorableItems.length === 0 ? (
-          <div style={{ fontSize: 13, color: '#94A3B8', padding: '4px 0' }}>
+          <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '4px 0' }}>
             All items on this list were received - nothing to restore.
           </div>
         ) : (
@@ -644,7 +645,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
             <span style={{ color: '#D97706', fontWeight: 600 }}>{pending} needed</span>
             {ordered  > 0 && <span style={{ color: '#059669', fontWeight: 600 }}>{ordered} ordered</span>}
             {received > 0 && <span style={{ color: '#7C3AED', fontWeight: 600 }}>{received} received</span>}
-            <span style={{ color: '#94A3B8' }}>{visibleItems.length} total</span>
+            <span style={{ color: TEXT_MUTED }}>{visibleItems.length} total</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1221,8 +1222,8 @@ const s: Record<string, React.CSSProperties> = {
   missingChips:       { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #F59E0B', color: '#B45309', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
 
-  loading: { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
-  empty:   { padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 14 },
+  loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
+  empty:   { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
 
   // Lists grid
   listsGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
@@ -1230,7 +1231,7 @@ const s: Record<string, React.CSSProperties> = {
   listCardTop:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   listCardName: { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
   listCardStore:{ fontSize: 14, color: '#64748B', marginBottom: 8 },
-  listCardDate: { fontSize: 13, color: '#94A3B8' },
+  listCardDate: { fontSize: 13, color: TEXT_MUTED },
   listCardStats:{ display: 'flex', gap: 12, fontSize: 14, flexWrap: 'wrap' },
   statusPill:   { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 },
 
@@ -1251,7 +1252,7 @@ const s: Record<string, React.CSSProperties> = {
   instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
   instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   instructionsText:    { fontSize: 14, color: '#1E293B', lineHeight: 1.5 },
-  instructionsEmpty:   { fontSize: 14, color: '#94A3B8', fontStyle: 'italic' as const },
+  instructionsEmpty:   { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' as const },
   instructionsTextarea:{ width: '100%', minHeight: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' as const },
   openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#059669', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
@@ -1262,11 +1263,11 @@ const s: Record<string, React.CSSProperties> = {
   addCol:     { position: 'sticky' as const, top: 20 },
 
   // Item list
-  catHeader: { fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, paddingLeft: 4 },
+  catHeader: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, paddingLeft: 4 },
   itemList:  { display: 'flex', flexDirection: 'column', gap: 4 },
   itemRow:   { background: '#fff', borderRadius: 8, padding: '12px 16px', border: '1px solid #E2E8F0' },
   itemRowMain: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
-  itemRowSub:  { display: 'flex', gap: 10, marginTop: 4, paddingLeft: 4, fontSize: 12, color: '#94A3B8', flexWrap: 'wrap' as const },
+  itemRowSub:  { display: 'flex', gap: 10, marginTop: 4, paddingLeft: 4, fontSize: 12, color: TEXT_MUTED, flexWrap: 'wrap' as const },
   itemRowName: { flex: 1, fontSize: 14, fontWeight: 600, color: '#1E293B', minWidth: 80 },
 
   statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
@@ -1283,13 +1284,13 @@ const s: Record<string, React.CSSProperties> = {
   catName:      { fontSize: 14, fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 8 },
   catUses:      { fontSize: 14, color: '#64748B' },
   catActions:   { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: '#94A3B8', fontWeight: 500 },
+  storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: TEXT_MUTED, fontWeight: 500 },
 
   editRow:     { display: 'flex', alignItems: 'center', gap: 8 },
   approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: '#5a6472', border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: TEXT_MUTED, border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
 
@@ -1300,7 +1301,7 @@ const s: Record<string, React.CSSProperties> = {
 const p: Record<string, React.CSSProperties> = {
   panel:       { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
   section:     { padding: '16px', borderBottom: '1px solid #F1F5F9' },
-  sectionLabel:{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
+  sectionLabel:{ fontSize: 11, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
 
   nameInput:   { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' },
   qtyInput:    { flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', outline: 'none', minWidth: 0 },
@@ -1310,7 +1311,7 @@ const p: Record<string, React.CSSProperties> = {
 
   sugg:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 8px 8px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' },
   suggRow:     { padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid #F8FAFC', transition: 'background 0.1s' },
-  suggCat:     { fontSize: 12, color: '#94A3B8', marginLeft: 8 },
+  suggCat:     { fontSize: 12, color: TEXT_MUTED, marginLeft: 8 },
 
   quickSearchInput: {
     width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0',
@@ -1324,7 +1325,7 @@ const p: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13,
   },
   tileName:    { flex: 1, minWidth: 0, fontWeight: 700, color: '#1E293B', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  tileCat:     { flexShrink: 0, fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  tileCat:     { flexShrink: 0, fontSize: 11, color: TEXT_MUTED, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
 
   badge:       { padding: '2px 8px', borderRadius: 10, background: '#FEF3C7', color: '#D97706', fontSize: 12, fontWeight: 700 },
 

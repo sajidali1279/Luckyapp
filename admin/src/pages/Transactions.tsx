@@ -11,6 +11,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import DataTablePagination from '../components/DataTablePagination';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -248,7 +249,7 @@ export default function Transactions() {
         {isSuperAdmin && (
           <>
             <input style={s.dateInput} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <span style={{ color: '#6c757d', fontSize: 15 }}>to</span>
+            <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
             <input style={s.dateInput} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             <button style={s.clearBtn} onClick={resetFilters}>Clear</button>
           </>
@@ -308,7 +309,7 @@ export default function Transactions() {
                 <TableRow key={tx.id} style={{ opacity: tx.status === 'REJECTED' ? 0.55 : 1, background: tx.status === 'FLAGGED' ? '#fff5f5' : undefined }}>
                   <TableCell style={s.td}>
                     <div>{format(new Date(tx.createdAt), 'MMM d')}</div>
-                    <div style={{ fontSize: 13, color: '#adb5bd' }}>{format(new Date(tx.createdAt), 'h:mm a')}</div>
+                    <div style={{ fontSize: 13, color: TEXT_MUTED }}>{format(new Date(tx.createdAt), 'h:mm a')}</div>
                     <div
                       style={{ fontSize: 11, color: '#ced4da', cursor: 'pointer', marginTop: 2 }}
                       title="Click to copy full transaction ID"
@@ -322,7 +323,7 @@ export default function Transactions() {
                   </TableCell>
                   <TableCell style={s.td}>
                     <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
-                    <div style={{ fontSize: 13, color: '#adb5bd' }}>{tx.customer?.phone}</div>
+                    <div style={{ fontSize: 13, color: TEXT_MUTED }}>{tx.customer?.phone}</div>
                   </TableCell>
                   <TableCell style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></TableCell>
                   <TableCell style={s.td}><span style={{ color: '#2DC653', fontWeight: 700 }}>{fmt$(tx.pointsAwarded)}</span></TableCell>
@@ -385,8 +386,8 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#6c757d', marginTop: 4, marginBottom: 0 },
-  totalBadge: { fontSize: 15, color: '#6c757d', fontWeight: 600, alignSelf: 'center' },
+  sub: { color: TEXT_MUTED, marginTop: 4, marginBottom: 0 },
+  totalBadge: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600, alignSelf: 'center' },
 
   filterBar: {
     display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
@@ -394,7 +395,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, background: '#fff', cursor: 'pointer' },
   dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15 },
-  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: '#6c757d', fontWeight: 600 },
+  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   exportBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#1D3557', color: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' as const },
 
   summaryBar: {
@@ -405,15 +406,15 @@ const s: Record<string, React.CSSProperties> = {
   },
   summaryItem: { flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 2 },
   summaryDivider: { width: 1, background: '#f0f1f2' },
-  summaryLabel: { fontSize: 13, color: '#6c757d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   summaryValue: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
 
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  th: { background: '#f8f9fa', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: '#6c757d', fontWeight: 600, whiteSpace: 'nowrap' },
+  th: { background: '#f8f9fa', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' },
   td: { padding: '12px 14px', borderBottom: '1px solid #f0f1f2', fontSize: 15, verticalAlign: 'middle' },
   badge: { color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600 },
   catBadge: { background: '#f8f9fa', color: '#495057', borderRadius: 6, padding: '3px 8px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   link: { color: '#1D3557', fontWeight: 600, fontSize: 15 },
   rejectBtn: { background: 'none', border: '1px solid #E63946', color: '#E63946', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 },
-  empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
+  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
 };

@@ -23,6 +23,7 @@ import dpaMd                 from '../../../docs/legal/data-processing-agreement
 import slaMd                 from '../../../docs/legal/service-level-agreement.md?raw';
 import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
 import aupMd                 from '../../../docs/legal/acceptable-use-policy.md?raw';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
 
@@ -408,7 +409,7 @@ const ps: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between', gap: 16,
   },
   heroTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', marginBottom: 6 },
-  heroSub: { fontSize: 14, color: '#6c757d', margin: 0 },
+  heroSub: { fontSize: 14, color: TEXT_MUTED, margin: 0 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' as const },
   filterBtn: {
@@ -441,7 +442,7 @@ const ps: Record<string, React.CSSProperties> = {
   cardIcon: { fontSize: 22 },
   cardBody: { flex: 1 },
   cardTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557', marginBottom: 4 },
-  cardDesc: { fontSize: 15, color: '#6c757d', lineHeight: 1.5 },
+  cardDesc: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.5 },
   cardCatBadge: {
     fontSize: 13, fontWeight: 700, borderRadius: 8,
     padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4, width: 'fit-content',
@@ -471,7 +472,7 @@ const rs: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   headerTitle: { fontSize: 17, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 2 },
+  headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   printBtn: {
     background: '#1D3557', color: '#fff',
     border: 'none', borderRadius: 10,

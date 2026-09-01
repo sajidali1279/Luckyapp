@@ -10,6 +10,7 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ const STATUS_CFG: Record<OrderStatus, { label: string; color: string; bg: string
   PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED' },
   ACCEPTED:  { label: 'Preparing', color: '#3B82F6', bg: '#EFF6FF' },
   READY:     { label: 'Ready',     color: '#16A34A', bg: '#F0FDF4' },
-  COMPLETED: { label: 'Done',      color: '#94A3B8', bg: '#F8FAFC' },
+  COMPLETED: { label: 'Done',      color: TEXT_MUTED, bg: '#F8FAFC' },
   CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEF2F2' },
 };
 
@@ -232,7 +233,7 @@ function AddEditModal({ item, onClose, onSaved }: {
             ) : (
               <div style={md.imgPlaceholder}>
                 <ImageIcon size={32} color="#CBD5E1" strokeWidth={1.5} />
-                <span style={{ fontSize: 13, color: '#94A3B8', marginTop: 6 }}>Click to add photo</span>
+                <span style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 6 }}>Click to add photo</span>
               </div>
             )}
             <div style={md.imgBadge}>
@@ -396,7 +397,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
         </div>
 
         {assignLoading ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: '#5a6472', fontSize: 14 }}>Loading…</div>
+          <div style={{ padding: '24px', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>Loading…</div>
         ) : (
           <div style={am.storeList}>
             {stores.map(store => {
@@ -627,7 +628,7 @@ export default function HotFood() {
           ) : filteredOrders.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
-              <p style={{ color: '#5a6472', marginTop: 8 }}>
+              <p style={{ color: TEXT_MUTED, marginTop: 8 }}>
                 No {orderTab === 'ALL' ? '' : orderTab.toLowerCase() + ' '}orders right now
               </p>
             </div>
@@ -667,7 +668,7 @@ export default function HotFood() {
           ) : filteredCatalog.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
-              <p style={{ color: '#5a6472', marginTop: 8 }}>
+              <p style={{ color: TEXT_MUTED, marginTop: 8 }}>
                 {search.trim() ? 'No items match your search' : 'No items yet. Add one to get started.'}
               </p>
             </div>
@@ -722,7 +723,7 @@ export default function HotFood() {
           {stores.length === 0 ? (
             <div style={pg.empty}>
               <Flame size={36} color="#E5E7EB" />
-              <p style={{ color: '#5a6472', marginTop: 8 }}>No stores found.</p>
+              <p style={{ color: TEXT_MUTED, marginTop: 8 }}>No stores found.</p>
             </div>
           ) : (
             <div style={pg.availList}>
@@ -782,7 +783,7 @@ const pg: Record<string, React.CSSProperties> = {
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
   iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  sub:          { fontSize: 13, color: '#5a6472', marginTop: 2 },
+  sub:          { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
 
   toggle:       { display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 3, gap: 2 },
   toggleBtn:    { border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'transparent', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 150ms, color 150ms' },
@@ -802,7 +803,7 @@ const pg: Record<string, React.CSSProperties> = {
   tabBadgeOn:   { background: 'rgba(255,255,255,0.25)', color: '#fff' },
   selectWrap:   { position: 'relative', display: 'inline-flex', alignItems: 'center' },
   select:       { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
-  selectIcon:   { position: 'absolute', right: 10, pointerEvents: 'none', color: '#5a6472' },
+  selectIcon:   { position: 'absolute', right: 10, pointerEvents: 'none', color: TEXT_MUTED },
 
   orderGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
   empty:        { padding: '80px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
@@ -812,13 +813,13 @@ const pg: Record<string, React.CSSProperties> = {
   searchIcon:   { position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
   searchInput:  { width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px 8px 34px', fontSize: 14, color: '#374151', outline: 'none', background: '#fff', boxSizing: 'border-box' },
 
-  availabilityHint: { fontSize: 13, color: '#5a6472', marginBottom: 16, maxWidth: 640, lineHeight: 1.5 },
+  availabilityHint: { fontSize: 13, color: TEXT_MUTED, marginBottom: 16, maxWidth: 640, lineHeight: 1.5 },
   availList:    { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 },
   availRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '14px 16px' },
   availInfo:    { display: 'flex', alignItems: 'center', gap: 10 },
   availIcon:    { fontSize: 20, flexShrink: 0 },
   availName:    { fontSize: 14, fontWeight: 700, color: '#111827' },
-  availSub:     { fontSize: 12, color: '#5a6472', marginTop: 1 },
+  availSub:     { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
   availToggle:  { fontSize: 12, fontWeight: 800, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
   availToggleOn:  { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
   availToggleOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
@@ -840,17 +841,17 @@ const oc: Record<string, React.CSSProperties> = {
   num:       { fontSize: 15, fontWeight: 800, color: '#0F172A' },
   badge:     { borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 },
   meta:      { display: 'flex', alignItems: 'center', gap: 5 },
-  metaTxt:   { fontSize: 12, color: '#5a6472' },
+  metaTxt:   { fontSize: 12, color: TEXT_MUTED },
   dot:       { width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB' },
   custName:  { fontSize: 14, fontWeight: 700, color: '#0F172A' },
-  custPhone: { fontSize: 12, color: '#5a6472', marginTop: 2 },
+  custPhone: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   items:     { borderTop: '1px solid #F1F5F9', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
   itemRow:   { display: 'flex', alignItems: 'center', gap: 5 },
   qty:       { fontSize: 13, fontWeight: 700, color: '#EA580C', width: 22, flexShrink: 0 },
   iname:     { flex: 1, fontSize: 13, color: '#374151' },
   iprice:    { fontSize: 13, fontWeight: 600, color: '#0F172A' },
   totalRow:  { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 6, marginTop: 2 },
-  totalLbl:  { fontSize: 12, color: '#5a6472', fontWeight: 600 },
+  totalLbl:  { fontSize: 12, color: TEXT_MUTED, fontWeight: 600 },
   totalVal:  { fontSize: 14, fontWeight: 800, color: '#0F172A' },
   note:      { background: '#FFFBEB', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
   noteLbl:   { fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' },
@@ -866,7 +867,7 @@ const md: Record<string, React.CSSProperties> = {
   panel:     { background: '#fff', borderRadius: 16, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   head:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6' },
   headTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
-  closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#5a6472', lineHeight: 1 },
+  closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
   body:      { padding: '16px 20px 0' },
   footer:    { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #F3F4F6', marginTop: 16 },
   imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 16, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #E2E8F0', cursor: 'pointer', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -879,9 +880,9 @@ const am: Record<string, React.CSSProperties> = {
   itemRow:   { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
   thumb:     { width: 64, height: 64, borderRadius: 12, objectFit: 'cover', flexShrink: 0 },
   itemName:  { fontSize: 16, fontWeight: 700, color: '#111827' },
-  itemDesc:  { fontSize: 12, color: '#5a6472', marginTop: 3, lineHeight: '1.4' },
+  itemDesc:  { fontSize: 12, color: TEXT_MUTED, marginTop: 3, lineHeight: '1.4' },
   price:     { fontSize: 13, fontWeight: 700, color: '#EA580C' },
-  est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: '#5a6472' },
+  est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: TEXT_MUTED },
   iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' },
   sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' },

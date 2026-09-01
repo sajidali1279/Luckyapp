@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
 import ErrorState from '../components/ErrorState';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
+import { TEXT_MUTED } from '../lib/theme';
 
 function greeting() {
   const h = new Date().getHours();
@@ -138,7 +139,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
         <div style={{ ...s.storeAvatar, background: color }}>{store.name[0]?.toUpperCase()}</div>
         <span>
           <div style={{ fontWeight: 700, color: '#1D3557', fontSize: 14 }}>{store.name}</div>
-          <div style={{ fontSize: 13, color: '#adb5bd' }}>{store.city}</div>
+          <div style={{ fontSize: 13, color: TEXT_MUTED }}>{store.city}</div>
         </span>
       </span>
       <span style={s.storeColNum}>{store.transactions}</span>
@@ -303,8 +304,8 @@ function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }:
         </div>
       </div>
       <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
-      {sub && <div style={{ fontSize: 13, color: '#5a6472', marginTop: 3 }}>{sub}</div>}
+      <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+      {sub && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -771,11 +772,11 @@ const s: Record<string, React.CSSProperties> = {
   section: {
     fontSize: 15, fontWeight: 800, color: '#1D3557', margin: 0,
   },
-  sectionSub: { fontSize: 14, color: '#6c757d', marginTop: 6, marginBottom: 0, paddingLeft: 16 },
+  sectionSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6, marginBottom: 0, paddingLeft: 16 },
   sectionLink: {
     background: 'none', border: '1px solid #dee2e6', borderRadius: 8,
     padding: '5px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-    color: '#6c757d', transition: TRANSITION_FAST, whiteSpace: 'nowrap' as const,
+    color: TEXT_MUTED, transition: TRANSITION_FAST, whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
   },
 
@@ -826,9 +827,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
   offerChipName: { fontSize: 15, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
-  offerChipCat: { fontSize: 12, color: '#5a6472', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  offerChipCat: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   offerChipExpiry: { fontSize: 12, color: '#E63946', fontWeight: 600, marginTop: 6 },
-  emptyState: { padding: '24px 18px', color: '#5a6472', fontSize: 15, textAlign: 'center' as const },
+  emptyState: { padding: '24px 18px', color: TEXT_MUTED, fontSize: 15, textAlign: 'center' as const },
 
   recentPanel: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
@@ -841,9 +842,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
   recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
-  recentMeta: { fontSize: 13, color: '#5a6472', marginTop: 1 },
+  recentMeta: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
   recentAmount: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
-  recentTime: { fontSize: 12, color: '#5a6472', marginTop: 1 },
+  recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
   statCard: {
@@ -857,11 +858,11 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   statIcon: { fontSize: 20 },
-  statArrow: { fontSize: 15, color: '#5a6472', fontWeight: 700 },
-  statLabel: { color: '#5a6472', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statArrow: { fontSize: 15, color: TEXT_MUTED, fontWeight: 700 },
+  statLabel: { color: TEXT_MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
 
-  healthLoading: { color: '#5a6472', fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
+  healthLoading: { color: TEXT_MUTED, fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
   healthOk: {
     color: '#2DC653', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
     border: '1px solid rgba(45,198,83,0.3)', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
@@ -877,7 +878,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   healthRowName: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
   healthRowStats: { display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const },
-  healthStat: { fontSize: 13, color: '#5a6472' },
+  healthStat: { fontSize: 13, color: TEXT_MUTED },
   healthPill: {
     fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
     border: '1px solid', background: '#fff', transition: TRANSITION_FAST,
@@ -899,7 +900,7 @@ const s: Record<string, React.CSSProperties> = {
   storeTableHeader: {
     display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
     padding: '10px 20px', background: '#f8f9fa',
-    fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5,
+    fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   storeTableRow: {
     display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
@@ -927,7 +928,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', borderRadius: 16, padding: '20px 20px 12px',
     border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28,
   },
-  chartTitle: { fontSize: 14, fontWeight: 700, color: '#6c757d', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  chartTitle: { fontSize: 14, fontWeight: 700, color: TEXT_MUTED, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   ratesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, marginBottom: 36 },
   liveRateCard: {
@@ -943,5 +944,5 @@ const s: Record<string, React.CSSProperties> = {
   rateTrack: { height: 5, background: '#f0f1f2', borderRadius: 3, overflow: 'hidden', marginBottom: 10 },
   rateFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 3 },
   liveRateBreakdown: { display: 'flex', flexDirection: 'column' as const, gap: 2 },
-  liveRateRow: { fontSize: 13, color: '#6c757d' },
+  liveRateRow: { fontSize: 13, color: TEXT_MUTED },
 };

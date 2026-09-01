@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 interface BillNotes {
   txCount: number; purchaseVolume: number;
@@ -501,8 +502,8 @@ export default function Billing() {
             <TableSkeleton columns={7} />
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
-              <p style={{ margin: 0, color: '#6c757d' }}>No billing records for this filter.</p>
-              <p style={{ margin: '8px 0 0', fontSize: 15, color: '#adb5bd' }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
+              <p style={{ margin: 0, color: TEXT_MUTED }}>No billing records for this filter.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 15, color: TEXT_MUTED }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
             </div>
           ) : (
             <Table style={s.table}>
@@ -569,7 +570,7 @@ export default function Billing() {
                                 <TableHeader>
                                   <TableRow>
                                     {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Status', ''].map((h) => (
-                                      <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: '#6c757d', fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
+                                      <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: TEXT_MUTED, fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
                                     ))}
                                   </TableRow>
                                 </TableHeader>
@@ -735,7 +736,7 @@ export default function Billing() {
 
               <label style={s.fieldLabel}>Amount (USD) *</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#5a6472', fontWeight: 700 }}>$</span>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: TEXT_MUTED, fontWeight: 700 }}>$</span>
                 <input style={{ ...s.input, paddingLeft: 26 }} placeholder="0.00" type="number" min="0.01" step="0.01"
                   value={manualForm.amount}
                   onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }} />
@@ -821,13 +822,13 @@ export default function Billing() {
                               <input style={{ ...s.input, margin: 0 }} value={editForm.description}
                                 onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
                             ) : (
-                              <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: '#5a6472' }}>No description</em>}</span>
+                              <span style={{ color: '#374151' }}>{charge.description || <em style={{ color: TEXT_MUTED }}>No description</em>}</span>
                             )}
                           </TableCell>
                           <TableCell style={s.td}>
                             {isEditing ? (
                               <div style={{ position: 'relative', width: 110 }}>
-                                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#5a6472' }}>$</span>
+                                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: TEXT_MUTED }}>$</span>
                                 <input style={{ ...s.input, paddingLeft: 20, margin: 0 }} type="number" min="0.01" step="0.01"
                                   value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                               </div>
@@ -922,7 +923,7 @@ export default function Billing() {
                   <TableRow style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
                     <TableHead style={s.th}>Tier</TableHead>
                     <TableHead style={s.th}>Cashback %</TableHead>
-                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: '#6c757d', fontSize: 13 }}>(optional - overrides % for gas)</span></TableHead>
+                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 13 }}>(optional - overrides % for gas)</span></TableHead>
                     <TableHead style={s.th}></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -950,7 +951,7 @@ export default function Billing() {
                           ) : (
                             r.gasCentsPerGallon != null
                               ? <span style={{ fontWeight: 600, color: '#F4A261' }}>{r.gasCentsPerGallon}¢/gal</span>
-                              : <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>use %</span>
+                              : <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>use %</span>
                           )}
                         </TableCell>
                         <TableCell style={{ ...s.td, textAlign: 'right' }}>
@@ -998,8 +999,8 @@ export default function Billing() {
                 <span style={{ color: '#E63946' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
               </div>
               <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #dee2e6' }}>
-                <span style={{ color: '#6c757d', fontSize: 14 }}>Store pays you monthly: sum of dev cut per transaction</span>
-                <span style={{ color: '#6c757d', fontSize: 14 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Store pays you monthly: sum of dev cut per transaction</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
               </div>
             </div>
 
@@ -1018,7 +1019,7 @@ export default function Billing() {
                   placeholder="e.g. 0.04"
                   autoFocus
                 />
-                <span style={{ color: '#6c757d', fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : ' - '}</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : ' - '}</span>
                 <button style={s.saveBtn} onClick={saveRate} disabled={updateRate.isPending}>{updateRate.isPending ? '…' : 'Save'}</button>
                 <button style={s.cancelBtn} onClick={() => setEditingRate(false)}>Cancel</button>
               </div>
@@ -1070,7 +1071,7 @@ function RevenueCard({ label, value, highlight }: { label: string; value: any; h
 function StatItem({ label, value, highlight }: { label: string; value: any; highlight?: boolean }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 13, color: '#6c757d', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#2DC653' : '#1D3557' }}>{value}</div>
     </div>
   );
@@ -1216,12 +1217,12 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
                   <TableRow key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
                     <TableCell style={inv2.tableTd}>
                       <div style={{ fontWeight: 700 }}>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</div>
-                      {r.store?.city && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{r.store.city}</div>}
-                      {isManual && <div style={{ fontSize: 13, color: '#6c757d', marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
+                      {r.store?.city && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{r.store.city}</div>}
+                      {isManual && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
                     </TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: '#adb5bd' }}> - </span>}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#E63946', fontWeight: 600 }}>{fmt$(n?.devCutEarned ?? r.amount)}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
@@ -1274,7 +1275,7 @@ function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void 
             </div>
           )}
 
-          <div style={{ fontSize: 14, color: '#6c757d', textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: 14, color: TEXT_MUTED, textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e9ecef' }}>
             Lucky Stop Loyalty Platform · Invoice {invNum} · Generated {issueDate} · For questions contact your account manager
           </div>
         </div>
@@ -1405,8 +1406,8 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
               {n?.subscriptionFee != null && n.subscriptionFee > 0 && (
                 <TableRow>
                   <TableCell style={inv.tableTd}>Monthly Subscription Fee</TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</TableCell>
                 </TableRow>
               )}
@@ -1415,8 +1416,8 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                   <TableCell style={inv.tableTd}>
                     <div style={{ fontWeight: 600 }}>{manualDescription || 'Manual Charge'}</div>
                   </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: '#6c757d' }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
+                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(record.amount)}</TableCell>
                 </TableRow>
               )}
@@ -1425,7 +1426,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                     <TableRow key={cat.category}>
                       <TableCell style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Fee - {cat.category}</div>
-                        <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)})
                         </div>
                       </TableCell>
@@ -1438,7 +1439,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
                     <TableRow>
                       <TableCell style={inv.tableTd}>
                         <div style={{ fontWeight: 600 }}>Transaction Processing Fee</div>
-                        <div style={{ fontSize: 13, color: '#6c757d', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
                           Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)}) × {n.txCount} transactions
                         </div>
                       </TableCell>
@@ -1495,7 +1496,7 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
             </div>
           )}
 
-          <div style={{ fontSize: 14, color: '#6c757d', textAlign: 'center', padding: '16px 0 4px', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: 14, color: TEXT_MUTED, textAlign: 'center', padding: '16px 0 4px', borderTop: '1px solid #e9ecef' }}>
             Lucky Stop Loyalty Platform · Invoice generated {new Date().toLocaleDateString()} · For questions contact your account manager
           </div>
         </div>
@@ -1515,18 +1516,18 @@ function InvoiceModal({ record, period, onClose }: { record: any; period: string
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: '0 0 20px' },
-  loading: { padding: 32, textAlign: 'center', color: '#6c757d' },
+  loading: { padding: 32, textAlign: 'center', color: TEXT_MUTED },
 
   // Revenue summary
   revenueBox: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 },
   revCard: { padding: '12px 0' },
-  revLabel: { color: '#6c757d', fontSize: 14, margin: 0, fontWeight: 600 },
+  revLabel: { color: TEXT_MUTED, fontSize: 14, margin: 0, fontWeight: 600 },
   revValue: { fontSize: 22, fontWeight: 800, margin: '4px 0 0' },
 
   // Tabs
   tabs: { display: 'flex', gap: 6, marginBottom: 20 },
-  tab: { padding: '9px 18px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6c757d' },
+  tab: { padding: '9px 18px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
   tabActive: { padding: '9px 18px', background: '#1D3557', border: '1px solid #1D3557', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -1536,24 +1537,24 @@ const s: Record<string, React.CSSProperties> = {
 
   // Table
   table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-  th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: '#6c757d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
+  th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
   td: { padding: '12px 16px', borderBottom: '1px solid #f0f1f2', fontSize: 14, verticalAlign: 'middle' },
   rowExpanded: { background: '#f8faff' },
   expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e9ecef' },
   statsRow: { display: 'flex', gap: 12, padding: '16px 20px', flexWrap: 'wrap' },
   statBox: { flex: '1 1 180px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
-  statBoxLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  statBoxLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
 
   expandBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: 0 },
-  cityLabel: { fontSize: 14, color: '#adb5bd', marginTop: 2 },
+  cityLabel: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   badge: { background: '#E63946', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
   paidBadge: { background: '#2DC653', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   unpaidBadge: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  na: { color: '#adb5bd', fontSize: 15 },
+  na: { color: TEXT_MUTED, fontSize: 15 },
   input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 14 },
   select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 15 },
   volValue: { fontWeight: 700, color: '#1D3557' },
-  volSub: { fontSize: 13, color: '#adb5bd', marginTop: 2 },
+  volSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
   editBtn: { padding: '6px 14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
   saveBtn: { padding: '6px 14px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
   cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
@@ -1562,20 +1563,20 @@ const s: Record<string, React.CSSProperties> = {
   // Monthly bills
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
-  filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: '#6c757d', marginBottom: 4 },
+  filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   exportBtn: { padding: '10px 20px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   sendBtn: { padding: '10px 20px', background: '#F4A261', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  monthlyHint: { fontSize: 15, color: '#6c757d', margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
+  monthlyHint: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
   monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#495057' },
 
   // Compound bill detail
   billDetail: { display: 'flex', flexWrap: 'wrap', gap: 16, padding: '16px 20px' },
   billSection: { flex: '1 1 260px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
-  billSectionTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
+  billSectionTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
   feeGrid: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
   feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0' },
   catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 15, color: '#495057' },
@@ -1584,15 +1585,15 @@ const s: Record<string, React.CSSProperties> = {
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 },
   settingsCard: { background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   settingsCardTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 8px' },
-  settingsCardDesc: { fontSize: 14, color: '#6c757d', margin: '0 0 20px', lineHeight: 1.6 },
+  settingsCardDesc: { fontSize: 14, color: TEXT_MUTED, margin: '0 0 20px', lineHeight: 1.6 },
 
   rateExampleBox: { background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', marginBottom: 20 },
-  rateExampleTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  rateExampleTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
   rateExampleRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', marginBottom: 6 },
 
   rateDisplayRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   rateValue: { fontSize: 36, fontWeight: 800, color: '#1D3557' },
-  rateSub: { fontSize: 14, color: '#6c757d', marginTop: 2 },
+  rateSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
   infoList: { marginTop: 8 },
@@ -1604,7 +1605,7 @@ const s: Record<string, React.CSSProperties> = {
 const ec: Record<string, React.CSSProperties> = {
   card: { background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' },
   cardTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557', margin: '0 0 6px' },
-  cardSub: { fontSize: 14, color: '#5a6472', margin: '0 0 20px' },
+  cardSub: { fontSize: 14, color: TEXT_MUTED, margin: '0 0 20px' },
 
   templateRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center', padding: '12px 14px', background: '#f8faff', borderRadius: 10, border: '1px solid #e0e7ff' },
   templateLabel: { fontSize: 13, fontWeight: 700, color: '#4f46e5', marginRight: 4, flexShrink: 0 },
@@ -1621,7 +1622,7 @@ const ec: Record<string, React.CSSProperties> = {
   filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff' },
 
   successBox: { marginTop: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#166534' },
-  emptyBox: { padding: '32px 0', textAlign: 'center', color: '#5a6472', fontSize: 14 },
+  emptyBox: { padding: '32px 0', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
 };
 
 // ─── Invoice styles ───────────────────────────────────────────────────────────
@@ -1642,15 +1643,15 @@ const inv: Record<string, React.CSSProperties> = {
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 4 },
+  headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
   invTitle: { fontSize: 32, fontWeight: 900, color: '#1D3557', letterSpacing: 2 },
-  invNum: { fontSize: 15, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
+  invNum: { fontSize: 15, color: TEXT_MUTED, marginTop: 4, fontFamily: 'monospace' },
 
   metaRow: { display: 'flex', gap: 20, marginBottom: 28 },
   metaBox: { flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '16px 20px' },
-  metaLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  metaLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
-  metaSub: { fontSize: 15, color: '#6c757d', marginTop: 3 },
+  metaSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
   metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
   paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
   unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
@@ -1660,7 +1661,7 @@ const inv: Record<string, React.CSSProperties> = {
   tableTd: { padding: '10px 14px', fontSize: 15, borderBottom: '1px solid #f0f1f2', color: '#1D3557', verticalAlign: 'top' as const },
 
   notesBox: { background: '#f8f9fa', borderRadius: 10, padding: '16px 20px', marginBottom: 20 },
-  notesTitle: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  notesTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   noteRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '5px 0', borderBottom: '1px solid #e9ecef' },
 
   actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e9ecef' },
@@ -1686,22 +1687,22 @@ const inv2: Record<string, React.CSSProperties> = {
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 900, color: '#1D3557' },
-  headerSub: { fontSize: 14, color: '#6c757d', marginTop: 4 },
+  headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
   invTitle: { fontSize: 32, fontWeight: 900, color: '#1D3557', letterSpacing: 2 },
-  invNum: { fontSize: 15, color: '#6c757d', marginTop: 4, fontFamily: 'monospace' },
+  invNum: { fontSize: 15, color: TEXT_MUTED, marginTop: 4, fontFamily: 'monospace' },
 
   metaRow: { display: 'flex', gap: 20, marginBottom: 24 },
   metaBox: { flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '16px 20px' },
-  metaLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
+  metaLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
-  metaSub: { fontSize: 15, color: '#6c757d', marginTop: 3 },
+  metaSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
   metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
   paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
   unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
 
   summaryRow: { display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' as const },
   summaryCard: { flex: '1 1 120px', background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', textAlign: 'center' as const, border: '1px solid #e9ecef' },
-  summaryLabel: { fontSize: 12, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
+  summaryLabel: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
   summaryValue: { fontSize: 16, fontWeight: 800, color: '#1D3557' },
 
   table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: 20, borderRadius: 10, overflow: 'hidden' },

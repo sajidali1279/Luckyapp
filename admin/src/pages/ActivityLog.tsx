@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { auditApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import DataTablePagination from '../components/DataTablePagination';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -27,7 +29,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Scheduling
   ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#0369a1', bg: '#0369a118', icon: '📅' },
   REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  CREATE_SHIFT_REQUEST:      { label: 'Shift Request',          color: '#6c757d', bg: '#6c757d18', icon: '🙋' },
+  CREATE_SHIFT_REQUEST:      { label: 'Shift Request',          color: TEXT_MUTED, bg: '#6c757d18', icon: '🙋' },
   APPROVE_SHIFT_REQUEST:     { label: 'Approve Shift Req.',     color: '#2DC653', bg: '#2DC65318', icon: '✅' },
   DENY_SHIFT_REQUEST:        { label: 'Deny Shift Req.',        color: '#E63946', bg: '#E6394618', icon: '❌' },
   // Store Requests
@@ -44,7 +46,7 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
   DEV_ADMIN:    { label: 'Dev Admin',     color: '#2DC653' },
   SUPER_ADMIN:  { label: 'Super Admin',   color: '#F4A261' },
   STORE_MANAGER:{ label: 'Store Manager', color: '#4cc9f0' },
-  EMPLOYEE:     { label: 'Employee',      color: '#adb5bd' },
+  EMPLOYEE:     { label: 'Employee',      color: TEXT_MUTED },
   CUSTOMER:     { label: 'Customer',      color: '#dee2e6' },
 };
 
@@ -166,7 +168,7 @@ export default function ActivityLog() {
       {stats && (
         <div style={s.statsStrip}>
           {stats.byAction?.slice(0, 5).map((a: any) => {
-            const meta = ACTION_META[a.action] || { label: a.action, color: '#6c757d', bg: '#6c757d18', icon: '•' };
+            const meta = ACTION_META[a.action] || { label: a.action, color: TEXT_MUTED, bg: '#6c757d18', icon: '•' };
             return (
               <div key={a.action} style={{ ...s.statChip, background: meta.bg }}>
                 <span style={{ color: meta.color, fontWeight: 800 }}>{a._count.action}</span>
@@ -239,7 +241,7 @@ export default function ActivityLog() {
         </select>
 
         <input style={s.dateInput} type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
-        <span style={{ color: '#6c757d', fontSize: 15 }}>to</span>
+        <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
         <input style={s.dateInput} type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
 
         <button style={s.clearBtn} onClick={resetFilters}>Clear</button>
@@ -257,8 +259,8 @@ export default function ActivityLog() {
       ) : (
         <div style={s.logList}>
           {logs.map((log) => {
-            const meta = ACTION_META[log.action] || { label: log.action, color: '#6c757d', bg: '#f8f9fa', icon: '•' };
-            const roleMeta = ROLE_META[log.actorRole] || { label: log.actorRole, color: '#adb5bd' };
+            const meta = ACTION_META[log.action] || { label: log.action, color: TEXT_MUTED, bg: '#f8f9fa', icon: '•' };
+            const roleMeta = ROLE_META[log.actorRole] || { label: log.actorRole, color: TEXT_MUTED };
             const detail = fmtDetails(log.details);
             return (
               <div key={log.id} style={s.row}>
@@ -292,13 +294,12 @@ export default function ActivityLog() {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={s.pagination}>
-          <button style={s.pageBtn} disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Prev</button>
-          <span style={s.pageInfo}>Page {page} of {totalPages}</span>
-          <button style={s.pageBtn} disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
-        </div>
-      )}
+      <DataTablePagination
+        page={page}
+        totalPages={totalPages}
+        onPrevious={() => setPage(p => p - 1)}
+        onNext={() => setPage(p => p + 1)}
+      />
     </div>
   );
 }
@@ -309,12 +310,12 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#6c757d', marginTop: 4, fontSize: 14 },
+  sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
   refreshBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   statsStrip: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 },
   statChip: { borderRadius: 8, padding: '6px 14px', display: 'flex', gap: 6, alignItems: 'center', fontSize: 15 },
-  statNote: { color: '#adb5bd', fontSize: 14, marginLeft: 'auto' },
+  statNote: { color: TEXT_MUTED, fontSize: 14, marginLeft: 'auto' },
 
   alertBox: {
     background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 10,
@@ -324,8 +325,8 @@ const s: Record<string, React.CSSProperties> = {
   filters: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20, padding: '14px 16px', background: '#f8f9fa', borderRadius: 12 },
   select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, background: '#fff', cursor: 'pointer' },
   dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15 },
-  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: '#6c757d', fontWeight: 600 },
-  totalLabel: { marginLeft: 'auto', color: '#6c757d', fontSize: 15, fontWeight: 600 },
+  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
+  totalLabel: { marginLeft: 'auto', color: TEXT_MUTED, fontSize: 15, fontWeight: 600 },
 
   logList: { display: 'flex', flexDirection: 'column', gap: 6 },
   row: {
@@ -349,13 +350,9 @@ const s: Record<string, React.CSSProperties> = {
 
   detail: { display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' },
   detailText: { fontSize: 15, color: '#495057', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeTag: { fontSize: 13, color: '#6c757d' },
+  storeTag: { fontSize: 13, color: TEXT_MUTED },
 
-  time: { fontSize: 14, color: '#adb5bd', textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },
+  time: { fontSize: 14, color: TEXT_MUTED, textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },
 
-  pagination: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 24 },
-  pageBtn: { padding: '8px 20px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 15 },
-  pageInfo: { color: '#6c757d', fontSize: 14 },
-
-  empty: { color: '#6c757d', textAlign: 'center', padding: 60 },
+  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
 };

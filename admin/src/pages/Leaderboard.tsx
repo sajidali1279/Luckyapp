@@ -4,6 +4,7 @@ import { leaderboardApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -240,7 +241,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '20px 20px 16px', borderBottom: '1px solid #eee', gap: 12,
   },
   panelTitle: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
-  panelSub: { fontSize: 14, color: '#888', marginTop: 3 },
+  panelSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 3 },
 
   select: {
     border: '1.5px solid #ddd', borderRadius: 10,
@@ -260,17 +261,17 @@ const s: Record<string, React.CSSProperties> = {
   eomStats: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 },
   eomRating: { fontSize: 15, color: '#92400E', fontWeight: 600 },
 
-  loading: { padding: 40, textAlign: 'center', color: '#888', fontSize: 15 },
+  loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 15 },
   empty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 48 },
   emptyTitle: { fontSize: 16, fontWeight: 700, color: '#1D3557' },
-  emptySub: { fontSize: 15, color: '#888', textAlign: 'center' },
+  emptySub: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center' },
 
   tableWrap: { overflowX: 'auto', flex: 1 },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 16px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '12px 16px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
   rankNum: { fontSize: 15, fontWeight: 700, color: '#aaa' },

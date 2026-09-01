@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -596,7 +597,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   sidebarTop: { padding: '20px 18px 8px' },
   sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: '#5a6472', marginTop: 2 },
+  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   vacSummary: {
     margin: '6px 14px 4px',
     padding: '7px 12px',
@@ -621,7 +622,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 14, color: '#5a6472', marginTop: 1 },
+  storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
   vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
   pendingReqBadge: { background: '#b45309', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
@@ -677,7 +678,7 @@ const s: Record<string, React.CSSProperties> = {
   // Sections
   section: { flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8fafc' },
   sectionTitle: { fontSize: 15, fontWeight: 800, color: '#111827', margin: '0 0 16px' },
-  subTitle: { fontSize: 15, fontWeight: 800, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
+  subTitle: { fontSize: 15, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
 
   // Today's roster
   rosterGrid: {
@@ -702,14 +703,14 @@ const s: Record<string, React.CSSProperties> = {
     padding: '3px 10px', fontSize: 13, fontWeight: 700,
     border: '1px solid', marginBottom: 6,
   },
-  rosterTime: { fontSize: 14, color: '#5a6472' },
+  rosterTime: { fontSize: 14, color: TEXT_MUTED },
 
   // Grid
   gridWrapper: { overflowX: 'auto' },
   grid: { width: '100%', borderCollapse: 'collapse', minWidth: 700 },
   gridHeaderCell: {
     padding: '10px 8px', textAlign: 'center',
-    fontSize: 13, fontWeight: 800, color: '#5a6472',
+    fontSize: 13, fontWeight: 800, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: '0.5px',
     background: '#f8fafc', borderBottom: '2px solid #f0f1f2',
   },
@@ -724,7 +725,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   shiftLabel: { borderLeft: '3px solid #ccc', paddingLeft: 10 },
   shiftLabelName: { fontWeight: 800, fontSize: 15, color: '#111827' },
-  shiftLabelTime: { fontSize: 13, color: '#5a6472', marginTop: 3 },
+  shiftLabelTime: { fontSize: 13, color: TEXT_MUTED, marginTop: 3 },
   cell: {
     padding: '6px 8px', verticalAlign: 'top',
     borderBottom: '1px solid #f0f1f2', borderRight: '1px solid #f0f1f2',
@@ -747,7 +748,7 @@ const s: Record<string, React.CSSProperties> = {
   addChipBtn: {
     background: 'none', border: '1.5px dashed #d1d5db',
     borderRadius: 8, width: 26, height: 26,
-    cursor: 'pointer', color: '#5a6472', fontSize: 16, fontWeight: 700,
+    cursor: 'pointer', color: TEXT_MUTED, fontSize: 16, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: 0, transition: 'border-color 0.15s',
   },
@@ -768,7 +769,7 @@ const s: Record<string, React.CSSProperties> = {
     color: '#fff', fontWeight: 800, fontSize: 14,
   },
   requestEmployee: { fontWeight: 700, fontSize: 14, color: '#111827' },
-  requestPhone: { fontSize: 14, color: '#5a6472', marginTop: 1 },
+  requestPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   requestTypeBadge: {
     borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700,
   },
@@ -778,7 +779,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   requestDetails: { display: 'flex', gap: 10, fontSize: 15, color: '#374151', flexWrap: 'wrap', fontWeight: 600 },
   dot: { color: '#e5e7eb' },
-  requestNotes: { fontStyle: 'italic', color: '#5a6472', fontWeight: 400 },
+  requestNotes: { fontStyle: 'italic', color: TEXT_MUTED, fontWeight: 400 },
   requestActions: { display: 'flex', gap: 10, marginTop: 2 },
   approveBtn: {
     background: '#f0fdf4', color: '#16a34a',
@@ -805,7 +806,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column', gap: 14,
   },
   modalTitle: { margin: 0, fontSize: 16, fontWeight: 800, color: '#111827' },
-  label: { fontWeight: 700, fontSize: 14, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  label: { fontWeight: 700, fontSize: 14, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' },
   select: {
     padding: '11px 14px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', fontSize: 14, width: '100%',
@@ -819,7 +820,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 12px rgba(15,81,50,0.3)',
   },
   cancelBtn: {
-    background: '#f3f4f6', color: '#5a6472',
+    background: '#f3f4f6', color: TEXT_MUTED,
     border: '1.5px solid #e5e7eb', borderRadius: 10,
     padding: '11px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14,
   },
@@ -831,10 +832,10 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyEmoji: { fontSize: 52 },
   emptyTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  emptyDesc: { fontSize: 14, color: '#6c757d', textAlign: 'center' },
+  emptyDesc: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
   emptyCard: {
-    color: '#6c757d', background: '#f8f9fa',
+    color: TEXT_MUTED, background: '#f8f9fa',
     borderRadius: 12, padding: '16px 20px', fontSize: 14,
   },
-  loadingText: { color: '#6c757d', padding: 20, fontSize: 14 },
+  loadingText: { color: TEXT_MUTED, padding: 20, fontSize: 14 },
 };

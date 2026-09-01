@@ -2,6 +2,7 @@
 import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { TEXT_MUTED } from '../lib/theme';
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
@@ -194,7 +195,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 6, padding: '2px 10px',
     fontSize: 14, fontWeight: 700,
   },
-  phone: { color: '#5a6472', fontSize: 14 },
+  phone: { color: TEXT_MUTED, fontSize: 14 },
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 },
 
@@ -204,10 +205,10 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column', gap: 8,
   },
   cardTitle: { fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 },
-  cardSub: { fontSize: 15, color: '#5a6472', margin: '0 0 8px', lineHeight: 1.5 },
+  cardSub: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 8px', lineHeight: 1.5 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 8 },
-  label: { fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 0.4 },
+  label: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     padding: '11px 14px', borderRadius: 10,
     border: '1.5px solid #e5e7eb', fontSize: 15,

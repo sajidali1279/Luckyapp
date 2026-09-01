@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supportApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import { TEXT_MUTED } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -43,7 +44,7 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: stri
   URGENT: { label: 'Urgent',  color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
   HIGH:   { label: 'High',    color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
   NORMAL: { label: 'Normal',  color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
-  LOW:    { label: 'Low',     color: '#5a6472', bg: '#f9fafb', border: '#d1d5db' },
+  LOW:    { label: 'Low',     color: TEXT_MUTED, bg: '#f9fafb', border: '#d1d5db' },
 };
 
 const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: string }> = {
@@ -51,7 +52,7 @@ const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: s
   TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#0891b2' },
   FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#059669' },
   ACCESS:          { label: 'Access',          emoji: '🔑', color: '#dc2626' },
-  OTHER:           { label: 'Other',           emoji: '💬', color: '#5a6472' },
+  OTHER:           { label: 'Other',           emoji: '💬', color: TEXT_MUTED },
 };
 
 const CANNED_REPLIES = [
@@ -308,7 +309,7 @@ export default function Support() {
                       <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#059669' : '#5a6472', background: t.status === 'OPEN' ? '#f0fdf4' : '#f9fafb', borderColor: t.status === 'OPEN' ? '#a7f3d0' : '#e5e7eb' }}>
                         {t.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
-                      {isDevAdmin && <span style={{ fontSize: 12, color: '#5a6472' }}>{t.fromName}</span>}
+                      {isDevAdmin && <span style={{ fontSize: 12, color: TEXT_MUTED }}>{t.fromName}</span>}
                     </div>
                   </div>
                 );
@@ -361,7 +362,7 @@ export default function Support() {
                       <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#059669' : '#5a6472', background: detail.status === 'OPEN' ? '#f0fdf4' : '#f9fafb', borderColor: detail.status === 'OPEN' ? '#a7f3d0' : '#e5e7eb' }}>
                         {detail.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
-                      <span style={{ fontSize: 12, color: '#5a6472' }}>opened {timeAgo(detail.createdAt)}</span>
+                      <span style={{ fontSize: 12, color: TEXT_MUTED }}>opened {timeAgo(detail.createdAt)}</span>
                     </div>
                     {isDevAdmin && (
                       <div style={s.detailActions}>
@@ -453,7 +454,7 @@ export default function Support() {
                     </div>
                   )}
                   {detail.status === 'RESOLVED' && !isDevAdmin && (
-                    <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', textAlign: 'center', color: '#5a6472', fontSize: 14 }}>
+                    <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>
                       This thread is resolved. Contact support to reopen.
                     </div>
                   )}
@@ -543,7 +544,7 @@ const s: Record<string, React.CSSProperties> = {
   inner:        { maxWidth: 1280, margin: '0 auto', padding: '32px 24px' },
   header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   title:        { fontSize: 26, fontWeight: 700, color: '#1a1a1a' },
-  subtitle:     { fontSize: 14, color: '#5a6472', marginTop: 4 },
+  subtitle:     { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
   btn:          { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   btnPrimary:   { background: 'linear-gradient(135deg,#e53e3e,#c53030)', color: '#fff' },
   btnGhost:     { background: '#fff', color: '#374151', border: '1px solid #e5e7eb' },
@@ -551,7 +552,7 @@ const s: Record<string, React.CSSProperties> = {
   statsBanner:  { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 },
   statCard:     { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e5e7eb' },
   statVal:      { fontSize: 28, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 },
-  statLabel:    { fontSize: 13, color: '#5a6472', marginTop: 6 },
+  statLabel:    { fontSize: 13, color: TEXT_MUTED, marginTop: 6 },
   filterBar:    { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' },
   filterInput:  { flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none' },
   filterSelect: { padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, background: '#fff', cursor: 'pointer', outline: 'none' },
@@ -564,7 +565,7 @@ const s: Record<string, React.CSSProperties> = {
   threadSubj:   { fontWeight: 600, fontSize: 14, color: '#111', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   threadMeta:   { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' },
   chip:         { fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 99, border: '1px solid' },
-  threadTime:   { fontSize: 12, color: '#5a6472' },
+  threadTime:   { fontSize: 12, color: TEXT_MUTED },
   badge:        { background: '#e53e3e', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 99 },
   detailPanel:  { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 220px)' },
   detailHeader: { padding: '20px 24px', borderBottom: '1px solid #f3f4f6' },
@@ -581,8 +582,8 @@ const s: Record<string, React.CSSProperties> = {
   replyBar:     { padding: '16px 24px', borderTop: '1px solid #f3f4f6' },
   replyForm:    { display: 'flex', gap: 10, alignItems: 'flex-end' },
   replyInput:   { flex: 1, padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 14, resize: 'vertical', minHeight: 60, maxHeight: 140, outline: 'none', fontFamily: 'inherit' },
-  charCount:    { fontSize: 11, color: '#5a6472', textAlign: 'right' },
-  empty:        { textAlign: 'center', padding: '60px 20px', color: '#5a6472' },
+  charCount:    { fontSize: 11, color: TEXT_MUTED, textAlign: 'right' },
+  empty:        { textAlign: 'center', padding: '60px 20px', color: TEXT_MUTED },
   emptyIco:     { fontSize: 40, marginBottom: 12 },
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal:        { background: '#fff', borderRadius: 16, padding: '28px 32px', width: 540, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' },

@@ -5,6 +5,7 @@ import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -201,22 +202,22 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
-  subtitle: { margin: '4px 0 0', color: '#6c757d', fontSize: 14 },
+  subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
 
   cards: { display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap' },
   card: { flex: '1 1 200px', background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
-  cardLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   cardValue: { fontSize: 28, fontWeight: 800, color: '#1D3557', lineHeight: 1 },
-  cardSub: { fontSize: 14, color: '#6c757d', marginTop: 6 },
+  cardSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6 },
 
   tableWrap: { background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden', marginBottom: 24 },
   tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #f0f2f5' },
   tableTitle: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { background: '#f8f9fb', padding: '10px 14px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee' },
+  th: { background: '#f8f9fb', padding: '10px 14px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee' },
   tr: { borderBottom: '1px solid #f0f2f5' },
   td: { padding: '14px', fontSize: 15, color: '#333', verticalAlign: 'middle' },
-  sub: { fontSize: 13, color: '#6c757d', marginTop: 3 },
+  sub: { fontSize: 13, color: TEXT_MUTED, marginTop: 3 },
   expandBtn: { fontSize: 12, color: '#1D3557', minWidth: 14 },
 
   expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e0e7ff' },
@@ -226,7 +227,7 @@ const s: Record<string, React.CSSProperties> = {
   badgePaid: { background: '#d4edda', color: '#155724', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
   badgeUnpaid: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
 
-  footer: { padding: '14px 20px', background: '#f8f9fb', borderTop: '1px solid #eee', fontSize: 15, color: '#6c757d' },
+  footer: { padding: '14px 20px', background: '#f8f9fb', borderTop: '1px solid #eee', fontSize: 15, color: TEXT_MUTED },
 
   infoBox: { background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: '18px 22px' },
   infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 15, marginBottom: 6 },

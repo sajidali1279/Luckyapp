@@ -5,6 +5,7 @@ import { promotionsApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 interface PromoRequest {
   id: string;
@@ -409,7 +410,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   statNum: { fontSize: 28, fontWeight: 900, lineHeight: 1 },
-  statLabel: { fontSize: 14, fontWeight: 600, color: '#94a3b8', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 20 },
   filterBtn: {
@@ -419,11 +420,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   filterBtnActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
 
-  center: { textAlign: 'center', padding: 40, color: '#94a3b8' },
+  center: { textAlign: 'center', padding: 40, color: TEXT_MUTED },
   empty: { textAlign: 'center', padding: '48px 24px' },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 6 },
-  emptySub: { fontSize: 14, color: '#94a3b8' },
+  emptySub: { fontSize: 14, color: TEXT_MUTED },
 
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
 
@@ -442,10 +443,10 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13, fontWeight: 700, padding: '2px 8px',
     borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  requesterLine: { fontSize: 14, color: '#94a3b8' },
+  requesterLine: { fontSize: 14, color: TEXT_MUTED },
   expandBtn: {
     background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: 14, color: '#94a3b8', padding: 4,
+    fontSize: 14, color: TEXT_MUTED, padding: 4,
   },
 
   cardBody: {
@@ -455,7 +456,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
   infoBlock: {},
-  infoLabel: { fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
+  infoLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   infoValue: { fontSize: 14, color: '#334155', lineHeight: 1.5 },
   link: { fontSize: 14, color: '#3b82f6' },
 
@@ -492,7 +493,7 @@ const m: Record<string, React.CSSProperties> = {
     padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9',
   },
   modalTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
-  modalSub: { fontSize: 15, color: '#94a3b8', marginTop: 2 },
+  modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 2 },
   closeBtn: {
     background: '#f1f5f9', border: 'none', borderRadius: 8,
     width: 30, height: 30, cursor: 'pointer', fontSize: 14,
@@ -526,7 +527,7 @@ const m: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   uploadBtnText: { fontSize: 14, fontWeight: 600, color: '#475569' },
-  uploadBtnSub: { fontSize: 13, color: '#94a3b8' },
+  uploadBtnSub: { fontSize: 13, color: TEXT_MUTED },
   previewWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
   previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e2e8f0' },
   previewActions: { display: 'flex', gap: 8 },

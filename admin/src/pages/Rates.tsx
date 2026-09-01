@@ -5,6 +5,7 @@ import { billingApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
@@ -322,7 +323,7 @@ export default function Rates() {
                     {/* Tier threshold */}
                     <TableCell style={s.td}>
                       {tierKey === 'BRONZE' ? (
-                        <span style={{ fontSize: 14, color: '#adb5bd' }}>Starting tier</span>
+                        <span style={{ fontSize: 14, color: TEXT_MUTED }}>Starting tier</span>
                       ) : (
                         <div style={s.inputGroup}>
                           <span style={s.suffix}>$</span>
@@ -459,7 +460,7 @@ export default function Rates() {
                           <span style={s.preview}>+{numVal.toFixed(1)}% bonus</span>
                         )}
                         {!isNaN(numVal) && numVal === 0 && (
-                          <span style={{ ...s.preview, color: '#adb5bd' }}>no bonus</span>
+                          <span style={{ ...s.preview, color: TEXT_MUTED }}>no bonus</span>
                         )}
                       </div>
                     </TableCell>
@@ -593,7 +594,7 @@ export default function Rates() {
                       {!isNaN(cpgNum) && cpgNum > 0 ? (
                         <span style={s.effectiveTag}>${(1 * cpgNum / 100).toFixed(2)} cashback</span>
                       ) : (
-                        <span style={{ fontSize: 14, color: '#adb5bd' }}>enter rate above</span>
+                        <span style={{ fontSize: 14, color: TEXT_MUTED }}>enter rate above</span>
                       )}
                     </TableCell>
                     <TableCell style={{ ...s.td, textAlign: 'right' }}>
@@ -664,7 +665,7 @@ const s: Record<string, React.CSSProperties> = {
 
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 },
   title: { margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#1D3557' },
-  subtitle: { margin: 0, color: '#6c757d', fontSize: 14 },
+  subtitle: { margin: 0, color: TEXT_MUTED, fontSize: 14 },
 
   saveAllBtn: {
     padding: '10px 20px', background: '#1D3557', color: '#fff',
@@ -673,7 +674,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(29,53,87,0.25)',
   },
 
-  loading: { textAlign: 'center' as const, color: '#6c757d', padding: 60, fontSize: 15 },
+  loading: { textAlign: 'center' as const, color: TEXT_MUTED, padding: 60, fontSize: 15 },
   error: { textAlign: 'center' as const, color: '#E63946', padding: 40, background: '#fff5f5', borderRadius: 10 },
 
   storeCostNote: {
@@ -690,11 +691,11 @@ const s: Record<string, React.CSSProperties> = {
   thead: { background: '#f8f9fa' },
   th: {
     padding: '12px 16px', textAlign: 'left' as const,
-    fontSize: 14, fontWeight: 700, color: '#6c757d',
+    fontSize: 14, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase' as const, letterSpacing: 0.5,
     borderBottom: '2px solid #e9ecef',
   },
-  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: '#adb5bd', fontSize: 12, marginTop: 2 },
+  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: TEXT_MUTED, fontSize: 12, marginTop: 2 },
   tr: { borderBottom: '1px solid #f1f3f5', transition: 'background 0.15s' },
   trDirty: { background: '#fffbf0' },
   td: { padding: '14px 16px', verticalAlign: 'middle' as const },
@@ -702,7 +703,7 @@ const s: Record<string, React.CSSProperties> = {
   tierCell: { display: 'flex', alignItems: 'center', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
   tierName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
-  tierSub: { fontSize: 13, color: '#adb5bd', marginTop: 1 },
+  tierSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
 
   inputGroup: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const },
   input: {
@@ -712,7 +713,7 @@ const s: Record<string, React.CSSProperties> = {
     outline: 'none', transition: 'border 0.15s',
   },
   inputDirty: { borderColor: '#F4A226' },
-  suffix: { fontSize: 15, color: '#6c757d', fontWeight: 600 },
+  suffix: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   preview: { fontSize: 13, color: '#2DC653', fontStyle: 'italic' },
   gasActive: { fontSize: 13, color: '#F4A261', marginTop: 4 },
 
@@ -723,7 +724,7 @@ const s: Record<string, React.CSSProperties> = {
   undoBtn: {
     padding: '6px 10px', background: '#f8f9fa',
     border: '1px solid #dee2e6', borderRadius: 6,
-    cursor: 'pointer', fontSize: 15, color: '#6c757d',
+    cursor: 'pointer', fontSize: 15, color: TEXT_MUTED,
   },
   savedTag: { fontSize: 14, color: '#2DC653', fontWeight: 600 },
 
@@ -732,7 +733,7 @@ const s: Record<string, React.CSSProperties> = {
     margin: '36px 0 16px', gap: 16,
   },
   sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  sectionSubtitle: { margin: 0, color: '#6c757d', fontSize: 15 },
+  sectionSubtitle: { margin: 0, color: TEXT_MUTED, fontSize: 15 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
   perGallonBadge: {
     display: 'inline-block', padding: '4px 12px',
@@ -749,12 +750,12 @@ const s: Record<string, React.CSSProperties> = {
   modeBtn: {
     padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
     border: '1.5px solid #dee2e6', background: '#f8f9fa',
-    fontSize: 15, fontWeight: 600, color: '#6c757d', transition: 'all 0.15s',
+    fontSize: 15, fontWeight: 600, color: TEXT_MUTED, transition: 'all 0.15s',
   },
   modeBtnActive: {
     background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557',
   },
-  gasModeHint: { fontSize: 14, color: '#6c757d', fontStyle: 'italic', marginLeft: 4 },
+  gasModeHint: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginLeft: 4 },
   liveBadge: {
     display: 'inline-block', padding: '3px 10px',
     background: '#e8f8ed', color: '#1a7a3a',
@@ -786,7 +787,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '18px 20px',
   },
   infoCardTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 8 },
-  infoCardText: { fontSize: 15, color: '#6c757d', lineHeight: 1.55, margin: '0 0 12px' },
+  infoCardText: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.55, margin: '0 0 12px' },
   calcBox: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
   calcRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057' },
 };

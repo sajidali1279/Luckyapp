@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
@@ -412,7 +413,7 @@ export default function Stores() {
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
                             <button style={{ ...s.apiKeyBtn, color: '#E63946', borderColor: '#fca5a5' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
-                            <button style={{ ...s.apiKeyBtn, color: '#6c757d' }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
+                            <button style={{ ...s.apiKeyBtn, color: TEXT_MUTED }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
                           </div>
                         </div>
                       ) : (
@@ -475,7 +476,7 @@ export default function Stores() {
 
             {/* Existing mappings */}
             {kwLoading ? (
-              <div style={{ padding: '20px 0', color: '#6c757d', textAlign: 'center' }}>Loading…</div>
+              <div style={{ padding: '20px 0', color: TEXT_MUTED, textAlign: 'center' }}>Loading…</div>
             ) : kwMappings.length === 0 ? (
               <div style={s.kwEmpty}>No custom mappings yet - built-in keyword patterns will be used.</div>
             ) : (
@@ -643,7 +644,7 @@ const s: Record<string, React.CSSProperties> = {
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
-  subtitle: { margin: '4px 0 0', color: '#6c757d', fontSize: 14 },
+  subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
   countPill: { background: '#1D3557', color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 },
@@ -653,28 +654,28 @@ const s: Record<string, React.CSSProperties> = {
   avatar: { width: 44, height: 44, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 800, flexShrink: 0 },
   cardInfo: { flex: 1, minWidth: 0 },
   storeName: { fontWeight: 700, fontSize: 15, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeSub: { fontSize: 14, color: '#6c757d', marginTop: 2 },
+  storeSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   coordBadge: { fontSize: 13, fontWeight: 600, padding: '3px 9px', borderRadius: 20, flexShrink: 0 },
 
   divider: { height: 1, background: '#f0f2f5', margin: '10px 0' },
   detailRow: { display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 },
-  detailLabel: { fontSize: 13, color: '#adb5bd', fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
+  detailLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
   detailVal: { fontSize: 15, color: '#444' },
   coordText: { fontFamily: 'monospace', fontSize: 14, color: '#1D3557', background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
 
-  gasSectionLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: '#adb5bd', textTransform: 'none' as const, letterSpacing: 0 },
+  gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
   gasRow: { display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 4 },
   gasField: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 },
   gasLabel: { fontSize: 13, fontWeight: 600, color: '#555' },
   gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
-  gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: '#adb5bd', fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
+  gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: TEXT_MUTED, fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
   gasUpdateBtnActive: { background: '#1D3557', color: '#fff', cursor: 'pointer' },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
   apiKeySection: { paddingTop: 4 },
-  apiKeyLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
+  apiKeyLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
   apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: '#1D3557' },
   apiKeyBox: { background: '#f8f9fb', borderRadius: 10, padding: '10px 12px', border: '1px solid #e9ecef' },
   apiKeyCode: { display: 'block', fontSize: 13, fontFamily: 'monospace', color: '#1D3557', wordBreak: 'break-all' as const, marginBottom: 8 },
@@ -689,18 +690,18 @@ const s: Record<string, React.CSSProperties> = {
   cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
   kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: '#1D3557' },
 
-  kwHint: { fontSize: 14, color: '#6c757d', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
-  kwEmpty: { fontSize: 15, color: '#adb5bd', padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
+  kwHint: { fontSize: 14, color: TEXT_MUTED, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
+  kwEmpty: { fontSize: 15, color: TEXT_MUTED, padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
   kwList: { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 },
   kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f8f9fb', borderRadius: 9, padding: '8px 11px', border: '1px solid #e9ecef' },
   kwKeyword: { fontFamily: 'monospace', fontSize: 15, color: '#1D3557', fontWeight: 700, flex: 1 },
-  kwArrow: { color: '#adb5bd', fontSize: 14 },
+  kwArrow: { color: TEXT_MUTED, fontSize: 14 },
   kwCat: { fontSize: 14, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderRadius: 20, padding: '2px 9px', border: '1px solid #bbf7d0' },
   kwDeleteBtn: { background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontWeight: 800, fontSize: 14, padding: '0 4px', lineHeight: 1 },
   kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
   kwAddBtn: { padding: '9px 16px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
-  empty: { textAlign: 'center', padding: '60px 0', color: '#6c757d', fontSize: 15 },
+  empty: { textAlign: 'center', padding: '60px 0', color: TEXT_MUTED, fontSize: 15 },
 
   // Modal
   backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
@@ -708,22 +709,22 @@ const s: Record<string, React.CSSProperties> = {
   dragHandle: { width: 40, height: 4, background: '#e2e8f0', borderRadius: 2, margin: '0 auto 18px' },
   modalHeader: { marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  modalSub: { fontSize: 15, color: '#6c757d', marginTop: 3 },
+  modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
 
-  sectionLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 18 },
+  sectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 18 },
   fieldRow: { display: 'flex', gap: 12, marginBottom: 0 },
   field: { flex: 1, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 5 },
   label: { fontSize: 14, fontWeight: 600, color: '#555' },
   input: { border: '1.5px solid #e2e8f0', borderRadius: 9, padding: '9px 12px', fontSize: 15, color: '#1a1a2e', outline: 'none', transition: 'border-color 0.15s' },
 
-  catSectionLabel: { fontSize: 13, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
+  catSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
   catPillRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 4 },
   catPill: { fontSize: 13, fontWeight: 600, borderRadius: 20, padding: '3px 9px', border: '1px solid' },
   catPillOn: { background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' },
   catPillOff: { background: '#f9f9f9', borderColor: '#e5e7eb', color: '#aaa', textDecoration: 'line-through' },
 
 
-  catHint: { fontSize: 14, color: '#6c757d', background: '#f8f9fb', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
+  catHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
   catToggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 },
   catToggleBtn: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 6px', borderRadius: 10, border: '1.5px solid', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   catToggleBtnOn: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
@@ -731,10 +732,10 @@ const s: Record<string, React.CSSProperties> = {
   catToggleCheck: { fontSize: 13, fontWeight: 800 },
   resetCatBtn: { fontSize: 14, color: '#1D3557', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
 
-  geocodeHint: { fontSize: 14, color: '#6c757d', background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
+  geocodeHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
   geocodeBtn: { width: '100%', padding: '10px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },
 
   modalActions: { display: 'flex', gap: 10, marginTop: 22 },
-  cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: '#6c757d', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: TEXT_MUTED, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   saveBtn: { flex: 2, padding: '11px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

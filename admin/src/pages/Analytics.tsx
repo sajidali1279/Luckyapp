@@ -8,6 +8,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from 'recharts';
 import { billingApi } from '../services/api';
+import { TEXT_MUTED } from '../lib/theme';
 
 type Range = '7d' | '30d' | '90d' | 'custom';
 
@@ -201,7 +202,7 @@ export default function Analytics() {
                       <div style={{ width: 14, height: 14, borderRadius: 4, background: PIE_COLORS[i] }} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14, color: '#1D3557' }}>{entry.name}</div>
-                        <div style={{ color: '#6c757d', fontSize: 15 }}>{fmt$(entry.value)}</div>
+                        <div style={{ color: TEXT_MUTED, fontSize: 15 }}>{fmt$(entry.value)}</div>
                       </div>
                     </div>
                   ))}
@@ -257,10 +258,10 @@ const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 },
   title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
-  sub: { color: '#6c757d', marginTop: 4 },
+  sub: { color: TEXT_MUTED, marginTop: 4 },
 
   rangeControls: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  rangeBtn: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 15, fontWeight: 500, color: '#6c757d' },
+  rangeBtn: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 15, fontWeight: 500, color: TEXT_MUTED },
   rangeBtnActive: { background: '#1D3557', color: '#fff', border: '1px solid #1D3557', fontWeight: 700 },
 
   customDateRow: { display: 'flex', gap: 16, alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap' },
@@ -269,12 +270,12 @@ const s: Record<string, React.CSSProperties> = {
   dateInput: { padding: '9px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 14 },
   applyBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
 
-  loading: { color: '#6c757d', textAlign: 'center', padding: 80, fontSize: 16 },
+  loading: { color: TEXT_MUTED, textAlign: 'center', padding: 80, fontSize: 16 },
 
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 28 },
   summaryCard: { background: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 14, border: '1px solid #f0f1f2' },
   summaryIcon: { fontSize: 28, flexShrink: 0 },
-  summaryLabel: { color: '#6c757d', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryLabel: { color: TEXT_MUTED, fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
   summaryValue: { fontSize: 22, fontWeight: 800, color: '#1D3557', marginTop: 2 },
 
   chartCard: { background: '#fff', borderRadius: 16, padding: 28, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2' },
@@ -284,7 +285,7 @@ const s: Record<string, React.CSSProperties> = {
   tooltipLabel: { fontWeight: 700, color: '#1D3557', marginBottom: 6, fontSize: 15 },
 
   table: { width: '100%', borderCollapse: 'collapse' as const },
-  th: { textAlign: 'left', padding: '10px 16px', fontSize: 14, fontWeight: 700, color: '#6c757d', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '2px solid #dee2e6' },
+  th: { textAlign: 'left', padding: '10px 16px', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '2px solid #dee2e6' },
   td: { padding: '12px 16px', fontSize: 14, color: '#212529', borderBottom: '1px solid #f0f1f2' },
   tdNum: { textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' },
   trEven: { background: '#fafbfc' },

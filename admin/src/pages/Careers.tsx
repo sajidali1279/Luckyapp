@@ -7,6 +7,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
+import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 const POSITION_LABELS: Record<string, string> = {
   CASHIER: 'Cashier',
@@ -237,7 +239,7 @@ export default function Careers() {
 
       {/* ── OPENINGS PANEL ── */}
       {mainTab === 'openings' && (
-        openingsLoading ? <div style={s.empty}>Loading…</div> :
+        openingsLoading ? <CardSkeleton count={3} /> :
         openings.length === 0 ? <div style={s.empty}>No openings posted yet. Click "Post Opening" to add one.</div> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {openings.map(op => (
@@ -246,7 +248,7 @@ export default function Careers() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={s.opTitle}>{op.title}</span>
-                      <span style={{ ...s.badge, ...(op.isActive ? { color: '#166534', background: '#f0fdf4' } : { color: '#888', background: '#f5f5f5' }) }}>
+                      <span style={{ ...s.badge, ...(op.isActive ? { color: '#166534', background: '#f0fdf4' } : { color: TEXT_MUTED, background: '#f5f5f5' }) }}>
                         {op.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -335,7 +337,7 @@ export default function Careers() {
                     <TableCell style={s.td}>
                       <span style={{ ...s.badge, color: sc.color, background: sc.bg }}>{sc.label}</span>
                     </TableCell>
-                    <TableCell style={{ ...s.td, color: '#888', fontSize: 14 }}>{timeAgo(app.createdAt)}</TableCell>
+                    <TableCell style={{ ...s.td, color: TEXT_MUTED, fontSize: 14 }}>{timeAgo(app.createdAt)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -516,7 +518,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
-  subtitle: { margin: '4px 0 0', fontSize: 14, color: '#888' },
+  subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
 
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
@@ -533,11 +535,11 @@ const s: Record<string, React.CSSProperties> = {
   tableWrap: { overflowX: 'auto', borderRadius: 12, border: '1px solid #e0e0e0', background: '#fff' },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
-  th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
+  th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
   tr: { cursor: 'pointer', transition: 'background 0.15s' },
   td: { padding: '14px 16px', fontSize: 15, color: '#1D3557', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
   appName: { fontWeight: 700, color: '#1D3557' },
-  appPhone: { fontSize: 14, color: '#888', marginTop: 2 },
+  appPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 700 },
   avail: { fontSize: 14, color: '#555' },
 
@@ -548,12 +550,12 @@ const s: Record<string, React.CSSProperties> = {
   modal: { background: '#fff', borderRadius: 16, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   modalName: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
-  modalSub: { fontSize: 15, color: '#888', marginTop: 3 },
+  modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
 
   section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
   row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#333' },
-  rowLabel: { fontWeight: 600, color: '#888', minWidth: 70 },
+  rowLabel: { fontWeight: 600, color: TEXT_MUTED, minWidth: 70 },
   text: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
 
   statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#555' },

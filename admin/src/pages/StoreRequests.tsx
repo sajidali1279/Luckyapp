@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import { TEXT_MUTED } from '../lib/theme';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -969,7 +970,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   sidebarTop: { padding: '20px 18px 8px' },
   sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: '#5a6472', marginTop: 2 },
+  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -985,7 +986,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 14, color: '#5a6472', marginTop: 1 },
+  storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
 
   // ── Chat Panel ──
@@ -1014,7 +1015,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyIcon: { fontSize: 48, marginBottom: 4 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
-  emptySub: { fontSize: 15, color: '#5a6472', textAlign: 'center' },
+  emptySub: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center' },
 
   metaPill: {
     display: 'inline-flex', alignItems: 'center',
@@ -1047,13 +1048,13 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '5px 12px', borderRadius: 20,
     border: '1.5px solid #e5e7eb', background: '#f9fafb',
-    cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#5a6472',
+    cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED,
   },
   subFilterTabActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
   subFilterCount: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
-    background: '#e5e7eb', color: '#5a6472', fontSize: 12, fontWeight: 800,
+    background: '#e5e7eb', color: TEXT_MUTED, fontSize: 12, fontWeight: 800,
   },
   subFilterCountActive: { background: 'rgba(255,255,255,0.2)', color: '#fff' },
 
@@ -1094,7 +1095,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   typeIconEmoji: { fontSize: 22 },
   typeLabel: { fontWeight: 700, fontSize: 15, color: '#111827' },
-  storeMeta: { fontSize: 14, color: '#5a6472', marginTop: 2 },
+  storeMeta: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
 
   badgeRow: { display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 },
   prioBadge: {
@@ -1116,7 +1117,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0,
   },
-  submitterText: { fontSize: 14, color: '#5a6472' },
+  submitterText: { fontSize: 14, color: TEXT_MUTED },
 
   notesBox: {
     fontSize: 15, color: '#374151', fontStyle: 'italic',
@@ -1172,7 +1173,7 @@ const s: Record<string, React.CSSProperties> = {
   modalClose: {
     width: 32, height: 32, borderRadius: 16,
     border: 'none', background: '#f3f4f6',
-    cursor: 'pointer', fontSize: 14, color: '#5a6472', fontWeight: 700,
+    cursor: 'pointer', fontSize: 14, color: TEXT_MUTED, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1187,14 +1188,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   previewIconEmoji: { fontSize: 20 },
   previewType: { fontWeight: 700, fontSize: 14, color: '#111827' },
-  previewMeta: { fontSize: 14, color: '#5a6472', marginTop: 2 },
-  previewNotes: { fontSize: 14, color: '#5a6472', fontStyle: 'italic', marginTop: 5 },
+  previewMeta: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
+  previewNotes: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginTop: 5 },
 
   modalLabel: {
-    fontSize: 13, fontWeight: 800, color: '#5a6472',
+    fontSize: 13, fontWeight: 800, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: '0.8px',
   },
-  optionalTag: { fontSize: 12, fontWeight: 500, textTransform: 'none', color: '#5a6472' },
+  optionalTag: { fontSize: 12, fontWeight: 500, textTransform: 'none', color: TEXT_MUTED },
   noteInput: {
     width: '100%', padding: '12px 14px',
     borderRadius: 12, border: '1.5px solid #e5e7eb',
@@ -1240,7 +1241,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   prProductName: { fontWeight: 800, fontSize: 16, color: '#111827', lineHeight: 1.3 },
-  prDescription: { fontSize: 14, color: '#5a6472', fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
+  prDescription: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
   prStatusBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '4px 10px', borderRadius: 10, border: '1px solid',
@@ -1250,8 +1251,8 @@ const s: Record<string, React.CSSProperties> = {
 
   prCustomerRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
   prCustomerName: { fontWeight: 700, fontSize: 15, color: '#374151' },
-  prCustomerPhone: { fontSize: 14, color: '#5a6472' },
-  prTime: { fontSize: 14, color: '#5a6472' },
+  prCustomerPhone: { fontSize: 14, color: TEXT_MUTED },
+  prTime: { fontSize: 14, color: TEXT_MUTED },
   prExpiryPill: {
     marginLeft: 'auto', background: '#fffbeb', borderRadius: 8,
     border: '1px solid #fde68a',
@@ -1297,12 +1298,12 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 12, padding: '12px 14px',
   },
   reviewLineName: { fontWeight: 700, fontSize: 14, color: '#111827' },
-  reviewLineMeta: { fontSize: 13, color: '#5a6472', marginTop: 2 },
+  reviewLineMeta: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
   reviewLineActionRow: { display: 'flex', gap: 8, marginTop: 8 },
   reviewLineActionBtn: {
     flex: 1, padding: '7px 0', borderRadius: 8,
     border: '1.5px solid #e5e7eb', background: '#fff',
-    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#5a6472',
+    cursor: 'pointer', fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
   },
   reviewLineActionBtnAccept: { background: '#f0fdf4', borderColor: '#86efac', color: '#065f46' },
   reviewLineActionBtnReject: { background: '#fff1f2', borderColor: '#fecaca', color: '#9f1239' },
@@ -1310,7 +1311,7 @@ const s: Record<string, React.CSSProperties> = {
   reasonChip: {
     padding: '4px 10px', borderRadius: 20,
     border: '1.5px solid #e5e7eb', background: '#fff',
-    cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#5a6472',
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, color: TEXT_MUTED,
   },
   reasonChipActive: { background: '#fff1f2', borderColor: '#dc2626', color: '#dc2626' },
   reasonNoteInput: {

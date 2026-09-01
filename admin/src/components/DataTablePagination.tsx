@@ -3,9 +3,10 @@ interface DataTablePaginationProps {
   totalPages: number;
   onPrevious: () => void;
   onNext: () => void;
+  extraInfo?: string;
 }
 
-export default function DataTablePagination({ page, totalPages, onPrevious, onNext }: DataTablePaginationProps) {
+export default function DataTablePagination({ page, totalPages, onPrevious, onNext, extraInfo }: DataTablePaginationProps) {
   if (totalPages <= 1) return null;
   return (
     <div className="mt-6 flex items-center justify-center gap-4">
@@ -16,7 +17,7 @@ export default function DataTablePagination({ page, totalPages, onPrevious, onNe
       >
         ← Prev
       </button>
-      <span className="text-sm font-medium text-muted-foreground">Page {page} of {totalPages}</span>
+      <span className="text-sm font-medium text-muted-foreground">Page {page} of {totalPages}{extraInfo ? ` ${extraInfo}` : ''}</span>
       <button
         className="rounded-lg border border-border bg-background px-5 py-2 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40"
         onClick={onNext}

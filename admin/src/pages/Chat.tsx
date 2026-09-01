@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ErrorState from '../components/ErrorState';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
+import { TEXT_MUTED } from '../lib/theme';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -406,7 +407,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '20px 18px 8px',
   },
   sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: '#5a6472', marginTop: 2 },
+  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
 
   storeSearch: {
     margin: '8px 14px 6px',
@@ -422,7 +423,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
-  storeListEmpty: { padding: '20px 14px', fontSize: 13.5, color: '#9ca3af', textAlign: 'center' },
+  storeListEmpty: { padding: '20px 14px', fontSize: 13.5, color: TEXT_MUTED, textAlign: 'center' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
     padding: '9px 10px', background: 'none', border: 'none', cursor: 'pointer',
@@ -437,7 +438,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  storeBtnCity: { fontSize: 14, color: '#5a6472', marginTop: 1 },
+  storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: {
     width: 8, height: 8, borderRadius: 4,
     background: '#2DC653', flexShrink: 0,
@@ -457,7 +458,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   emptyIconWrap: { fontSize: 52, marginBottom: 4 },
   emptyTitle: { fontSize: 20, fontWeight: 800, color: '#111827' },
-  emptySub: { fontSize: 14, color: '#5a6472', textAlign: 'center' },
+  emptySub: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
 
   chatHeader: {
     display: 'flex', alignItems: 'center', gap: 14,
@@ -493,7 +494,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#f8fafc',
   },
   noMessages: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
-  noMessagesText: { fontSize: 14, color: '#5a6472', marginTop: 4 },
+  noMessagesText: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
 
   dateDivider: {
     display: 'flex', alignItems: 'center', gap: 12,
@@ -501,7 +502,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   dateDividerLine: { flex: 1, height: 1, background: '#e5e7eb' },
   dateDividerLabel: {
-    fontSize: 13, fontWeight: 700, color: '#5a6472',
+    fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: 0.6, whiteSpace: 'nowrap',
   },
 
@@ -530,7 +531,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', color: '#111827',
     border: '1px solid #e5e7eb',
   },
-  msgTime: { fontSize: 12, color: '#5a6472', marginBottom: 2, whiteSpace: 'nowrap' as const },
+  msgTime: { fontSize: 12, color: TEXT_MUTED, marginBottom: 2, whiteSpace: 'nowrap' as const },
 
   // ── Input bar ──
   inputBar: {
@@ -561,7 +562,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '4px 10px 8px',
   },
-  inputHint: { fontSize: 13, color: '#5a6472' },
+  inputHint: { fontSize: 13, color: TEXT_MUTED },
   sendBtn: {
     width: 34, height: 34, borderRadius: 10,
     background: 'linear-gradient(135deg, #1D3557, #2c5282)',

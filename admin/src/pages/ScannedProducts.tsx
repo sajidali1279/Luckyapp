@@ -328,7 +328,7 @@ const s: Record<string, CSSProperties> = {
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
@@ -365,7 +365,7 @@ const m: Record<string, CSSProperties> = {
   title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1D3557' },
   closeBtn: {
     background: 'none', border: 'none', fontSize: 18,
-    cursor: 'pointer', color: '#888', lineHeight: 1,
+    cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
   },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
   label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
