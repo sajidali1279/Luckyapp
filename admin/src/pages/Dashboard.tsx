@@ -891,22 +891,29 @@ const s: Record<string, React.CSSProperties> = {
   recentAmount: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
 
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
+  // auto-fit (not auto-fill) collapses grid tracks that have no card in
+  // them, so a short row - a lone card, or a trailing card that doesn't
+  // fill the last row - doesn't leave a strip of empty white space beside
+  // it; remaining cards use the freed-up room to grow, up to the max.
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 260px))', gap: 14, marginBottom: 32 },
   dashboardHint: { fontSize: 13, color: '#b7791f', marginTop: -20, marginBottom: 32 },
   statCard: {
-    background: '#fff', borderRadius: 16, padding: '18px 16px',
+    background: '#fff', borderRadius: 16, padding: '20px 18px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
     display: 'flex', flexDirection: 'column', gap: 8,
     border: '1px solid #f0f1f2', transition: TRANSITION_TRANSFORM,
   },
   statIconWrap: {
-    width: 42, height: 42, borderRadius: 12,
+    width: 46, height: 46, borderRadius: 12,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  statIcon: { fontSize: 20 },
+  statIcon: { fontSize: 22 },
   statArrow: { fontSize: 15, color: TEXT_MUTED, fontWeight: 700 },
-  statLabel: { color: TEXT_MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 24, fontWeight: 800, letterSpacing: -0.5 },
+  // minHeight reserves room for a two-line label so a short label ("Staff")
+  // and a long one ("Subscription Revenue") both leave the value number
+  // starting at the same y position across a row of cards.
+  statLabel: { color: TEXT_MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 1.3, minHeight: 34 },
+  statValue: { fontSize: 26, fontWeight: 800, letterSpacing: -0.5 },
 
   healthLoading: { color: TEXT_MUTED, fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
   healthOk: {
