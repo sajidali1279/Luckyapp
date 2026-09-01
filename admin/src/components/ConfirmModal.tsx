@@ -1,4 +1,5 @@
 import { useState, useEffect, CSSProperties } from 'react';
+import { PRIMARY } from '../lib/theme';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -126,5 +127,5 @@ const s: Record<string, CSSProperties> = {
     cursor: 'pointer',
   },
   confirmDanger: { background: '#E63946', color: '#fff' },
-  confirmPrimary: { background: '#1D3557', color: '#fff' },
+  confirmPrimary: { background: PRIMARY, color: '#fff' },
 };

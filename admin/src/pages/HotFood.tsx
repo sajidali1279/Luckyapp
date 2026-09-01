@@ -10,7 +10,7 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -887,7 +887,7 @@ const am: Record<string, React.CSSProperties> = {
   sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' },
   sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' },
   bulk:      { padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#F1F5F9', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#64748B' },
-  bulkOn:    { background: '#1D3557', border: '1px solid #1D3557', color: '#fff' },
+  bulkOn:    { background: PRIMARY, border: '1px solid #1D3557', color: '#fff' },
   count:     { fontSize: 13, fontWeight: 700, color: '#1D4ED8', minWidth: 40, textAlign: 'right' },
   storeList: { maxHeight: 240, overflowY: 'auto' },
   storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid #F9FAFB', cursor: 'pointer', transition: 'background 100ms' },

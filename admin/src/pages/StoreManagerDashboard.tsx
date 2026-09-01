@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 function greeting() {
   const h = new Date().getHours();
@@ -183,7 +183,7 @@ export default function StoreManagerDashboard() {
   );
 }
 
-function StatCard({ icon, label, value, valueColor = '#1D3557' }: { icon: string; label: string; value: any; valueColor?: string }) {
+function StatCard({ icon, label, value, valueColor = PRIMARY }: { icon: string; label: string; value: any; valueColor?: string }) {
   return (
     <div style={s.statCard}>
       <div style={s.statIcon}>{icon}</div>
@@ -211,7 +211,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 20, padding: '8px 20px', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
   },
 
-  sectionTitle: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginBottom: 14, marginTop: 0 },
+  sectionTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY, marginBottom: 14, marginTop: 0 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 36 },
   statCard: {
@@ -233,7 +233,7 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', textAlign: 'left', width: '100%',
   },
   actionIcon: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 },
-  actionTitle: { color: '#1D3557', fontWeight: 700, fontSize: 15 },
+  actionTitle: { color: PRIMARY, fontWeight: 700, fontSize: 15 },
   actionDesc: { color: TEXT_MUTED, fontSize: 15, marginTop: 2 },
   arrow: { color: '#dee2e6', fontSize: 24, marginLeft: 'auto', flexShrink: 0 },
 
@@ -244,7 +244,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2',
   },
   pendingLeft: { flex: 1 },
-  pendingCustomer: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
+  pendingCustomer: { fontWeight: 700, fontSize: 15, color: PRIMARY },
   pendingMeta: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
   pendingRight: { display: 'flex', alignItems: 'center', gap: 12 },
   pendingPoints: { fontSize: 16, fontWeight: 800, color: '#2DC653' },

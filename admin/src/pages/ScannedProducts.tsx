@@ -6,7 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface ScannedProduct {
   id: string;
@@ -20,7 +20,7 @@ interface ScannedProduct {
 }
 
 const SOURCE_META: Record<string, { label: string; bg: string; color: string }> = {
-  manual:        { label: 'Manual',           bg: '#e8f0fe', color: '#1D3557' },
+  manual:        { label: 'Manual',           bg: '#e8f0fe', color: PRIMARY },
   openfoodfacts: { label: 'Open Food Facts',  bg: '#eaf7ee', color: '#1e7a3d' },
 };
 
@@ -291,7 +291,7 @@ const s: Record<string, CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
   pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
 
   searchWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
@@ -303,7 +303,7 @@ const s: Record<string, CSSProperties> = {
     outline: 'none',
   },
   addBtn: {
-    padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
+    padding: '10px 16px', borderRadius: 10, background: PRIMARY, border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
 
@@ -315,14 +315,14 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '12px 16px', borderBottom: '1px solid #eee',
   },
-  catName: { fontSize: 14, fontWeight: 800, color: '#1D3557', textTransform: 'uppercase', letterSpacing: 0.4 },
+  catName: { fontSize: 14, fontWeight: 800, color: PRIMARY, textTransform: 'uppercase', letterSpacing: 0.4 },
   catBadge: {
-    fontSize: 12, fontWeight: 700, color: '#1D3557', background: '#1D355718',
+    fontSize: 12, fontWeight: 700, color: PRIMARY, background: '#1D355718',
     borderRadius: 10, padding: '2px 9px',
   },
   showMoreBtn: {
     width: '100%', padding: '11px 16px', background: '#f9f9fc', border: 'none',
-    borderTop: '1px solid #eee', color: '#1D3557', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    borderTop: '1px solid #eee', color: PRIMARY, fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
@@ -331,7 +331,7 @@ const s: Record<string, CSSProperties> = {
     color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
-  itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
+  itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 160 },
   sourceBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   deleteBtn: {
     background: '#fff0f0', color: '#c53030', border: 'none',
@@ -343,7 +343,7 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };
 
@@ -362,7 +362,7 @@ const m: Record<string, CSSProperties> = {
     padding: '20px 24px', borderBottom: '1px solid #eee',
     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
   closeBtn: {
     background: 'none', border: 'none', fontSize: 18,
     cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
@@ -381,7 +381,7 @@ const m: Record<string, CSSProperties> = {
     padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
   },
   saveBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },

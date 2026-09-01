@@ -5,7 +5,7 @@ import { labelsApi } from '../services/api';
 import ErrorState from './ErrorState';
 import TableSkeleton from './TableSkeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface StoreHealth {
   storeId: string;
@@ -98,7 +98,7 @@ const s: Record<string, CSSProperties> = {
   summaryGood: { background: '#f0fdf4', borderColor: '#bbf7d0' },
   summaryWarn: { background: '#fffbeb', borderColor: '#fde68a' },
   summaryIcon: { fontSize: 22 },
-  summaryText: { fontSize: 15, color: '#1D3557' },
+  summaryText: { fontSize: 15, color: PRIMARY },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
@@ -111,13 +111,13 @@ const s: Record<string, CSSProperties> = {
     color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
-  storeName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  storeName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   countBadge: {
     display: 'inline-block', fontSize: 13, fontWeight: 700, color: '#b7791f',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 10px',
   },
   goBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
   },
 };

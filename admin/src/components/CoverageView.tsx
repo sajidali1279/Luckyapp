@@ -5,7 +5,7 @@ import { labelsApi } from '../services/api';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import TableSkeleton from './TableSkeleton';
 import ErrorState from './ErrorState';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../utils/labelStatus';
 import BulkPrintWizard, { BulkPrintStoreGroup } from './BulkPrintWizard';
 
@@ -297,7 +297,7 @@ const s: Record<string, CSSProperties> = {
     color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
-  itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
 
   expandBtn: {
@@ -310,7 +310,7 @@ const s: Record<string, CSSProperties> = {
   coveragePartial: { color: '#b7791f', background: '#fffbeb' },
 
   pushBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
   },
 
@@ -320,11 +320,11 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid',
     borderRadius: 10, padding: '6px 10px', fontSize: 12.5,
   },
-  chipStoreName: { fontWeight: 700, color: '#1D3557' },
+  chipStoreName: { fontWeight: 700, color: PRIMARY },
   chipStatus: { fontWeight: 700 },
   chipPrice: { color: TEXT_MUTED },
   chipAddBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
   },
 
@@ -333,6 +333,6 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };

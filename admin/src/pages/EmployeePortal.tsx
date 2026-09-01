@@ -5,7 +5,7 @@ import { employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -428,7 +428,7 @@ const s: Record<string, React.CSSProperties> = {
 
   tabBar:     { display: 'flex', background: '#fff', borderBottom: '1px solid #E2E8F0' },
   tab:        { flex: 1, padding: '14px 0', fontSize: 15, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s' },
-  tabActive:  { color: '#1D3557', borderBottomColor: '#1D3557', background: '#F8FAFC' },
+  tabActive:  { color: PRIMARY, borderBottomColor: PRIMARY, background: '#F8FAFC' },
 
   body:       { maxWidth: 600, margin: '0 auto', padding: '20px 16px' },
   card:       { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
@@ -444,7 +444,7 @@ const s: Record<string, React.CSSProperties> = {
 
   input:      { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
   searchInput:{ width: '100%', padding: '12px 80px 12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', fontSize: 15, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
-  addInlineBtn:{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', padding: '6px 14px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  addInlineBtn:{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', padding: '6px 14px', borderRadius: 6, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   searchHint: { fontSize: 12, color: TEXT_MUTED, marginTop: 6 },
 
   sugg:       { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 10px 10px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 240, overflowY: 'auto' },
@@ -458,7 +458,7 @@ const s: Record<string, React.CSSProperties> = {
   cartItemFields:{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 },
   fieldInput: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none' },
   editLink:   { color: '#2563EB', fontWeight: 600 },
-  doneBtn:    { padding: '8px 16px', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
+  doneBtn:    { padding: '8px 16px', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
   removeBtn:  { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 4 },
 
   submitBtn:  { width: '100%', padding: '14px 0', borderRadius: 12, background: 'linear-gradient(135deg, #1D3557 0%, #2563EB 100%)', color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.15s' },

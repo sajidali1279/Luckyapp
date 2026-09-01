@@ -1,16 +1,18 @@
+import { PRIMARY } from '../lib/theme';
+
 export default function Privacy() {
   const s: Record<string, React.CSSProperties> = {
     page:       { maxWidth: 760, margin: '0 auto', padding: '48px 24px 100px', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#1a1a1a', lineHeight: 1.75 },
     logo:       { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 },
-    badge:      { background: '#1D3557', color: '#fff', fontWeight: 700, fontSize: 20, padding: '8px 16px', borderRadius: 8 },
+    badge:      { background: PRIMARY, color: '#fff', fontWeight: 700, fontSize: 20, padding: '8px 16px', borderRadius: 8 },
     h1:         { fontSize: 30, fontWeight: 800, margin: '0 0 6px', letterSpacing: -0.5 },
     updated:    { color: '#666', fontSize: 14, margin: '0 0 8px' },
     intro:      { color: '#444', fontSize: 15, margin: '0 0 40px', lineHeight: 1.8 },
     toc:        { background: '#f7f9fc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '20px 24px', marginBottom: 40 },
-    tocTitle:   { fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.8, color: '#1D3557', margin: '0 0 10px' },
+    tocTitle:   { fontWeight: 700, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: 0.8, color: PRIMARY, margin: '0 0 10px' },
     tocList:    { margin: 0, paddingLeft: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 24px' } as React.CSSProperties,
-    tocItem:    { fontSize: 13, color: '#1D3557' },
-    h2:         { fontSize: 18, fontWeight: 800, margin: '44px 0 10px', color: '#1D3557', borderBottom: '2px solid #e2e8f0', paddingBottom: 6 },
+    tocItem:    { fontSize: 13, color: PRIMARY },
+    h2:         { fontSize: 18, fontWeight: 800, margin: '44px 0 10px', color: PRIMARY, borderBottom: '2px solid #e2e8f0', paddingBottom: 6 },
     h3:         { fontSize: 15, fontWeight: 700, margin: '20px 0 6px', color: '#374151' },
     p:          { margin: '0 0 14px', fontSize: 15 },
     ul:         { margin: '0 0 14px', paddingLeft: 22, fontSize: 15 },

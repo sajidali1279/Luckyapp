@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
@@ -51,7 +51,7 @@ interface FormState {
 const AVATAR_PALETTE = [
   '#E63946', '#457B9D', '#2DC653', '#F4A261', '#7B2FBE',
   '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653',
-  '#6A0572', '#1D3557',
+  '#6A0572', PRIMARY,
 ];
 
 function storeAvatar(idx: number) { return AVATAR_PALETTE[idx % AVATAR_PALETTE.length]; }
@@ -643,9 +643,9 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
-  countPill: { background: '#1D3557', color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
+  countPill: { background: PRIMARY, color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 },
   card: { background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
@@ -661,7 +661,7 @@ const s: Record<string, React.CSSProperties> = {
   detailRow: { display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 },
   detailLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
   detailVal: { fontSize: 15, color: '#444' },
-  coordText: { fontFamily: 'monospace', fontSize: 14, color: '#1D3557', background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
+  coordText: { fontFamily: 'monospace', fontSize: 14, color: PRIMARY, background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
 
   gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
@@ -670,17 +670,17 @@ const s: Record<string, React.CSSProperties> = {
   gasLabel: { fontSize: 13, fontWeight: 600, color: '#555' },
   gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
   gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: TEXT_MUTED, fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
-  gasUpdateBtnActive: { background: '#1D3557', color: '#fff', cursor: 'pointer' },
+  gasUpdateBtnActive: { background: PRIMARY, color: '#fff', cursor: 'pointer' },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
   apiKeySection: { paddingTop: 4 },
   apiKeyLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
-  apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: '#1D3557' },
+  apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: PRIMARY },
   apiKeyBox: { background: '#f8f9fb', borderRadius: 10, padding: '10px 12px', border: '1px solid #e9ecef' },
-  apiKeyCode: { display: 'block', fontSize: 13, fontFamily: 'monospace', color: '#1D3557', wordBreak: 'break-all' as const, marginBottom: 8 },
+  apiKeyCode: { display: 'block', fontSize: 13, fontFamily: 'monospace', color: PRIMARY, wordBreak: 'break-all' as const, marginBottom: 8 },
   apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: '#1D3557' },
+  apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: PRIMARY },
 
   disputeBanner: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff7ed', borderRadius: 10, padding: '8px 12px', margin: '10px 0 0', border: '1px solid #fed7aa' },
   disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#ea580c', flexShrink: 0 },
@@ -688,18 +688,18 @@ const s: Record<string, React.CSSProperties> = {
   disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#ea580c', textDecoration: 'none' },
 
   cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
-  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: '#1D3557' },
+  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: PRIMARY },
 
   kwHint: { fontSize: 14, color: TEXT_MUTED, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
   kwEmpty: { fontSize: 15, color: TEXT_MUTED, padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
   kwList: { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 },
   kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f8f9fb', borderRadius: 9, padding: '8px 11px', border: '1px solid #e9ecef' },
-  kwKeyword: { fontFamily: 'monospace', fontSize: 15, color: '#1D3557', fontWeight: 700, flex: 1 },
+  kwKeyword: { fontFamily: 'monospace', fontSize: 15, color: PRIMARY, fontWeight: 700, flex: 1 },
   kwArrow: { color: TEXT_MUTED, fontSize: 14 },
   kwCat: { fontSize: 14, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderRadius: 20, padding: '2px 9px', border: '1px solid #bbf7d0' },
   kwDeleteBtn: { background: 'none', border: 'none', color: '#E63946', cursor: 'pointer', fontWeight: 800, fontSize: 14, padding: '0 4px', lineHeight: 1 },
   kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
-  kwAddBtn: { padding: '9px 16px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  kwAddBtn: { padding: '9px 16px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
   empty: { textAlign: 'center', padding: '60px 0', color: TEXT_MUTED, fontSize: 15 },
 
@@ -708,7 +708,7 @@ const s: Record<string, React.CSSProperties> = {
   modal: { background: '#fff', borderRadius: 22, padding: '28px 28px 24px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   dragHandle: { width: 40, height: 4, background: '#e2e8f0', borderRadius: 2, margin: '0 auto 18px' },
   modalHeader: { marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  modalTitle: { fontSize: 20, fontWeight: 800, color: PRIMARY },
   modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
 
   sectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 18 },
@@ -730,12 +730,12 @@ const s: Record<string, React.CSSProperties> = {
   catToggleBtnOn: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
   catToggleBtnOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
   catToggleCheck: { fontSize: 13, fontWeight: 800 },
-  resetCatBtn: { fontSize: 14, color: '#1D3557', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
+  resetCatBtn: { fontSize: 14, color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
 
   geocodeHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
-  geocodeBtn: { width: '100%', padding: '10px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },
+  geocodeBtn: { width: '100%', padding: '10px 0', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },
 
   modalActions: { display: 'flex', gap: 10, marginTop: 22 },
   cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: TEXT_MUTED, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  saveBtn: { flex: 2, padding: '11px 0', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  saveBtn: { flex: 2, padding: '11px 0', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

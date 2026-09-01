@@ -5,7 +5,7 @@ import { billingApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 type TierKey = typeof TIERS[number];
@@ -664,11 +664,11 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 },
-  title: { margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: '#1D3557' },
+  title: { margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: 0, color: TEXT_MUTED, fontSize: 14 },
 
   saveAllBtn: {
-    padding: '10px 20px', background: '#1D3557', color: '#fff',
+    padding: '10px 20px', background: PRIMARY, color: '#fff',
     border: 'none', borderRadius: 8, cursor: 'pointer',
     fontSize: 14, fontWeight: 700, flexShrink: 0,
     boxShadow: '0 2px 8px rgba(29,53,87,0.25)',
@@ -702,14 +702,14 @@ const s: Record<string, React.CSSProperties> = {
 
   tierCell: { display: 'flex', alignItems: 'center', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
-  tierName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  tierName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   tierSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
 
   inputGroup: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const },
   input: {
     width: 90, padding: '7px 10px',
     border: '1.5px solid #dee2e6', borderRadius: 7,
-    fontSize: 15, fontWeight: 600, color: '#1D3557',
+    fontSize: 15, fontWeight: 600, color: PRIMARY,
     outline: 'none', transition: 'border 0.15s',
   },
   inputDirty: { borderColor: '#F4A226' },
@@ -732,7 +732,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     margin: '36px 0 16px', gap: 16,
   },
-  sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: PRIMARY },
   sectionSubtitle: { margin: 0, color: TEXT_MUTED, fontSize: 15 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
   perGallonBadge: {
@@ -753,7 +753,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15, fontWeight: 600, color: TEXT_MUTED, transition: 'all 0.15s',
   },
   modeBtnActive: {
-    background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557',
+    background: PRIMARY, color: '#fff', border: '1.5px solid #1D3557',
   },
   gasModeHint: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginLeft: 4 },
   liveBadge: {
@@ -764,7 +764,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   liveInactiveBadge: {
     display: 'inline-block', padding: '3px 10px',
-    background: '#e8f0fb', color: '#1D3557',
+    background: '#e8f0fb', color: PRIMARY,
     borderRadius: 20, fontSize: 14, fontWeight: 700,
     border: '1px solid #b3c8e8',
   },
@@ -786,7 +786,7 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     padding: '18px 20px',
   },
-  infoCardTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 8 },
+  infoCardTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, marginBottom: 8 },
   infoCardText: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.55, margin: '0 0 12px' },
   calcBox: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
   calcRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057' },

@@ -7,7 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
 import CoverageView from '../components/CoverageView';
@@ -614,10 +614,10 @@ const s: Record<string, CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
   pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
   addBtn: {
-    padding: '10px 16px', borderRadius: 10, background: '#1D3557', border: 'none',
+    padding: '10px 16px', borderRadius: 10, background: PRIMARY, border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   catalogLayout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
@@ -628,7 +628,7 @@ const s: Record<string, CSSProperties> = {
     borderWidth: 1.5, borderStyle: 'solid', borderColor: '#ddd', borderRadius: 20, padding: '8px 16px',
     fontSize: 13, fontWeight: 700, color: '#444', background: '#fff', cursor: 'pointer',
   },
-  viewToggleChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
+  viewToggleChipActive: { borderColor: PRIMARY, background: '#eff6ff', color: PRIMARY },
 
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   searchInput: {
@@ -651,11 +651,11 @@ const s: Record<string, CSSProperties> = {
     color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
-  itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
   dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
   editBtn: {
-    background: '#eff6ff', color: '#1D3557', border: 'none',
+    background: '#eff6ff', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
   duplicateBtn: {
@@ -672,7 +672,7 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };
 
@@ -691,7 +691,7 @@ const m: Record<string, CSSProperties> = {
     padding: '20px 24px', borderBottom: '1px solid #eee',
     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
   closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
   label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
@@ -708,7 +708,7 @@ const m: Record<string, CSSProperties> = {
     padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#444',
     background: '#fff', cursor: 'pointer',
   },
-  templateChipActive: { borderColor: '#1D3557', background: '#eff6ff', color: '#1D3557' },
+  templateChipActive: { borderColor: PRIMARY, background: '#eff6ff', color: PRIMARY },
   templateSwatch: { width: 10, height: 10, borderRadius: 5, display: 'inline-block' },
   priceInputWrap: { position: 'relative' as const },
   priceInputDollar: {
@@ -733,7 +733,7 @@ const m: Record<string, CSSProperties> = {
     padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
   },
   saveBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },

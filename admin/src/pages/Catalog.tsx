@@ -7,7 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface CatalogItem {
   id: string;
@@ -123,8 +123,8 @@ function CatalogModal({
                 onClick={() => setCategory(opt.value)}
                 style={{
                   flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer',
-                  border: `2px solid ${category === opt.value ? '#1D3557' : '#ddd'}`,
-                  background: category === opt.value ? '#1D3557' : '#fff',
+                  border: `2px solid ${category === opt.value ? PRIMARY : '#ddd'}`,
+                  background: category === opt.value ? PRIMARY : '#fff',
                   color: category === opt.value ? '#fff' : '#444',
                   fontWeight: 700, fontSize: 14, textAlign: 'center' as const,
                   lineHeight: 1.4,
@@ -213,7 +213,7 @@ function CatalogModal({
 // ─── Chain Section ─────────────────────────────────────────────────────────────
 
 const CHAIN_META: Record<string, { icon: string; color: string }> = {
-  'Lucky Stop': { icon: '⛽', color: '#1D3557' },
+  'Lucky Stop': { icon: '⛽', color: PRIMARY },
 };
 
 function ChainSection({
@@ -469,10 +469,10 @@ const s: Record<string, React.CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
   pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
   createBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
     fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
   },
@@ -482,7 +482,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', borderRadius: 14, padding: '14px 20px',
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 90,
   },
-  statVal: { fontSize: 26, fontWeight: 900, color: '#1D3557' },
+  statVal: { fontSize: 26, fontWeight: 900, color: PRIMARY },
   statLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
 
   infoBanner: {
@@ -498,7 +498,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };
 
@@ -512,7 +512,7 @@ const cs: Record<string, React.CSSProperties> = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
   chainIcon: { fontSize: 28 },
-  chainName: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
+  chainName: { fontSize: 18, fontWeight: 800, color: PRIMARY },
   chainCount: { fontSize: 14, color: TEXT_MUTED, fontWeight: 600, marginTop: 2 },
   emptyChain: {
     background: '#fff', borderRadius: '0 0 14px 14px',
@@ -531,14 +531,14 @@ const cs: Record<string, React.CSSProperties> = {
     color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
-  itemTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', display: 'block', minWidth: 160 },
+  itemTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 160 },
   itemDesc: { fontSize: 15, color: TEXT_MUTED, display: 'block', minWidth: 180 },
   catBadge: {
-    background: '#f0f4ff', color: '#1D3557',
+    background: '#f0f4ff', color: PRIMARY,
     borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 600,
   },
   ptsBadge: {
-    background: '#1D3557', color: '#fff',
+    background: PRIMARY, color: '#fff',
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
   valueBadge: {
@@ -550,7 +550,7 @@ const cs: Record<string, React.CSSProperties> = {
   statusActive: { background: '#d4edda', color: '#155724' },
   statusInactive: { background: '#f8d7da', color: '#721c24' },
   editBtn: {
-    background: '#e8f0fe', color: '#1D3557', border: 'none',
+    background: '#e8f0fe', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
   },
   deleteBtn: {
@@ -574,7 +574,7 @@ const m: Record<string, React.CSSProperties> = {
     padding: '20px 24px', borderBottom: '1px solid #eee',
     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
   closeBtn: {
     background: 'none', border: 'none', fontSize: 18,
     cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
@@ -594,7 +594,7 @@ const m: Record<string, React.CSSProperties> = {
     padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
   },
   saveBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
 };

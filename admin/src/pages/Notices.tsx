@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function oneWeekOutStr() { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); }
@@ -123,7 +123,7 @@ export default function Notices() {
 
       {showForm && (
         <form style={s.form} onSubmit={handleCreate}>
-          <h3 style={{ margin: '0 0 16px', color: '#1D3557' }}>Post a Notice</h3>
+          <h3 style={{ margin: '0 0 16px', color: PRIMARY }}>Post a Notice</h3>
 
           <label style={s.label}>Title *</label>
           <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Health Inspection Tomorrow" maxLength={100} />
@@ -135,7 +135,7 @@ export default function Notices() {
           <input style={{ ...s.input, maxWidth: 200 }} type="date" value={endDate} min={todayStr()} onChange={(e) => setEndDate(e.target.value)} />
 
           {isStoreManager && ownStoreIds.length <= 1 ? (
-            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
+            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
               📍 This notice will appear for your store only
             </div>
           ) : isStoreManager ? (
@@ -218,7 +218,7 @@ export default function Notices() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
@@ -229,7 +229,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit' },
-  saveBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
+  saveBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
 
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
@@ -240,7 +240,7 @@ const s: Record<string, React.CSSProperties> = {
   cardTitle: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
   cardBody: { fontSize: 14, color: '#374151', margin: '0 0 4px', lineHeight: 1.5 },
   tagStatus: { display: 'inline-block', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 },
-  tagAll: { display: 'inline-block', background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagAll: { display: 'inline-block', background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagDate: { display: 'inline-block', background: '#f8f9fa', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
   deactivateBtn: { background: '#fffbeb', color: '#b45309', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fde68a', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },

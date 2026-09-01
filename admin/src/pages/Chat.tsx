@@ -6,11 +6,11 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ErrorState from '../components/ErrorState';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
-  SUPER_ADMIN:   '#1D3557',
+  SUPER_ADMIN:   PRIMARY,
   STORE_MANAGER: '#0369a1',
   EMPLOYEE:      '#f59e0b',
 };
@@ -23,7 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const STORE_GRADIENTS = [
-  ['#1D3557', '#457B9D'],
+  [PRIMARY, '#457B9D'],
   ['#0369a1', '#0ea5e9'],
   ['#166534', '#2DC653'],
   ['#7c3aed', '#a78bfa'],
@@ -223,7 +223,7 @@ export default function Chat() {
                     {store.name[0].toUpperCase()}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: isActive ? '#1D3557' : '#212529' }}>
+                    <div style={{ ...s.storeBtnName, color: isActive ? PRIMARY : '#212529' }}>
                       {store.name}
                     </div>
                     <div style={s.storeBtnCity}>{store.city}</div>

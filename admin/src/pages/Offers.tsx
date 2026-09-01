@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -557,7 +557,7 @@ export default function Offers() {
       {/* Create / Edit Form */}
       {showForm && (
         <form id="offer-form" style={s.form} onSubmit={handleCreate}>
-          <h3 style={{ margin: '0 0 4px', color: '#1D3557', fontSize: 17, fontWeight: 800 }}>
+          <h3 style={{ margin: '0 0 4px', color: PRIMARY, fontSize: 17, fontWeight: 800 }}>
             {title || 'New Promotion'}
           </h3>
 
@@ -595,12 +595,12 @@ export default function Offers() {
                 <div>
                   <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #dee2e6', width: 'fit-content' }}>
                     <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : '#6c757d' }}
+                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? PRIMARY : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : '#6c757d' }}
                       onClick={() => setGasBonusType('cpg')}>
                       ⛽ ¢ / gallon
                     </button>
                     <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? '#1D3557' : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : '#6c757d' }}
+                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? PRIMARY : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : '#6c757d' }}
                       onClick={() => setGasBonusType('pct')}>
                       💲 % of amount
                     </button>
@@ -645,7 +645,7 @@ export default function Offers() {
                       <span style={s.unit}>% bonus - same for all tiers</span>
                     </div>
                     <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
-                      style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? '#1D3557' : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
+                      style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? PRIMARY : '#f8f9fa', color: useTierBonuses ? '#fff' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
                       {useTierBonuses ? '🏆 Per-tier on' : '🏆 Per-tier?'}
                     </button>
                   </div>
@@ -685,7 +685,7 @@ export default function Offers() {
                 </div>
               </div>
               {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600, marginTop: 8 }}>
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600, marginTop: 8 }}>
                   📍 This promotion will apply to your store only
                 </div>
               ) : (
@@ -776,7 +776,7 @@ export default function Offers() {
           {/* Deal create form */}
           {showDealForm && (
             <form id="deal-form" style={s.form} onSubmit={handleCreateDeal}>
-              <h3 style={{ margin: '0 0 16px', color: '#1D3557' }}>
+              <h3 style={{ margin: '0 0 16px', color: PRIMARY }}>
                 {dealTitle ? `🏷️ ${dealTitle}` : 'New Deal'}
               </h3>
               <label style={s.label}>Product / Item Name *</label>
@@ -798,7 +798,7 @@ export default function Offers() {
                 </div>
               </div>
               {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: '#1D3557', fontWeight: 600 }}>
+                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
                   📍 This deal will apply to your store only
                 </div>
               ) : (
@@ -949,11 +949,11 @@ function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => vo
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
 
   addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
-  templateBtn: { background: '#fff', color: '#1D3557', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#1D3557', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  templateBtn: { background: '#fff', color: PRIMARY, borderWidth: '1.5px', borderStyle: 'solid', borderColor: PRIMARY, borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   quickPanel: {
     background: '#f0fdf4', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac',
@@ -973,28 +973,28 @@ const s: Record<string, React.CSSProperties> = {
   quickPostBtn: { background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 800, cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' as const },
 
   suggestionsBox: { background: '#f8faff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#d0d9f0', borderRadius: 16, padding: 24, marginBottom: 28 },
-  suggestTitle: { margin: '0 0 4px', color: '#1D3557', fontSize: 16, fontWeight: 800 },
+  suggestTitle: { margin: '0 0 4px', color: PRIMARY, fontSize: 16, fontWeight: 800 },
   suggestSub: { margin: '0 0 16px', color: TEXT_MUTED, fontSize: 15 },
   groupTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
   groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
-  groupTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  groupTabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
   templateGrid: { display: 'flex', flexDirection: 'column', gap: 8 },
   templateCard: { background: '#fff', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e9ecef' },
   templateIcon: { fontSize: 22, flexShrink: 0, width: 32, textAlign: 'center' },
-  templateTitle: { fontWeight: 700, fontSize: 14, color: '#1D3557', marginBottom: 4 },
+  templateTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, marginBottom: 4 },
   templateDesc: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.5 },
   templateMeta: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   templateBadge: { background: '#fef2f2', color: '#E63946', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
   templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 600 },
-  useBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
+  useBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
 
   form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
   formSection: { padding: '16px 0', borderBottom: '1px solid #f1f3f5', display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  formSectionLabel: { fontWeight: 800, fontSize: 15, color: '#1D3557', marginBottom: 2 },
+  formSectionLabel: { fontWeight: 800, fontSize: 15, color: PRIMARY, marginBottom: 2 },
   required: { fontWeight: 600, fontSize: 13, color: '#E63946', marginLeft: 4 },
   catGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 8 },
   catCard: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '10px 6px', borderRadius: 10, border: '1.5px solid #e9ecef', background: '#fafafa', cursor: 'pointer', gap: 2, transition: 'all 0.15s' },
-  catCardActive: { border: '2px solid #1D3557', background: '#e8f0fb', color: '#1D3557' },
+  catCardActive: { border: '2px solid #1D3557', background: '#e8f0fb', color: PRIMARY },
   unit: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' as const },
   calcHint: { fontSize: 13, color: '#2DC653', fontStyle: 'italic', marginTop: 4 },
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -1003,7 +1003,7 @@ const s: Record<string, React.CSSProperties> = {
   cancelFormBtn: { background: '#f8fafc', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
 
   sectionHead: {
-    fontSize: 14, fontWeight: 800, color: '#1D3557', marginBottom: 16,
+    fontSize: 14, fontWeight: 800, color: PRIMARY, marginBottom: 16,
     display: 'flex', alignItems: 'center', gap: 8,
     borderLeft: '4px solid #1D3557', paddingLeft: 12,
   },
@@ -1016,13 +1016,13 @@ const s: Record<string, React.CSSProperties> = {
   cardDesc: { color: TEXT_MUTED, fontSize: 15, margin: '0 0 8px', lineHeight: 1.5 },
   cardDate: { color: TEXT_MUTED, fontSize: 13, margin: '8px 0 0', fontWeight: 600 },
   badge: { display: 'inline-block', background: '#fef2f2', color: '#E63946', borderRadius: 8, padding: '4px 10px', fontSize: 14, fontWeight: 700 },
-  tagAll: { background: '#eff6ff', color: '#1D3557', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagAll: { background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagPast: { background: '#f8fafc', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  reuseBtn: { background: '#eff6ff', color: '#1D3557', border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
+  reuseBtn: { background: '#eff6ff', color: PRIMARY, border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1D3557', padding: '8px 0', marginBottom: 8 },
+  historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: PRIMARY, padding: '8px 0', marginBottom: 8 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 
   mainTabs: { display: 'flex', gap: 8, marginBottom: 24 },
@@ -1032,7 +1032,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700,
     color: TEXT_MUTED, display: 'flex', alignItems: 'center', gap: 8,
   },
-  mainTabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  mainTabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
   tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 13, fontWeight: 700 },
   dealTextBig: { fontSize: 24, fontWeight: 900, color: '#E63946', marginBottom: 6, letterSpacing: -0.5 },
 };

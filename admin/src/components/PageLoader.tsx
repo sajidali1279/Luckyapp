@@ -1,3 +1,5 @@
+import { PRIMARY } from '../lib/theme';
+
 export default function PageLoader() {
   return (
     <div style={s.wrap}>
@@ -71,8 +73,8 @@ const s: Record<string, React.CSSProperties> = {
     inset: -3,
     borderRadius: '50%',
     border: '3px solid transparent',
-    borderTopColor: '#1D3557',
-    borderRightColor: '#1D3557',
+    borderTopColor: PRIMARY,
+    borderRightColor: PRIMARY,
     animation: 'ls-spin 0.85s linear infinite',
   } as React.CSSProperties,
   label: {

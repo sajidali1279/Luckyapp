@@ -8,13 +8,13 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import DataTablePagination from '../components/DataTablePagination';
 import { format } from 'date-fns';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const AVATAR_PALETTE = ['#7c3aed','#0369a1','#16a34a','#b45309','#1D3557','#E63946','#0891b2','#be185d','#0f5132','#92400e'];
+const AVATAR_PALETTE = ['#7c3aed','#0369a1','#16a34a','#b45309',PRIMARY,'#E63946','#0891b2','#be185d','#0f5132','#92400e'];
 function avatarColor(name: string) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || 0) % AVATAR_PALETTE.length];
 }
@@ -477,7 +477,7 @@ const s: Record<string, React.CSSProperties> = {
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   eyebrow: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
 
   headerStats: { display: 'flex', gap: 10, alignItems: 'center' },
   statChip: {
@@ -485,10 +485,10 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 12, padding: '10px 16px', textAlign: 'center',
     boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
   },
-  statNum: { display: 'block', fontSize: 18, fontWeight: 800, color: '#1D3557' },
+  statNum: { display: 'block', fontSize: 18, fontWeight: 800, color: PRIMARY },
   statLbl: { display: 'block', fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
 
-  exportBtn: { padding: '9px 18px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
+  exportBtn: { padding: '9px 18px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   searchRow: { display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' },
   searchWrap: { flex: 1, position: 'relative' },
@@ -498,7 +498,7 @@ const s: Record<string, React.CSSProperties> = {
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, background: '#fff',
   },
-  searchBtn: { padding: '10px 22px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
+  searchBtn: { padding: '10px 22px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
   clearBtn: { padding: '10px 16px', background: '#f8fafc', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 15 },
 
   cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 },
@@ -551,7 +551,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '10px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
     fontSize: 14, fontWeight: 600, color: TEXT_MUTED, borderBottom: '2px solid transparent', marginBottom: -2,
   },
-  tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
+  tabActive: { color: PRIMARY, borderBottomColor: PRIMARY },
 
   // Disputes
   filterSelect: {
@@ -571,7 +571,7 @@ const s: Record<string, React.CSSProperties> = {
   disputeCustomer: { fontSize: 14, fontWeight: 700, color: '#111827' },
   disputeDesc: { fontSize: 15, color: '#374151', marginTop: 4, lineHeight: 1.5 },
   resolveBtn: {
-    padding: '8px 18px', background: '#1D3557', color: '#fff', border: 'none',
+    padding: '8px 18px', background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15, flexShrink: 0,
   },
 

@@ -5,7 +5,7 @@ import { promotionsApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface PromoRequest {
   id: string;
@@ -401,7 +401,7 @@ export default function BusinessPromotions() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   topBar: { marginBottom: 24 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },
 
   statsRow: { display: 'flex', gap: 12, marginBottom: 20 },
@@ -418,7 +418,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600,
     color: '#64748b', display: 'flex', alignItems: 'center', gap: 4,
   },
-  filterBtnActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  filterBtnActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
 
   center: { textAlign: 'center', padding: 40, color: TEXT_MUTED },
   empty: { textAlign: 'center', padding: '48px 24px' },
@@ -463,7 +463,7 @@ const s: Record<string, React.CSSProperties> = {
   actionRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   publishActionBtn: {
     padding: '8px 16px', borderRadius: 8, border: 'none',
-    background: '#1D3557', color: '#fff',
+    background: PRIMARY, color: '#fff',
     fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },
   rejectBtn: {
@@ -492,7 +492,7 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9',
   },
-  modalTitle: { fontSize: 18, fontWeight: 800, color: '#1D3557' },
+  modalTitle: { fontSize: 18, fontWeight: 800, color: PRIMARY },
   modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 2 },
   closeBtn: {
     background: '#f1f5f9', border: 'none', borderRadius: 8,

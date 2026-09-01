@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1203,7 +1203,7 @@ const s: Record<string, React.CSSProperties> = {
 
   tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
   tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
-  tabActive: { color: '#1D3557', borderBottomColor: '#1D3557' },
+  tabActive: { color: PRIMARY, borderBottomColor: PRIMARY },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
@@ -1237,7 +1237,7 @@ const s: Record<string, React.CSSProperties> = {
 
   // Detail view
   breadcrumb:    { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 },
-  breadcrumbBtn: { background: 'none', border: 'none', color: '#1D3557', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
+  breadcrumbBtn: { background: 'none', border: 'none', color: PRIMARY, fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
   breadcrumbSep: { color: '#CBD5E1' },
   breadcrumbCur: { fontSize: 14, color: '#64748B' },
 
@@ -1291,7 +1291,7 @@ const s: Record<string, React.CSSProperties> = {
   rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: TEXT_MUTED, border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
 
   input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const },
@@ -1305,7 +1305,7 @@ const p: Record<string, React.CSSProperties> = {
 
   nameInput:   { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' },
   qtyInput:    { flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', outline: 'none', minWidth: 0 },
-  addBtn:      { padding: '10px 18px', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'opacity 0.15s' },
+  addBtn:      { padding: '10px 18px', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'opacity 0.15s' },
   addBtnDim:   { opacity: 0.4, cursor: 'not-allowed' },
   hint:        { fontSize: 11, color: '#CBD5E1', marginTop: 8 },
 
@@ -1339,7 +1339,7 @@ const p: Record<string, React.CSSProperties> = {
   lineBtn:     { flex: 1, padding: '6px 0', borderRadius: 6, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
   lineBtnAccept:{ background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
   lineBtnReject:{ background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
-  submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: '#1D3557', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   restoreRow:    { display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer' },
   restoreRowSel: { background: '#EFF6FF', borderColor: '#93C5FD' },

@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface Notification {
   id: string;
@@ -313,7 +313,7 @@ export default function Notifications() {
 
           <div style={s.filterGroup}>
             <button
-              style={{ ...s.filterPill, ...(unreadOnly ? { ...s.filterPillActive, background: '#1D3557', borderColor: '#1D3557', color: '#fff' } : {}) }}
+              style={{ ...s.filterPill, ...(unreadOnly ? { ...s.filterPillActive, background: PRIMARY, borderColor: PRIMARY, color: '#fff' } : {}) }}
               onClick={() => setUnreadOnly(v => !v)}
             >
               🔵 Unread only
@@ -550,7 +550,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: 6,
     borderBottom: '2px solid transparent', marginBottom: -2, transition: 'color 0.15s',
   },
-  tabActive: { color: '#1D3557', borderBottom: '2px solid #1D3557', background: '#f8faff' },
+  tabActive: { color: PRIMARY, borderBottom: '2px solid #1D3557', background: '#f8faff' },
   tabBadge: {
     background: '#e5e7eb', color: TEXT_MUTED,
     borderRadius: 10, padding: '1px 7px', fontSize: 12, fontWeight: 700,
@@ -614,7 +614,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600,
     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
   },
-  filterPillActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  filterPillActive: { background: PRIMARY, borderColor: PRIMARY, color: '#fff' },
   filterCount: {
     marginLeft: 6, background: 'rgba(255,255,255,0.3)',
     borderRadius: 10, padding: '1px 6px', fontSize: 12,
@@ -645,7 +645,7 @@ const sp: Record<string, React.CSSProperties> = {
   panelTitle: { fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 4 },
   panelSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)' },
   field: { marginBottom: 18 },
-  label: { display: 'block', fontSize: 14, fontWeight: 700, color: '#1D3557', marginBottom: 6 },
+  label: { display: 'block', fontSize: 14, fontWeight: 700, color: PRIMARY, marginBottom: 6 },
   charCount: { fontWeight: 400, color: TEXT_MUTED, fontSize: 13 },
   select: {
     width: '100%', padding: '10px 14px', borderRadius: 10,

@@ -1,5 +1,5 @@
 import { CSSProperties } from 'react';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../utils/labelStatus';
 
 export interface PrintTrayItem {
@@ -115,7 +115,7 @@ const s: Record<string, CSSProperties> = {
     padding: '14px 16px', borderBottom: '1px solid #f0f0f5',
   },
   headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
+  title: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   clearBtn: { background: 'none', border: 'none', color: TEXT_MUTED, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   headerPrintRow: { display: 'flex', flexDirection: 'column', gap: 8 },
   totalInline: { fontSize: 12.5, color: TEXT_MUTED },
@@ -123,7 +123,7 @@ const s: Record<string, CSSProperties> = {
   list: { flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4 },
   row: { padding: '10px 6px', borderBottom: '1px solid #f5f5f8' },
   rowTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  name: { fontSize: 13.5, fontWeight: 700, color: '#1D3557', flex: 1, minWidth: 0 },
+  name: { fontSize: 13.5, fontWeight: 700, color: PRIMARY, flex: 1, minWidth: 0 },
   removeBtn: {
     background: 'none', border: 'none', color: TEXT_MUTED, cursor: 'pointer',
     fontSize: 13, lineHeight: 1, padding: 2, flexShrink: 0,
@@ -132,7 +132,7 @@ const s: Record<string, CSSProperties> = {
   rowBottom: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 },
   priceWrap: { display: 'flex', alignItems: 'center', gap: 2 },
   dollar: { fontSize: 13, fontWeight: 700, color: '#667' },
-  priceStatic: { fontSize: 14, fontWeight: 700, color: '#1D3557' },
+  priceStatic: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   priceInput: {
     width: 64, border: '1.5px solid #ddd', borderRadius: 8, padding: '4px 6px',
     fontSize: 13.5, fontWeight: 700, outline: 'none',
@@ -156,7 +156,7 @@ const s: Record<string, CSSProperties> = {
   statusBadge: { fontSize: 10.5, fontWeight: 700, borderRadius: 6, padding: '2px 6px' },
   dealBadge: { fontSize: 11.5, fontWeight: 600, color: '#b7791f' },
 
-  totalCount: { fontWeight: 800, color: '#1D3557', fontSize: 13.5 },
+  totalCount: { fontWeight: 800, color: PRIMARY, fontSize: 13.5 },
   printBtn: {
     width: '100%', padding: '11px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',

@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { inventoryAnalyticsApi, storesApi, orderCategoriesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const PERIODS = [
   { value: '7',   label: '7 days'   },
@@ -19,7 +19,7 @@ const PERIODS = [
 ];
 
 const CHART_COLORS = [
-  '#E63946', '#1D3557', '#F4A261', '#2DC653', '#6A4C93',
+  '#E63946', PRIMARY, '#F4A261', '#2DC653', '#6A4C93',
   '#1CBEC0', '#F7B731', '#FC5C65', '#45AAF2', '#26DE81',
 ];
 
@@ -237,7 +237,7 @@ export default function InventoryAnalytics() {
                     contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #E5E7EB' }}
                     formatter={(v: any) => [`${Number(v)}`, 'Order lines']}
                   />
-                  <Bar dataKey="items" fill="#1D3557" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="items" fill={PRIMARY} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -268,7 +268,7 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 500,
     borderRight: '1px solid #E5E7EB',
   },
-  segActive: { backgroundColor: '#1D3557', color: '#fff', fontWeight: 700 },
+  segActive: { backgroundColor: PRIMARY, color: '#fff', fontWeight: 700 },
   select: {
     padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
     backgroundColor: '#fff', fontSize: 15, color: '#374151', minWidth: 160,

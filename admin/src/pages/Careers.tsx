@@ -8,7 +8,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const POSITION_LABELS: Record<string, string> = {
   CASHIER: 'Cashier',
@@ -20,7 +20,7 @@ const POSITION_LABELS: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  NEW:      { label: 'New',            color: '#1D3557', bg: '#eff6ff' },
+  NEW:      { label: 'New',            color: PRIMARY, bg: '#eff6ff' },
   REVIEWED: { label: 'Reviewed',       color: '#7c3aed', bg: '#f5f3ff' },
   INTERVIEW:{ label: 'Interview',      color: '#b45309', bg: '#fffbeb' },
   HIRED:    { label: 'Hired',          color: '#166534', bg: '#f0fdf4' },
@@ -352,7 +352,7 @@ export default function Careers() {
       {showOpeningForm && (
         <div style={s.overlay} onClick={() => setShowOpeningForm(false)}>
           <div style={{ ...s.modal, width: 520 }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 20, color: '#1D3557' }}>{editingOpening ? 'Edit Opening' : 'Post Job Opening'}</h2>
+            <h2 style={{ margin: '0 0 20px', fontSize: 20, color: PRIMARY }}>{editingOpening ? 'Edit Opening' : 'Post Job Opening'}</h2>
 
             <label style={s.label}>Job Title *</label>
             <input style={s.input} value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Cashier Needed – North Location" />
@@ -517,12 +517,12 @@ export default function Careers() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
 
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
   tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
-  tabActive: { background: '#1D3557', color: '#fff', border: '1.5px solid #1D3557' },
+  tabActive: { background: PRIMARY, color: '#fff', border: '1.5px solid #1D3557' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
@@ -537,8 +537,8 @@ const s: Record<string, React.CSSProperties> = {
   thead: { background: '#f8fafc' },
   th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
   tr: { cursor: 'pointer', transition: 'background 0.15s' },
-  td: { padding: '14px 16px', fontSize: 15, color: '#1D3557', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
-  appName: { fontWeight: 700, color: '#1D3557' },
+  td: { padding: '14px 16px', fontSize: 15, color: PRIMARY, borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
+  appName: { fontWeight: 700, color: PRIMARY },
   appPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 700 },
   avail: { fontSize: 14, color: '#555' },
@@ -549,7 +549,7 @@ const s: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 20 },
   modal: { background: '#fff', borderRadius: 16, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  modalName: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  modalName: { fontSize: 20, fontWeight: 800, color: PRIMARY },
   modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
 
   section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' },
@@ -561,7 +561,7 @@ const s: Record<string, React.CSSProperties> = {
   statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#555' },
 
   textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e0e0e0', padding: '10px 12px', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
-  saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   metaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   metaText: { fontSize: 14, color: '#aaa' },
@@ -570,13 +570,13 @@ const s: Record<string, React.CSSProperties> = {
   // Openings
   postBtn: { padding: '10px 20px', borderRadius: 10, border: 'none', background: '#CC2936', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
   opCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e0e0e0' },
-  opTitle: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
+  opTitle: { fontSize: 17, fontWeight: 800, color: PRIMARY },
   opMeta: { fontSize: 14, color: '#666', margin: '4px 0 6px' },
   opDesc: { fontSize: 14, color: '#444', lineHeight: 1.5 },
-  editBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#fff', color: '#1D3557', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  editBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#fff', color: PRIMARY, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Form
-  label: { fontSize: 13, fontWeight: 700, color: '#1D3557', display: 'block', marginBottom: 5, marginTop: 14 },
+  label: { fontSize: 13, fontWeight: 700, color: PRIMARY, display: 'block', marginBottom: 5, marginTop: 14 },
   input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' },
   cancelBtn: { padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e0e0e0', background: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#555' },
 };

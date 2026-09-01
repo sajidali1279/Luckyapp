@@ -23,7 +23,7 @@ import dpaMd                 from '../../../docs/legal/data-processing-agreement
 import slaMd                 from '../../../docs/legal/service-level-agreement.md?raw';
 import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
 import aupMd                 from '../../../docs/legal/acceptable-use-policy.md?raw';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
 
@@ -220,7 +220,7 @@ const ALL_DOCS: Doc[] = [
 ];
 
 const CATEGORIES = [
-  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: '#1D3557', bg: '#EFF6FF' },
+  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: PRIMARY, bg: '#EFF6FF' },
   { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#157A6E', bg: '#F0FDF9' },
   { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#7C3AED', bg: '#F5F3FF' },
   { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#B45309', bg: '#FFFBEB' },
@@ -408,7 +408,7 @@ const ps: Record<string, React.CSSProperties> = {
     marginBottom: 28, display: 'flex', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 16,
   },
-  heroTitle: { fontSize: 28, fontWeight: 900, color: '#1D3557', marginBottom: 6 },
+  heroTitle: { fontSize: 28, fontWeight: 900, color: PRIMARY, marginBottom: 6 },
   heroSub: { fontSize: 14, color: TEXT_MUTED, margin: 0 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' as const },
@@ -419,7 +419,7 @@ const ps: Record<string, React.CSSProperties> = {
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
   filterBtnActive: {
-    background: '#1D3557', borderColor: '#1D3557', color: '#fff',
+    background: PRIMARY, borderColor: PRIMARY, color: '#fff',
   },
 
   grid: {
@@ -441,7 +441,7 @@ const ps: Record<string, React.CSSProperties> = {
   },
   cardIcon: { fontSize: 22 },
   cardBody: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557', marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: 800, color: PRIMARY, marginBottom: 4 },
   cardDesc: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.5 },
   cardCatBadge: {
     fontSize: 13, fontWeight: 700, borderRadius: 8,
@@ -471,10 +471,10 @@ const rs: Record<string, React.CSSProperties> = {
     background: '#fff', flexShrink: 0,
     gap: 16,
   },
-  headerTitle: { fontSize: 17, fontWeight: 900, color: '#1D3557' },
+  headerTitle: { fontSize: 17, fontWeight: 900, color: PRIMARY },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   printBtn: {
-    background: '#1D3557', color: '#fff',
+    background: PRIMARY, color: '#fff',
     border: 'none', borderRadius: 10,
     padding: '9px 18px', fontSize: 15, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap' as const,

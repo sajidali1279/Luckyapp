@@ -4,7 +4,7 @@ import { leaderboardApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -226,7 +226,7 @@ const s: Record<string, React.CSSProperties> = {
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: '#1D3557', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
   pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
 
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 },
@@ -240,7 +240,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     padding: '20px 20px 16px', borderBottom: '1px solid #eee', gap: 12,
   },
-  panelTitle: { fontSize: 17, fontWeight: 800, color: '#1D3557' },
+  panelTitle: { fontSize: 17, fontWeight: 800, color: PRIMARY },
   panelSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 3 },
 
   select: {
@@ -263,7 +263,7 @@ const s: Record<string, React.CSSProperties> = {
 
   loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 15 },
   empty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 16, fontWeight: 700, color: PRIMARY },
   emptySub: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center' },
 
   tableWrap: { overflowX: 'auto', flex: 1 },
@@ -275,19 +275,19 @@ const s: Record<string, React.CSSProperties> = {
   },
   td: { padding: '12px 16px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
   rankNum: { fontSize: 15, fontWeight: 700, color: '#aaa' },
-  custName: { fontSize: 14, fontWeight: 700, color: '#1D3557' },
+  custName: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   ptsBadge: {
-    background: '#1D3557', color: '#fff',
+    background: PRIMARY, color: '#fff',
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
-  empName: { fontSize: 14, fontWeight: 700, color: '#1D3557' },
+  empName: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   eomChip: {
     background: '#FEF3C7', color: '#92400E',
     borderRadius: 8, padding: '2px 8px', fontSize: 13, fontWeight: 700,
   },
-  ratingNum: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
+  ratingNum: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   countBadge: {
-    background: '#f0f4ff', color: '#1D3557',
+    background: '#f0f4ff', color: PRIMARY,
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
 };

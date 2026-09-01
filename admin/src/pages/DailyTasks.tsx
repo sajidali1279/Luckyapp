@@ -7,7 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { ListChecks, Plus, Pencil, Trash2, Sparkles } from 'lucide-react';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
 
@@ -263,7 +263,7 @@ export default function DailyTasks() {
             />
 
             {isStoreManager && ownStoreIds.length <= 1 ? (
-              <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 14, color: '#1D3557', fontWeight: 600, marginTop: 14 }}>
+              <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 14, color: PRIMARY, fontWeight: 600, marginTop: 14 }}>
                 📍 This task will apply to your store only
               </div>
             ) : isStoreManager ? (
@@ -306,13 +306,13 @@ const s: Record<string, React.CSSProperties> = {
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   headerLeft: { display: 'flex', alignItems: 'center', gap: 14 },
-  iconWrap: { width: 42, height: 42, borderRadius: 11, background: '#1D3557', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  iconWrap: { width: 42, height: 42, borderRadius: 11, background: PRIMARY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
   headerActions: { display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 },
 
   seedBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#f3f4f6', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' },
-  addBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#1D3557', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' },
+  addBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: PRIMARY, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' },
 
   filterRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 },
   filterLabel: { fontSize: 14, fontWeight: 600, color: '#374151', flexShrink: 0 },
@@ -337,7 +337,7 @@ const s: Record<string, React.CSSProperties> = {
   taskBody: { flex: 1, minWidth: 0 },
   taskTitle: { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 },
   taskDesc: { fontSize: 13, color: TEXT_MUTED, lineHeight: 1.5 },
-  storeBadge: { display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: '#1D3557', background: '#dbeafe', borderRadius: 6, padding: '2px 8px' },
+  storeBadge: { display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: PRIMARY, background: '#dbeafe', borderRadius: 6, padding: '2px 8px' },
   taskActions: { display: 'flex', gap: 6, flexShrink: 0 },
   editBtn: { background: '#f3f4f6', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center' },
   deleteBtn: { background: '#fef2f2', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center' },
@@ -350,5 +350,5 @@ const s: Record<string, React.CSSProperties> = {
   input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#111827', boxSizing: 'border-box' },
   modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 },
   cancelBtn: { padding: '9px 18px', background: '#f3f4f6', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer' },
-  saveBtn: { padding: '9px 18px', background: '#1D3557', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' },
+  saveBtn: { padding: '9px 18px', background: PRIMARY, border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' },
 };

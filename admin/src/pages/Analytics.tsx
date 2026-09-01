@@ -8,7 +8,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from 'recharts';
 import { billingApi } from '../services/api';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 type Range = '7d' | '30d' | '90d' | 'custom';
 
@@ -23,7 +23,7 @@ function rangeToDateStr(range: Range): { from: string; to: string } {
 
 function fmt$(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
-const PIE_COLORS = ['#E63946', '#1D3557', '#F4A261', '#2DC653'];
+const PIE_COLORS = ['#E63946', PRIMARY, '#F4A261', '#2DC653'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -144,7 +144,7 @@ export default function Analytics() {
                 <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Line type="monotone" dataKey="purchaseVolume" stroke="#1D3557" strokeWidth={2} dot={false} name="Purchase Volume" />
+                <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
                 <Line type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} dot={false} name="Dev Cut" />
               </LineChart>
             </ResponsiveContainer>
@@ -161,7 +161,7 @@ export default function Analytics() {
                   <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} width={120} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Bar dataKey="transactions" fill="#1D3557" name="Transactions" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -201,7 +201,7 @@ export default function Analytics() {
                     <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 14, height: 14, borderRadius: 4, background: PIE_COLORS[i] }} />
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#1D3557' }}>{entry.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: PRIMARY }}>{entry.name}</div>
                         <div style={{ color: TEXT_MUTED, fontSize: 15 }}>{fmt$(entry.value)}</div>
                       </div>
                     </div>
@@ -257,12 +257,12 @@ function SummaryCard({ icon, label, value, green }: { icon: string; label: strin
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 },
-  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4 },
 
   rangeControls: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   rangeBtn: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 15, fontWeight: 500, color: TEXT_MUTED },
-  rangeBtnActive: { background: '#1D3557', color: '#fff', border: '1px solid #1D3557', fontWeight: 700 },
+  rangeBtnActive: { background: PRIMARY, color: '#fff', border: '1px solid #1D3557', fontWeight: 700 },
 
   customDateRow: { display: 'flex', gap: 16, alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap' },
   dateField: { display: 'flex', flexDirection: 'column', gap: 4 },
@@ -276,13 +276,13 @@ const s: Record<string, React.CSSProperties> = {
   summaryCard: { background: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 14, border: '1px solid #f0f1f2' },
   summaryIcon: { fontSize: 28, flexShrink: 0 },
   summaryLabel: { color: TEXT_MUTED, fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryValue: { fontSize: 22, fontWeight: 800, color: '#1D3557', marginTop: 2 },
+  summaryValue: { fontSize: 22, fontWeight: 800, color: PRIMARY, marginTop: 2 },
 
   chartCard: { background: '#fff', borderRadius: 16, padding: 28, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2' },
-  chartTitle: { fontSize: 17, fontWeight: 700, color: '#1D3557', marginTop: 0, marginBottom: 20 },
+  chartTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY, marginTop: 0, marginBottom: 20 },
 
   tooltip: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 10, padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
-  tooltipLabel: { fontWeight: 700, color: '#1D3557', marginBottom: 6, fontSize: 15 },
+  tooltipLabel: { fontWeight: 700, color: PRIMARY, marginBottom: 6, fontSize: 15 },
 
   table: { width: '100%', borderCollapse: 'collapse' as const },
   th: { textAlign: 'left', padding: '10px 16px', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '2px solid #dee2e6' },

@@ -4,7 +4,7 @@ import { auditApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import DataTablePagination from '../components/DataTablePagination';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -36,8 +36,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#f59e0b', bg: '#f59e0b18', icon: '📋' },
   ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#2DC653', bg: '#2DC65318', icon: '✅' },
   // Labels
-  CREATE_LABEL:              { label: 'Create Label',           color: '#1D3557', bg: '#1D355718', icon: '🏷️' },
-  UPDATE_LABEL:              { label: 'Update Label',           color: '#1D3557', bg: '#1D355718', icon: '✏️' },
+  CREATE_LABEL:              { label: 'Create Label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
+  UPDATE_LABEL:              { label: 'Update Label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
   DELETE_LABEL:              { label: 'Delete Label',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
   PRINT_LABEL:               { label: 'Print Label(s)',         color: '#0f5132', bg: '#0f513218', icon: '🖨️' },
 };
@@ -309,9 +309,9 @@ export default function ActivityLog() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 800, color: '#1D3557', margin: 0 },
+  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
-  refreshBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
+  refreshBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   statsStrip: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 },
   statChip: { borderRadius: 8, padding: '6px 14px', display: 'flex', gap: 6, alignItems: 'center', fontSize: 15 },
@@ -345,7 +345,7 @@ const s: Record<string, React.CSSProperties> = {
   actionLabel: { whiteSpace: 'nowrap' as const },
 
   actor: { display: 'flex', flexDirection: 'column', gap: 2 },
-  actorName: { fontWeight: 700, fontSize: 14, color: '#1D3557', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  actorName: { fontWeight: 700, fontSize: 14, color: PRIMARY, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   roleBadge: { fontSize: 13, fontWeight: 600 },
 
   detail: { display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' },

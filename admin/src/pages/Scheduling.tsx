@@ -6,14 +6,14 @@ import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2', '#be185d'];
+const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2', '#be185d'];
 
 const STORE_GRADIENTS = [
-  ['#1D3557', '#457B9D'],
+  [PRIMARY, '#457B9D'],
   ['#0369a1', '#0ea5e9'],
   ['#166534', '#2DC653'],
   ['#7c3aed', '#a78bfa'],
@@ -36,7 +36,7 @@ const DAYS: { key: string; label: string }[] = [
 const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] = [
   { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#F4A261' },
   { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#2DC653' },
-  { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: '#1D3557' },
+  { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: PRIMARY },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ export default function Scheduling() {
                     {(store.name || '?')[0].toUpperCase()}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: active ? '#1D3557' : '#212529' }}>{store.name}</div>
+                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#212529' }}>{store.name}</div>
                     <div style={s.storeBtnCity}>{store.city}</div>
                   </div>
                   {pendingReqs > 0 && <span style={s.pendingReqBadge}>{pendingReqs}</span>}
@@ -714,10 +714,10 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase', letterSpacing: '0.5px',
     background: '#f8fafc', borderBottom: '2px solid #f0f1f2',
   },
-  todayCol: { color: '#1D3557', background: '#eff6ff' },
+  todayCol: { color: PRIMARY, background: '#eff6ff' },
   todayBadge: {
     display: 'block', fontSize: 9, fontWeight: 800,
-    color: '#1D3557', textTransform: 'uppercase', marginTop: 2,
+    color: PRIMARY, textTransform: 'uppercase', marginTop: 2,
   },
   shiftLabelCell: {
     padding: '8px 14px', background: '#fafafa',
@@ -737,7 +737,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 4,
     background: '#f0f4ff', border: '1px solid',
     borderRadius: 8, padding: '3px 4px 3px 8px',
-    fontSize: 13, fontWeight: 600, color: '#1D3557',
+    fontSize: 13, fontWeight: 600, color: PRIMARY,
   },
   chipName: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   chipRemove: {
@@ -831,7 +831,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: 'center', height: '100%', gap: 12, padding: 60,
   },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 20, fontWeight: 800, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 800, color: PRIMARY },
   emptyDesc: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
   emptyCard: {
     color: TEXT_MUTED, background: '#f8f9fa',

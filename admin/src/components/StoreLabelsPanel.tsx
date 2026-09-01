@@ -6,7 +6,7 @@ import { labelsApi, storesApi } from '../services/api';
 import ConfirmModal from './ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import TableSkeleton from './TableSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import PrintTray from './PrintTray';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge } from '../utils/labelStatus';
@@ -453,7 +453,7 @@ const s: Record<string, CSSProperties> = {
     color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
-  itemName: { fontWeight: 700, fontSize: 14, color: '#1D3557' },
+  itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   overrideBadge: {
     marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#b7791f',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
@@ -465,7 +465,7 @@ const s: Record<string, CSSProperties> = {
   statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },
   ageText: { marginLeft: 8, fontSize: 12, color: TEXT_MUTED },
   addBtn: {
-    background: '#eff6ff', color: '#1D3557', border: 'none',
+    background: '#eff6ff', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
   },
   editBtn: {
@@ -482,7 +482,7 @@ const s: Record<string, CSSProperties> = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#1D3557' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
 };
 
@@ -495,7 +495,7 @@ const m: Record<string, CSSProperties> = {
     background: '#fff', borderRadius: 18, width: '100%', maxWidth: 380,
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 24,
   },
-  title: { margin: 0, fontSize: 18, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 18, fontWeight: 800, color: PRIMARY },
   sub: { fontSize: 13, color: TEXT_MUTED, marginTop: 4, marginBottom: 16 },
   priceInputWrap: { position: 'relative' as const },
   priceInputDollar: {
@@ -519,7 +519,7 @@ const m: Record<string, CSSProperties> = {
     padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
   },
   saveBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },

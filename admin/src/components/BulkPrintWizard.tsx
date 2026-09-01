@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { labelsApi } from '../services/api';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 export interface BulkPrintItem {
   storeLabelId: string;
@@ -130,7 +130,7 @@ export default function BulkPrintWizard({ queue, onClose }: Props) {
                 ...m.progressDot,
                 background: i < index
                   ? (outcomes[i] === 'printed' ? '#0f5132' : outcomes[i] === 'skipped' ? '#ccc' : '#c53030')
-                  : i === index ? '#1D3557' : '#e5e7eb',
+                  : i === index ? PRIMARY : '#e5e7eb',
               }}
             />
           ))}
@@ -150,18 +150,18 @@ const m: Record<string, CSSProperties> = {
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 24,
   },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  title: { margin: 0, fontSize: 17, fontWeight: 800, color: '#1D3557' },
+  title: { margin: 0, fontSize: 17, fontWeight: 800, color: PRIMARY },
   closeX: { background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
 
-  storeName: { fontSize: 22, fontWeight: 900, color: '#1D3557', marginTop: 10, marginBottom: 14 },
+  storeName: { fontSize: 22, fontWeight: 900, color: PRIMARY, marginTop: 10, marginBottom: 14 },
 
   itemList: {
     display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflowY: 'auto',
     border: '1px solid #eee', borderRadius: 10, padding: '4px 12px',
   },
   itemRow: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f5f5f8', fontSize: 14 },
-  itemName: { fontWeight: 600, color: '#1D3557' },
-  itemPrice: { fontWeight: 700, color: '#1D3557' },
+  itemName: { fontWeight: 600, color: PRIMARY },
+  itemPrice: { fontWeight: 700, color: PRIMARY },
   hint: { fontSize: 12.5, color: TEXT_MUTED, marginTop: 8 },
 
   actions: { display: 'flex', gap: 10, marginTop: 20 },
@@ -179,5 +179,5 @@ const m: Record<string, CSSProperties> = {
   progressDot: { width: 8, height: 8, borderRadius: 4 },
 
   summaryBody: { display: 'flex', flexDirection: 'column', gap: 8, margin: '16px 0 20px', fontSize: 15 },
-  summaryRow: { color: '#1D3557' },
+  summaryRow: { color: PRIMARY },
 };

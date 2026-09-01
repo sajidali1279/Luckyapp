@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -39,13 +39,13 @@ const PRIORITY_BG: Record<string, string> = {
   HIGH: '#fff1f2', MEDIUM: '#fffbeb', LOW: '#f0fdf4',
 };
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2'];
+const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2'];
 
 // Sentinel used for the sidebar's "All Stores" entry — never collides with a real store id (cuid).
 const ALL_STORES_ID = '__ALL_STORES__';
 
 const STORE_GRADIENTS = [
-  ['#1D3557', '#457B9D'],
+  [PRIMARY, '#457B9D'],
   ['#0369a1', '#0ea5e9'],
   ['#166534', '#2DC653'],
   ['#7c3aed', '#a78bfa'],
@@ -349,7 +349,7 @@ export default function StoreRequests() {
                   🏬
                 </div>
                 <div style={s.storeBtnInfo}>
-                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? '#1D3557' : '#212529' }}>All Stores</div>
+                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#212529' }}>All Stores</div>
                   <div style={s.storeBtnCity}>Every location</div>
                 </div>
                 {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
@@ -368,7 +368,7 @@ export default function StoreRequests() {
                     {getInitial(store.name)}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: active ? '#1D3557' : '#212529' }}>{store.name}</div>
+                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#212529' }}>{store.name}</div>
                     {store.city && <div style={s.storeBtnCity}>{store.city}</div>}
                   </div>
                   {active && <div style={s.activeIndicator} />}
@@ -573,7 +573,7 @@ export default function StoreRequests() {
                           <div style={s.cardBody}>
                             <div style={s.cardTop}>
                               <div style={{ ...s.typeIconWrap, background: '#eff6ff' }}>
-                                <Package size={22} color="#1D3557" strokeWidth={1.75} />
+                                <Package size={22} color={PRIMARY} strokeWidth={1.75} />
                               </div>
                               <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock Request'}</div>
@@ -852,7 +852,7 @@ export default function StoreRequests() {
             {/* Request preview */}
             <div style={s.previewCard}>
               <div style={{ ...s.previewIconWrap, background: '#eff6ff' }}>
-                <Package size={20} color="#1D3557" strokeWidth={1.75} />
+                <Package size={20} color={PRIMARY} strokeWidth={1.75} />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={s.previewType}>{STOCK_TYPE_LABELS[reviewTarget.requestType] || 'Stock Request'}</div>
@@ -1050,7 +1050,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1.5px solid #e5e7eb', background: '#f9fafb',
     cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED,
   },
-  subFilterTabActive: { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  subFilterTabActive: { background: PRIMARY, borderColor: PRIMARY, color: '#fff' },
   subFilterCount: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
