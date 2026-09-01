@@ -527,3 +527,58 @@ export async function pushLabelToAllStores(req: AuthRequest, res: Response) {
 
   res.json({ success: true, data: { added: missing.length } });
 }
+
+// GET /labels/health-summary — SuperAdmin+ only. A cheap, chain-wide count
+// (not the full per-item breakdown Coverage returns) for the Dashboard's
+// "one glance" stat card: how many labels need printing right now, and
+// which stores are behind. printedAt IS NULL already covers both 'new' and
+// 'needs_reprint' in one filter — no need to compute status per row here.
+export async function getLabelsHealthSummary(req: AuthRequest, res: Response) {
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    res.status(403).json({ success: false, error: 'Requires SuperAdmin access' });
+    return;
+  }
+
+  const [staleRows, stores] = await Promise.all([
+    prisma.storeLabel.findMany({
+      where: { printedAt: null },
+      select: { storeId: true, everPrinted: true, createdAt: true, updatedAt: true },
+    }),
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+  ]);
+
+  const byStoreMap = new Map<string, { count: number; oldestMs: number }>();
+  const now = Date.now();
+  for (const row of staleRows) {
+    const staleSince = row.everPrinted ? row.updatedAt : row.createdAt;
+    const ageMs = now - staleSince.getTime();
+    const entry = byStoreMap.get(row.storeId) ?? { count: 0, oldestMs: 0 };
+    entry.count += 1;
+    entry.oldestMs = Math.max(entry.oldestMs, ageMs);
+    byStoreMap.set(row.storeId, entry);
+  }
+
+  const byStore = stores
+    .map((store) => {
+      const entry = byStoreMap.get(store.id);
+      if (!entry) return null;
+      return {
+        storeId: store.id,
+        storeName: store.name,
+        staleCount: entry.count,
+        oldestStaleDays: Math.floor(entry.oldestMs / 86400000),
+      };
+    })
+    .filter((s): s is NonNullable<typeof s> => !!s)
+    .sort((a, b) => b.staleCount - a.staleCount);
+
+  res.json({
+    success: true,
+    data: {
+      totalStale: staleRows.length,
+      storesWithStale: byStore.length,
+      totalStores: stores.length,
+      byStore,
+    },
+  });
+}

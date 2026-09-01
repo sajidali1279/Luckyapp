@@ -1,4 +1,5 @@
 import { useState, useEffect, CSSProperties } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { labelsApi, orderCategoriesApi, scannedProductApi } from '../services/api';
@@ -10,6 +11,7 @@ import { TEXT_MUTED } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
 import CoverageView from '../components/CoverageView';
+import HealthView from '../components/HealthView';
 import PrintTray from '../components/PrintTray';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 
@@ -44,7 +46,21 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 
 export default function Labels() {
   const qc = useQueryClient();
-  const [viewMode, setViewMode] = useState<'catalog' | 'store' | 'coverage'>('catalog');
+  const [searchParams] = useSearchParams();
+  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health';
+  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health'];
+  const initialTab = searchParams.get('tab') as ViewMode | null;
+  const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
+
+  // useState's initializer only runs on first mount — a same-route
+  // navigation (e.g. clicking "Review at this store" from the Health tab)
+  // changes searchParams without remounting this component, so the tab
+  // needs to react to that change explicitly, not just read it once.
+  useEffect(() => {
+    const tab = searchParams.get('tab') as ViewMode | null;
+    if (tab && validTabs.includes(tab)) setViewMode(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [showModal, setShowModal] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
@@ -428,7 +444,9 @@ export default function Labels() {
                 ? 'Chain-wide catalog and base prices.'
                 : viewMode === 'store'
                 ? 'Per-store pricing, overrides, and printing.'
-                : 'Which stores have each item — and which are missing it.'}
+                : viewMode === 'coverage'
+                ? 'Which stores have each item — and which are missing it.'
+                : 'How many labels need printing right now, by store.'}
             </p>
           </div>
           {viewMode === 'catalog' && (
@@ -460,12 +478,21 @@ export default function Labels() {
           >
             Coverage
           </button>
+          <button
+            type="button"
+            style={{ ...s.viewToggleChip, ...(viewMode === 'health' ? s.viewToggleChipActive : {}) }}
+            onClick={() => setViewMode('health')}
+          >
+            Health
+          </button>
         </div>
 
         {viewMode === 'store' ? (
           <StoreLabelsPanel />
         ) : viewMode === 'coverage' ? (
           <CoverageView />
+        ) : viewMode === 'health' ? (
+          <HealthView />
         ) : (
           <div style={s.catalogLayout}>
           <div style={s.catalogMain}>

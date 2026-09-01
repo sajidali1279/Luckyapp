@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, AreaChart, Area,
 } from 'recharts';
-import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi } from '../services/api';
+import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi, labelsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
@@ -406,6 +406,13 @@ export default function Dashboard() {
   const kpiError = offersError || bannersError || customersError || staffError || storesError;
   const refetchKpis = () => { refetchOffers(); refetchBanners(); refetchCustomers(); refetchStaff(); refetchStores(); };
 
+  const { data: labelHealthData, isLoading: loadingLabelHealth } = useQuery({
+    queryKey: ['labels-health-summary'],
+    queryFn: () => labelsApi.getHealthSummary(),
+  });
+  const totalStaleLabels = labelHealthData?.data?.data?.totalStale ?? 0;
+  const storesWithStaleLabels = labelHealthData?.data?.data?.storesWithStale ?? 0;
+
   const { data: platformData } = useQuery({
     queryKey: ['platform-summary'],
     queryFn: () => pointsApi.getPlatformSummary(),
@@ -551,6 +558,27 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Labels health (DevAdmin only — SuperAdmin gets the same card
+           further down, in the shared Platform Overview grid) ── */}
+      {isDevAdmin && (
+        <div className="dash-fade-in" style={{ animationDelay: '165ms' }}>
+          <SectionHeader title="Shelf Labels" />
+          <div style={s.statsGrid}>
+            <StatCard
+              icon="🏷️" label="Labels Needing Print"
+              value={loadingLabelHealth ? '…' : totalStaleLabels}
+              valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined}
+              to="/labels?tab=health"
+            />
+          </div>
+          {storesWithStaleLabels > 0 && (
+            <div style={s.dashboardHint}>
+              {storesWithStaleLabels} store{storesWithStaleLabels === 1 ? '' : 's'} {storesWithStaleLabels === 1 ? 'has' : 'have'} labels behind
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── SuperAdmin sections ── */}
       {isSuperAdmin && !isDevAdmin && (
         <>
@@ -641,7 +669,18 @@ export default function Dashboard() {
                 valueColor={pendingDisputesCount > 0 ? '#E63946' : undefined}
                 to="/customers?tab=disputes"
               />
+              <StatCard
+                icon="🏷️" label="Labels Needing Print"
+                value={loadingLabelHealth ? '…' : totalStaleLabels}
+                valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined}
+                to="/labels?tab=health"
+              />
             </div>
+            {storesWithStaleLabels > 0 && (
+              <div style={s.dashboardHint}>
+                {storesWithStaleLabels} store{storesWithStaleLabels === 1 ? '' : 's'} {storesWithStaleLabels === 1 ? 'has' : 'have'} labels behind
+              </div>
+            )}
           </div>
         </>
       )}
@@ -847,6 +886,7 @@ const s: Record<string, React.CSSProperties> = {
   recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
+  dashboardHint: { fontSize: 13, color: '#b7791f', marginTop: -20, marginBottom: 32 },
   statCard: {
     background: '#fff', borderRadius: 16, padding: '18px 16px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',

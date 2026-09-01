@@ -1,4 +1,5 @@
 import { useState, CSSProperties } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { labelsApi, storesApi } from '../services/api';
@@ -33,7 +34,8 @@ const UNCATEGORIZED = '__uncategorized__';
 
 export default function StoreLabelsPanel() {
   const qc = useQueryClient();
-  const [storeId, setStoreId] = useState('');
+  const [searchParams] = useSearchParams();
+  const [storeId, setStoreId] = useState(() => searchParams.get('storeId') ?? '');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

@@ -67,7 +67,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
-import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode } from '../controllers/labels.controller';
+import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -470,6 +470,7 @@ router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(
 router.get   ('/labels',                authenticate, requireRole(Role.EMPLOYEE), getAllLabels);
 router.get   ('/labels/lookup',         authenticate, requireRole(Role.EMPLOYEE), lookupStoreLabelByBarcode);
 router.get   ('/labels/coverage',       authenticate, requireRole(Role.SUPER_ADMIN), getLabelsCoverage);
+router.get   ('/labels/health-summary', authenticate, requireRole(Role.SUPER_ADMIN), getLabelsHealthSummary);
 router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE), createLabel);
 router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE), markLabelsPrinted);
 router.post  ('/labels/:labelId/push-to-all', authenticate, requireRole(Role.SUPER_ADMIN), pushLabelToAllStores);

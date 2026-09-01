@@ -111,6 +111,7 @@ export const labelsApi = {
   updateStoreLabel: (storeLabelId: string, priceText: string | null, expiresAt?: string | null) =>
     api.patch(`/store-labels/${storeLabelId}`, { priceText, expiresAt }),
   getCoverage: () => api.get('/labels/coverage'),
+  getHealthSummary: () => api.get('/labels/health-summary'),
   pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),
 };
 
