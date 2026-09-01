@@ -15,6 +15,9 @@ import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
 import { useCurrentStoreId } from '../utils/geo';
+import { STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge, formatEndsOn } from '../utils/labelStatus';
+
+type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
 
 interface Label {
   id: string;
@@ -29,7 +32,13 @@ interface Label {
   // Only present in responses from getAllWithMyStore(storeId) when a
   // storeId was actually supplied — absent (not just null) otherwise, e.g.
   // when no store has resolved yet. Always check truthiness, not `!== null`.
-  myStoreLabel?: { effectivePrice: string; printedAt: string | null } | null;
+  myStoreLabel?: {
+    effectivePrice: string;
+    printedAt: string | null;
+    status: LabelPrintStatus;
+    hasOverride: boolean;
+    overrideExpiresAt: string | null;
+  } | null;
 }
 
 interface StoreLabelItem {
@@ -43,7 +52,10 @@ interface StoreLabelItem {
   dealText: string | null;
   priceText: string;
   hasOverride: boolean;
+  overrideExpiresAt: string | null;
   printedAt: string | null;
+  status: LabelPrintStatus;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -73,6 +85,7 @@ export default function LabelsScreen() {
   const [addSheetItem, setAddSheetItem] = useState<Label | null>(null);
   const [addSheetPriceMode, setAddSheetPriceMode] = useState<'base' | 'custom'>('base');
   const [addSheetPrice, setAddSheetPrice] = useState('');
+  const [addSheetExpiryDays, setAddSheetExpiryDays] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
@@ -235,13 +248,17 @@ export default function LabelsScreen() {
     setAddSheetItem(label);
     setAddSheetPriceMode('base');
     setAddSheetPrice('');
+    setAddSheetExpiryDays(null);
   }
 
   async function confirmAddToMyPrints() {
     if (!addSheetItem || !storeId) return;
     const priceText = addSheetPriceMode === 'custom' ? addSheetPrice.trim() || null : null;
+    const expiresAt = priceText && addSheetExpiryDays
+      ? new Date(Date.now() + addSheetExpiryDays * 86400000).toISOString()
+      : null;
     try {
-      await labelsApi.addToStore(addSheetItem.id, storeId, priceText);
+      await labelsApi.addToStore(addSheetItem.id, storeId, priceText, expiresAt);
       await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
       Toast.show({ type: 'success', text1: 'Added to My Prints' });
@@ -605,7 +622,13 @@ export default function LabelsScreen() {
 
       <Modal visible={!!addSheetItem} animationType="fade" transparent onRequestClose={() => setAddSheetItem(null)}>
         <View style={s.addSheetOverlay}>
-          <View style={s.addSheetCard}>
+          {/* Same keyboardHeight safety net as the main form sheet above —
+              this card has no maxHeight cap of its own, and adding the
+              expiry chips below the price field means it can now grow tall
+              enough on a small phone that the keyboard would otherwise
+              cover the Confirm button. */}
+          <View style={[s.addSheetCard, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 48 }]}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={s.formTitle}>{addSheetItem?.productName}</Text>
             <Text style={s.addSheetSub}>Base price: ${addSheetItem?.priceText}</Text>
             <TouchableOpacity
@@ -632,6 +655,31 @@ export default function LabelsScreen() {
                     autoFocus
                   />
                 </View>
+
+                <Text style={[s.fieldLabel, { marginTop: 14 }]}>Ends <Text style={s.fieldLabelSub}>(optional — reverts to base price on its own)</Text></Text>
+                <View style={s.expiryChipRow}>
+                  {([
+                    { label: 'No end date', days: null },
+                    { label: '3 days', days: 3 },
+                    { label: '1 week', days: 7 },
+                    { label: '2 weeks', days: 14 },
+                    { label: '1 month', days: 30 },
+                  ] as const).map(opt => {
+                    const active = addSheetExpiryDays === opt.days;
+                    return (
+                      <TouchableOpacity
+                        key={opt.label}
+                        style={[s.expiryChip, active && { backgroundColor: accentColor, borderColor: accentColor }]}
+                        onPress={() => setAddSheetExpiryDays(opt.days)}
+                        accessibilityRole="button"
+                        accessibilityLabel={opt.label}
+                      >
+                        <Text style={[s.expiryChipText, active && { color: '#fff' }]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
                 <TouchableOpacity
                   style={[s.saveBtn, { backgroundColor: accentColor, marginTop: 12 }, !addSheetPrice.trim() && s.saveBtnDim]}
                   onPress={confirmAddToMyPrints}
@@ -655,6 +703,7 @@ export default function LabelsScreen() {
             <TouchableOpacity style={{ marginTop: 16, alignItems: 'center' }} onPress={() => setAddSheetItem(null)} accessibilityRole="button" accessibilityLabel="Cancel">
               <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Cancel</Text>
             </TouchableOpacity>
+          </ScrollView>
           </View>
         </View>
       </Modal>
@@ -900,8 +949,13 @@ export default function LabelsScreen() {
           <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
         </TouchableOpacity>
         {item.myStoreLabel ? (
-          <View style={s.inQueueBadge}>
-            <Text style={s.inQueueBadgeText}>{item.myStoreLabel.printedAt ? 'Printed' : 'In My Prints'}</Text>
+          <View style={[s.inQueueBadge, { backgroundColor: STATUS_BG[item.myStoreLabel.status] }]}>
+            <Text style={[s.inQueueBadgeText, { color: STATUS_COLOR[item.myStoreLabel.status] }]}>
+              {STATUS_LABEL[item.myStoreLabel.status]}
+            </Text>
+            {item.myStoreLabel.overrideExpiresAt && (
+              <Text style={s.inQueueBadgeSub}>ends {formatEndsOn(item.myStoreLabel.overrideExpiresAt)}</Text>
+            )}
           </View>
         ) : (
           <TouchableOpacity
@@ -942,6 +996,17 @@ export default function LabelsScreen() {
             <Text style={s.cardPrice}>${item.priceText}{item.hasOverride ? ' (my price)' : ''}</Text>
             {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
             {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
+            <View style={s.statusRow}>
+              <View style={[s.statusChip, { backgroundColor: STATUS_BG[item.status] }]}>
+                <Text style={[s.statusChipText, { color: STATUS_COLOR[item.status] }]}>{STATUS_LABEL[item.status]}</Text>
+              </View>
+              {item.status !== 'printed' && (
+                <Text style={s.statusAge}>{formatAge(daysSince(item.status === 'new' ? item.createdAt : item.updatedAt))}</Text>
+              )}
+              {item.overrideExpiresAt && (
+                <Text style={s.statusExpiry}>ends {formatEndsOn(item.overrideExpiresAt)}</Text>
+              )}
+            </View>
           </View>
         </View>
         {checked && item.storeLabelId && (
@@ -1012,8 +1077,14 @@ const s = StyleSheet.create({
   storePickerRow: { paddingHorizontal: 20, marginBottom: 10, gap: 6 },
   storePickerLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
   addToPrintsBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  inQueueBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#F0F0F0' },
+  inQueueBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#F0F0F0', alignItems: 'center' },
   inQueueBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+  inQueueBadgeSub: { fontSize: 9.5, fontWeight: '600', color: '#7C3AED', marginTop: 2 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
+  statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  statusChipText: { fontSize: 10.5, fontWeight: '700' },
+  statusAge: { fontSize: 11, color: COLORS.textMuted },
+  statusExpiry: { fontSize: 11, fontWeight: '600', color: '#7C3AED' },
   addSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   addSheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 22, width: '100%', maxWidth: 340 },
   addSheetSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
@@ -1070,6 +1141,13 @@ const s = StyleSheet.create({
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   formTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  fieldLabelSub: { fontWeight: '400', color: COLORS.textMuted },
+  expiryChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  expiryChip: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#fff',
+  },
+  expiryChipText: { fontSize: 12.5, fontWeight: '600', color: COLORS.text },
   fieldInput: {
     backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: COLORS.text,

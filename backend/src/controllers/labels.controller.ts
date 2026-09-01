@@ -64,12 +64,20 @@ export async function getAllLabels(req: AuthRequest, res: Response) {
 
   const data = labels.map((label) => {
     if (typeof myStoreId !== 'string' || !myStoreId) return label;
-    const { storeLabels, ...rest } = label as typeof label & { storeLabels: { priceText: string | null; printedAt: Date | null }[] };
+    const { storeLabels, ...rest } = label as typeof label & {
+      storeLabels: { priceText: string | null; printedAt: Date | null; everPrinted: boolean; overrideExpiresAt: Date | null }[];
+    };
     const myStoreLabel = storeLabels[0] ?? null;
     return {
       ...rest,
       myStoreLabel: myStoreLabel
-        ? { effectivePrice: resolveEffectivePrice(label, myStoreLabel), printedAt: myStoreLabel.printedAt }
+        ? {
+            effectivePrice: resolveEffectivePrice(label, myStoreLabel),
+            printedAt: myStoreLabel.printedAt,
+            status: printStatus(myStoreLabel),
+            hasOverride: !!myStoreLabel.priceText,
+            overrideExpiresAt: myStoreLabel.overrideExpiresAt,
+          }
         : null,
     };
   });
