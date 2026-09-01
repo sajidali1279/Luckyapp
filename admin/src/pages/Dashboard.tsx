@@ -542,7 +542,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Revenue (DevAdmin only) ── */}
+      {/* ── Revenue (DevAdmin only) — Shelf Labels health folded in as a 7th
+           card instead of its own single-card section, which always left a
+           wide empty strip beside it since a section spans the full row
+           width regardless of how few cards are in it. ── */}
       {isDevAdmin && revenue && (
         <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
           <SectionHeader title="Revenue Overview" action={{ label: 'View Billing', to: '/billing' }} />
@@ -553,23 +556,6 @@ export default function Dashboard() {
             <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
             <StatCard icon="💰" label="Dev Cut (cashback)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
             <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
-          </div>
-        </div>
-      )}
-
-      {/* ── Cashback Health (DevAdmin only) ── */}
-      {isDevAdmin && (
-        <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
-          <CashbackHealthCard />
-        </div>
-      )}
-
-      {/* ── Labels health (DevAdmin only — SuperAdmin gets the same card
-           further down, in the shared Platform Overview grid) ── */}
-      {isDevAdmin && (
-        <div className="dash-fade-in" style={{ animationDelay: '165ms' }}>
-          <SectionHeader title="Shelf Labels" />
-          <div style={s.statsGrid}>
             <StatCard
               icon="🏷️" label="Labels Needing Print"
               value={loadingLabelHealth ? '…' : totalStaleLabels}
@@ -582,6 +568,13 @@ export default function Dashboard() {
               {storesWithStaleLabels} store{storesWithStaleLabels === 1 ? '' : 's'} {storesWithStaleLabels === 1 ? 'has' : 'have'} labels behind
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Cashback Health (DevAdmin only) ── */}
+      {isDevAdmin && (
+        <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
+          <CashbackHealthCard />
         </div>
       )}
 
