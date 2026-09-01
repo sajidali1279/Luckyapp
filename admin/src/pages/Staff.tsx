@@ -1,17 +1,18 @@
 ﻿import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { authApi, storesApi, staffApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 type Tab = 'list' | 'create';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:    '#7c3aed',
-  SUPER_ADMIN:  '#1D3557',
+  SUPER_ADMIN:  PRIMARY,
   STORE_MANAGER:'#0369a1',
   EMPLOYEE:     '#374151',
 };
@@ -30,7 +31,7 @@ const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE:     'Employee',
 };
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', '#1D3557', '#E63946', '#0891b2', '#be185d'];
+const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2', '#be185d'];
 
 function getAvatarColor(name: string, i: number) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || i) % AVATAR_PALETTE.length];
@@ -41,8 +42,9 @@ export default function Staff() {
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('list');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
 
   // Create form state
   const [createRole, setCreateRole] = useState<'SUPER_ADMIN' | 'STORE_MANAGER' | 'EMPLOYEE'>('EMPLOYEE');
@@ -167,7 +169,7 @@ export default function Staff() {
   }
 
   const ROLE_OPTIONS = [
-    ...(isDevAdmin ? [{ value: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Manages all stores (HQ)', icon: '🏢', color: '#1D3557' }] : []),
+    ...(isDevAdmin ? [{ value: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Manages all stores (HQ)', icon: '🏢', color: PRIMARY }] : []),
     { value: 'STORE_MANAGER', label: 'Store Manager', desc: 'Manages one store', icon: '🏪', color: '#0369a1' },
     { value: 'EMPLOYEE', label: 'Employee / Cashier', desc: 'Scans QR codes, grants points', icon: '👤', color: '#374151' },
   ];
@@ -637,7 +639,7 @@ const s: Record<string, React.CSSProperties> = {
     borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
     background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: TEXT_MUTED,
   },
-  tabActive: { background: '#1D3557', color: '#fff', borderColor: '#1D3557' },
+  tabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
 
   // Empty
   emptyState: {
@@ -784,7 +786,7 @@ const s: Record<string, React.CSSProperties> = {
     width: 12, height: 12, borderRadius: 6,
     background: '#e5e7eb', transition: 'background 0.15s',
   },
-  pinDotFilled: { background: '#1D3557' },
+  pinDotFilled: { background: PRIMARY },
 
   formHint: {
     fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6,
@@ -792,7 +794,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #f0f1f2',
   },
   submitBtn: {
-    background: '#1D3557', color: '#fff', border: 'none',
+    background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 12, padding: '14px 24px',
     fontWeight: 800, cursor: 'pointer', fontSize: 15,
     boxShadow: '0 4px 14px rgba(29,53,87,0.3)',
@@ -846,7 +848,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: 'all 0.15s',
   },
-  checkboxActive: { background: '#1D3557', borderColor: '#1D3557' },
+  checkboxActive: { background: PRIMARY, borderColor: PRIMARY },
 
   modalActions: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
   quickBtn: {
@@ -861,7 +863,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   confirmBtn: {
     padding: '10px 22px', borderRadius: 10,
-    border: 'none', background: '#1D3557',
+    border: 'none', background: PRIMARY,
     cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#fff',
     boxShadow: '0 4px 12px rgba(29,53,87,0.3)',
   },

@@ -6,12 +6,13 @@ import {
   BarChart, Bar, Cell, AreaChart, Area,
 } from 'recharts';
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi, labelsApi } from '../services/api';
+import GlobalSearch from '../components/GlobalSearch';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
 import ErrorState from '../components/ErrorState';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
-import { TEXT_MUTED } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 function greeting() {
   const h = new Date().getHours();
@@ -29,8 +30,8 @@ const CAT_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', OTHER: '🏪',
 };
 
-const CHART_COLORS = ['#1D3557', '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
-const AVATAR_PALETTE = ['#E63946','#457B9D','#2DC653','#F4A261','#7B2FBE','#0077B6','#E76F51','#2A9D8F','#E9C46A','#264653','#6A0572','#1D3557'];
+const CHART_COLORS = [PRIMARY, '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
+const AVATAR_PALETTE = ['#E63946','#457B9D','#2DC653','#F4A261','#7B2FBE','#0077B6','#E76F51','#2A9D8F','#E9C46A','#264653','#6A0572',PRIMARY];
 function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -138,7 +139,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
         <span style={s.storeRank}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
         <div style={{ ...s.storeAvatar, background: color }}>{store.name[0]?.toUpperCase()}</div>
         <span>
-          <div style={{ fontWeight: 700, color: '#1D3557', fontSize: 14 }}>{store.name}</div>
+          <div style={{ fontWeight: 700, color: PRIMARY, fontSize: 14 }}>{store.name}</div>
           <div style={{ fontSize: 13, color: TEXT_MUTED }}>{store.city}</div>
         </span>
       </span>
@@ -293,7 +294,7 @@ function AttentionBanner({ pending, disputes }: { pending: number; disputes: num
   );
 }
 
-function KPICard({ label, value, sub, color = '#1D3557', bg = '#eff6ff', icon }: {
+function KPICard({ label, value, sub, color = PRIMARY, bg = '#eff6ff', icon }: {
   label: string; value: string | number; sub?: string; color?: string; bg?: string; icon: string;
 }) {
   return (
@@ -508,6 +509,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Global Search ── */}
+      <div className="dash-fade-in" style={{ animationDelay: '5ms' }}>
+        <GlobalSearch />
+      </div>
+
       {/* ── Pinned Notice ── */}
       {pinnedNotice && (
         <div className="dash-fade-in" style={{ animationDelay: '15ms' }}>
@@ -587,7 +593,7 @@ export default function Dashboard() {
             <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
               <SectionHeader title="Today's Activity" action={{ label: 'View Transactions', to: '/transactions' }} />
               <div style={s.kpiGrid}>
-                <KPICard icon="🧾" label="Transactions" value={platform.today.transactions} sub="Today" color="#1D3557" bg="#eff6ff" />
+                <KPICard icon="🧾" label="Transactions" value={platform.today.transactions} sub="Today" color={PRIMARY} bg="#eff6ff" />
                 <KPICard icon="💵" label="Purchase Volume" value={fmt$(platform.today.purchaseVolume)} sub="Today" color="#157A6E" bg="#f0fdf9" />
                 <KPICard icon="⭐" label="Cashback Issued" value={fmt$(platform.today.cashbackIssued)} sub="Today" color="#7C3AED" bg="#f5f3ff" />
                 <KPICard icon="📅" label="Monthly Volume" value={fmt$(platform.thisMonth.purchaseVolume)} sub="This month" color="#B45309" bg="#fffbeb" />
@@ -611,15 +617,15 @@ export default function Dashboard() {
                   <AreaChart data={trend30} margin={{ top: 4, right: 16, bottom: 0, left: -10 }}>
                     <defs>
                       <linearGradient id="saGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1D3557" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#1D3557" stopOpacity={0} />
+                        <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} interval={4} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Volume']} labelFormatter={(l) => `Date: ${l}`} />
-                    <Area type="monotone" dataKey="volume" stroke="#1D3557" strokeWidth={2} fill="url(#saGrad)" dot={false} />
+                    <Area type="monotone" dataKey="volume" stroke={PRIMARY} strokeWidth={2} fill="url(#saGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -696,15 +702,15 @@ export default function Dashboard() {
                 <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1D3557" stopOpacity={0.12} />
-                      <stop offset="95%" stopColor="#1D3557" stopOpacity={0} />
+                      <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.12} />
+                      <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
                   <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => l} />
-                  <Area type="monotone" dataKey="transactions" stroke="#1D3557" strokeWidth={2} fill="url(#txGrad)" dot={false} />
+                  <Area type="monotone" dataKey="transactions" stroke={PRIMARY} strokeWidth={2} fill="url(#txGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -809,7 +815,7 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 14, marginTop: 8,
   },
   section: {
-    fontSize: 15, fontWeight: 800, color: '#1D3557', margin: 0,
+    fontSize: 15, fontWeight: 800, color: PRIMARY, margin: 0,
   },
   sectionSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6, marginBottom: 0, paddingLeft: 16 },
   sectionLink: {
@@ -852,7 +858,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '14px 18px', borderBottom: '1px solid #f0f1f2',
     background: '#fafbfc',
   },
-  offersPanelTitle: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
+  offersPanelTitle: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
   offerChip: {
     background: '#fff', border: '1.5px solid #e9ecef',
@@ -865,7 +871,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
   },
   offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
-  offerChipName: { fontSize: 15, fontWeight: 700, color: '#1D3557', marginBottom: 3, lineHeight: 1.3 },
+  offerChipName: { fontSize: 15, fontWeight: 700, color: PRIMARY, marginBottom: 3, lineHeight: 1.3 },
   offerChipCat: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   offerChipExpiry: { fontSize: 12, color: '#E63946', fontWeight: 600, marginTop: 6 },
   emptyState: { padding: '24px 18px', color: TEXT_MUTED, fontSize: 15, textAlign: 'center' as const },
@@ -882,7 +888,7 @@ const s: Record<string, React.CSSProperties> = {
   recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
   recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
   recentMeta: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
-  recentAmount: { fontSize: 15, fontWeight: 800, color: '#1D3557' },
+  recentAmount: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 32 },
@@ -916,7 +922,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     cursor: 'pointer', flexWrap: 'wrap' as const, gap: 10,
   },
-  healthRowName: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
+  healthRowName: { fontWeight: 700, fontSize: 15, color: PRIMARY },
   healthRowStats: { display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const },
   healthStat: { fontSize: 13, color: TEXT_MUTED },
   healthPill: {
@@ -979,8 +985,8 @@ const s: Record<string, React.CSSProperties> = {
   liveRateCardHov: { transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' },
   liveRateTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
   liveRateIcon: { fontSize: 20 },
-  liveRateLabel: { fontWeight: 700, fontSize: 15, color: '#1D3557' },
-  liveRateValue: { fontSize: 30, fontWeight: 900, color: '#1D3557', marginBottom: 8, letterSpacing: -1 },
+  liveRateLabel: { fontWeight: 700, fontSize: 15, color: PRIMARY },
+  liveRateValue: { fontSize: 30, fontWeight: 900, color: PRIMARY, marginBottom: 8, letterSpacing: -1 },
   rateTrack: { height: 5, background: '#f0f1f2', borderRadius: 3, overflow: 'hidden', marginBottom: 10 },
   rateFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 3 },
   liveRateBreakdown: { display: 'flex', flexDirection: 'column' as const, gap: 2 },
