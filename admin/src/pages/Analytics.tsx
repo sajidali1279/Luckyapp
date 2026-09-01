@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
+  AreaChart, Area, ComposedChart,
 } from 'recharts';
 import { billingApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -24,17 +25,24 @@ function rangeToDateStr(range: Range): { from: string; to: string } {
 function fmt$(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
 const PIE_COLORS = ['#E63946', PRIMARY, '#F4A261', '#2DC653'];
+const CATEGORY_COLORS = [PRIMARY, '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
+const DOLLAR_SERIES = ['$', 'volume', 'cut', 'revenue', 'points', 'redeemed', 'amount'];
+
+function catLabel(cat: string) { return cat.replace(/_/g, ' '); }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={s.tooltip}>
       <div style={s.tooltipLabel}>{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.name} style={{ color: p.color, fontSize: 15 }}>
-          {p.name}: <strong>{typeof p.value === 'number' && p.name.toLowerCase().includes('$') || p.name.toLowerCase().includes('volume') || p.name.toLowerCase().includes('cut') || p.name.toLowerCase().includes('revenue') ? fmt$(p.value) : p.value}</strong>
-        </div>
-      ))}
+      {payload.map((p: any) => {
+        const isDollar = typeof p.value === 'number' && DOLLAR_SERIES.some((k) => p.name.toLowerCase().includes(k));
+        return (
+          <div key={p.name} style={{ color: p.color, fontSize: 15 }}>
+            {p.name}: <strong>{isDollar ? fmt$(p.value) : p.value}</strong>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -57,6 +65,7 @@ export default function Analytics() {
   const analytics = data?.data?.data;
   const daily: any[] = analytics?.daily || [];
   const byStore: any[] = analytics?.byStore || [];
+  const byCategory: any[] = analytics?.byCategory || [];
   const totals = analytics?.totals || {};
 
   const pieData = totals.devCut ? [
@@ -64,6 +73,8 @@ export default function Analytics() {
     { name: 'Store Cost (total)', value: parseFloat((totals.storeCost - totals.devCut).toFixed(2)) },
     { name: 'Points Awarded', value: totals.pointsAwarded },
   ] : [];
+
+  const categoryPieData = byCategory.map((c) => ({ name: catLabel(c.category), value: c.purchaseVolume }));
 
   return (
     <div style={s.container}>
@@ -150,6 +161,43 @@ export default function Analytics() {
             </ResponsiveContainer>
           </div>
 
+          {/* Daily points awarded area chart */}
+          <div style={s.chartCard}>
+            <h2 style={s.chartTitle}>Points Awarded Trend</h2>
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="pointsGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#F4A261" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#F4A261" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="pointsAwarded" stroke="#F4A261" strokeWidth={2} fill="url(#pointsGrad)" name="Points Awarded" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Daily redemptions - count (bars) + $ redeemed (line) on a second axis */}
+          <div style={s.chartCard}>
+            <h2 style={s.chartTitle}>Redemptions Trend</h2>
+            <ResponsiveContainer width="100%" height={240}>
+              <ComposedChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis yAxisId="left" tick={{ fontSize: 13 }} allowDecimals={false} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="redemptions" fill="#6f42c1" name="Redemptions" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#2DC653" strokeWidth={2} name="Redeemed Amount" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
           {/* Per-store bar chart */}
           {byStore.length > 0 && (
             <div style={s.chartCard}>
@@ -182,6 +230,50 @@ export default function Analytics() {
                   <Bar dataKey="devCut" fill="#2DC653" name="Dev Cut" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Purchase volume by category */}
+          {byCategory.length > 0 && (
+            <div style={s.chartCard}>
+              <h2 style={s.chartTitle}>Purchase Volume by Category</h2>
+              <ResponsiveContainer width="100%" height={Math.max(240, byCategory.length * 42)}>
+                <BarChart data={byCategory} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                  <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={catLabel} width={110} />
+                  <Tooltip content={<CustomTooltip />} formatter={(v: any) => fmt$(v)} />
+                  <Bar dataKey="purchaseVolume" name="Purchase Volume" radius={[0, 4, 4, 0]}>
+                    {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Category mix - % share of purchase volume */}
+          {categoryPieData.length > 0 && (
+            <div style={s.chartCard}>
+              <h2 style={s.chartTitle}>Category Mix</h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 48, flexWrap: 'wrap' as const }}>
+                <PieChart width={280} height={280}>
+                  <Pie data={categoryPieData} cx={130} cy={130} outerRadius={110} dataKey="value" label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
+                    {categoryPieData.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => fmt$(v)} />
+                </PieChart>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {categoryPieData.map((entry, i) => (
+                    <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 4, background: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: PRIMARY, textTransform: 'capitalize' as const }}>{entry.name.toLowerCase()}</div>
+                        <div style={{ color: TEXT_MUTED, fontSize: 15 }}>{fmt$(entry.value)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
