@@ -5,7 +5,7 @@
  */
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { JSBARCODE_SOURCE } from './jsbarcodeSource';
+import { code128ToSvg } from './code128';
 
 export interface PrintableLabel {
   id: string;
@@ -58,6 +58,14 @@ const TEMPLATE_ICONS: Record<string, string> = {
   HALLOWEEN: '🎃 ',
 };
 
+// Rendered statically at HTML-build time (not via a runtime <script> once
+// the page is loaded) — see code128.ts for why.
+function renderBarcodeSvg(barcode: string): string {
+  const HEIGHT = 34;
+  const { rects, modules } = code128ToSvg(barcode, HEIGHT);
+  return `<svg class="label-barcode" viewBox="0 0 ${modules} ${HEIGHT}" fill="#000">${rects}</svg>`;
+}
+
 function renderLabel(label: PrintableLabel): string {
   const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
   const icon = TEMPLATE_ICONS[label.template] || '';
@@ -85,7 +93,7 @@ function renderLabel(label: PrintableLabel): string {
         <div class="label-qr-caption">Scan to Join</div>
         ${barcode ? `
         <div class="label-barcode-wrap">
-          <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
+          ${renderBarcodeSvg(barcode)}
           <div class="label-barcode-val">${esc(barcode)}</div>
         </div>` : ''}
       </div>
@@ -95,36 +103,6 @@ function renderLabel(label: PrintableLabel): string {
 
 function buildHtml(entries: PrintableLabelEntry[]): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
-  const hasAnyBarcode = entries.some(e => e.label.barcode?.trim());
-  // IMPORTANT: JsBarcode is bundled inline (see jsbarcodeSource.ts), not
-  // loaded from a CDN via <script src>. expo-print's native print/PDF
-  // pipeline is not guaranteed to wait for an external network request to
-  // finish before it snapshots the page, so the CDN version silently
-  // printed an empty <svg> (only the plain-text barcode number, which is
-  // static HTML, ever showed up) — this only ever worked reliably in a real
-  // browser tab (admin web's window.print()), never in expo-print's WebView.
-  // Inlining the library as a plain <script> makes it execute synchronously
-  // in document order, with no network dependency, so it's also reliable
-  // offline. This script still runs at the end of <body>, after the <svg>
-  // elements it targets exist in the DOM.
-  const barcodeScript = hasAnyBarcode
-    ? `<script>${JSBARCODE_SOURCE}</script>
-  <script>
-    document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
-      try {
-        JsBarcode(el, el.getAttribute('data-barcode'), {
-          format: 'CODE128', width: 1.3, height: 34,
-          displayValue: false, margin: 0, lineColor: '#000'
-        });
-        var w = parseFloat(el.getAttribute('width') || '0');
-        var h = parseFloat(el.getAttribute('height') || '0');
-        if (w && h) el.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-        el.removeAttribute('width');
-        el.removeAttribute('height');
-      } catch (e) { el.style.display = 'none'; }
-    });
-  </script>`
-    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -343,7 +321,6 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
   <div class="grid">
     ${labels.map(renderLabel).join('')}
   </div>
-  ${barcodeScript}
 </body>
 </html>`;
 }
