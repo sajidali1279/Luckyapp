@@ -1,7 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
   StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
-  TextInput, Alert, Easing, useWindowDimensions,
+  TextInput, Alert, Easing, useWindowDimensions, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -169,14 +169,71 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
 // there and was implicated in a real Modal-rendering glitch on-device
 // (a locked card's own age-gate Modal intermittently rendered dimmed
 // with no content after this overlay had been mounted alongside it).
+// The dim itself is kept light so the real card underneath (image,
+// title, price pill) still reads through - only the small badge needs
+// to be fully opaque, so it stays legible regardless of what's behind it.
 function AgeGateOverlay() {
   return (
     <View style={styles.ageLockOverlay}>
-      <Text style={styles.ageLockEmoji}>🔞</Text>
-      <Text style={styles.ageLockText}>Age-restricted offer</Text>
-      <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
+      <View style={styles.ageLockBadge}>
+        <Text style={styles.ageLockEmoji}>🔞</Text>
+        <Text style={styles.ageLockText}>Age-restricted offer</Text>
+        <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
+      </View>
     </View>
   );
+}
+
+/* ─── Press-scale wrapper ─────────────────────────────────── */
+// A small tactile "give" on press - scales and dims slightly on touch
+// down, springs back on release - used on offer cards so tapping one
+// feels responsive rather than an inert opacity flash.
+function PressScale({
+  onPress, style, children, accessibilityRole, accessibilityLabel,
+}: {
+  onPress: () => void;
+  style?: any;
+  children: React.ReactNode;
+  accessibilityRole?: 'button';
+  accessibilityLabel?: string;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const pressIn = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 60, bounciness: 0 }),
+      Animated.timing(opacity, { toValue: 0.88, duration: 100, useNativeDriver: true }),
+    ]).start();
+  };
+  const pressOut = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 9 }),
+      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  };
+  return (
+    <Pressable onPress={onPress} onPressIn={pressIn} onPressOut={pressOut} accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel}>
+      <Animated.View style={[style, { transform: [{ scale }], opacity }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+/* ─── Staggered entrance ───────────────────────────────────── */
+// Each offer card fades and slides up on its own, a beat after the one
+// before it, so the list feels like it's arriving rather than just
+// appearing all at once.
+function StaggeredFadeIn({ index, children }: { index: number; children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 320, delay: index * 70, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, delay: index * 70, useNativeDriver: true, speed: 14, bounciness: 6 }),
+    ]).start();
+  }, []);
+  return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
 }
 
 /* ─── Promo slideshow ──────────────────────────────────────── */
@@ -1002,10 +1059,9 @@ export default function CustomerHome() {
 
                   {/* ─ Gas offer tile ─ */}
                   {bestGasOffer && (
-                    <TouchableOpacity
+                    <PressScale
                       style={gp.offerCard}
                       onPress={() => onOfferPress(bestGasOffer)}
-                      activeOpacity={0.85}
                       accessibilityRole="button"
                       accessibilityLabel={`View gas offer: ${bestGasOffer.title}`}
                     >
@@ -1018,7 +1074,7 @@ export default function CustomerHome() {
                       <View style={gp.autoAppliedBadge}>
                         <Text style={gp.autoAppliedText}>Auto-applied</Text>
                       </View>
-                    </TouchableOpacity>
+                    </PressScale>
                   )}
                 </View>
               ))}
@@ -1057,12 +1113,11 @@ export default function CustomerHome() {
                 )}
               </View>
               {promotions.length <= 2 ? (
-                promotions.map((offer: any) => (
-                  <TouchableOpacity
-                    key={offer.id}
+                promotions.map((offer: any, idx: number) => (
+                  <StaggeredFadeIn key={offer.id} index={idx}>
+                  <PressScale
                     style={styles.offerCard}
                     onPress={() => onOfferPress(offer)}
-                    activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
                   >
@@ -1100,16 +1155,16 @@ export default function CustomerHome() {
                       </View>
                       <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
                     </View>
-                  </TouchableOpacity>
+                  </PressScale>
+                  </StaggeredFadeIn>
                 ))
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
-                  {promotions.map((offer: any) => (
-                    <TouchableOpacity
-                      key={offer.id}
+                  {promotions.map((offer: any, idx: number) => (
+                    <StaggeredFadeIn key={offer.id} index={idx}>
+                    <PressScale
                       style={styles.offerSlideCard}
                       onPress={() => onOfferPress(offer)}
-                      activeOpacity={0.8}
                       accessibilityRole="button"
                       accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
                     >
@@ -1153,7 +1208,8 @@ export default function CustomerHome() {
                           </View>
                         </View>
                       </View>
-                    </TouchableOpacity>
+                    </PressScale>
+                    </StaggeredFadeIn>
                   ))}
                 </ScrollView>
               )}
@@ -2004,12 +2060,19 @@ const styles = StyleSheet.create({
   },
   ageLockOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(20,20,25,0.72)',
-    alignItems: 'center', justifyContent: 'center', gap: 2,
+    backgroundColor: 'rgba(15,15,20,0.32)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  ageLockBadge: {
+    backgroundColor: 'rgba(20,20,25,0.88)',
+    borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 14,
+    alignItems: 'center', gap: 2,
+    maxWidth: '84%',
   },
   ageLockEmoji: { fontSize: 22, marginBottom: 2 },
-  ageLockText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  ageLockSubtext: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11 },
+  ageLockText: { color: '#fff', fontWeight: '800', fontSize: 13, textAlign: 'center' },
+  ageLockSubtext: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11, textAlign: 'center' },
   offerImage: { width: 84, height: 84, resizeMode: 'cover' },
   offerPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
   offerContent: { flex: 1, padding: 12, gap: 2 },
