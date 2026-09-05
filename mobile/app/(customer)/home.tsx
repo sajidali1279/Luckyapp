@@ -916,6 +916,9 @@ export default function CustomerHome() {
                   </View>
                 )}
               </View>
+              {gasPrices.some((store: any) => store.todayHours) && (
+                <Text style={gp.hoursDisclaimer}>Hours may vary on holidays — call ahead to confirm.</Text>
+              )}
               {gasPrices.map((store: any) => (
                 <View key={store.id} style={gp.row}>
                   {/* ─ Price card ─ */}
@@ -2014,6 +2017,7 @@ const gp = StyleSheet.create({
   storeName:   { fontSize: 14, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
   storeAddr:   { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
   storeHours:  { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginBottom: 5 },
+  hoursDisclaimer: { fontSize: 11, fontStyle: 'italic', color: COLORS.textMuted, marginBottom: 8, paddingHorizontal: 2 },
   priceLines:  { gap: 6, marginBottom: 2 },
   priceLine:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
   priceLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', flex: 1 },
