@@ -27,8 +27,8 @@ export async function getStoreById(req: AuthRequest, res: Response) {
   res.json({ success: true, data: store });
 }
 
-// SUPER_ADMIN+ — basic store list (no billing info). Deliberately not
-// filtered to isActive:true — this is the store *management* view, so a
+// SUPER_ADMIN+, basic store list (no billing info). Deliberately not
+// filtered to isActive:true, this is the store *management* view, so a
 // deactivated store needs to stay visible (with its status shown) rather
 // than silently vanishing with no UI path back to reactivating it.
 export async function getStores(_req: AuthRequest, res: Response) {
@@ -1536,7 +1536,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true,
       latitude: true, longitude: true, enabledCategories: true, minimumAge: true, hotFoodEnabled: true,
       storeHours: true,
-      // Only holidays from the last day onward — old ones can never match
+      // Only holidays from the last day onward, old ones can never match
       // "today" and would just grow this payload forever otherwise.
       storeHolidays: { where: { date: { gte: new Date(Date.now() - 86400000) } } },
     },

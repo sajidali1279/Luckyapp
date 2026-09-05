@@ -341,7 +341,7 @@ model Store {
   dailyReports          DailyReport[]
   dailyTasks            DailyTask[]
   adminNotices          AdminNotice[]
-  // Store hours — regular weekly schedule (StoreHours) plus date-specific
+  // Store hours: regular weekly schedule (StoreHours) plus date-specific
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
   storeHolidays         StoreHoliday[]
@@ -349,7 +349,7 @@ model Store {
   @@map("stores")
 }
 
-// Regular weekly hours — one row per day of week. isOpen24Hours skips
+// Regular weekly hours: one row per day of week. isOpen24Hours skips
 // open/close times entirely; isClosed means the store doesn't open that
 // day at all (e.g. closed Sundays).
 model StoreHours {
@@ -367,7 +367,7 @@ model StoreHours {
   @@map("store_hours")
 }
 
-// Date-specific override of the regular weekly schedule — holidays, one-off
+// Date-specific override of the regular weekly schedule: holidays, one-off
 // closures, etc. A row here for a given date always wins over StoreHours.
 model StoreHoliday {
   id            String   @id @default(uuid())

@@ -59,7 +59,7 @@ const TEMPLATE_ICONS: Record<string, string> = {
 };
 
 // Rendered statically at HTML-build time (not via a runtime <script> once
-// the page is loaded) — see code128.ts for why.
+// the page is loaded), see code128.ts for why.
 function renderBarcodeSvg(barcode: string): string {
   const HEIGHT = 34;
   const { rects, modules } = code128ToSvg(barcode, HEIGHT);

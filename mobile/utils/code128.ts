@@ -1,11 +1,11 @@
 /**
- * Pure-JS CODE128 barcode encoder — renders directly to static SVG <rect>
+ * Pure-JS CODE128 barcode encoder. Renders directly to static SVG <rect>
  * markup at HTML-build time, with no DOM, no canvas, and no runtime
  * <script> execution needed inside the printed page.
  *
  * expo-print's WebView-based print/PDF pipeline snapshots the page itself,
  * not necessarily after any inline <script> has finished (or even run at
- * all — unlike a real browser tab, admin web's window.print() flow). A
+ * all, unlike a real browser tab, admin web's window.print() flow). A
  * previous fix tried bundling JsBarcode inline to run client-side inside
  * the print HTML, but the printed output still only ever showed the plain
  * barcode number, never the scannable graphic. Generating the bars as
@@ -14,7 +14,7 @@
  *
  * The pattern table below is the real CODE128 symbol table, taken
  * verbatim from the JsBarcode v3.11.5 source already vendored in this
- * repo (see jsbarcodeSource.ts), not retyped from memory — verified
+ * repo (see jsbarcodeSource.ts), not retyped from memory, verified
  * byte-for-byte against an independent CODE128 encoder before use.
  */
 
@@ -44,7 +44,7 @@ const START_C = 105;
 const STOP = 106;
 
 export interface Code128Svg {
-  /** <rect> elements only — embed inside a caller-provided <svg viewBox="0 0 modules height"> */
+  /** <rect> elements only, embed inside a caller-provided <svg viewBox="0 0 modules height"> */
   rects: string;
   /** total module count, i.e. the natural viewBox width in module units */
   modules: number;
@@ -52,8 +52,8 @@ export interface Code128Svg {
 
 /**
  * Encodes `value` as CODE128, auto-selecting Code Set C (2 digits per
- * symbol, half the width) for pure even-length digit strings — the
- * common case for UPC/EAN product codes on shelf labels — and falling
+ * symbol, half the width) for pure even-length digit strings, the
+ * common case for UPC/EAN product codes on shelf labels, and falling
  * back to Code Set B (one printable ASCII char per symbol) otherwise.
  *
  * `quietZone` adds blank module-width padding on each side (a real quiet

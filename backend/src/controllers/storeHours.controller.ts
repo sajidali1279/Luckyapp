@@ -28,7 +28,7 @@ export async function getStoreHours(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { weekly, holidays } });
 }
 
-// STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store) — replaces the
+// STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store). Replaces the
 // full 7-day week in one call rather than a per-day PATCH, since the
 // admin UI always edits the whole week at once.
 export async function updateStoreHours(req: AuthRequest, res: Response) {

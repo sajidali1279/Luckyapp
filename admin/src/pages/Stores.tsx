@@ -54,8 +54,8 @@ interface FormState {
 
 type DayOfWeek = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
 
-// Display order (Sunday first, matching a typical US weekly calendar) —
-// the backend's own enum happens to be declared Monday-first for shift
+// Display order (Sunday first, matching a typical US weekly calendar).
+// The backend's own enum happens to be declared Monday-first for shift
 // scheduling, so this is deliberately its own ordering, not a reuse.
 const DAYS: { value: DayOfWeek; label: string }[] = [
   { value: 'SUN', label: 'Sunday' },
@@ -123,7 +123,7 @@ export default function Stores() {
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', requiresAgeGate: false });
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
 
-  // Store Hours modal — its own modal (not part of the general Edit Store
+  // Store Hours modal, its own modal (not part of the general Edit Store
   // one) since it's backed by 2 dedicated endpoints, not the generic
   // updateStore payload.
   const [hoursStoreId, setHoursStoreId] = useState<string | null>(null);
@@ -488,7 +488,7 @@ export default function Stores() {
             return (
               <div key={store.id} style={{ ...s.card, ...(store.isActive ? {} : s.cardInactive) }}>
                 {!store.isActive && (
-                  <div style={s.inactiveBanner}>🚫 Inactive — hidden from customers and staff</div>
+                  <div style={s.inactiveBanner}>🚫 Inactive, hidden from customers and staff</div>
                 )}
                 {/* Card header */}
                 <div style={s.cardTop}>
@@ -576,7 +576,7 @@ export default function Stores() {
                       onChange={(e) => setGasField(store.id, 'gas', e.target.value)}
                     />
                     {!categoryEnabled(store, 'GAS') && (
-                      <span style={s.gasDisabledHint}>Gas is disabled here — hidden from customers</span>
+                      <span style={s.gasDisabledHint}>Gas is disabled here, hidden from customers</span>
                     )}
                   </div>
                   <div style={s.gasField}>
@@ -592,7 +592,7 @@ export default function Stores() {
                       onChange={(e) => setGasField(store.id, 'diesel', e.target.value)}
                     />
                     {!categoryEnabled(store, 'DIESEL') && (
-                      <span style={s.gasDisabledHint}>Diesel is disabled here — hidden from customers</span>
+                      <span style={s.gasDisabledHint}>Diesel is disabled here, hidden from customers</span>
                     )}
                   </div>
                   <button
@@ -805,7 +805,7 @@ export default function Stores() {
 
                 <div style={{ ...s.sectionLabel, marginTop: 26 }}>Holiday / Special-Date Hours</div>
                 <div style={s.catHint}>
-                  Overrides the regular weekly schedule for one specific date — e.g. closed on Thanksgiving, or shorter hours on Christmas Eve.
+                  Overrides the regular weekly schedule for one specific date, e.g. closed on Thanksgiving, or shorter hours on Christmas Eve.
                 </div>
                 {holidays.length === 0 ? (
                   <div style={s.kwEmpty}>No holiday overrides yet.</div>
@@ -936,7 +936,7 @@ export default function Stores() {
             {/* Age gate */}
             <div style={s.sectionLabel}>Age-Restricted Store</div>
             <div style={s.catHint}>
-              For stores like a liquor store — customers must confirm they're 21+ before the app shows this store's content.
+              For stores like a liquor store, customers must confirm they're 21+ before the app shows this store's content.
             </div>
             <button
               type="button"

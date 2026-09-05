@@ -27,7 +27,7 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 
 const MAX_NEARBY_MILES = 2;
 
-// enabledCategories is empty on most stores, meaning "everything enabled" —
+// enabledCategories is empty on most stores, meaning "everything enabled":
 // only a non-empty list actually restricts anything. Matches the same
 // convention used for the category picker in scan.tsx.
 function categoryEnabled(store: any, category: 'GAS' | 'DIESEL'): boolean {
@@ -943,7 +943,7 @@ export default function CustomerHome() {
                 )}
               </View>
               {gasPrices.some((store: any) => store.todayHours) && (
-                <Text style={gp.hoursDisclaimer}>Hours may vary on holidays — call ahead to confirm.</Text>
+                <Text style={gp.hoursDisclaimer}>Hours may vary on holidays, call ahead to confirm.</Text>
               )}
               {gasPrices.map((store: any) => (
                 <View key={store.id} style={gp.row}>
