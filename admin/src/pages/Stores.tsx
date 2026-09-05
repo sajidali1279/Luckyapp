@@ -35,9 +35,7 @@ interface Store {
   gasPriceUpdatedAt: string | null;
   enabledCategories: string[];
   hotFoodEnabled: boolean;
-  isOpen24Hours: boolean;
-  openTime: string | null;
-  closeTime: string | null;
+  todayHours: string | null;
   minimumAge: number | null;
   isActive: boolean;
 }
@@ -51,10 +49,41 @@ interface FormState {
   phone: string;
   latitude: string;
   longitude: string;
+  requiresAgeGate: boolean;
+}
+
+type DayOfWeek = 'SUN' | 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
+
+// Display order (Sunday first, matching a typical US weekly calendar) —
+// the backend's own enum happens to be declared Monday-first for shift
+// scheduling, so this is deliberately its own ordering, not a reuse.
+const DAYS: { value: DayOfWeek; label: string }[] = [
+  { value: 'SUN', label: 'Sunday' },
+  { value: 'MON', label: 'Monday' },
+  { value: 'TUE', label: 'Tuesday' },
+  { value: 'WED', label: 'Wednesday' },
+  { value: 'THU', label: 'Thursday' },
+  { value: 'FRI', label: 'Friday' },
+  { value: 'SAT', label: 'Saturday' },
+];
+
+interface DayForm {
+  isClosed: boolean;
   isOpen24Hours: boolean;
   openTime: string;
   closeTime: string;
-  requiresAgeGate: boolean;
+}
+
+const BLANK_DAY: DayForm = { isClosed: false, isOpen24Hours: false, openTime: '', closeTime: '' };
+
+interface Holiday {
+  id: string;
+  date: string;
+  label: string;
+  isClosed: boolean;
+  isOpen24Hours: boolean;
+  openTime: string | null;
+  closeTime: string | null;
 }
 
 // "06:00" -> "6:00 AM"
@@ -66,10 +95,11 @@ function formatTime12h(t: string): string {
   return `${h12}:${m} ${period}`;
 }
 
-function storeHoursLabel(store: Pick<Store, 'isOpen24Hours' | 'openTime' | 'closeTime'>): string | null {
-  if (store.isOpen24Hours) return 'Open 24 Hours';
-  if (store.openTime && store.closeTime) return `${formatTime12h(store.openTime)} - ${formatTime12h(store.closeTime)}`;
-  return null;
+function scheduleSummary(s: { isClosed: boolean; isOpen24Hours: boolean; openTime: string | null; closeTime: string | null }): string {
+  if (s.isClosed) return 'Closed';
+  if (s.isOpen24Hours) return 'Open 24 Hours';
+  if (s.openTime && s.closeTime) return `${formatTime12h(s.openTime)} - ${formatTime12h(s.closeTime)}`;
+  return 'Not set';
 }
 
 function categoryEnabled(store: Pick<Store, 'enabledCategories'>, category: 'GAS' | 'DIESEL'): boolean {
@@ -90,8 +120,21 @@ export default function Stores() {
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [editStore, setEditStore] = useState<Store | null>(null);
-  const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', isOpen24Hours: false, openTime: '', closeTime: '', requiresAgeGate: false });
+  const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', requiresAgeGate: false });
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+
+  // Store Hours modal — its own modal (not part of the general Edit Store
+  // one) since it's backed by 2 dedicated endpoints, not the generic
+  // updateStore payload.
+  const [hoursStoreId, setHoursStoreId] = useState<string | null>(null);
+  const [hoursLoading, setHoursLoading] = useState(false);
+  const [weekForm, setWeekForm] = useState<Record<DayOfWeek, DayForm>>(
+    () => Object.fromEntries(DAYS.map((d) => [d.value, BLANK_DAY])) as Record<DayOfWeek, DayForm>
+  );
+  const [weekSaving, setWeekSaving] = useState(false);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [newHoliday, setNewHoliday] = useState({ date: '', label: '', isClosed: true, isOpen24Hours: false, openTime: '', closeTime: '' });
+  const [holidaySaving, setHolidaySaving] = useState(false);
   const [enabledCats, setEnabledCats] = useState<string[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   // Gas price inline editing: map of storeId → { gas, diesel }
@@ -260,9 +303,6 @@ export default function Stores() {
       phone: store.phone ?? '',
       latitude: store.latitude != null ? String(store.latitude) : '',
       longitude: store.longitude != null ? String(store.longitude) : '',
-      isOpen24Hours: store.isOpen24Hours,
-      openTime: store.openTime ?? '',
-      closeTime: store.closeTime ?? '',
       requiresAgeGate: store.minimumAge === 21,
     });
     setEnabledCats(store.enabledCategories ?? []);
@@ -272,6 +312,94 @@ export default function Stores() {
     setEnabledCats(prev =>
       prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
     );
+  }
+
+  async function openHoursModal(storeId: string) {
+    setHoursStoreId(storeId);
+    setHoursLoading(true);
+    try {
+      const res = await storesApi.getHours(storeId);
+      const { weekly, holidays: h } = res.data.data as { weekly: (DayForm & { dayOfWeek: DayOfWeek })[]; holidays: Holiday[] };
+      const next = Object.fromEntries(DAYS.map((d) => [d.value, BLANK_DAY])) as Record<DayOfWeek, DayForm>;
+      for (const row of weekly) {
+        next[row.dayOfWeek] = { isClosed: row.isClosed, isOpen24Hours: row.isOpen24Hours, openTime: row.openTime ?? '', closeTime: row.closeTime ?? '' };
+      }
+      setWeekForm(next);
+      setHolidays(h);
+    } catch {
+      toast.error('Failed to load store hours');
+    }
+    setHoursLoading(false);
+  }
+
+  function setDay(day: DayOfWeek, patch: Partial<DayForm>) {
+    setWeekForm((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }));
+  }
+
+  async function saveWeekHours() {
+    if (!hoursStoreId) return;
+    for (const d of DAYS) {
+      const day = weekForm[d.value];
+      if (!day.isClosed && !day.isOpen24Hours && (!day.openTime || !day.closeTime)) {
+        toast.error(`Set open/close times for ${d.label}, mark it closed, or open 24 hours`);
+        return;
+      }
+    }
+    setWeekSaving(true);
+    try {
+      const payload = DAYS.map((d) => ({
+        dayOfWeek: d.value,
+        isClosed: weekForm[d.value].isClosed,
+        isOpen24Hours: weekForm[d.value].isOpen24Hours,
+        openTime: weekForm[d.value].isClosed || weekForm[d.value].isOpen24Hours ? null : weekForm[d.value].openTime,
+        closeTime: weekForm[d.value].isClosed || weekForm[d.value].isOpen24Hours ? null : weekForm[d.value].closeTime,
+      }));
+      await storesApi.updateHours(hoursStoreId, payload);
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      toast.success('Weekly hours saved');
+    } catch {
+      toast.error('Failed to save weekly hours');
+    }
+    setWeekSaving(false);
+  }
+
+  async function addHoliday() {
+    if (!hoursStoreId) return;
+    if (!newHoliday.date) { toast.error('Pick a date'); return; }
+    if (!newHoliday.label.trim()) { toast.error('Name this holiday (e.g. Thanksgiving)'); return; }
+    if (!newHoliday.isClosed && !newHoliday.isOpen24Hours && (!newHoliday.openTime || !newHoliday.closeTime)) {
+      toast.error('Set open/close times, mark it closed, or open 24 hours');
+      return;
+    }
+    setHolidaySaving(true);
+    try {
+      const res = await storesApi.addHoliday(hoursStoreId, {
+        date: newHoliday.date,
+        label: newHoliday.label.trim(),
+        isClosed: newHoliday.isClosed,
+        isOpen24Hours: newHoliday.isOpen24Hours,
+        openTime: newHoliday.isClosed || newHoliday.isOpen24Hours ? null : newHoliday.openTime,
+        closeTime: newHoliday.isClosed || newHoliday.isOpen24Hours ? null : newHoliday.closeTime,
+      });
+      setHolidays((prev) => [...prev.filter((h) => h.date !== res.data.data.date), res.data.data].sort((a, b) => a.date.localeCompare(b.date)));
+      setNewHoliday({ date: '', label: '', isClosed: true, isOpen24Hours: false, openTime: '', closeTime: '' });
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      toast.success('Holiday hours added');
+    } catch {
+      toast.error('Failed to add holiday hours');
+    }
+    setHolidaySaving(false);
+  }
+
+  async function removeHoliday(holidayId: string) {
+    if (!hoursStoreId) return;
+    try {
+      await storesApi.deleteHoliday(hoursStoreId, holidayId);
+      setHolidays((prev) => prev.filter((h) => h.id !== holidayId));
+      qc.invalidateQueries({ queryKey: ['stores'] });
+    } catch {
+      toast.error('Failed to remove holiday hours');
+    }
   }
 
   async function geocodeAddress() {
@@ -301,10 +429,6 @@ export default function Stores() {
       toast.error('Enter valid coordinates');
       return;
     }
-    if (!form.isOpen24Hours && (form.openTime.trim() === '') !== (form.closeTime.trim() === '')) {
-      toast.error('Set both an open and close time, or leave both blank');
-      return;
-    }
     const payload: Record<string, unknown> = {
       name: form.name.trim() || undefined,
       address: form.address.trim() || undefined,
@@ -315,9 +439,6 @@ export default function Stores() {
       latitude: lat,
       longitude: lng,
       enabledCategories: enabledCats,
-      isOpen24Hours: form.isOpen24Hours,
-      openTime: form.isOpen24Hours ? null : (form.openTime.trim() || null),
-      closeTime: form.isOpen24Hours ? null : (form.closeTime.trim() || null),
       minimumAge: form.requiresAgeGate ? 21 : null,
     };
     mutation.mutate({ storeId: editStore.id, payload });
@@ -403,11 +524,11 @@ export default function Stores() {
                   </div>
                 )}
                 <div style={s.detailRow}>
-                  <span style={s.detailLabel}>Hours</span>
-                  {storeHoursLabel(store) ? (
-                    <span style={s.detailVal}>{storeHoursLabel(store)}</span>
+                  <span style={s.detailLabel}>Today</span>
+                  {store.todayHours ? (
+                    <span style={s.detailVal}>{store.todayHours}</span>
                   ) : (
-                    <span style={{ ...s.detailVal, color: '#b91c1c' }}>Not set</span>
+                    <span style={{ ...s.detailVal, color: '#b91c1c' }}>Hours not set</span>
                   )}
                 </div>
                 {hasCoords && (
@@ -542,7 +663,12 @@ export default function Stores() {
                   <button style={s.kwBtn} onClick={() => openKwModal(store.id)}>
                     🗂️ POS Mappings
                   </button>
-                  <button style={{ ...s.editBtn, flex: 2, borderColor: color, color }} onClick={() => openEdit(store)}>
+                  <button style={s.kwBtn} onClick={() => openHoursModal(store.id)}>
+                    🕐 Store Hours
+                  </button>
+                </div>
+                <div style={{ ...s.cardBtns, marginTop: 8 }}>
+                  <button style={{ ...s.editBtn, borderColor: color, color }} onClick={() => openEdit(store)}>
                     ✏️ Edit Store
                   </button>
                 </div>
@@ -626,6 +752,124 @@ export default function Stores() {
         </div>
       )}
 
+      {/* Store Hours Modal */}
+      {hoursStoreId && (
+        <div style={s.backdrop} onClick={() => setHoursStoreId(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.dragHandle} />
+            <div style={s.modalHeader}>
+              <div style={s.modalTitle}>🕐 Store Hours</div>
+              <div style={s.modalSub}>{stores.find((st) => st.id === hoursStoreId)?.name}</div>
+            </div>
+
+            {hoursLoading ? (
+              <div style={{ padding: '20px 0', color: TEXT_MUTED, textAlign: 'center' }}>Loading…</div>
+            ) : (
+              <>
+                <div style={s.sectionLabel}>Weekly Schedule</div>
+                <div style={s.hoursWeekList}>
+                  {DAYS.map((d) => {
+                    const day = weekForm[d.value];
+                    return (
+                      <div key={d.value} style={s.hoursDayRow}>
+                        <div style={s.hoursDayLabel}>{d.label}</div>
+                        <div style={s.hoursDayControls}>
+                          <button type="button"
+                            style={{ ...s.hoursChip, ...(day.isClosed ? s.hoursChipOffRed : {}) }}
+                            onClick={() => setDay(d.value, { isClosed: !day.isClosed })}
+                          >
+                            Closed
+                          </button>
+                          <button type="button"
+                            style={{ ...s.hoursChip, ...(day.isOpen24Hours ? s.hoursChipOnGreen : {}) }}
+                            onClick={() => setDay(d.value, { isOpen24Hours: !day.isOpen24Hours, isClosed: false })}
+                            disabled={day.isClosed}
+                          >
+                            24 Hours
+                          </button>
+                          {!day.isClosed && !day.isOpen24Hours && (
+                            <>
+                              <input style={s.hoursTimeInput} type="time" value={day.openTime} onChange={(e) => setDay(d.value, { openTime: e.target.value })} />
+                              <span style={{ color: TEXT_MUTED, fontSize: 13 }}>to</span>
+                              <input style={s.hoursTimeInput} type="time" value={day.closeTime} onChange={(e) => setDay(d.value, { closeTime: e.target.value })} />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button style={{ ...s.saveBtn, width: '100%' }} onClick={saveWeekHours} disabled={weekSaving}>
+                  {weekSaving ? 'Saving…' : 'Save Weekly Hours'}
+                </button>
+
+                <div style={{ ...s.sectionLabel, marginTop: 26 }}>Holiday / Special-Date Hours</div>
+                <div style={s.catHint}>
+                  Overrides the regular weekly schedule for one specific date — e.g. closed on Thanksgiving, or shorter hours on Christmas Eve.
+                </div>
+                {holidays.length === 0 ? (
+                  <div style={s.kwEmpty}>No holiday overrides yet.</div>
+                ) : (
+                  <div style={s.kwList}>
+                    {holidays.map((h) => (
+                      <div key={h.id} style={s.kwRow}>
+                        <span style={s.holidayDate}>
+                          {new Date(`${h.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                        <span style={{ flex: 1, color: '#555' }}>{h.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: h.isClosed ? '#b91c1c' : '#15803d' }}>{scheduleSummary(h)}</span>
+                        <button style={s.kwDeleteBtn} onClick={() => removeHoliday(h.id)}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={s.sectionLabel}>Add a Date Override</div>
+                <div style={s.fieldRow}>
+                  <div style={s.field}>
+                    <label style={s.label}>Date</label>
+                    <input style={s.input} type="date" value={newHoliday.date} onChange={(e) => setNewHoliday((f) => ({ ...f, date: e.target.value }))} />
+                  </div>
+                  <div style={{ ...s.field, flex: 2 }}>
+                    <label style={s.label}>Label</label>
+                    <input style={s.input} placeholder="Thanksgiving" value={newHoliday.label} onChange={(e) => setNewHoliday((f) => ({ ...f, label: e.target.value }))} />
+                  </div>
+                </div>
+                <div style={s.hoursDayControls}>
+                  <button type="button"
+                    style={{ ...s.hoursChip, ...(newHoliday.isClosed ? s.hoursChipOffRed : {}) }}
+                    onClick={() => setNewHoliday((f) => ({ ...f, isClosed: !f.isClosed }))}
+                  >
+                    Closed
+                  </button>
+                  <button type="button"
+                    style={{ ...s.hoursChip, ...(newHoliday.isOpen24Hours ? s.hoursChipOnGreen : {}) }}
+                    onClick={() => setNewHoliday((f) => ({ ...f, isOpen24Hours: !f.isOpen24Hours, isClosed: false }))}
+                    disabled={newHoliday.isClosed}
+                  >
+                    24 Hours
+                  </button>
+                  {!newHoliday.isClosed && !newHoliday.isOpen24Hours && (
+                    <>
+                      <input style={s.hoursTimeInput} type="time" value={newHoliday.openTime} onChange={(e) => setNewHoliday((f) => ({ ...f, openTime: e.target.value }))} />
+                      <span style={{ color: TEXT_MUTED, fontSize: 13 }}>to</span>
+                      <input style={s.hoursTimeInput} type="time" value={newHoliday.closeTime} onChange={(e) => setNewHoliday((f) => ({ ...f, closeTime: e.target.value }))} />
+                    </>
+                  )}
+                </div>
+                <button style={{ ...s.kwAddBtn, width: '100%', marginTop: 10 }} onClick={addHoliday} disabled={holidaySaving}>
+                  {holidaySaving ? '…' : '+ Add Holiday Hours'}
+                </button>
+              </>
+            )}
+
+            <div style={s.modalActions}>
+              <button style={{ ...s.cancelBtn, flex: 1 }} onClick={() => setHoursStoreId(null)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal */}
       {editStore && (
         <div style={s.backdrop} onClick={() => setEditStore(null)}>
@@ -688,29 +932,6 @@ export default function Stores() {
                 <input style={s.input} value={form.longitude} onChange={setF('longitude')} placeholder="-84.388001" />
               </div>
             </div>
-
-            {/* Store Hours */}
-            <div style={s.sectionLabel}>Store Hours</div>
-            <button
-              type="button"
-              style={{ ...s.catToggleBtn, width: '100%', flexDirection: 'row', justifyContent: 'center', marginBottom: 10, ...(form.isOpen24Hours ? s.catToggleBtnOn : s.catToggleBtnOff) }}
-              onClick={() => setForm((f) => ({ ...f, isOpen24Hours: !f.isOpen24Hours }))}
-            >
-              <span>🕐 Open 24 Hours</span>
-              <span style={s.catToggleCheck}>{form.isOpen24Hours ? '✓' : '✕'}</span>
-            </button>
-            {!form.isOpen24Hours && (
-              <div style={s.fieldRow}>
-                <div style={s.field}>
-                  <label style={s.label}>Opens</label>
-                  <input style={s.input} type="time" value={form.openTime} onChange={setF('openTime')} />
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Closes</label>
-                  <input style={s.input} type="time" value={form.closeTime} onChange={setF('closeTime')} />
-                </div>
-              </div>
-            )}
 
             {/* Age gate */}
             <div style={s.sectionLabel}>Age-Restricted Store</div>
@@ -871,6 +1092,16 @@ const s: Record<string, React.CSSProperties> = {
 
   geocodeHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
   geocodeBtn: { width: '100%', padding: '10px 0', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },
+
+  hoursWeekList: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 },
+  hoursDayRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#f8f9fb', borderRadius: 10, padding: '9px 12px', border: '1px solid #e9ecef' },
+  hoursDayLabel: { fontSize: 14, fontWeight: 700, color: '#1a1a2e', width: 88, flexShrink: 0 },
+  hoursDayControls: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 },
+  hoursChip: { fontSize: 13, fontWeight: 700, padding: '5px 11px', borderRadius: 20, border: '1.5px solid #dee2e6', background: '#fff', color: TEXT_MUTED, cursor: 'pointer' },
+  hoursChipOffRed: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
+  hoursChipOnGreen: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
+  hoursTimeInput: { border: '1.5px solid #e2e8f0', borderRadius: 7, padding: '5px 8px', fontSize: 14, color: '#1a1a2e', outline: 'none' },
+  holidayDate: { fontWeight: 700, color: '#1a1a2e', width: 66, flexShrink: 0, fontSize: 14 },
 
   modalActions: { display: 'flex', gap: 10, marginTop: 22 },
   cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: TEXT_MUTED, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },

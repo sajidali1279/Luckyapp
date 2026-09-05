@@ -180,6 +180,11 @@ export const storesApi = {
     api.delete(`/stores/${storeId}/keyword-mappings/${id}`),
   updateOrderInstructions: (storeId: string, instructions: string | null) =>
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
+  getHours: (storeId: string) => api.get(`/stores/${storeId}/hours`),
+  updateHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hours`, { days }),
+  addHoliday: (storeId: string, data: object) => api.post(`/stores/${storeId}/holidays`, data),
+  deleteHoliday: (storeId: string, holidayId: string) =>
+    api.delete(`/stores/${storeId}/holidays/${holidayId}`),
 };
 
 export const staffApi = {

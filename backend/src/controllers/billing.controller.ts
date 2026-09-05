@@ -9,6 +9,7 @@ import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
+import { computeTodayHoursLabel } from '../utils/storeHours';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -20,7 +21,6 @@ export async function getStoreById(req: AuthRequest, res: Response) {
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
       enabledCategories: true, hotFoodEnabled: true, orderInstructions: true,
-      isOpen24Hours: true, openTime: true, closeTime: true,
     },
   });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
@@ -38,12 +38,17 @@ export async function getStores(_req: AuthRequest, res: Response) {
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
       enabledCategories: true, hotFoodEnabled: true,
-      isOpen24Hours: true, openTime: true, closeTime: true,
       minimumAge: true, isActive: true,
+      storeHours: true,
+      storeHolidays: { where: { date: { gte: new Date(Date.now() - 86400000) } } },
     },
     orderBy: { name: 'asc' },
   });
-  res.json({ success: true, data: stores });
+  const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => ({
+    ...store,
+    todayHours: computeTodayHoursLabel(storeHours, storeHolidays),
+  }));
+  res.json({ success: true, data: withTodayHours });
 }
 
 // STORE_MANAGER+ — returns stores accessible to the caller
@@ -53,7 +58,6 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   const storeSelect = {
     id: true, name: true, address: true, city: true, isActive: true, orderInstructions: true,
     gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
-    isOpen24Hours: true, openTime: true, closeTime: true,
   } as const;
 
   if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
@@ -76,9 +80,6 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   res.json({ success: true, data: assignments.map(a => a.store) });
 }
 
-// "HH:mm", 24-hour clock — e.g. "06:00" or "23:30"
-const timeStringSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use 24-hour HH:mm format');
-
 // DevAdmin only — update store details (name, address, lat/lng, etc.)
 const updateStoreSchema = z.object({
   name: z.string().min(1).optional(),
@@ -92,9 +93,6 @@ const updateStoreSchema = z.object({
   shiftsPerDay: z.number().int().min(2).max(3).optional(),
   enabledCategories: z.array(z.nativeEnum(ProductCategory)).optional(),
   hotFoodEnabled: z.boolean().optional(),
-  isOpen24Hours: z.boolean().optional(),
-  openTime: timeStringSchema.nullable().optional(),
-  closeTime: timeStringSchema.nullable().optional(),
   minimumAge: z.number().int().min(0).max(100).nullable().optional(),
   isActive: z.boolean().optional(),
 });
@@ -112,7 +110,7 @@ export async function updateStore(req: AuthRequest, res: Response) {
     select: {
       id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true,
       latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true,
-      isOpen24Hours: true, openTime: true, closeTime: true, minimumAge: true, isActive: true,
+      minimumAge: true, isActive: true,
     },
   });
   res.json({ success: true, data: store });
@@ -1537,11 +1535,18 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, phone: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true,
       latitude: true, longitude: true, enabledCategories: true, minimumAge: true, hotFoodEnabled: true,
-      isOpen24Hours: true, openTime: true, closeTime: true,
+      storeHours: true,
+      // Only holidays from the last day onward — old ones can never match
+      // "today" and would just grow this payload forever otherwise.
+      storeHolidays: { where: { date: { gte: new Date(Date.now() - 86400000) } } },
     },
     orderBy: { name: 'asc' },
   });
-  res.json({ success: true, data: stores });
+  const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => ({
+    ...store,
+    todayHours: computeTodayHoursLabel(storeHours, storeHolidays),
+  }));
+  res.json({ success: true, data: withTodayHours });
 }
 
 // ─── Cashback-to-Sales Health (DevAdmin only) ──────────────────────────────────

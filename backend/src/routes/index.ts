@@ -189,6 +189,12 @@ import {
   getSuperAdminNotifications,
   getDevAdminNotifications,
 } from '../controllers/billing.controller';
+import {
+  getStoreHours,
+  updateStoreHours,
+  addStoreHoliday,
+  deleteStoreHoliday,
+} from '../controllers/storeHours.controller';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
@@ -277,6 +283,12 @@ router.get('/stores/gas-prices', authenticate, getAllGasPrices);                
 router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
 router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
+
+// ─── Store Hours (weekly schedule + holiday overrides) ────────────────────────
+router.get('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreHours);
+router.put('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateStoreHours);
+router.post('/stores/:storeId/holidays', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, addStoreHoliday);
+router.delete('/stores/:storeId/holidays/:holidayId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, deleteStoreHoliday);
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
 router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)

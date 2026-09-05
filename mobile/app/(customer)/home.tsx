@@ -34,21 +34,6 @@ function categoryEnabled(store: any, category: 'GAS' | 'DIESEL'): boolean {
   return enabled.length === 0 || enabled.includes(category);
 }
 
-// "06:00" -> "6:00 AM"
-function formatTime12h(t: string): string {
-  const [hStr, m] = t.split(':');
-  const h = parseInt(hStr, 10);
-  const period = h < 12 ? 'AM' : 'PM';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${m} ${period}`;
-}
-
-function storeHoursLabel(store: any): string | null {
-  if (store?.isOpen24Hours) return 'Open 24 Hours';
-  if (store?.openTime && store?.closeTime) return `${formatTime12h(store.openTime)} - ${formatTime12h(store.closeTime)}`;
-  return null;
-}
-
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -939,8 +924,8 @@ export default function CustomerHome() {
                     {!nearestStore && store.address && (
                       <Text style={gp.storeAddr} numberOfLines={1}>{store.address}, {store.city}</Text>
                     )}
-                    {storeHoursLabel(store) && (
-                      <Text style={gp.storeHours} numberOfLines={1}>🕐 {storeHoursLabel(store)}</Text>
+                    {store.todayHours && (
+                      <Text style={gp.storeHours} numberOfLines={1}>🕐 {store.todayHours}</Text>
                     )}
                     {!nearestStore && store.phone && (
                       <TouchableOpacity
