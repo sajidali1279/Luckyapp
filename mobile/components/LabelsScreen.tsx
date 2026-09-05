@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import { COLORS } from '../constants';
-import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon, DollarSignIcon } from './Icons';
+import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon, DollarSignIcon, PrinterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
@@ -33,6 +33,7 @@ interface Label {
   // storeId was actually supplied — absent (not just null) otherwise, e.g.
   // when no store has resolved yet. Always check truthiness, not `!== null`.
   myStoreLabel?: {
+    id: string;
     effectivePrice: string;
     printedAt: string | null;
     status: LabelPrintStatus;
@@ -96,6 +97,7 @@ export default function LabelsScreen() {
   const [formTemplate, setFormTemplate] = useState('CLASSIC_RED_BLACK');
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [printingCatalogId, setPrintingCatalogId] = useState<string | null>(null);
   const [showNameSugg, setShowNameSugg] = useState(false);
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
   const [catSuggs, setCatSuggs] = useState<string[]>([]);
@@ -449,6 +451,37 @@ export default function LabelsScreen() {
       Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: err?.message });
     } finally {
       setPrinting(false);
+    }
+  }
+
+  // Catalog cards only ever show items already in this store's queue (a
+  // myStoreLabel) or a way to add one - there was never a way to print an
+  // existing queued item without switching to the My Prints tab, selecting
+  // it there, and using the footer button. This prints that one item in
+  // place, one tap, no tab switch.
+  async function handlePrintCatalogItem(item: Label) {
+    if (!item.myStoreLabel || printingCatalogId) return;
+    setPrintingCatalogId(item.id);
+    try {
+      const entries: PrintableLabelEntry[] = [{
+        label: {
+          id: item.id, productName: item.productName, priceText: item.priceText,
+          dealText: item.dealText, barcode: item.barcode, template: item.template,
+        },
+        quantity: 1,
+      }];
+      await printLabels({ entries, shareAsPdf: false });
+      try {
+        await labelsApi.print([{ storeLabelId: item.myStoreLabel.id, quantity: 1 }]);
+      } catch {
+        Toast.show({ type: 'error', text1: 'Printed, but failed to update status', text2: 'Pull to refresh to check' });
+      }
+      await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
+      await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: 'Print failed', text2: err?.message });
+    } finally {
+      setPrintingCatalogId(null);
     }
   }
 
@@ -949,13 +982,26 @@ export default function LabelsScreen() {
           <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
         </TouchableOpacity>
         {item.myStoreLabel ? (
-          <View style={[s.inQueueBadge, { backgroundColor: STATUS_BG[item.myStoreLabel.status] }]}>
-            <Text style={[s.inQueueBadgeText, { color: STATUS_COLOR[item.myStoreLabel.status] }]}>
-              {STATUS_LABEL[item.myStoreLabel.status]}
-            </Text>
-            {item.myStoreLabel.overrideExpiresAt && (
-              <Text style={s.inQueueBadgeSub}>ends {formatEndsOn(item.myStoreLabel.overrideExpiresAt)}</Text>
-            )}
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            <View style={[s.inQueueBadge, { backgroundColor: STATUS_BG[item.myStoreLabel.status] }]}>
+              <Text style={[s.inQueueBadgeText, { color: STATUS_COLOR[item.myStoreLabel.status] }]}>
+                {STATUS_LABEL[item.myStoreLabel.status]}
+              </Text>
+              {item.myStoreLabel.overrideExpiresAt && (
+                <Text style={s.inQueueBadgeSub}>ends {formatEndsOn(item.myStoreLabel.overrideExpiresAt)}</Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[s.addToPrintsBtn, { backgroundColor: accentColor }]}
+              onPress={() => handlePrintCatalogItem(item)}
+              disabled={printingCatalogId === item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Print label for ${item.productName}`}
+            >
+              {printingCatalogId === item.id
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <PrinterIcon size={16} color="#fff" strokeWidth={2.5} />}
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
