@@ -208,6 +208,11 @@ model User {
   pointsBalance   Float    @default(0)
   avatarUrl       String?
   age21Confirmed  Boolean  @default(false)
+  // Said "not now" at an age-restricted prompt. Distinct from never having
+  // been asked: once declined, restricted content stays hidden rather than
+  // prompting again on every encounter, until the customer opts in from
+  // Profile (which calls the same confirm action age21Confirmed uses).
+  age21Declined   Boolean  @default(false)
 
   // Multi-store manager flag — when true, STORE_MANAGER bypasses per-store access check
   allStoresAccess      Boolean  @default(false)
@@ -508,6 +513,7 @@ model Offer {
   tierBonusRates         Json?   // per-tier bonus override: {"BRONZE": 0.03, "GOLD": 0.01, ...} — wins over bonusRate per tier
   gasBonusCentsPerGallon Float?  // ¢/gallon bonus for GAS/DIESEL offers (used instead of bonusRate when in per-gallon mode)
   dealText               String? // price deal label e.g. "2 for $5" (display only)
+  requires21  Boolean     @default(false) // blurred/hidden until the customer self-declares 21+
   startDate   DateTime
   endDate     DateTime
   isActive    Boolean     @default(true)

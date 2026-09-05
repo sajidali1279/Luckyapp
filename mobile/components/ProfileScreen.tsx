@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Image,
+  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Image, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -36,7 +36,22 @@ interface Props {
 
 export default function ProfileScreen({ isCustomer = false }: Props) {
   const { t } = useTranslation();
-  const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled } = useAuthStore();
+  const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled, setAge21Confirmed } = useAuthStore();
+  const [confirmingAge21, setConfirmingAge21] = useState(false);
+
+  async function handleConfirmAge21() {
+    if (confirmingAge21) return;
+    setConfirmingAge21(true);
+    try {
+      await authApi.confirm21();
+      setAge21Confirmed();
+      Toast.show({ type: 'success', text1: t('profile.ageRestrictedConfirmedToast') });
+    } catch {
+      Toast.show({ type: 'error', text1: t('profile.ageRestrictedErrorToast') });
+    } finally {
+      setConfirmingAge21(false);
+    }
+  }
   const [bioAvailable, setBioAvailable] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
   const [selectedLang, setSelectedLang] = useState<LanguageCode>(getLanguage());
@@ -597,6 +612,47 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
             </TouchableOpacity>
           </>
+        )}
+
+        {/* ── Age-Restricted Content - customers only ── */}
+        {isCustomer && (
+          <TouchableOpacity
+            style={s.settingRow}
+            onPress={() => {
+              if (user?.age21Confirmed) {
+                Toast.show({ type: 'success', text1: t('profile.ageRestrictedAlreadyConfirmedToast') });
+                return;
+              }
+              Alert.alert(
+                t('profile.ageRestrictedContent'),
+                t('profile.ageRestrictedLegalText'),
+                [
+                  { text: t('profile.ageRestrictedCancel'), style: 'cancel' },
+                  { text: t('profile.ageRestrictedConfirmBtn'), onPress: handleConfirmAge21 },
+                ]
+              );
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={user?.age21Confirmed ? 'Age-restricted content confirmed' : 'Confirm you are 21 or older to see age-restricted content'}
+          >
+            <View style={[s.settingIconBg, { backgroundColor: '#fffbeb' }]}>
+              <LockClosedIcon size={20} color="#92400e" strokeWidth={1.75} />
+            </View>
+            <View style={s.settingBody}>
+              <Text style={s.settingTitle}>{t('profile.ageRestrictedContent')}</Text>
+              <Text style={s.settingValue}>
+                {confirmingAge21
+                  ? t('profile.ageRestrictedConfirming')
+                  : user?.age21Confirmed
+                  ? t('profile.ageRestrictedConfirmedSub')
+                  : t('profile.ageRestrictedNotConfirmedSub')}
+              </Text>
+            </View>
+            {user?.age21Confirmed
+              ? <CheckCircleIcon size={18} color="#15803d" strokeWidth={1.75} />
+              : <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />}
+          </TouchableOpacity>
         )}
 
         {/* ── Legal ── */}

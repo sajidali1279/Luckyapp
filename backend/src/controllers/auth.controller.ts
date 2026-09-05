@@ -196,7 +196,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   const [user, storeRoles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true, age21Confirmed: true },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true, age21Confirmed: true, age21Declined: true },
     }),
     prisma.userStoreRole.findMany({
       where: { userId: req.user!.id },
@@ -786,7 +786,19 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
 export async function confirm21(req: AuthRequest, res: Response) {
   await prisma.user.update({
     where: { id: req.user!.id },
-    data: { age21Confirmed: true },
+    data: { age21Confirmed: true, age21Declined: false },
+  });
+  res.json({ success: true });
+}
+
+// Customer said "not now" at an age-restricted prompt (a store or an offer).
+// Distinct from simply never having been asked: once declined, restricted
+// content stays hidden (not even blurred) instead of prompting again on
+// every encounter, until the customer opts in themselves from Profile.
+export async function decline21(req: AuthRequest, res: Response) {
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { age21Declined: true },
   });
   res.json({ success: true });
 }

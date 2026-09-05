@@ -22,6 +22,7 @@ const offerSchema = z.object({
   tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).optional().nullable(),
   gasBonusCentsPerGallon: z.coerce.number().min(0).max(100).optional().nullable(),
   dealText: z.string().min(1).max(40).optional(), // e.g. "2 for $5"
+  requires21: z.coerce.boolean().optional().default(false),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
 }).transform((data) => {
@@ -85,13 +86,24 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
   const { storeId } = req.query as { storeId?: string };
   const now = new Date();
 
+  // A customer who has explicitly declined the 21+ prompt shouldn't even
+  // receive age-restricted offers (not just have them blurred client-side)
+  // until they opt back in from Profile. A customer who hasn't been asked
+  // yet still needs the data, so it can render blurred with a prompt.
+  let hideRestricted = false;
+  if (req.user!.role === Role.CUSTOMER) {
+    const me = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { age21Confirmed: true, age21Declined: true } });
+    hideRestricted = !!me?.age21Declined && !me?.age21Confirmed;
+  }
+
   const offers = await prisma.offer.findMany({
     where: {
       isActive: true,
       startDate: { lte: now },
       endDate: { gte: now },
+      ...(hideRestricted ? { requires21: false } : {}),
       // With storeId (mobile): show ALL_STORES + that store's specific offers
-      // Without storeId (admin): show everything — store managers need to see their specific offers
+      // Without storeId (admin): show everything, store managers need to see their specific offers
       ...(storeId ? {
         OR: [
           { type: OfferType.ALL_STORES },
@@ -116,6 +128,7 @@ const updateOfferSchema = z.object({
   tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).nullable().optional(),
   gasBonusCentsPerGallon: z.coerce.number().min(0).max(100).nullable().optional(),
   dealText: z.string().min(1).max(40).nullable().optional(),
+  requires21: z.coerce.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().optional(),

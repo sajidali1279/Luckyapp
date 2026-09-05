@@ -4,7 +4,7 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -211,7 +211,8 @@ router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email
 router.post('/auth/verify-firebase-reset', verifyFirebaseReset);                  // Firebase phone OTP verified → get resetToken
 router.post('/auth/reset-pin', resetPin);                                         // Reset PIN using resetToken
-router.patch('/auth/confirm-21', authenticate, requireRole(Role.CUSTOMER), confirm21); // Customer confirms 21+ for age-restricted stores
+router.patch('/auth/confirm-21', authenticate, requireRole(Role.CUSTOMER), confirm21); // Customer confirms 21+ for age-restricted stores/offers
+router.patch('/auth/decline-21', authenticate, requireRole(Role.CUSTOMER), decline21); // Customer said "not now" at an age-restricted prompt
 router.delete('/auth/account', authenticate, requireRole(Role.CUSTOMER), deleteOwnAccount); // Customer self-deletes account
 router.post('/auth/super-admin', authenticate, requireRole(Role.DEV_ADMIN), createSuperAdmin);       // Create SuperAdmin (HQ account)
 router.post('/auth/staff', authenticate, requireRole(Role.SUPER_ADMIN), createStaffAccount);         // Create employee/manager

@@ -121,10 +121,12 @@ export default function Offers() {
   const [dealStartDate, setDealStartDate] = useState(todayStr());
   const [dealEndDate, setDealEndDate] = useState(endOfMonthStr());
   const [dealImageFile, setDealImageFile] = useState<File | null>(null);
+  const [dealRequires21, setDealRequires21] = useState(false);
   const dealFileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
+  const [requires21, setRequires21] = useState(false);
   const [useTierBonuses, setUseTierBonuses] = useState(false);
   const [tierBonuses, setTierBonuses] = useState({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
   const [type, setType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
@@ -174,7 +176,7 @@ export default function Offers() {
     setTitle(''); setDescription(''); setBonusRate('');
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
-    setStartDate(todayStr()); setEndDate(endOfMonthStr()); setImageFile(null);
+    setStartDate(todayStr()); setEndDate(endOfMonthStr()); setImageFile(null); setRequires21(false);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -250,6 +252,7 @@ export default function Offers() {
       fd.append('gasBonusCentsPerGallon', gasBonusCpg.trim());
     }
     if (imageFile) fd.append('image', imageFile);
+    if (requires21) fd.append('requires21', 'true');
     createMutation.mutate(fd);
   }
 
@@ -313,7 +316,7 @@ export default function Offers() {
     setDealTitle(''); setDealText(''); setDealDescription('');
     setDealCategory(''); setDealType('ALL_STORES'); setDealStoreId('');
     setDealStartDate(todayStr()); setDealEndDate(endOfMonthStr());
-    setDealImageFile(null);
+    setDealImageFile(null); setDealRequires21(false);
     if (dealFileRef.current) dealFileRef.current.value = '';
   }
 
@@ -333,6 +336,7 @@ export default function Offers() {
     if (dealType === 'SPECIFIC_STORE' && dealStoreId) fd.append('storeId', dealStoreId);
     if (dealCategory) fd.append('category', dealCategory);
     if (dealImageFile) fd.append('image', dealImageFile);
+    if (dealRequires21) fd.append('requires21', 'true');
     createMutation.mutate(fd);
     resetDealForm();
   }
@@ -720,6 +724,20 @@ export default function Offers() {
             </div>
           )}
 
+          {category !== null && (
+            <div style={s.formSection}>
+              <div style={s.formSectionLabel}>5 · Age Restriction</div>
+              <button type="button" onClick={() => setRequires21(!requires21)}
+                style={{ ...s.age21Toggle, ...(requires21 ? s.age21ToggleOn : {}) }}>
+                <span>🔞 Age-restricted (21+)</span>
+                <span style={{ fontWeight: 800 }}>{requires21 ? 'ON' : 'OFF'}</span>
+              </button>
+              {requires21 && (
+                <div style={s.age21Hint}>Customers see this blurred with a 21+ prompt until they confirm their age.</div>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <button style={s.saveBtn} type="submit" disabled={createMutation.isPending || category === null}>
               {createMutation.isPending ? 'Creating...' : 'Create Offer'}
@@ -825,7 +843,16 @@ export default function Offers() {
               <select style={s.input} value={dealCategory} onChange={(e) => setDealCategory(e.target.value)}>
                 {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <div style={{ display: 'flex', gap: 10 }}>
+              <label style={s.label}>Age Restriction</label>
+              <button type="button" onClick={() => setDealRequires21(!dealRequires21)}
+                style={{ ...s.age21Toggle, ...(dealRequires21 ? s.age21ToggleOn : {}) }}>
+                <span>🔞 Age-restricted (21+)</span>
+                <span style={{ fontWeight: 800 }}>{dealRequires21 ? 'ON' : 'OFF'}</span>
+              </button>
+              {dealRequires21 && (
+                <div style={s.age21Hint}>Customers see this blurred with a 21+ prompt until they confirm their age.</div>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                 <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Creating...' : 'Post Deal'}
                 </button>
@@ -885,6 +912,7 @@ function OfferCard({ offer, onDelete, onReuse, isPast }: {
             {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
           </span>
           {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
+          {offer.requires21 && <span style={s.tag21}>🔞 21+</span>}
           {isPast && <span style={s.tagPast}>Expired</span>}
         </div>
         <h3 style={s.cardTitle}>{offer.title}</h3>
@@ -926,6 +954,7 @@ function DealCard({ offer, onDelete, isPast }: { offer: any; onDelete?: () => vo
             {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
           </span>
           {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
+          {offer.requires21 && <span style={s.tag21}>🔞 21+</span>}
           {isPast && <span style={s.tagPast}>Expired</span>}
         </div>
         <div style={s.dealTextBig}>{offer.dealText}</div>
@@ -1002,6 +1031,10 @@ const s: Record<string, React.CSSProperties> = {
   saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
   cancelFormBtn: { background: '#f8fafc', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
 
+  age21Toggle: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '10px 14px', borderRadius: 9, border: '1.5px solid #fca5a5', background: '#fef2f2', color: '#b91c1c', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  age21ToggleOn: { background: '#b91c1c', borderColor: '#b91c1c', color: '#fff' },
+  age21Hint: { fontSize: 13, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.5 },
+
   sectionHead: {
     fontSize: 14, fontWeight: 800, color: PRIMARY, marginBottom: 16,
     display: 'flex', alignItems: 'center', gap: 8,
@@ -1020,6 +1053,7 @@ const s: Record<string, React.CSSProperties> = {
   tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagPast: { background: '#f8fafc', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tag21: { background: '#fef2f2', color: '#b91c1c', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   reuseBtn: { background: '#eff6ff', color: PRIMARY, border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
   deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: PRIMARY, padding: '8px 0', marginBottom: 8 },

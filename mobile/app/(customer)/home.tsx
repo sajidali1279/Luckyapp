@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
+import { BlurView } from 'expo-blur';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
@@ -159,6 +160,17 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
         : <FlameIcon size={28} color={COLORS.primary} strokeWidth={1.75} />
       }
     </View>
+  );
+}
+
+/* ─── Age-restricted offer blur overlay ───────────────────── */
+function AgeGateOverlay() {
+  return (
+    <BlurView intensity={55} tint="dark" style={styles.ageLockOverlay}>
+      <Text style={styles.ageLockEmoji}>🔞</Text>
+      <Text style={styles.ageLockText}>Age-restricted offer</Text>
+      <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
+    </BlurView>
   );
 }
 
@@ -552,7 +564,7 @@ export default function CustomerHome() {
   const [pendingAgeGateStore, setPendingAgeGateStore] = useState<{ id: string; name: string } | null>(null);
   const [show21Gate, setShow21Gate] = useState(false);
   const [confirming21, setConfirming21] = useState(false);
-  const { setAge21Confirmed } = useAuthStore();
+  const { setAge21Confirmed, setAge21Declined } = useAuthStore();
 
   const storesWithPrices = allStores.filter(
     (s: any) =>
@@ -634,7 +646,13 @@ export default function CustomerHome() {
   const catalogItems: any[] = catalogData?.data?.data ?? [];
 
   const banners = bannersData?.data?.data || [];
-  const allOffers: any[] = offersData?.data?.data || [];
+  const allOffersRaw: any[] = offersData?.data?.data || [];
+  // A customer who explicitly declined stays declined until they opt back
+  // in from Profile - restricted offers are left out entirely rather than
+  // shown blurred again. The backend already excludes these when declined,
+  // this is just belt-and-suspenders for the current session's cache.
+  const allOffers = allOffersRaw.filter((o: any) => !(o.requires21 && user?.age21Declined && !user?.age21Confirmed));
+  const isOfferLocked = (offer: any) => offer.requires21 && !user?.age21Confirmed;
   const promotions = allOffers.filter((o: any) => o.bonusRate && o.gasBonusCentsPerGallon == null);
   const gasOffers  = allOffers.filter((o: any) => o.gasBonusCentsPerGallon != null);
   const bestGasOffer: any | null = gasOffers[0] ?? null;
@@ -643,6 +661,14 @@ export default function CustomerHome() {
   const contentLoading = !locationReady || offersLoading;
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [selectedBanner, setSelectedBanner] = useState<any>(null);
+  const [ageGateOffer, setAgeGateOffer] = useState<any>(null);
+  const [confirmingOfferAge, setConfirmingOfferAge] = useState(false);
+  const [decliningOfferAge, setDecliningOfferAge] = useState(false);
+
+  function onOfferPress(offer: any) {
+    if (isOfferLocked(offer)) { setAgeGateOffer(offer); return; }
+    setSelectedOffer(offer);
+  }
   const [pendingRating, setPendingRating] = useState<any>(null);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -1028,12 +1054,13 @@ export default function CustomerHome() {
                   <TouchableOpacity
                     key={offer.id}
                     style={styles.offerCard}
-                    onPress={() => setSelectedOffer(offer)}
+                    onPress={() => onOfferPress(offer)}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel={`View promotion: ${offer.title}`}
+                    accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
                   >
                     <View style={styles.offerCardClip}>
+                      {isOfferLocked(offer) && <AgeGateOverlay />}
                       {offer.imageUrl
                         ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
                         : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
@@ -1074,12 +1101,13 @@ export default function CustomerHome() {
                     <TouchableOpacity
                       key={offer.id}
                       style={styles.offerSlideCard}
-                      onPress={() => setSelectedOffer(offer)}
+                      onPress={() => onOfferPress(offer)}
                       activeOpacity={0.8}
                       accessibilityRole="button"
-                      accessibilityLabel={`View promotion: ${offer.title}`}
+                      accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
                     >
                       <View style={styles.offerSlideClip}>
+                        {isOfferLocked(offer) && <AgeGateOverlay />}
                         {offer.imageUrl
                           ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
                           : (
@@ -1391,6 +1419,72 @@ export default function CustomerHome() {
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Text style={ag.backBtnText}>Go back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── 21+ age gate modal (offers) ── */}
+      {ageGateOffer && (
+        <Modal transparent animationType="fade" onRequestClose={() => setAgeGateOffer(null)}>
+          <View style={ag.overlay}>
+            <View style={ag.card}>
+              <View style={ag.badge}>
+                <Text style={ag.badgeText}>21+</Text>
+              </View>
+              <Text style={ag.title}>Age-Restricted Offer</Text>
+              <Text style={ag.storeName}>{ageGateOffer.title}</Text>
+              <Text style={ag.body}>
+                This promotion involves age-restricted products. You must be 21 or older to view it.{'\n\n'}
+                By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account and applies everywhere in the app.
+              </Text>
+              <TouchableOpacity
+                style={[ag.confirmBtn, confirmingOfferAge && { opacity: 0.6 }]}
+                onPress={async () => {
+                  if (confirmingOfferAge) return;
+                  setConfirmingOfferAge(true);
+                  try {
+                    await authApi.confirm21();
+                    setAge21Confirmed();
+                    const offer = ageGateOffer;
+                    setAgeGateOffer(null);
+                    setSelectedOffer(offer);
+                  } catch {
+                    // silent, gate stays open, user can retry
+                  } finally {
+                    setConfirmingOfferAge(false);
+                  }
+                }}
+                disabled={confirmingOfferAge}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={confirmingOfferAge ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
+              >
+                <Text style={ag.confirmBtnText}>{confirmingOfferAge ? 'Confirming…' : "I'm 21 or older, continue"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={ag.backBtn}
+                onPress={async () => {
+                  if (decliningOfferAge) return;
+                  setDecliningOfferAge(true);
+                  try {
+                    await authApi.decline21();
+                    setAge21Declined();
+                  } catch {
+                    // silent, worst case they see the blurred card again next time
+                  } finally {
+                    setDecliningOfferAge(false);
+                    setAgeGateOffer(null);
+                  }
+                }}
+                disabled={decliningOfferAge}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Not interested, hide age-restricted offers"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={ag.backBtnText}>{decliningOfferAge ? 'Please wait…' : 'Not interested'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1896,6 +1990,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden',
     flexDirection: 'row', alignItems: 'center',
   },
+  ageLockOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', gap: 2,
+  },
+  ageLockEmoji: { fontSize: 22, marginBottom: 2 },
+  ageLockText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  ageLockSubtext: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11 },
   offerImage: { width: 84, height: 84, resizeMode: 'cover' },
   offerPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
   offerContent: { flex: 1, padding: 12, gap: 2 },
