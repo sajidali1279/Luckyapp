@@ -10,7 +10,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
-import { BlurView } from 'expo-blur';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
@@ -163,14 +162,20 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
   );
 }
 
-/* ─── Age-restricted offer blur overlay ───────────────────── */
+/* ─── Age-restricted offer lock overlay ───────────────────── */
+// A plain semi-transparent View, not expo-blur's BlurView: Android's
+// BlurView already just renders a flat semi-transparent view under the
+// hood by default (no real blur), so the native module bought nothing
+// there and was implicated in a real Modal-rendering glitch on-device
+// (a locked card's own age-gate Modal intermittently rendered dimmed
+// with no content after this overlay had been mounted alongside it).
 function AgeGateOverlay() {
   return (
-    <BlurView intensity={55} tint="dark" style={styles.ageLockOverlay}>
+    <View style={styles.ageLockOverlay}>
       <Text style={styles.ageLockEmoji}>🔞</Text>
       <Text style={styles.ageLockText}>Age-restricted offer</Text>
       <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
-    </BlurView>
+    </View>
   );
 }
 
@@ -999,7 +1004,7 @@ export default function CustomerHome() {
                   {bestGasOffer && (
                     <TouchableOpacity
                       style={gp.offerCard}
-                      onPress={() => setSelectedOffer(bestGasOffer)}
+                      onPress={() => onOfferPress(bestGasOffer)}
                       activeOpacity={0.85}
                       accessibilityRole="button"
                       accessibilityLabel={`View gas offer: ${bestGasOffer.title}`}
@@ -1449,9 +1454,14 @@ export default function CustomerHome() {
                   try {
                     await authApi.confirm21();
                     setAge21Confirmed();
-                    const offer = ageGateOffer;
+                    // Don't chain straight into the offer-detail Modal here -
+                    // opening a second Modal in the same tick (or even right
+                    // after) a first one closes has repeatedly failed to
+                    // render its content on Android in testing. Just close
+                    // this one; the card is unblurred now, tap it again to
+                    // see the offer.
                     setAgeGateOffer(null);
-                    setSelectedOffer(offer);
+                    Toast.show({ type: 'success', text1: 'Age confirmed', text2: 'Tap the offer again to view it' });
                   } catch {
                     // silent, gate stays open, user can retry
                   } finally {
@@ -1994,6 +2004,7 @@ const styles = StyleSheet.create({
   },
   ageLockOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(20,20,25,0.72)',
     alignItems: 'center', justifyContent: 'center', gap: 2,
   },
   ageLockEmoji: { fontSize: 22, marginBottom: 2 },
