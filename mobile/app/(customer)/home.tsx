@@ -531,6 +531,8 @@ export default function CustomerHome() {
             periodPoints: data.data.periodPoints,
             tierPeriod: data.data.tierPeriod,
             avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
+            age21Confirmed: data.data.age21Confirmed,
+            age21Declined: data.data.age21Declined,
           }, t);
         }
       }).catch((err: any) => {
