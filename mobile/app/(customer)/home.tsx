@@ -26,6 +26,29 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 
 const MAX_NEARBY_MILES = 2;
 
+// enabledCategories is empty on most stores, meaning "everything enabled" —
+// only a non-empty list actually restricts anything. Matches the same
+// convention used for the category picker in scan.tsx.
+function categoryEnabled(store: any, category: 'GAS' | 'DIESEL'): boolean {
+  const enabled: string[] = store?.enabledCategories ?? [];
+  return enabled.length === 0 || enabled.includes(category);
+}
+
+// "06:00" -> "6:00 AM"
+function formatTime12h(t: string): string {
+  const [hStr, m] = t.split(':');
+  const h = parseInt(hStr, 10);
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${period}`;
+}
+
+function storeHoursLabel(store: any): string | null {
+  if (store?.isOpen24Hours) return 'Open 24 Hours';
+  if (store?.openTime && store?.closeTime) return `${formatTime12h(store.openTime)} - ${formatTime12h(store.closeTime)}`;
+  return null;
+}
+
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -547,7 +570,9 @@ export default function CustomerHome() {
   const { setAge21Confirmed } = useAuthStore();
 
   const storesWithPrices = allStores.filter(
-    (s: any) => s.gasPricePerGallon != null || s.dieselPricePerGallon != null
+    (s: any) =>
+      (categoryEnabled(s, 'GAS') && s.gasPricePerGallon != null) ||
+      (categoryEnabled(s, 'DIESEL') && s.dieselPricePerGallon != null)
   );
   // When near a store — show only that store's prices. Otherwise show all.
   const gasPrices: any[] = nearestStore
@@ -914,6 +939,9 @@ export default function CustomerHome() {
                     {!nearestStore && store.address && (
                       <Text style={gp.storeAddr} numberOfLines={1}>{store.address}, {store.city}</Text>
                     )}
+                    {storeHoursLabel(store) && (
+                      <Text style={gp.storeHours} numberOfLines={1}>🕐 {storeHoursLabel(store)}</Text>
+                    )}
                     {!nearestStore && store.phone && (
                       <TouchableOpacity
                         onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`)}
@@ -927,7 +955,7 @@ export default function CustomerHome() {
                       </TouchableOpacity>
                     )}
                     <View style={gp.priceLines}>
-                      {store.gasPricePerGallon != null && (
+                      {store.gasPricePerGallon != null && categoryEnabled(store, 'GAS') && (
                         <View style={gp.priceLine}>
                           <GasPumpIcon size={13} color={COLORS.accent} strokeWidth={2} />
                           <Text style={gp.priceLabel}>Gas</Text>
@@ -935,7 +963,7 @@ export default function CustomerHome() {
                           <Text style={gp.priceUnit}>/gal</Text>
                         </View>
                       )}
-                      {store.dieselPricePerGallon != null && (
+                      {store.dieselPricePerGallon != null && categoryEnabled(store, 'DIESEL') && (
                         <View style={gp.priceLine}>
                           <TruckIcon size={13} color={COLORS.secondary} strokeWidth={2} />
                           <Text style={gp.priceLabel}>Diesel</Text>
@@ -2000,6 +2028,7 @@ const gp = StyleSheet.create({
   },
   storeName:   { fontSize: 14, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
   storeAddr:   { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
+  storeHours:  { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginBottom: 5 },
   priceLines:  { gap: 6, marginBottom: 2 },
   priceLine:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
   priceLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', flex: 1 },

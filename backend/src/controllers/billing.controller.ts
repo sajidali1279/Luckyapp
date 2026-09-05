@@ -20,21 +20,26 @@ export async function getStoreById(req: AuthRequest, res: Response) {
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
       enabledCategories: true, hotFoodEnabled: true, orderInstructions: true,
+      isOpen24Hours: true, openTime: true, closeTime: true,
     },
   });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
   res.json({ success: true, data: store });
 }
 
-// SUPER_ADMIN+ — basic store list (no billing info)
+// SUPER_ADMIN+ — basic store list (no billing info). Deliberately not
+// filtered to isActive:true — this is the store *management* view, so a
+// deactivated store needs to stay visible (with its status shown) rather
+// than silently vanishing with no UI path back to reactivating it.
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
-    where: { isActive: true },
     select: {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
       enabledCategories: true, hotFoodEnabled: true,
+      isOpen24Hours: true, openTime: true, closeTime: true,
+      minimumAge: true, isActive: true,
     },
     orderBy: { name: 'asc' },
   });
@@ -48,6 +53,7 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   const storeSelect = {
     id: true, name: true, address: true, city: true, isActive: true, orderInstructions: true,
     gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+    isOpen24Hours: true, openTime: true, closeTime: true,
   } as const;
 
   if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
@@ -70,6 +76,9 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   res.json({ success: true, data: assignments.map(a => a.store) });
 }
 
+// "HH:mm", 24-hour clock — e.g. "06:00" or "23:30"
+const timeStringSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use 24-hour HH:mm format');
+
 // DevAdmin only — update store details (name, address, lat/lng, etc.)
 const updateStoreSchema = z.object({
   name: z.string().min(1).optional(),
@@ -83,6 +92,11 @@ const updateStoreSchema = z.object({
   shiftsPerDay: z.number().int().min(2).max(3).optional(),
   enabledCategories: z.array(z.nativeEnum(ProductCategory)).optional(),
   hotFoodEnabled: z.boolean().optional(),
+  isOpen24Hours: z.boolean().optional(),
+  openTime: timeStringSchema.nullable().optional(),
+  closeTime: timeStringSchema.nullable().optional(),
+  minimumAge: z.number().int().min(0).max(100).nullable().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export async function updateStore(req: AuthRequest, res: Response) {
@@ -95,7 +109,11 @@ export async function updateStore(req: AuthRequest, res: Response) {
   const store = await prisma.store.update({
     where: { id: storeId },
     data: parsed.data,
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true },
+    select: {
+      id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true,
+      latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true,
+      isOpen24Hours: true, openTime: true, closeTime: true, minimumAge: true, isActive: true,
+    },
   });
   res.json({ success: true, data: store });
 }
@@ -1519,6 +1537,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
       id: true, name: true, address: true, city: true, state: true, phone: true,
       gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true,
       latitude: true, longitude: true, enabledCategories: true, minimumAge: true, hotFoodEnabled: true,
+      isOpen24Hours: true, openTime: true, closeTime: true,
     },
     orderBy: { name: 'asc' },
   });

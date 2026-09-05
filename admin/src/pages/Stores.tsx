@@ -35,6 +35,11 @@ interface Store {
   gasPriceUpdatedAt: string | null;
   enabledCategories: string[];
   hotFoodEnabled: boolean;
+  isOpen24Hours: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+  minimumAge: number | null;
+  isActive: boolean;
 }
 
 interface FormState {
@@ -46,6 +51,29 @@ interface FormState {
   phone: string;
   latitude: string;
   longitude: string;
+  isOpen24Hours: boolean;
+  openTime: string;
+  closeTime: string;
+  requiresAgeGate: boolean;
+}
+
+// "06:00" -> "6:00 AM"
+function formatTime12h(t: string): string {
+  const [hStr, m] = t.split(':');
+  const h = parseInt(hStr, 10);
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${period}`;
+}
+
+function storeHoursLabel(store: Pick<Store, 'isOpen24Hours' | 'openTime' | 'closeTime'>): string | null {
+  if (store.isOpen24Hours) return 'Open 24 Hours';
+  if (store.openTime && store.closeTime) return `${formatTime12h(store.openTime)} - ${formatTime12h(store.closeTime)}`;
+  return null;
+}
+
+function categoryEnabled(store: Pick<Store, 'enabledCategories'>, category: 'GAS' | 'DIESEL'): boolean {
+  return store.enabledCategories.length === 0 || store.enabledCategories.includes(category);
 }
 
 const AVATAR_PALETTE = [
@@ -62,7 +90,8 @@ export default function Stores() {
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [editStore, setEditStore] = useState<Store | null>(null);
-  const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '' });
+  const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', isOpen24Hours: false, openTime: '', closeTime: '', requiresAgeGate: false });
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
   const [enabledCats, setEnabledCats] = useState<string[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   // Gas price inline editing: map of storeId → { gas, diesel }
@@ -105,6 +134,16 @@ export default function Stores() {
       setEditStore(null);
     },
     onError: () => toast.error('Failed to save'),
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: ({ storeId, isActive }: { storeId: string; isActive: boolean }) =>
+      storesApi.update(storeId, { isActive }),
+    onSuccess: (_, { isActive }) => {
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      toast.success(isActive ? 'Store reactivated' : 'Store deactivated');
+    },
+    onError: () => toast.error('Failed to update store status'),
   });
 
   const gasMutation = useMutation({
@@ -221,6 +260,10 @@ export default function Stores() {
       phone: store.phone ?? '',
       latitude: store.latitude != null ? String(store.latitude) : '',
       longitude: store.longitude != null ? String(store.longitude) : '',
+      isOpen24Hours: store.isOpen24Hours,
+      openTime: store.openTime ?? '',
+      closeTime: store.closeTime ?? '',
+      requiresAgeGate: store.minimumAge === 21,
     });
     setEnabledCats(store.enabledCategories ?? []);
   }
@@ -258,6 +301,10 @@ export default function Stores() {
       toast.error('Enter valid coordinates');
       return;
     }
+    if (!form.isOpen24Hours && (form.openTime.trim() === '') !== (form.closeTime.trim() === '')) {
+      toast.error('Set both an open and close time, or leave both blank');
+      return;
+    }
     const payload: Record<string, unknown> = {
       name: form.name.trim() || undefined,
       address: form.address.trim() || undefined,
@@ -268,6 +315,10 @@ export default function Stores() {
       latitude: lat,
       longitude: lng,
       enabledCategories: enabledCats,
+      isOpen24Hours: form.isOpen24Hours,
+      openTime: form.isOpen24Hours ? null : (form.openTime.trim() || null),
+      closeTime: form.isOpen24Hours ? null : (form.closeTime.trim() || null),
+      minimumAge: form.requiresAgeGate ? 21 : null,
     };
     mutation.mutate({ storeId: editStore.id, payload });
   }
@@ -285,6 +336,15 @@ export default function Stores() {
         danger
         onConfirm={() => { if (confirmRegenId) { regenApiKey(confirmRegenId); } setConfirmRegenId(null); }}
         onCancel={() => setConfirmRegenId(null)}
+      />
+      <ConfirmModal
+        open={!!confirmDeactivateId}
+        title="Deactivate Store"
+        message="Customers stop seeing this store anywhere in the app (gas prices, offers, hot food) and staff assigned here lose access immediately. You can reactivate it any time from this page."
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={() => { if (confirmDeactivateId) { activeMutation.mutate({ storeId: confirmDeactivateId, isActive: false }); } setConfirmDeactivateId(null); }}
+        onCancel={() => setConfirmDeactivateId(null)}
       />
       {/* Header */}
       <div style={s.header}>
@@ -305,7 +365,10 @@ export default function Stores() {
             const color = storeAvatar(idx);
             const hasCoords = store.latitude != null && store.longitude != null;
             return (
-              <div key={store.id} style={s.card}>
+              <div key={store.id} style={{ ...s.card, ...(store.isActive ? {} : s.cardInactive) }}>
+                {!store.isActive && (
+                  <div style={s.inactiveBanner}>🚫 Inactive — hidden from customers and staff</div>
+                )}
                 {/* Card header */}
                 <div style={s.cardTop}>
                   <div style={{ ...s.avatar, background: color }}>
@@ -315,8 +378,15 @@ export default function Stores() {
                     <div style={s.storeName}>{store.name}</div>
                     <div style={s.storeSub}>{store.city}, {store.state}</div>
                   </div>
-                  <div style={{ ...s.coordBadge, background: hasCoords ? '#f0fdf4' : '#fff1f2', border: hasCoords ? '1px solid #bbf7d0' : '1px solid #fecaca', color: hasCoords ? '#15803d' : '#b91c1c' }}>
-                    {hasCoords ? '📍 Located' : '❌ No coords'}
+                  <div style={s.badgeStack}>
+                    <div style={{ ...s.coordBadge, background: hasCoords ? '#f0fdf4' : '#fff1f2', border: hasCoords ? '1px solid #bbf7d0' : '1px solid #fecaca', color: hasCoords ? '#15803d' : '#b91c1c' }}>
+                      {hasCoords ? '📍 Located' : '❌ No coords'}
+                    </div>
+                    {store.minimumAge === 21 && (
+                      <div style={{ ...s.coordBadge, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                        🔞 21+ Required
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -332,6 +402,14 @@ export default function Stores() {
                     <span style={s.detailVal}>{store.phone}</span>
                   </div>
                 )}
+                <div style={s.detailRow}>
+                  <span style={s.detailLabel}>Hours</span>
+                  {storeHoursLabel(store) ? (
+                    <span style={s.detailVal}>{storeHoursLabel(store)}</span>
+                  ) : (
+                    <span style={{ ...s.detailVal, color: '#b91c1c' }}>Not set</span>
+                  )}
+                </div>
                 {hasCoords && (
                   <div style={s.detailRow}>
                     <span style={s.detailLabel}>Coordinates</span>
@@ -376,6 +454,9 @@ export default function Stores() {
                       value={getGasForm(store).gas}
                       onChange={(e) => setGasField(store.id, 'gas', e.target.value)}
                     />
+                    {!categoryEnabled(store, 'GAS') && (
+                      <span style={s.gasDisabledHint}>Gas is disabled here — hidden from customers</span>
+                    )}
                   </div>
                   <div style={s.gasField}>
                     <label style={s.gasLabel}>🚛 Diesel $/gal</label>
@@ -389,6 +470,9 @@ export default function Stores() {
                       value={getGasForm(store).diesel}
                       onChange={(e) => setGasField(store.id, 'diesel', e.target.value)}
                     />
+                    {!categoryEnabled(store, 'DIESEL') && (
+                      <span style={s.gasDisabledHint}>Diesel is disabled here — hidden from customers</span>
+                    )}
                   </div>
                   <button
                     style={{
@@ -437,6 +521,18 @@ export default function Stores() {
                     </span>
                     <button style={{ ...s.disputeBannerLink, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate('/customers')}>
                       Review →
+                    </button>
+                  </div>
+                )}
+
+                {isDevAdmin && (
+                  <div style={s.cardBtns}>
+                    <button
+                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#b91c1c', borderColor: '#fca5a5' } : { color: '#15803d', borderColor: '#86efac' }) }}
+                      onClick={() => store.isActive ? setConfirmDeactivateId(store.id) : activeMutation.mutate({ storeId: store.id, isActive: true })}
+                      disabled={activeMutation.isPending}
+                    >
+                      {store.isActive ? '🚫 Deactivate' : '✅ Reactivate'}
                     </button>
                   </div>
                 )}
@@ -593,6 +689,43 @@ export default function Stores() {
               </div>
             </div>
 
+            {/* Store Hours */}
+            <div style={s.sectionLabel}>Store Hours</div>
+            <button
+              type="button"
+              style={{ ...s.catToggleBtn, width: '100%', flexDirection: 'row', justifyContent: 'center', marginBottom: 10, ...(form.isOpen24Hours ? s.catToggleBtnOn : s.catToggleBtnOff) }}
+              onClick={() => setForm((f) => ({ ...f, isOpen24Hours: !f.isOpen24Hours }))}
+            >
+              <span>🕐 Open 24 Hours</span>
+              <span style={s.catToggleCheck}>{form.isOpen24Hours ? '✓' : '✕'}</span>
+            </button>
+            {!form.isOpen24Hours && (
+              <div style={s.fieldRow}>
+                <div style={s.field}>
+                  <label style={s.label}>Opens</label>
+                  <input style={s.input} type="time" value={form.openTime} onChange={setF('openTime')} />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Closes</label>
+                  <input style={s.input} type="time" value={form.closeTime} onChange={setF('closeTime')} />
+                </div>
+              </div>
+            )}
+
+            {/* Age gate */}
+            <div style={s.sectionLabel}>Age-Restricted Store</div>
+            <div style={s.catHint}>
+              For stores like a liquor store — customers must confirm they're 21+ before the app shows this store's content.
+            </div>
+            <button
+              type="button"
+              style={{ ...s.catToggleBtn, width: '100%', flexDirection: 'row', justifyContent: 'center', marginBottom: 8, ...(form.requiresAgeGate ? s.catToggleBtnOn : s.catToggleBtnOff) }}
+              onClick={() => setForm((f) => ({ ...f, requiresAgeGate: !f.requiresAgeGate }))}
+            >
+              <span>🔞 Requires 21+ Confirmation</span>
+              <span style={s.catToggleCheck}>{form.requiresAgeGate ? '✓' : '✕'}</span>
+            </button>
+
             {/* Categories */}
             <div style={s.sectionLabel}>Available Categories</div>
             <div style={s.catHint}>
@@ -649,13 +782,16 @@ const s: Record<string, React.CSSProperties> = {
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 },
   card: { background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
+  cardInactive: { opacity: 0.72, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' },
+  inactiveBanner: { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
 
   cardTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
   avatar: { width: 44, height: 44, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 800, flexShrink: 0 },
   cardInfo: { flex: 1, minWidth: 0 },
   storeName: { fontWeight: 700, fontSize: 15, color: '#1a1a2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
-  coordBadge: { fontSize: 13, fontWeight: 600, padding: '3px 9px', borderRadius: 20, flexShrink: 0 },
+  badgeStack: { display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 },
+  coordBadge: { fontSize: 13, fontWeight: 600, padding: '3px 9px', borderRadius: 20, flexShrink: 0, whiteSpace: 'nowrap' },
 
   divider: { height: 1, background: '#f0f2f5', margin: '10px 0' },
   detailRow: { display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 },
@@ -671,6 +807,7 @@ const s: Record<string, React.CSSProperties> = {
   gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
   gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: TEXT_MUTED, fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
   gasUpdateBtnActive: { background: PRIMARY, color: '#fff', cursor: 'pointer' },
+  gasDisabledHint: { fontSize: 11, fontWeight: 600, color: '#b91c1c', marginTop: 2 },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 

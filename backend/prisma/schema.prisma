@@ -288,6 +288,12 @@ model Store {
   // Feature flags
   hotFoodEnabled    Boolean  @default(true)
 
+  // Store hours — same schedule every day; 24-hour stores skip open/close
+  // times entirely rather than requiring "00:00"-"23:59" as a workaround.
+  isOpen24Hours     Boolean  @default(false)
+  openTime          String?  // "HH:mm", 24-hour clock, e.g. "06:00"
+  closeTime         String?  // "HH:mm", 24-hour clock, e.g. "23:00"
+
   // Standing order instructions — shown to whoever opens the store's order list
   // (admin web or mobile), persists across list close/auto-reopen cycles
   orderInstructions String?
