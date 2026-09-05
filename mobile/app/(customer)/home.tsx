@@ -1,7 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
   StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
-  TextInput, Alert, Easing, useWindowDimensions, Pressable,
+  TextInput, Alert, Easing, useWindowDimensions, Pressable, BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -234,6 +234,52 @@ function StaggeredFadeIn({ index, children }: { index: number; children: React.R
     ]).start();
   }, []);
   return <Animated.View style={{ opacity, transform: [{ translateY }] }}>{children}</Animated.View>;
+}
+
+/* ─── In-tree overlay (Modal replacement) ─────────────────── */
+// RN's <Modal> opens a genuinely separate native Android Window/Dialog.
+// On this app's build (New Architecture / Fabric enabled), content mounted
+// inside that separate window reliably fails to commit - confirmed via a
+// UI hierarchy dump showing the Modal's backdrop present but zero content
+// nodes underneath, on a plain, never-chained single open (not just the
+// "open a second Modal right after closing one" case suspected earlier).
+// Rendering the overlay in-tree instead (an absolutely-positioned sibling
+// of the ScrollView, same native window as the rest of the screen) avoids
+// that broken integration entirely. Must live OUTSIDE any ScrollView so
+// "cover the whole screen" isn't relative to scrollable content height.
+function InlineModal({
+  onRequestClose, animation, overlay, children,
+}: {
+  onRequestClose: () => void;
+  animation: 'fade' | 'slide';
+  overlay: any;
+  children: React.ReactNode;
+}) {
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progress, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, []);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onRequestClose(); return true; });
+    return () => sub.remove();
+  }, [onRequestClose]);
+  const transform = animation === 'slide'
+    ? [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }]
+    : [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) }];
+  return (
+    // No `elevation` here - on this device/Fabric build it forces the
+    // transform-animated child below into its own compositing layer sized
+    // from a stale pre-transform measurement, rendering as a narrow column
+    // instead of full width. Sibling paint order (last in the JSX tree)
+    // already puts this on top without it.
+    <Animated.View style={[StyleSheet.absoluteFillObject, overlay, { opacity: progress, zIndex: 60 }]}>
+      {/* width:'100%' is required, not decorative - alignSelf:'stretch' silently
+          collapses to content width in this same layer, same root cause as above. */}
+      <Animated.View style={{ width: '100%', transform }}>
+        {children}
+      </Animated.View>
+    </Animated.View>
+  );
 }
 
 /* ─── Promo slideshow ──────────────────────────────────────── */
@@ -1489,144 +1535,6 @@ export default function CustomerHome() {
       )}
 
       {/* ── 21+ age gate modal (offers) ── */}
-      {ageGateOffer && (
-        <Modal transparent animationType="fade" onRequestClose={() => setAgeGateOffer(null)}>
-          <View style={ag.overlay}>
-            <View style={ag.card}>
-              <View style={ag.badge}>
-                <Text style={ag.badgeText}>21+</Text>
-              </View>
-              <Text style={ag.title}>Age-Restricted Offer</Text>
-              <Text style={ag.storeName}>{ageGateOffer.title}</Text>
-              <Text style={ag.body}>
-                This promotion involves age-restricted products. You must be 21 or older to view it.{'\n\n'}
-                By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account and applies everywhere in the app.
-              </Text>
-              <TouchableOpacity
-                style={[ag.confirmBtn, confirmingOfferAge && { opacity: 0.6 }]}
-                onPress={async () => {
-                  if (confirmingOfferAge) return;
-                  setConfirmingOfferAge(true);
-                  try {
-                    await authApi.confirm21();
-                    setAge21Confirmed();
-                    // Don't chain straight into the offer-detail Modal here -
-                    // opening a second Modal in the same tick (or even right
-                    // after) a first one closes has repeatedly failed to
-                    // render its content on Android in testing. Just close
-                    // this one; the card is unblurred now, tap it again to
-                    // see the offer.
-                    setAgeGateOffer(null);
-                    Toast.show({ type: 'success', text1: 'Age confirmed', text2: 'Tap the offer again to view it' });
-                  } catch {
-                    // silent, gate stays open, user can retry
-                  } finally {
-                    setConfirmingOfferAge(false);
-                  }
-                }}
-                disabled={confirmingOfferAge}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={confirmingOfferAge ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
-              >
-                <Text style={ag.confirmBtnText}>{confirmingOfferAge ? 'Confirming…' : "I'm 21 or older, continue"}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={ag.backBtn}
-                onPress={async () => {
-                  if (decliningOfferAge) return;
-                  setDecliningOfferAge(true);
-                  try {
-                    await authApi.decline21();
-                    setAge21Declined();
-                  } catch {
-                    // silent, worst case they see the blurred card again next time
-                  } finally {
-                    setDecliningOfferAge(false);
-                    setAgeGateOffer(null);
-                  }
-                }}
-                disabled={decliningOfferAge}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Not interested, hide age-restricted offers"
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Text style={ag.backBtnText}>{decliningOfferAge ? 'Please wait…' : 'Not interested'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {/* ── Offer detail modal ── */}
-      {selectedOffer && (
-        <Modal transparent animationType="slide" onRequestClose={() => setSelectedOffer(null)}>
-          <View style={om.overlay}>
-            <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
-              {selectedOffer.dealText && !selectedOffer.imageUrl ? (
-                <View style={om.dealHeader}>
-                  <TagIcon size={18} color="#fff" strokeWidth={2} />
-                  <Text style={om.dealHeaderText} numberOfLines={1}>{selectedOffer.dealText}</Text>
-                </View>
-              ) : null}
-              {selectedOffer.imageUrl ? (
-                <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
-              ) : null}
-              <ScrollView
-                style={om.bodyScroll}
-                contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
-                showsVerticalScrollIndicator={false}
-              >
-                {selectedOffer.gasBonusCentsPerGallon != null ? (
-                  <View style={om.badgeRow}>
-                    <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
-                      <GasPumpIcon size={13} color="#c04000" strokeWidth={2} />
-                      <Text style={[om.badgeText, { color: '#c04000' }]}>+{selectedOffer.gasBonusCentsPerGallon}¢ per gallon - auto-applied</Text>
-                    </View>
-                  </View>
-                ) : selectedOffer.bonusRate ? (
-                  <View style={om.badgeRow}>
-                    <View style={om.badge}>
-                      <PercentIcon size={13} color={COLORS.primary} strokeWidth={2} />
-                      <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback - auto-applied</Text>
-                    </View>
-                  </View>
-                ) : selectedOffer.dealText && selectedOffer.imageUrl ? (
-                  <Text style={om.dealText}>{selectedOffer.dealText}</Text>
-                ) : null}
-                <Text style={om.title}>{selectedOffer.title}</Text>
-                {selectedOffer.description ? <Text style={om.desc}>{selectedOffer.description}</Text> : null}
-                <View style={om.dateRow}>
-                  <Text style={om.dateText}>
-                    Valid {new Date(selectedOffer.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                    {new Date(selectedOffer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </Text>
-                </View>
-                <View style={om.howBox}>
-                  <Text style={om.howTitle}>How it works</Text>
-                  <Text style={om.howText}>
-                    {selectedOffer.gasBonusCentsPerGallon != null
-                      ? `You earn an extra ${selectedOffer.gasBonusCentsPerGallon}¢ per gallon on gas purchases. Automatically applied when the cashier scans your QR code.`
-                      : selectedOffer.bonusRate
-                        ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
-                        : 'Show your QR code to the cashier and mention this deal to claim it.'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={om.closeBtn}
-                  onPress={() => setSelectedOffer(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close offer details"
-                >
-                  <Text style={om.closeBtnText}>Got it</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-      )}
-
       {/* ── Banner detail modal ── */}
       {selectedBanner && (
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
@@ -1730,6 +1638,139 @@ export default function CustomerHome() {
       })()}
 
       </Animated.ScrollView>
+
+      {/* ── Age-gate confirm popup (in-tree overlay, not Modal - see InlineModal) ── */}
+      {ageGateOffer && (
+        <InlineModal onRequestClose={() => setAgeGateOffer(null)} animation="fade" overlay={ag.overlay}>
+          <View style={ag.card}>
+            <View style={ag.badge}>
+              <Text style={ag.badgeText}>21+</Text>
+            </View>
+            <Text style={ag.title}>Age-Restricted Offer</Text>
+            <Text style={ag.storeName}>{ageGateOffer.title}</Text>
+            <Text style={ag.body}>
+              This promotion involves age-restricted products. You must be 21 or older to view it.{'\n\n'}
+              By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account and applies everywhere in the app.
+            </Text>
+            <TouchableOpacity
+              style={[ag.confirmBtn, confirmingOfferAge && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (confirmingOfferAge) return;
+                setConfirmingOfferAge(true);
+                try {
+                  await authApi.confirm21();
+                  setAge21Confirmed();
+                  setAgeGateOffer(null);
+                  setSelectedOffer(ageGateOffer);
+                } catch {
+                  // silent, gate stays open, user can retry
+                } finally {
+                  setConfirmingOfferAge(false);
+                }
+              }}
+              disabled={confirmingOfferAge}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={confirmingOfferAge ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
+            >
+              <Text style={ag.confirmBtnText}>{confirmingOfferAge ? 'Confirming…' : "I'm 21 or older, continue"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ag.backBtn}
+              onPress={async () => {
+                if (decliningOfferAge) return;
+                setDecliningOfferAge(true);
+                try {
+                  await authApi.decline21();
+                  setAge21Declined();
+                } catch {
+                  // silent, worst case they see the blurred card again next time
+                } finally {
+                  setDecliningOfferAge(false);
+                  setAgeGateOffer(null);
+                }
+              }}
+              disabled={decliningOfferAge}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Not interested, hide age-restricted offers"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={ag.backBtnText}>{decliningOfferAge ? 'Please wait…' : 'Not interested'}</Text>
+            </TouchableOpacity>
+          </View>
+        </InlineModal>
+      )}
+
+      {/* ── Offer detail overlay (in-tree, see InlineModal) ── */}
+      {selectedOffer && (
+        <InlineModal onRequestClose={() => setSelectedOffer(null)} animation="slide" overlay={om.overlay}>
+          <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
+            {selectedOffer.dealText && !selectedOffer.imageUrl ? (
+              <View style={om.dealHeader}>
+                <TagIcon size={18} color="#fff" strokeWidth={2} />
+                <Text style={om.dealHeaderText} numberOfLines={1}>{selectedOffer.dealText}</Text>
+              </View>
+            ) : null}
+            {selectedOffer.imageUrl ? (
+              <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
+            ) : null}
+            {/* om.bodyScroll's flex:1 needs a definite-height ancestor, which a real
+                <Modal> window used to seed for free. This overlay's sheet is sized
+                to its own content instead (via InlineModal), so flex:1 here has
+                nothing to resolve against and collapses to zero - use maxHeight. */}
+            <ScrollView
+              style={{ maxHeight: sheetMaxHeight }}
+              contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              {selectedOffer.gasBonusCentsPerGallon != null ? (
+                <View style={om.badgeRow}>
+                  <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
+                    <GasPumpIcon size={13} color="#c04000" strokeWidth={2} />
+                    <Text style={[om.badgeText, { color: '#c04000' }]}>+{selectedOffer.gasBonusCentsPerGallon}¢ per gallon - auto-applied</Text>
+                  </View>
+                </View>
+              ) : selectedOffer.bonusRate ? (
+                <View style={om.badgeRow}>
+                  <View style={om.badge}>
+                    <PercentIcon size={13} color={COLORS.primary} strokeWidth={2} />
+                    <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback - auto-applied</Text>
+                  </View>
+                </View>
+              ) : selectedOffer.dealText && selectedOffer.imageUrl ? (
+                <Text style={om.dealText}>{selectedOffer.dealText}</Text>
+              ) : null}
+              <Text style={om.title}>{selectedOffer.title}</Text>
+              {selectedOffer.description ? <Text style={om.desc}>{selectedOffer.description}</Text> : null}
+              <View style={om.dateRow}>
+                <Text style={om.dateText}>
+                  Valid {new Date(selectedOffer.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
+                  {new Date(selectedOffer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </Text>
+              </View>
+              <View style={om.howBox}>
+                <Text style={om.howTitle}>How it works</Text>
+                <Text style={om.howText}>
+                  {selectedOffer.gasBonusCentsPerGallon != null
+                    ? `You earn an extra ${selectedOffer.gasBonusCentsPerGallon}¢ per gallon on gas purchases. Automatically applied when the cashier scans your QR code.`
+                    : selectedOffer.bonusRate
+                      ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
+                      : 'Show your QR code to the cashier and mention this deal to claim it.'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={om.closeBtn}
+                onPress={() => setSelectedOffer(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close offer details"
+              >
+                <Text style={om.closeBtnText}>Got it</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </InlineModal>
+      )}
 
       {/* ── QR floating button ── */}
       <TouchableOpacity
