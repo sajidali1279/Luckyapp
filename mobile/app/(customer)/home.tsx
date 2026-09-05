@@ -4,6 +4,7 @@ import {
   TextInput, Alert, Easing, useWindowDimensions, Pressable, BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -163,24 +164,20 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
 }
 
 /* ─── Age-restricted offer lock overlay ───────────────────── */
-// A plain semi-transparent View, not expo-blur's BlurView: Android's
-// BlurView already just renders a flat semi-transparent view under the
-// hood by default (no real blur), so the native module bought nothing
-// there and was implicated in a real Modal-rendering glitch on-device
-// (a locked card's own age-gate Modal intermittently rendered dimmed
-// with no content after this overlay had been mounted alongside it).
-// The dim itself is kept light so the real card underneath (image,
-// title, price pill) still reads through - only the small badge needs
-// to be fully opaque, so it stays legible regardless of what's behind it.
+// A real blur, not a flat tint - Android needs blurMethod explicitly set
+// to 'dimezisBlurView' or it silently renders as a plain semi-transparent
+// view (its own default). iOS always blurs natively regardless of this
+// prop. The badge below stays fully opaque so it's legible over any
+// image, light or dark, sitting behind the blur.
 function AgeGateOverlay() {
   return (
-    <View style={styles.ageLockOverlay}>
+    <BlurView intensity={35} tint="dark" blurMethod="dimezisBlurView" style={styles.ageLockOverlay}>
       <View style={styles.ageLockBadge}>
         <Text style={styles.ageLockEmoji}>🔞</Text>
         <Text style={styles.ageLockText}>Age-restricted offer</Text>
         <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
       </View>
-    </View>
+    </BlurView>
   );
 }
 
@@ -2101,7 +2098,7 @@ const styles = StyleSheet.create({
   },
   ageLockOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(15,15,20,0.32)',
+    overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   ageLockBadge: {
