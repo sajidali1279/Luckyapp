@@ -21,10 +21,11 @@ const DESC_MAX = 500;
 const AMOUNT_MAX = 10000;
 
 function StatusPill({ status }: { status: string }) {
+  const { t } = useTranslation();
   const cfg = {
-    PENDING:  { bg: '#fffbeb', color: '#b45309', label: 'Pending' },
-    APPROVED: { bg: '#f0fdf4', color: '#16a34a', label: 'Approved' },
-    REJECTED: { bg: '#fff1f2', color: '#e63946', label: 'Rejected' },
+    PENDING:  { bg: '#fffbeb', color: '#b45309', label: t('customerMyDisputes.statusPending') },
+    APPROVED: { bg: '#f0fdf4', color: '#16a34a', label: t('customerMyDisputes.statusApproved') },
+    REJECTED: { bg: '#fff1f2', color: '#e63946', label: t('customerMyDisputes.statusRejected') },
   }[status] ?? { bg: '#f1f5f9', color: '#64748b', label: status };
   return <Text style={[s.pill, { backgroundColor: cfg.bg, color: cfg.color }]}>{cfg.label}</Text>;
 }
@@ -56,7 +57,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
       estimatedAmt: amtNum,
     }),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Report submitted', text2: "We'll review your missing points." });
+      Toast.show({ type: 'success', text1: t('customerMyDisputes.reportSubmittedTitle'), text2: t('customerMyDisputes.reportSubmittedBody') });
       qc.invalidateQueries({ queryKey: ['my-disputes'] });
       setStoreId(''); setDesc(''); setEstAmt('');
       onClose();
@@ -65,8 +66,8 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
       const serverMsg = err.response?.data?.error;
       Toast.show({
         type: 'error',
-        text1: typeof serverMsg === 'string' ? serverMsg : 'Submission failed',
-        text2: typeof serverMsg === 'string' ? undefined : 'Please try again.',
+        text1: typeof serverMsg === 'string' ? serverMsg : t('customerMyDisputes.submissionFailedTitle'),
+        text2: typeof serverMsg === 'string' ? undefined : t('customerMyDisputes.tryAgain'),
       });
     },
   });
@@ -77,7 +78,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
         <View style={m.root}>
           <View style={m.header}>
             <Text style={m.title}>{t('disputeModal.title')}</Text>
-            <ModalCloseButton onPress={onClose} label="Close report missing points form" color="#fff" style={m.closeBtn} />
+            <ModalCloseButton onPress={onClose} label={t('customerMyDisputes.closeReportFormA11y')} color="#fff" style={m.closeBtn} />
           </View>
           <Text style={m.subtitle}>{t('disputeModal.subtitle')}</Text>
           <ScrollView style={m.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
@@ -93,7 +94,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
                     onPress={() => setStoreId(st.id)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`Select store: ${st.name}`}
+                    accessibilityLabel={t('customerMyDisputes.selectStoreA11y', { store: st.name })}
                     hitSlop={{ top: 6, bottom: 6 }}
                   >
                     <Text style={[m.storePillText, storeId === st.id && { color: '#fff' }]}>{st.name}</Text>
@@ -136,7 +137,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
               disabled={!canSubmit || submitMutation.isPending}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Submit missing points report"
+              accessibilityLabel={t('customerMyDisputes.submitReportA11y')}
             >
               {submitMutation.isPending
                 ? <ActivityIndicator color="#fff" />
@@ -166,13 +167,13 @@ export default function MyDisputesScreen() {
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
         <BackButton />
-        <Text style={s.title}>My Reports</Text>
+        <Text style={s.title}>{t('customerMyDisputes.headerTitle')}</Text>
         <TouchableOpacity
           style={s.newBtn}
           onPress={() => setShowReportModal(true)}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Report missing points"
+          accessibilityLabel={t('customerMyDisputes.reportMissingPointsA11y')}
         >
           <Text style={s.newBtnText}>+ {t('disputeModal.newReport')}</Text>
         </TouchableOpacity>
@@ -181,20 +182,20 @@ export default function MyDisputesScreen() {
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.primary} /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load your reports." onRetry={() => refetch()} />
+        <ErrorState message={t('customerMyDisputes.loadError')} onRetry={() => refetch()} />
       ) : disputes.length === 0 ? (
         <View style={s.center}>
           <Text style={s.emptyIcon}>✅</Text>
-          <Text style={s.emptyTitle}>No reports yet</Text>
-          <Text style={s.emptySub}>Missing points reports you submit will appear here</Text>
+          <Text style={s.emptyTitle}>{t('customerMyDisputes.emptyTitle')}</Text>
+          <Text style={s.emptySub}>{t('customerMyDisputes.emptySubtitle')}</Text>
           <TouchableOpacity
             style={s.emptyCta}
             onPress={() => setShowReportModal(true)}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Report missing points"
+            accessibilityLabel={t('customerMyDisputes.reportMissingPointsA11y')}
           >
-            <Text style={s.emptyCtaText}>Report Missing Points</Text>
+            <Text style={s.emptyCtaText}>{t('customerMyDisputes.reportBtn')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -203,26 +204,30 @@ export default function MyDisputesScreen() {
             <FadeSlideIn key={d.id} delay={Math.min(index * 40, 200)}>
               <PulseHighlight active={d.id === highlightedId} style={s.card}>
                 <View style={s.cardTop}>
-                  <Text style={s.storeName}>{d.store?.name ?? 'Unknown store'}</Text>
+                  <Text style={s.storeName}>{d.store?.name ?? t('customerMyDisputes.unknownStore')}</Text>
                   <StatusPill status={d.status} />
                 </View>
                 <Text style={s.desc}>{d.description}</Text>
                 {d.transaction && (
                   <Text style={s.meta}>
-                    Transaction: {new Date(d.transaction.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${Number(d.transaction.purchaseAmount).toFixed(2)} · {String(d.transaction.category || '').replace(/_/g, ' ')}
+                    {t('customerMyDisputes.transactionMeta', {
+                      date: new Date(d.transaction.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                      amount: Number(d.transaction.purchaseAmount).toFixed(2),
+                      category: String(d.transaction.category || '').replace(/_/g, ' '),
+                    })}
                   </Text>
                 )}
                 {d.estimatedAmt != null && (
-                  <Text style={s.meta}>Claimed purchase: ${Number(d.estimatedAmt).toFixed(2)}</Text>
+                  <Text style={s.meta}>{t('customerMyDisputes.claimedPurchase', { amount: Number(d.estimatedAmt).toFixed(2) })}</Text>
                 )}
                 {d.resolvedNote ? (
-                  <Text style={[s.meta, s.note]}>Note: {d.resolvedNote}</Text>
+                  <Text style={[s.meta, s.note]}>{t('customerMyDisputes.resolvedNote', { note: d.resolvedNote })}</Text>
                 ) : null}
                 {d.creditedAmt != null && d.status === 'APPROVED' && (
-                  <Text style={s.credited}>+${Number(d.creditedAmt).toFixed(2)} credited</Text>
+                  <Text style={s.credited}>{t('customerMyDisputes.creditedAmt', { amount: Number(d.creditedAmt).toFixed(2) })}</Text>
                 )}
                 <Text style={s.date}>
-                  Submitted {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {t('customerMyDisputes.submittedDate', { date: new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
                 </Text>
               </PulseHighlight>
             </FadeSlideIn>

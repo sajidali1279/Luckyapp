@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
@@ -68,6 +69,7 @@ const AnimatedDot = memo(function AnimatedDot({ active, color }: { active: boole
 
 /* ─── Banner carousel ─────────────────────────────────────── */
 const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { banners: any[]; onSelect: (banner: any) => void }) {
+  const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);

@@ -5,6 +5,7 @@ import {
 import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { storeRequestApi, chatApi, productRequestApi, employeeRequestApi } from '../services/api';
 import { COLORS, AVATAR_PALETTE } from '../constants';
 import { formatTime, getInitial } from '../utils/format';
@@ -31,12 +32,6 @@ export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string;
 
 // ── Store alerts ──────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock Alert',
-  STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
-  WORK_ORDER: 'Work Order',
-};
 const TYPE_BG: Record<string, string> = {
   LOW_STOCK: '#eff6ff', STORE_SUPPLIES: '#fefce8',
   CUSTOMER_REQUESTED_PRODUCT: '#f0fdf4', WORK_ORDER: '#fdf4ff',
@@ -44,28 +39,6 @@ const TYPE_BG: Record<string, string> = {
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
 };
-
-// ── Product requests ──────────────────────────────────────────────────────────
-
-const PR_STATUS: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  PENDING:  { label: 'Pending',  bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
-  ACCEPTED: { label: 'Accepted', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  DECLINED: { label: 'Declined', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
-};
-
-// ── Employee stock requests ───────────────────────────────────────────────────
-
-const EMP_TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK:        'Low / Out of Stock',
-  CUSTOMER_REQUEST: 'Customer Asked',
-};
-const REJECTION_REASONS: { key: string; label: string }[] = [
-  { key: 'IN_STOCK',      label: 'In stock' },
-  { key: 'NO_SUPPLIER',   label: 'No supplier' },
-  { key: 'OUT_OF_BUDGET', label: 'Over budget' },
-  { key: 'DUPLICATE',     label: 'Duplicate' },
-  { key: 'OTHER',         label: 'Other' },
-];
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -105,7 +78,33 @@ interface EmployeeItemRequest {
 type MainTab = 'alerts' | 'stock' | 'products';
 
 export default function ManagerRequestsScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const TYPE_LABELS: Record<string, string> = {
+    LOW_STOCK: t('sharedManagerRequests.typeLowStockLabel'),
+    STORE_SUPPLIES: t('sharedManagerRequests.typeStoreSuppliesLabel'),
+    CUSTOMER_REQUESTED_PRODUCT: t('sharedManagerRequests.typeCustomerAskingLabel'),
+    WORK_ORDER: t('sharedManagerRequests.typeWorkOrderLabel'),
+  };
+
+  const PR_STATUS: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    PENDING:  { label: t('sharedManagerRequests.statusPending'),  bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+    ACCEPTED: { label: t('sharedManagerRequests.statusAccepted'), bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+    DECLINED: { label: t('sharedManagerRequests.statusDeclined'), bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  };
+
+  const EMP_TYPE_LABELS: Record<string, string> = {
+    LOW_STOCK:        t('sharedManagerRequests.empTypeLowStock'),
+    CUSTOMER_REQUEST: t('sharedManagerRequests.empTypeCustomerRequest'),
+  };
+  const REJECTION_REASONS: { key: string; label: string }[] = [
+    { key: 'IN_STOCK',      label: t('sharedManagerRequests.reasonInStock') },
+    { key: 'NO_SUPPLIER',   label: t('sharedManagerRequests.reasonNoSupplier') },
+    { key: 'OUT_OF_BUDGET', label: t('sharedManagerRequests.reasonOverBudget') },
+    { key: 'DUPLICATE',     label: t('sharedManagerRequests.reasonDuplicate') },
+    { key: 'OTHER',         label: t('sharedManagerRequests.reasonOther') },
+  ];
 
   // ── Main tab ────────────────────────────────────────────────────────────────
   const [mainTab, setMainTab] = useState<MainTab>('alerts');
@@ -193,7 +192,7 @@ export default function ManagerRequestsScreen() {
       setAckTarget(null); setAckNote('');
     },
     onError: (err: any) =>
-      Alert.alert('Error', err?.response?.data?.error || err?.message || 'Something went wrong.'),
+      Alert.alert(t('sharedManagerRequests.errorTitle'), err?.response?.data?.error || err?.message || t('sharedManagerRequests.genericError')),
   });
 
   const respondMutation = useMutation({
@@ -204,7 +203,7 @@ export default function ManagerRequestsScreen() {
       setRespondTarget(null); setRespondNote('');
     },
     onError: (err: any) =>
-      Alert.alert('Error', err?.response?.data?.error || err?.message || 'Something went wrong.'),
+      Alert.alert(t('sharedManagerRequests.errorTitle'), err?.response?.data?.error || err?.message || t('sharedManagerRequests.genericError')),
   });
 
   const reviewMutation = useMutation({
@@ -218,7 +217,7 @@ export default function ManagerRequestsScreen() {
       setReviewTarget(null); setLineDecisions({}); setRejectReasons({});
     },
     onError: (err: any) =>
-      Alert.alert('Error', err?.response?.data?.error || err?.message || 'Something went wrong.'),
+      Alert.alert(t('sharedManagerRequests.errorTitle'), err?.response?.data?.error || err?.message || t('sharedManagerRequests.genericError')),
   });
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -246,7 +245,7 @@ export default function ManagerRequestsScreen() {
             ) : (
               <View style={s.doneBadge}>
                 <CheckCircleIcon size={12} color="#065f46" strokeWidth={2.5} />
-                <Text style={s.doneBadgeText}>Done</Text>
+                <Text style={s.doneBadgeText}>{t('sharedManagerRequests.statusDone')}</Text>
               </View>
             )}
           </View>
@@ -269,7 +268,7 @@ export default function ManagerRequestsScreen() {
             <View style={s.ackBox}>
               <CheckCircleIcon size={18} color="#16a34a" strokeWidth={2} />
               <View style={{ flex: 1 }}>
-                <Text style={s.ackBy}>Handled by {item.acknowledgerName}</Text>
+                <Text style={s.ackBy}>{t('sharedManagerRequests.handledBy', { name: item.acknowledgerName })}</Text>
                 {item.acknowledgerNote ? <Text style={s.ackNote}>"{item.acknowledgerNote}"</Text> : null}
               </View>
             </View>
@@ -280,16 +279,16 @@ export default function ManagerRequestsScreen() {
               activeOpacity={0.8}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               accessibilityRole="button"
-              accessibilityLabel={`Mark ${TYPE_LABELS[item.type] || item.type} alert as handled`}
+              accessibilityLabel={t('sharedManagerRequests.markHandledA11y', { type: TYPE_LABELS[item.type] || item.type })}
             >
               <CheckCircleIcon size={15} color="#fff" strokeWidth={2.25} />
-              <Text style={s.actionBtnText}>Mark as Handled</Text>
+              <Text style={s.actionBtnText}>{t('sharedManagerRequests.markHandledButton')}</Text>
             </TouchableOpacity>
           )}
         </View>
       </PulseHighlight>
     );
-  }, []);
+  }, [t]);
 
   const renderEmpItem = useCallback(({ item }: { item: EmployeeItemRequest }) => {
     const isPending = item.status === 'PENDING';
@@ -307,19 +306,19 @@ export default function ManagerRequestsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[s.typeLabel, !isPending && s.typeLabelDone]}>{typeLabel}</Text>
               <Text style={s.metaSub}>
-                {item.lines.length} item{item.lines.length !== 1 ? 's' : ''}
-                {!isPending ? ` · ${accepted} accepted, ${rejected} declined` : ''}
+                {t('sharedManagerRequests.itemCount', { count: item.lines.length })}
+                {!isPending ? t('sharedManagerRequests.reviewSummary', { accepted, rejected }) : ''}
               </Text>
             </View>
             {isPending ? (
               <View style={[s.prioBadge, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
                 <View style={[s.prioBadgeDot, { backgroundColor: '#f59e0b' }]} />
-                <Text style={[s.prioBadgeText, { color: '#c2410c' }]}>Pending</Text>
+                <Text style={[s.prioBadgeText, { color: '#c2410c' }]}>{t('sharedManagerRequests.statusPending')}</Text>
               </View>
             ) : (
               <View style={s.doneBadge}>
                 <CheckCircleIcon size={12} color="#065f46" strokeWidth={2.5} />
-                <Text style={s.doneBadgeText}>Reviewed</Text>
+                <Text style={s.doneBadgeText}>{t('sharedManagerRequests.statusReviewed')}</Text>
               </View>
             )}
           </View>
@@ -334,7 +333,7 @@ export default function ManagerRequestsScreen() {
                 {'  ·  '}{formatTime(item.createdAt)}
               </Text>
               {item.reviewedBy && (
-                <Text style={s.metaSub}>Reviewed by {item.reviewedBy.name}</Text>
+                <Text style={s.metaSub}>{t('sharedManagerRequests.reviewedBy', { name: item.reviewedBy.name })}</Text>
               )}
             </View>
           </View>
@@ -343,7 +342,7 @@ export default function ManagerRequestsScreen() {
           {(() => {
             const byCategory: Record<string, EmpRequestLine[]> = {};
             for (const l of item.lines) {
-              const k = l.category || 'Uncategorized';
+              const k = l.category || t('sharedManagerRequests.uncategorized');
               if (!byCategory[k]) byCategory[k] = [];
               byCategory[k].push(l);
             }
@@ -379,16 +378,16 @@ export default function ManagerRequestsScreen() {
               activeOpacity={0.8}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               accessibilityRole="button"
-              accessibilityLabel={`Review stock request from ${item.submittedBy.name}`}
+              accessibilityLabel={t('sharedManagerRequests.reviewStockRequestA11y', { name: item.submittedBy.name })}
             >
               <ClipboardIcon size={15} color="#fff" strokeWidth={2.25} />
-              <Text style={s.actionBtnText}>Review Items</Text>
+              <Text style={s.actionBtnText}>{t('sharedManagerRequests.reviewItemsButton')}</Text>
             </TouchableOpacity>
           )}
         </View>
       </PulseHighlight>
     );
-  }, []);
+  }, [t]);
 
   const renderProductItem = useCallback(({ item }: { item: ProductRequest }) => {
     const st = PR_STATUS[item.status] || PR_STATUS.PENDING;
@@ -431,7 +430,7 @@ export default function ManagerRequestsScreen() {
 
           {item.responseNote ? (
             <View style={[s.notesBox, { backgroundColor: st.bg, borderColor: st.border }]}>
-              <Text style={[s.notesText, { color: st.color }]}>Response: "{item.responseNote}"</Text>
+              <Text style={[s.notesText, { color: st.color }]}>{t('sharedManagerRequests.responsePrefix', { note: item.responseNote })}</Text>
             </View>
           ) : null}
 
@@ -442,16 +441,16 @@ export default function ManagerRequestsScreen() {
               activeOpacity={0.8}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               accessibilityRole="button"
-              accessibilityLabel={`Respond to product request for ${item.productName}`}
+              accessibilityLabel={t('sharedManagerRequests.respondToProductA11y', { product: item.productName })}
             >
               <MessageCircleIcon size={15} color="#fff" strokeWidth={2} />
-              <Text style={s.actionBtnText}>Respond to Request</Text>
+              <Text style={s.actionBtnText}>{t('sharedManagerRequests.respondButton')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
       </PulseHighlight>
     );
-  }, []);
+  }, [t]);
 
   // ── Review helpers ────────────────────────────────────────────────────────────
   const allDecided = reviewTarget
@@ -483,9 +482,9 @@ export default function ManagerRequestsScreen() {
 
   // ── Tab config ────────────────────────────────────────────────────────────────
   const TABS: { key: MainTab; icon: (p: { size: number; color: string }) => ReactElement; label: string; badge: number }[] = [
-    { key: 'alerts',   icon: (p) => <BellIcon {...p} strokeWidth={2} />,        label: 'Alerts',   badge: pending.length },
-    { key: 'stock',    icon: (p) => <PackageIcon {...p} strokeWidth={2} />,     label: 'Stock',    badge: pendingEmp.length },
-    { key: 'products', icon: (p) => <ShoppingBagIcon {...p} strokeWidth={2} />, label: 'Products', badge: pendingProducts.length },
+    { key: 'alerts',   icon: (p) => <BellIcon {...p} strokeWidth={2} />,        label: t('sharedManagerRequests.tabAlerts'),   badge: pending.length },
+    { key: 'stock',    icon: (p) => <PackageIcon {...p} strokeWidth={2} />,     label: t('sharedManagerRequests.tabStock'),    badge: pendingEmp.length },
+    { key: 'products', icon: (p) => <ShoppingBagIcon {...p} strokeWidth={2} />, label: t('sharedManagerRequests.tabProducts'), badge: pendingProducts.length },
   ];
 
   return (
@@ -493,22 +492,22 @@ export default function ManagerRequestsScreen() {
       {/* ── Header ── */}
       <ManagerHeader
         eyebrow={
-          mainTab === 'alerts' ? 'STORE ALERTS'
-            : mainTab === 'stock' ? 'STOCK REQUESTS'
-            : 'PRODUCT REQUESTS'
+          mainTab === 'alerts' ? t('sharedManagerRequests.alertsEyebrow')
+            : mainTab === 'stock' ? t('sharedManagerRequests.stockEyebrow')
+            : t('sharedManagerRequests.productsEyebrow')
         }
         title={
-          mainTab === 'alerts' ? 'Store Alerts'
-            : mainTab === 'stock' ? 'Stock Requests'
-            : 'Product Requests'
+          mainTab === 'alerts' ? t('sharedManagerRequests.alertsTitle')
+            : mainTab === 'stock' ? t('sharedManagerRequests.stockTitle')
+            : t('sharedManagerRequests.productsTitle')
         }
         size="lg"
         rightSlot={(() => {
-          const badgeCount = TABS.find(t => t.key === mainTab)?.badge ?? 0;
+          const badgeCount = TABS.find(tab => tab.key === mainTab)?.badge ?? 0;
           return badgeCount > 0 ? (
             <View style={s.pendingBadge}>
               <Text style={s.pendingBadgeNum}>{badgeCount}</Text>
-              <Text style={s.pendingBadgeLbl}>pending</Text>
+              <Text style={s.pendingBadgeLbl}>{t('sharedManagerRequests.pendingBadgeLabel')}</Text>
             </View>
           ) : null;
         })()}
@@ -524,7 +523,7 @@ export default function ManagerRequestsScreen() {
                   onPress={() => setSelectedStoreId(st.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Select store ${st.name}`}
+                  accessibilityLabel={t('sharedManagerRequests.selectStoreA11y', { name: st.name })}
                 >
                   <Text style={[s.storeChipText, st.id === effectiveStoreId && s.storeChipTextActive]}>
                     {st.name}
@@ -532,7 +531,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={s.scopeHint}>Switch stores to see requests from your other locations</Text>
+            <Text style={s.scopeHint}>{t('sharedManagerRequests.scopeHint')}</Text>
           </>
         )}
 
@@ -545,7 +544,7 @@ export default function ManagerRequestsScreen() {
               onPress={() => setMainTab(tab.key)}
               hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
               accessibilityRole="tab"
-              accessibilityLabel={`${tab.label} tab${tab.badge > 0 ? `, ${tab.badge} pending` : ''}`}
+              accessibilityLabel={tab.badge > 0 ? t('sharedManagerRequests.tabWithBadgeA11y', { label: tab.label, badge: tab.badge }) : t('sharedManagerRequests.tabA11y', { label: tab.label })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 {tab.icon({ size: 13, color: mainTab === tab.key ? COLORS.managerPrimary : 'rgba(255,255,255,0.70)' })}
@@ -569,9 +568,9 @@ export default function ManagerRequestsScreen() {
           <>
             <View style={s.filterRow}>
               {[
-                { key: '', label: 'All', count: requests.length },
-                { key: 'PENDING', label: 'Pending', count: pending.length },
-                { key: 'ACKNOWLEDGED', label: 'Done', count: requests.length - pending.length },
+                { key: '', label: t('sharedManagerRequests.filterAll'), count: requests.length },
+                { key: 'PENDING', label: t('sharedManagerRequests.filterPending'), count: pending.length },
+                { key: 'ACKNOWLEDGED', label: t('sharedManagerRequests.filterDone'), count: requests.length - pending.length },
               ].map(f => (
                 <TouchableOpacity
                   key={f.key}
@@ -579,7 +578,7 @@ export default function ManagerRequestsScreen() {
                   onPress={() => setStatusFilter(f.key)}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Filter alerts by ${f.label}`}
+                  accessibilityLabel={t('sharedManagerRequests.filterAlertsA11y', { label: f.label })}
                 >
                   <Text style={[s.filterTabText, statusFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
                   {f.count > 0 && (
@@ -590,7 +589,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Quick flags from your team - mark handled once you've dealt with it.</Text>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>{t('sharedManagerRequests.alertsHint')}</Text>
           </>
         )}
 
@@ -599,9 +598,9 @@ export default function ManagerRequestsScreen() {
           <>
             <View style={s.filterRow}>
               {[
-                { key: '', label: 'All', count: empRequests.length },
-                { key: 'PENDING', label: 'Pending', count: pendingEmp.length },
-                { key: 'REVIEWED', label: 'Reviewed', count: empRequests.length - pendingEmp.length },
+                { key: '', label: t('sharedManagerRequests.filterAll'), count: empRequests.length },
+                { key: 'PENDING', label: t('sharedManagerRequests.filterPending'), count: pendingEmp.length },
+                { key: 'REVIEWED', label: t('sharedManagerRequests.filterReviewed'), count: empRequests.length - pendingEmp.length },
               ].map(f => (
                 <TouchableOpacity
                   key={f.key}
@@ -609,7 +608,7 @@ export default function ManagerRequestsScreen() {
                   onPress={() => setEmpFilter(f.key)}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Filter stock requests by ${f.label}`}
+                  accessibilityLabel={t('sharedManagerRequests.filterStockA11y', { label: f.label })}
                 >
                   <Text style={[s.filterTabText, empFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
                   {f.count > 0 && (
@@ -620,7 +619,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Multi-item requests from your team - accepted items get added straight to your Order List.</Text>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>{t('sharedManagerRequests.stockHint')}</Text>
           </>
         )}
 
@@ -629,10 +628,10 @@ export default function ManagerRequestsScreen() {
           <>
             <View style={s.filterRow}>
               {[
-                { key: '', label: 'All', count: productRequests.length },
-                { key: 'PENDING', label: 'Pending', count: pendingProducts.length },
-                { key: 'ACCEPTED', label: 'Accepted', count: productRequests.filter(r => r.status === 'ACCEPTED').length },
-                { key: 'DECLINED', label: 'Declined', count: productRequests.filter(r => r.status === 'DECLINED').length },
+                { key: '', label: t('sharedManagerRequests.filterAll'), count: productRequests.length },
+                { key: 'PENDING', label: t('sharedManagerRequests.filterPending'), count: pendingProducts.length },
+                { key: 'ACCEPTED', label: t('sharedManagerRequests.filterAccepted'), count: productRequests.filter(r => r.status === 'ACCEPTED').length },
+                { key: 'DECLINED', label: t('sharedManagerRequests.filterDeclined'), count: productRequests.filter(r => r.status === 'DECLINED').length },
               ].map(f => (
                 <TouchableOpacity
                   key={f.key}
@@ -640,7 +639,7 @@ export default function ManagerRequestsScreen() {
                   onPress={() => setProductFilter(f.key)}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Filter product requests by ${f.label}`}
+                  accessibilityLabel={t('sharedManagerRequests.filterProductsA11y', { label: f.label })}
                 >
                   <Text style={[s.filterTabText, productFilter === f.key && s.filterTabTextActive]}>{f.label}</Text>
                   {f.count > 0 && (
@@ -651,7 +650,7 @@ export default function ManagerRequestsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>Customer requests to carry a specific product.</Text>
+            <Text style={[s.metaSub, { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4 }]}>{t('sharedManagerRequests.productsHint')}</Text>
           </>
         )}
       </ManagerHeader>
@@ -660,13 +659,13 @@ export default function ManagerRequestsScreen() {
       {!effectiveStoreId ? (
         <View style={s.centered}>
           <View style={{ marginBottom: 12 }}><BuildingIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
-          <Text style={s.emptyTitle}>Select a store</Text>
-          <Text style={s.emptySub}>Choose a store above to view requests</Text>
+          <Text style={s.emptyTitle}>{t('sharedManagerRequests.selectStoreTitle')}</Text>
+          <Text style={s.emptySub}>{t('sharedManagerRequests.selectStoreSubtitle')}</Text>
         </View>
       ) : isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load requests." onRetry={() => refetchCurrent()} />
+        <ErrorState message={t('sharedManagerRequests.loadErrorRequests')} onRetry={() => refetchCurrent()} />
       ) : mainTab === 'alerts' ? (
         displayed.length === 0 ? (
           <View style={s.centered}>
@@ -675,8 +674,8 @@ export default function ManagerRequestsScreen() {
                 ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
                 : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
             </View>
-            <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</Text>
-            <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending alerts' : 'No alerts in this category'}</Text>
+            <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? t('sharedManagerRequests.allClear') : t('sharedManagerRequests.nothingHere')}</Text>
+            <Text style={s.emptySub}>{statusFilter === 'PENDING' ? t('sharedManagerRequests.noPendingAlerts') : t('sharedManagerRequests.noAlertsCategory')}</Text>
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
@@ -695,8 +694,8 @@ export default function ManagerRequestsScreen() {
                 ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
                 : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
             </View>
-            <Text style={s.emptyTitle}>{empFilter === 'PENDING' ? 'All reviewed!' : 'Nothing here'}</Text>
-            <Text style={s.emptySub}>{empFilter === 'PENDING' ? 'No pending stock requests' : 'No stock requests in this category'}</Text>
+            <Text style={s.emptyTitle}>{empFilter === 'PENDING' ? t('sharedManagerRequests.allReviewed') : t('sharedManagerRequests.nothingHere')}</Text>
+            <Text style={s.emptySub}>{empFilter === 'PENDING' ? t('sharedManagerRequests.noPendingStock') : t('sharedManagerRequests.noStockCategory')}</Text>
           </View>
         ) : (
           <FadeSlideIn style={{ flex: 1 }}>
@@ -715,11 +714,11 @@ export default function ManagerRequestsScreen() {
                 ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
                 : <ShoppingBagIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
             </View>
-            <Text style={s.emptyTitle}>{productFilter === 'PENDING' ? 'All clear!' : productFilter ? 'Nothing here' : 'No product requests'}</Text>
+            <Text style={s.emptyTitle}>{productFilter === 'PENDING' ? t('sharedManagerRequests.allClear') : productFilter ? t('sharedManagerRequests.nothingHere') : t('sharedManagerRequests.noProductRequests')}</Text>
             <Text style={s.emptySub}>
-              {productFilter === 'PENDING' ? 'No pending product requests'
-                : productFilter ? 'No product requests in this category'
-                : 'Customer product requests will appear here'}
+              {productFilter === 'PENDING' ? t('sharedManagerRequests.noPendingProducts')
+                : productFilter ? t('sharedManagerRequests.noProductsCategory')
+                : t('sharedManagerRequests.productsWillAppear')}
             </Text>
           </View>
         ) : (
@@ -738,7 +737,7 @@ export default function ManagerRequestsScreen() {
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
-            <Text style={s.sheetTitle}>Mark as Handled</Text>
+            <Text style={s.sheetTitle}>{t('sharedManagerRequests.markHandledTitle')}</Text>
             {ackTarget && (
               <View style={s.previewCard}>
                 <View style={[s.previewIconWrap, { backgroundColor: TYPE_BG[ackTarget.type] || '#f3f4f6' }]}>
@@ -746,7 +745,7 @@ export default function ManagerRequestsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.previewType}>{TYPE_LABELS[ackTarget.type]}</Text>
-                  <Text style={s.previewMeta}>from {ackTarget.submitterName}</Text>
+                  <Text style={s.previewMeta}>{t('sharedManagerRequests.fromSubmitter', { name: ackTarget.submitterName })}</Text>
                   {ackTarget.notes ? <Text style={s.previewNotes} numberOfLines={2}>"{ackTarget.notes}"</Text> : null}
                 </View>
                 <View style={[s.previewPrio, { backgroundColor: (PRIORITY_COLORS[ackTarget.priority] || '#aaa') + '22' }]}>
@@ -754,16 +753,16 @@ export default function ManagerRequestsScreen() {
                 </View>
               </View>
             )}
-            <Text style={s.sheetLabel}>Note <Text style={s.optionalTag}>(optional)</Text></Text>
-            <TextInput style={s.noteInput} value={ackNote} onChangeText={setAckNote} placeholder="e.g. Ordered, arriving Thursday…" placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top" />
+            <Text style={s.sheetLabel}>{t('sharedManagerRequests.noteLabel')} <Text style={s.optionalTag}>{t('sharedManagerRequests.optionalTag')}</Text></Text>
+            <TextInput style={s.noteInput} value={ackNote} onChangeText={setAckNote} placeholder={t('sharedManagerRequests.ackNotePlaceholder')} placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top" />
             <View style={s.sheetActions}>
               <TouchableOpacity
                 style={s.cancelBtn}
                 onPress={() => setAckTarget(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel"
+                accessibilityLabel={t('sharedManagerRequests.cancelButton')}
               >
-                <Text style={s.cancelBtnText}>Cancel</Text>
+                <Text style={s.cancelBtnText}>{t('sharedManagerRequests.cancelButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.confirmBtn, acknowledgeMutation.isPending && { opacity: 0.65 }]}
@@ -771,12 +770,12 @@ export default function ManagerRequestsScreen() {
                 onPress={() => ackTarget && acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Confirm alert handled"
+                accessibilityLabel={t('sharedManagerRequests.confirmHandledA11y')}
               >
                 {acknowledgeMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : (
                   <>
                     <CheckCircleIcon size={16} color="#fff" strokeWidth={2.25} />
-                    <Text style={s.confirmBtnText}>Confirm</Text>
+                    <Text style={s.confirmBtnText}>{t('sharedManagerRequests.confirmButton')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -793,7 +792,7 @@ export default function ManagerRequestsScreen() {
             <View style={s.sheetDrag} />
             <View style={s.reviewHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.sheetTitle}>Review Stock Request</Text>
+                <Text style={s.sheetTitle}>{t('sharedManagerRequests.reviewStockTitle')}</Text>
                 {reviewTarget && (
                   <Text style={s.reviewMeta}>
                     {reviewTarget.submittedBy.name} · {EMP_TYPE_LABELS[reviewTarget.requestType] || reviewTarget.requestType}
@@ -810,17 +809,17 @@ export default function ManagerRequestsScreen() {
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel="Accept all items"
+                accessibilityLabel={t('sharedManagerRequests.acceptAllA11y')}
               >
                 <CheckCircleIcon size={13} color="#15803d" strokeWidth={2.25} />
-                <Text style={s.acceptAllBtnText}>All</Text>
+                <Text style={s.acceptAllBtnText}>{t('sharedManagerRequests.acceptAllButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setReviewTarget(null)}
                 style={s.closeBtn}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel={t('sharedManagerRequests.closeA11y')}
               >
                 <XIcon size={14} color="#6b7280" strokeWidth={2.25} />
               </TouchableOpacity>
@@ -850,7 +849,7 @@ export default function ManagerRequestsScreen() {
                           onPress={() => setLineDecisions(prev => ({ ...prev, [line.id]: 'ACCEPT' }))}
                           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                           accessibilityRole="button"
-                          accessibilityLabel={`Accept ${line.name}`}
+                          accessibilityLabel={t('sharedManagerRequests.acceptLineA11y', { name: line.name })}
                         >
                           <CheckCircleIcon size={20} color={decision === 'ACCEPT' ? '#16a34a' : '#9ca3af'} strokeWidth={2.25} />
                         </TouchableOpacity>
@@ -859,7 +858,7 @@ export default function ManagerRequestsScreen() {
                           onPress={() => setLineDecisions(prev => ({ ...prev, [line.id]: 'REJECT' }))}
                           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                           accessibilityRole="button"
-                          accessibilityLabel={`Reject ${line.name}`}
+                          accessibilityLabel={t('sharedManagerRequests.rejectLineA11y', { name: line.name })}
                         >
                           <XIcon size={20} color={decision === 'REJECT' ? '#E63946' : '#9ca3af'} strokeWidth={2.25} />
                         </TouchableOpacity>
@@ -875,7 +874,7 @@ export default function ManagerRequestsScreen() {
                             onPress={() => setRejectReasons(prev => ({ ...prev, [line.id]: r.key }))}
                             hitSlop={{ top: 8, bottom: 8, left: 0, right: 0 }}
                             accessibilityRole="button"
-                            accessibilityLabel={`Select rejection reason ${r.label} for ${line.name}`}
+                            accessibilityLabel={t('sharedManagerRequests.selectRejectionReasonA11y', { reason: r.label, name: line.name })}
                           >
                             <Text style={[s.reasonPillText, rejectReasons[line.id] === r.key && s.reasonPillTextActive]}>
                               {r.label}
@@ -895,9 +894,9 @@ export default function ManagerRequestsScreen() {
                 style={s.cancelBtn}
                 onPress={() => setReviewTarget(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel"
+                accessibilityLabel={t('sharedManagerRequests.cancelButton')}
               >
-                <Text style={s.cancelBtnText}>Cancel</Text>
+                <Text style={s.cancelBtnText}>{t('sharedManagerRequests.cancelButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.confirmBtn, (!allDecided || reviewMutation.isPending) && { opacity: 0.45 }]}
@@ -905,7 +904,7 @@ export default function ManagerRequestsScreen() {
                 onPress={submitReview}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Submit review"
+                accessibilityLabel={t('sharedManagerRequests.submitReviewA11y')}
               >
                 {reviewMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -913,7 +912,7 @@ export default function ManagerRequestsScreen() {
                     <>
                       <ClipboardIcon size={16} color="#fff" strokeWidth={2.25} />
                       <Text style={s.confirmBtnText}>
-                        Submit Review{reviewTarget ? ` (${reviewTarget.lines.length})` : ''}
+                        {t('sharedManagerRequests.submitReviewButton')}{reviewTarget ? ` (${reviewTarget.lines.length})` : ''}
                       </Text>
                     </>
                   )
@@ -929,7 +928,7 @@ export default function ManagerRequestsScreen() {
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
-            <Text style={s.sheetTitle}>Respond to Request</Text>
+            <Text style={s.sheetTitle}>{t('sharedManagerRequests.respondButton')}</Text>
             {respondTarget && (
               <View style={s.previewCard}>
                 <View style={[s.previewIconWrap, { backgroundColor: '#fff7ed' }]}>
@@ -948,26 +947,26 @@ export default function ManagerRequestsScreen() {
                 onPress={() => setRespondStatus('ACCEPTED')}
                 hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel="Set response to accept"
+                accessibilityLabel={t('sharedManagerRequests.setAcceptA11y')}
               >
                 <CheckCircleIcon size={15} color={respondStatus === 'ACCEPTED' ? '#15803d' : '#6b7280'} strokeWidth={2.25} />
-                <Text style={[s.toggleBtnText, respondStatus === 'ACCEPTED' && s.toggleBtnTextAccept]}>Accept</Text>
+                <Text style={[s.toggleBtnText, respondStatus === 'ACCEPTED' && s.toggleBtnTextAccept]}>{t('sharedManagerRequests.acceptButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.toggleBtn, respondStatus === 'DECLINED' && s.toggleBtnDecline]}
                 onPress={() => setRespondStatus('DECLINED')}
                 hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel="Set response to decline"
+                accessibilityLabel={t('sharedManagerRequests.setDeclineA11y')}
               >
                 <XIcon size={15} color={respondStatus === 'DECLINED' ? '#b91c1c' : '#6b7280'} strokeWidth={2.25} />
-                <Text style={[s.toggleBtnText, respondStatus === 'DECLINED' && s.toggleBtnTextDecline]}>Decline</Text>
+                <Text style={[s.toggleBtnText, respondStatus === 'DECLINED' && s.toggleBtnTextDecline]}>{t('sharedManagerRequests.declineButton')}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={s.sheetLabel}>Note <Text style={s.optionalTag}>(optional)</Text></Text>
+            <Text style={s.sheetLabel}>{t('sharedManagerRequests.noteLabel')} <Text style={s.optionalTag}>{t('sharedManagerRequests.optionalTag')}</Text></Text>
             <TextInput
               style={s.noteInput} value={respondNote} onChangeText={setRespondNote}
-              placeholder={respondStatus === 'ACCEPTED' ? "e.g. We'll stock it next week…" : "e.g. Not available from our supplier…"}
+              placeholder={respondStatus === 'ACCEPTED' ? t('sharedManagerRequests.acceptNotePlaceholder') : t('sharedManagerRequests.declineNotePlaceholder')}
               placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top"
             />
             <View style={s.sheetActions}>
@@ -975,9 +974,9 @@ export default function ManagerRequestsScreen() {
                 style={s.cancelBtn}
                 onPress={() => setRespondTarget(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel"
+                accessibilityLabel={t('sharedManagerRequests.cancelButton')}
               >
-                <Text style={s.cancelBtnText}>Cancel</Text>
+                <Text style={s.cancelBtnText}>{t('sharedManagerRequests.cancelButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.confirmBtn, respondStatus === 'DECLINED' && { backgroundColor: '#E63946', shadowColor: '#E63946' }, respondMutation.isPending && { opacity: 0.65 }]}
@@ -985,7 +984,7 @@ export default function ManagerRequestsScreen() {
                 onPress={() => respondTarget && respondMutation.mutate({ id: respondTarget.id, status: respondStatus, note: respondNote })}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={respondStatus === 'ACCEPTED' ? 'Accept product request' : 'Decline product request'}
+                accessibilityLabel={respondStatus === 'ACCEPTED' ? t('sharedManagerRequests.acceptProductA11y') : t('sharedManagerRequests.declineProductA11y')}
               >
                 {respondMutation.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -994,7 +993,7 @@ export default function ManagerRequestsScreen() {
                       {respondStatus === 'ACCEPTED'
                         ? <CheckCircleIcon size={16} color="#fff" strokeWidth={2.25} />
                         : <XIcon size={16} color="#fff" strokeWidth={2.25} />}
-                      <Text style={s.confirmBtnText}>{respondStatus === 'ACCEPTED' ? 'Accept Request' : 'Decline Request'}</Text>
+                      <Text style={s.confirmBtnText}>{respondStatus === 'ACCEPTED' ? t('sharedManagerRequests.acceptRequestButton') : t('sharedManagerRequests.declineRequestButton')}</Text>
                     </>
                   )
                 }

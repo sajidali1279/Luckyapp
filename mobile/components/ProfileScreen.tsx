@@ -82,12 +82,11 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   });
   const myPromo = myPromoData?.data?.data;
 
-  // Employee: show rating summary for first assigned store
-  const primaryStoreId = !isCustomer ? (user?.storeIds?.[0] ?? null) : null;
+  // Employee/manager: rating summary aggregated across every assigned store
   const { data: ratingData } = useQuery({
-    queryKey: ['my-rating-summary', primaryStoreId],
-    queryFn: () => leaderboardApi.getMyRatingSummary(primaryStoreId!),
-    enabled: !isCustomer && !!primaryStoreId,
+    queryKey: ['my-rating-summary'],
+    queryFn: () => leaderboardApi.getMyRatingSummary(),
+    enabled: !isCustomer,
   });
   const myRating = ratingData?.data?.data;
 
@@ -105,7 +104,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       await logout();
       router.replace('/(auth)/welcome');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to delete account. Try again.' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.deleteAccountFailedToast') });
     } finally {
       setDeletingAccount(false);
       setShowDeleteModal(false);
@@ -123,9 +122,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       if (fresh && user && token) {
         setAuth({ ...user, avatarUrl: fresh.avatarUrl }, token);
       }
-      Toast.show({ type: 'success', text1: 'Profile photo updated!' });
+      Toast.show({ type: 'success', text1: t('profile.photoUpdatedToast') });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to upload photo' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.photoUploadFailedToast') });
     } finally {
       setAvatarUploading(false);
     }
@@ -134,7 +133,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow photo access to set a profile picture.' });
+      Toast.show({ type: 'error', text1: t('profile.permissionNeededTitle'), text2: t('profile.permissionPhotoBody') });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -148,7 +147,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   async function handleTakePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow camera access to take a profile photo.' });
+      Toast.show({ type: 'error', text1: t('profile.permissionNeededTitle'), text2: t('profile.permissionCameraBody') });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -165,9 +164,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     try {
       await authApi.removeAvatar();
       if (user && token) setAuth({ ...user, avatarUrl: undefined }, token);
-      Toast.show({ type: 'success', text1: 'Profile photo removed' });
+      Toast.show({ type: 'success', text1: t('profile.photoRemovedToast') });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to remove photo' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.photoRemoveFailedToast') });
     } finally {
       setAvatarUploading(false);
     }
@@ -185,45 +184,45 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   async function handleUpdateName() {
-    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name cannot be empty' }); return; }
+    if (!name.trim()) { Toast.show({ type: 'error', text1: t('profile.nameEmptyToast') }); return; }
     setLoading(true);
     try {
       await authApi.updateProfile(name.trim());
       if (user && token) setAuth({ ...user, name: name.trim() }, token);
-      Toast.show({ type: 'success', text1: 'Name updated!' });
+      Toast.show({ type: 'success', text1: t('profile.nameUpdatedToast') });
       setPanel(null);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to update name' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.nameUpdateFailedToast') });
     } finally { setLoading(false); }
   }
 
   async function handleChangePin() {
-    if (currentPin.length !== 4) { Toast.show({ type: 'error', text1: 'Enter your current 4-digit PIN' }); return; }
-    if (newPin.length !== 4) { Toast.show({ type: 'error', text1: 'New PIN must be 4 digits' }); return; }
-    if (newPin !== confirmPin) { Toast.show({ type: 'error', text1: 'PINs do not match' }); return; }
+    if (currentPin.length !== 4) { Toast.show({ type: 'error', text1: t('profile.pinCurrentInvalidToast') }); return; }
+    if (newPin.length !== 4) { Toast.show({ type: 'error', text1: t('profile.pinNewInvalidToast') }); return; }
+    if (newPin !== confirmPin) { Toast.show({ type: 'error', text1: t('profile.pinMismatchToast') }); return; }
     setLoading(true);
     try {
       await authApi.changePin(currentPin, newPin);
-      Toast.show({ type: 'success', text1: 'PIN changed successfully!' });
+      Toast.show({ type: 'success', text1: t('profile.pinChangedToast') });
       setCurrentPin(''); setNewPin(''); setConfirmPin('');
       setPanel(null);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to change PIN' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.pinChangeFailedToast') });
     } finally { setLoading(false); }
   }
 
   async function handleUpdateEmail() {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      Toast.show({ type: 'error', text1: 'Enter a valid email address' });
+      Toast.show({ type: 'error', text1: t('profile.emailInvalidToast') });
       return;
     }
     setLoading(true);
     try {
       await authApi.updateEmail(email.trim());
-      Toast.show({ type: 'success', text1: 'Recovery email saved!' });
+      Toast.show({ type: 'success', text1: t('profile.emailSavedToast') });
       setPanel(null);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to save email' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.emailSaveFailedToast') });
     } finally { setLoading(false); }
   }
 
@@ -509,7 +508,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onValueChange={async (val) => {
                 if (val) {
                   const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Confirm to enable' });
-                  if (r.success) { await setBiometricEnabled(true); Toast.show({ type: 'success', text1: 'Biometric login enabled' }); }
+                  if (r.success) { await setBiometricEnabled(true); Toast.show({ type: 'success', text1: t('profile.biometricEnabledToast') }); }
                 } else {
                   await setBiometricEnabled(false);
                 }

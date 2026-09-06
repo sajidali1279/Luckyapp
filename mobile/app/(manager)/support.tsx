@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { supportApi } from '../../services/api';
 import { useAuthStore, isStoreManagerOrAbove } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -39,29 +40,29 @@ interface Thread {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
-  OPEN:        { label: 'Open',        bg: '#DBEAFE', color: '#1D4ED8' },
-  IN_PROGRESS: { label: 'In Progress', bg: '#FEF3C7', color: '#D97706' },
-  RESOLVED:    { label: 'Resolved',    bg: '#D1FAE5', color: '#059669' },
+const STATUS_CFG: Record<string, { labelKey: string; bg: string; color: string }> = {
+  OPEN:        { labelKey: 'statusOpen',       bg: '#DBEAFE', color: '#1D4ED8' },
+  IN_PROGRESS: { labelKey: 'statusInProgress', bg: '#FEF3C7', color: '#D97706' },
+  RESOLVED:    { labelKey: 'statusResolved',   bg: '#D1FAE5', color: '#059669' },
 };
 
-const PRIORITY_CFG: Record<string, { label: string; color: string }> = {
-  LOW:    { label: 'Low',    color: '#6B7280' },
-  NORMAL: { label: 'Normal', color: '#3B82F6' },
-  HIGH:   { label: 'High',   color: '#F59E0B' },
-  URGENT: { label: 'Urgent', color: '#EF4444' },
+const PRIORITY_CFG: Record<string, { labelKey: string; color: string }> = {
+  LOW:    { labelKey: 'priorityLow',    color: '#6B7280' },
+  NORMAL: { labelKey: 'priorityNormal', color: '#3B82F6' },
+  HIGH:   { labelKey: 'priorityHigh',   color: '#F59E0B' },
+  URGENT: { labelKey: 'priorityUrgent', color: '#EF4444' },
 };
 
 const CATEGORIES = ['General', 'Billing', 'Technical', 'Feature Request', 'Bug Report', 'Other'];
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: (key: string, opts?: any) => string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'just now';
-  if (m < 60) return `${m}m ago`;
+  if (m < 1)  return t('managerSupport.justNow');
+  if (m < 60) return t('managerSupport.minutesAgo', { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return t('managerSupport.hoursAgo', { count: h });
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -70,6 +71,7 @@ function timeAgo(iso: string) {
 function NewThreadModal({ visible, onClose, onCreated }: {
   visible: boolean; onClose: () => void; onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [subject,  setSubject]  = useState('');
   const [message,  setMessage]  = useState('');
   const [priority, setPriority] = useState('NORMAL');
@@ -80,11 +82,11 @@ function NewThreadModal({ visible, onClose, onCreated }: {
   const createMutation = useMutation({
     mutationFn: () => supportApi.createThread(subject.trim(), message.trim(), priority, category),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Ticket submitted', text2: 'Support will respond shortly.' });
+      Toast.show({ type: 'success', text1: t('managerSupport.ticketSubmitted'), text2: t('managerSupport.supportWillRespond') });
       setSubject(''); setMessage(''); setPriority('NORMAL'); setCategory('General');
       onCreated();
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit' }),
+    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || t('managerSupport.submitFailed') }),
   });
 
   const canSubmit = subject.trim().length > 0 && message.trim().length > 0;
@@ -93,12 +95,12 @@ function NewThreadModal({ visible, onClose, onCreated }: {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalHeader}>
-          <Text style={s.modalTitle}>New Support Ticket</Text>
+          <Text style={s.modalTitle}>{t('managerSupport.newTicketTitle')}</Text>
           <TouchableOpacity
             onPress={onClose}
             style={s.modalClose}
             accessibilityRole="button"
-            accessibilityLabel="Close new ticket form"
+            accessibilityLabel={t('managerSupport.closeNewTicketFormLabel')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <XIcon size={20} color={COLORS.textMuted} />
@@ -109,12 +111,12 @@ function NewThreadModal({ visible, onClose, onCreated }: {
           <ScrollView style={{ padding: 16 }} contentContainerStyle={{ gap: 14 }} keyboardShouldPersistTaps="handled">
 
             <View>
-              <Text style={s.fieldLabel}>Subject</Text>
+              <Text style={s.fieldLabel}>{t('managerSupport.subjectLabel')}</Text>
               <TextInput
                 style={s.input}
                 value={subject}
                 onChangeText={setSubject}
-                placeholder="Brief summary of the issue"
+                placeholder={t('managerSupport.subjectPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 maxLength={120}
                 autoCapitalize="sentences"
@@ -124,17 +126,17 @@ function NewThreadModal({ visible, onClose, onCreated }: {
             {/* Priority + Category row */}
             <View style={s.rowGap}>
               <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Priority</Text>
+                <Text style={s.fieldLabel}>{t('managerSupport.priorityLabel')}</Text>
                 <TouchableOpacity
                   style={s.picker}
                   onPress={() => { setShowPri(true); setShowCat(false); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select priority, currently ${PRIORITY_CFG[priority]?.label}`}
+                  accessibilityLabel={t('managerSupport.selectPriorityLabel', { priority: t(`managerSupport.${PRIORITY_CFG[priority]?.labelKey}`) })}
                   accessibilityState={{ expanded: showPri }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text style={[s.pickerText, { color: PRIORITY_CFG[priority]?.color }]}>
-                    {PRIORITY_CFG[priority]?.label}
+                    {t(`managerSupport.${PRIORITY_CFG[priority]?.labelKey}`)}
                   </Text>
                   <ChevronDownIcon size={14} color={COLORS.textMuted} />
                 </TouchableOpacity>
@@ -144,11 +146,11 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                       <TouchableOpacity key={p} style={[s.dropItem, p === priority && s.dropItemActive]}
                         onPress={() => { setPriority(p); setShowPri(false); }}
                         accessibilityRole="button"
-                        accessibilityLabel={`Set priority to ${PRIORITY_CFG[p]?.label}`}
+                        accessibilityLabel={t('managerSupport.setPriorityLabel', { priority: t(`managerSupport.${PRIORITY_CFG[p]?.labelKey}`) })}
                         hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                       >
                         <Text style={[s.dropItemText, { color: PRIORITY_CFG[p]?.color }, p === priority && { fontWeight: '700' }]}>
-                          {PRIORITY_CFG[p]?.label}
+                          {t(`managerSupport.${PRIORITY_CFG[p]?.labelKey}`)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -156,12 +158,12 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.fieldLabel}>Category</Text>
+                <Text style={s.fieldLabel}>{t('managerSupport.categoryLabel')}</Text>
                 <TouchableOpacity
                   style={s.picker}
                   onPress={() => { setShowCat(true); setShowPri(false); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select category, currently ${category}`}
+                  accessibilityLabel={t('managerSupport.selectCategoryLabel', { category })}
                   accessibilityState={{ expanded: showCat }}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
@@ -174,7 +176,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
                       <TouchableOpacity key={c} style={[s.dropItem, c === category && s.dropItemActive]}
                         onPress={() => { setCategory(c); setShowCat(false); }}
                         accessibilityRole="button"
-                        accessibilityLabel={`Set category to ${c}`}
+                        accessibilityLabel={t('managerSupport.setCategoryLabel', { category: c })}
                         hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                       >
                         <Text style={[s.dropItemText, c === category && { fontWeight: '700', color: COLORS.managerPrimary }]}>{c}</Text>
@@ -186,12 +188,12 @@ function NewThreadModal({ visible, onClose, onCreated }: {
             </View>
 
             <View>
-              <Text style={s.fieldLabel}>Message</Text>
+              <Text style={s.fieldLabel}>{t('managerSupport.messageLabel')}</Text>
               <TextInput
                 style={[s.input, s.textArea]}
                 value={message}
                 onChangeText={setMessage}
-                placeholder="Describe the issue in detail…"
+                placeholder={t('managerSupport.messagePlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 maxLength={2000}
                 multiline
@@ -205,11 +207,11 @@ function NewThreadModal({ visible, onClose, onCreated }: {
               onPress={() => createMutation.mutate()}
               disabled={!canSubmit || createMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Submit support ticket"
+              accessibilityLabel={t('managerSupport.submitTicketLabel')}
             >
               {createMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.submitBtnText}>Submit Ticket</Text>
+                : <Text style={s.submitBtnText}>{t('managerSupport.submitTicket')}</Text>
               }
             </TouchableOpacity>
           </ScrollView>
@@ -222,6 +224,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
 // ─── Thread Detail Modal ──────────────────────────────────────────────────────
 
 function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void }) {
+  const { t } = useTranslation();
   const [reply,  setReply]  = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const qc = useQueryClient();
@@ -268,7 +271,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             <Text style={s.threadHeaderTitle} numberOfLines={1}>{thread.subject}</Text>
             <View style={s.threadHeaderMeta}>
               <View style={[s.statusBadge, { backgroundColor: sc.bg + '33' }]}>
-                <Text style={[s.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                <Text style={[s.statusBadgeText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
               </View>
               <Text style={s.threadHeaderSub}>{thread.category}</Text>
             </View>
@@ -301,7 +304,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
                     <Text style={s.bubbleName}>{msg.senderName}</Text>
                   )}
                   <Text style={s.bubbleBody}>{msg.body}</Text>
-                  <Text style={s.bubbleTime}>{timeAgo(msg.createdAt)}</Text>
+                  <Text style={s.bubbleTime}>{timeAgo(msg.createdAt, t)}</Text>
                 </View>
               );
             })}
@@ -356,8 +359,20 @@ export default function SupportScreen() {
   const [showNew,    setShowNew]    = useState(false);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const qc = useQueryClient();
+  const hasAccess = isStoreManagerOrAbove(user?.role);
 
-  if (!isStoreManagerOrAbove(user?.role)) {
+  // useQuery must run every render regardless of role - calling it after an
+  // early return would change the number of hooks called between renders
+  // (e.g. across the auth-loading transition where user?.role starts
+  // undefined), which React treats as an error.
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ['support-threads'],
+    queryFn: () => supportApi.getMyThreads(),
+    refetchInterval: 30000,
+    enabled: hasAccess,
+  });
+
+  if (!hasAccess) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.center}>
@@ -368,12 +383,6 @@ export default function SupportScreen() {
       </SafeAreaView>
     );
   }
-
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
-    queryKey: ['support-threads'],
-    queryFn: () => supportApi.getMyThreads(),
-    refetchInterval: 30000,
-  });
 
   const threads: Thread[] = data?.data?.data || [];
 
@@ -459,6 +468,7 @@ export default function SupportScreen() {
 // ─── Thread Card ──────────────────────────────────────────────────────────────
 
 function ThreadCard({ thread, onPress }: { thread: Thread; onPress: () => void }) {
+  const { t } = useTranslation();
   const sc = STATUS_CFG[thread.status] || STATUS_CFG.OPEN;
   const pc = PRIORITY_CFG[thread.priority] || PRIORITY_CFG.NORMAL;
 
@@ -468,7 +478,7 @@ function ThreadCard({ thread, onPress }: { thread: Thread; onPress: () => void }
       onPress={onPress}
       activeOpacity={0.75}
       accessibilityRole="button"
-      accessibilityLabel={`Open ticket: ${thread.subject}, ${sc.label}`}
+      accessibilityLabel={`Open ticket: ${thread.subject}, ${t(sc.labelKey)}`}
     >
       <View style={s.cardTop}>
         <Text style={s.cardSubject} numberOfLines={1}>{thread.subject}</Text>
@@ -480,11 +490,11 @@ function ThreadCard({ thread, onPress }: { thread: Thread; onPress: () => void }
       </View>
       <View style={s.cardMeta}>
         <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
-          <Text style={[s.statusBadgeText, { color: sc.color }]}>{sc.label}</Text>
+          <Text style={[s.statusBadgeText, { color: sc.color }]}>{t(sc.labelKey)}</Text>
         </View>
-        <Text style={[s.priorityLabel, { color: pc.color }]}>{pc.label}</Text>
+        <Text style={[s.priorityLabel, { color: pc.color }]}>{t(pc.labelKey)}</Text>
         {thread.category && <Text style={s.cardCategory}>{thread.category}</Text>}
-        <Text style={s.cardTime}>{timeAgo(thread.lastMessageAt || thread.createdAt)}</Text>
+        <Text style={s.cardTime}>{timeAgo(thread.lastMessageAt || thread.createdAt, t)}</Text>
       </View>
     </TouchableOpacity>
   );

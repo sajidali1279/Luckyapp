@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { catalogApi, pointsApi } from '../../services/api';
 import { COLORS, TIER_CONFIG } from '../../constants';
@@ -19,24 +20,39 @@ const TIER_THRESHOLDS: Record<string, number> = {
   BRONZE: 0, SILVER: 5000, GOLD: 15000, DIAMOND: 30000, PLATINUM: 45000,
 };
 
-const TIER_BENEFITS: Record<string, string[]> = {
+const TIER_BENEFITS: Record<string, { key: string; textKey: string; isDaily: boolean }[]> = {
   BRONZE:   [],
-  SILVER:   ['7 free fountain refills this period (any time, your own cup)'],
-  GOLD:     ['1 free fountain refill daily (your own cup)', '+5¢ bonus per gallon on gas'],
-  DIAMOND:  ['1 free fountain refill daily (your own cup)', '+7¢ bonus per gallon on gas'],
-  PLATINUM: ['1 free fountain refill daily (your own cup)', '+10¢ bonus per gallon on gas'],
+  SILVER:   [{ key: 'silverRefills', textKey: 'customerRewards.benefitSilverRefills', isDaily: true }],
+  GOLD:     [
+    { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
+    { key: 'gasBonus5', textKey: 'customerRewards.benefitGasBonus5', isDaily: false },
+  ],
+  DIAMOND:  [
+    { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
+    { key: 'gasBonus7', textKey: 'customerRewards.benefitGasBonus7', isDaily: false },
+  ],
+  PLATINUM: [
+    { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
+    { key: 'gasBonus10', textKey: 'customerRewards.benefitGasBonus10', isDaily: false },
+  ],
 };
 
 // ─── Catalog config ────────────────────────────────────────────────────────────
-const CAT_DISPLAY: Record<string, { label: string; emoji: string; color: string }> = {
-  IN_STORE:  { label: 'In-Store',  emoji: '🛒', color: '#2A9D8F' },
-  GAS:       { label: 'Gas',       emoji: '⛽', color: '#F4A226' },
-  HOT_FOODS: { label: 'Hot Foods', emoji: '🌮', color: '#E63946' },
+const CAT_DISPLAY: Record<string, { labelKey: string; emoji: string; color: string }> = {
+  IN_STORE:  { labelKey: 'customerRewards.categoryInStore',  emoji: '🛒', color: '#2A9D8F' },
+  GAS:       { labelKey: 'customerRewards.categoryGas',      emoji: '⛽', color: '#F4A226' },
+  HOT_FOODS: { labelKey: 'customerRewards.categoryHotFoods', emoji: '🌮', color: '#E63946' },
 };
 const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
 
-function getCatCfg(key: string, idx = 0): { label: string; emoji: string; color: string } {
-  return CAT_DISPLAY[key] ?? {
+function getCatCfg(
+  key: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  idx = 0
+): { label: string; emoji: string; color: string } {
+  const known = CAT_DISPLAY[key];
+  if (known) return { label: t(known.labelKey), emoji: known.emoji, color: known.color };
+  return {
     label: key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
     emoji: '🏷️',
     color: CAT_FALLBACK_COLORS[idx % CAT_FALLBACK_COLORS.length],
@@ -60,6 +76,7 @@ function useCountdown(expiresAt: string | null) {
 
 // ─── Tier progress bar ─────────────────────────────────────────────────────────
 function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number }) {
+  const { t } = useTranslation();
   const cfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
   const nextTier = cfg.next;
   if (!nextTier) {
@@ -67,7 +84,7 @@ function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number 
       <View style={pb.container}>
         <View style={pb.row}>
           <Text style={pb.tierLabel}>{cfg.emoji} {cfg.label}</Text>
-          <Text style={pb.maxLabel}>Max tier - Platinum!</Text>
+          <Text style={pb.maxLabel}>{t('customerRewards.maxTier')}</Text>
         </View>
         <View style={pb.track}><View style={[pb.fill, { width: '100%', backgroundColor: cfg.color }]} /></View>
       </View>
@@ -88,8 +105,8 @@ function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number 
         <View style={[pb.fill, { width: `${Math.round(progress * 100)}%`, backgroundColor: cfg.color }]} />
       </View>
       <View style={pb.row}>
-        <Text style={pb.ptsLabel}>{periodPts.toLocaleString()} pts this period</Text>
-        <Text style={pb.remainLabel}>{remaining.toLocaleString()} to go</Text>
+        <Text style={pb.ptsLabel}>{t('customerRewards.ptsThisPeriod', { points: periodPts.toLocaleString() })}</Text>
+        <Text style={pb.remainLabel}>{t('customerRewards.ptsToGo', { points: remaining.toLocaleString() })}</Text>
       </View>
     </View>
   );
@@ -97,6 +114,7 @@ function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number 
 
 // ─── Active redemption banner ──────────────────────────────────────────────────
 function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onCancel: () => void }) {
+  const { t } = useTranslation();
   const { mins, secs, expired } = useCountdown(redemption.expiresAt);
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -115,7 +133,7 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
         <Text style={r.activeBannerEmoji}>{redemption.catalogItem?.emoji || '🎁'}</Text>
         <View style={r.activeBannerInfo}>
           <Text style={r.activeBannerTitle}>{redemption.catalogItem?.title}</Text>
-          <Text style={r.activeBannerSub}>Show code to cashier</Text>
+          <Text style={r.activeBannerSub}>{t('customerRewards.showCodeToCashier')}</Text>
         </View>
       </View>
       <View style={r.activeBannerRight}>
@@ -127,10 +145,10 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
           onPress={onCancel}
           style={r.cancelSmall}
           accessibilityRole="button"
-          accessibilityLabel={`Cancel redemption for ${redemption.catalogItem?.title}`}
+          accessibilityLabel={t('customerRewards.cancelRedemptionA11y', { title: redemption.catalogItem?.title })}
           hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
         >
-          <Text style={r.cancelSmallText}>Cancel</Text>
+          <Text style={r.cancelSmallText}>{t('customerRewards.cancel')}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -139,7 +157,8 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
 
 // ─── Catalog tile ──────────────────────────────────────────────────────────────
 function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem: (item: any) => void }) {
-  const catCfg = getCatCfg(item.category);
+  const { t } = useTranslation();
+  const catCfg = getCatCfg(item.category, t);
   const canAfford = pts >= item.pointsCost;
   const shortage = item.pointsCost - pts;
   return (
@@ -152,11 +171,11 @@ function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem
       </View>
       <Text style={ct.title} numberOfLines={2}>{item.title}</Text>
       {item.description ? <Text style={ct.desc} numberOfLines={2}>{item.description}</Text> : null}
-      {item.category === 'HOT_FOODS' && <Text style={ct.locationNote}>📍 Select locations</Text>}
+      {item.category === 'HOT_FOODS' && <Text style={ct.locationNote}>{t('customerRewards.selectLocationsNote')}</Text>}
       <View style={ct.footer}>
         <View style={[ct.costBadge, canAfford && { backgroundColor: catCfg.color }]}>
           <Text style={[ct.costPts, !canAfford && { color: COLORS.textMuted }]}>{item.pointsCost.toLocaleString()}</Text>
-          <Text style={[ct.costLabel, !canAfford && { color: COLORS.textMuted }]}>pts</Text>
+          <Text style={[ct.costLabel, !canAfford && { color: COLORS.textMuted }]}>{t('customerRewards.pts')}</Text>
         </View>
         {canAfford ? (
           <TouchableOpacity
@@ -164,13 +183,13 @@ function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem
             onPress={() => onRedeem(item)}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`Redeem ${item.title} for ${item.pointsCost.toLocaleString()} points`}
+            accessibilityLabel={t('customerRewards.redeemItemA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
             hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
           >
-            <Text style={ct.redeemBtnText}>Redeem</Text>
+            <Text style={ct.redeemBtnText}>{t('customerRewards.redeemBtn')}</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={ct.shortage}>-{shortage.toLocaleString()} pts</Text>
+          <Text style={ct.shortage}>{t('customerRewards.shortagePts', { points: shortage.toLocaleString() })}</Text>
         )}
       </View>
     </View>
@@ -181,7 +200,8 @@ function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem
 function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
   item: any; pts: number; onConfirm: () => void; onClose: () => void; loading: boolean;
 }) {
-  const catCfg = getCatCfg(item.category);
+  const { t } = useTranslation();
+  const catCfg = getCatCfg(item.category, t);
   const remaining = pts - item.pointsCost;
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -194,40 +214,40 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
           {item.description ? <Text style={md.itemDesc}>{item.description}</Text> : null}
           <View style={md.costRow}>
             <View style={md.costBox}>
-              <Text style={md.costLabel}>Cost</Text>
-              <Text style={md.costVal}>{item.pointsCost.toLocaleString()} pts</Text>
+              <Text style={md.costLabel}>{t('customerRewards.costLabel')}</Text>
+              <Text style={md.costVal}>{t('customerRewards.ptsValue', { points: item.pointsCost.toLocaleString() })}</Text>
             </View>
             <View style={md.arrowLine} />
             <View style={md.costBox}>
-              <Text style={md.costLabel}>Remaining</Text>
+              <Text style={md.costLabel}>{t('customerRewards.remainingLabel')}</Text>
               <Text style={[md.costVal, { color: remaining < 0 ? '#E63946' : COLORS.success }]}>
-                {remaining.toLocaleString()} pts
+                {t('customerRewards.ptsValue', { points: remaining.toLocaleString() })}
               </Text>
             </View>
           </View>
           <View style={md.warningBox}>
             <ClockIcon size={20} color="#F4A226" strokeWidth={2} />
             <Text style={md.warningText}>
-              Points deducted immediately. Show the code to the cashier within <Text style={{ fontWeight: '800' }}>30 minutes</Text> or points are refunded.
+              {t('customerRewards.warningPart1')} <Text style={{ fontWeight: '800' }}>{t('customerRewards.warningMinutes')}</Text> {t('customerRewards.warningPart2')}
             </Text>
           </View>
           <TouchableOpacity
             style={[md.confirmBtn, { backgroundColor: catCfg.color }, loading && { opacity: 0.6 }]}
             onPress={onConfirm} disabled={loading} activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={`Confirm redeem ${item.title} for ${item.pointsCost.toLocaleString()} points`}
+            accessibilityLabel={t('customerRewards.confirmRedeemA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={md.confirmBtnText}>Redeem Now - {item.pointsCost.toLocaleString()} pts</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={md.confirmBtnText}>{t('customerRewards.redeemNowBtn', { points: item.pointsCost.toLocaleString() })}</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             style={md.cancelBtn}
             onPress={onClose}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Cancel redemption"
+            accessibilityLabel={t('customerRewards.cancelRedemptionModalA11y')}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           >
-            <Text style={md.cancelBtnText}>Cancel</Text>
+            <Text style={md.cancelBtnText}>{t('customerRewards.cancel')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -237,6 +257,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
 
 // ─── Success modal ─────────────────────────────────────────────────────────────
 function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
+  const { t } = useTranslation();
   const { mins, secs, expired } = useCountdown(data.expiresAt);
   const urgency = mins < 5;
   if (expired) {
@@ -247,22 +268,22 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
             <View style={[md.itemIcon, { backgroundColor: '#FFF0F0', width: 80, height: 80, borderRadius: 24 }]}>
               <Text style={{ fontSize: 40 }}>⏰</Text>
             </View>
-            <Text style={[md.itemTitle, { marginTop: 12, color: '#E63946' }]}>Redemption Expired</Text>
-            <Text style={md.itemDesc}>The 30-minute window passed before the cashier scanned your code.</Text>
+            <Text style={[md.itemTitle, { marginTop: 12, color: '#E63946' }]}>{t('customerRewards.expiredTitle')}</Text>
+            <Text style={md.itemDesc}>{t('customerRewards.expiredDesc')}</Text>
             <View style={suc.refundCard}>
               <Text style={suc.refundIcon}>✅</Text>
               <View>
-                <Text style={suc.refundTitle}>Points Refunded</Text>
-                <Text style={suc.refundSub}>{data.pointsSpent} pts returned to your balance</Text>
+                <Text style={suc.refundTitle}>{t('customerRewards.refundedTitle')}</Text>
+                <Text style={suc.refundSub}>{t('customerRewards.refundedSub', { points: data.pointsSpent })}</Text>
               </View>
             </View>
             <TouchableOpacity
               style={[md.confirmBtn, { backgroundColor: COLORS.primary }]}
               onPress={onClose}
               accessibilityRole="button"
-              accessibilityLabel="Close expired redemption notice and redeem again"
+              accessibilityLabel={t('customerRewards.closeExpiredA11y')}
             >
-              <Text style={md.confirmBtnText}>Redeem Again</Text>
+              <Text style={md.confirmBtnText}>{t('customerRewards.redeemAgainBtn')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -276,27 +297,27 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
           <View style={[md.itemIcon, { backgroundColor: '#2DC65318', width: 80, height: 80, borderRadius: 24 }]}>
             <Text style={{ fontSize: 40 }}>✅</Text>
           </View>
-          <Text style={[md.itemTitle, { marginTop: 12 }]}>Redemption Active!</Text>
-          <Text style={md.itemDesc}>Show this code to the cashier to complete your reward</Text>
+          <Text style={[md.itemTitle, { marginTop: 12 }]}>{t('customerRewards.activeTitle')}</Text>
+          <Text style={md.itemDesc}>{t('customerRewards.activeDesc')}</Text>
           <View style={suc.codeCard}>
-            <Text style={suc.codeLabel}>YOUR CODE</Text>
+            <Text style={suc.codeLabel}>{t('customerRewards.yourCodeLabel')}</Text>
             <Text style={suc.code}>{data.redemptionCode}</Text>
-            <Text style={suc.codeHint}>Cashier will scan your QR + enter this code</Text>
+            <Text style={suc.codeHint}>{t('customerRewards.codeHint')}</Text>
           </View>
           <View style={[suc.timerCard, urgency && { borderColor: '#E63946', backgroundColor: '#FFF0F0' }]}>
-            <Text style={suc.timerLabel}>Expires in</Text>
+            <Text style={suc.timerLabel}>{t('customerRewards.expiresInLabel')}</Text>
             <Text style={[suc.timer, urgency && { color: '#E63946' }]}>
               {mins}:{secs.toString().padStart(2, '0')}
             </Text>
-            <Text style={suc.timerSub}>Points are refunded if not scanned in time</Text>
+            <Text style={suc.timerSub}>{t('customerRewards.timerSub')}</Text>
           </View>
           <TouchableOpacity
             style={[md.confirmBtn, { backgroundColor: COLORS.secondary }]}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close redemption confirmation"
+            accessibilityLabel={t('customerRewards.closeConfirmationA11y')}
           >
-            <Text style={md.confirmBtnText}>Done</Text>
+            <Text style={md.confirmBtnText}>{t('customerRewards.done')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -306,6 +327,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function RewardsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
@@ -347,7 +369,7 @@ export default function RewardsScreen() {
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || 'Redemption failed' }),
+    onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerRewards.redemptionFailedError') }),
   });
 
   const cancelMutation = useMutation({
@@ -355,9 +377,9 @@ export default function RewardsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
-      Toast.show({ type: 'success', text1: 'Redemption cancelled', text2: 'Points refunded to your balance' });
+      Toast.show({ type: 'success', text1: t('customerRewards.redemptionCancelledTitle'), text2: t('customerRewards.pointsRefundedBody') });
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || 'Cancel failed' }),
+    onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerRewards.cancelFailedError') }),
   });
 
   const allItems: any[] = catalogData?.data?.data || [];
@@ -365,8 +387,8 @@ export default function RewardsScreen() {
   // Derive filter tabs from live data — new categories appear automatically
   const categoryKeys = Array.from(new Set(allItems.map((i: any) => i.category).filter(Boolean))) as string[];
   const categories = [
-    { key: 'ALL', label: 'All', emoji: '🏷️', color: COLORS.secondary },
-    ...categoryKeys.map((key, idx) => ({ key, ...getCatCfg(key, idx) })),
+    { key: 'ALL', label: t('customerRewards.allCategoriesLabel'), emoji: '🏷️', color: COLORS.secondary },
+    ...categoryKeys.map((key, idx) => ({ key, ...getCatCfg(key, t, idx) })),
   ];
 
   const filtered = activeCategory === 'ALL' ? allItems : allItems.filter(i => i.category === activeCategory);
@@ -376,11 +398,11 @@ export default function RewardsScreen() {
 
   function handleCancelRedemption(redemption: any) {
     Alert.alert(
-      'Cancel Redemption?',
-      `Cancel "${redemption.catalogItem?.title}"? Your ${redemption.pointsSpent} pts will be refunded.`,
+      t('customerRewards.cancelRedemptionTitle'),
+      t('customerRewards.cancelRedemptionMessage', { title: redemption.catalogItem?.title, points: redemption.pointsSpent }),
       [
-        { text: 'Keep It', style: 'cancel' },
-        { text: 'Cancel Redemption', style: 'destructive', onPress: () => cancelMutation.mutate(redemption.id) },
+        { text: t('customerRewards.keepIt'), style: 'cancel' },
+        { text: t('customerRewards.cancelRedemptionBtn'), style: 'destructive', onPress: () => cancelMutation.mutate(redemption.id) },
       ]
     );
   }
@@ -394,10 +416,10 @@ export default function RewardsScreen() {
         <View style={r.headerInner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <StarIcon size={20} color="rgba(255,255,255,0.85)" strokeWidth={1.75} />
-            <Text style={r.headerTitle}>Rewards</Text>
+            <Text style={r.headerTitle}>{t('customerRewards.headerTitle')}</Text>
           </View>
           <View style={[r.ptsPill, { backgroundColor: tierCfg.color }]}>
-            <Text style={r.ptsPillText}>{pts.toLocaleString()} pts</Text>
+            <Text style={r.ptsPillText}>{t('customerRewards.ptsValue', { points: pts.toLocaleString() })}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -417,9 +439,9 @@ export default function RewardsScreen() {
             <View style={[r.balanceCard, { backgroundColor: tierCfg.color }]}>
               <View style={r.balanceCardTop}>
                 <View>
-                  <Text style={r.balanceLabel}>Your Points Balance</Text>
+                  <Text style={r.balanceLabel}>{t('customerRewards.balanceLabel')}</Text>
                   <Text style={r.balanceAmount}>{pts.toLocaleString()}</Text>
-                  <Text style={r.balanceSub}>points</Text>
+                  <Text style={r.balanceSub}>{t('customerRewards.pointsWord')}</Text>
                 </View>
                 <View style={r.tierBadgeLarge}>
                   <Text style={r.tierBadgeLargeEmoji}>{tierCfg.emoji}</Text>
@@ -436,24 +458,24 @@ export default function RewardsScreen() {
                 onPress={() => setBenefitModal(true)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={`View how to use your ${tierCfg.label} benefits`}
+                accessibilityLabel={t('customerRewards.viewBenefitsA11y', { tier: tierCfg.label })}
               >
                 <View style={r.sectionTitleRow}>
-                  <Text style={[r.sectionTitle, { color: tierCfg.color }]}>{tierCfg.emoji} Your {tierCfg.label} Benefits</Text>
-                  <Text style={[r.howToUse, { color: tierCfg.color }]}>How to use →</Text>
+                  <Text style={[r.sectionTitle, { color: tierCfg.color }]}>{tierCfg.emoji} {t('customerRewards.yourTierBenefits', { tier: tierCfg.label })}</Text>
+                  <Text style={[r.howToUse, { color: tierCfg.color }]}>{t('customerRewards.howToUseLink')}</Text>
                 </View>
-                {benefits.map((b, i) => {
-                  const isDaily = b.includes('free fountain') || b.includes('free refill');
+                {benefits.map((b) => {
+                  const isDaily = b.isDaily;
                   const available = benefitStatus?.available;
                   const remaining = benefitStatus?.silverRemaining;
                   return (
-                    <View key={i} style={r.benefitRow}>
+                    <View key={b.key} style={r.benefitRow}>
                       <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
-                      <Text style={r.benefitText}>{b}</Text>
+                      <Text style={r.benefitText}>{t(b.textKey)}</Text>
                       {isDaily && benefitStatus && (
                         <View style={[r.benefitStatusPill, { backgroundColor: available ? '#E8F5E9' : '#FFF3E0' }]}>
                           <Text style={[r.benefitStatusText, { color: available ? COLORS.success : '#F4A226' }]}>
-                            {tier === 'SILVER' ? `${remaining} left` : available ? 'Available' : 'Used today'}
+                            {tier === 'SILVER' ? t('customerRewards.refillsLeft', { count: remaining }) : available ? t('customerRewards.available') : t('customerRewards.usedToday')}
                           </Text>
                         </View>
                       )}
@@ -474,9 +496,9 @@ export default function RewardsScreen() {
             <View style={r.redeemHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                 <TagIcon size={16} color={COLORS.text} strokeWidth={2} />
-                <Text style={r.redeemTitle}>Redeem Rewards</Text>
+                <Text style={r.redeemTitle}>{t('customerRewards.redeemRewardsTitle')}</Text>
               </View>
-              <Text style={r.redeemSub}>Use your points for free items</Text>
+              <Text style={r.redeemSub}>{t('customerRewards.redeemRewardsSub')}</Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={r.catRow}>
@@ -490,7 +512,7 @@ export default function RewardsScreen() {
                     onPress={() => setActiveCategory(cat.key)}
                     activeOpacity={0.75}
                     accessibilityRole="tab"
-                    accessibilityLabel={`Filter rewards by ${cat.label}${active ? ', selected' : ''}`}
+                    accessibilityLabel={active ? t('customerRewards.filterByCategorySelectedA11y', { category: cat.label }) : t('customerRewards.filterByCategoryA11y', { category: cat.label })}
                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   >
                     <Text style={r.catPillEmoji}>{cat.emoji}</Text>
@@ -508,7 +530,7 @@ export default function RewardsScreen() {
             {catalogLoading && (
               <View style={r.loadingRow}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={r.loadingText}>Loading rewards…</Text>
+                <Text style={r.loadingText}>{t('customerRewards.loadingRewards')}</Text>
               </View>
             )}
           </>
@@ -516,14 +538,14 @@ export default function RewardsScreen() {
         ListEmptyComponent={
           !catalogLoading ? (
             catalogIsError ? (
-              <ErrorState message="Failed to load rewards." onRetry={() => refetch()} />
+              <ErrorState message={t('customerRewards.loadError')} onRetry={() => refetch()} />
             ) : (
               <View style={r.emptyBox}>
-                <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory).emoji}</Text>
+                <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory, t).emoji}</Text>
                 <Text style={r.emptyTitle}>
-                  {activeCategory === 'ALL' ? 'No rewards yet' : `No ${getCatCfg(activeCategory).label} rewards yet`}
+                  {activeCategory === 'ALL' ? t('customerRewards.emptyTitleAll') : t('customerRewards.emptyTitleCategory', { category: getCatCfg(activeCategory, t).label })}
                 </Text>
-                <Text style={r.emptySub}>Check back soon - new rewards are added regularly</Text>
+                <Text style={r.emptySub}>{t('customerRewards.emptySubtitle')}</Text>
               </View>
             )
           ) : null
@@ -534,7 +556,7 @@ export default function RewardsScreen() {
               <View style={r.hintIconWrap}>
                 <ClockIcon size={16} color={COLORS.secondary} strokeWidth={2} />
               </View>
-              <Text style={r.hintText}>Tap Redeem → show the code to the cashier → they scan your QR to confirm.</Text>
+              <Text style={r.hintText}>{t('customerRewards.hintText')}</Text>
             </View>
           ) : <View style={{ height: 32 }} />
         }
@@ -562,26 +584,26 @@ export default function RewardsScreen() {
             <View style={[md.itemIcon, { backgroundColor: tierCfg.color + '18', width: 72, height: 72, borderRadius: 22 }]}>
               <Text style={{ fontSize: 36 }}>{tierCfg.emoji}</Text>
             </View>
-            <Text style={[md.itemTitle, { color: tierCfg.color }]}>{tierCfg.label} Benefits</Text>
+            <Text style={[md.itemTitle, { color: tierCfg.color }]}>{t('customerRewards.tierBenefitsTitle', { tier: tierCfg.label })}</Text>
 
             {/* Status pill */}
             {benefitStatus && (
               <View style={[bm.statusPill, { backgroundColor: benefitStatus.available ? '#E8F5E9' : '#FFF3E0' }]}>
                 <Text style={[bm.statusText, { color: benefitStatus.available ? COLORS.success : '#F4A226' }]}>
                   {tier === 'SILVER'
-                    ? `${benefitStatus.silverRemaining} refills remaining this period`
-                    : benefitStatus.available ? '✓ Refill available today' : '✗ Refill used today - resets tomorrow'}
+                    ? t('customerRewards.refillsRemainingPeriod', { count: benefitStatus.silverRemaining })
+                    : benefitStatus.available ? t('customerRewards.refillAvailableToday') : t('customerRewards.refillUsedToday')}
                 </Text>
               </View>
             )}
 
             {/* Steps */}
             <View style={bm.stepsBox}>
-              <Text style={bm.stepsTitle}>How to claim at the register</Text>
+              <Text style={bm.stepsTitle}>{t('customerRewards.stepsTitle')}</Text>
               {[
-                { n: '1', text: 'Open the app and go to your QR code on the Home tab' },
-                { n: '2', text: 'Show the cashier your QR and ask for your free fountain refill - bring your own cup' },
-                { n: '3', text: 'The cashier will scan your QR and apply the benefit - nothing else needed' },
+                { n: '1', text: t('customerRewards.step1') },
+                { n: '2', text: t('customerRewards.step2') },
+                { n: '3', text: t('customerRewards.step3') },
               ].map(step => (
                 <View key={step.n} style={bm.stepRow}>
                   <View style={[bm.stepNum, { backgroundColor: tierCfg.color }]}>
@@ -596,9 +618,9 @@ export default function RewardsScreen() {
               style={[md.confirmBtn, { backgroundColor: tierCfg.color }]}
               onPress={() => setBenefitModal(false)}
               accessibilityRole="button"
-              accessibilityLabel="Close benefits info"
+              accessibilityLabel={t('customerRewards.closeBenefitsInfoA11y')}
             >
-              <Text style={md.confirmBtnText}>Got it</Text>
+              <Text style={md.confirmBtnText}>{t('customerRewards.gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { router, useFocusEffect } from 'expo-router';
 import { notificationsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -55,15 +56,15 @@ function NotifIcon({ type, color }: { type: string; color: string }) {
   }
 }
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1)  return t('sharedNotifications.justNow');
+  if (mins < 60) return t('sharedNotifications.minutesAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
+  if (hrs < 24)  return t('sharedNotifications.hoursAgo', { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 7)  return `${days}d ago`;
+  if (days < 7)  return t('sharedNotifications.daysAgo', { count: days });
   return new Date(dateStr).toLocaleDateString();
 }
 
@@ -79,6 +80,7 @@ interface Notification {
 }
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -124,11 +126,11 @@ export default function NotificationsScreen() {
 
   function confirmClearAll() {
     Alert.alert(
-      'Clear all notifications?',
-      'This permanently removes every notification in your inbox.',
+      t('sharedNotifications.clearAllTitle'),
+      t('sharedNotifications.clearAllMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear All', style: 'destructive', onPress: () => clearAllMutation.mutate() },
+        { text: t('sharedNotifications.cancel'), style: 'cancel' },
+        { text: t('sharedNotifications.clearAllConfirm'), style: 'destructive', onPress: () => clearAllMutation.mutate() },
       ],
     );
   }
@@ -170,7 +172,11 @@ export default function NotificationsScreen() {
 
     const expired = item.type === 'OFFER' && item.expiresAt && new Date(item.expiresAt) < new Date();
     if (expired) {
-      Alert.alert('Offer Ended', `"${item.title}" has expired and is no longer available.`, [{ text: 'Got it' }]);
+      Alert.alert(
+        t('sharedNotifications.offerEndedTitle'),
+        t('sharedNotifications.offerEndedMessage', { title: item.title }),
+        [{ text: t('sharedNotifications.gotIt') }],
+      );
       return;
     }
 
@@ -183,7 +189,7 @@ export default function NotificationsScreen() {
 
     const isExpiredOffer = item.type === 'OFFER' && !!item.expiresAt && new Date(item.expiresAt) < new Date();
     const hasAction = !!item.actionUrl;
-    const actionLabel = isExpiredOffer ? 'Expired' : hasAction ? 'View →' : null;
+    const actionLabel = isExpiredOffer ? t('sharedNotifications.expiredLabel') : hasAction ? t('sharedNotifications.viewAction') : null;
 
     return (
       <TouchableOpacity
@@ -191,7 +197,7 @@ export default function NotificationsScreen() {
         onPress={() => handlePress(item)}
         activeOpacity={0.75}
         accessibilityRole="button"
-        accessibilityLabel={`${item.title}${!item.isRead ? ', unread' : ''}`}
+        accessibilityLabel={!item.isRead ? t('sharedNotifications.unreadItemA11y', { title: item.title }) : item.title}
       >
         <View style={[s.iconWrap, { backgroundColor: cfg.color + (isExpiredOffer ? '0C' : '18') }]}>
           <NotifIcon type={item.type} color={isExpiredOffer ? cfg.color + '70' : cfg.color} />
@@ -202,13 +208,13 @@ export default function NotificationsScreen() {
               {item.title}
             </Text>
             {isGasAlert
-              ? <View style={s.actionBadge}><Text style={s.actionBadgeText}>Update pumps</Text></View>
+              ? <View style={s.actionBadge}><Text style={s.actionBadgeText}>{t('sharedNotifications.updatePumpsBadge')}</Text></View>
               : !item.isRead && !isExpiredOffer && <View style={[s.dot, { backgroundColor: cfg.color }]} />
             }
           </View>
           <Text style={[s.cardText, isExpiredOffer && { opacity: 0.5 }]} numberOfLines={2}>{item.body}</Text>
           <View style={s.cardBottom}>
-            <Text style={s.cardTime}>{timeAgo(item.createdAt)}</Text>
+            <Text style={s.cardTime}>{timeAgo(item.createdAt, t)}</Text>
             {actionLabel && (
               <Text style={[s.cardAction, { color: isExpiredOffer ? COLORS.border : cfg.color }]}>
                 {actionLabel}
@@ -224,7 +230,7 @@ export default function NotificationsScreen() {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={headerBg} />
       <SafeAreaView style={[s.header, { backgroundColor: headerBg }]}>
-        <Text style={s.headerTitle}>Notifications</Text>
+        <Text style={s.headerTitle}>{t('sharedNotifications.title')}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {unreadCount > 0 && (
             <TouchableOpacity
@@ -232,10 +238,10 @@ export default function NotificationsScreen() {
               onPress={() => markAllMutation.mutate()}
               disabled={markAllMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Mark all notifications as read"
+              accessibilityLabel={t('sharedNotifications.markAllReadA11y')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={s.headerBtnText}>Mark read</Text>
+              <Text style={s.headerBtnText}>{t('sharedNotifications.markReadButton')}</Text>
             </TouchableOpacity>
           )}
           {notifications.length > 0 && (
@@ -244,10 +250,10 @@ export default function NotificationsScreen() {
               onPress={confirmClearAll}
               disabled={clearAllMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Clear all notifications"
+              accessibilityLabel={t('sharedNotifications.clearAllA11y')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={[s.headerBtnText, s.headerBtnClearText]}>Clear all</Text>
+              <Text style={[s.headerBtnText, s.headerBtnClearText]}>{t('sharedNotifications.clearAllButton')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -258,11 +264,11 @@ export default function NotificationsScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : isError ? (
-        <ErrorState message="Failed to load notifications." onRetry={() => refetch()} />
+        <ErrorState message={t('sharedNotifications.errorLoading')} onRetry={() => refetch()} />
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
           {notifications.length === 0 ? (
-            <EmptyState icon={<BellIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="All caught up!" subtitle="No notifications yet. We'll let you know when something happens." />
+            <EmptyState icon={<BellIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title={t('sharedNotifications.emptyTitle')} subtitle={t('sharedNotifications.emptySubtitle')} />
           ) : (
             <FlatList
               data={notifications}

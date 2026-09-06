@@ -16,6 +16,7 @@ import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore } from '../store/authStore';
 import { useCurrentStoreId } from '../utils/geo';
 import { STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge, formatEndsOn } from '../utils/labelStatus';
+import ErrorState from './ErrorState';
 
 type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
 
@@ -153,7 +154,10 @@ export default function LabelsScreen() {
   // Every catalog item, annotated with this store's own StoreLabel (if any)
   // when a store is known — powers both the Catalog view's "already added"
   // status and the dedupe/autocomplete lookups below.
-  const { data: catalogData } = useQuery({
+  const {
+    data: catalogData, isLoading: catalogLoading, isError: catalogIsError,
+    isRefetching: catalogRefetching, refetch: refetchCatalog,
+  } = useQuery({
     queryKey: ['mobile-labels', 'catalog-all', storeId],
     queryFn: () => labelsApi.getAllWithMyStore(storeId),
   });
@@ -166,9 +170,9 @@ export default function LabelsScreen() {
   });
   const myPrints: StoreLabelItem[] = myPrintsData?.data?.data || [];
 
-  const isLoading = viewMode === 'ready' ? myPrintsLoading : false;
-  const isRefetching = viewMode === 'ready' ? myPrintsRefetching : false;
-  const refetch = viewMode === 'ready' ? refetchMyPrints : (() => qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] }));
+  const isLoading = viewMode === 'ready' ? myPrintsLoading : catalogLoading;
+  const isRefetching = viewMode === 'ready' ? myPrintsRefetching : catalogRefetching;
+  const refetch = viewMode === 'ready' ? refetchMyPrints : refetchCatalog;
 
   // A search hitting zero results in the current view might still exist
   // elsewhere in the shared catalog (e.g. already printed, or created by
@@ -867,7 +871,13 @@ export default function LabelsScreen() {
         </ScrollView>
       )}
 
-      {!storeId ? null : viewMode === 'catalog' ? (
+      {!storeId ? null : viewMode === 'catalog' && catalogLoading ? (
+        <View style={s.center}>
+          <ActivityIndicator color={accentColor} />
+        </View>
+      ) : viewMode === 'catalog' && catalogIsError ? (
+        <ErrorState message="Failed to load the catalog." onRetry={() => refetchCatalog()} />
+      ) : viewMode === 'catalog' ? (
         filteredCatalog.length === 0 ? (
           <View style={s.center}>
             <TagIcon size={48} color={COLORS.border} strokeWidth={1.5} />

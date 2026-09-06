@@ -5,33 +5,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
 import { TypeIcon } from './ManagerRequestsScreen';
 
-const REQUEST_TYPES = [
-  { value: 'LOW_STOCK',                  label: 'Low Stock Alert',  desc: 'A section or product is running very low', bg: '#eff6ff', color: '#1D3557' },
-  { value: 'STORE_SUPPLIES',             label: 'Store Supplies',   desc: 'Bags, cleaning supplies, etc.',             bg: '#fefce8', color: '#b45309' },
-  { value: 'CUSTOMER_REQUESTED_PRODUCT', label: 'Customer Asking',  desc: 'Customer wants something we don\'t have',   bg: '#f0fdf4', color: '#16a34a' },
-  { value: 'WORK_ORDER',                 label: 'Work Order',       desc: 'Equipment broken or needs maintenance',      bg: '#fdf4ff', color: '#7c3aed' },
-];
-
-const PRIORITIES = [
-  { value: 'LOW',    label: 'Low',    color: '#2DC653', bg: '#f0fdf4' },
-  { value: 'MEDIUM', label: 'Medium', color: '#f59e0b', bg: '#fffbeb' },
-  { value: 'HIGH',   label: 'High',   color: '#E63946', bg: '#fff1f2' },
-];
-
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock Alert',
-  STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
-  WORK_ORDER: 'Work Order',
 };
 
 const TYPE_BG: Record<string, string> = {
@@ -61,7 +42,29 @@ function formatTime(iso: string) {
 }
 
 export default function EmployeeRequestsScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const REQUEST_TYPES = [
+    { value: 'LOW_STOCK',                  label: t('sharedEmployeeRequests.typeLowStockLabel'),        desc: t('sharedEmployeeRequests.typeLowStockDesc'),        bg: '#eff6ff', color: '#1D3557' },
+    { value: 'STORE_SUPPLIES',             label: t('sharedEmployeeRequests.typeStoreSuppliesLabel'),   desc: t('sharedEmployeeRequests.typeStoreSuppliesDesc'),   bg: '#fefce8', color: '#b45309' },
+    { value: 'CUSTOMER_REQUESTED_PRODUCT', label: t('sharedEmployeeRequests.typeCustomerAskingLabel'),  desc: t('sharedEmployeeRequests.typeCustomerAskingDesc'),  bg: '#f0fdf4', color: '#16a34a' },
+    { value: 'WORK_ORDER',                 label: t('sharedEmployeeRequests.typeWorkOrderLabel'),       desc: t('sharedEmployeeRequests.typeWorkOrderDesc'),       bg: '#fdf4ff', color: '#7c3aed' },
+  ];
+
+  const PRIORITIES = [
+    { value: 'LOW',    label: t('sharedEmployeeRequests.priorityLow'),    color: '#2DC653', bg: '#f0fdf4' },
+    { value: 'MEDIUM', label: t('sharedEmployeeRequests.priorityMedium'), color: '#f59e0b', bg: '#fffbeb' },
+    { value: 'HIGH',   label: t('sharedEmployeeRequests.priorityHigh'),   color: '#E63946', bg: '#fff1f2' },
+  ];
+
+  const TYPE_LABELS: Record<string, string> = {
+    LOW_STOCK: t('sharedEmployeeRequests.typeLowStockLabel'),
+    STORE_SUPPLIES: t('sharedEmployeeRequests.typeStoreSuppliesLabel'),
+    CUSTOMER_REQUESTED_PRODUCT: t('sharedEmployeeRequests.typeCustomerAskingLabel'),
+    WORK_ORDER: t('sharedEmployeeRequests.typeWorkOrderLabel'),
+  };
+
   const [showForm, setShowForm] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -96,11 +99,11 @@ export default function EmployeeRequestsScreen() {
       setSelectedType(null);
       setSelectedPriority(null);
       setNotes('');
-      Alert.alert('Alert Sent', 'Your store alert has been sent to your manager.');
+      Alert.alert(t('sharedEmployeeRequests.alertSentTitle'), t('sharedEmployeeRequests.alertSentMessage'));
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || err?.message || 'Something went wrong. Please try again.';
-      Alert.alert('Failed to Send', msg);
+      const msg = err?.response?.data?.error || err?.message || t('sharedEmployeeRequests.genericErrorMessage');
+      Alert.alert(t('sharedEmployeeRequests.failedToSendTitle'), msg);
     },
   });
 
@@ -143,14 +146,14 @@ export default function EmployeeRequestsScreen() {
             <View style={s.ackBox}>
               <Text style={s.ackIcon}>✅</Text>
               <View style={{ flex: 1 }}>
-                <Text style={s.ackBy}>Acknowledged by {item.acknowledgerName}</Text>
+                <Text style={s.ackBy}>{t('sharedEmployeeRequests.acknowledgedBy', { name: item.acknowledgerName })}</Text>
                 {item.acknowledgerNote ? <Text style={s.ackNote}>"{item.acknowledgerNote}"</Text> : null}
               </View>
             </View>
           ) : (
             <View style={s.pendingPill}>
               <View style={s.pendingDot} />
-              <Text style={s.pendingText}>Awaiting manager review</Text>
+              <Text style={s.pendingText}>{t('sharedEmployeeRequests.awaitingReview')}</Text>
             </View>
           )}
         </View>
@@ -164,17 +167,17 @@ export default function EmployeeRequestsScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>🔔 STORE ALERTS</Text>
-            <Text style={s.headerTitle}>My Alerts</Text>
+            <Text style={s.headerEyebrow}>{t('sharedEmployeeRequests.headerEyebrow')}</Text>
+            <Text style={s.headerTitle}>{t('sharedEmployeeRequests.headerTitle')}</Text>
           </View>
           <TouchableOpacity
             style={s.newBtn}
             onPress={() => setShowForm(true)}
             accessibilityRole="button"
-            accessibilityLabel="Create new store alert"
+            accessibilityLabel={t('sharedEmployeeRequests.newAlertA11y')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={s.newBtnText}>+ New Alert</Text>
+            <Text style={s.newBtnText}>{t('sharedEmployeeRequests.newAlertButton')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -182,15 +185,15 @@ export default function EmployeeRequestsScreen() {
         <View style={s.statsRow}>
           <View style={s.statPill}>
             <Text style={s.statNum}>{myRequests.length}</Text>
-            <Text style={s.statLbl}>Total</Text>
+            <Text style={s.statLbl}>{t('sharedEmployeeRequests.statTotal')}</Text>
           </View>
           <View style={[s.statPill, pendingCount > 0 && s.statPillWarning]}>
             <Text style={[s.statNum, pendingCount > 0 && s.statNumWarning]}>{pendingCount}</Text>
-            <Text style={[s.statLbl, pendingCount > 0 && s.statNumWarning]}>Pending</Text>
+            <Text style={[s.statLbl, pendingCount > 0 && s.statNumWarning]}>{t('sharedEmployeeRequests.statPending')}</Text>
           </View>
           <View style={[s.statPill, { backgroundColor: 'rgba(45,198,83,0.15)' }]}>
             <Text style={[s.statNum, { color: '#2DC653' }]}>{myRequests.length - pendingCount}</Text>
-            <Text style={[s.statLbl, { color: '#2DC653' }]}>Done</Text>
+            <Text style={[s.statLbl, { color: '#2DC653' }]}>{t('sharedEmployeeRequests.statDone')}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -201,16 +204,16 @@ export default function EmployeeRequestsScreen() {
       ) : myRequests.length === 0 ? (
         <View style={s.centered}>
           <Text style={s.emptyEmoji}>📭</Text>
-          <Text style={s.emptyTitle}>No requests yet</Text>
-          <Text style={s.emptySub}>Tap "+ New" to alert your manager about a store issue</Text>
+          <Text style={s.emptyTitle}>{t('sharedEmployeeRequests.emptyTitle')}</Text>
+          <Text style={s.emptySub}>{t('sharedEmployeeRequests.emptySubtitle')}</Text>
           <TouchableOpacity
             style={s.emptyBtn}
             onPress={() => setShowForm(true)}
             accessibilityRole="button"
-            accessibilityLabel="Create first store alert"
+            accessibilityLabel={t('sharedEmployeeRequests.createFirstA11y')}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={s.emptyBtnText}>Create First Request</Text>
+            <Text style={s.emptyBtnText}>{t('sharedEmployeeRequests.createFirstButton')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -233,14 +236,14 @@ export default function EmployeeRequestsScreen() {
             <View style={s.modalHeaderDrag} />
             <View style={s.modalHeaderRow}>
               <View>
-                <Text style={s.modalHeaderTitle}>New Store Alert</Text>
-                <Text style={s.modalHeaderSub}>Notify your manager of a store issue</Text>
+                <Text style={s.modalHeaderTitle}>{t('sharedEmployeeRequests.modalTitle')}</Text>
+                <Text style={s.modalHeaderSub}>{t('sharedEmployeeRequests.modalSubtitle')}</Text>
               </View>
               <TouchableOpacity
                 style={s.modalCloseBtn}
                 onPress={() => setShowForm(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Close new alert form"
+                accessibilityLabel={t('sharedEmployeeRequests.closeFormA11y')}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Text style={s.modalCloseText}>✕</Text>
@@ -253,14 +256,14 @@ export default function EmployeeRequestsScreen() {
             {/* No store warning */}
             {noStoreAssigned && (
               <View style={s.warnBox}>
-                <Text style={s.warnText}>⚠️ You're not assigned to any store yet. Ask your manager to assign you first.</Text>
+                <Text style={s.warnText}>{t('sharedEmployeeRequests.noStoreWarning')}</Text>
               </View>
             )}
 
             {/* Store picker */}
             {stores.length > 1 && (
               <View style={s.formSection}>
-                <Text style={s.formSectionLabel}>Store</Text>
+                <Text style={s.formSectionLabel}>{t('sharedEmployeeRequests.storeLabel')}</Text>
                 <View style={s.chipRow}>
                   {stores.map((st) => (
                     <TouchableOpacity
@@ -268,7 +271,7 @@ export default function EmployeeRequestsScreen() {
                       style={[s.chip, selectedStore === st.id && s.chipActive]}
                       onPress={() => setSelectedStore(st.id)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Select store: ${st.name}`}
+                      accessibilityLabel={t('sharedEmployeeRequests.selectStoreA11y', { name: st.name })}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Text style={[s.chipText, selectedStore === st.id && s.chipTextActive]}>{st.name}</Text>
@@ -280,26 +283,26 @@ export default function EmployeeRequestsScreen() {
 
             {/* Request type */}
             <View style={s.formSection}>
-              <Text style={s.formSectionLabel}>Request Type</Text>
+              <Text style={s.formSectionLabel}>{t('sharedEmployeeRequests.requestTypeLabel')}</Text>
               <View style={s.typeGrid}>
-                {REQUEST_TYPES.map((t) => {
-                  const active = selectedType === t.value;
+                {REQUEST_TYPES.map((reqType) => {
+                  const active = selectedType === reqType.value;
                   return (
                     <TouchableOpacity
-                      key={t.value}
-                      style={[s.typeCard, active && { borderColor: t.color, backgroundColor: t.bg }]}
-                      onPress={() => setSelectedType(t.value)}
+                      key={reqType.value}
+                      style={[s.typeCard, active && { borderColor: reqType.color, backgroundColor: reqType.bg }]}
+                      onPress={() => setSelectedType(reqType.value)}
                       activeOpacity={0.75}
                       accessibilityRole="button"
-                      accessibilityLabel={`Select request type: ${t.label}`}
+                      accessibilityLabel={t('sharedEmployeeRequests.selectTypeA11y', { label: reqType.label })}
                     >
-                      <View style={[s.typeCardIconWrap, { backgroundColor: active ? t.bg : '#f3f4f6' }]}>
-                        <TypeIcon type={t.value} color={active ? t.color : '#374151'} />
+                      <View style={[s.typeCardIconWrap, { backgroundColor: active ? reqType.bg : '#f3f4f6' }]}>
+                        <TypeIcon type={reqType.value} color={active ? reqType.color : '#374151'} />
                       </View>
-                      <Text style={[s.typeCardLabel, active && { color: t.color }]}>{t.label}</Text>
-                      <Text style={s.typeCardDesc}>{t.desc}</Text>
+                      <Text style={[s.typeCardLabel, active && { color: reqType.color }]}>{reqType.label}</Text>
+                      <Text style={s.typeCardDesc}>{reqType.desc}</Text>
                       {active && (
-                        <View style={[s.typeCardCheck, { backgroundColor: t.color }]}>
+                        <View style={[s.typeCardCheck, { backgroundColor: reqType.color }]}>
                           <Text style={s.typeCardCheckText}>✓</Text>
                         </View>
                       )}
@@ -311,7 +314,7 @@ export default function EmployeeRequestsScreen() {
 
             {/* Priority */}
             <View style={s.formSection}>
-              <Text style={s.formSectionLabel}>Priority</Text>
+              <Text style={s.formSectionLabel}>{t('sharedEmployeeRequests.priorityLabel')}</Text>
               <View style={s.priorityRow}>
                 {PRIORITIES.map((p) => {
                   const active = selectedPriority === p.value;
@@ -325,7 +328,7 @@ export default function EmployeeRequestsScreen() {
                       onPress={() => setSelectedPriority(p.value)}
                       activeOpacity={0.75}
                       accessibilityRole="button"
-                      accessibilityLabel={`Select priority: ${p.label}`}
+                      accessibilityLabel={t('sharedEmployeeRequests.selectPriorityA11y', { label: p.label })}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <View style={[s.prioBtnDot, { backgroundColor: active ? '#fff' : p.color }]} />
@@ -338,12 +341,12 @@ export default function EmployeeRequestsScreen() {
 
             {/* Notes */}
             <View style={s.formSection}>
-              <Text style={s.formSectionLabel}>Notes <Text style={s.optionalTag}>(optional)</Text></Text>
+              <Text style={s.formSectionLabel}>{t('sharedEmployeeRequests.notesLabel')} <Text style={s.optionalTag}>{t('sharedEmployeeRequests.optionalTag')}</Text></Text>
               <TextInput
                 style={s.notesInput}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="e.g. Chips aisle is almost empty…"
+                placeholder={t('sharedEmployeeRequests.notesPlaceholder')}
                 placeholderTextColor="#9ca3af"
                 multiline
                 maxLength={300}
@@ -360,11 +363,11 @@ export default function EmployeeRequestsScreen() {
               disabled={!canSubmit || submitMutation.isPending}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Send store alert"
+              accessibilityLabel={t('sharedEmployeeRequests.sendAlertA11y')}
             >
               {submitMutation.isPending
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.submitBtnText}>Send Alert →</Text>
+                : <Text style={s.submitBtnText}>{t('sharedEmployeeRequests.sendAlertButton')}</Text>
               }
             </TouchableOpacity>
 

@@ -7,6 +7,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
 import { scannedProductApi, orderCategoriesApi } from '../../services/api';
 import {
@@ -35,18 +36,19 @@ function mapOFFCategory(tags: string[]): string | null {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function CatalogScreen() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('scan');
 
   const tabs: { key: Tab; label: string; Icon: any }[] = [
-    { key: 'scan',   label: 'Rapid Scan', Icon: QrCodeScanIcon },
-    { key: 'manual', label: 'Manual Add', Icon: PlusIcon },
-    { key: 'browse', label: 'Browse',     Icon: ListIcon },
-    { key: 'photo',  label: 'Photo',      Icon: CameraIcon },
+    { key: 'scan',   label: t('managerCatalog.tabScan'),   Icon: QrCodeScanIcon },
+    { key: 'manual', label: t('managerCatalog.tabManual'), Icon: PlusIcon },
+    { key: 'browse', label: t('managerCatalog.tabBrowse'), Icon: ListIcon },
+    { key: 'photo',  label: t('managerCatalog.tabPhoto'),  Icon: CameraIcon },
   ];
 
   return (
     <View style={s.root}>
-      <ManagerHeader size="sm" title="Store Catalog" icon={<PackageIcon size={18} color="#fff" strokeWidth={2} />} />
+      <ManagerHeader size="sm" title={t('managerCatalog.title')} icon={<PackageIcon size={18} color="#fff" strokeWidth={2} />} />
 
       {/* Tab bar */}
       <View style={s.tabBar}>
@@ -57,7 +59,7 @@ export default function CatalogScreen() {
             onPress={() => setTab(key)}
             activeOpacity={0.75}
             accessibilityRole="tab"
-            accessibilityLabel={`${label} tab`}
+            accessibilityLabel={t('managerCatalog.tabAriaLabel', { label })}
             hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
           >
             <Icon size={15} color={tab === key ? COLORS.managerPrimary : COLORS.textMuted} strokeWidth={2} />
@@ -77,6 +79,7 @@ export default function CatalogScreen() {
 // ─── Rapid Scan Tab ───────────────────────────────────────────────────────────
 
 function ScanTab() {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [phase,      setPhase]          = useState<ScanPhase>('ready');
   const [resultName, setResultName]     = useState('');
@@ -179,7 +182,7 @@ function ScanTab() {
       qc.invalidateQueries({ queryKey: ['catalog-list'] });
       setTimeout(resetToReady, 2200);
     } catch (err: any) {
-      Alert.alert('Save failed', err?.response?.data?.error || 'Check your connection');
+      Alert.alert(t('managerCatalog.saveFailedTitle'), err?.response?.data?.error || t('managerCatalog.checkConnection'));
       resetToReady();
     } finally {
       setSaving(false);
@@ -193,14 +196,14 @@ function ScanTab() {
   if (!permission.granted) {
     return (
       <View style={s.center}>
-        <Text style={s.permText}>Camera access is needed to scan barcodes.</Text>
+        <Text style={s.permText}>{t('managerCatalog.cameraPermText')}</Text>
         <TouchableOpacity
           style={s.permBtn}
           onPress={requestPermission}
           accessibilityRole="button"
-          accessibilityLabel="Allow camera access"
+          accessibilityLabel={t('managerCatalog.allowCameraLabel')}
         >
-          <Text style={s.permBtnText}>Allow Camera</Text>
+          <Text style={s.permBtnText}>{t('managerCatalog.allowCamera')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -234,14 +237,14 @@ function ScanTab() {
         {phase === 'ready' && (
           <View style={s.phaseRow}>
             <QrCodeScanIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
-            <Text style={s.phaseHint}>Point camera at a product barcode</Text>
+            <Text style={s.phaseHint}>{t('managerCatalog.pointCamera')}</Text>
           </View>
         )}
 
         {phase === 'checking' && (
           <View style={s.phaseRow}>
             <ActivityIndicator size="small" color={COLORS.managerPrimary} />
-            <Text style={[s.phaseHint, { marginLeft: 8 }]}>Looking up product…</Text>
+            <Text style={[s.phaseHint, { marginLeft: 8 }]}>{t('managerCatalog.lookingUpProduct')}</Text>
           </View>
         )}
 
@@ -250,7 +253,7 @@ function ScanTab() {
             <CheckCircleIcon size={20} color={phase === 'added' ? '#16A34A' : COLORS.textMuted} strokeWidth={2.5} />
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={[s.bannerLabel, phase === 'added' && { color: '#15803D' }]}>
-                {phase === 'added' ? 'Added to catalog' : 'Already in catalog'}
+                {phase === 'added' ? t('managerCatalog.addedToCatalog') : t('managerCatalog.alreadyInCatalog')}
               </Text>
               <Text style={s.bannerName} numberOfLines={1}>{resultName}</Text>
             </View>
@@ -259,13 +262,13 @@ function ScanTab() {
 
         {phase === 'needs_name' && (
           <View>
-            <Text style={s.namingLabel}>Not in any database - enter a name:</Text>
+            <Text style={s.namingLabel}>{t('managerCatalog.notInDatabase')}</Text>
             <TextInput
               ref={nameRef}
               style={s.namingInput}
               value={nameInput}
               onChangeText={setNameInput}
-              placeholder="Product name  e.g. Whole Milk 1 Gallon"
+              placeholder={t('managerCatalog.productNamePlaceholderFull')}
               placeholderTextColor="#B0B8C4"
               autoCapitalize="words"
               autoCorrect={false}
@@ -276,7 +279,7 @@ function ScanTab() {
               style={[s.namingInput, { marginTop: 8 }]}
               value={catInput}
               onChangeText={setCatInput}
-              placeholder="Category  (optional)"
+              placeholder={t('managerCatalog.categoryPlaceholderShort')}
               placeholderTextColor="#B0B8C4"
               autoCapitalize="words"
               autoCorrect={false}
@@ -289,10 +292,10 @@ function ScanTab() {
                 style={s.skipBtn}
                 onPress={resetToReady}
                 accessibilityRole="button"
-                accessibilityLabel="Skip adding this product"
+                accessibilityLabel={t('managerCatalog.skipProductLabel')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <Text style={s.skipBtnText}>Skip</Text>
+                <Text style={s.skipBtnText}>{t('managerCatalog.skip')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.saveBtn, (!nameInput.trim() || saving) && { opacity: 0.4 }]}
@@ -300,12 +303,12 @@ function ScanTab() {
                 disabled={!nameInput.trim() || saving}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Save new product to catalog"
+                accessibilityLabel={t('managerCatalog.saveNewProductLabel')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {saving
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={s.saveBtnText}>Add to Catalog</Text>}
+                  : <Text style={s.saveBtnText}>{t('managerCatalog.addToCatalog')}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -319,6 +322,7 @@ function ScanTab() {
 // ─── Manual Add Tab ───────────────────────────────────────────────────────────
 
 function ManualTab() {
+  const { t } = useTranslation();
   const [name,        setName]       = useState('');
   const [category,    setCategory]   = useState('');
   const [barcode,     setBarcode]    = useState('');
@@ -361,7 +365,7 @@ function ManualTab() {
       qc.invalidateQueries({ queryKey: ['catalog-list'] });
       nameRef.current?.focus();
     } catch (err: any) {
-      Alert.alert('Save failed', err?.response?.data?.error || 'Check your connection');
+      Alert.alert(t('managerCatalog.saveFailedTitle'), err?.response?.data?.error || t('managerCatalog.checkConnection'));
     } finally {
       setAdding(false);
     }
@@ -377,16 +381,16 @@ function ManualTab() {
       >
         <FadeSlideIn>
         <Text style={s.manualHint}>
-          Add products from your book. Category is kept between entries so you can batch-add by section.
+          {t('managerCatalog.manualHint')}
         </Text>
 
-        <Text style={s.fieldLabel}>Product name  <Text style={s.required}>*</Text></Text>
+        <Text style={s.fieldLabel}>{t('managerCatalog.productNameLabel')}  <Text style={s.required}>*</Text></Text>
         <TextInput
           ref={nameRef}
           style={s.fieldInput}
           value={name}
           onChangeText={setName}
-          placeholder="e.g. Whole Milk 1 Gallon"
+          placeholder={t('managerCatalog.productNamePlaceholder')}
           placeholderTextColor="#B0B8C4"
           autoCapitalize="words"
           autoCorrect={false}
@@ -396,7 +400,7 @@ function ManualTab() {
         />
 
         <Text style={[s.fieldLabel, { marginTop: 16 }]}>
-          Category  <Text style={s.optional}>(optional)</Text>
+          {t('managerCatalog.categoryLabel')}  <Text style={s.optional}>{t('managerCatalog.optionalHint')}</Text>
         </Text>
         <View>
           <TextInput
@@ -405,7 +409,7 @@ function ManualTab() {
             onChangeText={onCatChange}
             onFocus={() => catSuggs.length > 0 && setShowSuggs(true)}
             onBlur={() => setTimeout(() => setShowSuggs(false), 120)}
-            placeholder="e.g. Groceries, Frozen Foods"
+            placeholder={t('managerCatalog.categoryPlaceholder')}
             placeholderTextColor="#B0B8C4"
             autoCapitalize="words"
             autoCorrect={false}
@@ -420,7 +424,7 @@ function ManualTab() {
                   style={s.suggRow}
                   onPress={() => { setCategory(c); setShowSuggs(false); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Use category ${c}`}
+                  accessibilityLabel={t('managerCatalog.useCategoryLabel', { category: c })}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
                   <Text style={s.suggText}>{c}</Text>
@@ -431,13 +435,13 @@ function ManualTab() {
         </View>
 
         <Text style={[s.fieldLabel, { marginTop: 16 }]}>
-          Barcode  <Text style={s.optional}>(optional - enter if you have it)</Text>
+          {t('managerCatalog.barcodeLabel')}  <Text style={s.optional}>{t('managerCatalog.barcodeOptionalHint')}</Text>
         </Text>
         <TextInput
           style={s.fieldInput}
           value={barcode}
           onChangeText={setBarcode}
-          placeholder="e.g. 012345678901"
+          placeholder={t('managerCatalog.barcodePlaceholder')}
           placeholderTextColor="#B0B8C4"
           keyboardType="numeric"
           returnKeyType="done"
@@ -451,16 +455,16 @@ function ManualTab() {
           disabled={!name.trim() || adding}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Add product to catalog"
+          accessibilityLabel={t('managerCatalog.addProductLabel')}
         >
           {adding
             ? <ActivityIndicator color="#fff" />
-            : <><PlusIcon size={17} color="#fff" strokeWidth={2.5} /><Text style={s.addBtnText}>Add to Catalog</Text></>}
+            : <><PlusIcon size={17} color="#fff" strokeWidth={2.5} /><Text style={s.addBtnText}>{t('managerCatalog.addToCatalog')}</Text></>}
         </TouchableOpacity>
 
         {recentItems.length > 0 && (
           <View style={{ marginTop: 28 }}>
-            <Text style={s.recentHeader}>Added this session - {recentItems.length}</Text>
+            <Text style={s.recentHeader}>{t('managerCatalog.recentSessionCount', { count: recentItems.length })}</Text>
             {recentItems.map((item, i) => (
               <View key={i} style={s.recentRow}>
                 <CheckCircleIcon size={13} color="#16A34A" strokeWidth={2.5} />
@@ -484,6 +488,7 @@ function ManualTab() {
 const CATEGORY_PREVIEW_COUNT = 5;
 
 function BrowseTab() {
+  const { t } = useTranslation();
   const [searchQ, setSearchQ] = useState('');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
@@ -499,34 +504,34 @@ function BrowseTab() {
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = {};
     items.forEach(item => {
-      const cat = item.category || 'Uncategorized';
+      const cat = item.category || t('managerCatalog.uncategorized');
       if (!map[cat]) map[cat] = [];
       map[cat].push(item);
     });
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
-  }, [items]);
+  }, [items, t]);
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => scannedProductApi.delete(id),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['catalog-list'] }),
-    onError:    () => Alert.alert('Error', 'Could not remove item'),
+    onError:    () => Alert.alert(t('managerCatalog.genericErrorTitle'), t('managerCatalog.removeItemError')),
   });
 
   function confirmDelete(id: string, name: string) {
     Alert.alert(
-      'Remove from catalog?',
-      `"${name}" won't appear in scan suggestions anymore.`,
+      t('managerCatalog.removeConfirmTitle'),
+      t('managerCatalog.removeConfirmMessage', { name }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => deleteMut.mutate(id) },
+        { text: t('managerCatalog.cancel'), style: 'cancel' },
+        { text: t('managerCatalog.remove'), style: 'destructive', onPress: () => deleteMut.mutate(id) },
       ]
     );
   }
 
   const sourceLabel = (src: string, barcode: string) => {
-    if (barcode?.startsWith('NOBARCODE_')) return 'manual (no barcode)';
-    if (src === 'openfoodfacts') return 'Open Food Facts';
-    return 'manual';
+    if (barcode?.startsWith('NOBARCODE_')) return t('managerCatalog.sourceManualNoBarcode');
+    if (src === 'openfoodfacts') return t('managerCatalog.sourceOpenFoodFacts');
+    return t('managerCatalog.sourceManual');
   };
 
   function toggleExpanded(cat: string) {
@@ -544,7 +549,7 @@ function BrowseTab() {
           style={s.searchInput}
           value={searchQ}
           onChangeText={setSearchQ}
-          placeholder="Search catalog…"
+          placeholder={t('managerCatalog.searchPlaceholder')}
           placeholderTextColor="#B0B8C4"
           autoCapitalize="none"
           autoCorrect={false}
@@ -556,12 +561,12 @@ function BrowseTab() {
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load the catalog." onRetry={() => refetch()} />
+        <ErrorState message={t('managerCatalog.loadCatalogError')} onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <FadeSlideIn style={[s.center, { paddingBottom: 60 }]}>
           <PackageIcon size={52} color={COLORS.border} strokeWidth={1.25} />
           <Text style={s.emptyText}>
-            {searchQ ? 'No matches found' : 'Catalog is empty\nUse Rapid Scan or Manual Add to get started'}
+            {searchQ ? t('managerCatalog.noMatches') : t('managerCatalog.emptyCatalog')}
           </Text>
         </FadeSlideIn>
       ) : (
@@ -572,7 +577,7 @@ function BrowseTab() {
           showsVerticalScrollIndicator={false}
         >
         <FadeSlideIn>
-          <Text style={s.totalLabel}>{items.length} product{items.length !== 1 ? 's' : ''} in catalog</Text>
+          <Text style={s.totalLabel}>{t('managerCatalog.productCountInCatalog', { count: items.length })}</Text>
 
           {grouped.map(([cat, catItems]) => {
             const isExpanded = expandedCats.has(cat);
@@ -600,7 +605,7 @@ function BrowseTab() {
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       disabled={deleteMut.isPending}
                       accessibilityRole="button"
-                      accessibilityLabel={`Remove ${item.name} from catalog`}
+                      accessibilityLabel={t('managerCatalog.removeItemLabel', { name: item.name })}
                     >
                       <Trash2Icon size={15} color="#EF4444" strokeWidth={2} />
                     </TouchableOpacity>
@@ -611,9 +616,9 @@ function BrowseTab() {
                     style={s.showMoreRow}
                     onPress={() => toggleExpanded(cat)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Show ${hiddenCount} more in ${cat}`}
+                    accessibilityLabel={t('managerCatalog.showMoreLabel', { count: hiddenCount, category: cat })}
                   >
-                    <Text style={s.showMoreText}>Show all {catItems.length} in {cat}</Text>
+                    <Text style={s.showMoreText}>{t('managerCatalog.showAllInCategory', { count: catItems.length, category: cat })}</Text>
                   </TouchableOpacity>
                 )}
                 {isExpanded && catItems.length > CATEGORY_PREVIEW_COUNT && (
@@ -621,9 +626,9 @@ function BrowseTab() {
                     style={s.showMoreRow}
                     onPress={() => toggleExpanded(cat)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Collapse ${cat}`}
+                    accessibilityLabel={t('managerCatalog.collapseLabel', { category: cat })}
                   >
-                    <Text style={s.showMoreText}>Show fewer</Text>
+                    <Text style={s.showMoreText}>{t('managerCatalog.showFewer')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -641,6 +646,7 @@ function BrowseTab() {
 type ExtractedItem = { name: string; barcode: string | null; category: string | null; selected: boolean };
 
 function PhotoTab() {
+  const { t } = useTranslation();
   const [imageUri,   setImageUri]   = useState<string | null>(null);
   const [analyzing,  setAnalyzing]  = useState(false);
   const [items,      setItems]      = useState<ExtractedItem[]>([]);
@@ -672,12 +678,12 @@ function PhotoTab() {
         selected: true,
       }));
       if (extracted.length === 0) {
-        Alert.alert('No products found', 'The AI could not read any products from this image. Try a clearer, well-lit photo with the page flat.');
+        Alert.alert(t('managerCatalog.noProductsFoundTitle'), t('managerCatalog.noProductsFoundMessage'));
       }
       setItems(extracted);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || 'Processing failed';
-      Alert.alert('Error', msg);
+      const msg = err?.response?.data?.error || err?.message || t('managerCatalog.processingFailed');
+      Alert.alert(t('managerCatalog.genericErrorTitle'), msg);
     } finally {
       setAnalyzing(false);
     }
@@ -714,7 +720,7 @@ function PhotoTab() {
       <FadeSlideIn>
       {/* Instructions */}
       <Text style={s.photoHint}>
-        Take a photo of any page from your product book. AI will read all product names and barcodes at once.
+        {t('managerCatalog.photoHint')}
       </Text>
 
       {/* Image picker buttons */}
@@ -724,20 +730,20 @@ function PhotoTab() {
           onPress={() => pickImage(true)}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Take a photo of product page"
+          accessibilityLabel={t('managerCatalog.takePhotoLabel')}
         >
           <CameraIcon size={20} color={COLORS.managerPrimary} strokeWidth={2} />
-          <Text style={s.photoPickLabel}>Take Photo</Text>
+          <Text style={s.photoPickLabel}>{t('managerCatalog.takePhoto')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={s.photoPickBtn}
           onPress={() => pickImage(false)}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Choose photo from gallery"
+          accessibilityLabel={t('managerCatalog.chooseFromGalleryLabel')}
         >
           <ListIcon size={20} color={COLORS.managerPrimary} strokeWidth={2} />
-          <Text style={s.photoPickLabel}>Choose from Gallery</Text>
+          <Text style={s.photoPickLabel}>{t('managerCatalog.chooseFromGallery')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -751,12 +757,12 @@ function PhotoTab() {
             disabled={analyzing}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Analyze photo to extract products"
+            accessibilityLabel={t('managerCatalog.analyzePhotoLabel')}
           >
             {analyzing ? (
-              <><ActivityIndicator color="#fff" size="small" /><Text style={s.analyzeBtnText}>Reading page…</Text></>
+              <><ActivityIndicator color="#fff" size="small" /><Text style={s.analyzeBtnText}>{t('managerCatalog.readingPage')}</Text></>
             ) : (
-              <><CameraIcon size={18} color="#fff" strokeWidth={2} /><Text style={s.analyzeBtnText}>Analyze Page</Text></>
+              <><CameraIcon size={18} color="#fff" strokeWidth={2} /><Text style={s.analyzeBtnText}>{t('managerCatalog.analyzePage')}</Text></>
             )}
           </TouchableOpacity>
         </View>
@@ -766,14 +772,14 @@ function PhotoTab() {
       {items.length > 0 && (
         <View style={{ marginTop: 20 }}>
           <View style={s.resultsHeader}>
-            <Text style={s.resultsTitle}>Found {items.length} product{items.length !== 1 ? 's' : ''}</Text>
+            <Text style={s.resultsTitle}>{t('managerCatalog.foundProducts', { count: items.length })}</Text>
             <TouchableOpacity
               onPress={() => setItems(prev => prev.map(i => ({ ...i, selected: !prev.every(x => x.selected) })))}
               accessibilityRole="button"
-              accessibilityLabel={`${items.every(i => i.selected) ? 'Deselect all' : 'Select all'} products`}
+              accessibilityLabel={items.every(i => i.selected) ? t('managerCatalog.deselectAllLabel') : t('managerCatalog.selectAllLabel')}
               hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
             >
-              <Text style={s.selectAllText}>{items.every(i => i.selected) ? 'Deselect all' : 'Select all'}</Text>
+              <Text style={s.selectAllText}>{items.every(i => i.selected) ? t('managerCatalog.deselectAll') : t('managerCatalog.selectAll')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -784,7 +790,7 @@ function PhotoTab() {
               onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, selected: !x.selected } : x))}
               activeOpacity={0.75}
               accessibilityRole="switch"
-              accessibilityLabel={`Toggle selection of ${item.name}`}
+              accessibilityLabel={t('managerCatalog.toggleSelectionLabel', { name: item.name })}
               accessibilityState={{ checked: item.selected }}
             >
               <View style={[s.checkbox, item.selected && s.checkboxChecked]}>
@@ -793,8 +799,8 @@ function PhotoTab() {
               <View style={{ flex: 1 }}>
                 <Text style={s.extractedName} numberOfLines={2}>{item.name}</Text>
                 <Text style={s.extractedMeta}>
-                  {item.category ?? 'No category'}
-                  {item.barcode ? `  ·  ${item.barcode}` : '  ·  no barcode'}
+                  {item.category ?? t('managerCatalog.noCategory')}
+                  {item.barcode ? `  ·  ${item.barcode}` : `  ·  ${t('managerCatalog.noBarcode')}`}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -803,7 +809,7 @@ function PhotoTab() {
           {savedCount !== null && (
             <View style={s.savedBanner}>
               <CheckCircleIcon size={16} color="#16A34A" strokeWidth={2.5} />
-              <Text style={s.savedBannerText}>{savedCount} item{savedCount !== 1 ? 's' : ''} added to catalog</Text>
+              <Text style={s.savedBannerText}>{t('managerCatalog.itemsAddedToCatalog', { count: savedCount })}</Text>
             </View>
           )}
 
@@ -813,21 +819,21 @@ function PhotoTab() {
             disabled={!selectedCount || saving}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={`Add ${selectedCount} item${selectedCount !== 1 ? 's' : ''} to catalog`}
+            accessibilityLabel={t('managerCatalog.addItemsAriaLabel', { count: selectedCount })}
           >
             {saving
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.saveAllBtnText}>Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} to Catalog</Text>}
+              : <Text style={s.saveAllBtnText}>{t('managerCatalog.addItemsButton', { count: selectedCount })}</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={{ alignItems: 'center', marginTop: 12, padding: 8 }}
             onPress={() => { setImageUri(null); setItems([]); setSavedCount(null); }}
             accessibilityRole="button"
-            accessibilityLabel="Reset and scan another page"
+            accessibilityLabel={t('managerCatalog.resetScanLabel')}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>Scan another page</Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted }}>{t('managerCatalog.scanAnotherPage')}</Text>
           </TouchableOpacity>
         </View>
       )}

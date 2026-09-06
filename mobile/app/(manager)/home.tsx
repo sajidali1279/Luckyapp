@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi, notificationsApi, orderListApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -27,11 +28,11 @@ const RANK = [
   { bg: '#FEF0E6', color: '#C2410C', border: '#FED7AA' }, // 3 - bronze
 ];
 
-function getGreeting() {
+function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return t('managerHome.goodMorning');
+  if (h < 17) return t('managerHome.goodAfternoon');
+  return t('managerHome.goodEvening');
 }
 
 const PERIODS = [
@@ -55,10 +56,12 @@ function CategoryBar({ name, pct, count, color }: { name: string; pct: number; c
 }
 
 export default function ManagerHome() {
+  const { t } = useTranslation();
   const user = useAuthStore(s => s.user);
   const [period, setPeriod] = useState('30');
   const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
   // Staggered entrance — 4 groups fade + slide up on mount
   const fadeAnims  = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
@@ -78,7 +81,13 @@ export default function ManagerHome() {
     staleTime: 5 * 60 * 1000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
-  const storeId = stores[0]?.id;
+  useEffect(() => {
+    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
+  }, [stores]);
+  // Order List and Inventory Analytics below are scoped to one store at a
+  // time - a multi-store manager picks which via the chip row in the
+  // header, same pattern as Offers/Banners/Schedule.
+  const storeId = selectedStoreId || user?.storeIds?.[0];
 
   const { data: activeListData } = useQuery({
     queryKey: ['order-list-active', storeId],
@@ -153,12 +162,12 @@ export default function ManagerHome() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
             <Image source={require('../../assets/store-icon-512.png')} style={s.headerLogo} />
             <View>
-              <Text style={s.greeting}>{getGreeting()}</Text>
-              <Text style={s.name}>{user?.name?.split(' ')[0] ?? 'Manager'}</Text>
+              <Text style={s.greeting}>{getGreeting(t)}</Text>
+              <Text style={s.name}>{user?.name?.split(' ')[0] ?? t('managerHome.managerFallback')}</Text>
               {stores.length === 1
                 ? <Text style={s.storeName}>{stores[0].name}</Text>
                 : stores.length > 1
-                  ? <Text style={s.storeName}>{stores.length} stores</Text>
+                  ? <Text style={s.storeName}>{t('managerHome.storesCount', { count: stores.length })}</Text>
                   : null
               }
             </View>
@@ -170,7 +179,7 @@ export default function ManagerHome() {
               onPress={() => router.push('/(manager)/notifications')}
               style={s.bellBtn}
               accessibilityRole="button"
-              accessibilityLabel={`View notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+              accessibilityLabel={unreadCount > 0 ? t('managerHome.viewNotificationsUnreadLabel', { count: unreadCount }) : t('managerHome.viewNotificationsLabel')}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <BellIcon size={20} color="#fff" strokeWidth={2} />
@@ -185,7 +194,7 @@ export default function ManagerHome() {
               onPress={() => router.push('/(manager)/profile')}
               activeOpacity={0.75}
               accessibilityRole="button"
-              accessibilityLabel="Open profile"
+              accessibilityLabel={t('managerHome.openProfileLabel')}
             >
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
@@ -197,6 +206,27 @@ export default function ManagerHome() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {stores.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
+            {stores.map(store => (
+              <TouchableOpacity
+                key={store.id}
+                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
+                onPress={() => setSelectedStoreId(store.id)}
+                activeOpacity={0.75}
+                accessibilityRole="tab"
+                accessibilityLabel={t('managerHome.showDashboardForStore', { store: store.name })}
+                accessibilityState={{ selected: store.id === storeId }}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              >
+                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
+                  {store.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
       </View>
       </SafeAreaView>
@@ -217,7 +247,7 @@ export default function ManagerHome() {
               onPress={() => router.push('/(manager)/order-list')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={`View order list, ${activeListItems.length} items`}
+              accessibilityLabel={t('managerHome.viewOrderListLabel', { count: activeListItems.length })}
             >
               <View style={s.quickTop}>
                 <View style={[s.quickIconBox, { backgroundColor: COLORS.managerPrimary + '15' }]}>
@@ -225,30 +255,30 @@ export default function ManagerHome() {
                 </View>
                 <ChevronRightIcon size={14} color="#ADB5BD" />
               </View>
-              <Text style={s.quickLabel}>Order List</Text>
+              <Text style={s.quickLabel}>{t('managerHome.orderListLabel')}</Text>
               {activeListItems.length > 0 ? (
                 <>
                   <Text style={s.quickValue}>{activeListItems.length}</Text>
                   <View style={s.miniPillRow}>
                     {neededCount > 0 && (
                       <View style={[s.miniPill, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                        <Text style={[s.miniPillText, { color: '#C2410C' }]}>{neededCount} needed</Text>
+                        <Text style={[s.miniPillText, { color: '#C2410C' }]}>{t('managerHome.neededCount', { count: neededCount })}</Text>
                       </View>
                     )}
                     {orderedCount > 0 && (
                       <View style={[s.miniPill, { backgroundColor: '#ECFDF5', borderColor: '#6EE7B7' }]}>
-                        <Text style={[s.miniPillText, { color: '#059669' }]}>{orderedCount} ordered</Text>
+                        <Text style={[s.miniPillText, { color: '#059669' }]}>{t('managerHome.orderedCount', { count: orderedCount })}</Text>
                       </View>
                     )}
                     {neededCount === 0 && orderedCount === 0 && (
-                      <Text style={s.quickSub}>All received</Text>
+                      <Text style={s.quickSub}>{t('managerHome.allReceived')}</Text>
                     )}
                   </View>
                 </>
               ) : (
                 <>
                   <Text style={s.quickValue}> - </Text>
-                  <Text style={s.quickSub}>No open list</Text>
+                  <Text style={s.quickSub}>{t('managerHome.noOpenList')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -259,7 +289,7 @@ export default function ManagerHome() {
               onPress={() => router.push('/(manager)/requests')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={`View employee requests, ${pendingCount} pending`}
+              accessibilityLabel={t('managerHome.viewRequestsLabel', { count: pendingCount })}
             >
               <View style={s.quickTop}>
                 <View style={[s.quickIconBox, { backgroundColor: pendingCount > 0 ? '#FFF7ED' : COLORS.managerPrimary + '15' }]}>
@@ -267,16 +297,16 @@ export default function ManagerHome() {
                 </View>
                 <ChevronRightIcon size={14} color="#ADB5BD" />
               </View>
-              <Text style={s.quickLabel}>Requests</Text>
+              <Text style={s.quickLabel}>{t('managerHome.requestsLabel')}</Text>
               <Text style={[s.quickValue, pendingCount > 0 && { color: '#EA580C' }]}>
                 {pendingCount}
               </Text>
               {pendingCount > 0 ? (
                 <View style={[s.quickBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-                  <Text style={[s.quickBadgeText, { color: '#C2410C' }]}>REVIEW</Text>
+                  <Text style={[s.quickBadgeText, { color: '#C2410C' }]}>{t('managerHome.reviewBadge')}</Text>
                 </View>
               ) : (
-                <Text style={s.quickSub}>All clear</Text>
+                <Text style={s.quickSub}>{t('managerHome.allClear')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -290,16 +320,16 @@ export default function ManagerHome() {
               onPress={() => router.push('/(manager)/requests')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Review ${pendingCount} pending item ${pendingCount === 1 ? 'request' : 'requests'}`}
+              accessibilityLabel={t('managerHome.reviewPendingLabel', { count: pendingCount })}
             >
               <View style={s.alertIcon}>
                 <InboxIcon size={18} color="#C2410C" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.alertTitle}>
-                  {pendingCount} pending item {pendingCount === 1 ? 'request' : 'requests'}
+                  {t('managerHome.pendingItemsTitle', { count: pendingCount })}
                 </Text>
-                <Text style={s.alertSub}>Tap to review and add to order list</Text>
+                <Text style={s.alertSub}>{t('managerHome.tapToReview')}</Text>
               </View>
               <ChevronRightIcon size={16} color="#C2410C" />
             </TouchableOpacity>
@@ -310,22 +340,25 @@ export default function ManagerHome() {
         <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
           <View style={s.sectionHeader}>
             <TrendingUpIcon size={15} color={COLORS.managerPrimary} />
-            <Text style={s.sectionTitle}>Order History</Text>
+            <Text style={s.sectionTitle}>{t('managerHome.orderHistory')}</Text>
             <View style={s.periodPicker}>
-              {PERIODS.map(p => (
+              {PERIODS.map(p => {
+                const periodLabel = p.value === 'all' ? t('managerHome.periodAll') : p.label;
+                return (
                 <TouchableOpacity
                   key={p.value}
                   style={[s.periodBtn, period === p.value && s.periodBtnActive]}
                   onPress={() => setPeriod(p.value)}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Show order history for ${p.label}`}
+                  accessibilityLabel={t('managerHome.showOrderHistoryForPeriod', { period: periodLabel })}
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                 >
                   <Text style={[s.periodBtnText, period === p.value && s.periodBtnTextActive]}>
-                    {p.label}
+                    {periodLabel}
                   </Text>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
           </View>
 
@@ -342,10 +375,10 @@ export default function ManagerHome() {
                 style={[s.chip, category === '' && s.chipActive]}
                 onPress={() => setCategory('')}
                 accessibilityRole="tab"
-                accessibilityLabel="Filter by all categories"
+                accessibilityLabel={t('managerHome.filterAllCategoriesLabel')}
                 hitSlop={{ top: 9, bottom: 9, left: 8, right: 8 }}
               >
-                <Text style={[s.chipText, category === '' && s.chipTextActive]}>All</Text>
+                <Text style={[s.chipText, category === '' && s.chipTextActive]}>{t('managerHome.categoryAll')}</Text>
               </TouchableOpacity>
               {categoryOptions.map(c => (
                 <TouchableOpacity
@@ -353,7 +386,7 @@ export default function ManagerHome() {
                   style={[s.chip, category === c && s.chipActive]}
                   onPress={() => setCategory(category === c ? '' : c)}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Filter by category: ${c}`}
+                  accessibilityLabel={t('managerHome.filterByCategoryLabel', { category: c })}
                   hitSlop={{ top: 9, bottom: 9, left: 8, right: 8 }}
                 >
                   <Text style={[s.chipText, category === c && s.chipTextActive]} numberOfLines={1}>
@@ -370,34 +403,34 @@ export default function ManagerHome() {
           {isLoading ? (
             <View style={s.loadingBox}>
               <ActivityIndicator color={COLORS.managerPrimary} />
-              <Text style={s.loadingText}>Loading analytics…</Text>
+              <Text style={s.loadingText}>{t('managerHome.loadingAnalytics')}</Text>
             </View>
           ) : isError ? (
             <View style={s.card}>
-              <ErrorState message="Failed to load inventory analytics." onRetry={() => refetch()} />
+              <ErrorState message={t('managerHome.loadAnalyticsError')} onRetry={() => refetch()} />
             </View>
           ) : (
             <>
               {/* Top ordered items */}
               <View style={s.card}>
                 <View style={s.cardHeader}>
-                  <Text style={s.cardTitle}>Most Ordered Items</Text>
-                  {totalItems > 0 && <Text style={s.cardSub}>{totalItems} total</Text>}
+                  <Text style={s.cardTitle}>{t('managerHome.mostOrderedItems')}</Text>
+                  {totalItems > 0 && <Text style={s.cardSub}>{t('managerHome.totalCount', { count: totalItems })}</Text>}
                 </View>
                 {topItems.length === 0 ? (
                   <View style={s.emptyBox}>
                     <View style={s.emptyIcon}><PackageIcon size={28} color={COLORS.border} /></View>
-                    <Text style={s.empty}>No orders yet for this period</Text>
-                    <Text style={s.emptySub}>Start tracking by logging your first order list</Text>
+                    <Text style={s.empty}>{t('managerHome.noOrdersYet')}</Text>
+                    <Text style={s.emptySub}>{t('managerHome.startTrackingHint')}</Text>
                     <TouchableOpacity
                       style={s.emptyAction}
                       onPress={() => router.push('/(manager)/order-list')}
                       activeOpacity={0.75}
                       accessibilityRole="button"
-                      accessibilityLabel="Open order list"
+                      accessibilityLabel={t('managerHome.openOrderListLabel')}
                       hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
                     >
-                      <Text style={s.emptyActionText}>Open order list →</Text>
+                      <Text style={s.emptyActionText}>{t('managerHome.openOrderListArrow')}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -416,7 +449,7 @@ export default function ManagerHome() {
                         </View>
                         <View style={s.itemCountBox}>
                           <Text style={s.itemCount}>{item.orderCount}</Text>
-                          <Text style={s.itemCountLabel}>orders</Text>
+                          <Text style={s.itemCountLabel}>{t('managerHome.ordersLabel')}</Text>
                         </View>
                       </View>
                     );
@@ -428,8 +461,8 @@ export default function ManagerHome() {
               {categories.length > 0 && (
                 <View style={s.card}>
                   <View style={s.cardHeader}>
-                    <Text style={s.cardTitle}>By Category</Text>
-                    <Text style={s.cardSub}>{categories.length} categories</Text>
+                    <Text style={s.cardTitle}>{t('managerHome.byCategory')}</Text>
+                    <Text style={s.cardSub}>{t('managerHome.categoriesCount', { count: categories.length })}</Text>
                   </View>
                   {categories.map((cat, i) => (
                     <CategoryBar
@@ -475,6 +508,18 @@ const s = StyleSheet.create({
   greeting:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500', letterSpacing: 0.3 },
   name:      { fontSize: 24, color: '#FFFFFF', fontWeight: '800', marginTop: 1, letterSpacing: -0.3 },
   storeName: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3, fontWeight: '400' },
+
+  storePickerRow: {
+    flexDirection: 'row', gap: 8, paddingTop: 14, zIndex: 1,
+  },
+  storeChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
+  storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
+  storeChipTextActive: { color: '#fff', fontWeight: '700' },
+
   // Bell + avatar
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   bellBtn: {

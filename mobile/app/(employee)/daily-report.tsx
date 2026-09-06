@@ -9,6 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { dailyReportApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
@@ -18,6 +19,7 @@ import {
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import { useCurrentStoreId } from '../../utils/geo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ function fmtTimeNow() {
 // ─── Task Box ─────────────────────────────────────────────────────────────────
 
 function TaskBox({ done, lastReport, onPress }: { done: boolean; lastReport?: DailyReport; onPress: () => void }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity
       style={[tb.card, done && tb.cardDone]}
@@ -79,24 +82,24 @@ function TaskBox({ done, lastReport, onPress }: { done: boolean; lastReport?: Da
           }
         </View>
         <View>
-          <Text style={[tb.title, done && tb.titleDone]}>Daily Report</Text>
+          <Text style={[tb.title, done && tb.titleDone]}>{t('employeeDailyReport.title')}</Text>
           {done && lastReport ? (
             <Text style={tb.subDone}>
-              Submitted by {lastReport.submittedBy.name || lastReport.submittedBy.phone} at {fmtTime(lastReport.createdAt)}
+              {t('employeeDailyReport.submittedBy', { name: lastReport.submittedBy.name || lastReport.submittedBy.phone, time: fmtTime(lastReport.createdAt) })}
             </Text>
           ) : (
-            <Text style={tb.sub}>Tap to submit today's report</Text>
+            <Text style={tb.sub}>{t('employeeDailyReport.tapToSubmit')}</Text>
           )}
         </View>
       </View>
 
       {done ? (
         <View style={tb.donePill}>
-          <Text style={tb.donePillText}>✓ Done</Text>
+          <Text style={tb.donePillText}>{t('employeeDailyReport.donePill')}</Text>
         </View>
       ) : (
         <View style={tb.duePill}>
-          <Text style={tb.duePillText}>Due Today</Text>
+          <Text style={tb.duePillText}>{t('employeeDailyReport.dueTodayPill')}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -106,6 +109,7 @@ function TaskBox({ done, lastReport, onPress }: { done: boolean; lastReport?: Da
 // ─── Report Card ──────────────────────────────────────────────────────────────
 
 function ReportCard({ report }: { report: DailyReport }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [imgErr, setImgErr] = useState(false);
 
@@ -152,25 +156,25 @@ function ReportCard({ report }: { report: DailyReport }) {
           {/* Prices */}
           {(report.gasPrice != null || report.dieselPrice != null) && (
             <>
-              <Text style={rc.sectionLabel}>Today's Prices</Text>
-              {report.gasPrice != null && <Text style={rc.detail}>Gas: ${report.gasPrice.toFixed(3)}/gal</Text>}
-              {report.dieselPrice != null && <Text style={rc.detail}>Diesel: ${report.dieselPrice.toFixed(3)}/gal</Text>}
+              <Text style={rc.sectionLabel}>{t('employeeDailyReport.todaysPrices')}</Text>
+              {report.gasPrice != null && <Text style={rc.detail}>{t('employeeDailyReport.gasLine', { price: report.gasPrice.toFixed(3) })}</Text>}
+              {report.dieselPrice != null && <Text style={rc.detail}>{t('employeeDailyReport.dieselLine', { price: report.dieselPrice.toFixed(3) })}</Text>}
             </>
           )}
           {/* Inventory */}
           {(report.regGasGal != null || report.midGradeGasGal != null || report.premiumGasGal != null || report.cigsCount != null) && (
             <>
-              <Text style={[rc.sectionLabel, { marginTop: 10 }]}>Today's Inventory</Text>
-              {report.regGasGal != null && <Text style={rc.detail}>Regular Gas: {report.regGasGal} gal</Text>}
-              {report.midGradeGasGal != null && <Text style={rc.detail}>Mid-Grade Gas: {report.midGradeGasGal} gal</Text>}
-              {report.premiumGasGal != null && <Text style={rc.detail}>Premium Gas: {report.premiumGasGal} gal</Text>}
-              {report.cigsCount != null && <Text style={rc.detail}>Cigarettes: {report.cigsCount} packs</Text>}
+              <Text style={[rc.sectionLabel, { marginTop: 10 }]}>{t('employeeDailyReport.todaysInventory')}</Text>
+              {report.regGasGal != null && <Text style={rc.detail}>{t('employeeDailyReport.regularGasLine', { value: report.regGasGal })}</Text>}
+              {report.midGradeGasGal != null && <Text style={rc.detail}>{t('employeeDailyReport.midGradeGasLine', { value: report.midGradeGasGal })}</Text>}
+              {report.premiumGasGal != null && <Text style={rc.detail}>{t('employeeDailyReport.premiumGasLine', { value: report.premiumGasGal })}</Text>}
+              {report.cigsCount != null && <Text style={rc.detail}>{t('employeeDailyReport.cigarettesLine', { value: report.cigsCount })}</Text>}
             </>
           )}
           {/* Notes */}
           {report.notes && (
             <>
-              <Text style={[rc.sectionLabel, { marginTop: 10 }]}>Notes</Text>
+              <Text style={[rc.sectionLabel, { marginTop: 10 }]}>{t('employeeDailyReport.notesLabel')}</Text>
               <Text style={rc.noteText}>{report.notes}</Text>
             </>
           )}
@@ -191,7 +195,7 @@ function ReportCard({ report }: { report: DailyReport }) {
 
 // ─── Submit Form Sheet ────────────────────────────────────────────────────────
 
-interface StoreOption { id: string; name: string; gasPricePerGallon?: number | null; dieselPricePerGallon?: number | null }
+interface StoreOption { id: string; name: string; gasPricePerGallon?: number | null; dieselPricePerGallon?: number | null; latitude?: number | null; longitude?: number | null }
 
 interface FormSheetProps {
   visible: boolean;
@@ -202,6 +206,7 @@ interface FormSheetProps {
 }
 
 function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: FormSheetProps) {
+  const { t } = useTranslation();
   const now = new Date();
 
   const [selectedStoreId, setSelectedStoreId] = useState(defaultStoreId || stores[0]?.id || '');
@@ -237,17 +242,17 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 
   async function takePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Toast.show({ type: 'error', text1: 'Camera permission denied' }); return; }
+    if (status !== 'granted') { Toast.show({ type: 'error', text1: t('employeeDailyReport.cameraPermissionDenied') }); return; }
     const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   }
 
   function showPhotoOptions() {
-    Alert.alert('Attach Photo', undefined, [
-      { text: 'Take Photo',          onPress: takePhoto },
-      { text: 'Choose from Library', onPress: pickImage },
-      ...(imageUri ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('employeeDailyReport.attachPhotoTitle'), undefined, [
+      { text: t('employeeDailyReport.takePhoto'),          onPress: takePhoto },
+      { text: t('employeeDailyReport.chooseFromLibrary'), onPress: pickImage },
+      ...(imageUri ? [{ text: t('employeeDailyReport.remove'), style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
+      { text: t('employeeDailyReport.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -271,11 +276,11 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
         (fd as any).append('image', { uri: imageUri, name: filename, type: mime });
       }
       await dailyReportApi.submit(fd);
-      Toast.show({ type: 'success', text1: 'Report submitted!' });
+      Toast.show({ type: 'success', text1: t('employeeDailyReport.reportSubmitted') });
       resetForm();
       onSubmitted();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit report' });
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('employeeDailyReport.submitFailed') });
     } finally {
       setSubmitting(false);
     }
@@ -289,7 +294,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 
           {/* Header */}
           <View style={fs.header}>
-            <Text style={fs.title}>Daily Report</Text>
+            <Text style={fs.title}>{t('employeeDailyReport.title')}</Text>
             <TouchableOpacity
               onPress={handleClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -313,9 +318,9 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                 accessibilityLabel={`Change store, currently ${selectedStore?.name || 'not selected'}`}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <Text style={fs.infoLabel}>Store</Text>
+                <Text style={fs.infoLabel}>{t('employeeDailyReport.storeLabel')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[fs.infoVal, { color: COLORS.secondary }]}>{selectedStore?.name || 'Select store'}</Text>
+                  <Text style={[fs.infoVal, { color: COLORS.secondary }]}>{selectedStore?.name || t('employeeDailyReport.selectStore')}</Text>
                   <Text style={{ fontSize: 10, color: COLORS.secondary }}>{showStorePicker ? '▲' : '▼'}</Text>
                 </View>
               </TouchableOpacity>
@@ -348,24 +353,24 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
               )}
 
               <View style={fs.infoRow}>
-                <Text style={fs.infoLabel}>Date</Text>
+                <Text style={fs.infoLabel}>{t('employeeDailyReport.dateLabel')}</Text>
                 <Text style={fs.infoVal}>{now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
               </View>
               <View style={fs.infoRow}>
-                <Text style={fs.infoLabel}>Day</Text>
+                <Text style={fs.infoLabel}>{t('employeeDailyReport.dayLabel')}</Text>
                 <Text style={fs.infoVal}>{now.toLocaleDateString('en-US', { weekday: 'long' })}</Text>
               </View>
               <View style={[fs.infoRow, { borderBottomWidth: 0 }]}>
-                <Text style={fs.infoLabel}>Time</Text>
+                <Text style={fs.infoLabel}>{t('employeeDailyReport.timeLabel')}</Text>
                 <Text style={fs.infoVal}>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
               </View>
             </View>
 
             {/* ── Today's Prices ── */}
-            <Text style={fs.sectionLabel}>Today's Prices</Text>
+            <Text style={fs.sectionLabel}>{t('employeeDailyReport.todaysPrices')}</Text>
             <View style={fs.row}>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>⛽ Gas ($/gal)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.gasFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={gasPrice}
@@ -377,7 +382,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                 />
               </View>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>🚛 Diesel ($/gal)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.dieselFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={dieselPrice}
@@ -391,27 +396,27 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
             </View>
 
             {/* ── Today's Inventory ── */}
-            <Text style={fs.sectionLabel}>Today's Inventory</Text>
+            <Text style={fs.sectionLabel}>{t('employeeDailyReport.todaysInventory')}</Text>
             <View style={fs.row}>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>Regular Gas (gal)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.regularGasFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={regGasGal}
                   onChangeText={setRegGasGal}
-                  placeholder="e.g. 3500"
+                  placeholder={t('employeeDailyReport.regularGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
                   maxLength={8}
                 />
               </View>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>Mid-Grade Gas (gal)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.midGradeGasFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={midGradeGasGal}
                   onChangeText={setMidGradeGasGal}
-                  placeholder="e.g. 1200"
+                  placeholder={t('employeeDailyReport.midGradeGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
                   maxLength={8}
@@ -420,24 +425,24 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
             </View>
             <View style={fs.row}>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>Premium Gas (gal)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.premiumGasFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={premiumGasGal}
                   onChangeText={setPremiumGasGal}
-                  placeholder="e.g. 800"
+                  placeholder={t('employeeDailyReport.premiumGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
                   maxLength={8}
                 />
               </View>
               <View style={fs.halfField}>
-                <Text style={fs.fieldLabel}>Cigs Count (packs)</Text>
+                <Text style={fs.fieldLabel}>{t('employeeDailyReport.cigsCountFieldLabel')}</Text>
                 <TextInput
                   style={fs.input}
                   value={cigsCount}
                   onChangeText={setCigsCount}
-                  placeholder="e.g. 240"
+                  placeholder={t('employeeDailyReport.cigsCountPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="number-pad"
                   maxLength={6}
@@ -446,7 +451,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
             </View>
 
             {/* ── Photo ── */}
-            <Text style={fs.sectionLabel}>Photo (optional)</Text>
+            <Text style={fs.sectionLabel}>{t('employeeDailyReport.photoSectionLabel')}</Text>
             <TouchableOpacity
               style={fs.photoArea}
               onPress={showPhotoOptions}
@@ -459,23 +464,23 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
               ) : (
                 <View style={fs.photoPlaceholder}>
                   <CameraIcon size={26} color="#CBD5E1" strokeWidth={1.75} />
-                  <Text style={fs.photoPlaceholderText}>Tap to add photo</Text>
+                  <Text style={fs.photoPlaceholderText}>{t('employeeDailyReport.tapToAddPhoto')}</Text>
                 </View>
               )}
               {imageUri && (
                 <View style={fs.photoBadge}>
-                  <Text style={fs.photoBadgeText}>Change</Text>
+                  <Text style={fs.photoBadgeText}>{t('employeeDailyReport.changePhotoBadge')}</Text>
                 </View>
               )}
             </TouchableOpacity>
 
             {/* ── Notes ── */}
-            <Text style={fs.sectionLabel}>Additional Notes</Text>
+            <Text style={fs.sectionLabel}>{t('employeeDailyReport.additionalNotesLabel')}</Text>
             <TextInput
               style={[fs.input, fs.notesInput]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Any other info, incidents, or observations…"
+              placeholder={t('employeeDailyReport.notesPlaceholder')}
               placeholderTextColor="#94A3B8"
               multiline
               maxLength={500}
@@ -493,7 +498,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
             >
               {submitting
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={fs.submitBtnText}>Submit Report</Text>}
+                : <Text style={fs.submitBtnText}>{t('employeeDailyReport.submitButton')}</Text>}
             </TouchableOpacity>
 
             <View style={{ height: 32 }} />
@@ -507,8 +512,8 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DailyReportScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const date = todayStr();
@@ -520,6 +525,10 @@ export default function DailyReportScreen() {
     staleTime: 5 * 60 * 1000,
   });
   const allStores: StoreOption[] = storesData?.data?.data || [];
+  // GPS-resolved for multi-store employees so the top status card reflects
+  // the store they're actually at, not just their first assignment - the
+  // submit form itself already lets them pick any store explicitly.
+  const storeId = useCurrentStoreId(allStores, user?.storeIds);
 
   // Today's reports
   const { data: reportData, isLoading, isError, refetch } = useQuery({
@@ -547,7 +556,7 @@ export default function DailyReportScreen() {
               <FileCheckIcon size={20} color="#fff" strokeWidth={2} />
             </View>
             <View>
-              <Text style={s.headerTitle}>Daily Reports</Text>
+              <Text style={s.headerTitle}>{t('employeeDailyReport.headerTitle')}</Text>
               <Text style={s.headerSub}>{fmtDate()}</Text>
             </View>
           </View>
@@ -567,22 +576,22 @@ export default function DailyReportScreen() {
           {isLoading ? (
             <View style={s.loadingBox}>
               <ActivityIndicator color={COLORS.primary} />
-              <Text style={s.loadingText}>Loading today's submissions…</Text>
+              <Text style={s.loadingText}>{t('employeeDailyReport.loadingSubmissions')}</Text>
             </View>
           ) : isError ? (
-            <ErrorState message="Failed to load today's submissions." onRetry={() => refetch()} />
+            <ErrorState message={t('employeeDailyReport.loadFailed')} onRetry={() => refetch()} />
           ) : reports.length > 0 ? (
             <>
               <Text style={s.sectionLabel}>
-                {reports.length} submission{reports.length > 1 ? 's' : ''} today
+                {t('employeeDailyReport.submissionsToday', { count: reports.length })}
               </Text>
               {reports.map(r => <ReportCard key={r.id} report={r} />)}
             </>
           ) : (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>📋</Text>
-              <Text style={s.emptyTitle}>No reports yet today</Text>
-              <Text style={s.emptySub}>Submit the first daily report for today.</Text>
+              <Text style={s.emptyTitle}>{t('employeeDailyReport.noReportsTitle')}</Text>
+              <Text style={s.emptySub}>{t('employeeDailyReport.noReportsSub')}</Text>
             </View>
           )}
         </FadeSlideIn>
@@ -598,7 +607,7 @@ export default function DailyReportScreen() {
         accessibilityRole="button"
         accessibilityLabel="Submit a new daily report"
       >
-        <Text style={s.fabText}>+ Submit Report</Text>
+        <Text style={s.fabText}>{t('employeeDailyReport.fabButton')}</Text>
       </TouchableOpacity>
 
       <FormSheet

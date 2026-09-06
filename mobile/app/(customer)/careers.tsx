@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { careersApi, jobOpeningsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -13,18 +14,22 @@ import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircle
 import ErrorState from '../../components/ErrorState';
 import FadeSlideIn from '../../components/FadeSlideIn';
 
-const POSITION_META: Record<string, { emoji: string; desc: string }> = {
-  CASHIER:           { emoji: '🧾', desc: 'Handle transactions, assist customers, maintain checkout area.' },
-  FUEL_ATTENDANT:    { emoji: '⛽', desc: 'Assist customers at fuel pumps, ensure safety protocols.' },
-  FOOD_PREP:         { emoji: '🌮', desc: 'Prepare hot foods, maintain kitchen cleanliness and food safety.' },
-  NIGHT_SHIFT:       { emoji: '🌙', desc: 'Overnight operations, restocking, customer service during late hours.' },
-  ASSISTANT_MANAGER: { emoji: '📋', desc: 'Support store manager, supervise staff, handle daily operations.' },
-  STORE_MANAGER:     { emoji: '🏪', desc: 'Full store management, staff scheduling, inventory, reporting.' },
+const POSITION_META: Record<string, { emoji: string; descKey: string }> = {
+  CASHIER:           { emoji: '🧾', descKey: 'customerCareers.positionDescCashier' },
+  FUEL_ATTENDANT:    { emoji: '⛽', descKey: 'customerCareers.positionDescFuelAttendant' },
+  FOOD_PREP:         { emoji: '🌮', descKey: 'customerCareers.positionDescFoodPrep' },
+  NIGHT_SHIFT:       { emoji: '🌙', descKey: 'customerCareers.positionDescNightShift' },
+  ASSISTANT_MANAGER: { emoji: '📋', descKey: 'customerCareers.positionDescAssistantManager' },
+  STORE_MANAGER:     { emoji: '🏪', descKey: 'customerCareers.positionDescStoreManager' },
 };
 
-const POSITION_LABELS: Record<string, string> = {
-  CASHIER: 'Cashier', FUEL_ATTENDANT: 'Fuel Attendant', FOOD_PREP: 'Food Prep / Cook',
-  NIGHT_SHIFT: 'Night Shift Attendant', ASSISTANT_MANAGER: 'Assistant Manager', STORE_MANAGER: 'Store Manager',
+const POSITION_LABEL_KEYS: Record<string, string> = {
+  CASHIER: 'customerCareers.positionCashier',
+  FUEL_ATTENDANT: 'customerCareers.positionFuelAttendant',
+  FOOD_PREP: 'customerCareers.positionFoodPrep',
+  NIGHT_SHIFT: 'customerCareers.positionNightShift',
+  ASSISTANT_MANAGER: 'customerCareers.positionAssistantManager',
+  STORE_MANAGER: 'customerCareers.positionStoreManager',
 };
 
 interface JobOpening {
@@ -39,23 +44,24 @@ interface JobOpening {
 }
 
 const SHIFTS = [
-  { value: 'MORNINGS',   label: 'Mornings (6am–2pm)'   },
-  { value: 'AFTERNOONS', label: 'Afternoons (2pm–10pm)' },
-  { value: 'NIGHTS',     label: 'Nights (10pm–6am)'    },
-  { value: 'WEEKENDS',   label: 'Weekends'              },
+  { value: 'MORNINGS',   labelKey: 'customerCareers.shiftMornings'   },
+  { value: 'AFTERNOONS', labelKey: 'customerCareers.shiftAfternoons' },
+  { value: 'NIGHTS',     labelKey: 'customerCareers.shiftNights'    },
+  { value: 'WEEKENDS',   labelKey: 'customerCareers.shiftWeekends'  },
 ];
 
 type PerkDef = {
+  id: string;
   Icon: (props: { size?: number; color?: string; strokeWidth?: number }) => any;
   color: string;
   bg: string;
-  text: string;
+  textKey: string;
 };
 const PERKS: PerkDef[] = [
-  { Icon: DollarSignIcon, color: '#16a34a', bg: '#f0fdf4', text: 'Competitive pay' },
-  { Icon: CalendarIcon,   color: '#0369a1', bg: '#eff6ff', text: 'Flexible hours' },
-  { Icon: AwardIcon,      color: '#7c3aed', bg: '#f5f3ff', text: 'On-the-job training' },
-  { Icon: TagIcon,        color: '#b45309', bg: '#fffbeb', text: 'Employee discounts' },
+  { id: 'pay',       Icon: DollarSignIcon, color: '#16a34a', bg: '#f0fdf4', textKey: 'customerCareers.perkPay' },
+  { id: 'hours',     Icon: CalendarIcon,   color: '#0369a1', bg: '#eff6ff', textKey: 'customerCareers.perkHours' },
+  { id: 'training',  Icon: AwardIcon,      color: '#7c3aed', bg: '#f5f3ff', textKey: 'customerCareers.perkTraining' },
+  { id: 'discounts', Icon: TagIcon,        color: '#b45309', bg: '#fffbeb', textKey: 'customerCareers.perkDiscounts' },
 ];
 
 interface FormState {
@@ -70,6 +76,7 @@ interface FormState {
 }
 
 export default function CareersScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
@@ -114,8 +121,8 @@ export default function CareersScreen() {
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.error;
-      if (typeof msg === 'string') Alert.alert('Error', msg);
-      else Alert.alert('Error', 'Could not submit application. Please try again.');
+      if (typeof msg === 'string') Alert.alert(t('customerCareers.errorTitle'), msg);
+      else Alert.alert(t('customerCareers.errorTitle'), t('customerCareers.genericError'));
     },
   });
 
@@ -134,13 +141,15 @@ export default function CareersScreen() {
   }
 
   function handleSubmit() {
-    if (!form.name.trim()) { Alert.alert('Required', 'Please enter your name.'); return; }
-    if (!form.phone.trim()) { Alert.alert('Required', 'Please enter your phone number.'); return; }
-    if (form.shifts.length === 0) { Alert.alert('Required', 'Please select at least one available shift.'); return; }
+    if (!form.name.trim()) { Alert.alert(t('customerCareers.requiredTitle'), t('customerCareers.nameRequired')); return; }
+    if (!form.phone.trim()) { Alert.alert(t('customerCareers.requiredTitle'), t('customerCareers.phoneRequired')); return; }
+    if (form.shifts.length === 0) { Alert.alert(t('customerCareers.requiredTitle'), t('customerCareers.shiftRequired')); return; }
     applyMut.mutate();
   }
 
-  const positionLabel = selectedPosition ? (POSITION_LABELS[selectedPosition] ?? selectedPosition) : '';
+  const positionLabel = selectedPosition
+    ? (POSITION_LABEL_KEYS[selectedPosition] ? t(POSITION_LABEL_KEYS[selectedPosition]) : selectedPosition)
+    : '';
 
   return (
     <SafeAreaView style={st.safe}>
@@ -148,8 +157,8 @@ export default function CareersScreen() {
 
       {/* Header */}
       <View style={st.header}>
-        <Text style={st.headerTitle}>Careers</Text>
-        <Text style={st.headerSub}>Join the Lucky Stop team</Text>
+        <Text style={st.headerTitle}>{t('customerCareers.headerTitle')}</Text>
+        <Text style={st.headerSub}>{t('customerCareers.headerSub')}</Text>
       </View>
 
       <FadeSlideIn style={{ flex: 1 }}>
@@ -160,49 +169,50 @@ export default function CareersScreen() {
           <View style={st.heroIconWrap}>
             <StarIcon size={36} color="#f59e0b" strokeWidth={1.5} filled />
           </View>
-          <Text style={st.heroTitle}>Work at Lucky Stop</Text>
+          <Text style={st.heroTitle}>{t('customerCareers.heroTitle')}</Text>
           <Text style={st.heroText}>
-            Be part of a growing team serving your community. We offer competitive pay,
-            flexible schedules, and a great work environment.
+            {t('customerCareers.heroText')}
           </Text>
         </View>
 
         {/* Perks */}
         <View style={st.perksRow}>
           {PERKS.map(p => (
-            <View key={p.text} style={[st.perk, { backgroundColor: p.bg }]}>
+            <View key={p.id} style={[st.perk, { backgroundColor: p.bg }]}>
               <p.Icon size={22} color={p.color} strokeWidth={2} />
-              <Text style={st.perkText}>{p.text}</Text>
+              <Text style={st.perkText}>{t(p.textKey)}</Text>
             </View>
           ))}
         </View>
 
         {/* Open Positions */}
-        <Text style={st.sectionTitle}>Open Positions</Text>
+        <Text style={st.sectionTitle}>{t('customerCareers.sectionTitle')}</Text>
         {openingsLoading ? (
           <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 24 }} />
         ) : openingsError ? (
-          <ErrorState message="Failed to load job openings." onRetry={() => refetchOpenings()} />
+          <ErrorState message={t('customerCareers.loadError')} onRetry={() => refetchOpenings()} />
         ) : openings.length === 0 ? (
           <View style={st.emptyCard}>
-            <Text style={st.emptyText}>No openings posted yet.</Text>
-            <Text style={st.emptySubText}>Check back soon - we're always growing!</Text>
+            <Text style={st.emptyText}>{t('customerCareers.emptyTitle')}</Text>
+            <Text style={st.emptySubText}>{t('customerCareers.emptySubtitle')}</Text>
           </View>
         ) : (
           openings.map(opening => {
-            const meta = POSITION_META[opening.position] ?? { emoji: '💼', desc: '' };
-            const location = opening.store ? `${opening.store.name} - ${opening.store.city}` : 'Any Location';
+            const meta = POSITION_META[opening.position] ?? { emoji: '💼', descKey: '' };
+            const location = opening.store ? `${opening.store.name} - ${opening.store.city}` : t('customerCareers.anyLocation');
+            const positionLabelText = POSITION_LABEL_KEYS[opening.position] ? t(POSITION_LABEL_KEYS[opening.position]) : opening.position;
+            const employTypeText = opening.employType === 'FULL_TIME' ? t('customerCareers.fullTime') : t('customerCareers.partTime');
             return (
               <View key={opening.id} style={st.posCard}>
                 <View style={st.posTop}>
                   <Text style={st.posEmoji}>{meta.emoji}</Text>
                   <View style={st.posInfo}>
                     <Text style={st.posLabel}>{opening.title}</Text>
-                    <Text style={st.posRole}>{POSITION_LABELS[opening.position] ?? opening.position}</Text>
+                    <Text style={st.posRole}>{positionLabelText}</Text>
                     {opening.description ? (
                       <Text style={st.posDesc}>{opening.description}</Text>
                     ) : (
-                      <Text style={st.posDesc}>{meta.desc}</Text>
+                      <Text style={st.posDesc}>{meta.descKey ? t(meta.descKey) : ''}</Text>
                     )}
                   </View>
                 </View>
@@ -210,17 +220,17 @@ export default function CareersScreen() {
                   <View style={st.posTag}><Text style={st.posTagText}>{location}</Text></View>
                   {opening.payRange ? <View style={st.posTag}><Text style={st.posTagText}>{opening.payRange}</Text></View> : null}
                   {opening.employType !== 'BOTH' ? (
-                    <View style={st.posTag}><Text style={st.posTagText}>{opening.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</Text></View>
+                    <View style={st.posTag}><Text style={st.posTagText}>{employTypeText}</Text></View>
                   ) : null}
                 </View>
                 <TouchableOpacity
                   style={st.applyBtn}
                   onPress={() => openForm(opening.position, opening.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Apply for ${opening.title}`}
+                  accessibilityLabel={t('customerCareers.applyForA11y', { title: opening.title })}
                   hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                 >
-                  <Text style={st.applyBtnText}>Apply Now</Text>
+                  <Text style={st.applyBtnText}>{t('customerCareers.applyNow')}</Text>
                 </TouchableOpacity>
               </View>
             );
@@ -236,8 +246,8 @@ export default function CareersScreen() {
         <View style={st.successBanner}>
           <CheckCircleIcon size={28} color="#16a34a" strokeWidth={2} />
           <View>
-            <Text style={st.successTitle}>Application Submitted!</Text>
-            <Text style={st.successSub}>We'll review your application and be in touch.</Text>
+            <Text style={st.successTitle}>{t('customerCareers.successTitle')}</Text>
+            <Text style={st.successSub}>{t('customerCareers.successSub')}</Text>
           </View>
         </View>
       )}
@@ -251,93 +261,97 @@ export default function CareersScreen() {
                 onPress={() => setShowForm(false)}
                 style={st.closeBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel application"
+                accessibilityLabel={t('customerCareers.cancelA11y')}
                 hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
               >
-                <Text style={st.closeBtnText}>Cancel</Text>
+                <Text style={st.closeBtnText}>{t('customerCareers.cancel')}</Text>
               </TouchableOpacity>
-              <Text style={st.modalTitle}>Apply - {positionLabel}</Text>
+              <Text style={st.modalTitle}>{t('customerCareers.applyModalTitle', { position: positionLabel })}</Text>
               <View style={{ width: 60 }} />
             </View>
 
             <ScrollView style={st.formScroll} contentContainerStyle={st.formContent} keyboardShouldPersistTaps="handled">
 
               {/* Personal Info */}
-              <Text style={st.formSection}>Personal Info</Text>
+              <Text style={st.formSection}>{t('customerCareers.personalInfo')}</Text>
 
-              <Text style={st.fieldLabel}>Full Name *</Text>
-              <TextInput style={st.input} value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder="Your full name" placeholderTextColor="#aaa" />
+              <Text style={st.fieldLabel}>{t('customerCareers.fullNameLabel')}</Text>
+              <TextInput style={st.input} value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder={t('customerCareers.fullNamePlaceholder')} placeholderTextColor="#aaa" />
 
-              <Text style={st.fieldLabel}>Phone Number *</Text>
-              <TextInput style={st.input} value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder="e.g. 555-123-4567" placeholderTextColor="#aaa" keyboardType="phone-pad" />
+              <Text style={st.fieldLabel}>{t('customerCareers.phoneLabel')}</Text>
+              <TextInput style={st.input} value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder={t('customerCareers.phonePlaceholder')} placeholderTextColor="#aaa" keyboardType="phone-pad" />
 
-              <Text style={st.fieldLabel}>Email (optional)</Text>
-              <TextInput style={st.input} value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} placeholder="your@email.com" placeholderTextColor="#aaa" keyboardType="email-address" autoCapitalize="none" />
+              <Text style={st.fieldLabel}>{t('customerCareers.emailLabel')}</Text>
+              <TextInput style={st.input} value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} placeholder={t('customerCareers.emailPlaceholder')} placeholderTextColor="#aaa" keyboardType="email-address" autoCapitalize="none" />
 
               {/* Availability */}
-              <Text style={st.formSection}>Availability</Text>
+              <Text style={st.formSection}>{t('customerCareers.availabilitySection')}</Text>
 
-              <Text style={st.fieldLabel}>Employment Type *</Text>
+              <Text style={st.fieldLabel}>{t('customerCareers.employmentTypeLabel')}</Text>
               <View style={st.toggleRow}>
-                {(['FULL_TIME', 'PART_TIME'] as const).map(type => (
-                  <TouchableOpacity key={type}
-                    style={[st.toggle, form.availType === type && st.toggleActive]}
-                    onPress={() => setForm(f => ({ ...f, availType: type }))}
-                    accessibilityRole="tab"
-                    accessibilityLabel={`Set employment type to ${type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}`}
-                    accessibilityState={{ selected: form.availType === type }}
-                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-                  >
-                    <Text style={[st.toggleText, form.availType === type && st.toggleTextActive]}>
-                      {type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {(['FULL_TIME', 'PART_TIME'] as const).map(type => {
+                  const typeLabel = type === 'FULL_TIME' ? t('customerCareers.fullTime') : t('customerCareers.partTime');
+                  return (
+                    <TouchableOpacity key={type}
+                      style={[st.toggle, form.availType === type && st.toggleActive]}
+                      onPress={() => setForm(f => ({ ...f, availType: type }))}
+                      accessibilityRole="tab"
+                      accessibilityLabel={t('customerCareers.setEmploymentTypeA11y', { type: typeLabel })}
+                      accessibilityState={{ selected: form.availType === type }}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    >
+                      <Text style={[st.toggleText, form.availType === type && st.toggleTextActive]}>
+                        {typeLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
-              <Text style={st.fieldLabel}>Available Shifts * (select all that apply)</Text>
+              <Text style={st.fieldLabel}>{t('customerCareers.shiftsLabel')}</Text>
               {SHIFTS.map(sh => {
                 const checked = form.shifts.includes(sh.value);
+                const shiftLabel = t(sh.labelKey);
                 return (
                   <TouchableOpacity key={sh.value} style={[st.checkRow, checked && st.checkRowActive]}
                     onPress={() => toggleShift(sh.value)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${sh.label} shift`}
+                    accessibilityLabel={t('customerCareers.shiftA11y', { shift: shiftLabel })}
                     accessibilityState={{ checked }}
                   >
                     <View style={[st.checkbox, checked && st.checkboxActive]}>
                       {checked && <Text style={st.checkmark}>✓</Text>}
                     </View>
-                    <Text style={[st.checkLabel, checked && st.checkLabelActive]}>{sh.label}</Text>
+                    <Text style={[st.checkLabel, checked && st.checkLabelActive]}>{shiftLabel}</Text>
                   </TouchableOpacity>
                 );
               })}
 
               {/* Experience */}
-              <Text style={st.formSection}>Background</Text>
+              <Text style={st.formSection}>{t('customerCareers.backgroundSection')}</Text>
 
-              <Text style={st.fieldLabel}>Previous Experience (optional)</Text>
+              <Text style={st.fieldLabel}>{t('customerCareers.experienceLabel')}</Text>
               <TextInput style={[st.input, st.textArea]} value={form.experience}
                 onChangeText={v => setForm(f => ({ ...f, experience: v }))}
-                placeholder="Tell us about any relevant work experience…"
+                placeholder={t('customerCareers.experiencePlaceholder')}
                 placeholderTextColor="#aaa" multiline numberOfLines={4} textAlignVertical="top" />
 
-              <Text style={st.fieldLabel}>Why Lucky Stop? (optional)</Text>
+              <Text style={st.fieldLabel}>{t('customerCareers.whyLabel')}</Text>
               <TextInput style={[st.input, st.textArea]} value={form.message}
                 onChangeText={v => setForm(f => ({ ...f, message: v }))}
-                placeholder="Share why you'd like to join our team…"
+                placeholder={t('customerCareers.whyPlaceholder')}
                 placeholderTextColor="#aaa" multiline numberOfLines={3} textAlignVertical="top" />
 
               {/* Submit */}
               <TouchableOpacity style={[st.submitBtn, applyMut.isPending && st.submitBtnDisabled]}
                 onPress={handleSubmit} disabled={applyMut.isPending}
                 accessibilityRole="button"
-                accessibilityLabel="Submit application"
+                accessibilityLabel={t('customerCareers.submitA11y')}
                 accessibilityState={{ disabled: applyMut.isPending, busy: applyMut.isPending }}
               >
                 {applyMut.isPending
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={st.submitBtnText}>Submit Application</Text>}
+                  : <Text style={st.submitBtnText}>{t('customerCareers.submitBtn')}</Text>}
               </TouchableOpacity>
 
               <View style={{ height: 40 }} />

@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity, Animated, StyleSheet,
-  Dimensions, Pressable, Image, ScrollView,
+  Dimensions, Pressable, Image, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
@@ -12,6 +12,11 @@ import { MenuIcon, XIcon, LogOutIcon } from './Icons';
 
 const SCREEN_W = Dimensions.get('window').width;
 const DRAWER_W = Math.min(SCREEN_W * 0.78, 300);
+
+// Screens that need the full screen to themselves - e.g. scan-receipt's
+// full-bleed camera view, which the bottom bar used to visibly sit on top
+// of (and stay tappable through) since this shell wraps every route.
+const FULLSCREEN_ROUTES = ['scan-receipt'];
 
 export interface NavItem {
   route: string;
@@ -80,11 +85,21 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
     return pathname.endsWith(route.replace(/^\//, '')) || pathname === route;
   }
 
+  function confirmSignOut() {
+    Alert.alert(t('drawer.signOut'), t('drawer.signOutConfirm'), [
+      { text: t('drawer.cancel'), style: 'cancel' },
+      { text: t('drawer.signOut'), style: 'destructive', onPress: () => closeDrawer(() => logout()) },
+    ]);
+  }
+
+  const isFullscreen = FULLSCREEN_ROUTES.some((r) => pathname.endsWith(r));
+
   return (
     <View style={s.root}>
       <View style={s.content}>{children}</View>
 
       {/* Bottom mini bar */}
+      {!isFullscreen && (
       <View style={[s.bottomBar, { paddingBottom: insets.bottom + 6 }]}>
         {bottomItems.map((item) => {
           const active = isActive(item.route);
@@ -94,6 +109,9 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               style={s.bottomBtn}
               onPress={() => router.navigate(item.route as any)}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected: active }}
             >
               <View style={[s.bottomIconWrap, active && { backgroundColor: bgColor + '20' }]}>
                 {item.icon({ color: active ? bgColor : COLORS.textMuted, size: 22 })}
@@ -109,7 +127,13 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
         })}
 
         {/* Menu button */}
-        <TouchableOpacity style={s.bottomBtn} onPress={openDrawer} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.bottomBtn}
+          onPress={openDrawer}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('nav.menu')}${drawerBadgeTotal > 0 ? `, ${drawerBadgeTotal} unread` : ''}`}
+        >
           <View style={s.bottomIconWrap}>
             <MenuIcon size={22} color={COLORS.textMuted} strokeWidth={2} />
             {drawerBadgeTotal > 0 && (
@@ -119,6 +143,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
           <Text style={s.bottomLabel}>{t('nav.menu')}</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       {/* Drawer overlay + panel */}
       {open && (
@@ -130,7 +155,13 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
           <Animated.View style={[s.drawer, { transform: [{ translateX: slideX }] }]}>
             {/* Drawer header */}
             <View style={[s.drawerHeader, { backgroundColor: bgColor, paddingTop: insets.top + 16 }]}>
-              <TouchableOpacity style={s.drawerHeaderLeft} onPress={() => navigate('profile')} activeOpacity={0.75}>
+              <TouchableOpacity
+                style={s.drawerHeaderLeft}
+                onPress={() => navigate('profile')}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`Open profile for ${user?.name || t('drawer.noName')}`}
+              >
                 {/* Avatar - photo or initial */}
                 {user?.avatarUrl ? (
                   <Image
@@ -152,7 +183,13 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                   )}
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => closeDrawer()} style={s.drawerClose}>
+              <TouchableOpacity
+                onPress={() => closeDrawer()}
+                style={s.drawerClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+              >
                 <XIcon size={18} color="#fff" strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
@@ -175,6 +212,9 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                         style={[s.navItem, active && { backgroundColor: bgColor + '12' }]}
                         onPress={() => navigate(item.route)}
                         activeOpacity={0.75}
+                        accessibilityRole="button"
+                        accessibilityLabel={item.label}
+                        accessibilityState={{ selected: active }}
                       >
                         <View style={[s.navItemIconWrap, active && { backgroundColor: bgColor + '22' }]}>
                           {item.icon({ color: active ? bgColor : COLORS.textMuted, size: 20 })}
@@ -198,8 +238,10 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
             {/* Sign out */}
             <TouchableOpacity
               style={[s.signOut, { marginBottom: insets.bottom + 16 }]}
-              onPress={() => closeDrawer(() => logout())}
+              onPress={confirmSignOut}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t('drawer.signOut')}
             >
               <LogOutIcon size={20} color="#E63946" strokeWidth={2} />
               <Text style={s.signOutText}>{t('drawer.signOut')}</Text>

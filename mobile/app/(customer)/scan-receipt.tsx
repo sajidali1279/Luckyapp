@@ -86,7 +86,12 @@ export default function ScanReceiptScreen() {
       return (
         <View style={s.center}>
           <Text style={s.permText}>Camera permission needed to scan receipts.</Text>
-          <TouchableOpacity style={s.permBtn} onPress={requestPermission}>
+          <TouchableOpacity
+            style={s.permBtn}
+            onPress={requestPermission}
+            accessibilityRole="button"
+            accessibilityLabel="Allow camera access"
+          >
             <Text style={s.permBtnText}>Allow Camera</Text>
           </TouchableOpacity>
         </View>
@@ -104,7 +109,12 @@ export default function ScanReceiptScreen() {
         {/* Dark overlay with cutout */}
         <View style={s.overlay}>
           <SafeAreaView style={s.scanHeader}>
-            <TouchableOpacity style={s.closeBtn} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={s.closeBtn}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Close receipt scanner"
+            >
               <XIcon size={18} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
           </SafeAreaView>
@@ -122,7 +132,12 @@ export default function ScanReceiptScreen() {
           </View>
           <View style={s.overlayBottom}>
             <Text style={s.scanHint}>Point camera at the QR code on the bottom of your receipt</Text>
-            <TouchableOpacity style={s.cancelBtn} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={s.cancelBtn}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel scanning"
+            >
               <Text style={s.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -137,6 +152,14 @@ export default function ScanReceiptScreen() {
       <Animated.View style={[s.center, { opacity: fadeAnim }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={s.loadingText}>Reading receipt…</Text>
+        <TouchableOpacity
+          style={s.cancelLink}
+          onPress={() => { setScanned(false); setStep('scan'); }}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel and scan again"
+        >
+          <Text style={s.cancelLinkText}>Cancel</Text>
+        </TouchableOpacity>
       </Animated.View>
     );
   }
@@ -181,13 +204,24 @@ export default function ScanReceiptScreen() {
             <Text style={s.cashbackNote}>Added to your Lucky Stop balance</Text>
           </View>
 
-          <TouchableOpacity style={s.claimBtn} onPress={handleClaim} disabled={claiming}>
+          <TouchableOpacity
+            style={s.claimBtn}
+            onPress={handleClaim}
+            disabled={claiming}
+            accessibilityRole="button"
+            accessibilityLabel={claiming ? 'Claiming points' : `Claim ${Math.round(Number(tokenData.estimatedCashback) * 100).toLocaleString()} points`}
+          >
             {claiming
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.claimBtnText}>Claim {Math.round(Number(tokenData.estimatedCashback) * 100).toLocaleString()} pts →</Text>
             }
           </TouchableOpacity>
-          <TouchableOpacity style={s.cancelLink} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={s.cancelLink}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+          >
             <Text style={s.cancelLinkText}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -205,7 +239,12 @@ export default function ScanReceiptScreen() {
         <Text style={s.successTitle}>Points Added!</Text>
         <Text style={s.successAmount}>+{Math.round(earnedAmount * 100).toLocaleString()} pts</Text>
         <Text style={s.successSub}>Added to your Lucky Stop balance</Text>
-        <TouchableOpacity style={s.doneBtn} onPress={() => router.replace('/(customer)/home')}>
+        <TouchableOpacity
+          style={s.doneBtn}
+          onPress={() => router.replace('/(customer)/home')}
+          accessibilityRole="button"
+          accessibilityLabel="Done, return to home"
+        >
           <Text style={s.doneBtnText}>Done</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -218,10 +257,20 @@ export default function ScanReceiptScreen() {
       <AlertTriangleIcon size={56} color="#E63946" strokeWidth={1.5} />
       <Text style={s.errorTitle}>Couldn't Claim Points</Text>
       <Text style={s.errorMsg}>{errorMsg}</Text>
-      <TouchableOpacity style={s.retryBtn} onPress={() => { setScanned(false); setStep('scan'); }}>
+      <TouchableOpacity
+        style={s.retryBtn}
+        onPress={() => { setScanned(false); setStep('scan'); }}
+        accessibilityRole="button"
+        accessibilityLabel="Scan again"
+      >
         <Text style={s.retryBtnText}>Scan Again</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={s.cancelLink} onPress={() => router.replace('/(customer)/home')}>
+      <TouchableOpacity
+        style={s.cancelLink}
+        onPress={() => router.replace('/(customer)/home')}
+        accessibilityRole="button"
+        accessibilityLabel="Go back to home"
+      >
         <Text style={s.cancelLinkText}>Go Back</Text>
       </TouchableOpacity>
     </Animated.View>

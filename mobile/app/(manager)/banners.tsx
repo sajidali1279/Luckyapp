@@ -7,6 +7,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -18,6 +19,7 @@ import ManagerHeader from '../../components/ManagerHeader';
 interface Store { id: string; name: string }
 
 export default function ManagerBannersScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -48,14 +50,14 @@ export default function ManagerBannersScreen() {
     mutationFn: (formData: FormData) => offersApi.createBanner(formData),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-banners'] });
-      Toast.show({ type: 'success', text1: 'Banner uploaded!' });
+      Toast.show({ type: 'success', text1: t('managerBanners.uploadSuccess') });
       setShowCreate(false);
       setTitle('');
       setImageUri(null);
     },
     onError: (err: any) => {
       const e = err.response?.data?.error;
-      const msg = typeof e === 'string' ? e : (err.response?.data?.message || 'Failed to upload banner');
+      const msg = typeof e === 'string' ? e : (err.response?.data?.message || t('managerBanners.uploadError'));
       Toast.show({ type: 'error', text1: msg });
     },
   });
@@ -64,17 +66,17 @@ export default function ManagerBannersScreen() {
     mutationFn: (bannerId: string) => offersApi.deleteBanner(bannerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-banners'] });
-      Toast.show({ type: 'success', text1: 'Banner removed' });
+      Toast.show({ type: 'success', text1: t('managerBanners.removeSuccess') });
     },
     onError: (err: any) => {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to delete banner' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('managerBanners.removeError') });
     },
   });
 
   async function pickImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Photo library permission denied' });
+      Toast.show({ type: 'error', text1: t('managerBanners.permissionDenied') });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -87,7 +89,7 @@ export default function ManagerBannersScreen() {
   }
 
   function handleCreate() {
-    if (!imageUri) { Toast.show({ type: 'error', text1: 'Select an image first' }); return; }
+    if (!imageUri) { Toast.show({ type: 'error', text1: t('managerBanners.selectImageFirst') }); return; }
     const formData = new FormData() as any;
     const filename = imageUri.split('/').pop() || 'banner.jpg';
     formData.append('image', { uri: imageUri, type: 'image/jpeg', name: filename });
@@ -97,28 +99,32 @@ export default function ManagerBannersScreen() {
   }
 
   function confirmDelete(banner: any) {
-    Alert.alert('Remove Banner', `Remove "${banner.title || 'this banner'}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deleteMutation.mutate(banner.id) },
-    ]);
+    Alert.alert(
+      t('managerBanners.removeBannerTitle'),
+      t('managerBanners.removeConfirm', { title: banner.title || t('managerBanners.thisBanner') }),
+      [
+        { text: t('managerBanners.cancel'), style: 'cancel' },
+        { text: t('managerBanners.remove'), style: 'destructive', onPress: () => deleteMutation.mutate(banner.id) },
+      ]
+    );
   }
 
   return (
     <View style={s.root}>
       <ManagerHeader
-        title="Banners"
-        subtitle="Promotional images shown to customers"
+        title={t('managerBanners.title')}
+        subtitle={t('managerBanners.subtitle')}
         rightSlot={
           <TouchableOpacity
             style={s.addBtn}
             onPress={() => setShowCreate(true)}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Upload banner"
+            accessibilityLabel={t('managerBanners.uploadBanner')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-            <Text style={s.addBtnText}>Upload</Text>
+            <Text style={s.addBtnText}>{t('managerBanners.uploadShort')}</Text>
           </TouchableOpacity>
         }
       >
@@ -132,7 +138,7 @@ export default function ManagerBannersScreen() {
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('managerBanners.filterByStore', { store: store.name })}
                 accessibilityState={{ selected: store.id === storeId }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -155,29 +161,29 @@ export default function ManagerBannersScreen() {
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : isError ? (
-          <ErrorState message="Failed to load banners." onRetry={() => refetch()} />
+          <ErrorState message={t('managerBanners.loadError')} onRetry={() => refetch()} />
         ) : banners.length === 0 ? (
           <FadeSlideIn>
           <View style={s.emptyCard}>
             <View style={s.emptyIconWrap}>
               <ImageIcon size={44} color={COLORS.textMuted} strokeWidth={1.25} />
             </View>
-            <Text style={s.emptyTitle}>No banners yet</Text>
-            <Text style={s.emptySub}>Upload promotional images that customers see in the app</Text>
+            <Text style={s.emptyTitle}>{t('managerBanners.emptyTitle')}</Text>
+            <Text style={s.emptySub}>{t('managerBanners.emptySub')}</Text>
             <TouchableOpacity
               style={s.emptyBtn}
               onPress={() => setShowCreate(true)}
               accessibilityRole="button"
-              accessibilityLabel="Upload banner"
+              accessibilityLabel={t('managerBanners.uploadBanner')}
               hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
             >
-              <Text style={s.emptyBtnText}>Upload Banner</Text>
+              <Text style={s.emptyBtnText}>{t('managerBanners.uploadBanner')}</Text>
             </TouchableOpacity>
           </View>
           </FadeSlideIn>
         ) : (
           <>
-            <Text style={s.sectionLabel}>{banners.length} Banner{banners.length !== 1 ? 's' : ''}</Text>
+            <Text style={s.sectionLabel}>{t('managerBanners.bannerCount', { count: banners.length })}</Text>
             {banners.map((banner: any, bannerIndex: number) => (
               <FadeSlideIn key={banner.id} delay={Math.min(bannerIndex * 40, 200)}>
               <View style={s.bannerCard}>
@@ -189,9 +195,9 @@ export default function ManagerBannersScreen() {
                   </View>
                 )}
                 <View style={s.bannerInfo}>
-                  <Text style={s.bannerTitle}>{banner.title || 'Untitled banner'}</Text>
+                  <Text style={s.bannerTitle}>{banner.title || t('managerBanners.untitledBanner')}</Text>
                   <Text style={s.bannerDate}>
-                    Added {new Date(banner.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {t('managerBanners.addedDate', { date: new Date(banner.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -200,10 +206,10 @@ export default function ManagerBannersScreen() {
                   disabled={deleteMutation.isPending}
                   activeOpacity={0.75}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove banner${banner.title ? `: ${banner.title}` : ''}`}
+                  accessibilityLabel={banner.title ? t('managerBanners.removeBannerWithTitleLabel', { title: banner.title }) : t('managerBanners.removeBannerLabel')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={s.deleteBtnText}>Remove</Text>
+                  <Text style={s.deleteBtnText}>{t('managerBanners.remove')}</Text>
                 </TouchableOpacity>
               </View>
               </FadeSlideIn>
@@ -217,13 +223,13 @@ export default function ManagerBannersScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={s.modal}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Upload Banner</Text>
+            <Text style={s.modalTitle}>{t('managerBanners.uploadBanner')}</Text>
             <TouchableOpacity
               onPress={() => { setShowCreate(false); setTitle(''); setImageUri(null); }}
               style={s.modalCloseBtn}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Close upload banner form"
+              accessibilityLabel={t('managerBanners.closeFormLabel')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <XIcon size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
@@ -237,15 +243,15 @@ export default function ManagerBannersScreen() {
               onPress={pickImage}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={imageUri ? 'Change banner image' : 'Select banner image'}
+              accessibilityLabel={imageUri ? t('managerBanners.changeBannerImageLabel') : t('managerBanners.selectBannerImageLabel')}
             >
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
               ) : (
                 <View style={s.imagePlaceholder}>
                   <CameraIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
-                  <Text style={s.imagePlaceholderText}>Tap to select image</Text>
-                  <Text style={s.imagePlaceholderSub}>16:9 recommended</Text>
+                  <Text style={s.imagePlaceholderText}>{t('managerBanners.tapToSelectImage')}</Text>
+                  <Text style={s.imagePlaceholderSub}>{t('managerBanners.aspectRecommended')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -254,19 +260,19 @@ export default function ManagerBannersScreen() {
                 onPress={pickImage}
                 style={{ alignSelf: 'center', marginTop: 8, marginBottom: 16 }}
                 accessibilityRole="button"
-                accessibilityLabel="Change image"
+                accessibilityLabel={t('managerBanners.changeImage')}
                 hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
               >
-                <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14 }}>Change image</Text>
+                <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14 }}>{t('managerBanners.changeImage')}</Text>
               </TouchableOpacity>
             )}
 
-            <Text style={s.fieldLabel}>Title (optional)</Text>
+            <Text style={s.fieldLabel}>{t('managerBanners.titleOptional')}</Text>
             <TextInput
               style={s.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g. Weekend Special"
+              placeholder={t('managerBanners.titlePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
             />
 
@@ -275,11 +281,11 @@ export default function ManagerBannersScreen() {
               onPress={handleCreate}
               disabled={createMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Upload banner"
+              accessibilityLabel={t('managerBanners.uploadBanner')}
             >
               {createMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.createBtnText}>Upload Banner</Text>}
+                : <Text style={s.createBtnText}>{t('managerBanners.uploadBanner')}</Text>}
             </TouchableOpacity>
             <View style={{ height: 32 }} />
           </ScrollView>

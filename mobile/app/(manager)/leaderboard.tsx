@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, AVATAR_PALETTE, TEXT_GRAY } from '../../constants';
@@ -29,6 +30,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default function ManagerLeaderboardScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [tab, setTab] = useState<Tab>('customers');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -68,8 +70,8 @@ export default function ManagerLeaderboardScreen() {
   return (
     <View style={s.root}>
       <ManagerHeader
-        title="Leaderboard"
-        subtitle={storeName || stores.find(st => st.id === storeId)?.name || 'Your store'}
+        title={t('managerLeaderboard.title')}
+        subtitle={storeName || stores.find(st => st.id === storeId)?.name || t('managerLeaderboard.yourStore')}
         showBack
         paddingHorizontal={16}
         rightSlot={<TrophyIcon size={24} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />}
@@ -84,7 +86,7 @@ export default function ManagerLeaderboardScreen() {
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('managerLeaderboard.filterByStore', { store: store.name })}
                 accessibilityState={{ selected: store.id === storeId }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -96,19 +98,19 @@ export default function ManagerLeaderboardScreen() {
 
         {/* Tab bar */}
         <View style={s.tabBar}>
-          {(['customers', 'staff'] as Tab[]).map((t) => (
+          {(['customers', 'staff'] as Tab[]).map((tabKey) => (
             <TouchableOpacity
-              key={t}
-              style={[s.tab, tab === t && s.tabActive]}
-              onPress={() => setTab(t)}
+              key={tabKey}
+              style={[s.tab, tab === tabKey && s.tabActive]}
+              onPress={() => setTab(tabKey)}
               activeOpacity={0.8}
               accessibilityRole="tab"
-              accessibilityLabel={t === 'customers' ? 'Top Customers' : 'Staff Ratings'}
-              accessibilityState={{ selected: tab === t }}
+              accessibilityLabel={tabKey === 'customers' ? t('managerLeaderboard.topCustomers') : t('managerLeaderboard.staffRatings')}
+              accessibilityState={{ selected: tab === tabKey }}
               hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
             >
-              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'customers' ? 'Top Customers' : 'Staff Ratings'}
+              <Text style={[s.tabText, tab === tabKey && s.tabTextActive]}>
+                {tabKey === 'customers' ? t('managerLeaderboard.topCustomers') : t('managerLeaderboard.staffRatings')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -118,7 +120,7 @@ export default function ManagerLeaderboardScreen() {
       {isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load the leaderboard." onRetry={() => refetchCurrent()} />
+        <ErrorState message={t('managerLeaderboard.loadError')} onRetry={() => refetchCurrent()} />
       ) : tab === 'customers' ? (
         <FadeSlideIn style={{ flex: 1 }}>
         <FlatList
@@ -128,7 +130,7 @@ export default function ManagerLeaderboardScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.centered}>
-              <Text style={s.emptyText}>No customer data yet</Text>
+              <Text style={s.emptyText}>{t('managerLeaderboard.noCustomerData')}</Text>
             </View>
           }
           renderItem={({ item, index }) => (
@@ -143,11 +145,11 @@ export default function ManagerLeaderboardScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.customerName} numberOfLines={1}>{item.name || item.phone}</Text>
-                <Text style={s.customerSub}>{item.transactionCount} visits</Text>
+                <Text style={s.customerSub}>{t('managerLeaderboard.visitsCount', { count: item.transactionCount })}</Text>
               </View>
               <View style={s.pointsBadge}>
                 <Text style={s.pointsNum}>{Math.round(Number(item.pointsBalance || 0) * 100).toLocaleString()}</Text>
-                <Text style={s.pointsLbl}>pts</Text>
+                <Text style={s.pointsLbl}>{t('managerLeaderboard.ptsLabel')}</Text>
               </View>
             </View>
           )}
@@ -162,7 +164,7 @@ export default function ManagerLeaderboardScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.centered}>
-              <Text style={s.emptyText}>No staff ratings yet</Text>
+              <Text style={s.emptyText}>{t('managerLeaderboard.noStaffRatings')}</Text>
             </View>
           }
           renderItem={({ item, index }: { item: any; index: number }) => {
@@ -183,19 +185,19 @@ export default function ManagerLeaderboardScreen() {
                     {isEOM && (
                       <View style={s.eomBadge}>
                         <StarIcon size={10} color="#B45309" strokeWidth={2} />
-                        <Text style={s.eomText}>Month</Text>
+                        <Text style={s.eomText}>{t('managerLeaderboard.monthBadge')}</Text>
                       </View>
                     )}
                   </View>
                   {item.allTime?.count > 0
                     ? <Stars rating={item.allTime.avg} />
-                    : <Text style={s.customerSub}>No ratings yet</Text>}
+                    : <Text style={s.customerSub}>{t('managerLeaderboard.noRatingsYet')}</Text>}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   {item.allTime?.count > 0 && (
                     <Text style={s.ratingNum}>{item.allTime.avg.toFixed(1)}</Text>
                   )}
-                  <Text style={s.ratingCount}>{item.allTime?.count ?? 0} reviews</Text>
+                  <Text style={s.ratingCount}>{t('managerLeaderboard.reviewsCount', { count: item.allTime?.count ?? 0 })}</Text>
                 </View>
               </View>
             );

@@ -1,7 +1,8 @@
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { leaderboardApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -9,14 +10,16 @@ import { TrophyIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import BackButton from '../../components/BackButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useCurrentStoreId } from '../../utils/geo';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
 
 export default function CustomerLeaderboardScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'chain' | 'store'>('chain');
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [manualStoreId, setManualStoreId] = useState<string | null>(null);
 
   // Reuse the gas-prices cache (same data as home screen) to get store list
   const { data: storesData } = useQuery({
@@ -24,11 +27,15 @@ export default function CustomerLeaderboardScreen() {
     queryFn: () => storesApi.getGasPrices(),
     staleTime: 30 * 60 * 1000,
   });
-  const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
+  const stores: { id: string; name: string; latitude?: number | null; longitude?: number | null }[] = storesData?.data?.data ?? [];
 
-  useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
-  }, [stores]);
+  // Defaults "By Store" to the customer's actual nearest store (GPS, same
+  // haversine-nearest logic Home uses), not just whichever store happened
+  // to sort first - falls back to the first store if location is denied,
+  // GPS fails, or nothing is within range. A manual tap on a store chip
+  // (once one exists in the UI) always wins over the resolved default.
+  const nearestStoreId = useCurrentStoreId(stores, stores.map(s => s.id));
+  const selectedStoreId = manualStoreId ?? nearestStoreId ?? null;
 
   const chainQuery = useQuery({
     queryKey: ['leaderboard-customers-chain'],
@@ -62,12 +69,12 @@ export default function CustomerLeaderboardScreen() {
         </View>
         <View style={st.namePts}>
           <Text style={[st.name, isMine && { color: COLORS.primary, fontWeight: '900' }]}>
-            {item.firstName}{isMine ? ' (You)' : ''}
+            {isMine ? t('customerLeaderboard.nameYou', { name: item.firstName }) : item.firstName}
           </Text>
         </View>
         <View style={st.ptsBadge}>
           <Text style={[st.ptsText, isMine && { color: COLORS.primary }]}>
-            {item.totalPoints.toLocaleString()} pts
+            {t('customerLeaderboard.pointsValue', { points: item.totalPoints.toLocaleString() })}
           </Text>
         </View>
       </View>
@@ -83,15 +90,15 @@ export default function CustomerLeaderboardScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TrophyIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
-              <Text style={st.headerTitle}>Leaderboard</Text>
+              <Text style={st.headerTitle}>{t('customerLeaderboard.headerTitle')}</Text>
             </View>
             <Text style={st.headerSub}>
-            {tab === 'chain' ? 'Top Lucky Stop customers' : (stores.find(s => s.id === selectedStoreId)?.name ?? 'Store rankings')}
+            {tab === 'chain' ? t('customerLeaderboard.topCustomers') : (stores.find(s => s.id === selectedStoreId)?.name ?? t('customerLeaderboard.storeRankings'))}
           </Text>
           </View>
           {myRank && (
             <View style={st.myRankPill}>
-              <Text style={st.myRankLabel}>Your rank</Text>
+              <Text style={st.myRankLabel}>{t('customerLeaderboard.yourRank')}</Text>
               <Text style={st.myRankNum}>#{myRank}</Text>
             </View>
           )}
@@ -99,19 +106,19 @@ export default function CustomerLeaderboardScreen() {
 
         {/* Tab bar */}
         <View style={st.tabBar}>
-          {(['chain', 'store'] as const).map((t) => (
+          {(['chain', 'store'] as const).map((tabValue) => (
             <TouchableOpacity
-              key={t}
-              style={[st.tab, tab === t && st.tabActive]}
-              onPress={() => setTab(t)}
+              key={tabValue}
+              style={[st.tab, tab === tabValue && st.tabActive]}
+              onPress={() => setTab(tabValue)}
               activeOpacity={0.8}
               accessibilityRole="tab"
-              accessibilityLabel={t === 'chain' ? 'Show all stores leaderboard' : 'Show by-store leaderboard'}
-              accessibilityState={{ selected: tab === t }}
+              accessibilityLabel={tabValue === 'chain' ? t('customerLeaderboard.allStoresA11y') : t('customerLeaderboard.byStoreA11y')}
+              accessibilityState={{ selected: tab === tabValue }}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
-              <Text style={[st.tabText, tab === t && st.tabTextActive]}>
-                {t === 'chain' ? 'All Stores' : 'By Store'}
+              <Text style={[st.tabText, tab === tabValue && st.tabTextActive]}>
+                {tabValue === 'chain' ? t('customerLeaderboard.allStores') : t('customerLeaderboard.byStore')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -124,10 +131,10 @@ export default function CustomerLeaderboardScreen() {
               <TouchableOpacity
                 key={store.id}
                 style={[st.storeChip, store.id === selectedStoreId && st.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
+                onPress={() => setManualStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('customerLeaderboard.filterByStoreA11y', { store: store.name })}
                 accessibilityState={{ selected: store.id === selectedStoreId }}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               >
@@ -145,14 +152,14 @@ export default function CustomerLeaderboardScreen() {
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
       ) : activeQuery.isError ? (
-        <ErrorState message="Failed to load leaderboard." onRetry={() => activeQuery.refetch()} />
+        <ErrorState message={t('customerLeaderboard.loadError')} onRetry={() => activeQuery.refetch()} />
       ) : entries.length === 0 && !activeQuery.isLoading ? (
         <View style={st.center}>
           <View style={st.emptyIconRing}>
             <TrophyIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
           </View>
-          <Text style={st.emptyTitle}>No rankings yet</Text>
-          <Text style={st.emptySub}>Be the first to earn points!</Text>
+          <Text style={st.emptyTitle}>{t('customerLeaderboard.emptyTitle')}</Text>
+          <Text style={st.emptySub}>{t('customerLeaderboard.emptySubtitle')}</Text>
         </View>
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>

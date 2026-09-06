@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -17,14 +18,14 @@ import ManagerHeader from '../../components/ManagerHeader';
 interface Store { id: string; name: string }
 
 const CATEGORIES = [
-  { value: 'GAS',           label: 'Gas' },
-  { value: 'DIESEL',        label: 'Diesel' },
-  { value: 'HOT_FOODS',     label: 'Hot Foods' },
-  { value: 'GROCERIES',     label: 'Groceries' },
-  { value: 'FROZEN_FOODS',  label: 'Frozen Foods' },
-  { value: 'FRESH_FOODS',   label: 'Fresh Foods' },
-  { value: 'TOBACCO_VAPES', label: 'Tobacco / Vapes' },
-  { value: 'ALCOHOL',       label: 'Alcohol' },
+  { value: 'GAS',           key: 'categoryGas' },
+  { value: 'DIESEL',        key: 'categoryDiesel' },
+  { value: 'HOT_FOODS',     key: 'categoryHotFoods' },
+  { value: 'GROCERIES',     key: 'categoryGroceries' },
+  { value: 'FROZEN_FOODS',  key: 'categoryFrozenFoods' },
+  { value: 'FRESH_FOODS',   key: 'categoryFreshFoods' },
+  { value: 'TOBACCO_VAPES', key: 'categoryTobaccoVapes' },
+  { value: 'ALCOHOL',       key: 'categoryAlcohol' },
 ];
 
 function todayISO() { return new Date().toISOString(); }
@@ -37,6 +38,7 @@ function blankForm() {
 }
 
 export default function ManagerOffersScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -73,13 +75,13 @@ export default function ManagerOffersScreen() {
     mutationFn: (payload: object) => offersApi.create(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
-      Toast.show({ type: 'success', text1: 'Offer created!' });
+      Toast.show({ type: 'success', text1: t('managerOffers.createSuccess') });
       setShowCreate(false);
       setForm(blankForm());
     },
     onError: (err: any) => {
       const e = err.response?.data?.error;
-      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to create offer' });
+      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : t('managerOffers.createError') });
     },
   });
 
@@ -87,12 +89,12 @@ export default function ManagerOffersScreen() {
     mutationFn: ({ id, payload }: { id: string; payload: object }) => offersApi.update(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
-      Toast.show({ type: 'success', text1: 'Offer updated!' });
+      Toast.show({ type: 'success', text1: t('managerOffers.updateSuccess') });
       setEditTarget(null);
     },
     onError: (err: any) => {
       const e = err.response?.data?.error;
-      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : 'Failed to update offer' });
+      Toast.show({ type: 'error', text1: typeof e === 'string' ? e : t('managerOffers.updateError') });
     },
   });
 
@@ -100,10 +102,10 @@ export default function ManagerOffersScreen() {
     mutationFn: (offerId: string) => offersApi.deleteOffer(offerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-offers'] });
-      Toast.show({ type: 'success', text1: 'Offer removed' });
+      Toast.show({ type: 'success', text1: t('managerOffers.removeSuccess') });
     },
     onError: (err: any) => {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to delete offer' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('managerOffers.removeError') });
     },
   });
 
@@ -122,16 +124,16 @@ export default function ManagerOffersScreen() {
   }
 
   function handleCreate() {
-    if (!form.title.trim()) { Toast.show({ type: 'error', text1: 'Title is required' }); return; }
+    if (!form.title.trim()) { Toast.show({ type: 'error', text1: t('managerOffers.titleRequired') }); return; }
     if (!form.bonusRate && !form.dealText.trim()) {
-      Toast.show({ type: 'error', text1: 'Add a bonus % or deal text' }); return;
+      Toast.show({ type: 'error', text1: t('managerOffers.bonusOrDealRequired') }); return;
     }
     createMutation.mutate(buildPayload(form, storeId));
   }
 
   function handleUpdate() {
     if (!editTarget) return;
-    if (!editForm.title.trim()) { Toast.show({ type: 'error', text1: 'Title is required' }); return; }
+    if (!editForm.title.trim()) { Toast.show({ type: 'error', text1: t('managerOffers.titleRequired') }); return; }
     updateMutation.mutate({ id: editTarget.id, payload: buildPayload(editForm) });
   }
 
@@ -148,28 +150,28 @@ export default function ManagerOffersScreen() {
   }
 
   function confirmDelete(offer: any) {
-    Alert.alert('Remove Offer', `Remove "${offer.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deleteMutation.mutate(offer.id) },
+    Alert.alert(t('managerOffers.removeOfferTitle'), t('managerOffers.removeConfirm', { title: offer.title }), [
+      { text: t('managerOffers.cancel'), style: 'cancel' },
+      { text: t('managerOffers.remove'), style: 'destructive', onPress: () => deleteMutation.mutate(offer.id) },
     ]);
   }
 
   return (
     <View style={s.root}>
       <ManagerHeader
-        title="Offers"
-        subtitle="Manage your store's active deals"
+        title={t('managerOffers.title')}
+        subtitle={t('managerOffers.subtitle')}
         rightSlot={
           <TouchableOpacity
             style={s.addBtn}
             onPress={() => setShowCreate(true)}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Create new offer"
+            accessibilityLabel={t('managerOffers.createNewOfferLabel')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-            <Text style={s.addBtnText}>New</Text>
+            <Text style={s.addBtnText}>{t('managerOffers.newShort')}</Text>
           </TouchableOpacity>
         }
       >
@@ -183,7 +185,7 @@ export default function ManagerOffersScreen() {
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('managerOffers.filterByStore', { store: store.name })}
                 accessibilityState={{ selected: store.id === storeId }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -204,24 +206,24 @@ export default function ManagerOffersScreen() {
         {isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : isError ? (
-          <ErrorState message="Failed to load offers." onRetry={() => refetch()} />
+          <ErrorState message={t('managerOffers.loadError')} onRetry={() => refetch()} />
         ) : offers.length === 0 ? (
           <FadeSlideIn style={s.emptyCard}>
-            <Text style={s.emptyTitle}>No active offers</Text>
-            <Text style={s.emptySub}>Tap "+ New" to create your first promotion</Text>
+            <Text style={s.emptyTitle}>{t('managerOffers.emptyTitle')}</Text>
+            <Text style={s.emptySub}>{t('managerOffers.emptySub')}</Text>
             <TouchableOpacity
               style={s.emptyBtn}
               onPress={() => setShowCreate(true)}
               accessibilityRole="button"
-              accessibilityLabel="Create offer"
+              accessibilityLabel={t('managerOffers.createOfferLabel')}
               hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
             >
-              <Text style={s.emptyBtnText}>Create Offer</Text>
+              <Text style={s.emptyBtnText}>{t('managerOffers.createOffer')}</Text>
             </TouchableOpacity>
           </FadeSlideIn>
         ) : (
           <>
-            <Text style={s.sectionLabel}>{offers.length} Active Offer{offers.length !== 1 ? 's' : ''}</Text>
+            <Text style={s.sectionLabel}>{t('managerOffers.activeOffersCount', { count: offers.length })}</Text>
             {offers.map((offer: any, index: number) => (
               <FadeSlideIn key={offer.id} delay={Math.min(index * 40, 200)}>
               <View style={s.offerCard}>
@@ -247,7 +249,7 @@ export default function ManagerOffersScreen() {
                     </View>
                   ) : null}
                   <Text style={s.offerDates}>
-                    Until {new Date(offer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {t('managerOffers.untilDate', { date: new Date(offer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
                   </Text>
                 </View>
                 <View style={s.cardActions}>
@@ -256,11 +258,11 @@ export default function ManagerOffersScreen() {
                     onPress={() => openEdit(offer)}
                     activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit offer: ${offer.title}`}
+                    accessibilityLabel={t('managerOffers.editOfferLabel', { title: offer.title })}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <EditIcon size={14} color={COLORS.primary} strokeWidth={2} />
-                    <Text style={s.editBtnText}>Edit</Text>
+                    <Text style={s.editBtnText}>{t('managerOffers.edit')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={s.deleteBtn}
@@ -268,10 +270,10 @@ export default function ManagerOffersScreen() {
                     disabled={deleteMutation.isPending}
                     activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove offer: ${offer.title}`}
+                    accessibilityLabel={t('managerOffers.removeOfferLabel', { title: offer.title })}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Text style={s.deleteBtnText}>Remove</Text>
+                    <Text style={s.deleteBtnText}>{t('managerOffers.remove')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -284,26 +286,26 @@ export default function ManagerOffersScreen() {
 
       {/* ── Create Offer Modal ── */}
       <OfferFormModal
-        title="New Offer"
+        title={t('managerOffers.newOfferTitle')}
         visible={showCreate}
         form={form}
         setField={setF}
         onClose={() => { setShowCreate(false); setForm(blankForm()); }}
         onSubmit={handleCreate}
         isPending={createMutation.isPending}
-        submitLabel="Create Offer"
+        submitLabel={t('managerOffers.createOffer')}
       />
 
       {/* ── Edit Offer Modal ── */}
       <OfferFormModal
-        title="Edit Offer"
+        title={t('managerOffers.editOfferTitle')}
         visible={!!editTarget}
         form={editForm}
         setField={setEF}
         onClose={() => setEditTarget(null)}
         onSubmit={handleUpdate}
         isPending={updateMutation.isPending}
-        submitLabel="Save Changes"
+        submitLabel={t('managerOffers.saveChanges')}
       />
     </View>
   );
@@ -323,6 +325,7 @@ interface FormModalProps {
 }
 
 function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isPending, submitLabel }: FormModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={s.modal}>
@@ -333,7 +336,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
             style={s.modalCloseBtn}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Close offer form"
+            accessibilityLabel={t('managerOffers.closeFormLabel')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <XIcon size={20} color="rgba(255,255,255,0.8)" strokeWidth={2.5} />
@@ -341,49 +344,49 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
         </View>
 
         <ScrollView contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
-          <Field label="Title *">
+          <Field label={t('managerOffers.titleFieldLabel')}>
             <TextInput
               style={s.input} value={form.title} onChangeText={v => setField('title', v)}
-              placeholder="e.g. Weekend Gas Bonus" placeholderTextColor={COLORS.textMuted}
+              placeholder={t('managerOffers.titlePlaceholder')} placeholderTextColor={COLORS.textMuted}
             />
           </Field>
 
-          <Field label="Description (optional)">
+          <Field label={t('managerOffers.descriptionFieldLabel')}>
             <TextInput
               style={[s.input, { height: 80, textAlignVertical: 'top' }]}
               value={form.description} onChangeText={v => setField('description', v)}
-              placeholder="Brief details about the offer…"
+              placeholder={t('managerOffers.descriptionPlaceholder')}
               placeholderTextColor={COLORS.textMuted} multiline
             />
           </Field>
 
-          <Field label="Bonus Cashback % (optional)">
+          <Field label={t('managerOffers.bonusFieldLabel')}>
             <TextInput
               style={s.input} value={form.bonusRate} onChangeText={v => setField('bonusRate', v)}
-              placeholder="e.g. 10 for 10% bonus" placeholderTextColor={COLORS.textMuted}
+              placeholder={t('managerOffers.bonusPlaceholder')} placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
             />
           </Field>
 
-          <Field label="Deal Text (optional)">
+          <Field label={t('managerOffers.dealTextFieldLabel')}>
             <TextInput
               style={s.input} value={form.dealText} onChangeText={v => setField('dealText', v)}
-              placeholder="e.g. 2 for $5" placeholderTextColor={COLORS.textMuted}
+              placeholder={t('managerOffers.dealTextPlaceholder')} placeholderTextColor={COLORS.textMuted}
               maxLength={40}
             />
           </Field>
 
-          <Field label="Category (optional)">
+          <Field label={t('managerOffers.categoryFieldLabel')}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               <TouchableOpacity
                 style={[s.catChip, !form.category && s.catChipActive]}
                 onPress={() => setField('category', '')}
                 accessibilityRole="tab"
-                accessibilityLabel="All categories"
+                accessibilityLabel={t('managerOffers.allCategoriesLabel')}
                 accessibilityState={{ selected: !form.category }}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
               >
-                <Text style={[s.catChipText, !form.category && s.catChipTextActive]}>All</Text>
+                <Text style={[s.catChipText, !form.category && s.catChipTextActive]}>{t('managerOffers.allCategoriesShort')}</Text>
               </TouchableOpacity>
               {CATEGORIES.map((c) => (
                 <TouchableOpacity
@@ -391,17 +394,17 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
                   style={[s.catChip, form.category === c.value && s.catChipActive]}
                   onPress={() => setField('category', c.value)}
                   accessibilityRole="tab"
-                  accessibilityLabel={`${c.label} category`}
+                  accessibilityLabel={t('managerOffers.categoryChipLabel', { category: t(`managerOffers.${c.key}`) })}
                   accessibilityState={{ selected: form.category === c.value }}
                   hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 >
-                  <Text style={[s.catChipText, form.category === c.value && s.catChipTextActive]}>{c.label}</Text>
+                  <Text style={[s.catChipText, form.category === c.value && s.catChipTextActive]}>{t(`managerOffers.${c.key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </Field>
 
-          <Field label="Duration (days)">
+          <Field label={t('managerOffers.durationFieldLabel')}>
             <View style={s.durationRow}>
               {['3', '7', '14', '30'].map((d) => (
                 <TouchableOpacity
@@ -409,7 +412,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
                   style={[s.durationChip, form.durationDays === d && s.durationChipActive]}
                   onPress={() => setField('durationDays', d)}
                   accessibilityRole="tab"
-                  accessibilityLabel={`${d} days`}
+                  accessibilityLabel={t('managerOffers.daysCountLabel', { count: Number(d) })}
                   accessibilityState={{ selected: form.durationDays === d }}
                   hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                 >
@@ -419,7 +422,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
               <TextInput
                 style={[s.input, { flex: 1, marginBottom: 0 }]}
                 value={form.durationDays} onChangeText={v => setField('durationDays', v)}
-                keyboardType="number-pad" placeholder="days"
+                keyboardType="number-pad" placeholder={t('managerOffers.daysPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
               />
             </View>

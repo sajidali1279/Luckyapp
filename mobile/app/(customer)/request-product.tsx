@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { productRequestApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ShoppingBagIcon, CheckCircleIcon, ChevronRightIcon } from '../../components/Icons';
@@ -15,22 +16,22 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 
 const STATUS_CONFIG = {
-  PENDING:  { label: 'Pending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
-  ACCEPTED: { label: 'Accepted', color: COLORS.statusAcceptedText, bg: COLORS.statusAcceptedBg, border: COLORS.statusAcceptedBorder, dot: COLORS.statusAcceptedDot },
-  DECLINED: { label: 'Declined', color: COLORS.statusDeclinedText, bg: COLORS.statusDeclinedBg, border: COLORS.statusDeclinedBorder, dot: COLORS.statusDeclinedDot },
+  PENDING:  { labelKey: 'customerRequestProduct.statusPending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
+  ACCEPTED: { labelKey: 'customerRequestProduct.statusAccepted', color: COLORS.statusAcceptedText, bg: COLORS.statusAcceptedBg, border: COLORS.statusAcceptedBorder, dot: COLORS.statusAcceptedDot },
+  DECLINED: { labelKey: 'customerRequestProduct.statusDeclined', color: COLORS.statusDeclinedText, bg: COLORS.statusDeclinedBg, border: COLORS.statusDeclinedBorder, dot: COLORS.statusDeclinedDot },
 };
 
 const CATEGORIES = [
-  { key: 'Groceries',     emoji: '🛒' },
-  { key: 'Frozen Foods',  emoji: '🧊' },
-  { key: 'Fresh Foods',   emoji: '🥗' },
-  { key: 'Beverages',     emoji: '🥤' },
-  { key: 'Snacks',        emoji: '🍫' },
-  { key: 'Hot Foods',     emoji: '🔥' },
-  { key: 'Gas',           emoji: '⛽' },
-  { key: 'Diesel',        emoji: '🚛' },
-  { key: 'Tobacco/Vapes', emoji: '🚬' },
-  { key: 'Other',         emoji: '📦' },
+  { key: 'Groceries',     labelKey: 'customerRequestProduct.categoryGroceries',     emoji: '🛒' },
+  { key: 'Frozen Foods',  labelKey: 'customerRequestProduct.categoryFrozenFoods',   emoji: '🧊' },
+  { key: 'Fresh Foods',   labelKey: 'customerRequestProduct.categoryFreshFoods',    emoji: '🥗' },
+  { key: 'Beverages',     labelKey: 'customerRequestProduct.categoryBeverages',     emoji: '🥤' },
+  { key: 'Snacks',        labelKey: 'customerRequestProduct.categorySnacks',        emoji: '🍫' },
+  { key: 'Hot Foods',     labelKey: 'customerRequestProduct.categoryHotFoods',      emoji: '🔥' },
+  { key: 'Gas',           labelKey: 'customerRequestProduct.categoryGas',           emoji: '⛽' },
+  { key: 'Diesel',        labelKey: 'customerRequestProduct.categoryDiesel',        emoji: '🚛' },
+  { key: 'Tobacco/Vapes', labelKey: 'customerRequestProduct.categoryTobaccoVapes',  emoji: '🚬' },
+  { key: 'Other',         labelKey: 'customerRequestProduct.categoryOther',         emoji: '📦' },
 ];
 
 function daysLeft(expiresAt: string) {
@@ -38,12 +39,12 @@ function daysLeft(expiresAt: string) {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return `${days} days ago`;
+  if (days === 0) return t('customerRequestProduct.today');
+  if (days === 1) return t('customerRequestProduct.yesterday');
+  return t('customerRequestProduct.daysAgo', { count: days });
 }
 
 interface Store { id: string; name: string; city: string; state: string }
@@ -56,6 +57,7 @@ interface ProductRequest {
 }
 
 export default function RequestProductScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
   const [showForm, setShowForm] = useState(false);
@@ -96,14 +98,14 @@ export default function RequestProductScreen() {
       setSelectedStore(null);
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || 'Failed to submit request';
-      Alert.alert('Error', msg);
+      const msg = err?.response?.data?.error || t('customerRequestProduct.submitFailedError');
+      Alert.alert(t('customerRequestProduct.errorTitle'), msg);
     },
   });
 
   function handleSubmit() {
-    if (!selectedStore) { Alert.alert('Select a store first'); return; }
-    if (!productName.trim()) { Alert.alert('Enter a product name'); return; }
+    if (!selectedStore) { Alert.alert(t('customerRequestProduct.selectStoreFirstAlert')); return; }
+    if (!productName.trim()) { Alert.alert(t('customerRequestProduct.enterProductNameAlert')); return; }
     submitMut.mutate();
   }
 
@@ -116,17 +118,17 @@ export default function RequestProductScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTextWrap}>
-            <Text style={styles.headerTitle}>Request a Product</Text>
-            <Text style={styles.headerSub}>Don't see something you want in-store? Let the team know!</Text>
+            <Text style={styles.headerTitle}>{t('customerRequestProduct.headerTitle')}</Text>
+            <Text style={styles.headerSub}>{t('customerRequestProduct.headerSub')}</Text>
           </View>
           <TouchableOpacity
             style={styles.newBtn}
             onPress={() => { setShowForm(true); setSubmitted(false); }}
             accessibilityRole="button"
-            accessibilityLabel="Request a new product"
+            accessibilityLabel={t('customerRequestProduct.newRequestA11y')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.newBtnText}>+ New</Text>
+            <Text style={styles.newBtnText}>+ {t('customerRequestProduct.newBtn')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -135,7 +137,7 @@ export default function RequestProductScreen() {
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : isError ? (
             <FadeSlideIn>
-              <ErrorState message="Failed to load your requests." onRetry={() => refetch()} />
+              <ErrorState message={t('customerRequestProduct.loadError')} onRetry={() => refetch()} />
             </FadeSlideIn>
           ) : myRequests.length === 0 ? (
             <FadeSlideIn>
@@ -143,15 +145,15 @@ export default function RequestProductScreen() {
                 <View style={styles.emptyIconWrap}>
                   <ShoppingBagIcon size={40} color="#D1D5DB" strokeWidth={1.5} />
                 </View>
-                <Text style={styles.emptyTitle}>No requests yet</Text>
-                <Text style={styles.emptySub}>Tap "+ New" to request a product you'd like to see in a Lucky Stop store.</Text>
+                <Text style={styles.emptyTitle}>{t('customerRequestProduct.emptyTitle')}</Text>
+                <Text style={styles.emptySub}>{t('customerRequestProduct.emptySubtitle')}</Text>
               </View>
             </FadeSlideIn>
           ) : (
             <>
               {pending.length > 0 && (
                 <>
-                  <Text style={styles.sectionLabel}>Active Requests</Text>
+                  <Text style={styles.sectionLabel}>{t('customerRequestProduct.activeRequestsSection')}</Text>
                   {pending.map((r, i) => (
                     <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
                       <PulseHighlight active={r.id === highlightedId}>
@@ -163,7 +165,7 @@ export default function RequestProductScreen() {
               )}
               {resolved.length > 0 && (
                 <>
-                  <Text style={styles.sectionLabel}>Past Requests</Text>
+                  <Text style={styles.sectionLabel}>{t('customerRequestProduct.pastRequestsSection')}</Text>
                   {resolved.map((r, i) => (
                     <FadeSlideIn key={r.id} delay={Math.min(i * 40, 200)}>
                       <PulseHighlight active={r.id === highlightedId}>
@@ -181,11 +183,11 @@ export default function RequestProductScreen() {
         <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowForm(false)}>
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Product Request</Text>
+              <Text style={styles.modalTitle}>{t('customerRequestProduct.newRequestModalTitle')}</Text>
               <ModalCloseButton
                 onPress={() => { setShowForm(false); setSubmitted(false); }}
                 style={styles.modalCloseBtn}
-                label="Close new product request form"
+                label={t('customerRequestProduct.closeNewRequestFormA11y')}
                 color={COLORS.textMuted}
               />
             </View>
@@ -195,40 +197,40 @@ export default function RequestProductScreen() {
                 <View style={styles.successIconWrap}>
                   <CheckCircleIcon size={52} color="#22c55e" strokeWidth={1.5} />
                 </View>
-                <Text style={styles.successTitle}>Request Submitted!</Text>
+                <Text style={styles.successTitle}>{t('customerRequestProduct.successTitle')}</Text>
                 <Text style={styles.successSub}>
-                  The store team will review your request within 7 days. You'll get a notification with their response.
+                  {t('customerRequestProduct.successSub')}
                 </Text>
                 <TouchableOpacity
                   style={styles.doneBtn}
                   onPress={() => setShowForm(false)}
                   accessibilityRole="button"
-                  accessibilityLabel="Close request submitted confirmation"
+                  accessibilityLabel={t('customerRequestProduct.closeSuccessA11y')}
                 >
-                  <Text style={styles.doneBtnText}>Done</Text>
+                  <Text style={styles.doneBtnText}>{t('customerRequestProduct.doneBtn')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <ScrollView style={styles.formScroll} keyboardShouldPersistTaps="handled">
                 {/* Store Picker */}
-                <Text style={styles.fieldLabel}>Store *</Text>
+                <Text style={styles.fieldLabel}>{t('customerRequestProduct.storeLabel')}</Text>
                 <TouchableOpacity
                   style={styles.storePicker}
                   onPress={() => setShowStorePicker(true)}
                   accessibilityRole="button"
-                  accessibilityLabel={selectedStore ? `Change selected store, currently ${selectedStore.name}` : 'Select a store for this product request'}
+                  accessibilityLabel={selectedStore ? t('customerRequestProduct.changeStoreA11y', { store: selectedStore.name }) : t('customerRequestProduct.selectStoreA11y')}
                 >
                   <Text style={[styles.storePickerText, !selectedStore && styles.placeholder]}>
-                    {selectedStore ? `${selectedStore.name} - ${selectedStore.city}, ${selectedStore.state}` : 'Select a store…'}
+                    {selectedStore ? `${selectedStore.name} - ${selectedStore.city}, ${selectedStore.state}` : t('customerRequestProduct.selectStorePlaceholder')}
                   </Text>
                   <ChevronRightIcon size={16} color="#adb5bd" strokeWidth={1.5} />
                 </TouchableOpacity>
 
                 {/* Product Name */}
-                <Text style={styles.fieldLabel}>Product Name *</Text>
+                <Text style={styles.fieldLabel}>{t('customerRequestProduct.productNameLabel')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. Celsius Energy Drink, Chobani Yogurt..."
+                  placeholder={t('customerRequestProduct.productNamePlaceholder')}
                   placeholderTextColor="#adb5bd"
                   value={productName}
                   onChangeText={setProductName}
@@ -237,10 +239,11 @@ export default function RequestProductScreen() {
                 />
 
                 {/* Category */}
-                <Text style={styles.fieldLabel}>Category <Text style={styles.optional}>(optional)</Text></Text>
+                <Text style={styles.fieldLabel}>{t('customerRequestProduct.categoryLabel')} <Text style={styles.optional}>{t('customerRequestProduct.optionalSuffix')}</Text></Text>
                 <View style={styles.categoryGrid}>
                   {CATEGORIES.map((cat) => {
                     const active = selectedCategory === cat.key;
+                    const catLabel = t(cat.labelKey);
                     return (
                       <TouchableOpacity
                         key={cat.key}
@@ -248,12 +251,12 @@ export default function RequestProductScreen() {
                         onPress={() => setSelectedCategory(active ? null : cat.key)}
                         activeOpacity={0.75}
                         accessibilityRole="button"
-                        accessibilityLabel={`${cat.key} category${active ? ', selected' : ''}`}
+                        accessibilityLabel={active ? t('customerRequestProduct.categoryChipSelectedA11y', { category: catLabel }) : t('customerRequestProduct.categoryChipA11y', { category: catLabel })}
                         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                       >
                         <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
                         <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
-                          {cat.key}
+                          {catLabel}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -261,10 +264,10 @@ export default function RequestProductScreen() {
                 </View>
 
                 {/* Description */}
-                <Text style={styles.fieldLabel}>More Details <Text style={styles.optional}>(optional)</Text></Text>
+                <Text style={styles.fieldLabel}>{t('customerRequestProduct.moreDetailsLabel')} <Text style={styles.optional}>{t('customerRequestProduct.optionalSuffix')}</Text></Text>
                 <TextInput
                   style={[styles.input, styles.textarea]}
-                  placeholder="Brand, size, flavor, where you've seen it before..."
+                  placeholder={t('customerRequestProduct.moreDetailsPlaceholder')}
                   placeholderTextColor="#adb5bd"
                   value={description}
                   onChangeText={setDescription}
@@ -276,7 +279,7 @@ export default function RequestProductScreen() {
 
                 <View style={styles.hintBox}>
                   <Text style={styles.hintText}>
-                    Requests are live for 7 days. You'll receive a push notification when the store responds.
+                    {t('customerRequestProduct.hintText')}
                   </Text>
                 </View>
 
@@ -285,11 +288,11 @@ export default function RequestProductScreen() {
                   onPress={handleSubmit}
                   disabled={!selectedStore || !productName.trim() || submitMut.isPending}
                   accessibilityRole="button"
-                  accessibilityLabel="Submit product request"
+                  accessibilityLabel={t('customerRequestProduct.submitRequestA11y')}
                 >
                   {submitMut.isPending
                     ? <ActivityIndicator color={COLORS.white} />
-                    : <Text style={styles.submitBtnText}>Submit Request</Text>
+                    : <Text style={styles.submitBtnText}>{t('customerRequestProduct.submitRequestBtn')}</Text>
                   }
                 </TouchableOpacity>
               </ScrollView>
@@ -301,11 +304,11 @@ export default function RequestProductScreen() {
         <Modal visible={showStorePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowStorePicker(false)}>
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select a Store</Text>
+              <Text style={styles.modalTitle}>{t('customerRequestProduct.selectStoreModalTitle')}</Text>
               <ModalCloseButton
                 onPress={() => setShowStorePicker(false)}
                 style={styles.modalCloseBtn}
-                label="Close store picker"
+                label={t('customerRequestProduct.closeStorePickerA11y')}
                 color={COLORS.textMuted}
               />
             </View>
@@ -316,7 +319,7 @@ export default function RequestProductScreen() {
                   style={[styles.storeOption, selectedStore?.id === store.id && styles.storeOptionActive]}
                   onPress={() => { setSelectedStore(store); setShowStorePicker(false); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select ${store.name}, ${store.city}, ${store.state}`}
+                  accessibilityLabel={t('customerRequestProduct.selectStoreOptionA11y', { name: store.name, city: store.city, state: store.state })}
                 >
                   <View style={styles.storeOptionAvatar}>
                     <Text style={styles.storeOptionInitial}>{store.name[0].toUpperCase()}</Text>
@@ -337,8 +340,10 @@ export default function RequestProductScreen() {
 }
 
 function RequestCard({ request }: { request: ProductRequest }) {
+  const { t } = useTranslation();
   const cfg = STATUS_CONFIG[request.status];
   const expired = daysLeft(request.expiresAt) === 0 && request.status === 'PENDING';
+  const catMeta = CATEGORIES.find(c => c.key === request.category);
   return (
     <View style={[styles.card, { borderColor: cfg.dot + '40', backgroundColor: cfg.bg }]}>
       <View style={styles.cardBody}>
@@ -352,14 +357,14 @@ function RequestCard({ request }: { request: ProductRequest }) {
             {request.category ? (
               <View style={styles.categoryTag}>
                 <Text style={styles.categoryTagText}>
-                  {CATEGORIES.find(c => c.key === request.category)?.emoji ?? '📦'} {request.category}
+                  {catMeta?.emoji ?? '📦'} {catMeta ? t(catMeta.labelKey) : request.category}
                 </Text>
               </View>
             ) : null}
           </View>
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
             <View style={[styles.statusDot, { backgroundColor: cfg.dot }]} />
-            <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+            <Text style={[styles.statusText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
           </View>
         </View>
 
@@ -368,10 +373,10 @@ function RequestCard({ request }: { request: ProductRequest }) {
         )}
 
         <View style={styles.cardMeta}>
-          <Text style={styles.metaText}>Submitted {timeAgo(request.createdAt)}</Text>
+          <Text style={styles.metaText}>{t('customerRequestProduct.submittedTimeAgo', { time: timeAgo(request.createdAt, t) })}</Text>
           {request.status === 'PENDING' && !expired && (
             <View style={styles.expiryPill}>
-              <Text style={styles.expiryText}>{daysLeft(request.expiresAt)}d left</Text>
+              <Text style={styles.expiryText}>{t('customerRequestProduct.daysLeft', { count: daysLeft(request.expiresAt) })}</Text>
             </View>
           )}
         </View>

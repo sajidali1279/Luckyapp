@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -32,6 +33,7 @@ const SHIFT_TIMES: Record<string, string> = {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const todayKey = getTodayDayKey();
@@ -75,17 +77,17 @@ export default function ScheduleScreen() {
     onSuccess: (_, vars: any) => {
       const isTimeOff = (vars as any).requestType === 'TIME_OFF';
       Alert.alert(
-        'Request Submitted',
+        t('employeeSchedule.requestSubmittedTitle'),
         isTimeOff
-          ? 'Your time-off request has been sent to your manager.'
-          : 'Your fill-in request has been submitted. Your manager will review it.'
+          ? t('employeeSchedule.timeOffSubmittedBody')
+          : t('employeeSchedule.fillInSubmittedBody')
       );
       qc.invalidateQueries({ queryKey: ['my-schedule'] });
       setRequestModal(null);
       setNotes('');
     },
     onError: (err: any) => {
-      Alert.alert('Error', err?.response?.data?.error || 'Failed to submit request');
+      Alert.alert(t('employeeSchedule.errorTitle'), err?.response?.data?.error || t('employeeSchedule.submitFailed'));
     },
   });
 
@@ -113,7 +115,7 @@ export default function ScheduleScreen() {
   );
 
   function handleRequestOff(template: any, date: Date) {
-    setRequestModal({ storeId: template.storeId, storeName: template.store?.name || 'Store', shiftType: template.shiftType, date, requestType: 'TIME_OFF' });
+    setRequestModal({ storeId: template.storeId, storeName: template.store?.name || t('employeeSchedule.storeFallback'), shiftType: template.shiftType, date, requestType: 'TIME_OFF' });
     setNotes('');
   }
 
@@ -144,12 +146,12 @@ export default function ScheduleScreen() {
       <SafeAreaView style={s.headerBg} edges={['top']}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>LUCKY STOP STAFF</Text>
-            <Text style={s.headerTitle}>My Schedule</Text>
+            <Text style={s.headerEyebrow}>{t('employeeSchedule.headerEyebrow')}</Text>
+            <Text style={s.headerTitle}>{t('employeeSchedule.headerTitle')}</Text>
           </View>
           <View style={s.scheduleSummary}>
             <Text style={s.summaryNum}>{scheduledDays}</Text>
-            <Text style={s.summaryLbl}>shifts/wk</Text>
+            <Text style={s.summaryLbl}>{t('employeeSchedule.shiftsPerWeek')}</Text>
           </View>
         </View>
 
@@ -162,7 +164,7 @@ export default function ScheduleScreen() {
             accessibilityRole="button"
             accessibilityLabel="View this week"
           >
-            <Text style={[s.weekToggleText, weekOffset === 0 && s.weekToggleTextActive]}>This Week</Text>
+            <Text style={[s.weekToggleText, weekOffset === 0 && s.weekToggleTextActive]}>{t('employeeSchedule.thisWeek')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.weekToggleBtn, weekOffset === 1 && s.weekToggleBtnActive]}
@@ -171,7 +173,7 @@ export default function ScheduleScreen() {
             accessibilityRole="button"
             accessibilityLabel="View next week"
           >
-            <Text style={[s.weekToggleText, weekOffset === 1 && s.weekToggleTextActive]}>Next Week</Text>
+            <Text style={[s.weekToggleText, weekOffset === 1 && s.weekToggleTextActive]}>{t('employeeSchedule.nextWeek')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -235,7 +237,7 @@ export default function ScheduleScreen() {
         {isLoading ? (
           <View style={s.loadingWrap}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={s.loadingText}>Loading your schedule…</Text>
+            <Text style={s.loadingText}>{t('employeeSchedule.loadingSchedule')}</Text>
           </View>
         ) : (
           <FadeSlideIn>
@@ -253,7 +255,7 @@ export default function ScheduleScreen() {
                     <Text style={s.dayDate}>{fmtMonthDay(selectedDayData.date)}</Text>
                   </View>
                   {isViewingToday && (
-                    <View style={s.todayBadge}><Text style={s.todayBadgeText}>Today</Text></View>
+                    <View style={s.todayBadge}><Text style={s.todayBadgeText}>{t('employeeSchedule.todayBadge')}</Text></View>
                   )}
                 </View>
 
@@ -274,7 +276,7 @@ export default function ScheduleScreen() {
                     <View style={s.storeRow}>
                       <MapPinIcon size={14} color="#6b7280" strokeWidth={2} />
                       <Text style={s.storeName}>
-                        {selectedTemplate.store?.name || 'Store'}{selectedTemplate.store?.city ? `, ${selectedTemplate.store.city}` : ''}
+                        {selectedTemplate.store?.name || t('employeeSchedule.storeFallback')}{selectedTemplate.store?.city ? `, ${selectedTemplate.store.city}` : ''}
                       </Text>
                     </View>
 
@@ -282,12 +284,12 @@ export default function ScheduleScreen() {
                     {hasApprovedTimeOff(selectedDayISO) ? (
                       <View style={s.statusPill}>
                         <CheckCircleIcon size={13} color="#16a34a" strokeWidth={2.5} />
-                        <Text style={s.statusPillText}>Time Off Approved</Text>
+                        <Text style={s.statusPillText}>{t('employeeSchedule.timeOffApproved')}</Text>
                       </View>
                     ) : hasPendingTimeOff(selectedDayISO) ? (
                       <View style={[s.statusPill, s.statusPillAmber]}>
                         <ClockIcon size={13} color={COLORS.statusPendingText} strokeWidth={2.5} />
-                        <Text style={[s.statusPillText, s.statusPillAmberText]}>Time Off Pending</Text>
+                        <Text style={[s.statusPillText, s.statusPillAmberText]}>{t('employeeSchedule.timeOffPending')}</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -298,7 +300,7 @@ export default function ScheduleScreen() {
                         accessibilityLabel={`Request time off for ${DAY_LABELS[selectedDayKey]}`}
                         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       >
-                        <Text style={s.actionBtnText}>Request Off</Text>
+                        <Text style={s.actionBtnText}>{t('employeeSchedule.requestOffBtn')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -307,18 +309,18 @@ export default function ScheduleScreen() {
                     <View style={s.dayOffIconWrap}>
                       <Text style={s.dayOffIcon}>😴</Text>
                     </View>
-                    <Text style={s.dayOffLabel}>Day Off</Text>
+                    <Text style={s.dayOffLabel}>{t('employeeSchedule.dayOffLabel')}</Text>
                     {/* Fill-in */}
                     {(() => {
                       const isPast = selectedDayData.date < new Date(new Date().setHours(0, 0, 0, 0));
-                      if (isPast) return <Text style={s.pastDayNote}>Past day</Text>;
+                      if (isPast) return <Text style={s.pastDayNote}>{t('employeeSchedule.pastDayNote')}</Text>;
                       const storeId = templates[0]?.storeId || user?.storeIds?.[0];
-                      const storeName = templates[0]?.store?.name || 'Your Store';
+                      const storeName = templates[0]?.store?.name || t('employeeSchedule.yourStoreFallback');
                       if (!storeId) return null;
                       return hasPendingFillIn(selectedDayISO) ? (
                         <View style={[s.statusPill, s.statusPillGreen]}>
                           <ClockIcon size={13} color="#16a34a" strokeWidth={2.5} />
-                          <Text style={[s.statusPillText, s.statusPillGreenText]}>Fill-In Requested</Text>
+                          <Text style={[s.statusPillText, s.statusPillGreenText]}>{t('employeeSchedule.fillInRequested')}</Text>
                         </View>
                       ) : (
                         <TouchableOpacity
@@ -329,7 +331,7 @@ export default function ScheduleScreen() {
                           accessibilityLabel={`Request extra shift for ${DAY_LABELS[selectedDayKey]}`}
                           hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                         >
-                          <Text style={[s.actionBtnText, s.actionBtnGreenText]}>+ Request Extra Shift</Text>
+                          <Text style={[s.actionBtnText, s.actionBtnGreenText]}>{t('employeeSchedule.requestExtraShiftBtn')}</Text>
                         </TouchableOpacity>
                       );
                     })()}
@@ -340,7 +342,7 @@ export default function ScheduleScreen() {
             })()}
 
             {/* ── Week Overview ── */}
-            <Text style={s.sectionLabel}>{weekOffset === 0 ? 'This Week' : 'Next Week'}</Text>
+            <Text style={s.sectionLabel}>{weekOffset === 0 ? t('employeeSchedule.thisWeek') : t('employeeSchedule.nextWeek')}</Text>
             <View style={s.weekOverview}>
               {weekDates.map(({ key, date }) => {
                 const template = templateByDay[key];
@@ -372,7 +374,7 @@ export default function ScheduleScreen() {
             {pendingRequests.length > 0 && (
               <>
                 <View style={s.sectionRow}>
-                  <Text style={s.sectionLabel}>Pending Requests</Text>
+                  <Text style={s.sectionLabel}>{t('employeeSchedule.pendingRequests')}</Text>
                   <View style={s.sectionBadge}><Text style={s.sectionBadgeText}>{pendingRequests.length}</Text></View>
                 </View>
                 {pendingRequests.map((r: any) => {
@@ -383,12 +385,12 @@ export default function ScheduleScreen() {
                       <View style={s.requestCardTop}>
                         <View style={[s.requestTypePill, { backgroundColor: typeColor + '18' }]}>
                           <Text style={[s.requestTypeText, { color: typeColor }]}>
-                            {isTimeOff ? 'Time Off' : 'Fill-In'}
+                            {isTimeOff ? t('employeeSchedule.timeOffLabel') : t('employeeSchedule.fillInLabel')}
                           </Text>
                         </View>
                         <View style={s.pendingTag}>
                           <View style={s.pendingDot} />
-                          <Text style={s.pendingTagText}>Pending</Text>
+                          <Text style={s.pendingTagText}>{t('employeeSchedule.pendingTag')}</Text>
                         </View>
                       </View>
                       <Text style={s.requestDate}>{fmtDateFull(r.date)}</Text>
@@ -406,15 +408,15 @@ export default function ScheduleScreen() {
             <View style={s.infoBox}>
               <View style={s.infoTitleRow}>
                 <InfoIcon size={14} color="#1d4ed8" strokeWidth={2} />
-                <Text style={s.infoTitle}>How it works</Text>
+                <Text style={s.infoTitle}>{t('employeeSchedule.howItWorks')}</Text>
               </View>
               <Text style={s.infoText}>
-                On your <Text style={{ fontWeight: '700' }}>days off</Text>, tap{' '}
-                <Text style={{ fontWeight: '700' }}>+ Request Extra Shift</Text> to volunteer for an open slot.
+                {t('employeeSchedule.infoOnYour')} <Text style={{ fontWeight: '700' }}>{t('employeeSchedule.infoDaysOff')}</Text>{t('employeeSchedule.infoTapConnector')}{' '}
+                <Text style={{ fontWeight: '700' }}>{t('employeeSchedule.requestExtraShiftBtn')}</Text> {t('employeeSchedule.infoVolunteerTail')}
               </Text>
               <Text style={[s.infoText, { marginTop: 6 }]}>
-                On your <Text style={{ fontWeight: '700' }}>scheduled days</Text>, tap{' '}
-                <Text style={{ fontWeight: '700' }}>Request Off</Text> to submit a time-off request.
+                {t('employeeSchedule.infoOnYour')} <Text style={{ fontWeight: '700' }}>{t('employeeSchedule.infoScheduledDays')}</Text>{t('employeeSchedule.infoTapConnector')}{' '}
+                <Text style={{ fontWeight: '700' }}>{t('employeeSchedule.requestOffBtn')}</Text> {t('employeeSchedule.infoTimeOffTail')}
               </Text>
             </View>
 
@@ -429,7 +431,7 @@ export default function ScheduleScreen() {
           <View style={s.modal}>
             <View style={s.modalDrag} />
             <Text style={s.modalTitle}>
-              {requestModal?.requestType === 'FILL_IN' ? 'Request Extra Shift' : 'Request Time Off'}
+              {requestModal?.requestType === 'FILL_IN' ? t('employeeSchedule.modalTitleFillIn') : t('employeeSchedule.modalTitleTimeOff')}
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -440,7 +442,7 @@ export default function ScheduleScreen() {
                     <View style={{ marginBottom: 16 }}>
                       {requestModal.availableStores && requestModal.availableStores.length > 1 && (
                         <View style={{ marginBottom: 14 }}>
-                          <Text style={s.modalLabel}>Store</Text>
+                          <Text style={s.modalLabel}>{t('employeeSchedule.modalStoreLabel')}</Text>
                           <View style={s.chipRow}>
                             {requestModal.availableStores.map((store) => {
                               const isActive = requestModal.storeId === store.id;
@@ -465,7 +467,7 @@ export default function ScheduleScreen() {
                       )}
 
                       <Text style={s.modalLabel}>
-                        {fmtMonthDay(requestModal.date)} · {requestModal.storeName} - Pick a shift
+                        {t('employeeSchedule.pickShiftLabel', { date: fmtMonthDay(requestModal.date), store: requestModal.storeName })}
                       </Text>
                       {dayRosterLoading ? (
                         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
@@ -494,7 +496,7 @@ export default function ScheduleScreen() {
                               </View>
                               <View style={{ alignItems: 'flex-end', gap: 4 }}>
                                 {isEmpty ? (
-                                  <View style={s.emptyShiftBadge}><Text style={s.emptyShiftText}>Empty ⚠️</Text></View>
+                                  <View style={s.emptyShiftBadge}><Text style={s.emptyShiftText}>{t('employeeSchedule.emptyShiftBadge')}</Text></View>
                                 ) : (
                                   <Text style={s.shiftStaffNames} numberOfLines={1}>{staff.map((e: any) => e.name || e.phone).join(', ')}</Text>
                                 )}
@@ -520,12 +522,12 @@ export default function ScheduleScreen() {
                     </View>
                   )}
 
-                  <Text style={s.modalLabel}>Notes <Text style={s.optionalTag}>(optional)</Text></Text>
+                  <Text style={s.modalLabel}>{t('employeeSchedule.notesLabel')} <Text style={s.optionalTag}>{t('employeeSchedule.optionalTag')}</Text></Text>
                   <TextInput
                     style={s.modalInput}
                     value={notes}
                     onChangeText={setNotes}
-                    placeholder={requestModal.requestType === 'FILL_IN' ? 'Any notes for your manager…' : 'Reason for time off…'}
+                    placeholder={requestModal.requestType === 'FILL_IN' ? t('employeeSchedule.fillInNotesPlaceholder') : t('employeeSchedule.timeOffNotesPlaceholder')}
                     placeholderTextColor="#9ca3af"
                     multiline
                     numberOfLines={3}
@@ -542,7 +544,7 @@ export default function ScheduleScreen() {
                   >
                     {createRequestMutation.isPending
                       ? <ActivityIndicator color={COLORS.white} size="small" />
-                      : <Text style={s.submitBtnText}>Submit Request →</Text>
+                      : <Text style={s.submitBtnText}>{t('employeeSchedule.submitRequestBtn')}</Text>
                     }
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -552,7 +554,7 @@ export default function ScheduleScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Cancel request"
                   >
-                    <Text style={s.cancelBtnText}>Cancel</Text>
+                    <Text style={s.cancelBtnText}>{t('employeeSchedule.cancelBtn')}</Text>
                   </TouchableOpacity>
                 </>
               )}

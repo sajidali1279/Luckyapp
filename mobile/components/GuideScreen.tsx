@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import MarkdownView from './MarkdownView';
 import { router } from 'expo-router';
 import { COLORS } from '../constants';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function GuideScreen({ title, content, headerColor = COLORS.secondary }: Props) {
+  const { t } = useTranslation();
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={headerColor} />
@@ -24,7 +26,7 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
           style={s.backBtn}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('sharedGuide.goBackA11y')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />

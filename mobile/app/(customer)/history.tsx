@@ -4,6 +4,7 @@ import type { FlatList as FlatListType } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
@@ -19,6 +20,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function HistoryScreen() {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<any>(null);
   const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
@@ -80,11 +82,11 @@ export default function HistoryScreen() {
         <View style={s.headerInner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <ClipboardIcon size={20} color="#fff" strokeWidth={2} />
-              <Text style={s.headerTitle}>History</Text>
+              <Text style={s.headerTitle}>{t('customerHistory.headerTitle')}</Text>
             </View>
           {!isLoading && (
             <View style={s.countPill}>
-              <Text style={s.countPillText}>{transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</Text>
+              <Text style={s.countPillText}>{t('customerHistory.transactionCount', { count: transactions.length })}</Text>
             </View>
           )}
         </View>
@@ -93,7 +95,7 @@ export default function HistoryScreen() {
       {isLoading ? (
         <View style={s.center}>
           <ActivityIndicator color={COLORS.primary} size="large" />
-          <Text style={s.loadingText}>Loading history…</Text>
+          <Text style={s.loadingText}>{t('customerHistory.loading')}</Text>
         </View>
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
@@ -109,18 +111,19 @@ export default function HistoryScreen() {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
           }}
           ListEmptyComponent={
-            <EmptyState icon={<ReceiptIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="No transactions yet" subtitle="Visit a Lucky Stop and show your QR code to earn your first credits!" />
+            <EmptyState icon={<ReceiptIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title={t('customerHistory.emptyTitle')} subtitle={t('customerHistory.emptySubtitle')} />
           }
           ListFooterComponent={
             isFetchingNextPage
               ? <View style={s.footerLoader}><ActivityIndicator color={COLORS.primary} /></View>
               : transactions.length > 0
-                ? <Text style={s.footerEnd}>- All transactions loaded -</Text>
+                ? <Text style={s.footerEnd}>{t('customerHistory.footerEnd')}</Text>
                 : null
           }
           renderItem={({ item }) => {
             const icon = CATEGORY_ICONS[item.category] || '🏪';
-            const catLabel = item.category?.replace(/_/g, ' ') || 'Other';
+            const catLabel = item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
+            const storeName = item.store?.name || t('customerHistory.defaultStoreName');
             return (
               <PulseHighlight active={item.id === pulseId}>
                 <TouchableOpacity
@@ -128,13 +131,13 @@ export default function HistoryScreen() {
                   onPress={() => setSelected(item)}
                   activeOpacity={0.75}
                   accessibilityRole="button"
-                  accessibilityLabel={`View transaction details for ${item.store?.name || 'Lucky Stop'} on ${format(new Date(item.createdAt), 'MMM d, yyyy')}`}
+                  accessibilityLabel={t('customerHistory.viewDetailsA11y', { store: storeName, date: format(new Date(item.createdAt), 'MMM d, yyyy') })}
                 >
                   <View style={s.cardIconBg}>
                     <Text style={s.cardIcon}>{icon}</Text>
                   </View>
                   <View style={s.cardBody}>
-                    <Text style={s.storeName}>{item.store?.name || 'Lucky Stop'}</Text>
+                    <Text style={s.storeName}>{storeName}</Text>
                     <Text style={s.date}>{format(new Date(item.createdAt), 'MMM d, yyyy · h:mm a')}</Text>
                     <View style={s.catTag}>
                       <Text style={s.catTagText}>{catLabel}</Text>
@@ -142,11 +145,11 @@ export default function HistoryScreen() {
                   </View>
                   <View style={s.cardRight}>
                     {item.status === 'APPROVED' ? (
-                      <Text style={s.points}>+{Math.round(Number(item.pointsAwarded) * 100).toLocaleString()} pts</Text>
+                      <Text style={s.points}>{t('customerHistory.pointsValue', { points: Math.round(Number(item.pointsAwarded) * 100).toLocaleString() })}</Text>
                     ) : item.status === 'PENDING' ? (
-                      <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>Pending</Text>
+                      <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>{t('customerHistory.statusPending')}</Text>
                     ) : (
-                      <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>Rejected</Text>
+                      <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>{t('customerHistory.statusRejected')}</Text>
                     )}
                     <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={1.5} />
                   </View>
@@ -166,36 +169,36 @@ export default function HistoryScreen() {
               <View style={d.iconBg}>
                 <Text style={d.icon}>{CATEGORY_ICONS[selected.category] || '🏪'}</Text>
               </View>
-              <Text style={d.storeName}>{selected.store?.name || 'Lucky Stop'}</Text>
+              <Text style={d.storeName}>{selected.store?.name || t('customerHistory.defaultStoreName')}</Text>
               <Text style={d.date}>{format(new Date(selected.createdAt), 'EEEE, MMM d yyyy · h:mm a')}</Text>
 
               <View style={d.divider} />
 
               <View style={d.row}>
-                <Text style={d.rowLabel}>Category</Text>
-                <Text style={d.rowValue}>{selected.category?.replace(/_/g, ' ') || 'Other'}</Text>
+                <Text style={d.rowLabel}>{t('customerHistory.detailCategory')}</Text>
+                <Text style={d.rowValue}>{selected.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory')}</Text>
               </View>
               <View style={d.row}>
-                <Text style={d.rowLabel}>Purchase Amount</Text>
+                <Text style={d.rowLabel}>{t('customerHistory.detailPurchaseAmount')}</Text>
                 <Text style={d.rowValue}>${Number(selected.purchaseAmount || 0).toFixed(2)}</Text>
               </View>
               <View style={d.row}>
-                <Text style={d.rowLabel}>Points Earned</Text>
+                <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
                 <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
-                  +{Math.round(Number(selected.pointsAwarded) * 100).toLocaleString()} pts
+                  {t('customerHistory.pointsValue', { points: Math.round(Number(selected.pointsAwarded) * 100).toLocaleString() })}
                 </Text>
               </View>
               {selected.gasBonusAwarded > 0 && (
                 <View style={d.row}>
-                  <Text style={d.rowLabel}>Tier Gas Bonus</Text>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailGasBonus')}</Text>
                   <Text style={[d.rowValue, { color: '#F4A226', fontWeight: '800' }]}>
-                    +{Math.round(Number(selected.gasBonusAwarded) * 100)} pts
+                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.gasBonusAwarded) * 100) })}
                   </Text>
                 </View>
               )}
               {selected.notes ? (
                 <View style={d.row}>
-                  <Text style={d.rowLabel}>Notes</Text>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailNotes')}</Text>
                   <Text style={d.rowValue}>{selected.notes}</Text>
                 </View>
               ) : null}
@@ -208,18 +211,18 @@ export default function HistoryScreen() {
                 style={d.disputeBtn}
                 onPress={() => { setDisputeTarget(selected); setSelected(null); }}
                 accessibilityRole="button"
-                accessibilityLabel="Dispute this transaction"
+                accessibilityLabel={t('customerHistory.disputeA11y')}
               >
-                <Text style={d.disputeBtnText}>Dispute This Transaction</Text>
+                <Text style={d.disputeBtnText}>{t('customerHistory.disputeBtn')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={d.closeBtn}
                 onPress={() => setSelected(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Close transaction details"
+                accessibilityLabel={t('customerHistory.closeA11y')}
               >
-                <Text style={d.closeBtnText}>Close</Text>
+                <Text style={d.closeBtnText}>{t('customerHistory.close')}</Text>
               </TouchableOpacity>
             </View>
           </View>

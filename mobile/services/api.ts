@@ -270,8 +270,8 @@ export const leaderboardApi = {
     api.get(`/leaderboard/customers${storeId ? `?storeId=${storeId}` : ''}`),
   getEmployees: (storeId: string) =>
     api.get(`/leaderboard/employees/${storeId}`),
-  getMyRatingSummary: (storeId: string) =>
-    api.get(`/ratings/my/${storeId}`),
+  getMyRatingSummary: () =>
+    api.get('/ratings/my'),
 };
 
 export const ratingsApi = {

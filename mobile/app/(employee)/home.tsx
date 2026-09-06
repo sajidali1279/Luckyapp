@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { offersApi, hotFoodApi, notificationsApi, schedulingApi, dailyReportApi, dailyTaskApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -19,15 +20,17 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 import GasPriceCard from '../../components/GasPriceCard';
 import { useCurrentStoreId } from '../../utils/geo';
 
-function getGreeting() {
+function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return t('employeeHome.goodMorning');
+  if (h < 17) return t('employeeHome.goodAfternoon');
+  return t('employeeHome.goodEvening');
 }
 
 const JS_DAY_TO_ENUM = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const SHIFT_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
+// Text values are translated at usage via SHIFT_LABEL_KEYS + t(); this map
+// only tracks which translation key corresponds to each shift.
+const SHIFT_LABEL_KEYS: Record<string, string> = { OPENING: 'employeeHome.shiftOpening', MIDDLE: 'employeeHome.shiftMiddle', CLOSING: 'employeeHome.shiftClosing' };
 
 function todayStr(): string {
   const d = new Date();
@@ -38,10 +41,23 @@ function fmtTime(iso: string) {
 }
 
 export default function EmployeeHomeScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const firstName = user?.name?.split(' ')[0] || 'there';
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
-  const storeId = user?.storeIds?.[0];
+
+  // GPS-resolved for multi-store employees so every store-scoped query below
+  // reflects the store they're actually standing in, not just their first
+  // assignment - the gas-price query needs to run early to feed this.
+  const { data: gasPricesData, refetch: refetchGasPrices } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const allStoresWithPrices: any[] = gasPricesData?.data?.data || [];
+  const storeId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
+  const currentStorePrices = allStoresWithPrices.find((s: any) => s.id === storeId);
 
   // Staggered entrance — 6 sections fade + slide up on mount
   const fadeAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
@@ -150,19 +166,6 @@ export default function EmployeeHomeScreen() {
   // notices for every store they work at, not only their first one.
   const { notice: pinnedNotice, dismiss: dismissNotice, refetch: refetchNotice } = usePinnedNotice(user?.storeIds);
 
-  // Gas/diesel price: GPS-resolved for multi-store employees so they see
-  // (and grant points against) the price for the store they're actually
-  // standing in, not just their first assignment.
-  const { data: gasPricesData, refetch: refetchGasPrices } = useQuery({
-    queryKey: ['gas-prices'],
-    queryFn: () => storesApi.getGasPrices(),
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
-  const allStoresWithPrices: any[] = gasPricesData?.data?.data || [];
-  const currentStoreId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
-  const currentStorePrices = allStoresWithPrices.find((s: any) => s.id === currentStoreId);
-
   return (
     <View style={s.root}>
       <DashboardWatermark color={COLORS.primary} />
@@ -173,8 +176,8 @@ export default function EmployeeHomeScreen() {
         <SafeAreaView style={s.headerBg} edges={['top']}>
           <View style={s.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.storeLine}>LUCKY STOP STAFF</Text>
-              <Text style={s.greeting}>{getGreeting()},</Text>
+              <Text style={s.storeLine}>{t('employeeHome.headerEyebrow')}</Text>
+              <Text style={s.greeting}>{getGreeting(t)},</Text>
               <Text style={s.greetingName}>{firstName}!</Text>
             </View>
             <View style={s.headerRight}>
@@ -212,13 +215,13 @@ export default function EmployeeHomeScreen() {
 
           <View style={s.statusPill}>
             <View style={s.statusDot} />
-            <Text style={s.statusText}>On Duty · {user?.role?.replace(/_/g, ' ')}</Text>
+            <Text style={s.statusText}>{t('employeeHome.onDutyStatus', { role: user?.role?.replace(/_/g, ' ') })}</Text>
           </View>
 
           {isOffTomorrow && (
             <View style={s.offTomorrowPill}>
               <Text style={s.offTomorrowEmoji}>😴</Text>
-              <Text style={s.offTomorrowText}>You're off tomorrow</Text>
+              <Text style={s.offTomorrowText}>{t('employeeHome.offTomorrow')}</Text>
             </View>
           )}
 
@@ -233,7 +236,7 @@ export default function EmployeeHomeScreen() {
             <View style={s.promoStrip}>
               <FlameIcon size={16} color="#fff" strokeWidth={2} />
               <Text style={s.promoStripText}>
-                {promotions.length} promo{promotions.length > 1 ? 's' : ''} active - bonus cashback applied automatically
+                {t('employeeHome.promosActive', { count: promotions.length })}
               </Text>
             </View>
           )}
@@ -264,7 +267,7 @@ export default function EmployeeHomeScreen() {
       >
         {/* ── Quick Actions ── */}
         <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
-          <Text style={s.sectionLabel}>Quick Actions</Text>
+          <Text style={s.sectionLabel}>{t('employeeHome.quickActions')}</Text>
           <View style={s.actionsRow}>
             <TouchableOpacity
               style={[s.actionCard, { backgroundColor: '#1D3557' }]}
@@ -276,8 +279,8 @@ export default function EmployeeHomeScreen() {
               <View style={s.actionIconBg}>
                 <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
               </View>
-              <Text style={s.actionTitle}>Grant Points</Text>
-              <Text style={s.actionSub}>Scan QR · Enter amount · Upload receipt</Text>
+              <Text style={s.actionTitle}>{t('employeeHome.grantPointsTitle')}</Text>
+              <Text style={s.actionSub}>{t('employeeHome.grantPointsSub')}</Text>
               <View style={s.actionArrow}>
                 <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
               </View>
@@ -293,8 +296,8 @@ export default function EmployeeHomeScreen() {
               <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
               </View>
-              <Text style={s.actionTitle}>Redeem Credits</Text>
-              <Text style={s.actionSub}>Scan customer QR to apply credits</Text>
+              <Text style={s.actionTitle}>{t('employeeHome.redeemCreditsTitle')}</Text>
+              <Text style={s.actionSub}>{t('employeeHome.redeemCreditsSub')}</Text>
               <View style={s.actionArrow}>
                 <ChevronRightIcon size={16} color="#fff" strokeWidth={2.5} />
               </View>
@@ -323,12 +326,12 @@ export default function EmployeeHomeScreen() {
                 </View>
                 <View>
                   <Text style={[s.hotFoodTileTitle, pendingCount > 0 && s.hotFoodTileTitleActive]}>
-                    Hot Food Orders
+                    {t('employeeHome.hotFoodOrdersTitle')}
                   </Text>
                   <Text style={[s.hotFoodTileSub, pendingCount > 0 && s.hotFoodTileSubActive]}>
                     {pendingCount > 0
-                      ? `${pendingCount} order${pendingCount > 1 ? 's' : ''} waiting - tap to manage`
-                      : 'No pending orders right now'}
+                      ? t('employeeHome.hotFoodOrdersWaiting', { count: pendingCount })
+                      : t('employeeHome.hotFoodOrdersEmpty')}
                   </Text>
                 </View>
               </View>
@@ -348,7 +351,7 @@ export default function EmployeeHomeScreen() {
         <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
           <View style={s.sectionRow}>
             <MegaphoneIcon size={13} color="#6b7280" strokeWidth={2} />
-            <Text style={s.sectionLabel}>Active Promotions</Text>
+            <Text style={s.sectionLabel}>{t('employeeHome.activePromotions')}</Text>
           </View>
 
           {offersLoading ? (
@@ -358,8 +361,8 @@ export default function EmployeeHomeScreen() {
               <View style={s.emptyIconWrap}>
                 <InboxIcon size={38} color="#D1D5DB" strokeWidth={1.5} />
               </View>
-              <Text style={s.emptyTitle}>No active promotions</Text>
-              <Text style={s.emptySub}>Standard 5% cashback applies to all purchases</Text>
+              <Text style={s.emptyTitle}>{t('employeeHome.noActivePromotions')}</Text>
+              <Text style={s.emptySub}>{t('employeeHome.standardCashbackNote')}</Text>
             </View>
           ) : (
             promotions.map((p: any) => (
@@ -396,7 +399,7 @@ export default function EmployeeHomeScreen() {
           <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
             <View style={[s.sectionRow, { marginTop: 28 }]}>
               <TagIcon size={13} color="#6b7280" strokeWidth={2} />
-              <Text style={s.sectionLabel}>Today's Deals</Text>
+              <Text style={s.sectionLabel}>{t('employeeHome.todaysDeals')}</Text>
             </View>
             {deals.map((d: any) => (
               <View key={d.id} style={s.dealCard}>
@@ -430,11 +433,11 @@ export default function EmployeeHomeScreen() {
                   <FileCheckIcon size={22} color={reportSubmitted ? '#16A34A' : COLORS.secondary} strokeWidth={2} />
                 </View>
                 <View>
-                  <Text style={s.dailyReportTitle}>Daily Report</Text>
+                  <Text style={s.dailyReportTitle}>{t('employeeHome.dailyReportTitle')}</Text>
                   <Text style={s.dailyReportSub}>
                     {reportSubmitted
-                      ? `✓ Submitted by ${todaysReports[0].submittedBy?.name || todaysReports[0].submittedBy?.phone || 'a teammate'} at ${fmtTime(todaysReports[0].createdAt)}`
-                      : "Not submitted yet - tap to fill it out"}
+                      ? t('employeeHome.dailyReportSubmittedBy', { name: todaysReports[0].submittedBy?.name || todaysReports[0].submittedBy?.phone || t('employeeHome.aTeammate'), time: fmtTime(todaysReports[0].createdAt) })
+                      : t('employeeHome.dailyReportNotSubmitted')}
                   </Text>
                 </View>
               </View>
@@ -457,7 +460,7 @@ export default function EmployeeHomeScreen() {
                 <ListChecksIcon size={20} color={COLORS.primary} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.taskTickerLabel}>{SHIFT_LABELS[todayTemplate.shiftType]} Shift Checklist</Text>
+                <Text style={s.taskTickerLabel}>{t('employeeHome.shiftChecklistLabel', { shift: t(SHIFT_LABEL_KEYS[todayTemplate.shiftType]) })}</Text>
                 <Text style={s.taskTickerTitle} numberOfLines={1}>
                   {shiftTasks[taskIdx % shiftTasks.length].title}
                 </Text>
@@ -486,9 +489,9 @@ export default function EmployeeHomeScreen() {
         <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
           <View style={s.infoFooter}>
             {[
-              { icon: <DollarSignIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Standard cashback: 5¢ per $1 spent' },
-              { icon: <ReceiptIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Always upload a receipt to complete the transaction' },
-              ...(promotions.length > 0 ? [{ icon: <FlameIcon size={14} color="#0369a1" strokeWidth={2} />, text: 'Active promotions apply automatically' }] : []),
+              { icon: <DollarSignIcon size={14} color="#0369a1" strokeWidth={2} />, text: t('employeeHome.infoCashback') },
+              { icon: <ReceiptIcon size={14} color="#0369a1" strokeWidth={2} />, text: t('employeeHome.infoReceipt') },
+              ...(promotions.length > 0 ? [{ icon: <FlameIcon size={14} color="#0369a1" strokeWidth={2} />, text: t('employeeHome.infoPromosAuto') }] : []),
             ].map((row, i) => (
               <View key={i} style={s.infoRow}>
                 <View style={s.infoIconWrap}>{row.icon}</View>

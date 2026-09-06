@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { welcomeBonusApi } from '../services/api';
 import { COLORS } from '../constants';
@@ -38,8 +39,8 @@ export default function WelcomeBonusCard() {
 
   if (isLoading || !bonus?.active) return null;
 
-  function handleCopy(code: string) {
-    Clipboard.setString(code);
+  async function handleCopy(code: string) {
+    await Clipboard.setStringAsync(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -100,7 +101,12 @@ export default function WelcomeBonusCard() {
                 <Text style={st.code}>{bonus.claimCode}</Text>
               </View>
               <Text style={st.codeSub}>Show this code to your cashier</Text>
-              <TouchableOpacity style={st.viewBtn} onPress={() => setShowModal(true)}>
+              <TouchableOpacity
+                style={st.viewBtn}
+                onPress={() => setShowModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`View your reward code for ${claimedOption?.label}`}
+              >
                 <Text style={st.viewBtnText}>View Code</Text>
               </TouchableOpacity>
             </>
@@ -119,6 +125,9 @@ export default function WelcomeBonusCard() {
                       style={[st.optionCard, active && st.optionCardActive]}
                       onPress={() => setSelected(opt.rewardType)}
                       activeOpacity={0.8}
+                      accessibilityRole="radio"
+                      accessibilityLabel={opt.label}
+                      accessibilityState={{ selected: active }}
                     >
                       <Text style={st.optionEmoji}>{opt.emoji}</Text>
                       <Text style={[st.optionLabel, active && st.optionLabelActive]} numberOfLines={2}>
@@ -134,6 +143,14 @@ export default function WelcomeBonusCard() {
                 style={[st.btn, (!selected || claimMut.isPending) && st.btnDisabled]}
                 onPress={handleClaim}
                 disabled={!selected || claimMut.isPending}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  claimMut.isPending
+                    ? 'Claiming reward'
+                    : selected
+                      ? `Claim ${REWARD_OPTIONS.find(r => r.rewardType === selected)?.label}`
+                      : 'Choose an item above first'
+                }
               >
                 {claimMut.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -160,7 +177,12 @@ export default function WelcomeBonusCard() {
               <Text style={md.code}>{bonus.claimCode}</Text>
             </View>
 
-            <TouchableOpacity style={md.copyBtn} onPress={() => handleCopy(bonus.claimCode)}>
+            <TouchableOpacity
+              style={md.copyBtn}
+              onPress={() => handleCopy(bonus.claimCode)}
+              accessibilityRole="button"
+              accessibilityLabel={copied ? 'Code copied' : 'Copy code to clipboard'}
+            >
               <Text style={md.copyBtnText}>{copied ? '✓ Copied!' : 'Copy Code'}</Text>
             </TouchableOpacity>
 
@@ -168,7 +190,12 @@ export default function WelcomeBonusCard() {
               Valid today only · 7 days from when you joined · One free item per day
             </Text>
 
-            <TouchableOpacity style={md.closeBtn} onPress={() => setShowModal(false)}>
+            <TouchableOpacity
+              style={md.closeBtn}
+              onPress={() => setShowModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+            >
               <Text style={md.closeBtnText}>Done</Text>
             </TouchableOpacity>
           </View>

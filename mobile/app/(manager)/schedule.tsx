@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { schedulingApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, AVATAR_PALETTE, TEXT_GRAY } from '../../constants';
@@ -36,6 +37,7 @@ interface Store { id: string; name: string }
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ManagerScheduleScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const todayKey = getTodayKey();
@@ -96,7 +98,7 @@ export default function ManagerScheduleScreen() {
       setConfirmModal(null);
     },
     onError: (err: any) => {
-      Alert.alert('Error', err?.response?.data?.error || 'Failed to update request');
+      Alert.alert(t('managerSchedule.errorTitle'), err?.response?.data?.error || t('managerSchedule.updateRequestError'));
     },
   });
 
@@ -112,7 +114,7 @@ export default function ManagerScheduleScreen() {
   function confirmAction(req: any, action: 'APPROVED' | 'DENIED') {
     setConfirmModal({
       requestId: req.id,
-      employeeName: req.employee?.name || req.employee?.phone || 'Employee',
+      employeeName: req.employee?.name || req.employee?.phone || t('managerSchedule.employeeFallback'),
       type: req.requestType,
       date: req.date,
       shift: req.shiftType,
@@ -134,8 +136,8 @@ export default function ManagerScheduleScreen() {
     <View style={s.root}>
       {/* ── Header ── */}
       <ManagerHeader
-        eyebrow="STORE MANAGER"
-        title="Schedule"
+        eyebrow={t('managerSchedule.eyebrow')}
+        title={t('managerSchedule.title')}
         size="lg"
         rightSlot={
           pendingCount > 0 ? (
@@ -144,10 +146,10 @@ export default function ManagerScheduleScreen() {
               onPress={() => setTab('requests')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`View ${pendingCount} pending request${pendingCount === 1 ? '' : 's'}`}
+              accessibilityLabel={t('managerSchedule.viewPendingRequestsLabel', { count: pendingCount })}
             >
               <Text style={s.pendingBadgeNum}>{pendingCount}</Text>
-              <Text style={s.pendingBadgeLbl}>pending</Text>
+              <Text style={s.pendingBadgeLbl}>{t('managerSchedule.pendingLabel')}</Text>
             </TouchableOpacity>
           ) : null
         }
@@ -161,7 +163,7 @@ export default function ManagerScheduleScreen() {
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('managerSchedule.filterByStore', { store: store.name })}
                 accessibilityState={{ selected: store.id === storeId }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -175,24 +177,24 @@ export default function ManagerScheduleScreen() {
 
         {/* Tab bar */}
         <View style={s.tabBar}>
-          {(['roster', 'week', 'requests'] as Tab[]).map((t) => (
+          {(['roster', 'week', 'requests'] as Tab[]).map((tabKey) => (
             <TouchableOpacity
-              key={t}
-              style={[s.tab, tab === t && s.tabActive]}
-              onPress={() => setTab(t)}
+              key={tabKey}
+              style={[s.tab, tab === tabKey && s.tabActive]}
+              onPress={() => setTab(tabKey)}
               activeOpacity={0.8}
               accessibilityRole="tab"
               accessibilityLabel={
-                t === 'roster' ? "View today's roster"
-                  : t === 'week' ? 'View weekly schedule'
-                  : `View requests${pendingCount > 0 ? `, ${pendingCount} pending` : ''}`
+                tabKey === 'roster' ? t('managerSchedule.viewTodaysRosterLabel')
+                  : tabKey === 'week' ? t('managerSchedule.viewWeeklyScheduleLabel')
+                  : pendingCount > 0 ? t('managerSchedule.viewRequestsPendingLabel', { count: pendingCount }) : t('managerSchedule.viewRequestsLabel')
               }
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
-              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'roster' ? "Today's Roster"
-                  : t === 'week' ? 'Weekly'
-                  : `Requests${pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+              <Text style={[s.tabText, tab === tabKey && s.tabTextActive]}>
+                {tabKey === 'roster' ? t('managerSchedule.todaysRoster')
+                  : tabKey === 'week' ? t('managerSchedule.weekly')
+                  : pendingCount > 0 ? t('managerSchedule.requestsWithCount', { count: pendingCount }) : t('managerSchedule.requestsLabel')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -211,7 +213,7 @@ export default function ManagerScheduleScreen() {
         {/* ════ TODAY'S ROSTER ════ */}
         {tab === 'roster' && (
           rosterLoading ? <LoadingView /> : rosterError ? (
-            <ErrorState message="Failed to load today's roster." onRetry={() => refetchRoster()} />
+            <ErrorState message={t('managerSchedule.loadRosterError')} onRetry={() => refetchRoster()} />
           ) : (
             <FadeSlideIn>
               <View style={s.rosterHeading}>
@@ -226,8 +228,8 @@ export default function ManagerScheduleScreen() {
               {roster.length === 0 ? (
                 <View style={s.emptyWrap}>
                   <InboxIcon size={44} color={TEXT_GRAY[300]} strokeWidth={1.25} />
-                  <Text style={s.emptyTitle}>No staff scheduled today</Text>
-                  <Text style={s.emptySub}>Go to the admin panel to manage the weekly schedule</Text>
+                  <Text style={s.emptyTitle}>{t('managerSchedule.noStaffScheduledToday')}</Text>
+                  <Text style={s.emptySub}>{t('managerSchedule.manageWeeklyScheduleHint')}</Text>
                 </View>
               ) : (
                 SHIFT_ORDER.map((shift) => {
@@ -277,7 +279,7 @@ export default function ManagerScheduleScreen() {
         {/* ════ WEEKLY VIEW ════ */}
         {tab === 'week' && (
           weekLoading ? <LoadingView /> : weekError ? (
-            <ErrorState message="Failed to load the weekly schedule." onRetry={() => refetchWeek()} />
+            <ErrorState message={t('managerSchedule.loadWeeklyError')} onRetry={() => refetchWeek()} />
           ) : (
             <FadeSlideIn>
               {/* Day selector strip */}
@@ -293,7 +295,7 @@ export default function ManagerScheduleScreen() {
                       onPress={() => setSelectedWeekDay(key)}
                       activeOpacity={0.75}
                       accessibilityRole="tab"
-                      accessibilityLabel={`View ${DAY_LABELS[key]} schedule`}
+                      accessibilityLabel={t('managerSchedule.viewDayScheduleLabel', { day: DAY_LABELS[key] })}
                       accessibilityState={{ selected: isSelected }}
                     >
                       <Text style={[s.weekStripLetter, isSelected && s.weekStripLetterActive, isToday && !isSelected && s.weekStripLetterToday]}>
@@ -316,13 +318,13 @@ export default function ManagerScheduleScreen() {
               <View style={s.weekDayCard}>
                 <View style={s.weekDayCardHeader}>
                   <Text style={s.weekDayName}>{DAY_LABELS[selectedWeekDay]}</Text>
-                  {selectedWeekDay === todayKey && <View style={s.todayPill}><Text style={s.todayPillText}>Today</Text></View>}
-                  <Text style={s.weekDayCount}>{selectedDayTemplates.length} {selectedDayTemplates.length === 1 ? 'person' : 'people'}</Text>
+                  {selectedWeekDay === todayKey && <View style={s.todayPill}><Text style={s.todayPillText}>{t('managerSchedule.today')}</Text></View>}
+                  <Text style={s.weekDayCount}>{t('managerSchedule.peopleCount', { count: selectedDayTemplates.length })}</Text>
                 </View>
 
                 {selectedDayTemplates.length === 0 ? (
                   <View style={s.dayEmptyWrap}>
-                    <Text style={s.dayEmptyText}>No staff scheduled</Text>
+                    <Text style={s.dayEmptyText}>{t('managerSchedule.noStaffScheduled')}</Text>
                   </View>
                 ) : (
                   SHIFT_ORDER.map((shift) => {
@@ -348,7 +350,7 @@ export default function ManagerScheduleScreen() {
               </View>
 
               {/* All days overview */}
-              <Text style={s.sectionLabel}>Full Week Overview</Text>
+              <Text style={s.sectionLabel}>{t('managerSchedule.fullWeekOverview')}</Text>
               {DAY_ORDER.map((day) => {
                 const dayTemplates: any[] = grouped[day] || [];
                 const isToday = day === todayKey;
@@ -359,7 +361,7 @@ export default function ManagerScheduleScreen() {
                     onPress={() => setSelectedWeekDay(day)}
                     activeOpacity={0.75}
                     accessibilityRole="button"
-                    accessibilityLabel={`View schedule for ${DAY_LABELS[day]}`}
+                    accessibilityLabel={t('managerSchedule.viewScheduleForDayLabel', { day: DAY_LABELS[day] })}
                   >
                     <Text style={[s.overviewDay, isToday && s.overviewDayToday]}>{DAY_SHORT[day]}</Text>
                     <View style={s.overviewShifts}>
@@ -389,12 +391,12 @@ export default function ManagerScheduleScreen() {
         {/* ════ REQUESTS ════ */}
         {tab === 'requests' && (
           reqLoading ? <LoadingView /> : reqError ? (
-            <ErrorState message="Failed to load requests." onRetry={() => refetchReqs()} />
+            <ErrorState message={t('managerSchedule.loadRequestsError')} onRetry={() => refetchReqs()} />
           ) : (
             <FadeSlideIn>
               {/* Pending */}
               <View style={s.reqSectionRow}>
-                <Text style={s.sectionLabel}>Pending</Text>
+                <Text style={s.sectionLabel}>{t('managerSchedule.pending')}</Text>
                 {pendingCount > 0 && (
                   <View style={s.pendingCountBadge}><Text style={s.pendingCountBadgeText}>{pendingCount}</Text></View>
                 )}
@@ -402,8 +404,8 @@ export default function ManagerScheduleScreen() {
               {pendingReqs.length === 0 ? (
                 <View style={s.emptyWrap}>
                   <CheckCircleIcon size={44} color={COLORS.success} strokeWidth={1.25} />
-                  <Text style={s.emptyTitle}>All clear!</Text>
-                  <Text style={s.emptySub}>No pending requests from your team</Text>
+                  <Text style={s.emptyTitle}>{t('managerSchedule.allClear')}</Text>
+                  <Text style={s.emptySub}>{t('managerSchedule.noPendingRequests')}</Text>
                 </View>
               ) : (
                 pendingReqs.map((req: any, idx: number) => (
@@ -421,7 +423,7 @@ export default function ManagerScheduleScreen() {
               {/* History */}
               {historyReqs.length > 0 && (
                 <>
-                  <Text style={[s.sectionLabel, { marginTop: 28 }]}>Recent History</Text>
+                  <Text style={[s.sectionLabel, { marginTop: 28 }]}>{t('managerSchedule.recentHistory')}</Text>
                   {historyReqs.map((req: any, idx: number) => (
                     <RequestCard
                       key={req.id}
@@ -452,12 +454,12 @@ export default function ManagerScheduleScreen() {
                   }
                 </View>
                 <Text style={s.modalTitle}>
-                  {confirmModal.action === 'APPROVED' ? 'Approve Request?' : 'Deny Request?'}
+                  {confirmModal.action === 'APPROVED' ? t('managerSchedule.approveRequestTitle') : t('managerSchedule.denyRequestTitle')}
                 </Text>
                 <View style={s.modalPreview}>
                   <Text style={s.modalPreviewRow}>
                     <Text style={{ fontWeight: '700' }}>{confirmModal.employeeName}</Text>
-                    {'  ·  '}{confirmModal.type === 'TIME_OFF' ? 'Time Off' : 'Fill-In'}
+                    {'  ·  '}{confirmModal.type === 'TIME_OFF' ? t('managerSchedule.timeOff') : t('managerSchedule.fillIn')}
                   </Text>
                   <Text style={[s.modalPreviewRow, { color: TEXT_GRAY[500], fontWeight: '400' }]}>
                     {fmtDateFull(confirmModal.date)} · {SHIFT_LABELS[confirmModal.shift]}
@@ -466,8 +468,8 @@ export default function ManagerScheduleScreen() {
                 {confirmModal.action === 'APPROVED' && (
                   <Text style={s.modalNote}>
                     {confirmModal.type === 'TIME_OFF'
-                      ? 'Other scheduled employees will be notified of this open shift.'
-                      : `${confirmModal.employeeName} will be added to this shift.`}
+                      ? t('managerSchedule.timeOffApprovedNote')
+                      : t('managerSchedule.fillInApprovedNote', { name: confirmModal.employeeName })}
                   </Text>
                 )}
                 <TouchableOpacity
@@ -476,12 +478,12 @@ export default function ManagerScheduleScreen() {
                   activeOpacity={0.8}
                   disabled={updateMutation.isPending}
                   accessibilityRole="button"
-                  accessibilityLabel={confirmModal.action === 'APPROVED' ? 'Confirm approval of shift request' : 'Confirm denial of shift request'}
+                  accessibilityLabel={confirmModal.action === 'APPROVED' ? t('managerSchedule.confirmApprovalLabel') : t('managerSchedule.confirmDenialLabel')}
                 >
                   {updateMutation.isPending
                     ? <ActivityIndicator color={COLORS.white} size="small" />
                     : <Text style={s.modalActionText}>
-                        {confirmModal.action === 'APPROVED' ? 'Yes, Approve' : 'Yes, Deny'}
+                        {confirmModal.action === 'APPROVED' ? t('managerSchedule.yesApprove') : t('managerSchedule.yesDeny')}
                       </Text>
                   }
                 </TouchableOpacity>
@@ -490,10 +492,10 @@ export default function ManagerScheduleScreen() {
                   onPress={() => setConfirmModal(null)}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel and close dialog"
+                  accessibilityLabel={t('managerSchedule.cancelDialogLabel')}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Text style={s.modalCancelText}>Cancel</Text>
+                  <Text style={s.modalCancelText}>{t('managerSchedule.cancel')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -517,10 +519,11 @@ function LoadingView() {
 function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
   req: any; avatarColor: string; onApprove?: () => void; onDeny?: () => void; showActions: boolean;
 }) {
+  const { t } = useTranslation();
   const isTimeOff = req.requestType === 'TIME_OFF';
   const typeColor = isTimeOff ? COLORS.danger : COLORS.success;
   const statusColor = req.status === 'APPROVED' ? COLORS.success : req.status === 'DENIED' ? COLORS.danger : COLORS.statusPendingDot;
-  const name = req.employee?.name || req.employee?.phone || 'Employee';
+  const name = req.employee?.name || req.employee?.phone || t('managerSchedule.employeeFallback');
 
   return (
     <View style={[s.reqCard, { borderColor: typeColor + '40', backgroundColor: typeColor + '06' }]}>
@@ -534,7 +537,7 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
         </View>
         <View style={[s.reqTypeBadge, { backgroundColor: typeColor + '18' }]}>
           <Text style={[s.reqTypeText, { color: typeColor }]}>
-            {isTimeOff ? 'Time Off' : 'Fill-In'}
+            {isTimeOff ? t('managerSchedule.timeOff') : t('managerSchedule.fillIn')}
           </Text>
         </View>
       </View>
@@ -557,20 +560,20 @@ function RequestCard({ req, avatarColor, onApprove, onDeny, showActions }: {
             onPress={onApprove}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`Approve shift request from ${name}`}
+            accessibilityLabel={t('managerSchedule.approveShiftRequestLabel', { name })}
             hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
-            <Text style={s.approveBtnText}>Approve</Text>
+            <Text style={s.approveBtnText}>{t('managerSchedule.approve')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={s.denyBtn}
             onPress={onDeny}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`Deny shift request from ${name}`}
+            accessibilityLabel={t('managerSchedule.denyShiftRequestLabel', { name })}
             hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
-            <Text style={s.denyBtnText}>Deny</Text>
+            <Text style={s.denyBtnText}>{t('managerSchedule.deny')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

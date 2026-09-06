@@ -408,7 +408,7 @@ router.get('/leaderboard/customers', authenticate, getCustomerLeaderboard);     
 router.get('/leaderboard/employees/:storeId', authenticate, requireRole(Role.EMPLOYEE), getEmployeeLeaderboard);     // Employee leaderboard for a store
 router.post('/ratings', authenticate, requireRole(Role.CUSTOMER), submitRating);                                      // Customer rates employee after transaction
 router.get('/ratings/pending', authenticate, requireRole(Role.CUSTOMER), getPendingRatings);                          // Customer: unrated approved transactions
-router.get('/ratings/my/:storeId', authenticate, requireRole(Role.EMPLOYEE), getMyRatingSummary);                     // Employee: own rating summary
+router.get('/ratings/my', authenticate, requireRole(Role.EMPLOYEE), getMyRatingSummary);                              // Employee: own rating summary (aggregated across all assigned stores)
 
 // ─── Careers ─────────────────────────────────────────────────────────────────
 router.post('/careers/apply', authenticate, requireRole(Role.CUSTOMER), submitApplication);

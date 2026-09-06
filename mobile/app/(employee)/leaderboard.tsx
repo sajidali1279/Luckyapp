@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { leaderboardApi, chatApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -23,6 +24,7 @@ function Stars({ rating, size = 16 }: { rating: number; size?: number }) {
 }
 
 export default function EmployeeLeaderboardScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const storeIds: string[] = user?.storeIds || [];
   const [selectedStore, setSelectedStore] = useState<string>(storeIds[0] || '');
@@ -63,9 +65,9 @@ export default function EmployeeLeaderboardScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <StarIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
-              <Text style={st.headerTitle}>Staff Rankings</Text>
+              <Text style={st.headerTitle}>{t('employeeLeaderboard.headerTitle')}</Text>
             </View>
-            <Text style={st.headerSub}>{storeName || 'Employee ratings'}</Text>
+            <Text style={st.headerSub}>{storeName || t('employeeLeaderboard.headerSubFallback')}</Text>
           </View>
         </View>
 
@@ -83,7 +85,7 @@ export default function EmployeeLeaderboardScreen() {
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
                 <Text style={[st.storePillText, selectedStore === id && st.storePillTextActive]}>
-                  {storeNameById[id] || 'Store'}
+                  {storeNameById[id] || t('employeeLeaderboard.storeFallback')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -96,18 +98,18 @@ export default function EmployeeLeaderboardScreen() {
         <FadeSlideIn>
           <View style={st.myCard}>
             <View style={{ flex: 1 }}>
-              <Text style={st.myCardLabel}>Your Rating</Text>
+              <Text style={st.myCardLabel}>{t('employeeLeaderboard.yourRating')}</Text>
               <Stars rating={myEntry.avgRating} size={20} />
-              <Text style={st.myCardSub}>{myEntry.avgRating.toFixed(1)} avg · {myEntry.ratingCount} review{myEntry.ratingCount !== 1 ? 's' : ''}</Text>
+              <Text style={st.myCardSub}>{t('employeeLeaderboard.avgReviews', { avg: myEntry.avgRating.toFixed(1), count: myEntry.ratingCount })}</Text>
             </View>
             <View style={st.myRankBubble}>
               <Text style={st.myRankNum}>#{myEntry.rank}</Text>
-              <Text style={st.myRankLabel2}>ranking</Text>
+              <Text style={st.myRankLabel2}>{t('employeeLeaderboard.rankingLabel')}</Text>
             </View>
             {myEntry.isEmployeeOfMonth && (
               <View style={st.eomBadge}>
                 <AwardIcon size={14} color="#92400E" strokeWidth={2} />
-                <Text style={st.eomBadgeText}>Employee of the Month</Text>
+                <Text style={st.eomBadgeText}>{t('employeeLeaderboard.employeeOfMonth')}</Text>
               </View>
             )}
           </View>
@@ -122,8 +124,8 @@ export default function EmployeeLeaderboardScreen() {
             <View style={st.emptyIconRing}>
               <StarIcon size={32} color="#F59E0B" strokeWidth={1.5} />
             </View>
-            <Text style={st.emptyTitle}>No ratings yet</Text>
-            <Text style={st.emptySub}>Ratings appear after customers rate their experience</Text>
+            <Text style={st.emptyTitle}>{t('employeeLeaderboard.noRatingsTitle')}</Text>
+            <Text style={st.emptySub}>{t('employeeLeaderboard.noRatingsSub')}</Text>
           </View>
         </FadeSlideIn>
       ) : (
@@ -160,15 +162,15 @@ export default function EmployeeLeaderboardScreen() {
                   <View style={st.rowBody}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={[st.rowName, isMine && { color: COLORS.primary }]}>
-                        {item.firstName}{isMine ? ' (You)' : ''}
+                        {item.firstName}{isMine ? t('employeeLeaderboard.youSuffix') : ''}
                       </Text>
-                      {isEOM && <View style={[st.eomChipWrap]}><Text style={st.eomChip}>Month</Text></View>}
+                      {isEOM && <View style={[st.eomChipWrap]}><Text style={st.eomChip}>{t('employeeLeaderboard.monthChip')}</Text></View>}
                     </View>
                     <Stars rating={item.avgRating} size={13} />
                   </View>
                   <View style={st.rowRight}>
                     <Text style={[st.rowAvg, isMine && { color: COLORS.primary }]}>{item.avgRating.toFixed(1)}</Text>
-                    <Text style={st.rowCount}>{item.ratingCount} ratings</Text>
+                    <Text style={st.rowCount}>{t('employeeLeaderboard.ratingsCount', { count: item.ratingCount })}</Text>
                   </View>
                 </View>
               );

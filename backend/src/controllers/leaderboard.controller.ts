@@ -173,18 +173,22 @@ export async function getPendingRatings(req: AuthRequest, res: Response) {
 
 export async function getMyRatingSummary(req: AuthRequest, res: Response) {
   const employeeId = req.user!.id;
-  const { storeId } = req.params;
+  // Aggregates across every store this employee/manager is assigned to,
+  // not just one - this is "my" summary, not a per-store view, so a
+  // multi-store employee's overall rating shouldn't understate their
+  // record by only counting their first assignment.
+  const storeIds = req.user!.storeIds ?? [];
 
   const [allTime, thisMonth] = await Promise.all([
     prisma.employeeRating.aggregate({
-      where: { employeeId, storeId },
+      where: { employeeId, storeId: { in: storeIds } },
       _avg: { rating: true },
       _count: { rating: true },
     }),
     prisma.employeeRating.aggregate({
       where: {
         employeeId,
-        storeId,
+        storeId: { in: storeIds },
         createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
       },
       _avg: { rating: true },

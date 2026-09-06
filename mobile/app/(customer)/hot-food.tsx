@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import { hotFoodApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../components/Icons';
@@ -47,21 +48,21 @@ type Tab = 'menu' | 'orders';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS: Record<OrderStatus, { label: string; color: string; bg: string; emoji: string; detail: string }> = {
-  PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED', emoji: '⏳', detail: 'Your order was received - waiting for the kitchen to accept' },
-  ACCEPTED:  { label: 'Preparing', color: '#3B82F6', bg: '#EFF6FF', emoji: '👨‍🍳', detail: 'The kitchen is working on your order' },
-  READY:     { label: 'Ready!',    color: '#16A34A', bg: '#F0FDF4', emoji: '✅', detail: 'Your order is ready - head to the counter to pick it up' },
-  COMPLETED: { label: 'Picked Up', color: '#94A3B8', bg: '#F8FAFC', emoji: '🎉', detail: 'Enjoy your food!' },
-  CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEF2F2', emoji: '❌', detail: 'This order was cancelled' },
+const STATUS: Record<OrderStatus, { labelKey: string; color: string; bg: string; emoji: string; detailKey: string }> = {
+  PENDING:   { labelKey: 'customerHotFood.statusPending',   color: '#F97316', bg: '#FFF7ED', emoji: '⏳', detailKey: 'customerHotFood.statusPendingDetail' },
+  ACCEPTED:  { labelKey: 'customerHotFood.statusPreparing', color: '#3B82F6', bg: '#EFF6FF', emoji: '👨‍🍳', detailKey: 'customerHotFood.statusPreparingDetail' },
+  READY:     { labelKey: 'customerHotFood.statusReady',     color: '#16A34A', bg: '#F0FDF4', emoji: '✅', detailKey: 'customerHotFood.statusReadyDetail' },
+  COMPLETED: { labelKey: 'customerHotFood.statusPickedUp',  color: '#94A3B8', bg: '#F8FAFC', emoji: '🎉', detailKey: 'customerHotFood.statusPickedUpDetail' },
+  CANCELLED: { labelKey: 'customerHotFood.statusCancelled', color: '#EF4444', bg: '#FEF2F2', emoji: '❌', detailKey: 'customerHotFood.statusCancelledDetail' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+  if (mins < 1) return t('customerHotFood.justNow');
+  if (mins < 60) return t('customerHotFood.minutesAgo', { count: mins });
+  return t('customerHotFood.hoursMinutesAgo', { hours: Math.floor(mins / 60), minutes: mins % 60 });
 }
 
 function fmtPrice(n: number) {
@@ -85,6 +86,7 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
 function MenuCard({ item, qty, onAdd, onRemove }: {
   item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const [imgErr, setImgErr] = useState(false);
 
   return (
@@ -112,7 +114,7 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
           {item.estimatedMinutes ? (
             <View style={mc.waitPill}>
               <ClockIcon size={11} color="#F97316" />
-              <Text style={mc.waitText}>~{item.estimatedMinutes} min</Text>
+              <Text style={mc.waitText}>{t('customerHotFood.estimatedMinutes', { count: item.estimatedMinutes })}</Text>
             </View>
           ) : null}
         </View>
@@ -125,7 +127,7 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
               onPress={onRemove}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`Remove one ${item.name} from cart`}
+              accessibilityLabel={t('customerHotFood.removeOneA11y', { name: item.name })}
               hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
             >
               <Text style={mc.stepBtnText}>−</Text>
@@ -136,7 +138,7 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
               onPress={onAdd}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`Add one more ${item.name} to cart`}
+              accessibilityLabel={t('customerHotFood.addOneMoreA11y', { name: item.name })}
               hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
             >
               <Text style={[mc.stepBtnText, { color: '#fff' }]}>+</Text>
@@ -148,10 +150,10 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
             onPress={onAdd}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={`Add ${item.name} to cart`}
+            accessibilityLabel={t('customerHotFood.addToCartA11y', { name: item.name })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={mc.addBtnText}>Add</Text>
+            <Text style={mc.addBtnText}>{t('customerHotFood.addBtn')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -162,12 +164,13 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
 // ─── ETA Countdown ────────────────────────────────────────────────────────────
 
 function useEtaCountdown(order: FoodOrder): string | null {
+  const { t } = useTranslation();
   const getRemaining = () => {
     if (order.status !== 'ACCEPTED' || !order.estimatedMinutes) return null;
     const acceptedAt = new Date(order.updatedAt).getTime();
     const eta = acceptedAt + order.estimatedMinutes * 60_000;
     const remaining = Math.ceil((eta - Date.now()) / 60_000);
-    return remaining > 0 ? `~${remaining} min left` : 'Almost ready!';
+    return remaining > 0 ? t('customerHotFood.minLeft', { count: remaining }) : t('customerHotFood.almostReady');
   };
 
   const [label, setLabel] = useState<string | null>(getRemaining);
@@ -190,9 +193,11 @@ function useEtaCountdown(order: FoodOrder): string | null {
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
 function OrderCard({ order }: { order: FoodOrder }) {
+  const { t } = useTranslation();
   const cfg = STATUS[order.status];
   const etaLabel = useEtaCountdown(order);
   const [expanded, setExpanded] = useState(order.status === 'READY');
+  const statusLabel = t(cfg.labelKey);
 
   return (
     <TouchableOpacity
@@ -200,7 +205,11 @@ function OrderCard({ order }: { order: FoodOrder }) {
       onPress={() => setExpanded(v => !v)}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={`Order #${order.orderNumber}, ${cfg.label}. ${expanded ? 'Collapse' : 'Expand'} details`}
+      accessibilityLabel={t('customerHotFood.orderCardA11y', {
+        number: order.orderNumber,
+        status: statusLabel,
+        action: expanded ? t('customerHotFood.collapse') : t('customerHotFood.expand'),
+      })}
     >
       <View style={oc.top}>
         <View style={oc.topLeft}>
@@ -211,11 +220,11 @@ function OrderCard({ order }: { order: FoodOrder }) {
           </View>
         </View>
         <View style={[oc.badge, { backgroundColor: cfg.bg }]}>
-          <Text style={[oc.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
+          <Text style={[oc.badgeText, { color: cfg.color }]}>{statusLabel}</Text>
         </View>
       </View>
 
-      <Text style={oc.detail}>{cfg.detail}</Text>
+      <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
 
       {etaLabel ? (
         <View style={oc.etaBadge}>
@@ -235,19 +244,19 @@ function OrderCard({ order }: { order: FoodOrder }) {
             </View>
           ))}
           <View style={oc.totalRow}>
-            <Text style={oc.totalLabel}>Total</Text>
+            <Text style={oc.totalLabel}>{t('customerHotFood.total')}</Text>
             <Text style={oc.totalVal}>{fmtPrice(order.totalAmount)}</Text>
           </View>
           {order.note ? (
             <View style={oc.noteRow}>
-              <Text style={oc.noteLabel}>Note: </Text>
+              <Text style={oc.noteLabel}>{t('customerHotFood.noteLabel')}</Text>
               <Text style={oc.noteText}>{order.note}</Text>
             </View>
           ) : null}
           {etaLabel ? (
             <Text style={oc.eta}>{etaLabel}</Text>
           ) : null}
-          <Text style={oc.time}>{timeAgo(order.createdAt)}</Text>
+          <Text style={oc.time}>{timeAgo(order.createdAt, t)}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -262,6 +271,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
   onClose: () => void;
   onOrderPlaced: () => void;
 }) {
+  const { t } = useTranslation();
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qc = useQueryClient();
   const [note, setNote] = useState('');
@@ -277,7 +287,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
       onOrderPlaced();
     },
     onError: (e: any) => {
-      Toast.show({ type: 'error', text1: e.response?.data?.error || 'Failed to place order' });
+      Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerHotFood.placeOrderError') });
     },
   });
 
@@ -289,14 +299,14 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
           onPress={onClose}
           activeOpacity={1}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss order sheet"
+          accessibilityLabel={t('customerHotFood.dismissOrderSheetA11y')}
         />
         <View style={cs.sheet}>
           <View style={cs.handle} />
 
           <View style={cs.header}>
-            <Text style={cs.title}>Your Order</Text>
-            <ModalCloseButton onPress={onClose} label="Close order sheet" size={20} color={COLORS.textMuted} />
+            <Text style={cs.title}>{t('customerHotFood.cartTitle')}</Text>
+            <ModalCloseButton onPress={onClose} label={t('customerHotFood.closeOrderSheetA11y')} size={20} color={COLORS.textMuted} />
           </View>
 
           <ScrollView style={cs.body} showsVerticalScrollIndicator={false}>
@@ -309,17 +319,17 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
             ))}
 
             <View style={cs.totalRow}>
-              <Text style={cs.totalLabel}>Total</Text>
+              <Text style={cs.totalLabel}>{t('customerHotFood.total')}</Text>
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
             </View>
 
             <View style={cs.noteSection}>
-              <Text style={cs.noteLabel}>Special instructions (optional)</Text>
+              <Text style={cs.noteLabel}>{t('customerHotFood.specialInstructions')}</Text>
               <TextInput
                 style={cs.noteInput}
                 value={note}
                 onChangeText={setNote}
-                placeholder="e.g. no onions, extra sauce…"
+                placeholder={t('customerHotFood.notePlaceholder')}
                 placeholderTextColor="#94A3B8"
                 multiline
                 maxLength={120}
@@ -330,7 +340,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
 
             <View style={cs.infoBox}>
               <Text style={cs.infoText}>
-                Pay at the counter when your order is ready. You'll see status updates here in real time.
+                {t('customerHotFood.payAtCounterInfo')}
               </Text>
             </View>
           </ScrollView>
@@ -342,11 +352,11 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
               disabled={placeMutation.isPending}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={placeMutation.isPending ? 'Placing order' : `Place order for ${fmtPrice(total)}`}
+              accessibilityLabel={placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderA11y', { total: fmtPrice(total) })}
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText}>Place Order - {fmtPrice(total)}</Text>}
+                : <Text style={cs.placeBtnText}>{t('customerHotFood.placeOrderBtn', { total: fmtPrice(total) })}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -358,25 +368,26 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
 // ─── Order Success Sheet ──────────────────────────────────────────────────────
 
 function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <View style={ss.overlay}>
         <View style={ss.sheet}>
           <Text style={ss.emoji}>🎉</Text>
-          <Text style={ss.title}>Order Placed!</Text>
+          <Text style={ss.title}>{t('customerHotFood.orderPlacedTitle')}</Text>
           <Text style={ss.sub}>
-            Your order was sent to the kitchen. Check the{' '}
-            <Text style={{ fontWeight: '800', color: COLORS.primary }}>My Orders</Text>{' '}
-            tab to track its status in real time.
+            {t('customerHotFood.orderPlacedSub1')}{' '}
+            <Text style={{ fontWeight: '800', color: COLORS.primary }}>{t('customerHotFood.orderPlacedTabName')}</Text>{' '}
+            {t('customerHotFood.orderPlacedSub2')}
           </Text>
           <TouchableOpacity
             style={ss.btn}
             onPress={onClose}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Dismiss order confirmation"
+            accessibilityLabel={t('customerHotFood.dismissConfirmationA11y')}
           >
-            <Text style={ss.btnText}>Got it</Text>
+            <Text style={ss.btnText}>{t('customerHotFood.gotIt')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -387,6 +398,7 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CustomerHotFoodScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('menu');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -497,8 +509,8 @@ export default function CustomerHotFoodScreen() {
               <FlameIcon size={18} color="#fff" />
             </View>
             <View>
-              <Text style={s.headerTitle}>Hot Food</Text>
-              <Text style={s.headerSub}>Order from the kitchen</Text>
+              <Text style={s.headerTitle}>{t('customerHotFood.headerTitle')}</Text>
+              <Text style={s.headerSub}>{t('customerHotFood.headerSub')}</Text>
             </View>
           </View>
 
@@ -509,30 +521,34 @@ export default function CustomerHotFoodScreen() {
               onPress={() => setTab('orders')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`${activeOrders.length} active orders. View my orders`}
+              accessibilityLabel={t('customerHotFood.activeOrdersA11y', { count: activeOrders.length })}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <View style={s.activeDot} />
-              <Text style={s.activePillText}>{activeOrders.length} active</Text>
+              <Text style={s.activePillText}>{t('customerHotFood.activeCount', { count: activeOrders.length })}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Tab bar */}
         <View style={s.tabs}>
-          {(['menu', 'orders'] as Tab[]).map(t => (
+          {(['menu', 'orders'] as Tab[]).map(tabValue => (
             <TouchableOpacity
-              key={t}
-              style={[s.tab, tab === t && s.tabActive]}
-              onPress={() => setTab(t)}
+              key={tabValue}
+              style={[s.tab, tab === tabValue && s.tabActive]}
+              onPress={() => setTab(tabValue)}
               activeOpacity={0.8}
               accessibilityRole="tab"
-              accessibilityLabel={t === 'menu' ? 'Menu tab' : 'My Orders tab'}
-              accessibilityState={{ selected: tab === t }}
+              accessibilityLabel={tabValue === 'menu' ? t('customerHotFood.menuTabA11y') : t('customerHotFood.myOrdersTabA11y')}
+              accessibilityState={{ selected: tab === tabValue }}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
-              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'menu' ? '🍽️  Menu' : `📋  My Orders${orders.length ? ` (${orders.length})` : ''}`}
+              <Text style={[s.tabText, tab === tabValue && s.tabTextActive]}>
+                {tabValue === 'menu'
+                  ? t('customerHotFood.menuTabLabel')
+                  : orders.length
+                    ? t('customerHotFood.myOrdersTabLabelWithCount', { count: orders.length })
+                    : t('customerHotFood.myOrdersTabLabel')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -547,42 +563,42 @@ export default function CustomerHotFoodScreen() {
             <MapPinIcon size={14} color={locationStatus === 'found' ? COLORS.primary : COLORS.textMuted} />
             <Text style={[s.locationText, locationStatus === 'found' && s.locationTextFound]}>
               {locationStatus === 'detecting'
-                ? 'Detecting your location…'
+                ? t('customerHotFood.detectingLocation')
                 : locationStatus === 'found'
                 ? nearestStore!.name
-                : 'No Lucky Stop nearby'}
+                : t('customerHotFood.noStoreNearby')}
             </Text>
           </View>
 
           {locationStatus === 'detecting' ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={s.loadingText}>Finding your nearest store…</Text>
+              <Text style={s.loadingText}>{t('customerHotFood.findingStore')}</Text>
             </View>
           ) : locationStatus === 'none' ? (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>📍</Text>
-              <Text style={s.emptyTitle}>No store nearby</Text>
-              <Text style={s.emptySub}>Visit a Lucky Stop location to browse and order hot food.</Text>
+              <Text style={s.emptyTitle}>{t('customerHotFood.noStoreNearbyTitle')}</Text>
+              <Text style={s.emptySub}>{t('customerHotFood.noStoreNearbySub')}</Text>
             </View>
           ) : nearestStore && !nearestStore.hotFoodEnabled ? (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>🍽️</Text>
-              <Text style={s.emptyTitle}>Not available here</Text>
-              <Text style={s.emptySub}>{nearestStore.name} doesn't offer hot food ordering. Check another Lucky Stop location.</Text>
+              <Text style={s.emptyTitle}>{t('customerHotFood.notAvailableTitle')}</Text>
+              <Text style={s.emptySub}>{t('customerHotFood.notAvailableSub', { store: nearestStore.name })}</Text>
             </View>
           ) : menuLoading ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={s.loadingText}>Loading…</Text>
+              <Text style={s.loadingText}>{t('customerHotFood.loadingGeneric')}</Text>
             </View>
           ) : menuIsError ? (
-            <ErrorState message="Failed to load the menu." onRetry={() => refetchMenu()} />
+            <ErrorState message={t('customerHotFood.menuLoadError')} onRetry={() => refetchMenu()} />
           ) : menuItems.length === 0 ? (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>🍽️</Text>
-              <Text style={s.emptyTitle}>No items available</Text>
-              <Text style={s.emptySub}>Hot food isn't available at this store right now - check back later.</Text>
+              <Text style={s.emptyTitle}>{t('customerHotFood.noItemsTitle')}</Text>
+              <Text style={s.emptySub}>{t('customerHotFood.noItemsSub')}</Text>
             </View>
           ) : (
             <FadeSlideIn style={{ flex: 1 }}>
@@ -613,12 +629,12 @@ export default function CustomerHotFoodScreen() {
               onPress={() => setShowCart(true)}
               activeOpacity={0.9}
               accessibilityRole="button"
-              accessibilityLabel={`View order, ${cartCount} items, ${fmtPrice(cartTotal)}`}
+              accessibilityLabel={t('customerHotFood.viewOrderA11y', { count: cartCount, total: fmtPrice(cartTotal) })}
             >
               <View style={s.cartFabBadge}>
                 <Text style={s.cartFabBadgeText}>{cartCount}</Text>
               </View>
-              <Text style={s.cartFabText}>View Order</Text>
+              <Text style={s.cartFabText}>{t('customerHotFood.viewOrderBtn')}</Text>
               <Text style={s.cartFabTotal}>{fmtPrice(cartTotal)}</Text>
             </TouchableOpacity>
           )}
@@ -641,34 +657,34 @@ export default function CustomerHotFoodScreen() {
                   <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
               ) : ordersIsError ? (
-                <ErrorState message="Failed to load your orders." onRetry={() => refetchOrders()} />
+                <ErrorState message={t('customerHotFood.ordersLoadError')} onRetry={() => refetchOrders()} />
               ) : (
                 <View style={s.emptyBox}>
                   <Text style={s.emptyEmoji}>📋</Text>
-                  <Text style={s.emptyTitle}>No orders yet</Text>
-                  <Text style={s.emptySub}>Head to the Menu tab to order hot food from the kitchen.</Text>
+                  <Text style={s.emptyTitle}>{t('customerHotFood.noOrdersTitle')}</Text>
+                  <Text style={s.emptySub}>{t('customerHotFood.noOrdersSub')}</Text>
                   <TouchableOpacity
                     style={s.goMenuBtn}
                     onPress={() => setTab('menu')}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel="Browse menu"
+                    accessibilityLabel={t('customerHotFood.browseMenuA11y')}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <Text style={s.goMenuBtnText}>Browse Menu</Text>
+                    <Text style={s.goMenuBtnText}>{t('customerHotFood.browseMenuBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               )
             }
             ListHeaderComponent={
               activeOrders.length > 0 ? (
-                <Text style={s.sectionLabel}>Active Orders</Text>
+                <Text style={s.sectionLabel}>{t('customerHotFood.activeOrdersSection')}</Text>
               ) : null
             }
             renderItem={({ item, index }) => (
               <>
                 {index === activeOrders.length && pastOrders.length > 0 && (
-                  <Text style={[s.sectionLabel, { marginTop: 20 }]}>Past Orders</Text>
+                  <Text style={[s.sectionLabel, { marginTop: 20 }]}>{t('customerHotFood.pastOrdersSection')}</Text>
                 )}
                 <OrderCard order={item} />
               </>

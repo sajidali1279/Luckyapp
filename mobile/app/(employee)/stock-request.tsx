@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { employeeRequestApi, orderCategoriesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -54,19 +55,21 @@ interface MyRequest {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:  { label: 'On order list', color: '#16A34A', bg: '#DCFCE7' },
-  ORDERED:  { label: 'Ordered',       color: '#1D4ED8', bg: '#DBEAFE' },
-  RECEIVED: { label: 'Received ✓',   color: '#065F46', bg: '#D1FAE5' },
-  REMOVED:  { label: 'Removed',       color: '#6B7280', bg: '#F3F4F6' },
+// labelKey points at the translation key resolved via t() at render time,
+// since these configs are module-level and have no access to the i18n hook.
+const ORDER_STATUS: Record<string, { labelKey: string; color: string; bg: string }> = {
+  PENDING:  { labelKey: 'employeeStockRequest.orderStatusOnList',   color: '#16A34A', bg: '#DCFCE7' },
+  ORDERED:  { labelKey: 'employeeStockRequest.orderStatusOrdered',  color: '#1D4ED8', bg: '#DBEAFE' },
+  RECEIVED: { labelKey: 'employeeStockRequest.orderStatusReceived', color: '#065F46', bg: '#D1FAE5' },
+  REMOVED:  { labelKey: 'employeeStockRequest.orderStatusRemoved',  color: '#6B7280', bg: '#F3F4F6' },
 };
 
-const REJECTION_LABELS: Record<string, string> = {
-  NO_SUPPLIER:   'No supplier available',
-  OUT_OF_BUDGET: 'Out of budget',
-  IN_STOCK:      'Already in stock',
-  DUPLICATE:     'Duplicate item',
-  OTHER:         'Other reason',
+const REJECTION_LABEL_KEYS: Record<string, string> = {
+  NO_SUPPLIER:   'employeeStockRequest.rejectionNoSupplier',
+  OUT_OF_BUDGET: 'employeeStockRequest.rejectionOutOfBudget',
+  IN_STOCK:      'employeeStockRequest.rejectionInStock',
+  DUPLICATE:     'employeeStockRequest.rejectionDuplicate',
+  OTHER:         'employeeStockRequest.rejectionOther',
 };
 
 function makeKey() { return `${Date.now()}-${Math.random()}`; }
@@ -74,6 +77,7 @@ function makeKey() { return `${Date.now()}-${Math.random()}`; }
 // ─── New Request Form ─────────────────────────────────────────────────────────
 
 function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onSubmitted: () => void }) {
+  const { t } = useTranslation();
   const [requestType, setRequestType] = useState<RequestType>('LOW_STOCK');
   const [search,      setSearch]      = useState('');
   const [debSearch,   setDebSearch]   = useState('');
@@ -101,7 +105,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
     setShowScanner(false);
     const name = result.name.trim() || result.barcode;
     if (cart.find(c => c.name.toLowerCase() === name.toLowerCase())) {
-      Toast.show({ type: 'info', text1: `"${name}" already in list` });
+      Toast.show({ type: 'info', text1: t('employeeStockRequest.alreadyInList', { name }) });
       return;
     }
     const key = makeKey();
@@ -111,7 +115,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
 
   const addItem = useCallback((name: string, category = '') => {
     if (cart.find(c => c.name.toLowerCase() === name.toLowerCase())) {
-      Toast.show({ type: 'info', text1: `"${name}" already in list` });
+      Toast.show({ type: 'info', text1: t('employeeStockRequest.alreadyInList', { name }) });
       setSearch('');
       return;
     }
@@ -156,11 +160,11 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
       return employeeRequestApi.submit({ requestType, note: note.trim() || undefined, lines });
     },
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Request submitted!', text2: 'Your manager will review it shortly.' });
+      Toast.show({ type: 'success', text1: t('employeeStockRequest.requestSubmitted'), text2: t('employeeStockRequest.requestSubmittedSub') });
       setCart([]); setSearch(''); setNote('');
       onSubmitted();
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to submit' }),
+    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || t('employeeStockRequest.submitFailed') }),
   });
 
   const canSubmit = cart.length > 0 && !submitMut.isPending;
@@ -183,7 +187,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             accessibilityLabel="Select request type: Low Stock"
             hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
-            <Text style={[f.typeChipText, requestType === 'LOW_STOCK' && f.typeChipTextActive]}>📉 Low Stock</Text>
+            <Text style={[f.typeChipText, requestType === 'LOW_STOCK' && f.typeChipTextActive]}>{t('employeeStockRequest.lowStockChip')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[f.typeChip, requestType === 'CUSTOMER_REQUEST' && f.typeChipActive]}
@@ -192,10 +196,10 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             accessibilityLabel="Select request type: Customer Ask"
             hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
-            <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>🙋 Customer Ask</Text>
+            <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>{t('employeeStockRequest.customerAskChip')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={f.typeHint}>Low Stock helps track what regularly runs out. Customer Ask flags something a customer specifically wanted.</Text>
+        <Text style={f.typeHint}>{t('employeeStockRequest.typeHint')}</Text>
 
         {/* Search / add input */}
         <View style={f.searchWrapper}>
@@ -220,7 +224,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                 onFocus={() => setShowSugg(true)}
                 onBlur={() => setTimeout(() => setShowSugg(false), 140)}
                 onSubmitEditing={() => { if (suggestions.length > 0 && showSugg) pickSugg(suggestions[0]); else addManual(); }}
-                placeholder="Search item name…"
+                placeholder={t('employeeStockRequest.searchPlaceholder')}
                 placeholderTextColor="#B0B8C4"
                 returnKeyType="done"
                 blurOnSubmit={false}
@@ -258,13 +262,13 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
               <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
-          <Text style={f.searchHint}>Type to search from order history, or add any item manually.</Text>
+          <Text style={f.searchHint}>{t('employeeStockRequest.searchHint')}</Text>
         </View>
 
         {/* Cart */}
         {cart.length > 0 && (
           <View style={f.cartSection}>
-            <Text style={f.cartLabel}>{cart.length} item{cart.length !== 1 ? 's' : ''} to request</Text>
+            <Text style={f.cartLabel}>{t('employeeStockRequest.itemsToRequest', { count: cart.length })}</Text>
             {cart.map(item => {
               const isExpanded = expandedKey === item.key;
               return (
@@ -279,7 +283,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                         accessibilityLabel={`${isExpanded ? 'Hide' : 'Edit'} details for ${item.name}`}
                         hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
                       >
-                        <Text style={f.editDetailBtnText}>{isExpanded ? 'Done' : 'Details'}</Text>
+                        <Text style={f.editDetailBtnText}>{isExpanded ? t('employeeStockRequest.doneBtn') : t('employeeStockRequest.detailsBtn')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={f.removeBtn}
@@ -307,7 +311,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                         style={f.detailInput}
                         value={item.quantity}
                         onChangeText={v => updateCart(item.key, 'quantity', v)}
-                        placeholder="Qty / amount  (e.g. 2 cases)"
+                        placeholder={t('employeeStockRequest.qtyPlaceholder')}
                         placeholderTextColor="#B0B8C4"
                         maxLength={60}
                       />
@@ -315,7 +319,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                         style={f.detailInput}
                         value={item.category}
                         onChangeText={v => updateCart(item.key, 'category', v)}
-                        placeholder="Category  (optional)"
+                        placeholder={t('employeeStockRequest.categoryPlaceholder')}
                         placeholderTextColor="#B0B8C4"
                         autoCapitalize="words"
                         maxLength={80}
@@ -324,7 +328,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                         style={[f.detailInput, { minHeight: 52, textAlignVertical: 'top', paddingTop: 10 }]}
                         value={item.notes}
                         onChangeText={v => updateCart(item.key, 'notes', v)}
-                        placeholder="Notes for manager  (optional)"
+                        placeholder={t('employeeStockRequest.itemNotesPlaceholder')}
                         placeholderTextColor="#B0B8C4"
                         maxLength={300}
                         multiline
@@ -339,12 +343,12 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
 
         {/* Note for manager */}
         <View style={f.noteCard}>
-          <Text style={f.noteLabel}>Note for manager  <Text style={{ fontWeight: '400' }}>(optional)</Text></Text>
+          <Text style={f.noteLabel}>{t('employeeStockRequest.noteForManagerLabel')}  <Text style={{ fontWeight: '400' }}>{t('employeeStockRequest.optionalTag')}</Text></Text>
           <TextInput
             style={[f.detailInput, { minHeight: 56, textAlignVertical: 'top', paddingTop: 10 }]}
             value={note}
             onChangeText={setNote}
-            placeholder="Any context - e.g. running low since Monday"
+            placeholder={t('employeeStockRequest.managerNotePlaceholder')}
             placeholderTextColor="#B0B8C4"
             maxLength={300}
             multiline
@@ -363,13 +367,13 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
           {submitMut.isPending
             ? <ActivityIndicator color="#fff" />
             : <Text style={f.submitBtnText}>
-                Submit Request{cart.length > 0 ? ` (${cart.length})` : ''}
+                {cart.length > 0 ? t('employeeStockRequest.submitRequestBtnWithCount', { count: cart.length }) : t('employeeStockRequest.submitRequestBtn')}
               </Text>
           }
         </TouchableOpacity>
 
         {cart.length === 0 && (
-          <Text style={f.emptyHint}>Add at least one item above to submit.</Text>
+          <Text style={f.emptyHint}>{t('employeeStockRequest.emptyCartHint')}</Text>
         )}
         </FadeSlideIn>
       </ScrollView>
@@ -386,6 +390,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
 // ─── My Requests ──────────────────────────────────────────────────────────────
 
 function MyRequests({ highlightId }: { highlightId: string | null }) {
+  const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -477,7 +482,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
                         {line.category && <Text style={m.lineMeta}>{line.category}</Text>}
                         {line.status === 'REJECTED' && line.rejectionReason && (
                           <Text style={m.rejText}>
-                            {REJECTION_LABELS[line.rejectionReason] || line.rejectionReason}
+                            {line.rejectionReason && REJECTION_LABEL_KEYS[line.rejectionReason] ? t(REJECTION_LABEL_KEYS[line.rejectionReason]) : line.rejectionReason}
                             {line.rejectionNote ? ` - ${line.rejectionNote}` : ''}
                           </Text>
                         )}
@@ -494,7 +499,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
                             ? <CheckCircleIcon size={13} color={oc.color} strokeWidth={2.5} />
                             : <PackageIcon size={13} color={oc.color} strokeWidth={2.5} />
                           }
-                          <Text style={[m.lineStatusText, { color: oc.color }]}>{oc.label}</Text>
+                          <Text style={[m.lineStatusText, { color: oc.color }]}>{t(oc.labelKey)}</Text>
                         </View>
                       )}
                       {line.status === 'REJECTED' && (

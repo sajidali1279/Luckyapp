@@ -7,11 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { dailyTaskApi } from '../../services/api';
+import { dailyTaskApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ListChecksIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, CircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import { useCurrentStoreId } from '../../utils/geo';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
 
@@ -22,10 +24,12 @@ interface DailyTask {
   description: string | null;
 }
 
-const SHIFT_CONFIG: Record<Shift, { label: string; emoji: string; color: string; bg: string }> = {
-  OPENING: { label: 'Morning (Opening)',   emoji: '🌅', color: '#C2410C', bg: '#FFF7ED' },
-  MIDDLE:  { label: 'Midday (Afternoon)',  emoji: '☀️', color: '#92400E', bg: '#FEFCE8' },
-  CLOSING: { label: 'Night (Closing)',     emoji: '🌙', color: '#1E40AF', bg: '#EFF6FF' },
+// Emoji/color config keyed by shift stays here; the label text itself is
+// translated at render time via employeeDailyTasks.shiftOpening/Middle/Closing.
+const SHIFT_CONFIG: Record<Shift, { emoji: string; color: string; bg: string }> = {
+  OPENING: { emoji: '🌅', color: '#C2410C', bg: '#FFF7ED' },
+  MIDDLE:  { emoji: '☀️', color: '#92400E', bg: '#FEFCE8' },
+  CLOSING: { emoji: '🌙', color: '#1E40AF', bg: '#EFF6FF' },
 };
 
 const SHIFT_ORDER: Shift[] = ['OPENING', 'MIDDLE', 'CLOSING'];
@@ -36,8 +40,23 @@ function todayKey() {
 }
 
 export default function DailyTasksScreen() {
+  const { t } = useTranslation();
+  const SHIFT_LABEL_KEYS: Record<Shift, string> = {
+    OPENING: 'employeeDailyTasks.shiftOpening',
+    MIDDLE: 'employeeDailyTasks.shiftMiddle',
+    CLOSING: 'employeeDailyTasks.shiftClosing',
+  };
   const { user } = useAuthStore();
-  const storeId = user?.storeIds?.[0];
+  // GPS-resolved for multi-store employees, matching the pattern used on
+  // Home and Hot Food - this screen previously had no store picker at all
+  // and was permanently locked to the employee's first assignment.
+  const { data: gasPricesData } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 30_000,
+  });
+  const allStoresWithLocation: any[] = gasPricesData?.data?.data || [];
+  const storeId = useCurrentStoreId(allStoresWithLocation, user?.storeIds);
 
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<Shift>>(new Set(['OPENING']));
@@ -97,8 +116,8 @@ export default function DailyTasksScreen() {
           <ListChecksIcon size={20} color="#fff" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Daily Tasks</Text>
-          <Text style={styles.headerSub}>Your shift checklist - resets each day</Text>
+          <Text style={styles.headerTitle}>{t('employeeDailyTasks.headerTitle')}</Text>
+          <Text style={styles.headerSub}>{t('employeeDailyTasks.headerSub')}</Text>
         </View>
       </View>
 
@@ -108,7 +127,7 @@ export default function DailyTasksScreen() {
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` as any }]} />
           </View>
-          <Text style={styles.progressLabel}>{doneCount} / {totalCount} done</Text>
+          <Text style={styles.progressLabel}>{t('employeeDailyTasks.progressLabel', { done: doneCount, total: totalCount })}</Text>
         </View>
       )}
 
@@ -119,7 +138,7 @@ export default function DailyTasksScreen() {
         </View>
       ) : isError ? (
         <View style={styles.center}>
-          <Text style={styles.errorText}>Failed to load tasks.</Text>
+          <Text style={styles.errorText}>{t('employeeDailyTasks.loadFailed')}</Text>
           <TouchableOpacity
             onPress={() => refetch()}
             style={styles.retryBtn}
@@ -127,14 +146,14 @@ export default function DailyTasksScreen() {
             accessibilityLabel="Retry loading tasks"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t('employeeDailyTasks.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : totalCount === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>📋</Text>
-          <Text style={styles.emptyTitle}>No tasks yet</Text>
-          <Text style={styles.emptySub}>Your manager hasn't set up checklists yet.</Text>
+          <Text style={styles.emptyTitle}>{t('employeeDailyTasks.noTasksTitle')}</Text>
+          <Text style={styles.emptySub}>{t('employeeDailyTasks.noTasksSub')}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -142,6 +161,7 @@ export default function DailyTasksScreen() {
             const shiftTasks = grouped[shift];
             if (shiftTasks.length === 0) return null;
             const cfg = SHIFT_CONFIG[shift];
+            const shiftLabel = t(SHIFT_LABEL_KEYS[shift]);
             const isOpen = expanded.has(shift);
             const shiftDone = shiftTasks.filter(t => checked.has(t.id)).length;
 
@@ -154,14 +174,14 @@ export default function DailyTasksScreen() {
                     onPress={() => toggleExpand(shift)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`${cfg.label} shift, ${shiftDone} of ${shiftTasks.length} completed`}
+                    accessibilityLabel={`${shiftLabel} shift, ${shiftDone} of ${shiftTasks.length} completed`}
                     accessibilityState={{ expanded: isOpen }}
                   >
                     <View style={styles.shiftLeft}>
                       <Text style={styles.shiftEmoji}>{cfg.emoji}</Text>
                       <View>
-                        <Text style={[styles.shiftLabel, { color: cfg.color }]}>{cfg.label}</Text>
-                        <Text style={styles.shiftCount}>{shiftDone}/{shiftTasks.length} completed</Text>
+                        <Text style={[styles.shiftLabel, { color: cfg.color }]}>{shiftLabel}</Text>
+                        <Text style={styles.shiftCount}>{t('employeeDailyTasks.shiftCompleted', { done: shiftDone, total: shiftTasks.length })}</Text>
                       </View>
                     </View>
                     {isOpen

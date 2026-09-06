@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { promotionsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import EmptyState from '../../components/EmptyState';
@@ -25,17 +26,18 @@ interface Ad {
   adExpiresAt: string | null;
 }
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days < 1) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 1) return t('customerAds.today');
+  if (days === 1) return t('customerAds.yesterday');
+  if (days < 7) return t('customerAds.daysAgo', { count: days });
+  if (days < 30) return t('customerAds.weeksAgo', { count: Math.floor(days / 7) });
   return new Date(dateStr).toLocaleDateString();
 }
 
 export default function AdsScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
@@ -76,10 +78,10 @@ export default function AdsScreen() {
           </View>
           <View style={s.cardHeaderText}>
             <Text style={s.bizName}>{item.businessName}</Text>
-            <Text style={s.cardTime}>{timeAgo(item.publishedAt)}</Text>
+            <Text style={s.cardTime}>{timeAgo(item.publishedAt, t)}</Text>
           </View>
           <View style={s.adBadge}>
-            <Text style={s.adBadgeText}>Ad</Text>
+            <Text style={s.adBadgeText}>{t('customerAds.adBadge')}</Text>
           </View>
         </View>
 
@@ -95,19 +97,19 @@ export default function AdsScreen() {
             onPress={() => Linking.openURL(item.website!).catch(() => {})}
             activeOpacity={0.75}
             accessibilityRole="link"
-            accessibilityLabel={`Visit ${item.businessName}'s website`}
+            accessibilityLabel={t('customerAds.visitWebsiteA11y', { business: item.businessName })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <GlobeIcon size={14} color={COLORS.primary} strokeWidth={2} />
-              <Text style={s.websiteBtnText}>Visit Website</Text>
+              <Text style={s.websiteBtnText}>{t('customerAds.visitWebsite')}</Text>
             </View>
           </TouchableOpacity>
         ) : null}
 
         {item.adExpiresAt && new Date(item.adExpiresAt) > new Date() && (
           <Text style={s.expiresText}>
-            Offer expires {new Date(item.adExpiresAt).toLocaleDateString()}
+            {t('customerAds.offerExpires', { date: new Date(item.adExpiresAt).toLocaleDateString() })}
           </Text>
         )}
       </View>
@@ -121,19 +123,19 @@ export default function AdsScreen() {
           <BuildingIcon size={22} color="#f97316" strokeWidth={1.75} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.promoTitle}>Own a local business?</Text>
+          <Text style={s.promoTitle}>{t('customerAds.promoTitle')}</Text>
           <Text style={s.promoSub}>
-            Auto care, towing, landscaping, or anything else - promote it to every Lucky Stop customer here.
+            {t('customerAds.promoSub')}
           </Text>
-          <Text style={s.promoDisclaimer}>Charges may apply, contact us for details</Text>
+          <Text style={s.promoDisclaimer}>{t('customerAds.promoDisclaimer')}</Text>
         </View>
         {myPromoStatus === 'PENDING' ? (
           <View style={[s.promoBadge, { backgroundColor: '#fffbeb' }]}>
-            <Text style={[s.promoBadgeText, { color: '#b45309' }]}>Pending</Text>
+            <Text style={[s.promoBadgeText, { color: '#b45309' }]}>{t('customerAds.pending')}</Text>
           </View>
         ) : myPromoStatus === 'APPROVED' ? (
           <View style={[s.promoBadge, { backgroundColor: '#f0fdf4' }]}>
-            <Text style={[s.promoBadgeText, { color: '#16a34a' }]}>Live</Text>
+            <Text style={[s.promoBadgeText, { color: '#16a34a' }]}>{t('customerAds.live')}</Text>
           </View>
         ) : (
           <TouchableOpacity
@@ -141,10 +143,10 @@ export default function AdsScreen() {
             onPress={() => setShowPromoteModal(true)}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Promote your business"
+            accessibilityLabel={t('customerAds.promoteA11y')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={s.promoBtnText}>Promote →</Text>
+            <Text style={s.promoBtnText}>{t('customerAds.promoteBtn')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -155,8 +157,8 @@ export default function AdsScreen() {
     <View style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
       <SafeAreaView style={s.header}>
-        <Text style={s.headerTitle}>Local Ads</Text>
-        <Text style={s.headerSub}>Businesses in your community</Text>
+        <Text style={s.headerTitle}>{t('customerAds.headerTitle')}</Text>
+        <Text style={s.headerSub}>{t('customerAds.headerSub')}</Text>
       </SafeAreaView>
 
       {isLoading ? (
@@ -164,14 +166,14 @@ export default function AdsScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : isError ? (
-        <ErrorState message="Failed to load ads." onRetry={() => refetch()} />
+        <ErrorState message={t('customerAds.loadError')} onRetry={() => refetch()} />
       ) : ads.length === 0 ? (
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
           <PromoteCta />
           <EmptyState
             icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
-            title="No ads yet"
-            subtitle="Local business advertisements will appear here. Check back soon!"
+            title={t('customerAds.emptyTitle')}
+            subtitle={t('customerAds.emptySubtitle')}
           />
         </ScrollView>
       ) : (

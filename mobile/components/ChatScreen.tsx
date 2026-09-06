@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -20,13 +21,6 @@ const ROLE_COLORS: Record<string, string> = {
   SUPER_ADMIN:   '#1D3557',
   STORE_MANAGER: '#0369a1',
   EMPLOYEE:      '#f59e0b',
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  DEV_ADMIN:     'Dev',
-  SUPER_ADMIN:   'HQ',
-  STORE_MANAGER: 'Manager',
-  EMPLOYEE:      'Staff',
 };
 
 const STORE_GRADIENT_PAIRS: [string, string][] = [
@@ -58,12 +52,12 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDateLabel(iso: string) {
+function formatDateLabel(iso: string, t: (key: string) => string) {
   const d = new Date(iso);
   const now = new Date();
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === now.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  if (d.toDateString() === now.toDateString()) return t('sharedChat.today');
+  if (d.toDateString() === yesterday.toDateString()) return t('sharedChat.yesterday');
   return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
@@ -79,6 +73,7 @@ function getInitials(name: string) {
 }
 
 export default function ChatScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -98,6 +93,13 @@ export default function ChatScreen() {
   });
 
   const { notice: visibleNotice, dismiss: dismissNotice } = usePinnedNotice(selectedStoreId);
+
+  const ROLE_LABELS: Record<string, string> = {
+    DEV_ADMIN:     t('sharedChat.roleDev'),
+    SUPER_ADMIN:   t('sharedChat.roleHq'),
+    STORE_MANAGER: t('sharedChat.roleManager'),
+    EMPLOYEE:      t('sharedChat.roleStaff'),
+  };
 
   useEffect(() => {
     const s: Store[] = storesData?.data?.data || [];
@@ -170,7 +172,7 @@ export default function ChatScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch (err: any) {
       // Keep the typed text in the input — don't make the cashier retype a lost message
-      Toast.show({ type: 'error', text1: 'Message not sent', text2: err.response?.data?.error || 'Check your connection and try again.' });
+      Toast.show({ type: 'error', text1: t('sharedChat.sendErrorTitle'), text2: err.response?.data?.error || t('sharedChat.sendErrorDefault') });
     }
     setSending(false);
   }
@@ -193,7 +195,7 @@ export default function ChatScreen() {
         {showDivider && (
           <View style={s.dateDivider}>
             <View style={s.dateDividerLine} />
-            <Text style={s.dateDividerText}>{formatDateLabel(item.createdAt)}</Text>
+            <Text style={s.dateDividerText}>{formatDateLabel(item.createdAt, t)}</Text>
             <View style={s.dateDividerLine} />
           </View>
         )}
@@ -268,7 +270,7 @@ export default function ChatScreen() {
   }
 
   if (stores.length === 0) {
-    return <EmptyState icon={<MessageCircleIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title="No store chats yet" subtitle="You'll see your store team chats once you're assigned to a store." />;
+    return <EmptyState icon={<MessageCircleIcon size={52} color="#C4CAD4" strokeWidth={1.25} />} title={t('sharedChat.emptyTitle')} subtitle={t('sharedChat.emptySubtitle')} />;
   }
 
   return (
@@ -287,20 +289,20 @@ export default function ChatScreen() {
               onPress={() => stores.length > 1 && setSwitcherOpen(true)}
               disabled={stores.length <= 1}
               accessibilityRole={stores.length > 1 ? 'button' : undefined}
-              accessibilityLabel={stores.length > 1 ? `Currently viewing ${selectedStore?.name}. Tap to switch store.` : undefined}
+              accessibilityLabel={stores.length > 1 ? t('sharedChat.currentlyViewingA11y', { store: selectedStore?.name }) : undefined}
             >
               <View style={s.headerAvatar}>
                 <Text style={s.headerAvatarText}>{selectedStore?.name?.[0]?.toUpperCase() ?? '?'}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <View style={s.headerTitleRow}>
-                  <Text style={s.headerTitle} numberOfLines={1}>{selectedStore?.name || 'Chat'}</Text>
+                  <Text style={s.headerTitle} numberOfLines={1}>{selectedStore?.name || t('sharedChat.chatFallbackTitle')}</Text>
                   {stores.length > 1 && <ChevronDownIcon size={16} color="rgba(255,255,255,0.75)" strokeWidth={2.5} />}
                 </View>
                 <View style={s.headerSubRow}>
                   <View style={[s.onlineDot, pollOffline && s.onlineDotOffline]} />
                   <Text style={s.headerSub}>
-                    {pollOffline ? 'Reconnecting…' : `${selectedStore?.city ? `${selectedStore.city} · ` : ''}Team Chat`}
+                    {pollOffline ? t('sharedChat.reconnecting') : `${selectedStore?.city ? `${selectedStore.city} · ` : ''}${t('sharedChat.teamChat')}`}
                   </Text>
                 </View>
               </View>
@@ -317,8 +319,8 @@ export default function ChatScreen() {
             <View style={s.switcherSheet}>
               <View style={s.switcherHandle} />
               <View style={s.switcherHeaderRow}>
-                <Text style={s.switcherTitle}>Switch Store</Text>
-                <ModalCloseButton onPress={() => setSwitcherOpen(false)} label="Close store switcher" color="#6c757d" />
+                <Text style={s.switcherTitle}>{t('sharedChat.switchStoreTitle')}</Text>
+                <ModalCloseButton onPress={() => setSwitcherOpen(false)} label={t('sharedChat.closeSwitcherA11y')} color="#6c757d" />
               </View>
               <ScrollView style={s.switcherList} showsVerticalScrollIndicator={false}>
                 {stores.map((store, i) => {
@@ -330,7 +332,7 @@ export default function ChatScreen() {
                       onPress={() => { setSelectedStoreId(store.id); setSwitcherOpen(false); }}
                       activeOpacity={0.7}
                       accessibilityRole="button"
-                      accessibilityLabel={`Switch to ${store.name}${active ? ', currently selected' : ''}`}
+                      accessibilityLabel={active ? t('sharedChat.switchToStoreActiveA11y', { store: store.name }) : t('sharedChat.switchToStoreA11y', { store: store.name })}
                     >
                       <View style={[s.switcherDot, { backgroundColor: STORE_GRADIENT_PAIRS[i % STORE_GRADIENT_PAIRS.length][1] }]} />
                       <View style={{ flex: 1 }}>
@@ -366,7 +368,7 @@ export default function ChatScreen() {
             ListEmptyComponent={
               <View style={s.noMsgs}>
                 <MessageCircleIcon size={40} color="#d1d5db" strokeWidth={1.5} />
-                <Text style={s.noMsgsText}>No messages yet - say hello!</Text>
+                <Text style={s.noMsgsText}>{t('sharedChat.noMessagesYet')}</Text>
               </View>
             }
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -381,7 +383,7 @@ export default function ChatScreen() {
               style={s.input}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Type a message…"
+              placeholder={t('sharedChat.inputPlaceholder')}
               placeholderTextColor="#9ca3af"
               multiline
               maxLength={500}

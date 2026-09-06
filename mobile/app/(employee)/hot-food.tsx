@@ -10,8 +10,10 @@ import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { hotFoodApi } from '../../services/api';
+import { hotFoodApi, storesApi } from '../../services/api';
+import { useCurrentStoreId } from '../../utils/geo';
 import { COLORS } from '../../constants';
 import {
   FlameIcon, ClockIcon, CheckCircleIcon, XIcon, InboxIcon,
@@ -50,27 +52,29 @@ interface MenuItem {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED' },
-  ACCEPTED:  { label: 'Preparing', color: '#3B82F6', bg: '#EFF6FF' },
-  READY:     { label: 'Ready',     color: '#16A34A', bg: '#F0FDF4' },
-  COMPLETED: { label: 'Done',      color: '#94A3B8', bg: '#F8FAFC' },
-  CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEF2F2' },
+// labelKey points at the translation key resolved via t() at render time,
+// since this config is module-level and has no access to the i18n hook.
+const STATUS_CONFIG: Record<OrderStatus, { labelKey: string; color: string; bg: string }> = {
+  PENDING:   { labelKey: 'employeeHotFood.statusPending',   color: '#F97316', bg: '#FFF7ED' },
+  ACCEPTED:  { labelKey: 'employeeHotFood.statusPreparing', color: '#3B82F6', bg: '#EFF6FF' },
+  READY:     { labelKey: 'employeeHotFood.statusReady',     color: '#16A34A', bg: '#F0FDF4' },
+  COMPLETED: { labelKey: 'employeeHotFood.statusDone',      color: '#94A3B8', bg: '#F8FAFC' },
+  CANCELLED: { labelKey: 'employeeHotFood.statusCancelled', color: '#EF4444', bg: '#FEF2F2' },
 };
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'PENDING',  label: 'Pending'   },
-  { key: 'ACCEPTED', label: 'Preparing' },
-  { key: 'READY',    label: 'Ready'     },
-  { key: 'ALL',      label: 'All'       },
-  { key: 'MENU',     label: 'Menu'      },
+const TABS: { key: TabKey; labelKey: string }[] = [
+  { key: 'PENDING',  labelKey: 'employeeHotFood.tabPending'   },
+  { key: 'ACCEPTED', labelKey: 'employeeHotFood.tabPreparing' },
+  { key: 'READY',    labelKey: 'employeeHotFood.tabReady'     },
+  { key: 'ALL',      labelKey: 'employeeHotFood.tabAll'       },
+  { key: 'MENU',     labelKey: 'employeeHotFood.tabMenu'      },
 ];
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, t: (key: string, opts?: any) => string) {
   const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+  if (mins < 1) return t('employeeHotFood.justNow');
+  if (mins < 60) return t('employeeHotFood.minutesAgo', { mins });
+  return t('employeeHotFood.hoursMinutesAgo', { hours: Math.floor(mins / 60), mins: mins % 60 });
 }
 
 function orderAgeColor(dateStr: string): string {
@@ -92,6 +96,7 @@ interface ItemSheetProps {
 }
 
 function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: ItemSheetProps) {
+  const { t } = useTranslation();
   const isEdit = !!item;
 
   const [name,       setName]       = useState(item?.name       ?? '');
@@ -137,7 +142,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 
   async function takePhoto() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Toast.show({ type: 'error', text1: 'Camera permission denied' }); return; }
+    if (status !== 'granted') { Toast.show({ type: 'error', text1: t('employeeHotFood.cameraPermissionDenied') }); return; }
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
@@ -149,18 +154,18 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
   }
 
   function showPhotoOptions() {
-    Alert.alert('Item Photo', undefined, [
-      { text: 'Take Photo',        onPress: takePhoto },
-      { text: 'Choose from Library', onPress: pickImage },
-      ...(imageUri ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('employeeHotFood.itemPhotoTitle'), undefined, [
+      { text: t('employeeHotFood.takePhoto'),        onPress: takePhoto },
+      { text: t('employeeHotFood.chooseFromLibrary'), onPress: pickImage },
+      ...(imageUri ? [{ text: t('employeeHotFood.removePhoto'), style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
+      { text: t('employeeHotFood.cancel'), style: 'cancel' },
     ]);
   }
 
   async function handleSave() {
-    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name is required' }); return; }
+    if (!name.trim()) { Toast.show({ type: 'error', text1: t('employeeHotFood.nameRequired') }); return; }
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice < 0) { Toast.show({ type: 'error', text1: 'Enter a valid price' }); return; }
+    if (isNaN(parsedPrice) || parsedPrice < 0) { Toast.show({ type: 'error', text1: t('employeeHotFood.invalidPrice') }); return; }
 
     setSaving(true);
     try {
@@ -186,10 +191,10 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
         await hotFoodApi.createMenuItem(fd);
       }
 
-      Toast.show({ type: 'success', text1: isEdit ? 'Item updated' : 'Item added' });
+      Toast.show({ type: 'success', text1: isEdit ? t('employeeHotFood.itemUpdated') : t('employeeHotFood.itemAdded') });
       onSaved();
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to save item' });
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('employeeHotFood.saveFailed') });
     } finally {
       setSaving(false);
     }
@@ -197,17 +202,17 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 
   async function handleDelete() {
     if (!item) return;
-    Alert.alert('Delete Item', `Remove "${item.name}" from the menu?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('employeeHotFood.deleteItemTitle'), t('employeeHotFood.deleteItemBody', { name: item.name }), [
+      { text: t('employeeHotFood.cancel'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: t('employeeHotFood.delete'), style: 'destructive', onPress: async () => {
           setDeleting(true);
           try {
             await hotFoodApi.deleteMenuItem(item.id);
-            Toast.show({ type: 'success', text1: 'Item removed' });
+            Toast.show({ type: 'success', text1: t('employeeHotFood.itemRemoved') });
             onSaved();
           } catch (e: any) {
-            Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to delete item' });
+            Toast.show({ type: 'error', text1: e?.response?.data?.error || t('employeeHotFood.deleteFailed') });
           } finally {
             setDeleting(false);
           }
@@ -224,7 +229,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 
           {/* Header */}
           <View style={sh.header}>
-            <Text style={sh.title}>{isEdit ? 'Edit Item' : 'Add Menu Item'}</Text>
+            <Text style={sh.title}>{isEdit ? t('employeeHotFood.editItemTitle') : t('employeeHotFood.addMenuItemTitle')}</Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -249,35 +254,35 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               ) : (
                 <View style={sh.photoPlaceholder}>
                   <FlameIcon size={28} color="#CBD5E1" />
-                  <Text style={sh.photoPlaceholderText}>Tap to add photo</Text>
+                  <Text style={sh.photoPlaceholderText}>{t('employeeHotFood.tapToAddPhoto')}</Text>
                 </View>
               )}
               <View style={sh.photoBadge}>
-                <Text style={sh.photoBadgeText}>{imageUri ? 'Change' : 'Add'} Photo</Text>
+                <Text style={sh.photoBadgeText}>{imageUri ? t('employeeHotFood.changePhotoBadge') : t('employeeHotFood.addPhotoBadge')}</Text>
               </View>
             </TouchableOpacity>
 
             {/* Name */}
-            <Text style={sh.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <Text style={sh.label}>{t('employeeHotFood.itemNameLabel')} <Text style={{ color: COLORS.primary }}>*</Text></Text>
             <TextInput
               style={sh.input}
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Cheese Hot Dog"
+              placeholder={t('employeeHotFood.itemNamePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               maxLength={80}
               autoCapitalize="words"
             />
 
             {/* Category */}
-            <Text style={sh.label}>Category</Text>
+            <Text style={sh.label}>{t('employeeHotFood.categoryLabel')}</Text>
             <TextInput
               style={sh.input}
               value={category}
               onChangeText={v => { setCategory(v); setShowCatSug(true); }}
               onFocus={() => setShowCatSug(true)}
               onBlur={() => setTimeout(() => setShowCatSug(false), 150)}
-              placeholder="e.g. Roller Grill, Pizza, Sandwiches…"
+              placeholder={t('employeeHotFood.categoryPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               maxLength={50}
               autoCapitalize="words"
@@ -300,36 +305,36 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
             )}
 
             {/* Price */}
-            <Text style={sh.label}>Price <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <Text style={sh.label}>{t('employeeHotFood.priceLabel')} <Text style={{ color: COLORS.primary }}>*</Text></Text>
             <TextInput
               style={sh.input}
               value={price}
               onChangeText={setPrice}
-              placeholder="e.g. 1.99"
+              placeholder={t('employeeHotFood.pricePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
               maxLength={8}
             />
 
             {/* Estimated time */}
-            <Text style={sh.label}>Estimated Time (minutes)</Text>
+            <Text style={sh.label}>{t('employeeHotFood.estimatedTimeLabel')}</Text>
             <TextInput
               style={sh.input}
               value={estMins}
               onChangeText={setEstMins}
-              placeholder="e.g. 3"
+              placeholder={t('employeeHotFood.estimatedTimePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="number-pad"
               maxLength={3}
             />
 
             {/* Description */}
-            <Text style={sh.label}>Description (optional)</Text>
+            <Text style={sh.label}>{t('employeeHotFood.descriptionLabel')}</Text>
             <TextInput
               style={[sh.input, { minHeight: 70, textAlignVertical: 'top' }]}
               value={desc}
               onChangeText={setDesc}
-              placeholder="Short description shown to customers"
+              placeholder={t('employeeHotFood.descriptionPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               multiline
               maxLength={200}
@@ -345,7 +350,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
             >
               {saving
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={sh.saveBtnText}>{isEdit ? 'Save Changes' : 'Add to Menu'}</Text>
+                : <Text style={sh.saveBtnText}>{isEdit ? t('employeeHotFood.saveChangesBtn') : t('employeeHotFood.addToMenuBtn')}</Text>
               }
             </TouchableOpacity>
 
@@ -360,7 +365,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               >
                 {deleting
                   ? <ActivityIndicator color="#EF4444" />
-                  : <Text style={sh.deleteBtnText}>Remove from Menu</Text>
+                  : <Text style={sh.deleteBtnText}>{t('employeeHotFood.removeFromMenuBtn')}</Text>
                 }
               </TouchableOpacity>
             )}
@@ -378,6 +383,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 function OrderCard({
   order, onUpdateStatus, updating,
 }: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus) => void; updating: boolean }) {
+  const { t } = useTranslation();
   const cfg      = STATUS_CONFIG[order.status];
   const total    = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const ageColor = ['PENDING', 'ACCEPTED'].includes(order.status) ? orderAgeColor(order.createdAt) : '#94A3B8';
@@ -389,11 +395,11 @@ function OrderCard({
           <Text style={s.orderNum}>#{order.orderNumber}</Text>
           <View style={s.timePill}>
             <ClockIcon size={11} color={ageColor} strokeWidth={2} />
-            <Text style={[s.timeText, { color: ageColor }]}>{timeAgo(order.createdAt)}</Text>
+            <Text style={[s.timeText, { color: ageColor }]}>{timeAgo(order.createdAt, t)}</Text>
           </View>
         </View>
         <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
-          <Text style={[s.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+          <Text style={[s.statusText, { color: cfg.color }]}>{t(cfg.labelKey)}</Text>
         </View>
       </View>
 
@@ -402,7 +408,7 @@ function OrderCard({
 
       {order.note ? (
         <View style={s.noteBox}>
-          <Text style={s.noteBoxLabel}>Note: </Text>
+          <Text style={s.noteBoxLabel}>{t('employeeHotFood.noteLabel')}</Text>
           <Text style={s.noteBoxText}>{order.note}</Text>
         </View>
       ) : null}
@@ -418,7 +424,7 @@ function OrderCard({
       </View>
 
       <View style={s.totalRow}>
-        <Text style={s.totalLabel}>Total</Text>
+        <Text style={s.totalLabel}>{t('employeeHotFood.totalLabel')}</Text>
         <Text style={s.totalValue}>${total.toFixed(2)}</Text>
       </View>
 
@@ -433,7 +439,7 @@ function OrderCard({
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.actionBtnText}>Accept Order</Text>}
+            : <Text style={s.actionBtnText}>{t('employeeHotFood.acceptOrderBtn')}</Text>}
         </TouchableOpacity>
       )}
 
@@ -448,7 +454,7 @@ function OrderCard({
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.actionBtnText}>Mark Ready</Text>}
+            : <Text style={s.actionBtnText}>{t('employeeHotFood.markReadyBtn')}</Text>}
         </TouchableOpacity>
       )}
 
@@ -464,14 +470,14 @@ function OrderCard({
           >
             {updating
               ? <ActivityIndicator color="#fff" size="small" />
-              : <><CheckCircleIcon size={15} color="#fff" strokeWidth={2.5} /><Text style={s.actionBtnText}>Complete</Text></>}
+              : <><CheckCircleIcon size={15} color="#fff" strokeWidth={2.5} /><Text style={s.actionBtnText}>{t('employeeHotFood.completeBtn')}</Text></>}
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.cancelBtn, updating && s.actionBtnDisabled]}
             onPress={() => {
-              Alert.alert('Cancel Order', 'Mark this order as cancelled?', [
-                { text: 'No' },
-                { text: 'Cancel Order', style: 'destructive', onPress: () => onUpdateStatus(order.id, 'CANCELLED') },
+              Alert.alert(t('employeeHotFood.cancelOrderTitle'), t('employeeHotFood.cancelOrderBody'), [
+                { text: t('employeeHotFood.no') },
+                { text: t('employeeHotFood.cancelOrderBtn'), style: 'destructive', onPress: () => onUpdateStatus(order.id, 'CANCELLED') },
               ]);
             }}
             disabled={updating}
@@ -487,7 +493,7 @@ function OrderCard({
       {order.status === 'COMPLETED' && (
         <View style={s.doneBadge}>
           <CheckCircleIcon size={14} color="#16A34A" strokeWidth={2.5} />
-          <Text style={s.doneText}>Completed</Text>
+          <Text style={s.doneText}>{t('employeeHotFood.completedLabel')}</Text>
         </View>
       )}
     </View>
@@ -499,6 +505,7 @@ function OrderCard({
 function MenuItemCard({
   item, onToggle, onEdit, updating,
 }: { item: MenuItem; onToggle: (item: MenuItem) => void; onEdit: (item: MenuItem) => void; updating: boolean }) {
+  const { t } = useTranslation();
   const [imgErr, setImgErr] = useState(false);
 
   return (
@@ -516,7 +523,7 @@ function MenuItemCard({
         <View style={s.menuItemHeader}>
           <Text style={s.menuItemName} numberOfLines={1}>{item.name}</Text>
           {item.source === 'catalog' && (
-            <View style={s.catalogBadge}><Text style={s.catalogBadgeText}>Catalog</Text></View>
+            <View style={s.catalogBadge}><Text style={s.catalogBadgeText}>{t('employeeHotFood.catalogBadge')}</Text></View>
           )}
         </View>
         {item.category ? <Text style={s.menuItemCat}>{item.category}</Text> : null}
@@ -525,7 +532,7 @@ function MenuItemCard({
           {item.estimatedMinutes ? (
             <View style={s.menuItemEst}>
               <ClockIcon size={11} color={COLORS.textMuted} strokeWidth={2} />
-              <Text style={s.menuItemEstText}>~{item.estimatedMinutes} min</Text>
+              <Text style={s.menuItemEstText}>{t('employeeHotFood.estimatedMinutes', { count: item.estimatedMinutes })}</Text>
             </View>
           ) : null}
         </View>
@@ -556,7 +563,7 @@ function MenuItemCard({
           {updating
             ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
             : <Text style={[s.availBtnText, item.isAvailable ? s.availBtnTextOn : s.availBtnTextOff]}>
-                {item.isAvailable ? 'Available' : 'Sold Out'}
+                {item.isAvailable ? t('employeeHotFood.available') : t('employeeHotFood.soldOut')}
               </Text>
           }
         </TouchableOpacity>
@@ -570,8 +577,18 @@ function MenuItemCard({
 const VALID_TABS: TabKey[] = ['PENDING', 'ACCEPTED', 'READY', 'ALL', 'MENU'];
 
 export default function HotFoodOrders() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
-  const storeId  = user?.storeIds?.[0];
+  // GPS-resolved for multi-store employees - the pending-order badge shown
+  // on this same screen's tab already aggregates across every assigned
+  // store, but the orders/menu below were stuck on the first assignment.
+  const { data: gasPricesData } = useQuery({
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
+    staleTime: 30_000,
+  });
+  const allStoresWithLocation: any[] = gasPricesData?.data?.data || [];
+  const storeId = useCurrentStoreId(allStoresWithLocation, user?.storeIds);
   const highlightedId = useHighlightParam();
   const [activeTab,    setActiveTab]    = useState<TabKey>('PENDING');
   const [updatingId,   setUpdatingId]   = useState<string | null>(null);
@@ -597,7 +614,7 @@ export default function HotFoodOrders() {
   });
 
   // All items (menu + catalog)
-  const { data: menuData, isLoading: menuLoading, refetch: refetchMenu } = useQuery({
+  const { data: menuData, isLoading: menuLoading, isRefetching: menuRefetching, refetch: refetchMenu } = useQuery({
     queryKey: ['hot-food-all-items', storeId],
     queryFn: () => hotFoodApi.getStoreAllItems(storeId!),
     enabled: !!storeId,
@@ -649,7 +666,7 @@ export default function HotFoodOrders() {
       queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
       queryClient.invalidateQueries({ queryKey: ['hot-food-pending-count'] });
     } catch {
-      Alert.alert('Error', 'Could not update order status. Try again.');
+      Alert.alert(t('employeeHotFood.errorTitle'), t('employeeHotFood.updateStatusFailed'));
     } finally {
       setUpdatingId(null);
     }
@@ -659,15 +676,15 @@ export default function HotFoodOrders() {
     if (updatingId) return;
     if (status === 'ACCEPTED') {
       Alert.alert(
-        'Accept Order',
-        'How long until this order is ready?',
+        t('employeeHotFood.acceptOrderTitle'),
+        t('employeeHotFood.acceptOrderBody'),
         [
-          { text: '5 min',  onPress: () => doUpdateStatus(orderId, status, 5)  },
-          { text: '10 min', onPress: () => doUpdateStatus(orderId, status, 10) },
-          { text: '15 min', onPress: () => doUpdateStatus(orderId, status, 15) },
-          { text: '20 min', onPress: () => doUpdateStatus(orderId, status, 20) },
-          { text: 'Skip',   onPress: () => doUpdateStatus(orderId, status)     },
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('employeeHotFood.minutes5'),  onPress: () => doUpdateStatus(orderId, status, 5)  },
+          { text: t('employeeHotFood.minutes10'), onPress: () => doUpdateStatus(orderId, status, 10) },
+          { text: t('employeeHotFood.minutes15'), onPress: () => doUpdateStatus(orderId, status, 15) },
+          { text: t('employeeHotFood.minutes20'), onPress: () => doUpdateStatus(orderId, status, 20) },
+          { text: t('employeeHotFood.skip'),   onPress: () => doUpdateStatus(orderId, status)     },
+          { text: t('employeeHotFood.cancel'), style: 'cancel' },
         ],
       );
     } else {
@@ -686,7 +703,7 @@ export default function HotFoodOrders() {
       }
       queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
     } catch {
-      Alert.alert('Error', 'Could not update item availability.');
+      Alert.alert(t('employeeHotFood.errorTitle'), t('employeeHotFood.updateAvailabilityFailed'));
     } finally {
       setUpdatingId(null);
     }
@@ -703,10 +720,10 @@ export default function HotFoodOrders() {
   if (!storeId) {
     return (
       <SafeAreaView style={s.container}>
-        <View style={s.header}><Text style={s.headerTitle}>Hot Food Orders</Text></View>
+        <View style={s.header}><Text style={s.headerTitle}>{t('employeeHotFood.headerTitle')}</Text></View>
         <View style={s.empty}>
           <InboxIcon size={48} color="#D1D5DB" />
-          <Text style={s.emptyText}>No store assigned to your account.</Text>
+          <Text style={s.emptyText}>{t('employeeHotFood.noStoreAssigned')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -723,9 +740,9 @@ export default function HotFoodOrders() {
             <FlameIcon size={20} color="#fff" strokeWidth={2} />
           </View>
           <View>
-            <Text style={s.headerTitle}>Hot Food Orders</Text>
+            <Text style={s.headerTitle}>{t('employeeHotFood.headerTitle')}</Text>
             {pendingCount > 0 && (
-              <Text style={s.headerSub}>{pendingCount} pending · needs attention</Text>
+              <Text style={s.headerSub}>{t('employeeHotFood.headerSubPending', { count: pendingCount })}</Text>
             )}
           </View>
         </View>
@@ -740,7 +757,7 @@ export default function HotFoodOrders() {
             accessibilityLabel="Add menu item"
           >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-            <Text style={s.addItemBtnText}>Add Item</Text>
+            <Text style={s.addItemBtnText}>{t('employeeHotFood.addItemBtn')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -751,6 +768,7 @@ export default function HotFoodOrders() {
           const active = activeTab === tab.key;
           const count  = counts[tab.key];
           const isMenu = tab.key === 'MENU';
+          const label = t(tab.labelKey);
           return (
             <TouchableOpacity
               key={tab.key}
@@ -759,9 +777,9 @@ export default function HotFoodOrders() {
               activeOpacity={0.75}
               hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
               accessibilityRole="tab"
-              accessibilityLabel={`${tab.label} tab${count > 0 ? `, ${count} items` : ''}`}
+              accessibilityLabel={`${label} tab${count > 0 ? `, ${count} items` : ''}`}
             >
-              <Text style={[s.tabText, active && s.tabTextActive]}>{tab.label}</Text>
+              <Text style={[s.tabText, active && s.tabTextActive]}>{label}</Text>
               {count > 0 && (
                 <View style={[s.tabBadge, active && s.tabBadgeActive]}>
                   <Text style={[s.tabBadgeText, active && s.tabBadgeTextActive]}>{count}</Text>
@@ -776,7 +794,7 @@ export default function HotFoodOrders() {
       {activeTab === 'MENU' && (
         <View style={s.menuNote}>
           <Text style={s.menuNoteText}>
-            Toggle items sold out/available. Tap the pencil icon to edit or remove a store item. Catalog items can only be toggled.
+            {t('employeeHotFood.menuNote')}
           </Text>
         </View>
       )}
@@ -793,7 +811,7 @@ export default function HotFoodOrders() {
             keyExtractor={item => item.id}
             contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+            refreshControl={<RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             renderItem={({ item }) => (
               <MenuItemCard
                 item={item}
@@ -805,7 +823,7 @@ export default function HotFoodOrders() {
             ListEmptyComponent={
               <View style={s.empty}>
                 <InboxIcon size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No menu items yet - tap "Add Item" to get started.</Text>
+                <Text style={s.emptyText}>{t('employeeHotFood.noMenuItems')}</Text>
               </View>
             }
           />
@@ -832,7 +850,14 @@ export default function HotFoodOrders() {
             ListEmptyComponent={
               <View style={s.empty}>
                 <InboxIcon size={48} color="#D1D5DB" />
-                <Text style={s.emptyText}>No {activeTab === 'ALL' ? '' : activeTab.toLowerCase() + ' '}orders right now</Text>
+                <Text style={s.emptyText}>
+                  {t(
+                    activeTab === 'ALL' ? 'employeeHotFood.noOrdersAll'
+                      : activeTab === 'PENDING' ? 'employeeHotFood.noOrdersPending'
+                      : activeTab === 'ACCEPTED' ? 'employeeHotFood.noOrdersAccepted'
+                      : 'employeeHotFood.noOrdersReady'
+                  )}
+                </Text>
               </View>
             }
           />
