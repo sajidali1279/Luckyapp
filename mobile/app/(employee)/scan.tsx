@@ -4,6 +4,7 @@ import {
   ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
   Animated, Easing, Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,16 +37,16 @@ type LineItem = {
   gasPricePerGallon?: string;
 };
 
-const CATEGORIES: { value: Category; label: string; icon: string }[] = [
-  { value: 'GAS',          label: 'Gas',       icon: '⛽' },
-  { value: 'DIESEL',       label: 'Diesel',    icon: '🚛' },
-  { value: 'HOT_FOODS',    label: 'Hot Foods', icon: '🌮' },
-  { value: 'GROCERIES',    label: 'Groceries', icon: '🛒' },
-  { value: 'FROZEN_FOODS', label: 'Frozen',    icon: '🧊' },
-  { value: 'FRESH_FOODS',  label: 'Fresh',     icon: '🥗' },
-  { value: 'TOBACCO_VAPES',label: 'Tobacco',   icon: '🚬' },
-  { value: 'ALCOHOL',      label: 'Alcohol',   icon: '🍺' },
-  { value: 'OTHER',        label: 'Other',     icon: '🏪' },
+const CATEGORIES: { value: Category; labelKey: string; icon: string }[] = [
+  { value: 'GAS',          labelKey: 'employeeScan.catGas',       icon: '⛽' },
+  { value: 'DIESEL',       labelKey: 'employeeScan.catDiesel',    icon: '🚛' },
+  { value: 'HOT_FOODS',    labelKey: 'employeeScan.catHotFoods',  icon: '🌮' },
+  { value: 'GROCERIES',    labelKey: 'employeeScan.catGroceries', icon: '🛒' },
+  { value: 'FROZEN_FOODS', labelKey: 'employeeScan.catFrozen',    icon: '🧊' },
+  { value: 'FRESH_FOODS',  labelKey: 'employeeScan.catFresh',     icon: '🥗' },
+  { value: 'TOBACCO_VAPES',labelKey: 'employeeScan.catTobacco',   icon: '🚬' },
+  { value: 'ALCOHOL',      labelKey: 'employeeScan.catAlcohol',   icon: '🍺' },
+  { value: 'OTHER',        labelKey: 'employeeScan.catOther',     icon: '🏪' },
 ];
 
 // Tier-based pts multiplier: rate% × 100 (e.g. Bronze 1% → ×1, Gold 3% → ×3)
@@ -89,9 +90,9 @@ function ScanFrame() {
 
 // ─── Step Progress Bar ─────────────────────────────────────────────────────────
 
-const GRANT_STEPS  = ['Scan', 'Mode', 'Amount', 'Receipt', 'Done'];
-const REDEEM_STEPS = ['Scan', 'Mode', 'Amount', 'Done'];
-const BENEFIT_STEPS = ['Scan', 'Mode', 'Done'];
+const GRANT_STEP_KEYS  = ['employeeScan.stepScan', 'employeeScan.stepMode', 'employeeScan.stepAmount', 'employeeScan.stepReceipt', 'employeeScan.stepDone'];
+const REDEEM_STEP_KEYS = ['employeeScan.stepScan', 'employeeScan.stepMode', 'employeeScan.stepAmount', 'employeeScan.stepDone'];
+const BENEFIT_STEP_KEYS = ['employeeScan.stepScan', 'employeeScan.stepMode', 'employeeScan.stepDone'];
 
 const STEP_INDEX: Record<Step, number> = {
   'scan': 0, 'mode': 1,
@@ -104,19 +105,20 @@ const STEP_INDEX: Record<Step, number> = {
 };
 
 function StepBar({ step }: { step: Step }) {
+  const { t } = useTranslation();
   const isRedeem  = step === 'redeem-amount' || step === 'redeem-done';
   const isBenefit = step === 'benefit-done' || step === 'welcome-bonus-done' || step === 'pending-done';
   const isCatalog = step === 'catalog-select' || step === 'catalog-done';
-  const labels = isBenefit ? BENEFIT_STEPS : (isRedeem || isCatalog) ? REDEEM_STEPS : GRANT_STEPS;
+  const labelKeys = isBenefit ? BENEFIT_STEP_KEYS : (isRedeem || isCatalog) ? REDEEM_STEP_KEYS : GRANT_STEP_KEYS;
   const active = STEP_INDEX[step] ?? 0;
   return (
     <View style={s.stepBar}>
-      {labels.map((label, i) => (
-        <View key={label} style={s.stepItem}>
+      {labelKeys.map((labelKey, i) => (
+        <View key={labelKey} style={s.stepItem}>
           <View style={[s.stepDot, i <= active && s.stepDotActive, i < active && s.stepDotDone]}>
             {i < active && <Text style={s.stepCheck}>✓</Text>}
           </View>
-          <Text style={[s.stepLabel, i <= active && s.stepLabelActive]}>{label}</Text>
+          <Text style={[s.stepLabel, i <= active && s.stepLabelActive]}>{t(labelKey)}</Text>
         </View>
       ))}
     </View>
@@ -222,6 +224,7 @@ function CelebrationDone({
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function EmployeeScanScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>('scan');
@@ -361,7 +364,7 @@ export default function EmployeeScanScreen() {
 
   function addCurrentItem() {
     if (!validAmount || (isGasCat && !validGallons)) {
-      Toast.show({ type: 'error', text1: 'Enter a valid amount first' });
+      Toast.show({ type: 'error', text1: t('employeeScan.enterValidAmountFirst') });
       return;
     }
     setLineItems(prev => [...prev, {
@@ -414,11 +417,11 @@ export default function EmployeeScanScreen() {
       return;
     }
     Alert.alert(
-      'Cancel this transaction?',
-      'Any amounts or items you entered will be lost.',
+      t('employeeScan.cancelTransactionTitle'),
+      t('employeeScan.cancelTransactionMsg'),
       [
-        { text: 'Keep Going', style: 'cancel' },
-        { text: 'Cancel Transaction', style: 'destructive', onPress: reset },
+        { text: t('employeeScan.keepGoing'), style: 'cancel' },
+        { text: t('employeeScan.cancelTransactionBtn'), style: 'destructive', onPress: reset },
       ]
     );
   }
@@ -428,7 +431,7 @@ export default function EmployeeScanScreen() {
     // Validate UUID format — customer QR codes are plain UUIDs
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!UUID_RE.test(data)) {
-      Toast.show({ type: 'error', text1: 'Not a Lucky Stop customer QR code' });
+      Toast.show({ type: 'error', text1: t('employeeScan.notLuckyStopQr') });
       return;
     }
     setScanned(true);
@@ -456,9 +459,9 @@ export default function EmployeeScanScreen() {
       const needsModeSelect = pendingList.length > 0 || !!wb || !!infoRes.data.data?.benefit?.available;
       setStep(needsModeSelect ? 'mode' : 'grant-amount');
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Customer not found';
+      const msg = err.response?.data?.error || t('employeeScan.customerNotFound');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: 'Invalid QR Code', text2: msg });
+      Toast.show({ type: 'error', text1: t('employeeScan.invalidQrCode'), text2: msg });
       setScanned(false);
     } finally {
       setLoading(false);
@@ -467,15 +470,15 @@ export default function EmployeeScanScreen() {
 
   async function handleGrantPoints() {
     if (!validAmount) {
-      Toast.show({ type: 'error', text1: 'Enter a valid purchase amount' });
+      Toast.show({ type: 'error', text1: t('employeeScan.enterValidPurchaseAmount') });
       return;
     }
     if (isGasCat && !validGallons) {
-      Toast.show({ type: 'error', text1: 'Enter number of gallons' });
+      Toast.show({ type: 'error', text1: t('employeeScan.enterGallons') });
       return;
     }
     if (!storeId) {
-      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
 
@@ -516,7 +519,7 @@ export default function EmployeeScanScreen() {
       setStep('receipt');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create transaction' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.failedToCreateTransaction') });
       setScanned(false);
     } finally {
       setLoading(false);
@@ -525,7 +528,7 @@ export default function EmployeeScanScreen() {
 
   async function handleUploadAndApprove() {
     if (!receiptImage) {
-      Toast.show({ type: 'error', text1: 'Receipt photo is required' });
+      Toast.show({ type: 'error', text1: t('employeeScan.receiptPhotoRequired') });
       return;
     }
     setLoading(true);
@@ -545,7 +548,7 @@ export default function EmployeeScanScreen() {
       // Keep the captured photo — most failures here are transient network/server
       // errors unrelated to the photo itself, so let the cashier just retry the
       // upload instead of forcing a full camera retake.
-      Toast.show({ type: 'error', text1: 'Upload failed - tap Upload to retry', text2: err.response?.data?.error });
+      Toast.show({ type: 'error', text1: t('employeeScan.uploadFailedRetry'), text2: err.response?.data?.error });
     } finally {
       setLoading(false);
     }
@@ -554,20 +557,20 @@ export default function EmployeeScanScreen() {
   async function handleRedeemCredits() {
     const amount = parseFloat(redeemAmount);
     if (!amount || isNaN(amount) || amount <= 0) {
-      Toast.show({ type: 'error', text1: 'Enter a valid amount' });
+      Toast.show({ type: 'error', text1: t('employeeScan.enterValidAmount') });
       return;
     }
     if (amount > 9999) {
-      Toast.show({ type: 'error', text1: 'Amount too high', text2: 'Maximum redemption is $9,999' });
+      Toast.show({ type: 'error', text1: t('employeeScan.amountTooHigh'), text2: t('employeeScan.maxRedemption') });
       return;
     }
     const decimals = redeemAmount.includes('.') ? redeemAmount.split('.')[1].length : 0;
     if (decimals > 2) {
-      Toast.show({ type: 'error', text1: 'Invalid amount', text2: 'Max 2 decimal places' });
+      Toast.show({ type: 'error', text1: t('employeeScan.invalidAmount'), text2: t('employeeScan.maxTwoDecimals') });
       return;
     }
     if (!storeId) {
-      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
     setLoading(true);
@@ -577,7 +580,7 @@ export default function EmployeeScanScreen() {
       setPointsAwarded(amount);
       setStep('redeem-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Redemption failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.redemptionFailed') });
     } finally {
       setLoading(false);
     }
@@ -585,7 +588,7 @@ export default function EmployeeScanScreen() {
 
   async function handleClaimBenefit() {
     if (!storeId) {
-      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
     setLoading(true);
@@ -593,7 +596,7 @@ export default function EmployeeScanScreen() {
       await pointsApi.claimTierBenefit(customerQr, storeId);
       setStep('benefit-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Claim failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.claimFailed') });
     } finally {
       setLoading(false);
     }
@@ -606,7 +609,7 @@ export default function EmployeeScanScreen() {
       await pointsApi.processCatalogRedemption(customerQr, selectedCatalogItem.id, storeId);
       setStep('catalog-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Redemption failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.redemptionFailed') });
     } finally {
       setLoading(false);
     }
@@ -614,7 +617,7 @@ export default function EmployeeScanScreen() {
 
   async function handleConfirmPending(redemption: any) {
     if (!storeId) {
-      Toast.show({ type: 'error', text1: 'No store assigned to your account' });
+      Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
     setLoading(true);
@@ -623,7 +626,7 @@ export default function EmployeeScanScreen() {
       setConfirmedPending(redemption);
       setStep('pending-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Confirmation failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.confirmationFailed') });
     } finally {
       setLoading(false);
     }
@@ -637,7 +640,7 @@ export default function EmployeeScanScreen() {
       setConfirmedWelcomeBonus(res.data.data);
       setStep('welcome-bonus-done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Confirmation failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.confirmationFailed') });
     } finally {
       setLoading(false);
     }
@@ -661,15 +664,15 @@ export default function EmployeeScanScreen() {
         <View style={s.permIconWrap}>
           <CameraIcon size={52} color={COLORS.primary} strokeWidth={1.5} />
         </View>
-        <Text style={s.permTitle}>Camera Access Needed</Text>
-        <Text style={s.permSub}>Camera is required to scan customer QR codes</Text>
+        <Text style={s.permTitle}>{t('employeeScan.cameraNeededTitle')}</Text>
+        <Text style={s.permSub}>{t('employeeScan.cameraNeededSub')}</Text>
         <TouchableOpacity
           style={s.primaryBtn}
           onPress={requestPermission}
           accessibilityRole="button"
-          accessibilityLabel="Grant camera access"
+          accessibilityLabel={t('employeeScan.grantCameraAccessA11y')}
         >
-          <Text style={s.primaryBtnText}>Grant Camera Access</Text>
+          <Text style={s.primaryBtnText}>{t('employeeScan.grantCameraAccessBtn')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -699,10 +702,10 @@ export default function EmployeeScanScreen() {
               style={s.headerBackBtn}
               onPress={confirmReset}
               accessibilityRole="button"
-              accessibilityLabel="Cancel transaction"
+              accessibilityLabel={t('employeeScan.cancelTransactionA11y')}
             >
               <XIcon size={14} color="#fff" strokeWidth={2.5} />
-              <Text style={s.headerBackText}>Cancel</Text>
+              <Text style={s.headerBackText}>{t('employeeScan.cancel')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -715,7 +718,7 @@ export default function EmployeeScanScreen() {
           {loading && (
             <View style={s.scanLoadingOverlay}>
               <ActivityIndicator size="large" color={COLORS.accent} />
-              <Text style={s.scanLoadingText}>Loading customer info…</Text>
+              <Text style={s.scanLoadingText}>{t('employeeScan.loadingCustomerInfo')}</Text>
             </View>
           )}
           <CameraView
@@ -731,8 +734,8 @@ export default function EmployeeScanScreen() {
               <View style={s.scanDimSide} />
             </View>
             <View style={s.scanDimBottom}>
-              <Text style={s.scanHint}>Point camera at customer's QR code</Text>
-              <Text style={s.scanHintSub}>Hold steady until it auto-detects</Text>
+              <Text style={s.scanHint}>{t('employeeScan.scanHint')}</Text>
+              <Text style={s.scanHintSub}>{t('employeeScan.scanHintSub')}</Text>
             </View>
           </View>
         </View>
@@ -769,8 +772,8 @@ export default function EmployeeScanScreen() {
             <View style={s.successBadge}>
               <Text style={s.successBadgeIcon}>✅</Text>
               <View>
-                <Text style={s.successBadgeTitle}>QR Scanned Successfully</Text>
-                <Text style={s.successBadgeSub}>Select action to proceed</Text>
+                <Text style={s.successBadgeTitle}>{t('employeeScan.qrScannedTitle')}</Text>
+                <Text style={s.successBadgeSub}>{t('employeeScan.qrScannedSub')}</Text>
               </View>
             </View>
           )}
@@ -778,8 +781,8 @@ export default function EmployeeScanScreen() {
           {/* Pending Catalog Redemptions - customer-initiated holds awaiting confirmation */}
           {pendingRedemptions.length > 0 && (
             <View style={s.pendingSection}>
-              <Text style={s.pendingSectionTitle}>Pending Redemptions ({pendingRedemptions.length})</Text>
-              <Text style={s.pendingSectionSub}>Customer redeemed these - confirm to complete</Text>
+              <Text style={s.pendingSectionTitle}>{t('employeeScan.pendingRedemptionsTitle', { count: pendingRedemptions.length })}</Text>
+              <Text style={s.pendingSectionSub}>{t('employeeScan.pendingRedemptionsSub')}</Text>
               {pendingRedemptions.map((r) => {
                 const expiresAt = new Date(r.expiresAt);
                 const msLeft = expiresAt.getTime() - Date.now();
@@ -810,11 +813,11 @@ export default function EmployeeScanScreen() {
                       activeOpacity={0.85}
                       hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Confirm redemption of ${r.catalogItem?.title}`}
+                      accessibilityLabel={t('employeeScan.confirmRedemptionA11y', { title: r.catalogItem?.title })}
                     >
                       {loading
                         ? <ActivityIndicator color="#fff" size="small" />
-                        : <Text style={s.confirmBtnText}>✓ Confirm</Text>}
+                        : <Text style={s.confirmBtnText}>{t('employeeScan.confirmBtnText')}</Text>}
                     </TouchableOpacity>
                   </View>
                 );
@@ -828,14 +831,14 @@ export default function EmployeeScanScreen() {
             onPress={() => setStep('grant-amount')}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Select Grant Points mode"
+            accessibilityLabel={t('employeeScan.selectGrantModeA11y')}
           >
             <View style={[s.modeIconBg, { backgroundColor: COLORS.primary + '15' }]}>
               <ReceiptIcon size={26} color={COLORS.primary} strokeWidth={1.75} />
             </View>
             <View style={s.modeBody}>
-              <Text style={s.modeTitle}>Grant Points</Text>
-              <Text style={s.modeSub}>Earn cashback on their purchase</Text>
+              <Text style={s.modeTitle}>{t('employeeScan.grantPointsTitle')}</Text>
+              <Text style={s.modeSub}>{t('employeeScan.grantPointsSub')}</Text>
             </View>
             <View style={[s.modeArrow, { backgroundColor: COLORS.primary }]}>
               <Text style={s.modeArrowText}>›</Text>
@@ -848,14 +851,14 @@ export default function EmployeeScanScreen() {
             onPress={() => setStep('redeem-amount')}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Select Redeem Credits mode"
+            accessibilityLabel={t('employeeScan.selectRedeemModeA11y')}
           >
             <View style={[s.modeIconBg, { backgroundColor: COLORS.accent + '15' }]}>
               <CreditCardIcon size={26} color={COLORS.accent} strokeWidth={1.75} />
             </View>
             <View style={s.modeBody}>
-              <Text style={[s.modeTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
-              <Text style={s.modeSub}>Apply balance toward purchase</Text>
+              <Text style={[s.modeTitle, { color: COLORS.accent }]}>{t('employeeScan.redeemCreditsTitle')}</Text>
+              <Text style={s.modeSub}>{t('employeeScan.redeemCreditsSub')}</Text>
             </View>
             <View style={[s.modeArrow, { backgroundColor: COLORS.accent }]}>
               <Text style={s.modeArrowText}>›</Text>
@@ -870,19 +873,19 @@ export default function EmployeeScanScreen() {
               disabled={loading}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={benefitType === 'SILVER_FOUNTAIN' ? 'Claim free fountain refill' : 'Claim free daily refill'}
+              accessibilityLabel={benefitType === 'SILVER_FOUNTAIN' ? t('employeeScan.claimFountainRefillA11y') : t('employeeScan.claimDailyRefillA11y')}
             >
               <View style={[s.modeIconBg, { backgroundColor: tierCfg.color + '18' }]}>
                 <Text style={s.modeEmoji}>🥤</Text>
               </View>
               <View style={s.modeBody}>
                 <Text style={[s.modeTitle, { color: tierCfg.color }]}>
-                  {benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Refill' : 'Free Daily Refill'}
+                  {benefitType === 'SILVER_FOUNTAIN' ? t('employeeScan.freeFountainRefill') : t('employeeScan.freeDailyRefill')}
                 </Text>
                 <Text style={s.modeSub}>
                   {benefitType === 'SILVER_FOUNTAIN'
-                    ? `${silverRemaining} refills left this period`
-                    : `${tier.charAt(0) + tier.slice(1).toLowerCase()} tier - 1 refill per day`}
+                    ? t('employeeScan.refillsLeftPeriod', { count: silverRemaining })
+                    : t('employeeScan.tierRefillPerDay', { tier: tier.charAt(0) + tier.slice(1).toLowerCase() })}
                 </Text>
               </View>
               {loading ? (
@@ -902,14 +905,14 @@ export default function EmployeeScanScreen() {
               onPress={() => setStep('catalog-select')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Select Catalog Reward mode"
+              accessibilityLabel={t('employeeScan.selectCatalogModeA11y')}
             >
               <View style={[s.modeIconBg, { backgroundColor: '#9B5DE5' + '15' }]}>
                 <GiftIcon size={26} color="#9B5DE5" strokeWidth={1.75} />
               </View>
               <View style={s.modeBody}>
-                <Text style={[s.modeTitle, { color: '#9B5DE5' }]}>Catalog Reward</Text>
-                <Text style={s.modeSub}>Redeem points for a fixed reward</Text>
+                <Text style={[s.modeTitle, { color: '#9B5DE5' }]}>{t('employeeScan.catalogRewardTitle')}</Text>
+                <Text style={s.modeSub}>{t('employeeScan.catalogRewardSub')}</Text>
               </View>
               <View style={[s.modeArrow, { backgroundColor: '#9B5DE5' }]}>
                 <Text style={s.modeArrowText}>›</Text>
@@ -925,14 +928,14 @@ export default function EmployeeScanScreen() {
               disabled={loading}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={`Confirm welcome bonus day ${welcomeBonus.day}`}
+              accessibilityLabel={t('employeeScan.confirmWelcomeBonusA11y', { day: welcomeBonus.day })}
             >
               <View style={[s.modeIconBg, { backgroundColor: '#FEF3C7' }]}>
                 <Text style={s.modeEmoji}>{welcomeBonus.rewardEmoji || '🎁'}</Text>
               </View>
               <View style={s.modeBody}>
-                <Text style={[s.modeTitle, { color: '#D97706' }]}>Welcome Bonus · Day {welcomeBonus.day}</Text>
-                <Text style={s.modeSub}>{welcomeBonus.rewardLabel} - CODE: {welcomeBonus.claimCode}</Text>
+                <Text style={[s.modeTitle, { color: '#D97706' }]}>{t('employeeScan.welcomeBonusDayTitle', { day: welcomeBonus.day })}</Text>
+                <Text style={s.modeSub}>{t('employeeScan.welcomeBonusSub', { label: welcomeBonus.rewardLabel, code: welcomeBonus.claimCode })}</Text>
               </View>
               {loading
                 ? <ActivityIndicator color="#F59E0B" style={{ marginRight: 4 }} />
@@ -972,9 +975,9 @@ export default function EmployeeScanScreen() {
                 onPress={() => setStep('mode')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityRole="button"
-                accessibilityLabel="See other options: redeem credits, benefits, or rewards"
+                accessibilityLabel={t('employeeScan.otherOptionsA11y')}
               >
-                <Text style={s.fastPathSwitchLink}>Other options ›</Text>
+                <Text style={s.fastPathSwitchLink}>{t('employeeScan.otherOptionsLink')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -982,13 +985,14 @@ export default function EmployeeScanScreen() {
           {/* Committed items list */}
           {lineItems.length > 0 && (
             <View style={s.committedBox}>
-              <Text style={s.committedBoxLabel}>Added ({lineItems.length})</Text>
+              <Text style={s.committedBoxLabel}>{t('employeeScan.addedCount', { count: lineItems.length })}</Text>
               {lineItems.map(item => {
                 const cat = CATEGORIES.find(c => c.value === item.category);
+                const catLabel = cat ? t(cat.labelKey) : undefined;
                 return (
                   <View key={item.id} style={s.committedRow}>
                     <Text style={s.committedRowIcon}>{cat?.icon}</Text>
-                    <Text style={s.committedRowCat}>{cat?.label}</Text>
+                    <Text style={s.committedRowCat}>{catLabel}</Text>
                     <Text style={s.committedRowAmt}>${parseFloat(item.amount).toFixed(2)}</Text>
                     {item.gasGallons && (
                       <Text style={s.committedRowGas}>{parseFloat(item.gasGallons).toFixed(3)} gal</Text>
@@ -997,7 +1001,7 @@ export default function EmployeeScanScreen() {
                       onPress={() => setLineItems(prev => prev.filter(i => i.id !== item.id))}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Remove ${cat?.label ?? 'item'} entry`}
+                      accessibilityLabel={t('employeeScan.removeItemA11y', { label: catLabel ?? 'item' })}
                     >
                       <Text style={s.committedRowRemove}>×</Text>
                     </TouchableOpacity>
@@ -1008,13 +1012,14 @@ export default function EmployeeScanScreen() {
           )}
 
           {/* Category grid */}
-          <Text style={s.fieldLabel}>{lineItems.length > 0 ? 'Next Item - Category' : 'Category'}</Text>
+          <Text style={s.fieldLabel}>{lineItems.length > 0 ? t('employeeScan.nextItemCategory') : t('employeeScan.category')}</Text>
           <View style={s.catGrid}>
             {CATEGORIES.filter(c => {
               const enabled = storeId ? (storeGasPrices[storeId]?.enabledCategories ?? []) : [];
               return enabled.length === 0 || enabled.includes(c.value);
             }).map((c) => {
               const active = category === c.value;
+              const cLabel = t(c.labelKey);
               return (
                 <TouchableOpacity
                   key={c.value}
@@ -1022,22 +1027,22 @@ export default function EmployeeScanScreen() {
                   onPress={() => selectCategory(c.value)}
                   activeOpacity={0.75}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select ${c.label} category`}
+                  accessibilityLabel={t('employeeScan.selectCategoryA11y', { label: cLabel })}
                 >
                   <Text style={s.catEmoji}>{c.icon}</Text>
-                  <Text style={[s.catCellLabel, active && s.catCellLabelActive]}>{c.label}</Text>
+                  <Text style={[s.catCellLabel, active && s.catCellLabelActive]}>{cLabel}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
           {/* Amount input */}
-          <Text style={[s.fieldLabel, { marginTop: 8 }]}>Purchase Total</Text>
+          <Text style={[s.fieldLabel, { marginTop: 8 }]}>{t('employeeScan.purchaseTotal')}</Text>
           <View style={s.amountBox}>
             <Text style={s.amountDollar}>$</Text>
             <TextInput
               style={s.amountInput}
-              placeholder="0.00"
+              placeholder={t('employeeScan.amountPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
               value={purchaseAmount}
@@ -1055,7 +1060,7 @@ export default function EmployeeScanScreen() {
                   <Text style={s.amountDollar}>$</Text>
                   <TextInput
                     style={[s.amountInput, { fontSize: 28 }]}
-                    placeholder="0.00/gal"
+                    placeholder={t('employeeScan.amountPerGalPlaceholder')}
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="decimal-pad"
                     value={gasPricePerGallon}
@@ -1064,7 +1069,7 @@ export default function EmployeeScanScreen() {
                 </View>
                 {/* Gallons - auto-calculated, read-only display */}
                 <View style={[s.amountBox, { flex: 1, backgroundColor: '#f0f8f0', borderColor: '#2DC653' }]}>
-                  <Text style={[s.gasUnit, { color: '#2DC653' }]}>gal</Text>
+                  <Text style={[s.gasUnit, { color: '#2DC653' }]}>{t('employeeScan.gal')}</Text>
                   <Text style={[s.amountInput, { fontSize: 28, color: validGallons ? '#1a7a1a' : COLORS.textMuted, textAlignVertical: 'center' }]}>
                     {validGallons ? parsedGallons.toFixed(3) : ' - '}
                   </Text>
@@ -1072,7 +1077,7 @@ export default function EmployeeScanScreen() {
               </View>
               {validGallons && (
                 <Text style={{ fontSize: 11, color: '#6b7280', textAlign: 'center', marginTop: 4 }}>
-                  Gallons auto-calculated from ${parsedPPG.toFixed(2)}/gal
+                  {t('employeeScan.gallonsAutoCalc', { amt: parsedPPG.toFixed(2) })}
                 </Text>
               )}
               {/* Gas bonus preview */}
@@ -1080,9 +1085,11 @@ export default function EmployeeScanScreen() {
                 <View style={[s.gasBonus, { borderColor: tierCfg.color + '50', backgroundColor: tierCfg.color + '10' }]}>
                   <Text style={s.gasBonusEmoji}>{tierCfg.emoji}</Text>
                   <Text style={[s.gasBonusText, { color: tierCfg.color }]}>
-                    {tier} gas bonus: +{Math.round(
-                      parsedGallons * ({ GOLD: 5, DIAMOND: 7, PLATINUM: 10 } as any)[tier]
-                    )} pts for {parsedGallons} gal
+                    {t('employeeScan.gasBonusPreview', {
+                      tier,
+                      pts: Math.round(parsedGallons * ({ GOLD: 5, DIAMOND: 7, PLATINUM: 10 } as any)[tier]),
+                      gallons: parsedGallons,
+                    })}
                   </Text>
                 </View>
               )}
@@ -1093,19 +1100,19 @@ export default function EmployeeScanScreen() {
           {estimatedCashback && (
             <View style={s.previewCard}>
               <View style={s.previewRow}>
-                <Text style={s.previewLabel}>Est. points earned</Text>
-                <Text style={s.previewAmount}>+{estimatedCashback} pts</Text>
+                <Text style={s.previewLabel}>{t('employeeScan.estPointsEarned')}</Text>
+                <Text style={s.previewAmount}>{t('employeeScan.ptsEarned', { pts: estimatedCashback })}</Text>
               </View>
               <View style={s.previewRow}>
-                <Text style={s.previewLabel}>Rate</Text>
+                <Text style={s.previewLabel}>{t('employeeScan.rate')}</Text>
                 <Text style={s.previewRate}>
                   {isGasCat && gasCentsPerGallon != null
-                    ? `${gasCentsPerGallon}¢/gal (${customerTier} · promos add on top)`
-                    : `${tierMult} pts per $1 (${customerTier} · promos applied at grant)`}
+                    ? t('employeeScan.rateGas', { cents: gasCentsPerGallon, tier: customerTier })
+                    : t('employeeScan.rateDollar', { mult: tierMult, tier: customerTier })}
                 </Text>
               </View>
               <View style={s.previewDivider} />
-              <Text style={s.previewNote}>Final amount confirmed after submission</Text>
+              <Text style={s.previewNote}>{t('employeeScan.finalAmountNote')}</Text>
             </View>
           )}
 
@@ -1117,9 +1124,9 @@ export default function EmployeeScanScreen() {
               disabled={!validAmount || !validGallons}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Add another item to this transaction"
+              accessibilityLabel={t('employeeScan.addAnotherA11y')}
             >
-              <Text style={s.addAnotherBtnText}>+ Add{'\n'}Another</Text>
+              <Text style={s.addAnotherBtnText}>{t('employeeScan.addAnotherBtn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.primaryBtn, s.grantMainBtn, (!validAmount || !validGallons || loading) && s.primaryBtnOff]}
@@ -1127,14 +1134,14 @@ export default function EmployeeScanScreen() {
               disabled={!validAmount || !validGallons || loading}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={lineItems.length > 0 ? `Grant all ${lineItems.length + 1} items` : 'Continue to receipt'}
+              accessibilityLabel={lineItems.length > 0 ? t('employeeScan.grantAllItemsA11y', { count: lineItems.length + 1 }) : t('employeeScan.continueToReceiptA11y')}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={s.primaryBtnText}>
                     {lineItems.length > 0
-                      ? `Grant All (${lineItems.length + 1} items) →`
-                      : 'Continue to Receipt →'}
+                      ? t('employeeScan.grantAllBtn', { count: lineItems.length + 1 })
+                      : t('employeeScan.continueToReceiptBtn')}
                   </Text>}
             </TouchableOpacity>
           </View>
@@ -1143,9 +1150,9 @@ export default function EmployeeScanScreen() {
             style={s.ghostBtn}
             onPress={() => setStep('mode')}
             accessibilityRole="button"
-            accessibilityLabel="Back to mode selection"
+            accessibilityLabel={t('employeeScan.backToModeA11y')}
           >
-            <Text style={s.ghostBtnText}>← Back</Text>
+            <Text style={s.ghostBtnText}>{t('employeeScan.back')}</Text>
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -1190,25 +1197,25 @@ export default function EmployeeScanScreen() {
 
           {promotionApplied && (
             <View style={s.promoBanner}>
-              <Text style={s.promoBannerText}>Promo applied: {promotionApplied}</Text>
+              <Text style={s.promoBannerText}>{t('employeeScan.promoApplied', { promo: promotionApplied })}</Text>
             </View>
           )}
 
           {/* Receipt photo */}
-          <Text style={s.fieldLabel}>Receipt Photo <Text style={s.required}>*required</Text></Text>
+          <Text style={s.fieldLabel}>{t('employeeScan.receiptPhotoLabel')} <Text style={s.required}>{t('employeeScan.requiredTag')}</Text></Text>
           <TouchableOpacity
             style={[s.receiptBox, receiptImage && s.receiptBoxFilled]}
             onPress={pickReceiptImage}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={receiptImage ? 'Retake receipt photo' : 'Take receipt photo'}
+            accessibilityLabel={receiptImage ? t('employeeScan.retakeReceiptA11y') : t('employeeScan.takeReceiptA11y')}
           >
             {receiptImage ? (
               <View style={{ width: '100%' }}>
                 <Image source={{ uri: receiptImage }} style={s.receiptImg} />
                 <View style={s.retakeRow}>
                   <CameraIcon size={14} color={COLORS.textMuted} strokeWidth={2} />
-                  <Text style={s.retakeText}>Tap to retake</Text>
+                  <Text style={s.retakeText}>{t('employeeScan.tapToRetake')}</Text>
                 </View>
               </View>
             ) : (
@@ -1216,8 +1223,8 @@ export default function EmployeeScanScreen() {
                 <View style={s.receiptIconWrap}>
                   <CameraIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
                 </View>
-                <Text style={s.receiptTitle}>Take Receipt Photo</Text>
-                <Text style={s.receiptSub}>Required for fraud protection</Text>
+                <Text style={s.receiptTitle}>{t('employeeScan.takeReceiptPhoto')}</Text>
+                <Text style={s.receiptSub}>{t('employeeScan.requiredFraudProtection')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -1228,20 +1235,20 @@ export default function EmployeeScanScreen() {
             disabled={loading || !receiptImage}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Submit receipt and grant points"
+            accessibilityLabel={t('employeeScan.submitReceiptA11y')}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.primaryBtnText}>Grant Points ✓</Text>}
+              : <Text style={s.primaryBtnText}>{t('employeeScan.grantPointsBtn')}</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={s.dangerBtn}
             onPress={confirmReset}
             accessibilityRole="button"
-            accessibilityLabel="Cancel transaction"
+            accessibilityLabel={t('employeeScan.cancelTransactionA11y')}
           >
-            <Text style={s.dangerBtnText}>Cancel Transaction</Text>
+            <Text style={s.dangerBtnText}>{t('employeeScan.cancelTransactionBtn')}</Text>
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -1249,11 +1256,11 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── GRANT: DONE ────────────────────────── */}
       {step === 'grant-done' && (
         <CelebrationDone
-          heading="Points Granted!"
+          heading={t('employeeScan.pointsGrantedHeading')}
           amount={`+${Math.round(pointsAwarded * 100)} pts`}
           amountColor={COLORS.success}
           sub={customerInfo?.name || customerInfo?.phone}
-          sub2={transactionIds.length > 1 ? `${transactionIds.length} categories - cashback credited` : 'Cashback credited to their account'}
+          sub2={transactionIds.length > 1 ? t('employeeScan.categoriesCashbackCredited', { count: transactionIds.length }) : t('employeeScan.cashbackCreditedToAccount')}
           extraNode={
             <>
               {gasBonusAwarded > 0 && (
@@ -1263,13 +1270,13 @@ export default function EmployeeScanScreen() {
               )}
               {promotionApplied && (
                 <View style={[s.promoBanner, { marginTop: 8 }]}>
-                  <Text style={s.promoBannerText}>🎉 Promo applied: {promotionApplied}</Text>
+                  <Text style={s.promoBannerText}>{t('employeeScan.promoAppliedCelebrate', { promo: promotionApplied })}</Text>
                 </View>
               )}
             </>
           }
           onNext={reset}
-          nextLabel="Scan Next Customer"
+          nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
 
@@ -1279,26 +1286,25 @@ export default function EmployeeScanScreen() {
           <View style={[s.successBadge, { backgroundColor: COLORS.accent + '15' }]}>
             <Text style={s.successBadgeIcon}>💳</Text>
             <View>
-              <Text style={[s.successBadgeTitle, { color: COLORS.accent }]}>Redeem Credits</Text>
-              <Text style={s.successBadgeSub}>Enter amount to deduct from balance</Text>
+              <Text style={[s.successBadgeTitle, { color: COLORS.accent }]}>{t('employeeScan.redeemCreditsHeading')}</Text>
+              <Text style={s.successBadgeSub}>{t('employeeScan.redeemAmountSub')}</Text>
             </View>
           </View>
 
           {cdata && (
             <View style={s.balanceHint}>
               <Text style={s.balanceHintText}>
-                Balance: {cdata.pointsBalance?.toLocaleString() || 0} pts
-                {' '}(${(cdata.pointsBalance / 100).toFixed(2)})
+                {t('employeeScan.balanceLine', { pts: cdata.pointsBalance?.toLocaleString() || 0, dollars: (cdata.pointsBalance / 100).toFixed(2) })}
               </Text>
             </View>
           )}
 
-          <Text style={s.fieldLabel}>Amount to Redeem</Text>
+          <Text style={s.fieldLabel}>{t('employeeScan.amountToRedeem')}</Text>
           <View style={s.amountBox}>
             <Text style={s.amountDollar}>$</Text>
             <TextInput
               style={s.amountInput}
-              placeholder="0.00"
+              placeholder={t('employeeScan.amountPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
               value={redeemAmount}
@@ -1309,7 +1315,7 @@ export default function EmployeeScanScreen() {
 
           <View style={s.redeemInfo}>
             <Text style={s.redeemInfoText}>
-              Customer's entire balance will be checked - redemption will fail if insufficient funds.
+              {t('employeeScan.redeemInfoText')}
             </Text>
           </View>
 
@@ -1319,20 +1325,20 @@ export default function EmployeeScanScreen() {
             disabled={loading}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Confirm redemption"
+            accessibilityLabel={t('employeeScan.confirmRedemptionBtnA11y')}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.primaryBtnText}>Confirm Redemption</Text>}
+              : <Text style={s.primaryBtnText}>{t('employeeScan.confirmRedemptionBtn')}</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={s.ghostBtn}
             onPress={() => setStep('mode')}
             accessibilityRole="button"
-            accessibilityLabel="Back to mode selection"
+            accessibilityLabel={t('employeeScan.backToModeA11y')}
           >
-            <Text style={s.ghostBtnText}>← Back</Text>
+            <Text style={s.ghostBtnText}>{t('employeeScan.back')}</Text>
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -1340,34 +1346,34 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── REDEEM: DONE ────────────────────────── */}
       {step === 'redeem-done' && (
         <CelebrationDone
-          heading="Redeemed!"
+          heading={t('employeeScan.redeemedHeading')}
           amount={`-$${pointsAwarded.toFixed(2)}`}
           amountColor={COLORS.accent}
           sub={customerInfo?.name || customerInfo?.phone}
           extraNode={
             <View style={s.newBalanceCard}>
-              <Text style={s.newBalanceLabel}>Remaining balance</Text>
+              <Text style={s.newBalanceLabel}>{t('employeeScan.remainingBalance')}</Text>
               <Text style={s.newBalanceValue}>{Math.round(Number(customerInfo?.pointsBalance ?? 0) * 100).toLocaleString()} pts</Text>
             </View>
           }
-          onNext={reset} nextLabel="Scan Next Customer"
+          onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
 
       {/* ──────────────────────── BENEFIT: DONE ────────────────────────── */}
       {step === 'benefit-done' && (
         <CelebrationDone
-          heading="Benefit Claimed!"
-          amount={benefitType === 'SILVER_FOUNTAIN' ? 'Free Fountain Refill' : 'Free Daily Refill'}
+          heading={t('employeeScan.benefitClaimedHeading')}
+          amount={benefitType === 'SILVER_FOUNTAIN' ? t('employeeScan.freeFountainRefill') : t('employeeScan.freeDailyRefill')}
           amountColor={tierCfg.color}
           sub={cdata?.name || cdata?.phone}
           extraNode={
             <View style={[s.newBalanceCard, { borderColor: tierCfg.color + '40' }]}>
-              <Text style={s.newBalanceLabel}>{tierCfg.emoji} {tierCfg.label} Member</Text>
-              {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{silverRemaining - 1} refills remaining this period</Text>}
+              <Text style={s.newBalanceLabel}>{t('employeeScan.memberLine', { emoji: tierCfg.emoji, tier: tierCfg.label })}</Text>
+              {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{t('employeeScan.refillsRemainingPeriod', { count: silverRemaining - 1 })}</Text>}
             </View>
           }
-          onNext={reset} nextLabel="Scan Next Customer"
+          onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
 
@@ -1375,10 +1381,10 @@ export default function EmployeeScanScreen() {
       {step === 'catalog-select' && (
         <View style={s.fill}>
           <View style={s.catalogHeader}>
-            <Text style={s.catalogHeaderTitle}>Catalog Rewards</Text>
+            <Text style={s.catalogHeaderTitle}>{t('employeeScan.catalogRewardsTitle')}</Text>
             {cdata && (
               <Text style={s.catalogHeaderBalance}>
-                Balance: {cdata.pointsBalance?.toLocaleString() || 0} pts
+                {t('employeeScan.catalogBalance', { pts: cdata.pointsBalance?.toLocaleString() || 0 })}
               </Text>
             )}
           </View>
@@ -1399,7 +1405,7 @@ export default function EmployeeScanScreen() {
                   onPress={() => canAfford && setSelectedCatalogItem(item)}
                   activeOpacity={canAfford ? 0.8 : 1}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select ${item.title}${!canAfford ? ', insufficient points' : ''}`}
+                  accessibilityLabel={canAfford ? t('employeeScan.selectCatalogItemA11y', { title: item.title }) : t('employeeScan.selectCatalogItemInsufficientA11y', { title: item.title })}
                 >
                   <View style={s.catalogItemLeft}>
                     <Text style={s.catalogItemName}>{item.emoji ? `${item.emoji} ` : ''}{item.title}</Text>
@@ -1418,7 +1424,7 @@ export default function EmployeeScanScreen() {
             }}
             ListEmptyComponent={
               <View style={s.emptyState}>
-                <Text style={s.emptyStateText}>No catalog items available</Text>
+                <Text style={s.emptyStateText}>{t('employeeScan.noCatalogItems')}</Text>
               </View>
             }
           />
@@ -1429,21 +1435,21 @@ export default function EmployeeScanScreen() {
               disabled={!selectedCatalogItem || loading}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={selectedCatalogItem ? `Redeem ${selectedCatalogItem.title} for ${selectedCatalogItem.pointsCost} points` : 'Select a reward first'}
+              accessibilityLabel={selectedCatalogItem ? t('employeeScan.redeemItemForPtsA11y', { title: selectedCatalogItem.title, cost: selectedCatalogItem.pointsCost }) : t('employeeScan.selectRewardFirstA11y')}
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={s.primaryBtnText}>
-                    {selectedCatalogItem ? `Redeem - ${selectedCatalogItem.pointsCost.toLocaleString()} pts` : 'Select a reward'}
+                    {selectedCatalogItem ? t('employeeScan.redeemForPts', { cost: selectedCatalogItem.pointsCost.toLocaleString() }) : t('employeeScan.selectAReward')}
                   </Text>}
             </TouchableOpacity>
             <TouchableOpacity
               style={s.ghostBtn}
               onPress={() => setStep('mode')}
               accessibilityRole="button"
-              accessibilityLabel="Back to mode selection"
+              accessibilityLabel={t('employeeScan.backToModeA11y')}
             >
-              <Text style={s.ghostBtnText}>← Back</Text>
+              <Text style={s.ghostBtnText}>{t('employeeScan.back')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1452,51 +1458,51 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── CATALOG: DONE ────────────────────────── */}
       {step === 'catalog-done' && (
         <CelebrationDone
-          heading="Reward Redeemed!"
+          heading={t('employeeScan.rewardRedeemedHeading')}
           amount={`${selectedCatalogItem?.emoji ? selectedCatalogItem.emoji + ' ' : ''}${selectedCatalogItem?.title}`}
           amountColor="#9B5DE5"
           sub={cdata?.name || cdata?.phone}
           extraNode={
             <View style={s.newBalanceCard}>
-              <Text style={s.newBalanceLabel}>Points deducted</Text>
+              <Text style={s.newBalanceLabel}>{t('employeeScan.pointsDeducted')}</Text>
               <Text style={[s.newBalanceValue, { color: '#9B5DE5' }]}>-{selectedCatalogItem?.pointsCost?.toLocaleString()} pts</Text>
             </View>
           }
-          onNext={reset} nextLabel="Scan Next Customer"
+          onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
 
       {/* ──────────────────────── WELCOME BONUS: DONE ────────────────────────── */}
       {step === 'welcome-bonus-done' && (
         <CelebrationDone
-          heading="Welcome Bonus!"
+          heading={t('employeeScan.welcomeBonusHeading')}
           amount={`${confirmedWelcomeBonus?.rewardEmoji || '🎁'} ${confirmedWelcomeBonus?.rewardLabel}`}
           amountColor="#D97706"
           sub={cdata?.name || cdata?.phone}
           extraNode={
             <View style={s.newBalanceCard}>
-              <Text style={s.newBalanceLabel}>Day {confirmedWelcomeBonus?.day} of 7 redeemed</Text>
+              <Text style={s.newBalanceLabel}>{t('employeeScan.dayOfSevenRedeemed', { day: confirmedWelcomeBonus?.day })}</Text>
             </View>
           }
-          onNext={reset} nextLabel="Scan Next Customer"
+          onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
 
       {/* ──────────────────────── PENDING REDEMPTION: DONE ────────────────────────── */}
       {step === 'pending-done' && (
         <CelebrationDone
-          heading="Reward Confirmed!"
+          heading={t('employeeScan.rewardConfirmedHeading')}
           amount={`${confirmedPending?.catalogItem?.emoji ? confirmedPending.catalogItem.emoji + ' ' : ''}${confirmedPending?.catalogItem?.title}`}
           amountColor="#22C55E"
           sub={cdata?.name || cdata?.phone}
-          sub2={`-${confirmedPending?.pointsSpent?.toLocaleString()} pts already deducted`}
+          sub2={t('employeeScan.ptsAlreadyDeducted', { pts: confirmedPending?.pointsSpent?.toLocaleString() })}
           extraNode={
             <View style={s.newBalanceCard}>
-              <Text style={s.newBalanceLabel}>Code redeemed</Text>
+              <Text style={s.newBalanceLabel}>{t('employeeScan.codeRedeemed')}</Text>
               <Text style={[s.newBalanceValue, { color: '#22C55E', letterSpacing: 4, fontSize: 22 }]}>{confirmedPending?.redemptionCode}</Text>
             </View>
           }
-          onNext={reset} nextLabel="Scan Next Customer"
+          onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
     </View>

@@ -4,6 +4,7 @@ import {
   RefreshControl, Modal, Alert, KeyboardAvoidingView,
   Platform, ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -98,11 +99,11 @@ const SECTION_HEADER_COLORS = {
 } as const;
 
 const REJECTION_REASONS = [
-  { value: 'NO_SUPPLIER',   label: 'No supplier' },
-  { value: 'OUT_OF_BUDGET', label: 'Out of budget' },
-  { value: 'IN_STOCK',      label: 'In stock' },
-  { value: 'DUPLICATE',     label: 'Duplicate' },
-  { value: 'OTHER',         label: 'Other' },
+  { value: 'NO_SUPPLIER',   labelKey: 'managerOrderList.reasonNoSupplier' },
+  { value: 'OUT_OF_BUDGET', labelKey: 'managerOrderList.reasonOutOfBudget' },
+  { value: 'IN_STOCK',      labelKey: 'managerOrderList.reasonInStock' },
+  { value: 'DUPLICATE',     labelKey: 'managerOrderList.reasonDuplicate' },
+  { value: 'OTHER',         labelKey: 'managerOrderList.reasonOther' },
 ];
 
 // ─── Category Picker ─────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ interface CategoryPickerProps {
 }
 
 function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, onClose }: CategoryPickerProps) {
+  const { t } = useTranslation();
   const [search,      setSearch]      = useState('');
   const [showNew,     setShowNew]     = useState(false);
   const [newName,     setNewName]     = useState('');
@@ -136,7 +138,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
       onSelect(newName.trim());
       onClose();
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to submit category' });
+      Toast.show({ type: 'error', text1: t('managerOrderList.failedToSubmitCategory') });
     } finally {
       setSubmitting(false);
     }
@@ -148,8 +150,8 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
-            <Text style={s.sheetTitle}>Category</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close" accessibilityRole="button">
+            <Text style={s.sheetTitle}>{t('managerOrderList.categoryTitle')}</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel={t('managerOrderList.close')} accessibilityRole="button">
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
@@ -159,7 +161,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
             style={s.catSearch}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search categories..."
+            placeholder={t('managerOrderList.searchCategoriesPlaceholder')}
             placeholderTextColor={COLORS.textMuted}
             autoFocus
           />
@@ -171,9 +173,9 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
               onPress={() => { onSelect(''); onClose(); }}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               accessibilityRole="button"
-              accessibilityLabel="Clear category selection"
+              accessibilityLabel={t('managerOrderList.clearCategorySelectionA11y')}
             >
-              <Text style={[s.catOptionText, !selected && { color: COLORS.managerPrimary, fontWeight: '700' }]}>None</Text>
+              <Text style={[s.catOptionText, !selected && { color: COLORS.managerPrimary, fontWeight: '700' }]}>{t('managerOrderList.none')}</Text>
               {!selected && <CheckCircleIcon size={15} color={COLORS.managerPrimary} strokeWidth={2.5} />}
             </TouchableOpacity>
             {filtered.map(cat => (
@@ -183,7 +185,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                 onPress={() => { onSelect(cat); onClose(); }}
                 hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Select category ${cat}`}
+                accessibilityLabel={t('managerOrderList.selectCategoryA11y', { cat })}
               >
                 <Text style={[s.catOptionText, selected === cat && { color: COLORS.managerPrimary, fontWeight: '700' }]}>{cat}</Text>
                 {selected === cat && <CheckCircleIcon size={15} color={COLORS.managerPrimary} strokeWidth={2.5} />}
@@ -199,10 +201,10 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                 onPress={() => setShowNew(true)}
                 hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel="Submit new category for approval"
+                accessibilityLabel={t('managerOrderList.submitNewCategoryA11y')}
               >
                 <PlusIcon size={14} color={COLORS.managerPrimary} strokeWidth={2.5} />
-                <Text style={s.catNewTriggerText}>Submit New Category for Approval</Text>
+                <Text style={s.catNewTriggerText}>{t('managerOrderList.submitNewCategoryBtn')}</Text>
               </TouchableOpacity>
             ) : (
               <View style={s.catNewForm}>
@@ -210,24 +212,24 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
                   style={s.catNewInput}
                   value={newName}
                   onChangeText={setNewName}
-                  placeholder="Enter category name..."
+                  placeholder={t('managerOrderList.enterCategoryNamePlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
                   autoFocus
                   maxLength={80}
                 />
                 <Text style={s.catNewHint}>
-                  Will be sent to the admin for review. Once approved it appears for all managers.
+                  {t('managerOrderList.newCategoryHint')}
                 </Text>
                 <TouchableOpacity
                   style={[s.catNewSubmitBtn, (!newName.trim() || submitting) && { opacity: 0.4 }]}
                   onPress={handleSubmitNew}
                   disabled={!newName.trim() || submitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Submit new category"
+                  accessibilityLabel={t('managerOrderList.submitNewCategoryConfirmA11y')}
                 >
                   {submitting
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.catNewSubmitText}>Submit for Approval</Text>
+                    : <Text style={s.catNewSubmitText}>{t('managerOrderList.submitForApproval')}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -250,6 +252,7 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
+  const { t } = useTranslation();
   const isUrgent = item.priority === 'URGENT' && item.status === 'PENDING';
   // Backend only allows updateItem while PENDING (orderList.controller.ts) — don't offer
   // an edit that will fail on save for ORDERED/RECEIVED items.
@@ -260,18 +263,18 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
   const showEditMenu = () => {
     const buttons: { text: string; style?: 'default' | 'destructive' | 'cancel'; onPress?: () => void }[] = [];
     if (canEdit) {
-      buttons.push({ text: 'Edit Details', onPress: () => onEdit(item) });
+      buttons.push({ text: t('managerOrderList.editDetails'), onPress: () => onEdit(item) });
     }
     if (canRemove) {
-      buttons.push({ text: 'Remove', style: 'destructive', onPress: () => onRemove(item) });
+      buttons.push({ text: t('managerOrderList.remove'), style: 'destructive', onPress: () => onRemove(item) });
     }
-    buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert(item.name, item.quantity ? `Qty: ${item.quantity}` : undefined, buttons);
+    buttons.push({ text: t('managerOrderList.cancel'), style: 'cancel' });
+    Alert.alert(item.name, item.quantity ? t('managerOrderList.qtyLabel', { qty: item.quantity }) : undefined, buttons);
   };
 
   const nextAction =
-    item.status === 'PENDING'  ? { label: '→ Ordered',  color: ACTION_COLORS.ORDERED.text, bg: ACTION_COLORS.ORDERED.bg, onPress: () => onMarkOrdered(item) }  :
-    item.status === 'ORDERED'  ? { label: '✓ Received', color: ACTION_COLORS.RECEIVED.text, bg: ACTION_COLORS.RECEIVED.bg, onPress: () => onMarkReceived(item) } :
+    item.status === 'PENDING'  ? { label: t('managerOrderList.toOrdered'),  color: ACTION_COLORS.ORDERED.text, bg: ACTION_COLORS.ORDERED.bg, onPress: () => onMarkOrdered(item) }  :
+    item.status === 'ORDERED'  ? { label: t('managerOrderList.toReceived'), color: ACTION_COLORS.RECEIVED.text, bg: ACTION_COLORS.RECEIVED.bg, onPress: () => onMarkReceived(item) } :
     null;
 
   return (
@@ -290,7 +293,7 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
             <View style={r.catPill}><Text style={r.catPillText} numberOfLines={1}>{item.category}</Text></View>
           ) : null}
           {item.source === 'EMPLOYEE_REQUEST' && (
-            <View style={r.staffBadge}><Text style={r.staffBadgeText}>👤 staff</Text></View>
+            <View style={r.staffBadge}><Text style={r.staffBadgeText}>{t('managerOrderList.staffBadge')}</Text></View>
           )}
         </View>
       </View>
@@ -303,12 +306,12 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
             activeOpacity={0.75}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             accessibilityRole="button"
-            accessibilityLabel={`Mark ${item.name} as ${item.status === 'PENDING' ? 'ordered' : 'received'}`}
+            accessibilityLabel={t('managerOrderList.markItemStatusA11y', { name: item.name, status: item.status === 'PENDING' ? t('managerOrderList.ordered') : t('managerOrderList.received') })}
           >
             <Text style={[r.actionBtnText, { color: nextAction.color }]}>{nextAction.label}</Text>
           </TouchableOpacity>
         ) : (
-          <View style={r.donePill}><Text style={r.donePillText}>✓ Done</Text></View>
+          <View style={r.donePill}><Text style={r.donePillText}>{t('managerOrderList.done')}</Text></View>
         )}
         {hasMenuOptions && (
           <TouchableOpacity
@@ -316,7 +319,7 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
             style={r.moreBtn}
             hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
             accessibilityRole="button"
-            accessibilityLabel={`More options for ${item.name}`}
+            accessibilityLabel={t('managerOrderList.moreOptionsA11y', { name: item.name })}
           >
             <Text style={r.moreBtnText}>···</Text>
           </TouchableOpacity>
@@ -358,6 +361,7 @@ interface QuickAddBarProps {
 }
 
 function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [text,          setText]          = useState('');
   const [debouncedText, setDebouncedText] = useState('');
@@ -381,8 +385,8 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
 
   // Debounce item name for API call (300ms)
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedText(text), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedText(text), 300);
+    return () => clearTimeout(timer);
   }, [text]);
 
   // Item suggestions from order history
@@ -423,7 +427,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
       inputRef.current?.focus();
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to add item' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToAddItem') }),
   });
 
   const handleScanResult = (result: BarcodeResult) => {
@@ -463,7 +467,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 onPress={() => handleSelectItem(item.name)}
                 hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Use suggested item ${item.name}`}
+                accessibilityLabel={t('managerOrderList.useSuggestedItemA11y', { name: item.name })}
               >
                 <Text style={qa.suggText}>{item.name}</Text>
                 <Text style={qa.suggCount}>{item.count}×</Text>
@@ -484,7 +488,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 onPress={() => handleSelectCat(cat)}
                 hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Select category ${cat}`}
+                accessibilityLabel={t('managerOrderList.selectCategoryA11y', { cat })}
               >
                 <Text style={[qa.suggText, category === cat && qa.suggTextActive]}>{cat}</Text>
               </TouchableOpacity>
@@ -495,14 +499,14 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
 
       {/* Category search row */}
       <View style={qa.catRow}>
-        <Text style={qa.catLabel}>Category</Text>
+        <Text style={qa.catLabel}>{t('managerOrderList.category')}</Text>
         <TextInput
           style={qa.catInput}
           value={catSearch}
           onChangeText={v => { setCatSearch(v); setCategory(''); setShowCatSugg(true); }}
           onFocus={() => setShowCatSugg(true)}
           onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
-          placeholder="Search or skip…"
+          placeholder={t('managerOrderList.searchOrSkipPlaceholder')}
           placeholderTextColor="#B0B8C4"
           maxLength={80}
           returnKeyType="done"
@@ -512,7 +516,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           <TouchableOpacity
             onPress={() => { setCatSearch(''); setCategory(''); setShowCatSugg(false); }}
             style={qa.catClearBtn}
-            accessibilityLabel="Clear category"
+            accessibilityLabel={t('managerOrderList.clearCategoryA11y')}
           >
             <XIcon size={14} color={COLORS.textMuted} />
           </TouchableOpacity>
@@ -520,7 +524,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
         <TouchableOpacity
           onPress={() => setShowNewCat(true)}
           style={qa.catNewBtn}
-          accessibilityLabel="Submit new category"
+          accessibilityLabel={t('managerOrderList.submitNewCategoryBtnA11y')}
         >
           <PlusIcon size={14} color={COLORS.managerPrimary} strokeWidth={2.5} />
         </TouchableOpacity>
@@ -535,7 +539,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           onChangeText={v => { setText(v); setShowItemSugg(true); }}
           onFocus={() => setShowItemSugg(true)}
           onBlur={() => setTimeout(() => setShowItemSugg(false), 130)}
-          placeholder={category ? `Add to ${category}…` : 'Item name… tip: "milk x4" sets qty'}
+          placeholder={category ? t('managerOrderList.addToCategoryPlaceholder', { category }) : t('managerOrderList.itemNamePlaceholder')}
           placeholderTextColor="#B0B8C4"
           returnKeyType="done"
           blurOnSubmit={false}
@@ -548,7 +552,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           style={qa.scanBtn}
           onPress={() => setShowScanner(true)}
           activeOpacity={0.8}
-          accessibilityLabel="Scan barcode"
+          accessibilityLabel={t('managerOrderList.scanBarcodeA11y')}
           accessibilityRole="button"
         >
           <QrCodeScanIcon size={20} color="#fff" strokeWidth={2} />
@@ -558,7 +562,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           onPress={handleAdd}
           disabled={!ready}
           activeOpacity={0.8}
-          accessibilityLabel="Add item to list"
+          accessibilityLabel={t('managerOrderList.addItemA11y')}
           accessibilityRole="button"
         >
           {addMutation.isPending
@@ -575,9 +579,9 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           onPress={() => setShowNote(true)}
           hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
           accessibilityRole="button"
-          accessibilityLabel="Add a note"
+          accessibilityLabel={t('managerOrderList.addNoteA11y')}
         >
-          <Text style={qa.noteToggleText}>+ Note</Text>
+          <Text style={qa.noteToggleText}>{t('managerOrderList.addNoteToggle')}</Text>
         </TouchableOpacity>
       ) : (
         <View style={qa.noteRow}>
@@ -585,7 +589,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
             style={qa.noteInput}
             value={note}
             onChangeText={setNote}
-            placeholder="Add a note (optional)"
+            placeholder={t('managerOrderList.addNotePlaceholder')}
             placeholderTextColor="#B0B8C4"
             maxLength={300}
             returnKeyType="done"
@@ -596,7 +600,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
       {/* Quick Pad tiles */}
       {quickItems.length > 0 && (
         <View style={qa.quickPad}>
-          <Text style={qa.quickPadLabel}>Quick Add</Text>
+          <Text style={qa.quickPadLabel}>{t('managerOrderList.quickAddLabel')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
             {quickItems.map(item => (
               <TouchableOpacity
@@ -607,7 +611,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 activeOpacity={0.75}
                 hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Quick add ${item.name}`}
+                accessibilityLabel={t('managerOrderList.quickAddItemA11y', { name: item.name })}
               >
                 <Text style={qa.quickTileName} numberOfLines={1}>{item.name}</Text>
                 {item.category ? <Text style={qa.quickTileCat} numberOfLines={1}>{item.category}</Text> : null}
@@ -634,7 +638,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
           await orderCategoriesApi.submitNew(newCat);
           setCategory(newCat);
           setCatSearch(newCat);
-          Toast.show({ type: 'success', text1: 'Submitted for approval' });
+          Toast.show({ type: 'success', text1: t('managerOrderList.submittedForApproval') });
         }}
         onClose={() => setShowNewCat(false)}
       />
@@ -653,13 +657,14 @@ interface EditItemSheetProps {
   onSaved: () => void;
 }
 
-const PRIORITY_OPTIONS: { value: Priority; label: string; color: string }[] = [
-  { value: 'LOW',    label: 'Low',    color: COLORS.textMuted },
-  { value: 'NORMAL', label: 'Normal', color: COLORS.managerPrimary },
-  { value: 'URGENT', label: 'Urgent', color: '#F97316' },
+const PRIORITY_OPTIONS: { value: Priority; labelKey: string; color: string }[] = [
+  { value: 'LOW',    labelKey: 'managerOrderList.priorityLow',    color: COLORS.textMuted },
+  { value: 'NORMAL', labelKey: 'managerOrderList.priorityNormal', color: COLORS.managerPrimary },
+  { value: 'URGENT', labelKey: 'managerOrderList.priorityUrgent', color: '#F97316' },
 ];
 
 function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: EditItemSheetProps) {
+  const { t } = useTranslation();
   const [name,           setName]           = useState(item.name);
   const [debouncedName,  setDebouncedName]  = useState(item.name);
   const [showNameSugg,   setShowNameSugg]   = useState(false);
@@ -675,8 +680,8 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
 
   // Debounce name for API
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedName(name), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedName(name), 300);
+    return () => clearTimeout(timer);
   }, [name]);
 
   useEffect(() => {
@@ -706,12 +711,12 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
 
   const editMutation = useMutation({
     mutationFn: (d: object) => orderListApi.updateItem(item.id, d),
-    onSuccess: () => { Toast.show({ type: 'success', text1: 'Item updated' }); onSaved(); },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
+    onSuccess: () => { Toast.show({ type: 'success', text1: t('managerOrderList.itemUpdated') }); onSaved(); },
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToUpdateItem') }),
   });
 
   const handleSubmit = () => {
-    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Name is required' }); return; }
+    if (!name.trim()) { Toast.show({ type: 'error', text1: t('managerOrderList.nameRequired') }); return; }
     editMutation.mutate({
       name: name.trim(),
       quantity: quantity.trim() || null,
@@ -732,11 +737,11 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
       await orderCategoriesApi.submitNew(newCatName.trim());
       setCategory(newCatName.trim());
       setCatSearch(newCatName.trim());
-      Toast.show({ type: 'success', text1: 'Submitted for approval' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.submittedForApproval') });
       setShowNewCat(false);
       setNewCatName('');
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to submit category' });
+      Toast.show({ type: 'error', text1: t('managerOrderList.failedToSubmitCategory') });
     } finally {
       setNewCatSubmitting(false);
     }
@@ -748,22 +753,22 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
-            <Text style={s.sheetTitle}>Edit Item</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close" accessibilityRole="button">
+            <Text style={s.sheetTitle}>{t('managerOrderList.editItemTitle')}</Text>
+            <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel={t('managerOrderList.close')} accessibilityRole="button">
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Name */}
-            <Text style={s.label}>Item Name <Text style={{ color: COLORS.primary }}>*</Text></Text>
+            <Text style={s.label}>{t('managerOrderList.itemNameLabel')} <Text style={{ color: COLORS.primary }}>*</Text></Text>
             <TextInput
               style={s.input}
               value={name}
               onChangeText={v => { setName(v); setShowNameSugg(true); }}
               onFocus={() => setShowNameSugg(true)}
               onBlur={() => setTimeout(() => setShowNameSugg(false), 130)}
-              placeholder="e.g. Whole Milk 2%"
+              placeholder={t('managerOrderList.wholeMilkPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               maxLength={120}
             />
@@ -777,7 +782,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                       onPress={() => { setName(sug.name); setShowNameSugg(false); }}
                       hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Use suggested name ${sug.name}`}
+                      accessibilityLabel={t('managerOrderList.useSuggestedNameA11y', { name: sug.name })}
                     >
                       <Text style={s.catSuggestText}>{sug.name}</Text>
                       <Text style={{ fontSize: 11, color: COLORS.textMuted }}>{sug.count}×</Text>
@@ -788,27 +793,28 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             )}
 
             {/* Quantity */}
-            <Text style={s.label}>Quantity / Amount</Text>
+            <Text style={s.label}>{t('managerOrderList.quantityAmountLabel')}</Text>
             <TextInput style={s.input} value={quantity} onChangeText={setQuantity}
-              placeholder="e.g. 4 gallons, 2 cases" placeholderTextColor={COLORS.textMuted} maxLength={60} />
+              placeholder={t('managerOrderList.quantityPlaceholder')} placeholderTextColor={COLORS.textMuted} maxLength={60} />
 
             {/* Notes */}
-            <Text style={s.label}>Notes</Text>
+            <Text style={s.label}>{t('managerOrderList.notesLabel')}</Text>
             <TextInput
               style={s.instructionsInput}
               value={notes}
               onChangeText={setNotes}
-              placeholder="e.g. Get the 12-pack, not singles"
+              placeholder={t('managerOrderList.notesPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               maxLength={300}
               multiline
             />
 
             {/* Priority */}
-            <Text style={s.label}>Priority</Text>
+            <Text style={s.label}>{t('managerOrderList.priorityLabel')}</Text>
             <View style={s.priorityRow}>
               {PRIORITY_OPTIONS.map(opt => {
                 const active = priority === opt.value;
+                const optLabel = t(opt.labelKey);
                 return (
                   <TouchableOpacity
                     key={opt.value}
@@ -816,12 +822,12 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                     onPress={() => setPriority(opt.value)}
                     activeOpacity={0.75}
                     accessibilityRole="radio"
-                    accessibilityLabel={`Set priority to ${opt.label}`}
+                    accessibilityLabel={t('managerOrderList.setPriorityA11y', { label: optLabel })}
                     accessibilityState={{ checked: active }}
                   >
                     {opt.value === 'URGENT' && <ZapIcon size={12} color={active ? opt.color : COLORS.textMuted} strokeWidth={2} />}
                     <Text style={[s.priorityChipText, { color: active ? opt.color : COLORS.textMuted }]}>
-                      {opt.label}
+                      {optLabel}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -829,7 +835,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             </View>
 
             {/* Category - inline autocomplete */}
-            <Text style={s.label}>Category</Text>
+            <Text style={s.label}>{t('managerOrderList.category')}</Text>
             <View style={s.catAutoRow}>
               <TextInput
                 style={[s.input, { flex: 1, marginBottom: 0 }]}
@@ -837,7 +843,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                 onChangeText={v => { setCatSearch(v); setCategory(''); setShowCatSugg(true); }}
                 onFocus={() => setShowCatSugg(true)}
                 onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
-                placeholder="Search category…"
+                placeholder={t('managerOrderList.searchCategoryPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 autoCorrect={false}
                 maxLength={80}
@@ -846,7 +852,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                 <TouchableOpacity
                   onPress={() => { setCatSearch(''); setCategory(''); setShowCatSugg(false); }}
                   style={s.catAutoClear}
-                  accessibilityLabel="Clear category"
+                  accessibilityLabel={t('managerOrderList.clearCategoryA11y')}
                 >
                   <XIcon size={15} color={COLORS.textMuted} />
                 </TouchableOpacity>
@@ -865,7 +871,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                       onPress={() => { setCategory(cat); setCatSearch(cat); setShowCatSugg(false); }}
                       hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Select category ${cat}`}
+                      accessibilityLabel={t('managerOrderList.selectCategoryA11y', { cat })}
                     >
                       <Text style={[s.catSuggestText, category === cat && s.catSuggestTextActive]}>{cat}</Text>
                     </TouchableOpacity>
@@ -880,10 +886,10 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                 onPress={() => setShowNewCat(true)}
                 hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                 accessibilityRole="button"
-                accessibilityLabel="Submit new category for approval"
+                accessibilityLabel={t('managerOrderList.submitNewCategoryA11y')}
               >
                 <PlusIcon size={13} color={COLORS.managerPrimary} strokeWidth={2.5} />
-                <Text style={s.catNewTriggerText}>Submit new category for approval</Text>
+                <Text style={s.catNewTriggerText}>{t('managerOrderList.submitNewCategoryLowerBtn')}</Text>
               </TouchableOpacity>
             ) : (
               <View style={[s.catNewForm, { marginTop: 8 }]}>
@@ -891,24 +897,24 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
                   style={s.catNewInput}
                   value={newCatName}
                   onChangeText={setNewCatName}
-                  placeholder="Enter category name..."
+                  placeholder={t('managerOrderList.enterCategoryNamePlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
                   autoFocus
                   maxLength={80}
                 />
                 <Text style={s.catNewHint}>
-                  Will be sent to the admin for review. Once approved it appears for all managers.
+                  {t('managerOrderList.newCategoryHint')}
                 </Text>
                 <TouchableOpacity
                   style={[s.catNewSubmitBtn, (!newCatName.trim() || newCatSubmitting) && { opacity: 0.4 }]}
                   onPress={handleSubmitNewCat}
                   disabled={!newCatName.trim() || newCatSubmitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Submit new category"
+                  accessibilityLabel={t('managerOrderList.submitNewCategoryConfirmA11y')}
                 >
                   {newCatSubmitting
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.catNewSubmitText}>Submit for Approval</Text>
+                    : <Text style={s.catNewSubmitText}>{t('managerOrderList.submitForApproval')}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -919,11 +925,11 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
               onPress={handleSubmit}
               disabled={editMutation.isPending}
               accessibilityRole="button"
-              accessibilityLabel="Save changes"
+              accessibilityLabel={t('managerOrderList.saveChangesA11y')}
             >
               {editMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.submitBtnText}>Save Changes</Text>
+                : <Text style={s.submitBtnText}>{t('managerOrderList.saveChanges')}</Text>
               }
             </TouchableOpacity>
             <View style={{ height: 32 }} />
@@ -944,6 +950,7 @@ interface ReviewModalProps {
 }
 
 function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const { data: requestsData, isLoading, isError, refetch } = useQuery({
@@ -981,10 +988,10 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employee-requests', storeId] });
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
-      Toast.show({ type: 'success', text1: 'Request reviewed' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.requestReviewed') });
       onReviewed();
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to submit review' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToSubmitReview') }),
   });
 
   const setLine = (lineId: string, field: 'action' | 'reason' | 'note', value: string) => {
@@ -1006,7 +1013,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
     }).filter(Boolean) as { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[];
 
     if (lines.length === 0) {
-      Toast.show({ type: 'info', text1: 'Select Accept or Reject for at least one item' });
+      Toast.show({ type: 'info', text1: t('managerOrderList.selectAcceptOrReject') });
       return;
     }
     reviewMutation.mutate({ requestId: req.id, lines });
@@ -1016,21 +1023,21 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalFullHeader}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel="Close" accessibilityRole="button">
+          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel={t('managerOrderList.close')} accessibilityRole="button">
             <XIcon size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.modalFullTitle}>Employee Requests</Text>
+          <Text style={s.modalFullTitle}>{t('managerOrderList.employeeRequestsTitle')}</Text>
           <View style={{ width: 30 }} />
         </View>
 
         {isLoading ? (
           <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
         ) : isError ? (
-          <ErrorState message="Failed to load employee requests." onRetry={() => refetch()} />
+          <ErrorState message={t('managerOrderList.failedToLoadRequests')} onRetry={() => refetch()} />
         ) : requests.length === 0 ? (
           <View style={s.center}>
             <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-            <Text style={s.emptyTitle}>No pending requests</Text>
+            <Text style={s.emptyTitle}>{t('managerOrderList.noPendingRequests')}</Text>
           </View>
         ) : (
           <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
@@ -1040,12 +1047,18 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                   style={s.reqCardHeader}
                   onPress={() => setExpandedReq(expandedReq === req.id ? null : req.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${expandedReq === req.id ? 'Collapse' : 'Expand'} request from ${req.submittedBy.name}`}
+                  accessibilityLabel={t('managerOrderList.expandCollapseRequestA11y', {
+                    action: expandedReq === req.id ? t('managerOrderList.collapse') : t('managerOrderList.expand'),
+                    name: req.submittedBy.name,
+                  })}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={s.reqCardName}>{req.submittedBy.name}</Text>
                     <Text style={s.reqCardMeta}>
-                      {req.lines.length} item{req.lines.length !== 1 ? 's' : ''} · {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {t('managerOrderList.reqCardMeta', {
+                        count: req.lines.length,
+                        date: new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                      })}
                     </Text>
                     {req.note && <Text style={s.reqCardNote}>{req.note}</Text>}
                   </View>
@@ -1061,8 +1074,8 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                       return (
                         <View key={line.id} style={s.reqLine}>
                           <Text style={s.reqLineName}>{line.name}</Text>
-                          {line.quantity && <Text style={s.reqLineMeta}>Qty: {line.quantity}</Text>}
-                          {line.category && <Text style={s.reqLineMeta}>Cat: {line.category}</Text>}
+                          {line.quantity && <Text style={s.reqLineMeta}>{t('managerOrderList.qtyPrefix', { qty: line.quantity })}</Text>}
+                          {line.category && <Text style={s.reqLineMeta}>{t('managerOrderList.catPrefix', { cat: line.category })}</Text>}
                           {line.notes && <Text style={s.reqLineNote}>{line.notes}</Text>}
 
                           <View style={s.actionRow}>
@@ -1071,40 +1084,43 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                               onPress={() => setLine(line.id, 'action', 'ACCEPT')}
                               hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                               accessibilityRole="button"
-                              accessibilityLabel={`Accept ${line.name}`}
+                              accessibilityLabel={t('managerOrderList.acceptItemA11y', { name: line.name })}
                             >
                               <CheckCircleIcon size={14} color={st.action === 'ACCEPT' ? '#fff' : '#16A34A'} strokeWidth={2.5} />
-                              <Text style={[s.acceptBtnText, st.action === 'ACCEPT' && { color: '#fff' }]}>Accept</Text>
+                              <Text style={[s.acceptBtnText, st.action === 'ACCEPT' && { color: '#fff' }]}>{t('managerOrderList.accept')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={[s.rejectBtn, st.action === 'REJECT' && s.rejectBtnActive]}
                               onPress={() => setLine(line.id, 'action', 'REJECT')}
                               hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                               accessibilityRole="button"
-                              accessibilityLabel={`Reject ${line.name}`}
+                              accessibilityLabel={t('managerOrderList.rejectItemA11y', { name: line.name })}
                             >
                               <XIcon size={14} color={st.action === 'REJECT' ? '#fff' : '#DC2626'} strokeWidth={2.5} />
-                              <Text style={[s.rejectBtnText, st.action === 'REJECT' && { color: '#fff' }]}>Reject</Text>
+                              <Text style={[s.rejectBtnText, st.action === 'REJECT' && { color: '#fff' }]}>{t('managerOrderList.reject')}</Text>
                             </TouchableOpacity>
                           </View>
 
                           {st.action === 'REJECT' && (
                             <View style={s.rejectDetails}>
-                              <Text style={s.label}>Reason</Text>
+                              <Text style={s.label}>{t('managerOrderList.reasonLabel')}</Text>
                               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                                {REJECTION_REASONS.map(r => (
-                                  <TouchableOpacity key={r.value} onPress={() => setLine(line.id, 'reason', r.value)}
-                                    style={[s.reasonChip, st.reason === r.value && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' }]}
-                                    hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Select rejection reason ${r.label} for ${line.name}`}
-                                  >
-                                    <Text style={[s.reasonChipText, st.reason === r.value && { color: '#DC2626' }]}>{r.label}</Text>
-                                  </TouchableOpacity>
-                                ))}
+                                {REJECTION_REASONS.map(r => {
+                                  const rLabel = t(r.labelKey);
+                                  return (
+                                    <TouchableOpacity key={r.value} onPress={() => setLine(line.id, 'reason', r.value)}
+                                      style={[s.reasonChip, st.reason === r.value && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' }]}
+                                      hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={t('managerOrderList.selectRejectionReasonA11y', { reason: rLabel, name: line.name })}
+                                    >
+                                      <Text style={[s.reasonChipText, st.reason === r.value && { color: '#DC2626' }]}>{rLabel}</Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
                               </ScrollView>
                               <TextInput style={s.input} value={st.note} onChangeText={v => setLine(line.id, 'note', v)}
-                                placeholder="Additional note (optional)" placeholderTextColor={COLORS.textMuted} maxLength={300} />
+                                placeholder={t('managerOrderList.additionalNotePlaceholder')} placeholderTextColor={COLORS.textMuted} maxLength={300} />
                             </View>
                           )}
                         </View>
@@ -1116,10 +1132,10 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
                       onPress={() => handleSubmitReview(req)}
                       disabled={reviewMutation.isPending}
                       accessibilityRole="button"
-                      accessibilityLabel="Submit review">
+                      accessibilityLabel={t('managerOrderList.submitReviewA11y')}>
                       {reviewMutation.isPending
                         ? <ActivityIndicator color="#fff" />
-                        : <Text style={s.submitBtnText}>Submit Review</Text>
+                        : <Text style={s.submitBtnText}>{t('managerOrderList.submitReview')}</Text>
                       }
                     </TouchableOpacity>
                   </View>
@@ -1140,6 +1156,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
   visible: boolean; storeId: string; storeName: string; activeListId: string | null;
   onClose: () => void; onRestored: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [expandedList, setExpandedList] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -1157,17 +1174,17 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
       orderListApi.restoreItems(storeId, closedListId, itemIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order-list-active', storeId] });
-      Toast.show({ type: 'success', text1: 'Items added to current list' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.itemsAddedToCurrentList') });
       setSelected({});
       onRestored();
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to restore items' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToRestoreItems') }),
   });
 
   const handleRestore = (sourceListId: string) => {
     const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
-    if (ids.length === 0) { Toast.show({ type: 'info', text1: 'Select items to restore' }); return; }
-    if (!activeListId) { Toast.show({ type: 'error', text1: 'Open a list first' }); return; }
+    if (ids.length === 0) { Toast.show({ type: 'info', text1: t('managerOrderList.selectItemsToRestore') }); return; }
+    if (!activeListId) { Toast.show({ type: 'error', text1: t('managerOrderList.openAListFirst') }); return; }
     restoreMutation.mutate({ closedListId: sourceListId, itemIds: ids });
   };
 
@@ -1175,21 +1192,21 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalFullHeader}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel="Close" accessibilityRole="button">
+          <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel={t('managerOrderList.close')} accessibilityRole="button">
             <XIcon size={22} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.modalFullTitle}>Past Lists</Text>
+          <Text style={s.modalFullTitle}>{t('managerOrderList.pastListsTitle')}</Text>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{storeName}</Text>
         </View>
 
         {isLoading ? (
           <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
         ) : isError ? (
-          <ErrorState message="Failed to load past lists." onRetry={() => refetch()} />
+          <ErrorState message={t('managerOrderList.failedToLoadPastLists')} onRetry={() => refetch()} />
         ) : lists.length === 0 ? (
           <View style={s.center}>
             <ListIcon size={48} color={COLORS.border} strokeWidth={1.25} />
-            <Text style={s.emptyTitle}>No closed lists yet</Text>
+            <Text style={s.emptyTitle}>{t('managerOrderList.noClosedLists')}</Text>
           </View>
         ) : (
           <ScrollView style={{ padding: 16 }}>
@@ -1201,16 +1218,22 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                   <TouchableOpacity style={s.reqCardHeader}
                     onPress={() => { setExpandedList(isExpanded ? null : list.id); setSelected({}); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} list ${list.name}`}
+                    accessibilityLabel={t('managerOrderList.expandCollapseListA11y', {
+                      action: isExpanded ? t('managerOrderList.collapse') : t('managerOrderList.expand'),
+                      name: list.name,
+                    })}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={s.reqCardName}>{list.name}</Text>
                       <Text style={s.reqCardMeta}>
-                        {list.items.length} items · Closed {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {t('managerOrderList.listItemsClosed', {
+                          count: list.items.length,
+                          date: new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        })}
                       </Text>
                       {undelivered.length > 0 && (
                         <Text style={{ fontSize: 12, color: STAT_CARD_COLORS.NEEDED.num, marginTop: 2 }}>
-                          {undelivered.length} item{undelivered.length !== 1 ? 's' : ''} not received
+                          {t('managerOrderList.itemsNotReceived', { count: undelivered.length })}
                         </Text>
                       )}
                     </View>
@@ -1221,9 +1244,9 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
 
                   {isExpanded && (
                     <View style={{ padding: 12, gap: 8 }}>
-                      <Text style={[s.label, { marginTop: 0 }]}>Select undelivered items to add to current list:</Text>
+                      <Text style={[s.label, { marginTop: 0 }]}>{t('managerOrderList.selectUndeliveredItems')}</Text>
                       {undelivered.length === 0 ? (
-                        <Text style={s.reqCardMeta}>All items were received.</Text>
+                        <Text style={s.reqCardMeta}>{t('managerOrderList.allItemsReceived')}</Text>
                       ) : (
                         <>
                           {undelivered.map(item => (
@@ -1231,7 +1254,10 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                               style={[s.restoreItem, selected[item.id] && s.restoreItemSelected]}
                               onPress={() => setSelected(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
                               accessibilityRole="button"
-                              accessibilityLabel={`${selected[item.id] ? 'Deselect' : 'Select'} ${item.name} to restore`}
+                              accessibilityLabel={t('managerOrderList.selectDeselectRestoreA11y', {
+                                action: selected[item.id] ? t('managerOrderList.deselect') : t('managerOrderList.select'),
+                                name: item.name,
+                              })}
                             >
                               <View style={[s.restoreCheckbox, selected[item.id] && { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary }]}>
                                 {selected[item.id] && <CheckCircleIcon size={14} color="#fff" strokeWidth={2.5} />}
@@ -1247,11 +1273,11 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
                             onPress={() => handleRestore(list.id)}
                             disabled={restoreMutation.isPending}
                             accessibilityRole="button"
-                            accessibilityLabel="Add selected items to current list">
+                            accessibilityLabel={t('managerOrderList.addSelectedItemsA11y')}>
                             {restoreMutation.isPending
                               ? <ActivityIndicator color="#fff" />
                               : <Text style={s.submitBtnText}>
-                                  Add {Object.values(selected).filter(Boolean).length} Item{Object.values(selected).filter(Boolean).length !== 1 ? 's' : ''} to Current List
+                                  {t('managerOrderList.addItemsToCurrentList', { count: Object.values(selected).filter(Boolean).length })}
                                 </Text>
                             }
                           </TouchableOpacity>
@@ -1273,6 +1299,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ManagerOrderListScreen() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -1347,9 +1374,9 @@ export default function ManagerOrderListScreen() {
     mutationFn: () => orderListApi.openList(selectedStoreId!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
-      Toast.show({ type: 'success', text1: 'New list opened' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.newListOpened') });
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Failed to open list' }),
+    onError: (e: any) => Toast.show({ type: 'error', text1: e?.response?.data?.error || t('managerOrderList.failedToOpenList') }),
   });
 
   const closeListMutation = useMutation({
@@ -1357,21 +1384,21 @@ export default function ManagerOrderListScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
       qc.invalidateQueries({ queryKey: ['order-list-history', selectedStoreId] });
-      Toast.show({ type: 'success', text1: 'List closed - order placed' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.listClosedOrderPlaced') });
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to close list' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToCloseList') }),
   });
 
   const removeMutation = useMutation({
     mutationFn: (itemId: string) => orderListApi.removeItem(itemId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to remove item' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToRemoveItem') }),
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => orderListApi.updateItemStatus(id, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] }),
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to update item' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToUpdateItem') }),
   });
 
   const instructionsMutation = useMutation({
@@ -1379,9 +1406,9 @@ export default function ManagerOrderListScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['accessible-stores'] });
       setEditingInstructions(false);
-      Toast.show({ type: 'success', text1: 'Instructions saved' });
+      Toast.show({ type: 'success', text1: t('managerOrderList.instructionsSaved') });
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to save instructions' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerOrderList.failedToSaveInstructions') }),
   });
 
   useEffect(() => {
@@ -1404,7 +1431,7 @@ export default function ManagerOrderListScreen() {
         shareAsPdf,
       });
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: shareAsPdf ? 'Export failed' : 'Print failed', text2: e?.message });
+      Toast.show({ type: 'error', text1: shareAsPdf ? t('managerOrderList.exportFailed') : t('managerOrderList.printFailed'), text2: e?.message });
     } finally {
       setIsPrinting(false);
     }
@@ -1412,27 +1439,27 @@ export default function ManagerOrderListScreen() {
 
   const showPrintOptions = () => {
     if (!activeList || items.length === 0) return;
-    Alert.alert('Print Order List', 'Choose how to export:', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Print directly', onPress: () => doPrint(false) },
-      { text: 'Share as PDF', onPress: () => doPrint(true) },
+    Alert.alert(t('managerOrderList.printOrderListTitle'), t('managerOrderList.chooseHowToExport'), [
+      { text: t('managerOrderList.cancel'), style: 'cancel' },
+      { text: t('managerOrderList.printDirectly'), onPress: () => doPrint(false) },
+      { text: t('managerOrderList.shareAsPdf'), onPress: () => doPrint(true) },
     ]);
   };
 
   const handleRemove = (item: OrderListItem) => {
-    Alert.alert('Remove Item', `Remove "${item.name}" from the list?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeMutation.mutate(item.id) },
+    Alert.alert(t('managerOrderList.removeItemTitle'), t('managerOrderList.removeItemConfirm', { name: item.name }), [
+      { text: t('managerOrderList.cancel'), style: 'cancel' },
+      { text: t('managerOrderList.remove'), style: 'destructive', onPress: () => removeMutation.mutate(item.id) },
     ]);
   };
 
   const handleCloseList = () => {
     Alert.alert(
-      'Close List',
-      'Closing the list means the order has been placed or delivered. A new list will open for the next order.',
+      t('managerOrderList.closeListTitle'),
+      t('managerOrderList.closeListConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Close List', style: 'destructive', onPress: () => closeListMutation.mutate() },
+        { text: t('managerOrderList.cancel'), style: 'cancel' },
+        { text: t('managerOrderList.closeListBtn'), style: 'destructive', onPress: () => closeListMutation.mutate() },
       ]
     );
   };
@@ -1443,7 +1470,7 @@ export default function ManagerOrderListScreen() {
     <View style={s.container}>
       <ManagerHeader
         size="sm"
-        title="Order Lists"
+        title={t('managerOrderList.orderListsTitle')}
         icon={<PackageIcon size={20} color="#fff" strokeWidth={2} />}
         rightSlot={
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1453,10 +1480,10 @@ export default function ManagerOrderListScreen() {
                 onPress={() => setShowHistory(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel="View order list history"
+                accessibilityLabel={t('managerOrderList.viewHistoryA11y')}
               >
                 <ListIcon size={17} color="#fff" strokeWidth={2} />
-                <Text style={s.headerBtnText}>History</Text>
+                <Text style={s.headerBtnText}>{t('managerOrderList.history')}</Text>
               </TouchableOpacity>
             )}
             {pendingRequestCount > 0 && (
@@ -1465,10 +1492,10 @@ export default function ManagerOrderListScreen() {
                 onPress={() => setShowReview(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel={`View ${pendingRequestCount} pending employee requests`}
+                accessibilityLabel={t('managerOrderList.viewPendingRequestsA11y', { count: pendingRequestCount })}
               >
                 <ClipboardIcon size={17} color="#fff" strokeWidth={2} />
-                <Text style={s.headerBtnText}>Requests ({pendingRequestCount})</Text>
+                <Text style={s.headerBtnText}>{t('managerOrderList.requestsCount', { count: pendingRequestCount })}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1484,7 +1511,7 @@ export default function ManagerOrderListScreen() {
                   style={[s.storeTab, isSel && s.storeTabActive]}
                   hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
                   accessibilityRole="tab"
-                  accessibilityLabel={`Select store ${store.name}`}
+                  accessibilityLabel={t('managerOrderList.selectStoreA11y', { name: store.name })}
                 >
                   <Text style={[s.storeTabText, isSel && s.storeTabTextActive]} numberOfLines={1}>
                     {store.name}
@@ -1522,29 +1549,29 @@ export default function ManagerOrderListScreen() {
 
       {/* Content */}
       {storesError ? (
-        <ErrorState message="Failed to load your stores." onRetry={() => refetchStores()} />
+        <ErrorState message={t('managerOrderList.failedToLoadStores')} onRetry={() => refetchStores()} />
       ) : !selectedStoreId ? (
         <View style={s.center}>
           <PackageIcon size={48} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={s.emptyTitle}>Select a store above</Text>
+          <Text style={s.emptyTitle}>{t('managerOrderList.selectStoreAbove')}</Text>
         </View>
       ) : listLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
       ) : listError ? (
-        <ErrorState message="Failed to load the order list." onRetry={() => refetchList()} />
+        <ErrorState message={t('managerOrderList.failedToLoadList')} onRetry={() => refetchList()} />
       ) : !activeList ? (
         <View style={s.center}>
           <PackageIcon size={56} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={s.emptyTitle}>No open list for {selectedStore?.name}</Text>
-          <Text style={s.emptyText}>Open a new list to start adding items for this order.</Text>
+          <Text style={s.emptyTitle}>{t('managerOrderList.noOpenListFor', { name: selectedStore?.name })}</Text>
+          <Text style={s.emptyText}>{t('managerOrderList.openNewListHint')}</Text>
           <TouchableOpacity style={[s.openListBtn, openListMutation.isPending && { opacity: 0.6 }]}
             onPress={() => openListMutation.mutate()} disabled={openListMutation.isPending}
             accessibilityRole="button"
-            accessibilityLabel="Open new order list"
+            accessibilityLabel={t('managerOrderList.openNewListA11y')}
           >
             {openListMutation.isPending
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.openListBtnText}>Open New List</Text>
+              : <Text style={s.openListBtnText}>{t('managerOrderList.openNewList')}</Text>
             }
           </TouchableOpacity>
         </View>
@@ -1557,19 +1584,19 @@ export default function ManagerOrderListScreen() {
               {(urgentItems.length > 0 || neededItems.length > 0) && (
                 <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.NEEDED.border }]}>
                   <Text style={[s.statNum, { color: STAT_CARD_COLORS.NEEDED.num }]}>{urgentItems.length + neededItems.length}</Text>
-                  <Text style={s.statLabel}>Needed</Text>
+                  <Text style={s.statLabel}>{t('managerOrderList.needed')}</Text>
                 </View>
               )}
               {orderedItems.length > 0 && (
                 <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.ORDERED.border }]}>
                   <Text style={[s.statNum, { color: STAT_CARD_COLORS.ORDERED.num }]}>{orderedItems.length}</Text>
-                  <Text style={s.statLabel}>Ordered</Text>
+                  <Text style={s.statLabel}>{t('managerOrderList.ordered')}</Text>
                 </View>
               )}
               {receivedItems.length > 0 && (
                 <View style={[s.statCard, { borderColor: STAT_CARD_COLORS.RECEIVED.border }]}>
                   <Text style={[s.statNum, { color: STAT_CARD_COLORS.RECEIVED.num }]}>{receivedItems.length}</Text>
-                  <Text style={s.statLabel}>Received</Text>
+                  <Text style={s.statLabel}>{t('managerOrderList.received')}</Text>
                 </View>
               )}
             </View>
@@ -1580,7 +1607,7 @@ export default function ManagerOrderListScreen() {
                 disabled={isPrinting || items.length === 0}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 accessibilityRole="button"
-                accessibilityLabel="Print order list"
+                accessibilityLabel={t('managerOrderList.printOrderListA11y')}
               >
                 {isPrinting
                   ? <ActivityIndicator size="small" color={COLORS.textMuted} />
@@ -1593,11 +1620,11 @@ export default function ManagerOrderListScreen() {
                 disabled={closeListMutation.isPending}
                 hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
                 accessibilityRole="button"
-                accessibilityLabel="Close list"
+                accessibilityLabel={t('managerOrderList.closeListA11y')}
               >
                 {closeListMutation.isPending
                   ? <ActivityIndicator size="small" color={COLORS.primary} />
-                  : <Text style={s.closeListBtnText}>Close List</Text>
+                  : <Text style={s.closeListBtnText}>{t('managerOrderList.closeListBtn')}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -1613,7 +1640,7 @@ export default function ManagerOrderListScreen() {
                   onChangeText={setInstructionsDraft}
                   maxLength={300}
                   multiline
-                  placeholder="e.g. Call supplier before ordering dairy"
+                  placeholder={t('managerOrderList.instructionsPlaceholder')}
                   autoFocus
                 />
                 <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>
@@ -1625,10 +1652,10 @@ export default function ManagerOrderListScreen() {
                     onPress={() => instructionsMutation.mutate(instructionsDraft.trim() || null)}
                     disabled={instructionsMutation.isPending}
                   >
-                    <Text style={s.instructionsSaveBtnText}>{instructionsMutation.isPending ? 'Saving…' : 'Save'}</Text>
+                    <Text style={s.instructionsSaveBtnText}>{instructionsMutation.isPending ? t('managerOrderList.saving') : t('managerOrderList.save')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={s.instructionsCancelBtn} onPress={() => setEditingInstructions(false)}>
-                    <Text style={s.instructionsCancelBtnText}>Cancel</Text>
+                    <Text style={s.instructionsCancelBtnText}>{t('managerOrderList.cancel')}</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -1636,11 +1663,11 @@ export default function ManagerOrderListScreen() {
               <TouchableOpacity
                 onPress={() => { setInstructionsDraft(selectedStore?.orderInstructions || ''); setEditingInstructions(true); }}
                 accessibilityRole="button"
-                accessibilityLabel="Edit standing order instructions"
+                accessibilityLabel={t('managerOrderList.editStandingInstructionsA11y')}
               >
-                <Text style={s.instructionsLabel}>📋 Standing instructions</Text>
+                <Text style={s.instructionsLabel}>{t('managerOrderList.standingInstructions')}</Text>
                 <Text style={selectedStore?.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
-                  {selectedStore?.orderInstructions || 'No standing instructions - tap to add'}
+                  {selectedStore?.orderInstructions || t('managerOrderList.noStandingInstructions')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1654,11 +1681,11 @@ export default function ManagerOrderListScreen() {
               activeOpacity={0.8}
               hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               accessibilityRole="button"
-              accessibilityLabel={`${pendingRequestCount} employee request${pendingRequestCount !== 1 ? 's' : ''} waiting, tap to review`}
+              accessibilityLabel={t('managerOrderList.requestsWaitingA11y', { count: pendingRequestCount })}
             >
               <ClipboardIcon size={16} color="#fff" strokeWidth={2.5} />
               <Text style={s.reqBannerText}>
-                {pendingRequestCount} employee request{pendingRequestCount !== 1 ? 's' : ''} waiting - tap to review
+                {t('managerOrderList.requestsWaitingBanner', { count: pendingRequestCount })}
               </Text>
               <Text style={s.reqBannerArrow}>›</Text>
             </TouchableOpacity>
@@ -1669,8 +1696,8 @@ export default function ManagerOrderListScreen() {
             {items.length === 0 ? (
               <View style={[s.center, { flex: 1 }]}>
                 <ClipboardIcon size={48} color={COLORS.border} strokeWidth={1.25} />
-                <Text style={s.emptyTitle}>List is empty</Text>
-                <Text style={s.emptyText}>Add an item below to get started.</Text>
+                <Text style={s.emptyTitle}>{t('managerOrderList.listIsEmpty')}</Text>
+                <Text style={s.emptyText}>{t('managerOrderList.addItemBelowHint')}</Text>
               </View>
             ) : (
               <FadeSlideIn style={{ flex: 1 }}>
@@ -1685,7 +1712,7 @@ export default function ManagerOrderListScreen() {
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.URGENT.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
                       <ZapIcon size={12} color={SECTION_HEADER_COLORS.URGENT.text} strokeWidth={2.25} />
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>URGENT - {urgentItems.length} item{urgentItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>{t('managerOrderList.sectionUrgent', { count: urgentItems.length })}</Text>
                     </View>
                     {urgentItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1697,7 +1724,7 @@ export default function ManagerOrderListScreen() {
                 {neededItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.NEEDED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>Needed - {neededItems.length} item{neededItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>{t('managerOrderList.sectionNeeded', { count: neededItems.length })}</Text>
                     </View>
                     {neededItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1709,7 +1736,7 @@ export default function ManagerOrderListScreen() {
                 {orderedItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.ORDERED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>Ordered - {orderedItems.length} item{orderedItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>{t('managerOrderList.sectionOrdered', { count: orderedItems.length })}</Text>
                     </View>
                     {orderedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
@@ -1721,7 +1748,7 @@ export default function ManagerOrderListScreen() {
                 {receivedItems.length > 0 && (
                   <>
                     <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.RECEIVED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>Received - {receivedItems.length} item{receivedItems.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>{t('managerOrderList.sectionReceived', { count: receivedItems.length })}</Text>
                     </View>
                     {receivedItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}

@@ -24,6 +24,7 @@
     "expo-blur": "~55.0.18",
     "expo-build-properties": "~55.0.17",
     "expo-camera": "~55.0.21",
+    "expo-clipboard": "~55.0.17",
     "expo-constants": "~55.0.15",
     "expo-device": "~55.0.19",
     "expo-haptics": "~55.0.16",

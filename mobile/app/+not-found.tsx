@@ -5,18 +5,16 @@ import { COLORS } from '../constants';
 import { useAuthStore } from '../store/authStore';
 import { getRoleHomeRoute } from '../utils/roleHome';
 
-// Normally never seen — _layout.tsx's cold-start navigate() replaces this
-// with the real destination as soon as auth state resolves. But a deep link
-// that resolves to an empty path (e.g. a bare `luckystop:///`) lands here
-// directly mid-session, after that one-time effect has already fired, so
-// this needs its own escape hatch rather than sitting on the spinner forever.
-export default function Index() {
-  const { user, isLoading } = useAuthStore();
+// Reached when a deep link (or a stray OS-level scheme probe, e.g. a bare
+// `luckystop:///`) doesn't match any registered route. Rather than exposing
+// Expo Router's raw "Unmatched Route" debug screen to end users, silently
+// send them to whichever screen they'd land on anyway.
+export default function NotFound() {
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    if (isLoading) return;
     router.replace(getRoleHomeRoute(user));
-  }, [user, isLoading]);
+  }, [user]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>

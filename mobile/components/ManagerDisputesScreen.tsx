@@ -3,6 +3,7 @@ import {
   StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { disputeApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -26,15 +27,16 @@ interface Dispute {
   customer: { id: string; name: string; phone: string };
 }
 
-const STATUS_STYLE: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  PENDING:  { label: 'Pending',  bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
-  APPROVED: { label: 'Approved', bg: COLORS.statusAcceptedBg, color: '#15803d', border: '#bbf7d0' },
-  REJECTED: { label: 'Rejected', bg: '#fef2f2', color: '#b91c1c', border: COLORS.statusDeclinedBorder },
+const STATUS_STYLE: Record<string, { labelKey: string; bg: string; color: string; border: string }> = {
+  PENDING:  { labelKey: 'managerDisputes.statusPending',  bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  APPROVED: { labelKey: 'managerDisputes.statusApproved', bg: COLORS.statusAcceptedBg, color: '#15803d', border: '#bbf7d0' },
+  REJECTED: { labelKey: 'managerDisputes.statusRejected', bg: '#fef2f2', color: '#b91c1c', border: COLORS.statusDeclinedBorder },
 };
 
 interface Store { id: string; name: string }
 
 export default function ManagerDisputesScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
 
@@ -89,7 +91,7 @@ export default function ManagerDisputesScreen() {
       setResolveTarget(null); setResolveNote(''); setCreditAmt('');
     },
     onError: (err: any) =>
-      Alert.alert('Error', err?.response?.data?.error || err?.message || 'Something went wrong.'),
+      Alert.alert(t('managerDisputes.genericError'), err?.response?.data?.error || err?.message || t('managerDisputes.genericErrorMsg')),
   });
 
   function openResolve(item: Dispute) {
@@ -111,6 +113,7 @@ export default function ManagerDisputesScreen() {
 
   function renderItem({ item, index }: { item: Dispute; index: number }) {
     const st = STATUS_STYLE[item.status] || STATUS_STYLE.PENDING;
+    const stLabel = t(st.labelKey);
     const isPending = item.status === 'PENDING';
     const avatarColor = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
     return (
@@ -125,7 +128,7 @@ export default function ManagerDisputesScreen() {
               <Text style={s.metaSub}>{formatTime(item.createdAt)}</Text>
             </View>
             <View style={[s.statusBadge, { backgroundColor: st.bg, borderColor: st.border }]}>
-              <Text style={[s.statusBadgeText, { color: st.color }]}>{st.label}</Text>
+              <Text style={[s.statusBadgeText, { color: st.color }]}>{stLabel}</Text>
             </View>
           </View>
 
@@ -134,13 +137,13 @@ export default function ManagerDisputesScreen() {
           </View>
 
           {item.estimatedAmt != null && (
-            <Text style={s.metaSub}>Estimated purchase: ${Number(item.estimatedAmt).toFixed(2)}</Text>
+            <Text style={s.metaSub}>{t('managerDisputes.estimatedPurchase', { amt: Number(item.estimatedAmt).toFixed(2) })}</Text>
           )}
 
           {!isPending && (
             <View style={[s.resolvedBox, { backgroundColor: st.bg, borderColor: st.border }]}>
               {item.creditedAmt != null && (
-                <Text style={[s.resolvedText, { color: st.color }]}>Credited: ${Number(item.creditedAmt).toFixed(2)}</Text>
+                <Text style={[s.resolvedText, { color: st.color }]}>{t('managerDisputes.credited', { amt: Number(item.creditedAmt).toFixed(2) })}</Text>
               )}
               {item.resolvedNote ? (
                 <Text style={[s.resolvedText, { color: st.color, fontStyle: 'italic' }]}>"{item.resolvedNote}"</Text>
@@ -154,11 +157,11 @@ export default function ManagerDisputesScreen() {
               onPress={() => openResolve(item)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Review dispute from ${item.customer?.name || item.customer?.phone}`}
+              accessibilityLabel={t('managerDisputes.reviewDisputeA11y', { name: item.customer?.name || item.customer?.phone })}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <AlertTriangleIcon size={14} color="#fff" strokeWidth={2.25} />
-              <Text style={s.actionBtnText}>Review Dispute</Text>
+              <Text style={s.actionBtnText}>{t('managerDisputes.reviewDisputeBtn')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -170,14 +173,14 @@ export default function ManagerDisputesScreen() {
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
       <ManagerHeader
-        eyebrow="MISSING POINTS"
-        title="Disputes"
+        eyebrow={t('managerDisputes.eyebrow')}
+        title={t('managerDisputes.title')}
         size="lg"
         rightSlot={
           pending.length > 0 ? (
             <View style={s.pendingBadge}>
               <Text style={s.pendingBadgeNum}>{pending.length}</Text>
-              <Text style={s.pendingBadgeLbl}>pending</Text>
+              <Text style={s.pendingBadgeLbl}>{t('managerDisputes.pendingBadgeLbl')}</Text>
             </View>
           ) : null
         }
@@ -191,7 +194,7 @@ export default function ManagerDisputesScreen() {
                 onPress={() => setSelectedStoreId(store.id)}
                 activeOpacity={0.75}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${store.name}`}
+                accessibilityLabel={t('managerDisputes.storeFilterLabel', { name: store.name })}
                 accessibilityState={{ selected: store.id === storeId }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -205,16 +208,16 @@ export default function ManagerDisputesScreen() {
 
         <View style={s.filterRow}>
           {[
-            { key: 'PENDING', label: 'Pending', count: pending.length },
-            { key: '', label: 'All', count: disputes.length },
-            { key: 'RESOLVED', label: 'Resolved', count: disputes.length - pending.length },
+            { key: 'PENDING', label: t('managerDisputes.filterPending'), count: pending.length },
+            { key: '', label: t('managerDisputes.filterAll'), count: disputes.length },
+            { key: 'RESOLVED', label: t('managerDisputes.filterResolved'), count: disputes.length - pending.length },
           ].map(f => (
             <TouchableOpacity
               key={f.key}
               style={[s.filterTab, statusFilter === f.key && s.filterTabActive]}
               onPress={() => setStatusFilter(f.key)}
               accessibilityRole="tab"
-              accessibilityLabel={`Filter by ${f.label}`}
+              accessibilityLabel={t('managerDisputes.filterByLabel', { label: f.label })}
               accessibilityState={{ selected: statusFilter === f.key }}
               hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
             >
@@ -233,12 +236,12 @@ export default function ManagerDisputesScreen() {
       {!storeId ? (
         <View style={s.centered}>
           <View style={{ marginBottom: 12 }}><BuildingIcon size={44} color="#d1d5db" strokeWidth={1.25} /></View>
-          <Text style={s.emptyTitle}>No store assigned</Text>
+          <Text style={s.emptyTitle}>{t('managerDisputes.noStoreAssigned')}</Text>
         </View>
       ) : isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load disputes." onRetry={() => refetch()} />
+        <ErrorState message={t('managerDisputes.loadError')} onRetry={() => refetch()} />
       ) : displayed.length === 0 ? (
         <View style={s.centered}>
           <View style={{ marginBottom: 12 }}>
@@ -246,8 +249,8 @@ export default function ManagerDisputesScreen() {
               ? <CheckCircleIcon size={44} color="#86efac" strokeWidth={1.5} />
               : <InboxIcon size={44} color="#d1d5db" strokeWidth={1.25} />}
           </View>
-          <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? 'All clear!' : 'Nothing here'}</Text>
-          <Text style={s.emptySub}>{statusFilter === 'PENDING' ? 'No pending missing-points reports' : 'No disputes in this category'}</Text>
+          <Text style={s.emptyTitle}>{statusFilter === 'PENDING' ? t('managerDisputes.allClearTitle') : t('managerDisputes.nothingHereTitle')}</Text>
+          <Text style={s.emptySub}>{statusFilter === 'PENDING' ? t('managerDisputes.allClearSub') : t('managerDisputes.nothingHereSub')}</Text>
         </View>
       ) : (
         <FadeSlideIn style={{ flex: 1 }}>
@@ -272,14 +275,14 @@ export default function ManagerDisputesScreen() {
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
-            <Text style={s.sheetTitle}>Resolve Dispute</Text>
+            <Text style={s.sheetTitle}>{t('managerDisputes.resolveSheetTitle')}</Text>
             {resolveTarget && (
               <View style={s.previewCard}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.previewName}>{resolveTarget.customer?.name || resolveTarget.customer?.phone}</Text>
                   <Text style={s.previewNotes}>"{resolveTarget.description}"</Text>
                   {resolveTarget.estimatedAmt != null && (
-                    <Text style={s.previewMeta}>Estimated: ${Number(resolveTarget.estimatedAmt).toFixed(2)}</Text>
+                    <Text style={s.previewMeta}>{t('managerDisputes.estimated', { amt: Number(resolveTarget.estimatedAmt).toFixed(2) })}</Text>
                   )}
                 </View>
               </View>
@@ -290,44 +293,44 @@ export default function ManagerDisputesScreen() {
                 style={[s.toggleBtn, resolveAction === 'APPROVED' && s.toggleBtnAccept]}
                 onPress={() => setResolveAction('APPROVED')}
                 accessibilityRole="tab"
-                accessibilityLabel="Approve"
+                accessibilityLabel={t('managerDisputes.approve')}
                 accessibilityState={{ selected: resolveAction === 'APPROVED' }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <CheckCircleIcon size={15} color={resolveAction === 'APPROVED' ? '#15803d' : '#6b7280'} strokeWidth={2.25} />
-                <Text style={[s.toggleBtnText, resolveAction === 'APPROVED' && s.toggleBtnTextAccept]}>Approve</Text>
+                <Text style={[s.toggleBtnText, resolveAction === 'APPROVED' && s.toggleBtnTextAccept]}>{t('managerDisputes.approve')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.toggleBtn, resolveAction === 'REJECTED' && s.toggleBtnReject]}
                 onPress={() => setResolveAction('REJECTED')}
                 accessibilityRole="tab"
-                accessibilityLabel="Reject"
+                accessibilityLabel={t('managerDisputes.reject')}
                 accessibilityState={{ selected: resolveAction === 'REJECTED' }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <XIcon size={15} color={resolveAction === 'REJECTED' ? '#b91c1c' : '#6b7280'} strokeWidth={2.25} />
-                <Text style={[s.toggleBtnText, resolveAction === 'REJECTED' && s.toggleBtnTextReject]}>Reject</Text>
+                <Text style={[s.toggleBtnText, resolveAction === 'REJECTED' && s.toggleBtnTextReject]}>{t('managerDisputes.reject')}</Text>
               </TouchableOpacity>
             </View>
 
             {resolveAction === 'APPROVED' && (
               <>
-                <Text style={s.sheetLabel}>Credits to Award</Text>
+                <Text style={s.sheetLabel}>{t('managerDisputes.creditsToAward')}</Text>
                 <TextInput
                   style={s.amountInput}
                   value={creditAmt}
                   onChangeText={setCreditAmt}
                   keyboardType="decimal-pad"
-                  placeholder="e.g. 2.50"
+                  placeholder={t('managerDisputes.creditPlaceholder')}
                   placeholderTextColor="#9ca3af"
                 />
               </>
             )}
 
-            <Text style={s.sheetLabel}>Note <Text style={s.optionalTag}>(optional)</Text></Text>
+            <Text style={s.sheetLabel}>{t('managerDisputes.noteLabel')} <Text style={s.optionalTag}>{t('managerDisputes.optional')}</Text></Text>
             <TextInput
               style={s.noteInput} value={resolveNote} onChangeText={setResolveNote}
-              placeholder="Explanation for your decision"
+              placeholder={t('managerDisputes.notePlaceholder')}
               placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top"
             />
 
@@ -336,9 +339,9 @@ export default function ManagerDisputesScreen() {
                 style={s.cancelBtn}
                 onPress={() => setResolveTarget(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel"
+                accessibilityLabel={t('managerDisputes.cancel')}
               >
-                <Text style={s.cancelBtnText}>Cancel</Text>
+                <Text style={s.cancelBtnText}>{t('managerDisputes.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.confirmBtn, resolveAction === 'REJECTED' && { backgroundColor: COLORS.danger, shadowColor: COLORS.danger }, resolveMutation.isPending && { opacity: 0.65 }]}
@@ -346,7 +349,7 @@ export default function ManagerDisputesScreen() {
                 onPress={submitResolve}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={resolveAction === 'APPROVED' ? 'Approve and credit dispute' : 'Reject dispute'}
+                accessibilityLabel={resolveAction === 'APPROVED' ? t('managerDisputes.approveAndCreditA11y') : t('managerDisputes.rejectDisputeA11y')}
               >
                 {resolveMutation.isPending ? (
                   <ActivityIndicator color={COLORS.white} size="small" />
@@ -355,7 +358,7 @@ export default function ManagerDisputesScreen() {
                     {resolveAction === 'APPROVED'
                       ? <CheckCircleIcon size={16} color={COLORS.white} strokeWidth={2.25} />
                       : <XIcon size={16} color={COLORS.white} strokeWidth={2.25} />}
-                    <Text style={s.confirmBtnText}>{resolveAction === 'APPROVED' ? 'Approve & Credit' : 'Reject Dispute'}</Text>
+                    <Text style={s.confirmBtnText}>{resolveAction === 'APPROVED' ? t('managerDisputes.approveAndCredit') : t('managerDisputes.rejectDispute')}</Text>
                   </>
                 )}
               </TouchableOpacity>
