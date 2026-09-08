@@ -1316,16 +1316,10 @@
     "minutesAgo": "hace {{count}}m",
     "hoursAgo": "hace {{count}}h",
     "daysAgo": "hace {{count}}d",
-    "clearAllTitle": "¿Borrar todas las notificaciones?",
-    "clearAllMessage": "Esto elimina permanentemente todas las notificaciones en tu bandeja.",
-    "cancel": "Cancelar",
-    "clearAllConfirm": "Borrar Todo",
     "updatePumpsBadge": "Actualizar bombas",
     "title": "Notificaciones",
     "markAllReadA11y": "Marcar todas las notificaciones como leídas",
     "markReadButton": "Marcar leído",
-    "clearAllA11y": "Borrar todas las notificaciones",
-    "clearAllButton": "Borrar todo",
     "errorLoading": "No se pudieron cargar las notificaciones."
   },
   "sharedGuide": {

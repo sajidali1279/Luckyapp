@@ -12,6 +12,7 @@ import { startTierResetCron } from './utils/tier-reset-cron';
 import { startCatalogExpiryCron } from './utils/catalog-expiry-cron';
 import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron';
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
+import { startNotificationRetentionCron } from './utils/notification-retention-cron';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -112,6 +113,7 @@ app.listen(PORT, () => {
   startCatalogExpiryCron();
   startDailyReportReminderCron();
   startLabelPriceExpiryCron();
+  startNotificationRetentionCron();
 });
 
 export default app;

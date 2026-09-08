@@ -35,7 +35,7 @@ export function hotFoodOrderUrl(orderId: string): string {
   return `/(employee)/hot-food?tab=PENDING&highlightId=${orderId}`;
 }
 export function gasPriceUrlEmployee(): string {
-  return '/(employee)/scan';
+  return '/(employee)/home';
 }
 export function shiftRequestUrlEmployee(): string {
   return '/(employee)/requests';

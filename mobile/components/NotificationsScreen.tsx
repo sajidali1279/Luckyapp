@@ -116,25 +116,6 @@ export default function NotificationsScreen() {
     },
   });
 
-  const clearAllMutation = useMutation({
-    mutationFn: () => notificationsApi.clearAll(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-notifications'] });
-      qc.invalidateQueries({ queryKey: ['unread-count'] });
-    },
-  });
-
-  function confirmClearAll() {
-    Alert.alert(
-      t('sharedNotifications.clearAllTitle'),
-      t('sharedNotifications.clearAllMessage'),
-      [
-        { text: t('sharedNotifications.cancel'), style: 'cancel' },
-        { text: t('sharedNotifications.clearAllConfirm'), style: 'destructive', onPress: () => clearAllMutation.mutate() },
-      ],
-    );
-  }
-
   const markOneMutation = useMutation({
     mutationFn: (id: string) => notificationsApi.markOneRead(id),
     onSuccess: () => {
@@ -244,18 +225,6 @@ export default function NotificationsScreen() {
               <Text style={s.headerBtnText}>{t('sharedNotifications.markReadButton')}</Text>
             </TouchableOpacity>
           )}
-          {notifications.length > 0 && (
-            <TouchableOpacity
-              style={[s.headerBtn, s.headerBtnClear]}
-              onPress={confirmClearAll}
-              disabled={clearAllMutation.isPending}
-              accessibilityRole="button"
-              accessibilityLabel={t('sharedNotifications.clearAllA11y')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={[s.headerBtnText, s.headerBtnClearText]}>{t('sharedNotifications.clearAllButton')}</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </SafeAreaView>
 
@@ -307,8 +276,6 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   headerBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  headerBtnClear: { backgroundColor: 'rgba(255,255,255,0.08)' },
-  headerBtnClearText: { color: 'rgba(255,255,255,0.55)' },
 
   list: { padding: 16, gap: 0 },
 
