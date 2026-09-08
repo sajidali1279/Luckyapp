@@ -37,8 +37,8 @@ export function hotFoodOrderUrl(orderId: string): string {
 export function gasPriceUrlEmployee(): string {
   return '/(employee)/home';
 }
-export function shiftRequestUrlEmployee(): string {
-  return '/(employee)/requests';
+export function shiftRequestUrlEmployee(date?: string): string {
+  return date ? `/(employee)/schedule?highlightDate=${encodeURIComponent(date)}` : '/(employee)/schedule';
 }
 export function storeRequestUrlEmployee(requestId: string): string {
   return withHighlight('/(employee)/requests', requestId);

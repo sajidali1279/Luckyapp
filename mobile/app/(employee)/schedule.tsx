@@ -4,14 +4,16 @@ import {
   TextInput, RefreshControl, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { schedulingApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { CheckCircleIcon, ClockIcon, MapPinIcon, InfoIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import PulseHighlight from '../../components/PulseHighlight';
 import {
   DAY_ORDER, DAY_LABELS, DAY_LETTER, JS_DAY_TO_ENUM,
   SHIFT_COLORS as SHIFT_COLORS_TYPED, SHIFT_LABELS as SHIFT_LABELS_TYPED,
@@ -53,6 +55,36 @@ export default function ScheduleScreen() {
     setWeekOffset(1);
     setSelectedDayKey('MON');
   }
+
+  // A shift-request-approved push deep-links here with the request's date.
+  // This screen only ever shows this week or next week (no arbitrary week
+  // navigation exists yet), so a date outside that window just clears the
+  // param and lands on whatever the screen already defaults to.
+  const { highlightDate } = useLocalSearchParams<{ highlightDate?: string }>();
+  const [pulseApproval, setPulseApproval] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!highlightDate) return;
+      const targetISO = fmtDateISO(new Date(highlightDate));
+      const matchOffset = [0, 1].find((offset) =>
+        getCurrentWeekDates(offset).some((d) => fmtDateISO(d.date) === targetISO)
+      );
+      if (matchOffset === undefined) {
+        router.setParams({ highlightDate: '' });
+        return;
+      }
+      const matchDay = getCurrentWeekDates(matchOffset).find((d) => fmtDateISO(d.date) === targetISO);
+      setWeekOffset(matchOffset);
+      if (matchDay) setSelectedDayKey(matchDay.key);
+      setPulseApproval(true);
+      const timer = setTimeout(() => {
+        setPulseApproval(false);
+        router.setParams({ highlightDate: '' });
+      }, 1700);
+      return () => clearTimeout(timer);
+    }, [highlightDate])
+  );
 
   const [requestModal, setRequestModal] = useState<{
     storeId: string; storeName: string; shiftType: string; date: Date;
@@ -245,7 +277,7 @@ export default function ScheduleScreen() {
             {selectedDayData && (() => {
               const isViewingToday = weekOffset === 0 && selectedDayKey === todayKey;
               return (
-              <View style={[s.dayCard, isViewingToday && s.dayCardToday]}>
+              <PulseHighlight active={pulseApproval} style={[s.dayCard, isViewingToday && s.dayCardToday]}>
                 {/* Day header */}
                 <View style={s.dayCardHeader}>
                   <View>
@@ -337,7 +369,7 @@ export default function ScheduleScreen() {
                     })()}
                   </View>
                 )}
-              </View>
+              </PulseHighlight>
               );
             })()}
 

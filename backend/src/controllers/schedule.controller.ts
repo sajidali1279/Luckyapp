@@ -510,7 +510,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         'Fill-In Approved ✅',
         `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`,
         'SHIFT_REQUEST',
-        shiftRequestUrlEmployee()
+        shiftRequestUrlEmployee(requestDate.toISOString())
       );
 
       // Check if anyone else is already assigned to the same shift slot that day
@@ -552,7 +552,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         'Time Off Approved ✅',
         `Your time-off request for ${dateStr} (${SHIFT_LABELS[shiftType]} shift) at ${storeName} has been approved.`,
         'SHIFT_REQUEST',
-        shiftRequestUrlEmployee()
+        shiftRequestUrlEmployee(requestDate.toISOString())
       );
 
       // Notify coworkers scheduled that day (excluding those already off)
