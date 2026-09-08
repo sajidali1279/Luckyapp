@@ -9,7 +9,9 @@ import { useTranslation } from 'react-i18next';
 import { storeRequestApi, chatApi } from '../services/api';
 import { COLORS } from '../constants';
 import FadeSlideIn from './FadeSlideIn';
+import PulseHighlight from './PulseHighlight';
 import { TypeIcon } from './ManagerRequestsScreen';
+import { useHighlightParam } from '../hooks/useHighlightParam';
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
@@ -65,6 +67,7 @@ export default function EmployeeRequestsScreen() {
     WORK_ORDER: t('sharedEmployeeRequests.typeWorkOrderLabel'),
   };
 
+  const highlightedId = useHighlightParam();
   const [showForm, setShowForm] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -115,7 +118,7 @@ export default function EmployeeRequestsScreen() {
     const typeBg = TYPE_BG[item.type] || '#f3f4f6';
     const isDone = item.status === 'ACKNOWLEDGED';
     return (
-      <View style={s.card}>
+      <PulseHighlight active={item.id === highlightedId} style={s.card}>
         <View style={[s.priorityStripe, { backgroundColor: pColor }]} />
         <View style={s.cardInner}>
           {/* Top row */}
@@ -157,9 +160,9 @@ export default function EmployeeRequestsScreen() {
             </View>
           )}
         </View>
-      </View>
+      </PulseHighlight>
     );
-  }, []);
+  }, [t, highlightedId]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
