@@ -42,11 +42,16 @@ export async function createItem(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Employees are scoped to their own store
+  // Employees/managers are scoped to their own store(s) — prefer an explicit
+  // storeId from the client if it's actually one of their assigned stores,
+  // only falling back to their first store otherwise.
   const user = req.user!;
+  const requestedStoreId: string | undefined = req.body.storeId;
   const storeId: string | null =
     (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER')
-      ? ((user as any).storeIds?.[0] ?? req.body.storeId ?? null)
+      ? ((requestedStoreId && (user as any).storeIds?.includes(requestedStoreId))
+          ? requestedStoreId
+          : ((user as any).storeIds?.[0] ?? null))
       : (req.body.storeId ?? null);
 
   let imageUrl: string | null = null;
@@ -81,11 +86,11 @@ export async function updateItem(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Employees may only edit items belonging to their store
+  // Employees may only edit items belonging to one of their stores
   const user = req.user!;
   if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
-    const employeeStoreId = (user as any).storeIds?.[0];
-    if (existing.storeId && employeeStoreId && existing.storeId !== employeeStoreId) {
+    const employeeStoreIds: string[] = (user as any).storeIds ?? [];
+    if (existing.storeId && !employeeStoreIds.includes(existing.storeId)) {
       res.status(403).json({ success: false, error: 'Cannot edit items from other stores' });
       return;
     }
@@ -124,11 +129,11 @@ export async function deleteItem(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Employees may only delete items belonging to their store
+  // Employees may only delete items belonging to one of their stores
   const user = req.user!;
   if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
-    const employeeStoreId = (user as any).storeIds?.[0];
-    if (existing.storeId && employeeStoreId && existing.storeId !== employeeStoreId) {
+    const employeeStoreIds: string[] = (user as any).storeIds ?? [];
+    if (existing.storeId && !employeeStoreIds.includes(existing.storeId)) {
       res.status(403).json({ success: false, error: 'Cannot delete items from other stores' });
       return;
     }

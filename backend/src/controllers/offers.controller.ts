@@ -41,16 +41,24 @@ export async function createOffer(req: AuthRequest, res: Response) {
   }
 
   const isManager = req.user!.role === Role.STORE_MANAGER;
-  const managerStoreId = req.user!.storeIds?.[0];
 
-  // Store managers can only create store-specific offers for their store
+  // Store managers can only create store-specific offers for a store they're
+  // actually assigned to — prefer the store they picked in the UI (a real
+  // store-selector exists for multi-store managers), only falling back to
+  // their first assigned store if they didn't pick one of their own.
   if (isManager) {
-    if (!managerStoreId) {
+    const managerStoreIds = req.user!.storeIds ?? [];
+    const requestedStoreId = parsed.data.storeId;
+    const targetStoreId = requestedStoreId && managerStoreIds.includes(requestedStoreId)
+      ? requestedStoreId
+      : managerStoreIds[0];
+
+    if (!targetStoreId) {
       res.status(403).json({ success: false, error: 'No store assigned to your account' });
       return;
     }
     parsed.data.type = OfferType.SPECIFIC_STORE;
-    parsed.data.storeId = managerStoreId;
+    parsed.data.storeId = targetStoreId;
   }
 
   let imageUrl: string | undefined;
@@ -146,10 +154,10 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Store managers can only edit offers belonging to their store
+  // Store managers can only edit offers belonging to one of their stores
   if (req.user!.role === Role.STORE_MANAGER) {
     const existing = await prisma.offer.findUnique({ where: { id: offerId } });
-    if (!existing || existing.storeId !== req.user!.storeIds?.[0]) {
+    if (!existing || !req.user!.storeIds?.includes(existing.storeId ?? '')) {
       res.status(403).json({ success: false, error: 'You can only edit offers for your store' });
       return;
     }
@@ -182,7 +190,7 @@ export async function updateOffer(req: AuthRequest, res: Response) {
 export async function deleteOffer(req: AuthRequest, res: Response) {
   if (req.user!.role === Role.STORE_MANAGER) {
     const existing = await prisma.offer.findUnique({ where: { id: req.params.offerId } });
-    if (!existing || existing.storeId !== req.user!.storeIds?.[0]) {
+    if (!existing || !req.user!.storeIds?.includes(existing.storeId ?? '')) {
       res.status(403).json({ success: false, error: 'You can only delete offers for your store' });
       return;
     }
@@ -203,7 +211,7 @@ export async function deleteOffer(req: AuthRequest, res: Response) {
 export async function getOffersHistory(req: AuthRequest, res: Response) {
   const now = new Date();
   const storeFilter = req.user!.role === Role.STORE_MANAGER
-    ? { storeId: req.user!.storeIds?.[0] }
+    ? { storeId: { in: req.user!.storeIds ?? [] } }
     : {};
   const offers = await prisma.offer.findMany({
     where: { ...storeFilter, OR: [{ isActive: false }, { endDate: { lt: now } }] },
@@ -221,9 +229,14 @@ export async function createBanner(req: AuthRequest, res: Response) {
     title: string; storeId?: string; linkUrl?: string; sortOrder?: number;
   };
 
-  // Store managers always target their own store
+  // Store managers can target any of their assigned stores — prefer the
+  // store picked in the UI, falling back to their first store if the
+  // requested one isn't actually theirs (or none was specified).
+  const requestedBannerStoreId: string | undefined = req.body.storeId;
   const storeId = req.user!.role === Role.STORE_MANAGER
-    ? req.user!.storeIds?.[0] || null
+    ? (requestedBannerStoreId && req.user!.storeIds?.includes(requestedBannerStoreId)
+        ? requestedBannerStoreId
+        : req.user!.storeIds?.[0] || null)
     : (req.body.storeId || null);
 
   if (req.user!.role === Role.STORE_MANAGER && !storeId) {
@@ -279,7 +292,7 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
 export async function deleteBanner(req: AuthRequest, res: Response) {
   if (req.user!.role === Role.STORE_MANAGER) {
     const existing = await prisma.banner.findUnique({ where: { id: req.params.bannerId } });
-    if (!existing || existing.storeId !== req.user!.storeIds?.[0]) {
+    if (!existing || !req.user!.storeIds?.includes(existing.storeId ?? '')) {
       res.status(403).json({ success: false, error: 'You can only delete banners for your store' });
       return;
     }

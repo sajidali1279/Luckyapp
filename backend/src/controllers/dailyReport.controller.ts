@@ -17,8 +17,17 @@ async function uploadImage(buffer: Buffer): Promise<string> {
 
 // POST /daily-reports
 export async function createReport(req: AuthRequest, res: Response) {
-  const userId = req.user!.id;
-  const storeId = req.body.storeId || (req.user as any).storeIds?.[0];
+  const user = req.user!;
+  const userId = user.id;
+  const requestedStoreId: string | undefined = req.body.storeId;
+  // A client-supplied storeId must actually belong to this employee — don't
+  // trust it blindly, only fall back to their own store if none was sent.
+  // SuperAdmin+ are exempt (no UserStoreRole assignments of their own),
+  // matching getReportsByDate/getTodayReports below.
+  const userStoreIds: string[] = (user as any).storeIds ?? [];
+  const storeId = hasMinRole(user.role, Role.SUPER_ADMIN)
+    ? requestedStoreId
+    : (requestedStoreId && userStoreIds.includes(requestedStoreId) ? requestedStoreId : userStoreIds[0]);
 
   if (!storeId) {
     res.status(400).json({ success: false, error: 'No store assigned to your account' });
@@ -66,7 +75,16 @@ export async function createReport(req: AuthRequest, res: Response) {
 // GET /daily-reports/today?storeId=xxx&date=YYYY-MM-DD
 export async function getTodayReports(req: AuthRequest, res: Response) {
   const user = req.user!;
-  const storeId = (req.query.storeId as string) || (user as any).storeIds?.[0];
+  const requestedStoreId = req.query.storeId as string | undefined;
+  // A client-supplied storeId must actually belong to this employee — don't
+  // trust it blindly, only fall back to their own store if none was sent.
+  // SuperAdmin+ have no UserStoreRole assignments of their own (chain-wide
+  // access comes from role hierarchy instead), so they're exempt from the
+  // ownership check, same as getReportsByDate below already does.
+  const userStoreIds: string[] = (user as any).storeIds ?? [];
+  const storeId = hasMinRole(user.role, Role.SUPER_ADMIN)
+    ? requestedStoreId
+    : (requestedStoreId && userStoreIds.includes(requestedStoreId) ? requestedStoreId : userStoreIds[0]);
   const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
 
   if (!storeId) {

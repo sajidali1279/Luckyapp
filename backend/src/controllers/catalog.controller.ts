@@ -216,7 +216,11 @@ export async function getPendingRedemptionsForCustomer(req: AuthRequest, res: Re
 // POST /catalog/redeem/:id/confirm  (EMPLOYEE+)
 export async function confirmRedemption(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const storeId = req.user!.storeIds?.[0] || req.body.storeId;
+  // The mobile client sends the employee's GPS-detected current store
+  // (useCurrentStoreId in scan.tsx) specifically so a multi-store employee's
+  // work gets attributed to wherever they're actually standing, not always
+  // their first assigned store — prefer that over storeIds[0].
+  const storeId = req.body.storeId || req.user!.storeIds?.[0];
 
   const redemption = await prisma.catalogRedemption.findUnique({
     where: { id },
