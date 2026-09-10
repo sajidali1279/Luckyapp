@@ -38,19 +38,27 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     return;
   }
 
-  // Confirm the account still exists and hasn't been deactivated —
-  // a JWT signature alone doesn't reflect deletions/deactivations that
-  // happened after it was issued (tokens are valid for up to 30 days).
+  // Confirm the account still exists and hasn't been deactivated, and refresh
+  // storeIds from the DB — a JWT signature alone doesn't reflect deletions,
+  // deactivations, or store-assignment changes that happened after it was
+  // issued (tokens are valid for up to 30 days). storeIds specifically is
+  // mutable post-issuance (addUserStore/removeUserStore), and a real security
+  // audit (2026-09-10) found many store-scoped routes trust req.user.storeIds
+  // directly with no live requireStoreAccess check backing them up — a
+  // manager removed from a store could otherwise keep acting on it for up to
+  // 30 days. role is deliberately left alone here: nothing in this codebase
+  // updates a user's role after account creation, so there's no equivalent
+  // staleness risk to guard against there.
   const dbUser = await prisma.user.findUnique({
     where: { id: payload.id },
-    select: { isActive: true },
+    select: { isActive: true, storeRoles: { select: { storeId: true } } },
   });
   if (!dbUser || !dbUser.isActive) {
     res.status(401).json({ success: false, error: 'Account no longer active. Please sign in again.' });
     return;
   }
 
-  req.user = payload;
+  req.user = { ...payload, storeIds: dbUser.storeRoles.map((r) => r.storeId) };
   next();
 }
 
