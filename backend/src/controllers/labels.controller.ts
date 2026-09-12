@@ -20,13 +20,18 @@ async function canTouchStore(userId: string, userRole: Role, storeId: string): P
   return !!access;
 }
 
-type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
+type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 
 // printedAt alone can't tell "never printed" apart from "was printed, then a
 // later edit reset it" — both look identical (null). everPrinted never
 // resets, so it's the only reliable way to split those two states apart.
-function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean } | null): PrintStatus {
+// A null effectivePrice wins over everything except "not added at all" — a
+// Label (or its store override) that resolves to no price can never be
+// 'printed'/'needs_reprint'/queued, even if it happened to be printed once
+// before the price was since cleared.
+function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean } | null, effectivePrice: string | null): PrintStatus {
   if (!storeLabel) return 'not_added';
+  if (effectivePrice === null) return 'needs_price';
   if (storeLabel.printedAt) return 'printed';
   return storeLabel.everPrinted ? 'needs_reprint' : 'new';
 }
@@ -69,14 +74,15 @@ export async function getAllLabels(req: AuthRequest, res: Response) {
       storeLabels: { id: string; priceText: string | null; printedAt: Date | null; everPrinted: boolean; overrideExpiresAt: Date | null }[];
     };
     const myStoreLabel = storeLabels[0] ?? null;
+    const effectivePrice = resolveEffectivePrice(label, myStoreLabel);
     return {
       ...rest,
       myStoreLabel: myStoreLabel
         ? {
             id: myStoreLabel.id,
-            effectivePrice: resolveEffectivePrice(label, myStoreLabel),
+            effectivePrice,
             printedAt: myStoreLabel.printedAt,
-            status: printStatus(myStoreLabel),
+            status: printStatus(myStoreLabel, effectivePrice),
             hasOverride: !!myStoreLabel.priceText,
             overrideExpiresAt: myStoreLabel.overrideExpiresAt,
           }
@@ -109,6 +115,7 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
 
   let data = labels.map((label) => {
     const storeLabel = label.storeLabels[0] ?? null;
+    const effectivePrice = resolveEffectivePrice(label, storeLabel);
     return {
       id: label.id,
       productName: label.productName,
@@ -118,11 +125,11 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
       basePriceText: label.priceText,
       dealText: label.dealText,
       storeLabelId: storeLabel?.id ?? null,
-      priceText: resolveEffectivePrice(label, storeLabel),
+      priceText: effectivePrice,
       hasOverride: !!storeLabel?.priceText,
       overrideExpiresAt: storeLabel?.overrideExpiresAt?.toISOString() ?? null,
       printedAt: storeLabel?.printedAt ?? null,
-      status: printStatus(storeLabel),
+      status: printStatus(storeLabel, effectivePrice),
       createdAt: (storeLabel?.createdAt ?? label.createdAt).toISOString(),
       updatedAt: (storeLabel?.updatedAt ?? label.updatedAt).toISOString(),
     };
@@ -405,12 +412,21 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   const storeLabelIds = items.map(i => i.storeLabelId);
   const totalCopies = items.reduce((sum, i) => sum + i.quantity, 0);
 
-  const rows = await prisma.storeLabel.findMany({ where: { id: { in: storeLabelIds } } });
+  const rows = await prisma.storeLabel.findMany({
+    where: { id: { in: storeLabelIds } },
+    include: { label: true },
+  });
   for (const r of rows) {
     if (!(await canTouchStore(req.user!.id, req.user!.role, r.storeId))) {
       res.status(403).json({ success: false, error: "You don't have access to one of those stores" });
       return;
     }
+  }
+
+  const priceless = rows.filter((r) => resolveEffectivePrice(r.label, r) === null);
+  if (priceless.length > 0) {
+    res.status(400).json({ success: false, error: `${priceless.length} item(s) have no price set and can't be marked printed` });
+    return;
   }
 
   await prisma.storeLabel.updateMany({
@@ -454,6 +470,7 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
   }
 
   const storeLabel = label.storeLabels[0] ?? null;
+  const effectivePrice = storeLabel ? resolveEffectivePrice(label, storeLabel) : null;
   res.json({
     success: true,
     data: {
@@ -466,10 +483,10 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
       basePriceText: label.priceText,
       dealText: label.dealText,
       storeLabelId: storeLabel?.id ?? null,
-      priceText: storeLabel ? resolveEffectivePrice(label, storeLabel) : null,
+      priceText: effectivePrice,
       hasOverride: !!storeLabel?.priceText,
       printedAt: storeLabel?.printedAt ?? null,
-      status: printStatus(storeLabel),
+      status: printStatus(storeLabel, effectivePrice),
     },
   });
 }
@@ -503,11 +520,12 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
     const byStore = new Map(rows.map((r) => [r.storeId, r]));
     const coverage = stores.map((store) => {
       const sl = byStore.get(store.id) ?? null;
+      const effectivePrice = sl ? resolveEffectivePrice(label, sl) : null;
       return {
         storeId: store.id,
         storeLabelId: sl?.id ?? null,
-        status: printStatus(sl),
-        priceText: sl ? resolveEffectivePrice(label, sl) : null,
+        status: printStatus(sl, effectivePrice),
+        priceText: effectivePrice,
         hasOverride: !!sl?.priceText,
       };
     });
