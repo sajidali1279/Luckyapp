@@ -47,15 +47,28 @@ interface EnsureScannedProductInput {
 }
 
 // Label -> ScannedProduct direction. Unlike ensureLabelForBarcode, this DOES
-// overwrite an existing ScannedProduct's name/category/brand on every call —
-// a Label save is a deliberate human curating the catalog, a more
+// overwrite an existing ScannedProduct's name/category on every call — a
+// Label save is a deliberate human curating the catalog, a more
 // authoritative signal than a raw scan event, so it's correct for the cache
 // to refresh from it. Deliberately does NOT touch scanCount/lastScannedAt —
 // those track real scan events, and saving a Label (e.g. only its price)
 // isn't one; bumping them here would make "last scanned" lie.
+//
+// brand is the one exception to the always-overwrite rule above: no Label
+// create/edit form (admin or mobile) collects a brand value, so
+// data.brand is always null/undefined on every real call site today.
+// ScannedProduct.brand, on the other hand, can legitimately hold real data
+// from other sources (e.g. an openfoodfacts lookup). If we always wrote
+// brand like name/category, saving any Label for a barcode that already had
+// a real brand from openfoodfacts would silently null it out. So brand only
+// overwrites the existing row when the incoming value is a genuine
+// non-null, non-empty string; otherwise the existing brand (if any) is left
+// untouched by omitting the key from the update clause entirely. A brand-new
+// row has no prior value to preserve, so create still writes null in that case.
 export async function ensureScannedProductForBarcode(barcode: string, data: EnsureScannedProductInput): Promise<void> {
   const category = data.category ?? null;
   const brand = data.brand ?? null;
+  const hasBrand = typeof data.brand === 'string' && data.brand.trim().length > 0;
   await prisma.scannedProduct.upsert({
     where: { barcode },
     create: {
@@ -70,8 +83,8 @@ export async function ensureScannedProductForBarcode(barcode: string, data: Ensu
     update: {
       name: data.name,
       category,
-      brand,
       source: 'manual',
+      ...(hasBrand ? { brand: data.brand } : {}),
     },
   });
 }
