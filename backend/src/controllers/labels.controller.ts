@@ -6,6 +6,7 @@ import { LabelTemplate, Role } from '@prisma/client';
 import { audit } from '../utils/audit';
 import { resolveEffectivePrice } from '../utils/labelPricing';
 import { hasMinRole } from '../middleware/auth';
+import { ensureScannedProductForBarcode } from '../utils/labelSync';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -32,7 +33,7 @@ function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean 
 
 const createLabelSchema = z.object({
   productName: z.string().min(1).max(40),
-  priceText: z.string().min(1).max(7),
+  priceText: z.string().max(7).optional().nullable(),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
   category: z.string().max(100).optional().nullable(),
@@ -166,6 +167,22 @@ export async function createLabel(req: AuthRequest, res: Response) {
     include: { storeLabels: true },
   });
 
+  // Keep the shared scan-lookup cache (ScannedProduct) in sync — a Label
+  // created directly here (with a barcode) should be findable the next
+  // time someone scans it in Order List/Stock Request/Catalog. A failure
+  // here should not roll back the Label write; it's logged, not swallowed.
+  if (label.barcode) {
+    try {
+      await ensureScannedProductForBarcode(label.barcode, {
+        name: label.productName,
+        category: label.category,
+        brand: label.brand,
+      });
+    } catch (err) {
+      console.error('ensureScannedProductForBarcode failed for label', label.id, err);
+    }
+  }
+
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
@@ -178,7 +195,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
 
 const updateLabelSchema = z.object({
   productName: z.string().min(1).max(40).optional(),
-  priceText: z.string().min(1).max(7).optional(),
+  priceText: z.string().max(7).optional().nullable(),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
   category: z.string().max(100).optional().nullable(),
@@ -214,6 +231,20 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     where: { id: labelId },
     data: parsed.data,
   });
+
+  // Same sync as createLabel — a barcode edited/confirmed here should stay
+  // findable from the scan-lookup cache. Not rolled back on failure.
+  if (label.barcode) {
+    try {
+      await ensureScannedProductForBarcode(label.barcode, {
+        name: label.productName,
+        category: label.category,
+        brand: label.brand,
+      });
+    } catch (err) {
+      console.error('ensureScannedProductForBarcode failed for label', label.id, err);
+    }
+  }
 
   const priceChanged = parsed.data.priceText !== undefined && parsed.data.priceText !== before.priceText;
   const otherFieldChanged = (['productName', 'barcode', 'category', 'template', 'dealText'] as const)

@@ -2,7 +2,7 @@ import { useState, useEffect, CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, orderCategoriesApi, scannedProductApi } from '../services/api';
+import { labelsApi, orderCategoriesApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -222,9 +222,6 @@ export default function Labels() {
       const barcode = formBarcode.trim() || null;
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
-      }
-      if (barcode) {
-        scannedProductApi.save({ barcode, name: formProductName.trim(), category: category || undefined }).catch(() => {});
       }
       return editingLabel
         ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate })

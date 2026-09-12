@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
+import { labelsApi, storesApi, orderCategoriesApi } from '../services/api';
 import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, PlusIcon, DollarSignIcon, PrinterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
@@ -349,15 +349,6 @@ export default function LabelsScreen() {
         await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, category, template: formTemplate });
       } else {
         await labelsApi.create({ productName, priceText, dealText, barcode, category, template: formTemplate, storeId });
-      }
-      // Keep the shared scan-lookup cache (ScannedProduct) in sync — labels
-      // typed/edited directly here (quick-add from search, or correcting an
-      // existing label's name/category) bypass BarcodeScannerModal entirely,
-      // which is the only other place this cache normally gets written.
-      // Without this, a barcode entered here would come up "not found" the
-      // next time someone scans it in Order List/Stock Request.
-      if (barcode) {
-        scannedProductApi.save({ barcode, name: productName, category: category || undefined, source: 'manual' }).catch(() => {});
       }
       await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
       await qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
