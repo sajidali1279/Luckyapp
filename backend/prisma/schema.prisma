@@ -561,7 +561,8 @@ enum LabelTemplate {
 model Label {
   id               String        @id @default(uuid())
   productName      String
-  priceText        String        // chain-wide BASE price — what a store sees until it sets its own override
+  priceText        String?       // was required — null means "known product, price not set yet" (e.g. created by a scan, not a human)
+  brand            String?       // parity with ScannedProduct.brand, carried through on sync
   dealText         String?       // chain-wide only, not store-overridable (see design spec for why)
   barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/dealText
   category         String?       // freeform, same approval pipeline as Order List/Stock Request (OrderCategory) — not constrained by an enum here
