@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { ensureLabelForBarcode } from '../utils/labelSync';
 
 // ─── GET /scanned-products/barcode/:barcode ───────────────────────────────────
 // Check the local catalog before hitting Open Food Facts.
@@ -55,6 +56,23 @@ export async function saveProduct(req: AuthRequest, res: Response) {
     },
   });
 
+  // Every scan that reaches this endpoint should also exist as a (possibly
+  // priceless) Label — this is what lets Order List/Stock Request/mobile
+  // Catalog/Price Check feed the printable catalog without each caller
+  // doing anything extra. A sync hiccup here must not break the primary
+  // scan-save response, so it's logged, not thrown.
+  try {
+    await ensureLabelForBarcode(barcode, {
+      productName: name,
+      category: category ?? null,
+      brand: brand ?? null,
+      creatorStoreId: req.user!.storeIds?.[0] ?? null,
+      creatorId: req.user!.id,
+    });
+  } catch (err) {
+    console.error('ensureLabelForBarcode failed for scanned product', barcode, err);
+  }
+
   res.status(201).json({ success: true, data: product });
 }
 
@@ -82,4 +100,37 @@ export async function deleteProduct(req: AuthRequest, res: Response) {
   const { id } = req.params;
   await prisma.scannedProduct.delete({ where: { id } });
   res.json({ success: true });
+}
+
+// ─── PATCH /scanned-products/:id ───────────────────────────────────────────────
+// Edits name/category/brand. barcode is NOT editable here — it's the upsert
+// key everywhere else in this system; correcting a wrong barcode is still
+// delete + recreate, unchanged from today. STORE_MANAGER minimum, same gate
+// as listProducts/deleteProduct on this controller.
+
+const updateSchema = z.object({
+  name:     z.string().min(1).max(200).optional(),
+  category: z.string().max(100).optional().nullable(),
+  brand:    z.string().max(100).optional().nullable(),
+});
+
+export async function updateProduct(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.errors[0].message }); return; }
+
+  const existing = await prisma.scannedProduct.findUnique({ where: { id } });
+  if (!existing) { res.status(404).json({ success: false, error: 'Product not found' }); return; }
+
+  const { name, category, brand } = parsed.data;
+  const product = await prisma.scannedProduct.update({
+    where: { id },
+    data: {
+      ...(name !== undefined ? { name } : {}),
+      ...(category !== undefined ? { category } : {}),
+      ...(brand !== undefined ? { brand } : {}),
+    },
+  });
+
+  res.json({ success: true, data: product });
 }

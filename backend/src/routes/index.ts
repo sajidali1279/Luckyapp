@@ -65,7 +65,7 @@ import {
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
-import { lookupBarcode, saveProduct, listProducts, deleteProduct } from '../controllers/scannedProduct.controller';
+import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import {
@@ -475,6 +475,7 @@ router.patch('/employee-requests/:requestId/review',             authenticate, r
 router.get   ('/scanned-products/barcode/:barcode', authenticate, requireRole(Role.EMPLOYEE),  lookupBarcode);  // Look up by barcode (employee + manager)
 router.post  ('/scanned-products',                  authenticate, requireRole(Role.EMPLOYEE),  saveProduct);    // Save/upsert a barcode→name mapping
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
+router.patch ('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), updateProduct);  // Edit name/category/brand (managers+) — barcode not editable
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
