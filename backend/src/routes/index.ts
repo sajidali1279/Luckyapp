@@ -283,6 +283,12 @@ router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
+// Must stay above the GET /stores/:storeId wildcard below — Express matches routes in
+// registration order, and ":storeId" matches any single path segment including the
+// literal string "my-keyword-mappings", which would otherwise route printer-agent
+// requests (X-Store-API-Key auth, no JWT) into getStoreById's authenticate/JWT chain
+// and always 401 with "No token provided" before ever reaching getMyMappings.
+router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)
 router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
 router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
@@ -294,7 +300,6 @@ router.post('/stores/:storeId/holidays', authenticate, requireRole(Role.STORE_MA
 router.delete('/stores/:storeId/holidays/:holidayId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, deleteStoreHoliday);
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
-router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)
 router.get('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), getMappings);
 router.post('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), addMapping);
 router.delete('/stores/:storeId/keyword-mappings/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteMapping);
