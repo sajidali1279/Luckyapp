@@ -142,6 +142,10 @@ export default function Stores() {
   const [apiKeyStoreId, setApiKeyStoreId] = useState<string | null>(null);
   const [apiKeyVisible, setApiKeyVisible] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  // Whether a key exists per store (never the value itself -- only the hash is
+  // stored server-side now, so an existing key can't be "revealed", only
+  // regenerated). undefined = not checked yet.
+  const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, boolean>>({});
   const [kwStoreId, setKwStoreId] = useState<string | null>(null);
   const [kwMappings, setKwMappings] = useState<{ id: string; keyword: string; category: string }[]>([]);
   const [kwLoading, setKwLoading] = useState(false);
@@ -234,15 +238,12 @@ export default function Stores() {
     return gf.gas !== origGas || gf.diesel !== origDiesel;
   }
 
-  async function loadApiKey(storeId: string) {
+  async function checkApiKeyStatus(storeId: string) {
     setApiKeyStoreId(storeId);
-    if (apiKeys[storeId]) { setApiKeyVisible((p) => ({ ...p, [storeId]: true })); return; }
     try {
       const res = await storesApi.getApiKey(storeId);
-      const key = res.data.data.apiKey;
-      setApiKeys((p) => ({ ...p, [storeId]: key }));
-      setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
-    } catch { toast.error('Failed to load API key'); }
+      setApiKeyStatus((p) => ({ ...p, [storeId]: res.data.data.hasApiKey }));
+    } catch { toast.error('Failed to check API key status'); }
     setApiKeyStoreId(null);
   }
 
@@ -252,6 +253,7 @@ export default function Stores() {
       const key = res.data.data.apiKey;
       setApiKeys((p) => ({ ...p, [storeId]: key }));
       setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
+      setApiKeyStatus((p) => ({ ...p, [storeId]: true }));
       toast.success('API key regenerated - update config.json on the store PC');
     } catch { toast.error('Failed to regenerate API key'); }
   }
@@ -615,19 +617,29 @@ export default function Stores() {
                       {apiKeyVisible[store.id] && apiKeys[store.id] ? (
                         <div style={s.apiKeyBox}>
                           <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
+                          <div style={s.apiKeyHint}>Copy this now - it can't be shown again after you leave this page.</div>
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
                             <button style={{ ...s.apiKeyBtn, color: '#E63946', borderColor: '#fca5a5' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
                             <button style={{ ...s.apiKeyBtn, color: TEXT_MUTED }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
                           </div>
                         </div>
+                      ) : apiKeyStatus[store.id] !== undefined ? (
+                        <div style={s.apiKeyBox}>
+                          <div style={s.apiKeyStatusText}>
+                            {apiKeyStatus[store.id] ? '✓ A key is configured (not shown again - regenerate for a new one)' : 'No key set yet'}
+                          </div>
+                          <div style={s.apiKeyBtns}>
+                            <button style={s.apiKeyBtn} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
+                          </div>
+                        </div>
                       ) : (
                         <button
                           style={s.apiKeyRevealBtn}
-                          onClick={() => loadApiKey(store.id)}
+                          onClick={() => checkApiKeyStatus(store.id)}
                           disabled={apiKeyStoreId === store.id}
                         >
-                          {apiKeyStoreId === store.id ? 'Loading…' : '🔓 Reveal API Key'}
+                          {apiKeyStoreId === store.id ? 'Checking…' : '🔎 Check API Key Status'}
                         </button>
                       )}
                     </div>
@@ -1037,6 +1049,8 @@ const s: Record<string, React.CSSProperties> = {
   apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: PRIMARY },
   apiKeyBox: { background: '#f8f9fb', borderRadius: 10, padding: '10px 12px', border: '1px solid #e9ecef' },
   apiKeyCode: { display: 'block', fontSize: 13, fontFamily: 'monospace', color: PRIMARY, wordBreak: 'break-all' as const, marginBottom: 8 },
+  apiKeyHint: { fontSize: 11.5, color: TEXT_MUTED, marginBottom: 8, fontStyle: 'italic' as const },
+  apiKeyStatusText: { fontSize: 13, color: TEXT_MUTED, marginBottom: 8 },
   apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
   apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: PRIMARY },
 

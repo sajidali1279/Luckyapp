@@ -7,12 +7,8 @@ import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getTierBonusRate, updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
+import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function getStoreByApiKey(apiKey: string) {
-  return prisma.store.findUnique({ where: { apiKey } });
-}
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 // ─── POST /points/receipt-token  (called by printer agent) ───────────────────
@@ -355,19 +351,21 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   });
 }
 
-// ─── GET /billing/stores/:storeId/api-key  (DevAdmin — view/regenerate) ──────
+// ─── GET /billing/stores/:storeId/api-key  (DevAdmin — check/regenerate) ─────
+// Only the hash is ever stored, so the raw key can't be shown after the
+// fact — this reports whether one exists, not what it is. Regenerating is
+// the only way to get a usable raw key, and it's shown exactly once.
 
 export async function getStoreApiKey(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, apiKey: true } });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
-  res.json({ success: true, data: { storeId: store.id, name: store.name, apiKey: store.apiKey } });
+  res.json({ success: true, data: { storeId: store.id, name: store.name, hasApiKey: !!store.apiKey } });
 }
 
 export async function regenerateStoreApiKey(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const { randomBytes } = await import('crypto');
-  const apiKey = `sk_store_${randomBytes(20).toString('hex')}`;
-  const store = await prisma.store.update({ where: { id: storeId }, data: { apiKey }, select: { id: true, name: true, apiKey: true } });
-  res.json({ success: true, data: { storeId: store.id, name: store.name, apiKey: store.apiKey } });
+  const { rawKey, hashedKey } = generateStoreApiKey();
+  const store = await prisma.store.update({ where: { id: storeId }, data: { apiKey: hashedKey }, select: { id: true, name: true } });
+  res.json({ success: true, data: { storeId: store.id, name: store.name, apiKey: rawKey } });
 }

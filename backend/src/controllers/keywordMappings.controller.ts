@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory } from '@prisma/client';
+import { getStoreByApiKey } from '../utils/storeApiKey';
 
 const VALID_CATEGORIES = Object.values(ProductCategory);
 
@@ -49,7 +50,7 @@ export async function getMyMappings(req: AuthRequest, res: Response) {
     res.status(401).json({ success: false, error: 'Missing X-Store-API-Key' }); return;
   }
 
-  const store = await prisma.store.findUnique({ where: { apiKey } });
+  const store = await getStoreByApiKey(apiKey);
   if (!store) {
     res.status(401).json({ success: false, error: 'Invalid API key' }); return;
   }
