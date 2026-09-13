@@ -234,6 +234,7 @@ export const chatApi = {
     api.post(`/chat/${storeId}/messages`, { text }),
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadCountByStore: () => api.get('/chat/unread-by-store'),
+  clearChat: (storeId: string) => api.delete(`/chat/${storeId}/messages`),
 };
 
 export const catalogApi = {

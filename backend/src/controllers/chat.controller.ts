@@ -170,3 +170,16 @@ export async function sendMessage(req: AuthRequest, res: Response) {
 
   res.status(201).json({ success: true, data: message });
 }
+
+// ─── DELETE /chat/:storeId/messages ───────────────────────────────────────────
+// Permanently deletes this store's entire chat history. There is one shared
+// thread per store, not a separate copy per viewer, so this clears it for
+// that store's own staff too, not just the admin who clicked it — route-gated
+// to SUPER_ADMIN+ accordingly, not left to a StoreManager acting alone on a
+// conversation other people rely on.
+
+export async function clearChat(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const result = await prisma.chatMessage.deleteMany({ where: { storeId } });
+  res.json({ success: true, data: { deletedCount: result.count } });
+}

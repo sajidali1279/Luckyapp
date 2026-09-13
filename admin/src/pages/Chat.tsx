@@ -1,10 +1,11 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import ErrorState from '../components/ErrorState';
+import ConfirmModal from '../components/ConfirmModal';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
@@ -70,16 +71,32 @@ function getInitials(name: string) {
 
 export default function Chat() {
   const { user } = useAuthStore();
+  const qc = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [storeFilter, setStoreFilter] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isStoreManager = user?.role === 'STORE_MANAGER';
+  const canClearChat = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+
+  const clearChatMutation = useMutation({
+    mutationFn: () => chatApi.clearChat(selectedStoreId!),
+    onSuccess: () => {
+      toast.success('Chat cleared');
+      setMessages([]);
+      setLastTimestamp(null);
+      qc.invalidateQueries({ queryKey: ['chat-messages-init', selectedStoreId] });
+      qc.invalidateQueries({ queryKey: ['chat-unread-by-store'] });
+      setShowClearConfirm(false);
+    },
+    onError: () => toast.error('Failed to clear chat'),
+  });
 
   const { data: storesData, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['chat-stores'],
@@ -182,6 +199,15 @@ export default function Chat() {
 
   return (
     <div style={s.container}>
+      <ConfirmModal
+        open={showClearConfirm}
+        title="Clear Chat"
+        message={`Permanently delete all ${messages.length} message${messages.length === 1 ? '' : 's'} in ${selectedStore?.name ?? 'this store'}'s chat? This clears it for the store's own staff too, not just your view. This can't be undone.`}
+        confirmLabel={clearChatMutation.isPending ? 'Clearing…' : 'Clear Chat'}
+        danger
+        onConfirm={() => clearChatMutation.mutate()}
+        onCancel={() => setShowClearConfirm(false)}
+      />
       {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
           Store Manager is auto-selected above. A Store Manager assigned to
           more than one store still needs this to switch between them. ── */}
@@ -264,6 +290,15 @@ export default function Chat() {
               <div style={s.chatHeaderBadge}>
                 <span style={s.chatHeaderBadgeText}>{messages.length} msgs</span>
               </div>
+              {canClearChat && messages.length > 0 && (
+                <button
+                  style={s.clearChatBtn}
+                  onClick={() => setShowClearConfirm(true)}
+                  title="Permanently delete this store's chat history"
+                >
+                  🗑 Clear Chat
+                </button>
+              )}
             </div>
 
             {/* Pinned Notice */}
@@ -485,6 +520,11 @@ const s: Record<string, React.CSSProperties> = {
     padding: '4px 12px', backdropFilter: 'blur(4px)',
   },
   chatHeaderBadgeText: { color: '#fff', fontSize: 14, fontWeight: 700 },
+  clearChatBtn: {
+    background: 'rgba(255,255,255,0.18)', color: '#fff', border: 'none',
+    borderRadius: 8, padding: '7px 12px', cursor: 'pointer',
+    fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 8,
+  },
   noticeWrap: { padding: '12px 20px 0', background: '#f8fafc', flexShrink: 0 },
 
   // ── Messages ──

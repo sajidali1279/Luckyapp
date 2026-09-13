@@ -38,7 +38,7 @@ import {
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
-import { getMyChatStores, getMessages, sendMessage, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
+import { getMyChatStores, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
 import {
@@ -365,6 +365,7 @@ router.get('/chat/unread-count', authenticate, getChatUnreadCount);             
 router.get('/chat/unread-by-store', authenticate, getChatUnreadCountByStore);                        // Per-store breakdown for multi-store sidebar
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
+router.delete('/chat/:storeId/messages', authenticate, requireRole(Role.SUPER_ADMIN), clearChat);    // Permanently clear a store's chat history (SuperAdmin+ only)
 
 // ─── Redemption Catalog ───────────────────────────────────────────────────────
 router.get('/catalog', authenticate, getCatalog);
