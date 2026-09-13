@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, RefreshControl,
@@ -91,6 +91,29 @@ function ScanTab() {
   const nameRef  = useRef<TextInput>(null);
   const qc       = useQueryClient();
 
+  const [approvedCats, setApprovedCats] = useState<string[]>([]);
+  const [catSuggs, setCatSuggs] = useState<string[]>([]);
+  const [showCatSugg, setShowCatSugg] = useState(false);
+
+  const { data: catsData } = useQuery({
+    queryKey: ['approved-categories'],
+    queryFn: orderCategoriesApi.getApproved,
+  });
+  useEffect(() => {
+    setApprovedCats(catsData?.data?.data || []);
+  }, [catsData]);
+
+  function onCatInputChange(v: string) {
+    setCatInput(v);
+    if (v.trim()) {
+      const q = v.toLowerCase();
+      setCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 4));
+      setShowCatSugg(true);
+    } else {
+      setCatSuggs([]);
+    }
+  }
+
   // The camera fires onBarcodeScanned on every frame it can decode, not once
   // per code — without a confirmation delay, a brief/incidental read (camera
   // shake, a neighboring product's barcode drifting into frame) gets acted
@@ -175,8 +198,12 @@ function ScanTab() {
     const name = nameInput.trim();
     if (!name || saving) return;
     setSaving(true);
+    const cat = catInput.trim();
+    if (cat && !approvedCats.some(c => c.toLowerCase() === cat.toLowerCase())) {
+      orderCategoriesApi.submitNew(cat).catch(() => {});
+    }
     try {
-      await scannedProductApi.save({ barcode: curBarcode, name, category: catInput.trim() || undefined, source: 'manual' });
+      await scannedProductApi.save({ barcode: curBarcode, name, category: cat || undefined, source: 'manual' });
       setResultName(name);
       setPhase('added');
       qc.invalidateQueries({ queryKey: ['catalog-list'] });
@@ -275,18 +302,38 @@ function ScanTab() {
               returnKeyType="next"
               maxLength={200}
             />
-            <TextInput
-              style={[s.namingInput, { marginTop: 8 }]}
-              value={catInput}
-              onChangeText={setCatInput}
-              placeholder={t('managerCatalog.categoryPlaceholderShort')}
-              placeholderTextColor="#B0B8C4"
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={handleSaveName}
-              maxLength={100}
-            />
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={[s.namingInput, { marginTop: 8 }]}
+                value={catInput}
+                onChangeText={onCatInputChange}
+                onFocus={() => setShowCatSugg(catSuggs.length > 0)}
+                onBlur={() => setTimeout(() => setShowCatSugg(false), 120)}
+                placeholder={t('managerCatalog.categoryPlaceholderShort')}
+                placeholderTextColor="#B0B8C4"
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleSaveName}
+                maxLength={100}
+              />
+              {showCatSugg && catSuggs.length > 0 && (
+                <View style={s.sugg}>
+                  {catSuggs.map(c => (
+                    <TouchableOpacity
+                      key={c}
+                      style={s.suggRow}
+                      onPress={() => { setCatInput(c); setShowCatSugg(false); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('managerCatalog.useCategoryLabel', { category: c })}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                    >
+                      <Text style={s.suggText}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
             <View style={s.namingActions}>
               <TouchableOpacity
                 style={s.skipBtn}
@@ -354,11 +401,15 @@ function ManualTab() {
     const trimName = name.trim();
     if (!trimName || adding) return;
     setAdding(true);
+    const cat = category.trim();
+    if (cat && !approvedCats.some(c => c.toLowerCase() === cat.toLowerCase())) {
+      orderCategoriesApi.submitNew(cat).catch(() => {});
+    }
     // Use a name-derived pseudo-barcode so the same product name doesn't create duplicates
     const bc = barcode.trim() || `NOBARCODE_${trimName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
     try {
-      await scannedProductApi.save({ barcode: bc, name: trimName, category: category.trim() || undefined, source: 'manual' });
-      setRecentItems(prev => [{ name: trimName, category: category.trim() }, ...prev].slice(0, 30));
+      await scannedProductApi.save({ barcode: bc, name: trimName, category: cat || undefined, source: 'manual' });
+      setRecentItems(prev => [{ name: trimName, category: cat }, ...prev].slice(0, 30));
       setName('');
       setBarcode('');
       // keep category — manager is likely batch-adding from the same section of their book
