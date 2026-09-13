@@ -15,7 +15,7 @@ const PRINTABLE_STATUSES: LabelPrintStatus[] = ['new', 'needs_reprint'];
 interface CoverageStore { id: string; name: string; }
 interface CoverageEntry { storeId: string; storeLabelId: string | null; status: LabelPrintStatus; priceText: string | null; hasOverride: boolean; }
 interface CoverageLabel {
-  id: string; productName: string; barcode: string | null; category: string | null; basePriceText: string; dealText: string | null;
+  id: string; productName: string; barcode: string | null; category: string | null; basePriceText: string | null; dealText: string | null;
   template: string; addedCount: number; coverage: CoverageEntry[];
 }
 
@@ -123,7 +123,7 @@ export default function CoverageView() {
         groups.get(store.id)!.items.push({
           storeLabelId: c.storeLabelId,
           entry: {
-            label: { id: label.id, productName: label.productName, priceText: c.priceText ?? label.basePriceText, dealText: label.dealText, barcode: label.barcode, template: label.template },
+            label: { id: label.id, productName: label.productName, priceText: c.priceText ?? label.basePriceText ?? '', dealText: label.dealText, barcode: label.barcode, template: label.template },
             quantity: 1,
           },
         });
@@ -213,7 +213,7 @@ export default function CoverageView() {
                         {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
                       </TableCell>
                       <TableCell style={s.td}>
-                        ${label.basePriceText}
+                        {label.basePriceText != null ? `$${label.basePriceText}` : <span style={{ color: TEXT_MUTED }}>No price set</span>}
                         {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
                       </TableCell>
                       <TableCell style={s.td}>
@@ -242,7 +242,11 @@ export default function CoverageView() {
                                   <span style={s.chipStoreName}>{store?.name || c.storeId}</span>
                                   <span style={{ ...s.chipStatus, color: STATUS_COLOR[c.status] }}>{STATUS_LABEL[c.status]}</span>
                                   {c.status !== 'not_added' ? (
-                                    <span style={s.chipPrice}>${c.priceText}{c.hasOverride ? ' •' : ''}</span>
+                                    c.priceText != null ? (
+                                      <span style={s.chipPrice}>${c.priceText}{c.hasOverride ? ' •' : ''}</span>
+                                    ) : (
+                                      <span style={s.chipPrice}>No price set</span>
+                                    )
                                   ) : (
                                     <button
                                       style={s.chipAddBtn}

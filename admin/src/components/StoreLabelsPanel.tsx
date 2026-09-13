@@ -18,9 +18,9 @@ interface StoreLabel {
   barcode: string | null;
   category: string | null;
   template: string;
-  basePriceText: string;
+  basePriceText: string | null;
   dealText: string | null;
-  priceText: string;
+  priceText: string | null;
   hasOverride: boolean;
   overrideExpiresAt: string | null;
   printedAt: string | null;
@@ -153,7 +153,7 @@ export default function StoreLabelsPanel() {
 
   // "Not added" rows have no storeLabelId and no checkbox at all — select-all
   // only ever targets the rows that are actually selectable.
-  const selectableFilteredItems = filteredItems.filter((i): i is StoreLabel & { storeLabelId: string } => !!i.storeLabelId);
+  const selectableFilteredItems = filteredItems.filter((i): i is StoreLabel & { storeLabelId: string } => !!i.storeLabelId && i.status !== 'needs_price');
   const allFilteredSelected = selectableFilteredItems.length > 0 && selectableFilteredItems.every(i => selectedIds.has(i.storeLabelId));
 
   function toggleSelectAll() {
@@ -191,7 +191,8 @@ export default function StoreLabelsPanel() {
 
   function buildPrintEntries(): PrintableLabelEntry[] {
     return items
-      .filter(i => i.storeLabelId && selectedIds.has(i.storeLabelId))
+      .filter((i): i is StoreLabel & { storeLabelId: string; priceText: string } =>
+        !!i.storeLabelId && selectedIds.has(i.storeLabelId) && i.priceText != null)
       .map(i => ({
         label: {
           id: i.id, productName: i.productName, priceText: i.priceText,
@@ -244,14 +245,14 @@ export default function StoreLabelsPanel() {
         <div style={m.overlay} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }}>
           <div style={m.modal} onClick={e => e.stopPropagation()}>
             <h3 style={m.title}>Price at {stores.find(st => st.id === storeId)?.name}</h3>
-            <p style={m.sub}>{editingPrice.productName} — base price ${editingPrice.basePriceText}</p>
+            <p style={m.sub}>{editingPrice.productName} — base price {editingPrice.basePriceText != null ? `$${editingPrice.basePriceText}` : 'not set'}</p>
             <div style={m.priceInputWrap}>
               <span style={m.priceInputDollar}>$</span>
               <input
                 style={m.input}
                 value={priceDraft}
                 onChange={e => setPriceDraft(e.target.value.replace(/[^0-9.]/g, ''))}
-                placeholder={editingPrice.basePriceText}
+                placeholder={editingPrice.basePriceText ?? 'Enter a price'}
                 autoFocus
               />
             </div>
@@ -344,7 +345,7 @@ export default function StoreLabelsPanel() {
               {filteredItems.map((item, i) => (
                 <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                   <TableCell style={s.td}>
-                    {item.storeLabelId && (
+                    {item.storeLabelId && item.status !== 'needs_price' && (
                       <input
                         type="checkbox"
                         checked={selectedIds.has(item.storeLabelId)}
@@ -356,12 +357,18 @@ export default function StoreLabelsPanel() {
                     <span style={s.itemName}>{item.productName}</span>
                   </TableCell>
                   <TableCell style={s.td}>
-                    ${item.priceText}
-                    {item.hasOverride && <span style={s.overrideBadge}>override</span>}
-                    {item.overrideExpiresAt && (
-                      <span style={s.expiryBadge}>
-                        ends {new Date(item.overrideExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
+                    {item.priceText != null ? (
+                      <>
+                        ${item.priceText}
+                        {item.hasOverride && <span style={s.overrideBadge}>override</span>}
+                        {item.overrideExpiresAt && (
+                          <span style={s.expiryBadge}>
+                            ends {new Date(item.overrideExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span style={s.noPriceBadge}>No price set</span>
                     )}
                   </TableCell>
                   <TableCell style={s.td}>
@@ -377,9 +384,11 @@ export default function StoreLabelsPanel() {
                   <TableCell style={s.td}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {!item.storeLabelId ? (
-                        <button style={s.addBtn} onClick={() => addMutation.mutate(item.id)}>Add at ${item.basePriceText}</button>
+                        <button style={s.addBtn} onClick={() => addMutation.mutate(item.id)}>
+                          {item.basePriceText != null ? `Add at $${item.basePriceText}` : 'Add (no price yet)'}
+                        </button>
                       ) : (
-                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? item.priceText : ''); setExpiryDraft(item.overrideExpiresAt ? item.overrideExpiresAt.slice(0, 10) : ''); }}>
+                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? (item.priceText ?? '') : ''); setExpiryDraft(item.overrideExpiresAt ? item.overrideExpiresAt.slice(0, 10) : ''); }}>
                           Set Price
                         </button>
                       )}
@@ -461,6 +470,10 @@ const s: Record<string, CSSProperties> = {
   expiryBadge: {
     marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#7c3aed',
     background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px',
+  },
+  noPriceBadge: {
+    fontSize: 12, fontWeight: 700, color: '#b7791f',
+    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '3px 8px',
   },
   statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },
   ageText: { marginLeft: 8, fontSize: 12, color: TEXT_MUTED },

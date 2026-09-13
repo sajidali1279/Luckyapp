@@ -5,7 +5,7 @@ import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../util
 export interface PrintTrayItem {
   id: string;
   productName: string;
-  priceText: string;
+  priceText: string | null;
   dealText?: string | null;
   quantity: number;
   status?: Exclude<LabelPrintStatus, 'not_added'>;
@@ -64,14 +64,15 @@ export default function PrintTray({
                   <input
                     key={item.id}
                     style={s.priceInput}
-                    defaultValue={item.priceText}
+                    defaultValue={item.priceText ?? ''}
+                    placeholder="0.00"
                     onBlur={e => {
                       const v = e.target.value.trim();
                       if (v && v !== item.priceText) onPriceChange(item.id, v);
                     }}
                   />
                 ) : (
-                  <span style={s.priceStatic}>{item.priceText}</span>
+                  <span style={s.priceStatic}>{item.priceText ?? 'not set'}</span>
                 )}
               </div>
               <div style={s.qtyWrap}>
