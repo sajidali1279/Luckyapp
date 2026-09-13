@@ -57,6 +57,9 @@ export default function CoverageView() {
   const availableCategories = Array.from(new Set(labels.map(l => l.category).filter((c): c is string => !!c))).sort();
   const hasUncategorized = labels.some(l => !l.category);
 
+  const gapLabels = labels.filter(l => totalStores - l.addedCount > 0);
+  const totalGapSlots = gapLabels.reduce((sum, l) => sum + (totalStores - l.addedCount), 0);
+
   const allFilteredSelected = filtered.length > 0 && filtered.every(l => selectedIds.has(l.id));
 
   function toggleSelectAll() {
@@ -145,6 +148,25 @@ export default function CoverageView() {
       {bulkPrintQueue && <BulkPrintWizard queue={bulkPrintQueue} onClose={() => { setBulkPrintQueue(null); setSelectedIds(new Set()); }} />}
 
       {labels.length > 0 && (
+        <div style={{ ...s.summaryBox, ...(gapLabels.length === 0 ? s.summaryGood : s.summaryWarn) }}>
+          {gapLabels.length === 0 ? (
+            <>
+              <span style={s.summaryIcon}>✓</span>
+              <span style={s.summaryText}>Every product is in every store.</span>
+            </>
+          ) : (
+            <>
+              <span style={s.summaryIcon}>🏷️</span>
+              <span style={s.summaryText}>
+                <strong>{gapLabels.length}</strong> product{gapLabels.length === 1 ? '' : 's'} {gapLabels.length === 1 ? 'has' : 'have'} gaps — missing from{' '}
+                <strong>{totalGapSlots}</strong> store-slot{totalGapSlots === 1 ? '' : 's'} across the chain.
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {labels.length > 0 && (
         <div style={s.filterRow}>
           <input
             style={s.searchInput}
@@ -161,7 +183,7 @@ export default function CoverageView() {
           )}
           {selectedIds.size > 0 && (
             <button style={s.bulkPrintBtn} onClick={startBulkPrint}>
-              🖨️ Print for All Stores ({selectedIds.size} item{selectedIds.size === 1 ? '' : 's'})
+              🖨️ Print for All Stores ({selectedIds.size} product{selectedIds.size === 1 ? '' : 's'} selected)
             </button>
           )}
         </div>
@@ -276,6 +298,14 @@ export default function CoverageView() {
 
 const s: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
+  summaryBox: {
+    display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
+    borderRadius: 14, border: '1px solid',
+  },
+  summaryGood: { background: '#f0fdf4', borderColor: '#bbf7d0' },
+  summaryWarn: { background: '#fffbeb', borderColor: '#fde68a' },
+  summaryIcon: { fontSize: 22 },
+  summaryText: { fontSize: 15, color: PRIMARY },
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' },
   searchInput: {
     flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
