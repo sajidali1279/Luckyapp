@@ -38,7 +38,7 @@ function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean 
 
 const createLabelSchema = z.object({
   productName: z.string().min(1).max(40),
-  priceText: z.string().max(7).optional().nullable(),
+  priceText: z.string().min(1).max(7).optional().nullable(),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
   category: z.string().max(100).optional().nullable(),
@@ -202,7 +202,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
 
 const updateLabelSchema = z.object({
   productName: z.string().min(1).max(40).optional(),
-  priceText: z.string().max(7).optional().nullable(),
+  priceText: z.string().min(1).max(7).optional().nullable(),
   dealText: z.string().max(20).optional().nullable(),
   barcode: z.string().max(40).optional().nullable(),
   category: z.string().max(100).optional().nullable(),
