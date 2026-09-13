@@ -240,13 +240,19 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   });
 
   // Same sync as createLabel — a barcode edited/confirmed here should stay
-  // findable from the scan-lookup cache. Not rolled back on failure.
+  // findable from the scan-lookup cache. Not rolled back on failure. Only
+  // overwrite name/category on the ScannedProduct side if THIS request
+  // actually touched them — a price-only edit shouldn't resync a stale
+  // productName/category that a manager may have already corrected
+  // directly on ScannedProduct via its own Edit modal.
   if (label.barcode) {
     try {
       await ensureScannedProductForBarcode(label.barcode, {
         name: label.productName,
         category: label.category,
         brand: label.brand,
+        overwriteName: parsed.data.productName !== undefined,
+        overwriteCategory: parsed.data.category !== undefined,
       });
     } catch (err) {
       console.error('ensureScannedProductForBarcode failed for label', label.id, err);
