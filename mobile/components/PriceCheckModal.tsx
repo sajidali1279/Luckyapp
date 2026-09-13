@@ -8,11 +8,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { COLORS } from '../constants';
-import { XIcon, DollarSignIcon, PlusIcon } from './Icons';
-import { labelsApi } from '../services/api';
+import { XIcon, DollarSignIcon, PlusIcon, CheckCircleIcon } from './Icons';
+import { labelsApi, scannedProductApi, orderCategoriesApi } from '../services/api';
 
-type Phase = 'scanning' | 'loading' | 'result';
-type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
+type Phase = 'scanning' | 'loading' | 'result' | 'naming';
+type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 
 interface LookupResult {
   found: boolean;
@@ -20,7 +20,7 @@ interface LookupResult {
   id?: string;
   productName?: string;
   category?: string | null;
-  basePriceText?: string;
+  basePriceText?: string | null;
   dealText?: string | null;
   priceText?: string | null;
   hasOverride?: boolean;
@@ -37,12 +37,14 @@ const STATUS_LABEL: Record<PrintStatus, string> = {
   not_added: 'Not added',
   new: 'New — not printed yet',
   needs_reprint: 'Needs reprint — price changed',
+  needs_price: 'No price set yet',
   printed: 'Printed and up to date',
 };
 const STATUS_COLOR: Record<PrintStatus, string> = {
   not_added: '#8892a0',
   new: '#2563eb',
   needs_reprint: '#b7791f',
+  needs_price: '#b7791f',
   printed: '#15803d',
 };
 
@@ -55,11 +57,23 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<Phase>('scanning');
   const [lastCode, setLastCode] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
   const [adding, setAdding] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const manualInputRef = useRef<TextInput>(null);
+
+  // Naming/registration phase (unrecognized barcode) — same lightweight
+  // pattern as BarcodeScannerModal's "name this product" prompt.
+  const [productName, setProductName] = useState('');
+  const [category, setCategory] = useState('');
+  const [catSuggs, setCatSuggs] = useState<string[]>([]);
+  const [showCatSugg, setShowCatSugg] = useState(false);
+  const [approvedCats, setApprovedCats] = useState<string[]>([]);
+  const [registering, setRegistering] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(false);
+  const nameRef = useRef<TextInput>(null);
 
   const pendingCodeRef = useRef<string | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -72,13 +86,24 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
 
   useEffect(() => {
     if (visible) {
-      setPhase('scanning'); setLastCode(''); setResult(null); setAdding(false);
+      setPhase('scanning'); setLastCode(''); setBarcode(''); setResult(null); setAdding(false);
       setShowManualEntry(false); setManualBarcode('');
+      setProductName(''); setCategory(''); setRegistering(false); setJustRegistered(false);
       clearPendingScan();
+      orderCategoriesApi.getApproved()
+        .then(r => setApprovedCats(r.data?.data || []))
+        .catch(() => {});
     } else {
       clearPendingScan();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!category.trim()) { setCatSuggs([]); return; }
+    const q = category.toLowerCase();
+    setCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    setShowCatSugg(true);
+  }, [category, approvedCats]);
 
   function handleBarcodeDetected(r: { data: string }) {
     if (phase !== 'scanning') return;
@@ -91,14 +116,17 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   async function handleScan({ data }: { data: string }) {
     if (phase !== 'scanning' || data === lastCode) return;
     setLastCode(data);
+    setBarcode(data);
     setPhase('loading');
     try {
       const res = await labelsApi.lookupByBarcode(storeId, data);
-      setResult(res.data?.data ?? { found: false, barcode: data });
+      const found = res.data?.data ?? { found: false, barcode: data };
+      setResult(found);
+      setPhase(found.found ? 'result' : 'naming');
     } catch {
       setResult({ found: false, barcode: data });
+      setPhase('naming');
     }
-    setPhase('result');
   }
 
   function submitManualBarcode() {
@@ -112,7 +140,9 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   function scanAgain() {
     setPhase('scanning');
     setLastCode('');
+    setBarcode('');
     setResult(null);
+    setProductName(''); setCategory(''); setJustRegistered(false);
     clearPendingScan();
   }
 
@@ -123,12 +153,37 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
       await labelsApi.addToStore(result.id, storeId);
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all', storeId] });
-      Toast.show({ type: 'success', text1: 'Added to My Prints', text2: `At base price $${result.basePriceText}` });
-      setResult({ ...result, status: 'new', priceText: result.basePriceText, hasOverride: false });
+      const newStatus: PrintStatus = result.basePriceText != null ? 'new' : 'needs_price';
+      Toast.show({
+        type: 'success',
+        text1: 'Added to My Prints',
+        text2: result.basePriceText != null ? `At base price $${result.basePriceText}` : 'No price set yet',
+      });
+      setResult({ ...result, status: newStatus, priceText: result.basePriceText ?? null, hasOverride: false });
     } catch {
       Toast.show({ type: 'error', text1: 'Failed to add' });
     }
     setAdding(false);
+  }
+
+  async function handleRegister() {
+    const name = productName.trim();
+    const cat = category.trim();
+    if (!name || registering) return;
+    setRegistering(true);
+    // Silently submit a brand-new category for DevAdmin approval — same
+    // pipeline BarcodeScannerModal/Order List/Stock Request already feed.
+    if (cat && !approvedCats.some(c => c.toLowerCase() === cat.toLowerCase())) {
+      orderCategoriesApi.submitNew(cat).catch(() => {});
+    }
+    try {
+      await scannedProductApi.save({ barcode, name, category: cat || undefined, source: 'manual' });
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+      setJustRegistered(true);
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to save product' });
+    }
+    setRegistering(false);
   }
 
   const isDark = phase === 'scanning' || phase === 'loading';
@@ -224,54 +279,53 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
 
         ) : phase === 'result' && result ? (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-            {result.found ? (
-              <View style={st.resultCard}>
-                <View style={st.iconWrap}>
-                  <DollarSignIcon size={28} color={COLORS.secondary} strokeWidth={1.75} />
-                </View>
-                <Text style={st.productName}>{result.productName}</Text>
-                {result.category ? (
-                  <View style={st.catChip}><Text style={st.catChipText}>{result.category}</Text></View>
-                ) : null}
+            <View style={st.resultCard}>
+              <View style={st.iconWrap}>
+                <DollarSignIcon size={28} color={COLORS.secondary} strokeWidth={1.75} />
+              </View>
+              <Text style={st.productName}>{result.productName}</Text>
+              {result.category ? (
+                <View style={st.catChip}><Text style={st.catChipText}>{result.category}</Text></View>
+              ) : null}
 
-                {result.status !== 'not_added' && result.priceText ? (
-                  <>
-                    <Text style={st.priceBig}>${result.priceText}</Text>
-                    {result.dealText ? <Text style={st.dealText}>{result.dealText}</Text> : null}
-                    {result.hasOverride && <Text style={st.overrideNote}>Custom price for your store</Text>}
-                    {result.status && (
-                      <View style={[st.statusChip, { borderColor: STATUS_COLOR[result.status] }]}>
-                        <Text style={[st.statusChipText, { color: STATUS_COLOR[result.status] }]}>{STATUS_LABEL[result.status]}</Text>
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Text style={st.notAddedText}>Not priced at your store yet</Text>
-                    <Text style={st.baseHint}>Chain base price: ${result.basePriceText}</Text>
-                    <TouchableOpacity
-                      style={[st.addBtn, adding && st.btnDim]}
-                      onPress={handleAddToMyPrints}
-                      disabled={adding}
-                      accessibilityRole="button"
-                      accessibilityLabel="Add to My Prints at the base price"
-                    >
-                      {adding ? <ActivityIndicator color="#fff" size="small" /> : (
-                        <>
-                          <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-                          <Text style={st.addBtnText}>Add to My Prints</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            ) : (
-              <View style={st.resultCard}>
-                <Text style={st.productName}>Not in the catalog</Text>
-                <Text style={st.notAddedText}>This barcode isn't in the Lucky Stop label catalog yet.</Text>
-              </View>
-            )}
+              {result.status !== 'not_added' && result.priceText ? (
+                <>
+                  <Text style={st.priceBig}>${result.priceText}</Text>
+                  {result.dealText ? <Text style={st.dealText}>{result.dealText}</Text> : null}
+                  {result.hasOverride && <Text style={st.overrideNote}>Custom price for your store</Text>}
+                  {result.status && (
+                    <View style={[st.statusChip, { borderColor: STATUS_COLOR[result.status] }]}>
+                      <Text style={[st.statusChipText, { color: STATUS_COLOR[result.status] }]}>{STATUS_LABEL[result.status]}</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={st.notAddedText}>
+                    {result.status === 'needs_price' ? 'No price set yet. A manager can add one when labeling.' : 'Not priced at your store yet'}
+                  </Text>
+                  {result.status !== 'needs_price' && (
+                    <>
+                      {result.basePriceText != null && <Text style={st.baseHint}>Chain base price: ${result.basePriceText}</Text>}
+                      <TouchableOpacity
+                        style={[st.addBtn, adding && st.btnDim]}
+                        onPress={handleAddToMyPrints}
+                        disabled={adding}
+                        accessibilityRole="button"
+                        accessibilityLabel="Add to My Prints"
+                      >
+                        {adding ? <ActivityIndicator color="#fff" size="small" /> : (
+                          <>
+                            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+                            <Text style={st.addBtnText}>Add to My Prints</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
 
             <Text style={st.barcodeSmall}>{result.barcode}</Text>
 
@@ -279,6 +333,105 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
               <Text style={st.scanAgainText}>Check another price</Text>
             </TouchableOpacity>
           </ScrollView>
+
+        ) : phase === 'naming' ? (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {justRegistered ? (
+                <View style={st.resultCard}>
+                  <View style={st.iconWrap}>
+                    <CheckCircleIcon size={28} color={COLORS.secondary} strokeWidth={1.75} />
+                  </View>
+                  <Text style={st.productName}>{productName.trim()}</Text>
+                  <Text style={st.notAddedText}>No price set yet. A manager can add one when labeling.</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={st.barcodeChip}>
+                    <Text style={st.barcodeChipLabel}>Barcode</Text>
+                    <Text style={st.barcodeChipValue}>{barcode}</Text>
+                  </View>
+
+                  <Text style={st.namingHint}>
+                    This barcode isn't in the label catalog yet.{'\n'}
+                    Name it once - a manager can add a price when labeling.
+                  </Text>
+
+                  <Text style={st.fieldLabel}>Product name  <Text style={st.fieldLabelRequired}>*</Text></Text>
+                  <TextInput
+                    ref={nameRef}
+                    style={st.fieldInput}
+                    value={productName}
+                    onChangeText={setProductName}
+                    placeholder="e.g. Whole Milk 1 Gallon"
+                    placeholderTextColor="#B0B8C4"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    maxLength={200}
+                  />
+
+                  <Text style={[st.fieldLabel, { marginTop: 16 }]}>Category  <Text style={st.fieldLabelSub}>(optional)</Text></Text>
+                  <View style={{ position: 'relative' }}>
+                    <TextInput
+                      style={st.fieldInput}
+                      value={category}
+                      onChangeText={v => { setCategory(v); setShowCatSugg(true); }}
+                      onFocus={() => setShowCatSugg(catSuggs.length > 0)}
+                      onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
+                      placeholder="e.g. Dairy, Frozen Foods…"
+                      placeholderTextColor="#B0B8C4"
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      maxLength={100}
+                    />
+                    {showCatSugg && catSuggs.length > 0 && (
+                      <View style={st.catSugg}>
+                        {catSuggs.map(c => (
+                          <TouchableOpacity key={c} style={st.catSuggRow}
+                            onPress={() => { setCategory(c); setShowCatSugg(false); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Use category ${c}`}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={st.catSuggText}>{c}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[st.addBtn, (!productName.trim() || registering) && st.btnDim]}
+                    onPress={handleRegister}
+                    disabled={!productName.trim() || registering}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add product to catalog"
+                  >
+                    {registering ? <ActivityIndicator color="#fff" size="small" /> : (
+                      <>
+                        <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
+                        <Text style={st.addBtnText}>Add to Catalog</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <Text style={st.barcodeSmall}>{barcode}</Text>
+
+              <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain} accessibilityRole="button" accessibilityLabel="Check another price" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={st.scanAgainText}>Check another price</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
         ) : null}
 
       </SafeAreaView>
@@ -372,4 +525,29 @@ const st = StyleSheet.create({
   manualEntryCancelText: { fontSize: 15, fontWeight: '700', color: COLORS.textMuted },
   manualEntrySubmit: { flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: COLORS.secondary },
   manualEntrySubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  fieldLabel:        { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  fieldLabelSub:     { fontWeight: '400', color: COLORS.textMuted },
+  fieldLabelRequired:{ fontWeight: '400', color: COLORS.textMuted },
+  fieldInput: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 15, color: COLORS.text,
+  },
+  catSugg: {
+    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 10, marginTop: 2, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1, shadowRadius: 6, elevation: 8,
+  },
+  catSuggRow:  { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
+  catSuggText: { fontSize: 14, color: COLORS.text },
+  barcodeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#1E293B', borderRadius: 10, padding: 12, marginBottom: 16,
+  },
+  barcodeChipLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  barcodeChipValue: { fontSize: 15, fontWeight: '700', color: '#fff', fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },
+  namingHint: { fontSize: 13, color: COLORS.textMuted, lineHeight: 20, marginBottom: 24 },
 });
