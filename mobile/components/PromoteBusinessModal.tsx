@@ -23,6 +23,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
   const [promoBusinessName, setPromoBusinessName] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
   const [promoWebsite, setPromoWebsite] = useState('');
+  const [promoLocation, setPromoLocation] = useState('');
   const [promoImageUri, setPromoImageUri] = useState<string | null>(null);
 
   const submitPromoMutation = useMutation({
@@ -32,12 +33,13 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
       businessName: promoBusinessName.trim(),
       businessDescription: promoDesc.trim(),
       website: promoWebsite.trim() || undefined,
+      location: promoLocation.trim() || undefined,
       imageUri: promoImageUri || undefined,
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Request submitted!', text2: "We'll reach out soon." });
       qc.invalidateQueries({ queryKey: ['my-promo-request'] });
-      setPromoBusinessName(''); setPromoDesc(''); setPromoWebsite(''); setPromoImageUri(null);
+      setPromoBusinessName(''); setPromoDesc(''); setPromoWebsite(''); setPromoLocation(''); setPromoImageUri(null);
       onClose();
     },
     onError: (err: any) => {
@@ -90,6 +92,8 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
             />
             <Text style={s.label}>{t('promoModal.website')}</Text>
             <TextInput style={s.input} value={promoWebsite} onChangeText={setPromoWebsite} placeholder={t('promoModal.websitePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="url" autoCapitalize="none" />
+            <Text style={s.label}>{t('promoModal.location')}</Text>
+            <TextInput style={s.input} value={promoLocation} onChangeText={setPromoLocation} placeholder={t('promoModal.locationPlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
 
             <Text style={s.label}>{t('promoModal.businessImage')}</Text>
             {promoImageUri ? (

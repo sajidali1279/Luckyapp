@@ -235,6 +235,7 @@ export const promotionsApi = {
     businessName: string;
     businessDescription: string;
     website?: string;
+    location?: string;
     imageUri?: string;
   }) => {
     if (data.imageUri) {
@@ -245,6 +246,7 @@ export const promotionsApi = {
       fd.append('businessName', data.businessName);
       fd.append('businessDescription', data.businessDescription);
       if (data.website) fd.append('website', data.website);
+      if (data.location) fd.append('location', data.location);
       const filename = data.imageUri.split('/').pop() ?? 'image.jpg';
       const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
       const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
@@ -260,6 +262,7 @@ export const promotionsApi = {
       businessName: data.businessName,
       businessDescription: data.businessDescription,
       website: data.website,
+      location: data.location,
     });
   },
 };

@@ -13,7 +13,7 @@ import EmptyState from '../../components/EmptyState';
 import ErrorState from '../../components/ErrorState';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import PromoteBusinessModal from '../../components/PromoteBusinessModal';
-import { MegaphoneIcon, BuildingIcon, GlobeIcon } from '../../components/Icons';
+import { MegaphoneIcon, BuildingIcon, GlobeIcon, MapPinIcon } from '../../components/Icons';
 
 interface Ad {
   id: string;
@@ -22,6 +22,7 @@ interface Ad {
   adBody: string;
   adImageUrl: string | null;
   website: string | null;
+  location: string | null;
   publishedAt: string;
   adExpiresAt: string | null;
 }
@@ -91,6 +92,30 @@ export default function AdsScreen() {
         <Text style={s.adTitle}>{item.adTitle}</Text>
         <Text style={s.adBody}>{item.adBody}</Text>
 
+        {item.location ? (
+          <View style={s.locationRow}>
+            <MapPinIcon size={13} color={COLORS.textMuted} strokeWidth={2} />
+            <Text style={s.locationText} numberOfLines={1}>{item.location}</Text>
+          </View>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {item.location ? (
+            <TouchableOpacity
+              style={s.directionsBtn}
+              onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location!)}`).catch(() => {})}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={t('customerAds.getDirectionsA11y', { business: item.businessName })}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MapPinIcon size={14} color={COLORS.primary} strokeWidth={2} />
+                <Text style={s.websiteBtnText}>{t('customerAds.getDirections')}</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
+
         {item.website ? (
           <TouchableOpacity
             style={s.websiteBtn}
@@ -105,7 +130,8 @@ export default function AdsScreen() {
               <Text style={s.websiteBtnText}>{t('customerAds.visitWebsite')}</Text>
             </View>
           </TouchableOpacity>
-        ) : null}
+          ) : null}
+        </View>
 
         {item.adExpiresAt && new Date(item.adExpiresAt) > new Date() && (
           <Text style={s.expiresText}>
@@ -288,7 +314,17 @@ const s = StyleSheet.create({
   adTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text, lineHeight: 22 },
   adBody: { fontSize: 14, color: COLORS.textMuted, lineHeight: 21 },
 
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  locationText: { fontSize: 13, color: COLORS.textMuted, flex: 1 },
+
   websiteBtn: {
+    backgroundColor: COLORS.primary + '12',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+  },
+  directionsBtn: {
     backgroundColor: COLORS.primary + '12',
     borderRadius: 10,
     paddingVertical: 10,

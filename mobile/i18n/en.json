@@ -145,6 +145,7 @@
     "businessName": "Business Name *",
     "businessDesc": "Business Description *",
     "website": "Website (optional)",
+    "location": "Location (optional)",
     "businessImage": "Business Image / Logo (optional)",
     "tapToAdd": "Tap to add a photo or logo",
     "supportedFormats": "Shown with your ad — JPG, PNG",
@@ -156,7 +157,8 @@
     "phonePlaceholder": "Phone number",
     "businessNamePlaceholder": "Your business name",
     "businessDescPlaceholder": "What does your business do? Products, services, location...",
-    "websitePlaceholder": "https://yourbusiness.com"
+    "websitePlaceholder": "https://yourbusiness.com",
+    "locationPlaceholder": "e.g. 123 Main St, Sherman, TX"
   },
   "disputeModal": {
     "title": "Report Missing Points",
@@ -198,6 +200,8 @@
     "adBadge": "Ad",
     "visitWebsiteA11y": "Visit {{business}}'s website",
     "visitWebsite": "Visit Website",
+    "getDirectionsA11y": "Get directions to {{business}}",
+    "getDirections": "Get Directions",
     "promoTitle": "Own a local business?",
     "promoDisclaimer": "Charges may apply, contact us for details",
     "pending": "Pending",

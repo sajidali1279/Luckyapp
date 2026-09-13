@@ -145,6 +145,7 @@
     "businessName": "Nombre del Negocio *",
     "businessDesc": "Descripción del Negocio *",
     "website": "Sitio Web (opcional)",
+    "location": "Ubicación (opcional)",
     "businessImage": "Imagen / Logo del Negocio (opcional)",
     "tapToAdd": "Toca para agregar una foto o logo",
     "supportedFormats": "Mostrado con tu anuncio — JPG, PNG",
@@ -156,7 +157,8 @@
     "phonePlaceholder": "Número de teléfono",
     "businessNamePlaceholder": "Nombre de tu negocio",
     "businessDescPlaceholder": "¿Qué hace tu negocio? Productos, servicios, ubicación...",
-    "websitePlaceholder": "https://tunegocio.com"
+    "websitePlaceholder": "https://tunegocio.com",
+    "locationPlaceholder": "ej. 123 Main St, Sherman, TX"
   },
   "disputeModal": {
     "title": "Reportar Puntos Faltantes",
@@ -198,6 +200,8 @@
     "adBadge": "Anuncio",
     "visitWebsiteA11y": "Visitar el sitio web de {{businessName}}",
     "visitWebsite": "Visitar sitio web",
+    "getDirectionsA11y": "Obtener direcciones a {{business}}",
+    "getDirections": "Obtener Direcciones",
     "promoTitle": "¿Tienes un negocio local?",
     "promoDisclaimer": "Pueden aplicarse cargos, contáctanos para más detalles",
     "pending": "Pendiente",

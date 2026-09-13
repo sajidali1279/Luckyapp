@@ -14,9 +14,10 @@ import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import ErrorState from '../../components/ErrorState';
+import PromoFlipCard from '../../components/PromoFlipCard';
 import { COLORS, TIER_CONFIG } from '../../constants';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
@@ -555,8 +556,8 @@ export default function CustomerHome() {
   const modalImageHeight = Math.min(190, windowHeight * 0.24);
 
   // Staggered entrance — 7 sections fade + slide up on mount
-  const fadeAnims = useRef([...Array(8)].map(() => new Animated.Value(0))).current;
-  const slideAnims = useRef([...Array(8)].map(() => new Animated.Value(18))).current;
+  const fadeAnims = useRef([...Array(9)].map(() => new Animated.Value(0))).current;
+  const slideAnims = useRef([...Array(9)].map(() => new Animated.Value(18))).current;
   useEffect(() => {
     Animated.stagger(55, fadeAnims.map((anim, i) =>
       Animated.parallel([
@@ -753,6 +754,15 @@ export default function CustomerHome() {
     staleTime: 10 * 60 * 1000,
   });
   const catalogItems: any[] = catalogData?.data?.data ?? [];
+
+  // Same query key as the Ads tab (published-promotions) so the two share
+  // one cached fetch — Home just features the single most recent one.
+  const { data: promoData } = useQuery({
+    queryKey: ['published-promotions'],
+    queryFn: () => promotionsApi.getPublished(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const featuredAd = promoData?.data?.data?.[0] ?? null;
 
   const banners = bannersData?.data?.data || [];
   const allOffersRaw: any[] = offersData?.data?.data || [];
@@ -1344,6 +1354,23 @@ export default function CustomerHome() {
             </View>
           )
         }
+      </Animated.View>
+
+      {/* ── Local Businesses (distinct from "Active Promotions" above, which
+          is Lucky Stop's own store offers — this is third-party local
+          business ads) ── */}
+      <Animated.View style={{ opacity: fadeAnims[8], transform: [{ translateY: slideAnims[8] }] }}>
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<GlobeIcon size={17} color="#f97316" />} label="Local Businesses" />
+            {featuredAd && (
+              <TouchableOpacity onPress={() => router.push('/(customer)/ads')} accessibilityRole="link" accessibilityLabel="See all local business ads">
+                <Text style={styles.sectionCount}>See all</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <PromoFlipCard ad={featuredAd} />
+        </View>
       </Animated.View>
 
       {/* ── Hot Food Order Modal ── */}

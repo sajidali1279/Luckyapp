@@ -175,6 +175,7 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
   const [businessName, setBusinessName] = useState('');
   const [businessDescription, setBusinessDescription] = useState('');
   const [website, setWebsite] = useState('');
+  const [location, setLocation] = useState('');
   const [adTitle, setAdTitle] = useState('');
   const [adBody, setAdBody] = useState('');
   const [adExpiresAt, setAdExpiresAt] = useState('');
@@ -204,6 +205,7 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
       fd.append('businessName', businessName.trim());
       fd.append('businessDescription', businessDescription.trim());
       if (website.trim()) fd.append('website', website.trim());
+      if (location.trim()) fd.append('location', location.trim());
       fd.append('adTitle', adTitle.trim());
       fd.append('adBody', adBody.trim());
       if (adExpiresAt) fd.append('adExpiresAt', adExpiresAt);
@@ -250,6 +252,9 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
 
           <label style={m.label}>Website (optional)</label>
           <input style={m.input} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+
+          <label style={m.label}>Location (optional)</label>
+          <input style={m.input} value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. 123 Main St, Sherman, TX" />
 
           <label style={m.label}>Ad Title *</label>
           <input style={m.input} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />

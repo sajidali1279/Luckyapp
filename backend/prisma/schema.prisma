@@ -908,6 +908,7 @@ model BusinessPromotion {
   businessName     String
   businessDescription String
   website          String?
+  location         String?
   // DevAdmin publish content
   status           PromoStatus @default(PENDING)
   adTitle          String?

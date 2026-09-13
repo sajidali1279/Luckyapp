@@ -15,7 +15,7 @@ async function uploadToCloudinary(buffer: Buffer, folder: string): Promise<strin
 // POST /promotions/request — customer submits a promotion request
 export async function submitPromotionRequest(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
-  const { requesterName, requesterPhone, businessName, businessDescription, website } = req.body;
+  const { requesterName, requesterPhone, businessName, businessDescription, website, location } = req.body;
 
   if (!requesterName || !requesterPhone || !businessName || !businessDescription) {
     res.status(400).json({ success: false, error: 'requesterName, requesterPhone, businessName, and businessDescription are required' });
@@ -45,6 +45,7 @@ export async function submitPromotionRequest(req: AuthRequest, res: Response) {
       businessName: businessName.trim(),
       businessDescription: businessDescription.trim(),
       website: website?.trim() || null,
+      location: location?.trim() || null,
       adImageUrl: logoUrl, // store logo at submission; DevAdmin can override at publish time
     },
   });
@@ -71,6 +72,7 @@ export async function getPublishedPromotions(_req: AuthRequest, res: Response) {
       adBody: true,
       adImageUrl: true,
       website: true,
+      location: true,
       publishedAt: true,
       adExpiresAt: true,
     },
@@ -151,7 +153,7 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
 // actually for.
 export async function createManualPromotion(req: AuthRequest, res: Response) {
   const user = req.user!;
-  const { requesterName, requesterPhone, businessName, businessDescription, website, adTitle, adBody, adExpiresAt, devAdminNote } = req.body;
+  const { requesterName, requesterPhone, businessName, businessDescription, website, location, adTitle, adBody, adExpiresAt, devAdminNote } = req.body;
 
   if (!requesterName || !requesterPhone || !businessName || !businessDescription || !adTitle || !adBody) {
     res.status(400).json({ success: false, error: 'requesterName, requesterPhone, businessName, businessDescription, adTitle, and adBody are required' });
@@ -171,6 +173,7 @@ export async function createManualPromotion(req: AuthRequest, res: Response) {
       businessName: businessName.trim(),
       businessDescription: businessDescription.trim(),
       website: website?.trim() || null,
+      location: location?.trim() || null,
       status: 'APPROVED',
       adTitle: adTitle.trim(),
       adBody: adBody.trim(),
