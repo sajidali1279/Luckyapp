@@ -18,7 +18,7 @@ import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 interface Label {
   id: string;
   productName: string;
-  priceText: string;
+  priceText: string | null;
   dealText: string | null;
   barcode: string | null;
   category: string | null;
@@ -134,7 +134,8 @@ export default function Labels() {
   ).sort();
   const hasUncategorized = labels.some(l => !l.category);
 
-  const allFilteredSelected = filteredLabels.length > 0 && filteredLabels.every(l => selectedIds.has(l.id));
+  const selectableFilteredLabels = filteredLabels.filter(l => l.priceText != null);
+  const allFilteredSelected = selectableFilteredLabels.length > 0 && selectableFilteredLabels.every(l => selectedIds.has(l.id));
 
   function toggleSelected(id: string) {
     setSelectedIds(prev => {
@@ -165,14 +166,14 @@ export default function Labels() {
   function toggleSelectAll() {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (allFilteredSelected) filteredLabels.forEach(l => next.delete(l.id));
-      else filteredLabels.forEach(l => next.add(l.id));
+      if (allFilteredSelected) selectableFilteredLabels.forEach(l => next.delete(l.id));
+      else selectableFilteredLabels.forEach(l => next.add(l.id));
       return next;
     });
     setQuantities(prev => {
       const next = { ...prev };
-      if (allFilteredSelected) filteredLabels.forEach(l => { delete next[l.id]; });
-      else filteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
+      if (allFilteredSelected) selectableFilteredLabels.forEach(l => { delete next[l.id]; });
+      else selectableFilteredLabels.forEach(l => { if (!(l.id in next)) next[l.id] = 1; });
       return next;
     });
   }
@@ -199,7 +200,7 @@ export default function Labels() {
 
   function buildCatalogPrintEntries(): PrintableLabelEntry[] {
     return labels
-      .filter(l => selectedIds.has(l.id))
+      .filter((l): l is Label & { priceText: string } => selectedIds.has(l.id) && l.priceText != null)
       .map(l => ({
         label: { ...l, priceText: priceOverrides[l.id] ?? l.priceText },
         quantity: quantities[l.id] ?? 1,
@@ -267,7 +268,7 @@ export default function Labels() {
   function openEditModal(label: Label) {
     setEditingLabel(label);
     setFormProductName(label.productName);
-    setFormPriceText(label.priceText);
+    setFormPriceText(label.priceText || '');
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode || '');
     setFormCategory(label.category || '');
@@ -278,7 +279,7 @@ export default function Labels() {
   function duplicateLabel(label: Label) {
     setEditingLabel(null);
     setFormProductName(label.productName);
-    setFormPriceText(label.priceText);
+    setFormPriceText(label.priceText || '');
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode || '');
     setFormCategory(label.category || '');
@@ -548,7 +549,11 @@ export default function Labels() {
                       return (
                         <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                           <TableCell style={s.td}>
-                            <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} />
+                            {label.priceText != null ? (
+                              <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} />
+                            ) : (
+                              <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>—</span>
+                            )}
                           </TableCell>
                           <TableCell style={s.td}>
                             <span style={s.itemName}>{label.productName}</span>
@@ -558,8 +563,14 @@ export default function Labels() {
                             {label.category ? label.category : <span style={{ color: TEXT_MUTED }}> - </span>}
                           </TableCell>
                           <TableCell style={s.td}>
-                            ${label.priceText}
-                            {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
+                            {label.priceText != null ? (
+                              <>
+                                ${label.priceText}
+                                {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
+                              </>
+                            ) : (
+                              <span style={s.noPriceBadge} title="No price set yet. A manager can add one when labeling.">No price set</span>
+                            )}
                           </TableCell>
                           <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
                           <TableCell style={s.td}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
@@ -582,7 +593,7 @@ export default function Labels() {
           {selectedIds.size > 0 && (
             <PrintTray
               items={labels
-                .filter(l => selectedIds.has(l.id))
+                .filter((l): l is Label & { priceText: string } => selectedIds.has(l.id) && l.priceText != null)
                 .map(l => ({
                   id: l.id,
                   productName: l.productName,
@@ -651,6 +662,10 @@ const s: Record<string, CSSProperties> = {
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
   dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
+  noPriceBadge: {
+    fontSize: 12.5, fontWeight: 700, color: '#b7791f',
+    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '2px 8px',
+  },
   editBtn: {
     background: '#eff6ff', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
