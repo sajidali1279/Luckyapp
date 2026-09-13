@@ -229,6 +229,41 @@ export default function StoreRequests() {
     ? (stockAllData?.data?.data || [])
     : (stockData?.data?.data || []);
 
+  // Per-store pending breakdown for the sidebar's store list — same three
+  // sources the "Requests" nav badge already sums client-side (AppSidebar),
+  // just broken out per store instead of one combined number with no
+  // indication of which store actually needs a look.
+  const { data: alertByStoreData } = useQuery({
+    queryKey: ['store-requests-pending-by-store'],
+    queryFn: () => storeRequestApi.getPendingCountByStore(),
+    enabled: !isStoreManager || stores.length > 1,
+    refetchInterval: 30000,
+  });
+  const { data: productByStoreData } = useQuery({
+    queryKey: ['product-requests-pending-by-store'],
+    queryFn: () => productRequestApi.getPendingCountByStore(),
+    enabled: !isStoreManager || stores.length > 1,
+    refetchInterval: 30000,
+  });
+  const { data: stockByStoreData } = useQuery({
+    queryKey: ['stock-requests-pending-by-store'],
+    queryFn: () => employeeRequestApi.getPendingCountByStore(),
+    enabled: !isStoreManager || stores.length > 1,
+    refetchInterval: 30000,
+  });
+  const pendingByStoreId: Record<string, number> = (() => {
+    const alertMap: Record<string, number> = alertByStoreData?.data?.data || {};
+    const productMap: Record<string, number> = productByStoreData?.data?.data || {};
+    const stockMap: Record<string, number> = stockByStoreData?.data?.data || {};
+    const combined: Record<string, number> = {};
+    for (const map of [alertMap, productMap, stockMap]) {
+      for (const [storeId, count] of Object.entries(map)) {
+        combined[storeId] = (combined[storeId] || 0) + count;
+      }
+    }
+    return combined;
+  })();
+
   useEffect(() => {
     if (!highlightId) return;
     const timer = setTimeout(() => {
@@ -358,6 +393,7 @@ export default function StoreRequests() {
             {stores.map((store, i) => {
               const active = store.id === selectedStoreId;
               const g = STORE_GRADIENTS[i % STORE_GRADIENTS.length];
+              const pendingReqs = pendingByStoreId[store.id] || 0;
               return (
                 <button
                   key={store.id}
@@ -371,6 +407,7 @@ export default function StoreRequests() {
                     <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#212529' }}>{store.name}</div>
                     {store.city && <div style={s.storeBtnCity}>{store.city}</div>}
                   </div>
+                  {pendingReqs > 0 && <span style={s.pendingReqBadge}>{pendingReqs}</span>}
                   {active && <div style={s.activeIndicator} />}
                 </button>
               );
@@ -988,6 +1025,7 @@ const s: Record<string, React.CSSProperties> = {
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
+  pendingReqBadge: { background: '#b45309', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
   // ── Chat Panel ──
   chatPanel: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },

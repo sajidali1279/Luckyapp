@@ -237,3 +237,37 @@ export async function getPendingProductRequestCount(req: AuthRequest, res: Respo
 
   res.json({ success: true, data: { count } });
 }
+
+// ─── GET /product-requests/pending-by-store  (StoreManager+) ─────────────────
+// Same as getPendingProductRequestCount, but broken out per store so a
+// multi-store viewer's store list can show which store(s) actually have a
+// pending request, instead of one combined number with no indication of where.
+
+export async function getPendingProductRequestCountByStore(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  let storeIds: string[];
+  if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
+    storeIds = stores.map((s) => s.id);
+  } else {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { userId: user.id },
+      select: { storeId: true },
+    });
+    storeIds = storeRoles.map((sr) => sr.storeId);
+  }
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: {} });
+    return;
+  }
+
+  const grouped = await prisma.productRequest.groupBy({
+    by: ['storeId'],
+    where: { storeId: { in: storeIds }, status: 'PENDING', expiresAt: { gte: new Date() } },
+    _count: { _all: true },
+  });
+
+  res.json({ success: true, data: Object.fromEntries(grouped.map((g) => [g.storeId, g._count._all])) });
+}

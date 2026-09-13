@@ -39,8 +39,8 @@ import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
-import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, acknowledgeRequest } from '../controllers/storeRequest.controller';
-import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount } from '../controllers/productRequest.controller';
+import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
+import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
 import {
   getActiveList, getListHistory, getListById, openList, closeList,
   addItem, updateItem, removeItem, updateItemStatus, reorderItems,
@@ -55,6 +55,7 @@ import {
   reviewRequest,
   getEmployeeSuggestions,
   getItemRequestsPendingCount,
+  getItemRequestsPendingCountByStore,
 } from '../controllers/employeeRequest.controller';
 import {
   getCategories as getOrderCategories,
@@ -433,6 +434,7 @@ router.post('/welcome-bonus/confirm',           authenticate, requireRole(Role.E
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request
 router.get('/store-requests/mine', authenticate, requireRole(Role.EMPLOYEE), getMyRequests);         // Employee views their own requests
 router.get('/store-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingCount);  // Badge count for managers+
+router.get('/store-requests/pending-by-store', authenticate, requireRole(Role.STORE_MANAGER), getPendingCountByStore); // Per-store breakdown for multi-store sidebar
 router.get('/store-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreRequestsList); // Manager/admin views store requests
 router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole(Role.STORE_MANAGER), acknowledgeRequest); // Acknowledge a request
 
@@ -440,6 +442,7 @@ router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole
 router.post('/product-requests', authenticate, requireRole(Role.CUSTOMER), submitProductRequest);
 router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), getMyProductRequests);
 router.get('/product-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingProductRequestCount);
+router.get('/product-requests/pending-by-store', authenticate, requireRole(Role.STORE_MANAGER), getPendingProductRequestCountByStore); // Per-store breakdown for multi-store sidebar
 router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 
@@ -464,6 +467,7 @@ router.delete('/order-lists/items/:itemId',                     authenticate, re
 // ─── Employee Item Requests ───────────────────────────────────────────────────
 router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);              // Item name + category autocomplete
 router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);          // Badge count — all stores for admin, own stores for manager
+router.get('/employee-requests/pending-by-store',                authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCountByStore);   // Per-store breakdown for multi-store sidebar
 router.get('/employee-requests/admin/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllItemRequests);              // Admin: all requests across stores
 router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);                    // Employee submits multi-item form
 router.get('/employee-requests/mine',                            authenticate, requireRole(Role.EMPLOYEE),      getMyItemRequests);                    // Employee views own requests

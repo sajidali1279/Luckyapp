@@ -305,6 +305,7 @@ export const productRequestApi = {
   respond: (id: string, status: 'ACCEPTED' | 'DECLINED', responseNote?: string) =>
     api.patch(`/product-requests/${id}/respond`, { status, responseNote }),
   getPendingCount: () => api.get('/product-requests/pending-count'),
+  getPendingCountByStore: () => api.get('/product-requests/pending-by-store'),
 };
 
 export const storeRequestApi = {
@@ -312,6 +313,7 @@ export const storeRequestApi = {
   getStoreRequests: (storeId: string, status?: string) =>
     api.get(`/store-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
   getPendingCount: () => api.get('/store-requests/pending-count'),
+  getPendingCountByStore: () => api.get('/store-requests/pending-by-store'),
   acknowledge: (requestId: string, note?: string) =>
     api.patch(`/store-requests/${requestId}/acknowledge`, { note }),
 };
@@ -371,6 +373,7 @@ export const employeeRequestApi = {
   reviewRequest: (requestId: string, data: { lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
     api.patch(`/employee-requests/${requestId}/review`, data),
   getPendingCount: () => api.get('/employee-requests/pending-count'),
+  getPendingCountByStore: () => api.get('/employee-requests/pending-by-store'),
 };
 
 export const hotFoodApi = {

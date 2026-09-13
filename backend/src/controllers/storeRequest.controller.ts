@@ -144,6 +144,38 @@ export async function getPendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
+// Same as getPendingCount, but broken out per store so a multi-store
+// viewer's store list can show which store(s) actually have a pending
+// alert, instead of one combined number with no indication of where.
+export async function getPendingCountByStore(req: AuthRequest, res: Response) {
+  const user = req.user!;
+
+  let storeIds: string[];
+  if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
+    storeIds = stores.map((s) => s.id);
+  } else {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { userId: user.id },
+      select: { storeId: true },
+    });
+    storeIds = storeRoles.map((sr) => sr.storeId);
+  }
+
+  if (storeIds.length === 0) {
+    res.json({ success: true, data: {} });
+    return;
+  }
+
+  const grouped = await prisma.storeRequest.groupBy({
+    by: ['storeId'],
+    where: { storeId: { in: storeIds }, status: 'PENDING' },
+    _count: { _all: true },
+  });
+
+  res.json({ success: true, data: Object.fromEntries(grouped.map((g) => [g.storeId, g._count._all])) });
+}
+
 // ─── PATCH /store-requests/:requestId/acknowledge ────────────────────────────
 
 export async function acknowledgeRequest(req: AuthRequest, res: Response) {

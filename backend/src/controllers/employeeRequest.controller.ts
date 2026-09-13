@@ -179,6 +179,35 @@ export async function getItemRequestsPendingCount(req: AuthRequest, res: Respons
   res.json({ success: true, data: { count } });
 }
 
+// Same as getItemRequestsPendingCount, but broken out per store so a
+// multi-store viewer's store list can show which store(s) actually have a
+// pending request, instead of one combined number with no indication of where.
+export async function getItemRequestsPendingCountByStore(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  const isAdmin = user.role === Role.DEV_ADMIN || user.role === Role.SUPER_ADMIN;
+
+  let storeIds: string[];
+  if (isAdmin) {
+    const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
+    storeIds = stores.map((s) => s.id);
+  } else {
+    const storeRoles = await prisma.userStoreRole.findMany({
+      where: { userId: user.id },
+      select: { storeId: true },
+    });
+    storeIds = storeRoles.map(r => r.storeId);
+  }
+  if (storeIds.length === 0) { res.json({ success: true, data: {} }); return; }
+
+  const grouped = await prisma.employeeItemRequest.groupBy({
+    by: ['storeId'],
+    where: { storeId: { in: storeIds }, status: 'PENDING' },
+    _count: { _all: true },
+  });
+
+  res.json({ success: true, data: Object.fromEntries(grouped.map((g) => [g.storeId, g._count._all])) });
+}
+
 // ─── PATCH /employee-requests/:requestId/review ───────────────────────────────
 
 const reviewLineSchema = z.object({
