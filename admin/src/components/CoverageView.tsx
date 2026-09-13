@@ -116,14 +116,14 @@ export default function CoverageView() {
     for (const label of labels) {
       if (!selectedIds.has(label.id)) continue;
       for (const c of label.coverage) {
-        if (!c.storeLabelId || !PRINTABLE_STATUSES.includes(c.status)) continue;
+        if (!c.storeLabelId || !PRINTABLE_STATUSES.includes(c.status) || c.priceText == null) continue;
         const store = stores.find(st => st.id === c.storeId);
         if (!store) continue;
         if (!groups.has(store.id)) groups.set(store.id, { storeId: store.id, storeName: store.name, items: [] });
         groups.get(store.id)!.items.push({
           storeLabelId: c.storeLabelId,
           entry: {
-            label: { id: label.id, productName: label.productName, priceText: c.priceText ?? label.basePriceText ?? '', dealText: label.dealText, barcode: label.barcode, template: label.template },
+            label: { id: label.id, productName: label.productName, priceText: c.priceText, dealText: label.dealText, barcode: label.barcode, template: label.template },
             quantity: 1,
           },
         });
