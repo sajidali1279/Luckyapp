@@ -350,6 +350,8 @@ export const orderCategoriesApi = {
 
 export const scannedProductApi = {
   list: (q?: string) => api.get('/scanned-products', { params: q ? { q } : undefined }),
+  update: (id: string, data: { name?: string; category?: string | null; brand?: string | null }) =>
+    api.patch(`/scanned-products/${id}`, data),
   delete: (id: string) => api.delete(`/scanned-products/${id}`),
   save: (data: { barcode: string; name: string; category?: string; brand?: string }) =>
     api.post('/scanned-products', data),

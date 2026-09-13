@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { scannedProductApi } from '../services/api';
+import { scannedProductApi, orderCategoriesApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -41,6 +41,15 @@ export default function ScannedProducts() {
   const [newName, setNewName]         = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newBrand, setNewBrand]       = useState('');
+  const [approvedCats, setApprovedCats] = useState<string[]>([]);
+  const [newCatSuggs, setNewCatSuggs] = useState<string[]>([]);
+  const [showNewCatSugg, setShowNewCatSugg] = useState(false);
+  const [editingItem, setEditingItem] = useState<ScannedProduct | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editBrand, setEditBrand] = useState('');
+  const [editCatSuggs, setEditCatSuggs] = useState<string[]>([]);
+  const [showEditCatSugg, setShowEditCatSugg] = useState(false);
 
   // Debounce the search box before it hits the server-side `q` filter —
   // same 250ms setTimeout/cleanup pattern used elsewhere in admin (OrderList.tsx).
@@ -48,6 +57,28 @@ export default function ScannedProducts() {
     const t = setTimeout(() => setDebSearch(search), 250);
     return () => clearTimeout(t);
   }, [search]);
+
+  useEffect(() => {
+    if (showAddModal || editingItem) {
+      orderCategoriesApi.getApproved()
+        .then(r => setApprovedCats(r.data?.data || []))
+        .catch(() => {});
+    }
+  }, [showAddModal, editingItem]);
+
+  useEffect(() => {
+    if (!newCategory.trim()) { setNewCatSuggs([]); return; }
+    const q = newCategory.toLowerCase();
+    setNewCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    setShowNewCatSugg(true);
+  }, [newCategory, approvedCats]);
+
+  useEffect(() => {
+    if (!editCategory.trim()) { setEditCatSuggs([]); return; }
+    const q = editCategory.toLowerCase();
+    setEditCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    setShowEditCatSugg(true);
+  }, [editCategory, approvedCats]);
 
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
@@ -94,6 +125,41 @@ export default function ScannedProducts() {
     onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to save product'),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; name: string; category?: string; brand?: string }) =>
+      scannedProductApi.update(data.id, { name: data.name, category: data.category || null, brand: data.brand || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+      toast.success('Product updated');
+      closeEditModal();
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to update product'),
+  });
+
+  function openEditModal(item: ScannedProduct) {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditCategory(item.category || '');
+    setEditBrand(item.brand || '');
+  }
+
+  function closeEditModal() {
+    setEditingItem(null);
+    setEditName(''); setEditCategory(''); setEditBrand('');
+    setShowEditCatSugg(false);
+  }
+
+  function submitEdit() {
+    if (!editingItem) return;
+    const name = editName.trim();
+    if (!name) return;
+    const category = editCategory.trim();
+    if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
+      orderCategoriesApi.submitNew(category).catch(() => {});
+    }
+    updateMutation.mutate({ id: editingItem.id, name, category: category || undefined, brand: editBrand.trim() || undefined });
+  }
+
   function closeAddModal() {
     setShowAddModal(false);
     setNewBarcode(''); setNewName(''); setNewCategory(''); setNewBrand('');
@@ -103,9 +169,13 @@ export default function ScannedProducts() {
     const barcode = newBarcode.trim();
     const name = newName.trim();
     if (!barcode || !name) return;
+    const category = newCategory.trim();
+    if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
+      orderCategoriesApi.submitNew(category).catch(() => {});
+    }
     saveMutation.mutate({
       barcode, name,
-      category: newCategory.trim() || undefined,
+      category: category || undefined,
       brand: newBrand.trim() || undefined,
     });
   }
@@ -155,13 +225,27 @@ export default function ScannedProducts() {
                 maxLength={200}
               />
               <div style={m.label}>Category</div>
-              <input
-                style={m.input}
-                value={newCategory}
-                onChange={e => setNewCategory(e.target.value)}
-                placeholder="Optional - e.g. Drinks"
-                maxLength={100}
-              />
+              <div style={{ position: 'relative' as const }}>
+                <input
+                  style={m.input}
+                  value={newCategory}
+                  onChange={e => { setNewCategory(e.target.value); setShowNewCatSugg(true); }}
+                  onFocus={() => setShowNewCatSugg(newCatSuggs.length > 0)}
+                  onBlur={() => setTimeout(() => setShowNewCatSugg(false), 150)}
+                  placeholder="Optional - e.g. Drinks"
+                  maxLength={100}
+                  autoComplete="off"
+                />
+                {showNewCatSugg && newCatSuggs.length > 0 && (
+                  <div style={m.sugg}>
+                    {newCatSuggs.map(c => (
+                      <div key={c} style={m.suggRow} onMouseDown={() => { setNewCategory(c); setShowNewCatSugg(false); }}>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={m.label}>Brand</div>
               <input
                 style={m.input}
@@ -181,6 +265,71 @@ export default function ScannedProducts() {
                   disabled={!newBarcode.trim() || !newName.trim() || saveMutation.isPending}
                 >
                   {saveMutation.isPending ? 'Saving…' : 'Save Product'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingItem && (
+        <div style={m.overlay} onClick={closeEditModal}>
+          <div style={m.modal} onClick={e => e.stopPropagation()}>
+            <div style={m.header}>
+              <h2 style={m.title}>Edit Product</h2>
+              <button style={m.closeBtn} onClick={closeEditModal}>✕</button>
+            </div>
+            <div style={m.form}>
+              <div style={m.label}>Barcode</div>
+              <input style={{ ...m.input, ...m.inputReadOnly }} value={editingItem.barcode} readOnly disabled />
+              <div style={m.hint}>Barcode can't be changed here. Delete and re-add to fix a wrong barcode.</div>
+              <div style={m.label}>Name *</div>
+              <input
+                style={m.input}
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="e.g. Monster Energy 16oz"
+                maxLength={200}
+                autoFocus
+              />
+              <div style={m.label}>Category</div>
+              <div style={{ position: 'relative' as const }}>
+                <input
+                  style={m.input}
+                  value={editCategory}
+                  onChange={e => { setEditCategory(e.target.value); setShowEditCatSugg(true); }}
+                  onFocus={() => setShowEditCatSugg(editCatSuggs.length > 0)}
+                  onBlur={() => setTimeout(() => setShowEditCatSugg(false), 150)}
+                  placeholder="Optional - e.g. Drinks"
+                  maxLength={100}
+                  autoComplete="off"
+                />
+                {showEditCatSugg && editCatSuggs.length > 0 && (
+                  <div style={m.sugg}>
+                    {editCatSuggs.map(c => (
+                      <div key={c} style={m.suggRow} onMouseDown={() => { setEditCategory(c); setShowEditCatSugg(false); }}>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={m.label}>Brand</div>
+              <input
+                style={m.input}
+                value={editBrand}
+                onChange={e => setEditBrand(e.target.value)}
+                placeholder="Optional - e.g. Monster"
+                maxLength={100}
+              />
+              <div style={m.actions}>
+                <button style={m.cancelBtn} onClick={closeEditModal}>Cancel</button>
+                <button
+                  style={{ ...m.saveBtn, ...(!editName.trim() || updateMutation.isPending ? m.saveBtnDim : {}) }}
+                  onClick={submitEdit}
+                  disabled={!editName.trim() || updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -258,13 +407,16 @@ export default function ScannedProducts() {
                             <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
                             <TableCell style={s.td}>{new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
                             <TableCell style={s.td}>
-                              <button
-                                style={s.deleteBtn}
-                                onClick={() => handleDelete(p)}
-                                disabled={deletingId === p.id}
-                              >
-                                {deletingId === p.id ? '…' : 'Delete'}
-                              </button>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button style={s.editBtn} onClick={() => openEditModal(p)}>Edit</button>
+                                <button
+                                  style={s.deleteBtn}
+                                  onClick={() => handleDelete(p)}
+                                  disabled={deletingId === p.id}
+                                >
+                                  {deletingId === p.id ? '…' : 'Delete'}
+                                </button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -337,6 +489,10 @@ const s: Record<string, CSSProperties> = {
     background: '#fff0f0', color: '#c53030', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
+  editBtn: {
+    background: '#eff6ff', color: PRIMARY, border: 'none',
+    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+  },
 
   emptyBox: {
     background: '#fff', borderRadius: 16, padding: 60,
@@ -385,4 +541,14 @@ const m: Record<string, CSSProperties> = {
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
+  sugg: {
+    position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
+    border: '1.5px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 10px 10px',
+    zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto',
+  },
+  suggRow: {
+    padding: '10px 14px', cursor: 'pointer', fontSize: 14,
+    borderBottom: '1px solid #f8fafc',
+  },
+  inputReadOnly: { background: '#f4f4f4', color: '#888', cursor: 'not-allowed' },
 };
