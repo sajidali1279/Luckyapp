@@ -143,6 +143,46 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promo });
 }
 
+// POST /promotions/manual — DevAdmin creates and publishes a promotion
+// directly, with no preceding customer request at all (an in-house promo,
+// or a business that called in rather than using the app's own request
+// flow). requesterId is set to the creating DevAdmin purely to satisfy the
+// schema's foreign key — it does not need to represent whoever the ad is
+// actually for.
+export async function createManualPromotion(req: AuthRequest, res: Response) {
+  const user = req.user!;
+  const { requesterName, requesterPhone, businessName, businessDescription, website, adTitle, adBody, adExpiresAt, devAdminNote } = req.body;
+
+  if (!requesterName || !requesterPhone || !businessName || !businessDescription || !adTitle || !adBody) {
+    res.status(400).json({ success: false, error: 'requesterName, requesterPhone, businessName, businessDescription, adTitle, and adBody are required' });
+    return;
+  }
+
+  let adImageUrl: string | null = null;
+  if (req.file) {
+    adImageUrl = await uploadToCloudinary(req.file.buffer, 'luckystop/promo-banners');
+  }
+
+  const promo = await prisma.businessPromotion.create({
+    data: {
+      requesterId: user.id,
+      requesterName: requesterName.trim(),
+      requesterPhone: requesterPhone.trim(),
+      businessName: businessName.trim(),
+      businessDescription: businessDescription.trim(),
+      website: website?.trim() || null,
+      status: 'APPROVED',
+      adTitle: adTitle.trim(),
+      adBody: adBody.trim(),
+      adImageUrl,
+      adExpiresAt: adExpiresAt ? new Date(adExpiresAt) : null,
+      devAdminNote: devAdminNote?.trim() || null,
+      publishedAt: new Date(),
+    },
+  });
+  res.status(201).json({ success: true, data: promo });
+}
+
 // PATCH /promotions/:id/reject — DevAdmin rejects a request
 export async function rejectPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;

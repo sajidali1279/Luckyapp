@@ -247,6 +247,8 @@ export const promotionsApi = {
   getRequests: (status?: string) => api.get(`/promotions/requests${status ? `?status=${status}` : ''}`),
   publish: (id: string, formData: FormData) =>
     api.post(`/promotions/${id}/publish`, formData),
+  createManual: (formData: FormData) =>
+    api.post('/promotions/manual', formData),
   reject: (id: string, devAdminNote?: string) =>
     api.patch(`/promotions/${id}/reject`, { devAdminNote }),
   delete: (id: string) => api.delete(`/promotions/${id}`),

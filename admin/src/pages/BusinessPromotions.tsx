@@ -167,6 +167,157 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
   );
 }
 
+function CreatePromotionModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [requesterName, setRequesterName] = useState('');
+  const [requesterPhone, setRequesterPhone] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessDescription, setBusinessDescription] = useState('');
+  const [website, setWebsite] = useState('');
+  const [adTitle, setAdTitle] = useState('');
+  const [adBody, setAdBody] = useState('');
+  const [adExpiresAt, setAdExpiresAt] = useState('');
+  const [devAdminNote, setDevAdminNote] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  }
+
+  const canSubmit = !!(requesterName.trim() && requesterPhone.trim() && businessName.trim() && businessDescription.trim() && adTitle.trim() && adBody.trim());
+
+  const createMutation = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('requesterName', requesterName.trim());
+      fd.append('requesterPhone', requesterPhone.trim());
+      fd.append('businessName', businessName.trim());
+      fd.append('businessDescription', businessDescription.trim());
+      if (website.trim()) fd.append('website', website.trim());
+      fd.append('adTitle', adTitle.trim());
+      fd.append('adBody', adBody.trim());
+      if (adExpiresAt) fd.append('adExpiresAt', adExpiresAt);
+      if (devAdminNote.trim()) fd.append('devAdminNote', devAdminNote.trim());
+      if (imageFile) fd.append('image', imageFile);
+      return promotionsApi.createManual(fd);
+    },
+    onSuccess: () => {
+      toast.success('Promotion added and published!');
+      qc.invalidateQueries({ queryKey: ['promo-requests'] });
+      onClose();
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to add promotion'),
+  });
+
+  return (
+    <div style={m.overlay} onClick={onClose}>
+      <div style={m.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={m.modalHeader}>
+          <div>
+            <div style={m.modalTitle}>Add Promotion</div>
+            <div style={m.modalSub}>Published immediately — no customer request needed</div>
+          </div>
+          <button style={m.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div style={m.modalBody}>
+          <label style={m.label}>Business Name *</label>
+          <input style={m.input} value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="The business being advertised" />
+
+          <label style={m.label}>Business Description *</label>
+          <textarea
+            style={{ ...m.input, minHeight: 60, resize: 'vertical' } as React.CSSProperties}
+            value={businessDescription}
+            onChange={e => setBusinessDescription(e.target.value)}
+            placeholder="What the business does"
+          />
+
+          <label style={m.label}>Contact Name *</label>
+          <input style={m.input} value={requesterName} onChange={e => setRequesterName(e.target.value)} placeholder="Who to reach for this ad" />
+
+          <label style={m.label}>Contact Phone *</label>
+          <input style={m.input} value={requesterPhone} onChange={e => setRequesterPhone(e.target.value)} placeholder="Contact phone number" />
+
+          <label style={m.label}>Website (optional)</label>
+          <input style={m.input} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+
+          <label style={m.label}>Ad Title *</label>
+          <input style={m.input} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />
+
+          <label style={m.label}>Ad Body *</label>
+          <textarea
+            style={{ ...m.input, minHeight: 90, resize: 'vertical' } as React.CSSProperties}
+            value={adBody}
+            onChange={e => setAdBody(e.target.value)}
+            placeholder="Ad description shown to customers"
+          />
+
+          <label style={m.label}>Banner / Image (optional)</label>
+          <div style={m.imageArea}>
+            {imagePreview ? (
+              <div style={m.previewWrap}>
+                <img src={imagePreview} alt="preview" style={m.previewImg} />
+                <div style={m.previewActions}>
+                  <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
+                    🔄 Change
+                  </button>
+                  <button
+                    style={{ ...m.changeImgBtn, color: '#dc2626', borderColor: '#fca5a5' }}
+                    type="button"
+                    onClick={() => { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
+                  >
+                    🗑 Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button style={m.uploadBtn} type="button" onClick={() => fileRef.current?.click()}>
+                <span style={{ fontSize: 24 }}>🖼️</span>
+                <span style={m.uploadBtnText}>Click to upload banner image</span>
+                <span style={m.uploadBtnSub}>PNG, JPG, WEBP · max 10MB</span>
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+          </div>
+
+          <label style={m.label}>Expiry Date (optional)</label>
+          <input style={m.input} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
+
+          <label style={m.label}>Internal Note (optional)</label>
+          <input style={m.input} value={devAdminNote} onChange={e => setDevAdminNote(e.target.value)} placeholder="e.g. Paid $200/month, 3-month contract" />
+        </div>
+
+        <div style={m.modalFooter}>
+          <button style={m.cancelBtn} onClick={onClose}>Cancel</button>
+          <button
+            style={{ ...m.publishBtn, opacity: createMutation.isPending || !canSubmit ? 0.6 : 1 }}
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending || !canSubmit}
+          >
+            {createMutation.isPending ? 'Adding...' : '🚀 Add & Publish'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BusinessPromotions() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -174,6 +325,7 @@ export default function BusinessPromotions() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<PromoRequest | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PromoRequest | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['promo-requests', statusFilter],
@@ -231,11 +383,13 @@ export default function BusinessPromotions() {
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
+      {showCreateModal && <CreatePromotionModal onClose={() => setShowCreateModal(false)} />}
       <div style={s.topBar}>
         <div>
           <h1 style={s.title}>Business Promotions</h1>
           <p style={s.subtitle}>Review advertising requests and publish approved ads to the customer app.</p>
         </div>
+        <button style={s.addBtn} onClick={() => setShowCreateModal(true)}>+ Add Promotion</button>
       </div>
 
       {/* Stats row */}
@@ -400,7 +554,11 @@ export default function BusinessPromotions() {
 
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
-  topBar: { marginBottom: 24 },
+  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24 },
+  addBtn: {
+    padding: '10px 18px', borderRadius: 10, border: 'none', flexShrink: 0,
+    background: PRIMARY, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  },
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },
 

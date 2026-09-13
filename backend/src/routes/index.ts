@@ -95,6 +95,7 @@ import {
   getAllPromotionRequests,
   getPendingPromotionCount,
   publishPromotion,
+  createManualPromotion,
   rejectPromotion,
   deletePromotion,
 } from '../controllers/promotions.controller';
@@ -386,6 +387,7 @@ router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyProm
 router.get('/promotions/requests', authenticate, requireRole(Role.DEV_ADMIN), getAllPromotionRequests);                           // DevAdmin sees all requests
 router.get('/promotions/requests/pending-count', authenticate, requireRole(Role.DEV_ADMIN), getPendingPromotionCount);            // Badge count
 router.post('/promotions/:id/publish', authenticate, requireRole(Role.DEV_ADMIN), upload.single('image'), publishPromotion);     // DevAdmin publishes (optional banner image)
+router.post('/promotions/manual', authenticate, requireRole(Role.DEV_ADMIN), upload.single('image'), createManualPromotion);     // DevAdmin adds a promotion directly, no customer request needed
 router.patch('/promotions/:id/reject', authenticate, requireRole(Role.DEV_ADMIN), rejectPromotion);                              // DevAdmin rejects
 router.delete('/promotions/:id', authenticate, requireRole(Role.DEV_ADMIN), deletePromotion);                                    // DevAdmin deletes
 
