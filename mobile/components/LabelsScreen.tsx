@@ -18,12 +18,12 @@ import { useCurrentStoreId } from '../utils/geo';
 import { STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge, formatEndsOn } from '../utils/labelStatus';
 import ErrorState from './ErrorState';
 
-type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
+type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 
 interface Label {
   id: string;
   productName: string;
-  priceText: string;
+  priceText: string | null;
   dealText: string | null;
   barcode: string | null;
   category: string | null;
@@ -35,7 +35,7 @@ interface Label {
   // when no store has resolved yet. Always check truthiness, not `!== null`.
   myStoreLabel?: {
     id: string;
-    effectivePrice: string;
+    effectivePrice: string | null;
     printedAt: string | null;
     status: LabelPrintStatus;
     hasOverride: boolean;
@@ -50,9 +50,9 @@ interface StoreLabelItem {
   barcode: string | null;
   category: string | null;
   template: string;
-  basePriceText: string;
+  basePriceText: string | null;
   dealText: string | null;
-  priceText: string;
+  priceText: string | null;
   hasOverride: boolean;
   overrideExpiresAt: string | null;
   printedAt: string | null;
@@ -212,19 +212,19 @@ export default function LabelsScreen() {
   ).sort();
   const hasUncategorized = (viewMode === 'catalog' ? allLabels : myPrints).some(l => !l.category);
 
-  const allFilteredSelected = filteredMyPrints.length > 0 && filteredMyPrints.every(l => l.storeLabelId && selectedIds.has(l.storeLabelId));
+  const selectableMyPrints = filteredMyPrints.filter(l => l.storeLabelId && l.status !== 'needs_price');
+  const allFilteredSelected = selectableMyPrints.length > 0 && selectableMyPrints.every(l => selectedIds.has(l.storeLabelId!));
 
   function toggleSelectAll() {
+    const ids = selectableMyPrints.map(l => l.storeLabelId!);
     setSelectedIds(prev => {
       const next = new Set(prev);
-      const ids = filteredMyPrints.map(l => l.storeLabelId).filter((id): id is string => !!id);
       if (allFilteredSelected) ids.forEach(id => next.delete(id));
       else ids.forEach(id => next.add(id));
       return next;
     });
     setQuantities(prev => {
       const next = { ...prev };
-      const ids = filteredMyPrints.map(l => l.storeLabelId).filter((id): id is string => !!id);
       if (allFilteredSelected) ids.forEach(id => { delete next[id]; });
       else ids.forEach(id => { if (!(id in next)) next[id] = 1; });
       return next;
@@ -245,14 +245,14 @@ export default function LabelsScreen() {
 
   function applyNameSuggestion(label: Label) {
     setFormProductName(label.productName);
-    setFormPriceText(label.priceText);
+    setFormPriceText(label.priceText || '');
     setFormDealText(label.dealText || '');
     setShowNameSugg(false);
   }
 
   function openAddSheet(label: Label) {
     setAddSheetItem(label);
-    setAddSheetPriceMode('base');
+    setAddSheetPriceMode(label.priceText != null ? 'base' : 'custom');
     setAddSheetPrice('');
     setAddSheetExpiryDays(null);
   }
@@ -311,7 +311,7 @@ export default function LabelsScreen() {
   function openEditForm(label: Label) {
     setEditingLabel(label);
     setFormProductName(label.productName);
-    setFormPriceText(label.priceText);
+    setFormPriceText(label.priceText || '');
     setFormDealText(label.dealText || '');
     setFormBarcode(label.barcode);
     setFormCategory(label.category || '');
@@ -420,7 +420,8 @@ export default function LabelsScreen() {
   const totalCopies = [...selectedIds].reduce((sum, id) => sum + (quantities[id] ?? 1), 0);
 
   async function handlePrint(shareAsPdf: boolean) {
-    const toPrint = myPrints.filter(l => l.storeLabelId && selectedIds.has(l.storeLabelId));
+    const toPrint = myPrints.filter((l): l is StoreLabelItem & { storeLabelId: string; priceText: string } =>
+      !!l.storeLabelId && selectedIds.has(l.storeLabelId) && l.status !== 'needs_price' && l.priceText != null);
     if (toPrint.length === 0 || printing) return;
     setPrinting(true);
     try {
@@ -429,10 +430,10 @@ export default function LabelsScreen() {
           id: item.id, productName: item.productName, priceText: item.priceText,
           dealText: item.dealText, barcode: item.barcode, template: item.template,
         },
-        quantity: quantities[item.storeLabelId!] ?? 1,
+        quantity: quantities[item.storeLabelId] ?? 1,
       }));
       await printLabels({ entries, shareAsPdf });
-      const printItems = toPrint.map(item => ({ storeLabelId: item.storeLabelId!, quantity: quantities[item.storeLabelId!] ?? 1 }));
+      const printItems = toPrint.map(item => ({ storeLabelId: item.storeLabelId, quantity: quantities[item.storeLabelId] ?? 1 }));
       try {
         await labelsApi.print(printItems);
       } catch {
@@ -455,12 +456,13 @@ export default function LabelsScreen() {
   // it there, and using the footer button. This prints that one item in
   // place, one tap, no tab switch.
   async function handlePrintCatalogItem(item: Label) {
-    if (!item.myStoreLabel || printingCatalogId) return;
+    if (!item.myStoreLabel || item.myStoreLabel.status === 'needs_price' || printingCatalogId) return;
     setPrintingCatalogId(item.id);
     try {
       const entries: PrintableLabelEntry[] = [{
         label: {
-          id: item.id, productName: item.productName, priceText: item.priceText,
+          // Guarded above: status !== 'needs_price' guarantees effectivePrice is set.
+          id: item.id, productName: item.productName, priceText: item.myStoreLabel.effectivePrice!,
           dealText: item.dealText, barcode: item.barcode, template: item.template,
         },
         quantity: 1,
@@ -658,15 +660,19 @@ export default function LabelsScreen() {
           <View style={[s.addSheetCard, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 48 }]}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={s.formTitle}>{addSheetItem?.productName}</Text>
-            <Text style={s.addSheetSub}>Base price: ${addSheetItem?.priceText}</Text>
-            <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: accentColor, marginTop: 16 }]}
-              onPress={() => { setAddSheetPriceMode('base'); confirmAddToMyPrints(); }}
-              accessibilityRole="button"
-              accessibilityLabel={`Add at $${addSheetItem?.priceText}`}
-            >
-              <Text style={s.saveBtnText}>Add at ${addSheetItem?.priceText}</Text>
-            </TouchableOpacity>
+            <Text style={s.addSheetSub}>
+              {addSheetItem?.priceText != null ? `Base price: $${addSheetItem.priceText}` : 'No base price set yet. Enter your own price below.'}
+            </Text>
+            {addSheetItem?.priceText != null && (
+              <TouchableOpacity
+                style={[s.saveBtn, { backgroundColor: accentColor, marginTop: 16 }]}
+                onPress={() => { setAddSheetPriceMode('base'); confirmAddToMyPrints(); }}
+                accessibilityRole="button"
+                accessibilityLabel={`Add at $${addSheetItem.priceText}`}
+              >
+                <Text style={s.saveBtnText}>Add at ${addSheetItem.priceText}</Text>
+              </TouchableOpacity>
+            )}
             {addSheetPriceMode === 'custom' ? (
               <>
                 <Text style={[s.fieldLabel, { marginTop: 16 }]}>My price</Text>
@@ -676,7 +682,7 @@ export default function LabelsScreen() {
                     style={[s.fieldInput, s.priceInput]}
                     value={addSheetPrice}
                     onChangeText={t => setAddSheetPrice(t.replace(/[^0-9.]/g, ''))}
-                    placeholder={addSheetItem?.priceText}
+                    placeholder={addSheetItem?.priceText ?? '0.00'}
                     placeholderTextColor="#B0B8C4"
                     keyboardType="decimal-pad"
                     maxLength={7}
@@ -976,7 +982,7 @@ export default function LabelsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={s.cardName}>{item.productName}</Text>
             {item.category && <Text style={s.cardCategory}>{item.category}</Text>}
-            <Text style={s.cardPrice}>${item.priceText} base</Text>
+            <Text style={s.cardPrice}>{item.priceText != null ? `$${item.priceText} base` : 'No price set yet'}</Text>
             {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
             {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
           </View>
@@ -1025,7 +1031,7 @@ export default function LabelsScreen() {
       <View style={s.card}>
         <TouchableOpacity
           style={s.checkbox}
-          onPress={() => item.storeLabelId && toggleSelected(item.storeLabelId)}
+          onPress={() => item.storeLabelId && item.status !== 'needs_price' && toggleSelected(item.storeLabelId)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="checkbox"
           accessibilityState={{ checked }}
@@ -1040,7 +1046,7 @@ export default function LabelsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={s.cardName}>{item.productName}</Text>
             {item.category && <Text style={s.cardCategory}>{item.category}</Text>}
-            <Text style={s.cardPrice}>${item.priceText}{item.hasOverride ? ' (my price)' : ''}</Text>
+            <Text style={s.cardPrice}>{item.priceText != null ? `$${item.priceText}${item.hasOverride ? ' (my price)' : ''}` : 'No price set. Set one before printing.'}</Text>
             {item.dealText && <Text style={s.cardDeal}>{item.dealText}</Text>}
             {item.barcode && <Text style={s.cardBarcode}>{item.barcode}</Text>}
             <View style={s.statusRow}>

@@ -1,11 +1,12 @@
-// Mirrors admin's src/utils/labelStatus.ts — keep the four states in sync
+// Mirrors admin's src/utils/labelStatus.ts — keep the five states in sync
 // with the backend's printStatus() in labels.controller.ts.
-export type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'printed';
+export type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 
 export const STATUS_LABEL: Record<LabelPrintStatus, string> = {
   not_added: 'Not Added',
   new: 'New',
   needs_reprint: 'Needs Reprint',
+  needs_price: 'Needs Price',
   printed: 'Printed',
 };
 
@@ -13,6 +14,7 @@ export const STATUS_COLOR: Record<LabelPrintStatus, string> = {
   not_added: '#8892A0',
   new: '#2563EB',
   needs_reprint: '#B7791F',
+  needs_price: '#B7791F',
   printed: '#0F5132',
 };
 
@@ -20,6 +22,7 @@ export const STATUS_BG: Record<LabelPrintStatus, string> = {
   not_added: '#F4F4F7',
   new: '#EFF6FF',
   needs_reprint: '#FFFBEB',
+  needs_price: '#FFFBEB',
   printed: '#F0FDF4',
 };
 
