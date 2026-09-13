@@ -552,7 +552,7 @@ export default function Labels() {
                             {label.priceText != null ? (
                               <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} />
                             ) : (
-                              <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>—</span>
+                              <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>-</span>
                             )}
                           </TableCell>
                           <TableCell style={s.td}>
