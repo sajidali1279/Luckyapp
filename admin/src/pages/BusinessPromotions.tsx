@@ -38,6 +38,12 @@ const STATUS_BG: Record<string, string> = {
   REJECTED: '#fee2e2',
 };
 
+const STATUS_ICONS: Record<string, string> = {
+  PENDING:  '⏳',
+  APPROVED: '✅',
+  REJECTED: '❌',
+};
+
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -400,9 +406,14 @@ export default function BusinessPromotions() {
       {/* Stats row */}
       <div style={s.statsRow}>
         {(['PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
-          <div key={st} style={{ ...s.statCard, borderLeft: `4px solid ${STATUS_COLORS[st]}` }}>
-            <div style={{ ...s.statNum, color: STATUS_COLORS[st] }}>{counts[st]}</div>
-            <div style={s.statLabel}>{st.charAt(0) + st.slice(1).toLowerCase()}</div>
+          <div key={st} style={s.statCard}>
+            <div style={{ ...s.statIconWrap, background: STATUS_BG[st] }}>
+              <span style={s.statIcon}>{STATUS_ICONS[st]}</span>
+            </div>
+            <div>
+              <div style={s.statLabel}>{st.charAt(0) + st.slice(1).toLowerCase()}</div>
+              <div style={{ ...s.statNum, color: STATUS_COLORS[st] }}>{counts[st]}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -571,9 +582,12 @@ const s: Record<string, React.CSSProperties> = {
   statCard: {
     flex: 1, background: '#fff', borderRadius: 12, padding: '16px 20px',
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    display: 'flex', alignItems: 'center', gap: 14,
   },
-  statNum: { fontSize: 28, fontWeight: 900, lineHeight: 1 },
-  statLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statIconWrap: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  statIcon: { fontSize: 20 },
+  statNum: { fontSize: 28, fontWeight: 900, lineHeight: 1, marginTop: 2 },
+  statLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 20 },
   filterBtn: {

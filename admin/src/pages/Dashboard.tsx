@@ -685,7 +685,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Analytics Charts (DevAdmin only) ── */}
-      {isDevAdmin && analytics && (
+      {isDevAdmin && analytics && analytics.daily?.length > 0 && (
         <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
           <SectionHeader title="Last 30 Days - Activity" action={{ label: 'Full Analytics', to: '/analytics' }} />
           <div style={s.chartsRow}>

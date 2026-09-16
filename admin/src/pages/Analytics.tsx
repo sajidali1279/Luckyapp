@@ -130,73 +130,83 @@ export default function Analytics() {
             <SummaryCard icon="🏪" label="Active Stores" value={byStore.length} />
           </div>
 
-          {/* Daily transactions line chart */}
-          <div style={s.chartCard}>
-            <h2 style={s.chartTitle}>Daily Transactions</h2>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 13 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line type="monotone" dataKey="transactions" stroke="#E63946" strokeWidth={2} dot={false} name="Transactions" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {daily.length === 0 ? (
+            <div style={s.chartCard}>
+              <div style={s.emptyState}>
+                No activity in this date range yet. Charts will populate once transactions or redemptions come in.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Daily transactions line chart */}
+              <div style={s.chartCard}>
+                <h2 style={s.chartTitle}>Daily Transactions</h2>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                    <YAxis tick={{ fontSize: 13 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line type="monotone" dataKey="transactions" stroke="#E63946" strokeWidth={2} dot={false} name="Transactions" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-          {/* Daily revenue line chart */}
-          <div style={s.chartCard}>
-            <h2 style={s.chartTitle}>Daily Revenue (Purchase Volume & Dev Cut)</h2>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
-                <Line type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} dot={false} name="Dev Cut" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+              {/* Daily revenue line chart */}
+              <div style={s.chartCard}>
+                <h2 style={s.chartTitle}>Daily Revenue (Purchase Volume & Dev Cut)</h2>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                    <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
+                    <Line type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} dot={false} name="Dev Cut" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-          {/* Daily points awarded area chart */}
-          <div style={s.chartCard}>
-            <h2 style={s.chartTitle}>Points Awarded Trend</h2>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="pointsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F4A261" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#F4A261" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="pointsAwarded" stroke="#F4A261" strokeWidth={2} fill="url(#pointsGrad)" name="Points Awarded" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+              {/* Daily points awarded area chart */}
+              <div style={s.chartCard}>
+                <h2 style={s.chartTitle}>Points Awarded Trend</h2>
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="pointsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F4A261" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#F4A261" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                    <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="pointsAwarded" stroke="#F4A261" strokeWidth={2} fill="url(#pointsGrad)" name="Points Awarded" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-          {/* Daily redemptions - count (bars) + $ redeemed (line) on a second axis */}
-          <div style={s.chartCard}>
-            <h2 style={s.chartTitle}>Redemptions Trend</h2>
-            <ResponsiveContainer width="100%" height={240}>
-              <ComposedChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis yAxisId="left" tick={{ fontSize: 13 }} allowDecimals={false} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="redemptions" fill="#6f42c1" name="Redemptions" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#2DC653" strokeWidth={2} name="Redeemed Amount" dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+              {/* Daily redemptions - count (bars) + $ redeemed (line) on a second axis */}
+              <div style={s.chartCard}>
+                <h2 style={s.chartTitle}>Redemptions Trend</h2>
+                <ResponsiveContainer width="100%" height={240}>
+                  <ComposedChart data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={(v) => v.slice(5)} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 13 }} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="redemptions" fill="#6f42c1" name="Redemptions" radius={[4, 4, 0, 0]} />
+                    <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#2DC653" strokeWidth={2} name="Redeemed Amount" dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
 
           {/* Per-store bar chart */}
           {byStore.length > 0 && (
@@ -363,6 +373,7 @@ const s: Record<string, React.CSSProperties> = {
   applyBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
 
   loading: { color: TEXT_MUTED, textAlign: 'center', padding: 80, fontSize: 16 },
+  emptyState: { color: TEXT_MUTED, textAlign: 'center', padding: 40, fontSize: 15 },
 
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 28 },
   summaryCard: { background: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 14, border: '1px solid #f0f1f2' },

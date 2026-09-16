@@ -1356,7 +1356,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.findMany({
       where: { status: 'APPROVED', createdAt: { gte: fromDate, lte: toDate } },
       select: {
-        createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true,
+        createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
         store: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -1380,6 +1380,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     byDate[date].transactions++;
     byDate[date].purchaseVolume = parseFloat((byDate[date].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
     byDate[date].pointsAwarded = parseFloat((byDate[date].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
+    byDate[date].devCut = parseFloat((byDate[date].devCut + Number(tx.devCut)).toFixed(2));
   }
   for (const r of redemptions) {
     const date = r.createdAt.toISOString().slice(0, 10);
@@ -1400,6 +1401,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     byStore[id].transactions++;
     byStore[id].purchaseVolume = parseFloat((byStore[id].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
     byStore[id].pointsAwarded = parseFloat((byStore[id].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
+    byStore[id].devCut = parseFloat((byStore[id].devCut + Number(tx.devCut)).toFixed(2));
   }
   for (const r of redemptions) {
     const id = r.store.id;
@@ -1424,7 +1426,10 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     pointsAwarded: transactions.reduce((s, t) => parseFloat((s + Number(t.pointsAwarded)).toFixed(2)), 0),
     redemptions: redemptions.length,
     redeemedAmount: redemptions.reduce((s, r) => parseFloat((s + Number(r.amount)).toFixed(2)), 0),
-    devCut: redemptions.reduce((s, r) => parseFloat((s + Number(r.devCut)).toFixed(2)), 0),
+    devCut: parseFloat((
+      transactions.reduce((s, t) => s + Number(t.devCut), 0) +
+      redemptions.reduce((s, r) => s + Number(r.devCut), 0)
+    ).toFixed(2)),
   };
 
   res.json({

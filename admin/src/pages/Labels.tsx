@@ -14,6 +14,9 @@ import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
 import PrintTray from '../components/PrintTray';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
+import DataTablePagination from '../components/DataTablePagination';
+
+const CATALOG_PAGE_SIZE = 50;
 
 interface Label {
   id: string;
@@ -76,6 +79,7 @@ export default function Labels() {
   const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [catalogPage, setCatalogPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
@@ -133,6 +137,13 @@ export default function Labels() {
     new Set(labels.map(l => l.category).filter((c): c is string => !!c))
   ).sort();
   const hasUncategorized = labels.some(l => !l.category);
+
+  const catalogTotalPages = Math.max(1, Math.ceil(filteredLabels.length / CATALOG_PAGE_SIZE));
+  const pagedLabels = filteredLabels.slice((catalogPage - 1) * CATALOG_PAGE_SIZE, catalogPage * CATALOG_PAGE_SIZE);
+
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [search, categoryFilter]);
 
   const selectableFilteredLabels = filteredLabels.filter(l => l.priceText != null);
   const allFilteredSelected = selectableFilteredLabels.length > 0 && selectableFilteredLabels.every(l => selectedIds.has(l.id));
@@ -544,7 +555,7 @@ export default function Labels() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredLabels.map((label, i) => {
+                    {pagedLabels.map((label, i) => {
                       const checked = selectedIds.has(label.id);
                       return (
                         <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
@@ -586,6 +597,13 @@ export default function Labels() {
                     })}
                   </TableBody>
                 </Table>
+                <DataTablePagination
+                  page={catalogPage}
+                  totalPages={catalogTotalPages}
+                  onPrevious={() => setCatalogPage(p => Math.max(1, p - 1))}
+                  onNext={() => setCatalogPage(p => Math.min(catalogTotalPages, p + 1))}
+                  extraInfo={`(${filteredLabels.length} labels)`}
+                />
               </div>
             )}
           </div>
