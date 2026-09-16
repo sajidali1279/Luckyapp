@@ -1000,10 +1000,22 @@ export default function CustomerHome() {
           ) : (
             <Text style={styles.tierProgressMaxText}>✦ Platinum - Max tier achieved</Text>
           )}
+
+          <TouchableOpacity
+            style={styles.qrFab}
+            onPress={() => setShowQR(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Show my QR code"
+          >
+            <View style={styles.qrFabInner}>
+              <Text style={styles.qrFabIcon}>▦</Text>
+              <Text style={styles.qrFabLabel}>My QR</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
-      {/* QR section removed - accessible via floating QR button */}
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <WelcomeBonusCard />
       </Animated.View>
@@ -1798,19 +1810,6 @@ export default function CustomerHome() {
         </InlineModal>
       )}
 
-      {/* ── QR floating button ── */}
-      <TouchableOpacity
-        style={styles.qrFab}
-        onPress={() => setShowQR(true)}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Show my QR code"
-      >
-        <View style={styles.qrFabInner}>
-          <Text style={styles.qrFabIcon}>▦</Text>
-          <Text style={styles.qrFabLabel}>My QR</Text>
-        </View>
-      </TouchableOpacity>
 
       {/* ── QR Modal ── */}
       <Modal visible={showQR} transparent animationType="slide" onRequestClose={() => setShowQR(false)}>
@@ -1886,11 +1885,7 @@ const styles = StyleSheet.create({
   headerBg: { backgroundColor: COLORS.primary },
   // QR floating button
   qrFab: {
-    position: 'absolute',
-    bottom: 12,
-    alignSelf: 'center',
-    left: '50%',
-    marginLeft: -52,
+    marginTop: 16,
   },
   qrFabInner: {
     backgroundColor: COLORS.primary,

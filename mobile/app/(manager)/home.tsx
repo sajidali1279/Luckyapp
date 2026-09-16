@@ -147,7 +147,7 @@ export default function ManagerHome() {
         <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
 
         {/* ── Header with SVG gradient ── */}
-        <View style={s.header}>
+        <View style={[s.header, stores.length > 1 && s.headerWithPicker]}>
         <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
           <Defs>
             <SvgGradient id="hg" x1="0" y1="0" x2="1" y2="1">
@@ -496,6 +496,12 @@ const s = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 64,
     overflow: 'hidden',
+  },
+  // The store-picker row below already adds its own height + spacing —
+  // stacking the full 64 on top of it left a large empty gap for any
+  // manager with more than one store (worse the more stores they have).
+  headerWithPicker: {
+    paddingBottom: 20,
   },
   headerRow: {
     flexDirection: 'row', alignItems: 'flex-start',

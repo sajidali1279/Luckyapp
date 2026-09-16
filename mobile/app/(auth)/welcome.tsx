@@ -159,6 +159,7 @@ export default function WelcomeScreen() {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [legalDoc, setLegalDoc] = useState<'terms' | 'privacy' | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const termsLayoutHeight = useRef(0);
 
   function handleNext() {
     if (currentSlide < SLIDES.length - 1) {
@@ -173,6 +174,14 @@ export default function WelcomeScreen() {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
     if (isAtBottom) setScrolledToBottom(true);
+  }
+
+  // Content shorter than the viewport (nothing to scroll) shouldn't leave
+  // the agree checkbox permanently locked with no way to unlock it.
+  function handleTermsContentSize(contentHeight: number) {
+    if (termsLayoutHeight.current > 0 && contentHeight <= termsLayoutHeight.current) {
+      setScrolledToBottom(true);
+    }
   }
 
   async function handleAgree() {
@@ -197,6 +206,10 @@ export default function WelcomeScreen() {
             <ScrollView
               style={ts.termsScroll}
               onScroll={handleScroll}
+              onMomentumScrollEnd={handleScroll}
+              onScrollEndDrag={handleScroll}
+              onLayout={(e) => { termsLayoutHeight.current = e.nativeEvent.layout.height; }}
+              onContentSizeChange={(_w, h) => handleTermsContentSize(h)}
               scrollEventThrottle={100}
               showsVerticalScrollIndicator={true}
             >
