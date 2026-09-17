@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Image, StatusBar, FlatList,
+  ActivityIndicator, ScrollView, StatusBar, FlatList,
   Animated, Easing, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -688,7 +689,7 @@ export default function EmployeeScanScreen() {
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <View style={s.fill}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={s.headerBg}>
@@ -1212,7 +1213,7 @@ export default function EmployeeScanScreen() {
           >
             {receiptImage ? (
               <View style={{ width: '100%' }}>
-                <Image source={{ uri: receiptImage }} style={s.receiptImg} />
+                <Image source={{ uri: receiptImage }} style={s.receiptImg} contentFit="cover" />
                 <View style={s.retakeRow}>
                   <CameraIcon size={14} color={COLORS.textMuted} strokeWidth={2} />
                   <Text style={s.retakeText}>{t('employeeScan.tapToRetake')}</Text>
@@ -1703,7 +1704,7 @@ const s = StyleSheet.create({
   receiptIconWrap: { marginBottom: 8 },
   receiptTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   receiptSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
-  receiptImg: { width: '100%', height: 200, resizeMode: 'cover' },
+  receiptImg: { width: '100%', height: 200 },
   retakeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.04)' },
   retakeText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
 

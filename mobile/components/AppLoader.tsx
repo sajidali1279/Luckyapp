@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, StatusBar, Easing, Image } from 'react-native';
+import { View, Text, Animated, StyleSheet, StatusBar, Easing } from 'react-native';
+import { Image } from 'expo-image';
 
 // Colors extracted from the physical Lucky Stop sign
 const SIGN_RED       = '#CC2936';
@@ -60,7 +61,7 @@ export default function AppLoader() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={NAVY} />
+      <StatusBar barStyle="light-content" />
 
       <Animated.View style={[s.inner, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
 

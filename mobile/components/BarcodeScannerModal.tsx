@@ -246,7 +246,6 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <StatusBar
         barStyle={phase === 'scanning' || phase === 'loading' ? 'light-content' : 'dark-content'}
-        backgroundColor={phase === 'scanning' || phase === 'loading' ? '#000' : COLORS.background}
       />
       <SafeAreaView style={[{ flex: 1 }, phase === 'scanning' || phase === 'loading' ? { backgroundColor: '#000' } : { backgroundColor: COLORS.background }]} edges={['top', 'bottom']}>
 

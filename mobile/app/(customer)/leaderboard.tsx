@@ -83,7 +83,7 @@ export default function CustomerLeaderboardScreen() {
 
   return (
     <View style={st.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
           <BackButton variant="light" />

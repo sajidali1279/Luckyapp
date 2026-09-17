@@ -2,8 +2,9 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, RefreshControl,
-  KeyboardAvoidingView, Platform, Image,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -801,7 +802,7 @@ function PhotoTab() {
       {/* Preview */}
       {imageUri && (
         <View style={s.previewWrap}>
-          <Image source={{ uri: imageUri }} style={s.previewImg} resizeMode="contain" />
+          <Image source={{ uri: imageUri }} style={s.previewImg} contentFit="contain" />
           <TouchableOpacity
             style={[s.analyzeBtn, analyzing && { opacity: 0.6 }]}
             onPress={analyze}

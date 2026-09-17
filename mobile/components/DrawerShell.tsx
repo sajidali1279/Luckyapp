@@ -1,7 +1,8 @@
 import {
   View, Text, TouchableOpacity, Animated, StyleSheet,
-  Dimensions, Pressable, Image, ScrollView, Alert,
+  Dimensions, Pressable, ScrollView, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
 import { useRef, useState, ReactNode, useCallback } from 'react';
@@ -165,8 +166,9 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                 {/* Avatar - photo or initial */}
                 {user?.avatarUrl ? (
                   <Image
-                    source={{ uri: user.avatarUrl, cache: 'reload' }}
+                    source={{ uri: user.avatarUrl }}
                     style={s.drawerAvatarPhoto}
+                    cachePolicy="none"
                   />
                 ) : (
                   <View style={s.drawerAvatar}>

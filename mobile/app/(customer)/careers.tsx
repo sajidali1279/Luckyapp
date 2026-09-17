@@ -153,7 +153,7 @@ export default function CareersScreen() {
 
   return (
     <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={st.header}>

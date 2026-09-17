@@ -557,7 +557,7 @@ export default function StockRequestScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={s.header}>

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Image, Keyboard,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Keyboard,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -272,7 +273,7 @@ export default function LoginScreen() {
     const bioType = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Fingerprint / Face unlock';
     return (
       <View style={styles.bioOfferRoot}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.bioOfferCard}>
           <View style={styles.bioIconRing}>
             <ShieldIcon size={38} color={COLORS.primary} strokeWidth={1.75} />
@@ -299,7 +300,7 @@ export default function LoginScreen() {
       : '';
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
@@ -380,7 +381,7 @@ export default function LoginScreen() {
       : phone;
     return (
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
@@ -446,7 +447,7 @@ export default function LoginScreen() {
   // ── Full login / register ──
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>

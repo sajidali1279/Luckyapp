@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     return (
       <SafeAreaView style={s.root}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+        <StatusBar barStyle="dark-content" />
         <View style={s.inner}>
           <View style={s.iconWrap}>
             <Text style={s.icon}>⚠️</Text>

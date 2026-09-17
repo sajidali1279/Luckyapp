@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, TextInput, RefreshControl,
+  TextInput, RefreshControl,
   ActivityIndicator, Alert, Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
@@ -188,7 +189,7 @@ export default function ManagerBannersScreen() {
               <FadeSlideIn key={banner.id} delay={Math.min(bannerIndex * 40, 200)}>
               <View style={s.bannerCard}>
                 {banner.imageUrl ? (
-                  <Image source={{ uri: banner.imageUrl }} style={s.bannerImg} resizeMode="cover" />
+                  <Image source={{ uri: banner.imageUrl }} style={s.bannerImg} contentFit="cover" />
                 ) : (
                   <View style={[s.bannerImg, s.bannerPlaceholder]}>
                     <ImageIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />
@@ -246,7 +247,7 @@ export default function ManagerBannersScreen() {
               accessibilityLabel={imageUri ? t('managerBanners.changeBannerImageLabel') : t('managerBanners.selectBannerImageLabel')}
             >
               {imageUri ? (
-                <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
+                <Image source={{ uri: imageUri }} style={s.imagePreview} contentFit="cover" />
               ) : (
                 <View style={s.imagePlaceholder}>
                   <CameraIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />

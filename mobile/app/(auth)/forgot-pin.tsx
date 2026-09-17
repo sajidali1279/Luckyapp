@@ -151,7 +151,7 @@ export default function ForgotPinScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ChevronLeftIcon size={22} color="rgba(255,255,255,0.85)" strokeWidth={2.5} />

@@ -1,4 +1,5 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -77,7 +78,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={s.headerBg}>
         <View style={s.headerInner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -204,7 +205,7 @@ export default function HistoryScreen() {
               ) : null}
 
               {selected.receiptImageUrl ? (
-                <Image source={{ uri: selected.receiptImageUrl }} style={d.receiptImg} resizeMode="cover" />
+                <Image source={{ uri: selected.receiptImageUrl }} style={d.receiptImg} contentFit="cover" />
               ) : null}
 
               <TouchableOpacity

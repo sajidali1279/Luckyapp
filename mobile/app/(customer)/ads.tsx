@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, StatusBar, ScrollView,
-  ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Image,
+  ActivityIndicator, RefreshControl, TouchableOpacity, Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,7 +88,7 @@ export default function AdsScreen() {
         </View>
 
         {item.adImageUrl ? (
-          <Image source={{ uri: item.adImageUrl }} style={s.adImage} resizeMode="cover" />
+          <Image source={{ uri: item.adImageUrl }} style={s.adImage} contentFit="cover" />
         ) : null}
         <Text style={s.adTitle}>{item.adTitle}</Text>
         <Text style={s.adBody}>{item.adBody}</Text>
@@ -181,7 +182,7 @@ export default function AdsScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={s.header}>
         <Text style={s.headerTitle}>{t('customerAds.headerTitle')}</Text>
         <Text style={s.headerSub}>{t('customerAds.headerSub')}</Text>

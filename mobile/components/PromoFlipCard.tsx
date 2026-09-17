@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Animated, View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
+import { Animated, View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { COLORS } from '../constants';
 import { BuildingIcon, MapPinIcon, GlobeIcon, MegaphoneIcon } from './Icons';
@@ -84,7 +85,7 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
     >
       <Animated.View style={[s.face, { opacity: frontOpacity, transform: [{ rotateY: frontInterpolate }] }]}>
         {ad.adImageUrl ? (
-          <Image source={{ uri: ad.adImageUrl }} style={s.frontImage} resizeMode="cover" />
+          <Image source={{ uri: ad.adImageUrl }} style={s.frontImage} contentFit="cover" />
         ) : (
           <View style={[s.frontImage, s.frontImagePlaceholder]}>
             <BuildingIcon size={32} color={COLORS.primary} strokeWidth={1.5} />

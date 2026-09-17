@@ -18,7 +18,7 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
   const { t } = useTranslation();
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={headerColor} />
+      <StatusBar barStyle="light-content" />
 
       <SafeAreaView style={[s.header, { backgroundColor: headerColor }]}>
         <TouchableOpacity

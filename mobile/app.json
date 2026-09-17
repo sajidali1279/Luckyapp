@@ -35,6 +35,7 @@
       "./plugins/withFirebaseAppDelegateFix",
       "./plugins/withIosCaptchaOpenUrlFix",
       "expo-router",
+      "expo-image",
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
       "./plugins/withAdiRegistration",

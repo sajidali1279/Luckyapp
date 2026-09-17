@@ -209,7 +209,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={headerBg} />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={[s.header, { backgroundColor: headerBg }]}>
         <Text style={s.headerTitle}>{t('sharedNotifications.title')}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>

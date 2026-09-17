@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, TextInput, ActivityIndicator, Image,
+  Modal, TextInput, ActivityIndicator,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -184,7 +185,7 @@ function ReportCard({ report }: { report: DailyReport }) {
               source={{ uri: report.imageUrl }}
               style={rc.image}
               onError={() => setImgErr(true)}
-              resizeMode="cover"
+              contentFit="cover"
             />
           )}
         </View>
@@ -460,7 +461,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
               accessibilityLabel={imageUri ? 'Change report photo' : 'Add photo to report'}
             >
               {imageUri ? (
-                <Image source={{ uri: imageUri }} style={fs.photoPreview} resizeMode="cover" />
+                <Image source={{ uri: imageUri }} style={fs.photoPreview} contentFit="cover" />
               ) : (
                 <View style={fs.photoPlaceholder}>
                   <CameraIcon size={26} color="#CBD5E1" strokeWidth={1.75} />

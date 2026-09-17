@@ -1,8 +1,9 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, ActivityIndicator, Modal,
-  TextInput, ScrollView, Image, KeyboardAvoidingView, Platform,
+  TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -250,7 +251,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               accessibilityLabel={imageUri ? 'Change item photo' : 'Add item photo'}
             >
               {imageUri ? (
-                <Image source={{ uri: imageUri }} style={sh.photo} />
+                <Image source={{ uri: imageUri }} style={sh.photo} contentFit="cover" />
               ) : (
                 <View style={sh.photoPlaceholder}>
                   <FlameIcon size={28} color="#CBD5E1" />
@@ -1012,7 +1013,7 @@ const sh = StyleSheet.create({
     borderStyle: 'dashed', overflow: 'hidden', marginBottom: 16,
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC',
   },
-  photo: { width: '100%', height: '100%', resizeMode: 'cover' },
+  photo: { width: '100%', height: '100%' },
   photoPlaceholder: { alignItems: 'center', gap: 6 },
   photoPlaceholderText: { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
   photoBadge: {

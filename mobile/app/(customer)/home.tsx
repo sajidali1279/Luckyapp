@@ -1,8 +1,9 @@
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Image,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity,
   StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
   TextInput, Alert, Easing, useWindowDimensions, Pressable, BackHandler,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Toast from 'react-native-toast-message';
@@ -101,7 +102,7 @@ const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { ban
       accessibilityLabel={item.title ? `View banner: ${item.title}` : 'View banner'}
     >
       <View style={bc.slideClip}>
-        <Image source={{ uri: item.imageUrl }} style={bc.image} />
+        <Image source={{ uri: item.imageUrl }} style={bc.image} contentFit="cover" />
         {item.title ? (
           <View style={bc.titleBar}>
             <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
@@ -425,7 +426,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg }]}>
           {item.imageUrl ? (
             <>
-              <Image source={{ uri: item.imageUrl }} style={ds.slideImage} />
+              <Image source={{ uri: item.imageUrl }} style={ds.slideImage} contentFit="cover" />
               <View style={ds.imageScrim} />
             </>
           ) : (
@@ -852,7 +853,7 @@ export default function CustomerHome() {
   return (
     <View style={styles.container}>
       <DashboardWatermark color={COLORS.primary} />
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Fixed header ── */}
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
@@ -897,7 +898,7 @@ export default function CustomerHome() {
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {user?.avatarUrl ? (
-                  <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={styles.profileBtnAvatar} />
+                  <Image source={{ uri: user.avatarUrl }} style={styles.profileBtnAvatar} cachePolicy="none" />
                 ) : (
                   <Text style={styles.profileBtnText}>{(user?.name || user?.phone || '?')[0].toUpperCase()}</Text>
                 )}
@@ -1191,7 +1192,7 @@ export default function CustomerHome() {
                     <View style={styles.offerCardClip}>
                       {isOfferLocked(offer) && <AgeGateOverlay />}
                       {offer.imageUrl
-                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} />
+                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} contentFit="cover" />
                         : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
                       }
                       <View style={styles.offerContent}>
@@ -1238,7 +1239,7 @@ export default function CustomerHome() {
                       <View style={styles.offerSlideClip}>
                         {isOfferLocked(offer) && <AgeGateOverlay />}
                         {offer.imageUrl
-                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} />
+                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} contentFit="cover" />
                           : (
                             <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
                               {offer.gasBonusCentsPerGallon != null
@@ -1305,7 +1306,7 @@ export default function CustomerHome() {
                 >
                   <View style={styles.hotFoodClip}>
                     {item.imageUrl
-                      ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} />
+                      ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} contentFit="cover" />
                       : (
                         <View style={styles.hotFoodImgPlaceholder}>
                           <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
@@ -1393,7 +1394,7 @@ export default function CustomerHome() {
             {selectedFoodItem && (
               <>
                 {selectedFoodItem.imageUrl
-                  ? <Image source={{ uri: selectedFoodItem.imageUrl }} style={hf.itemImg} />
+                  ? <Image source={{ uri: selectedFoodItem.imageUrl }} style={hf.itemImg} contentFit="cover" />
                   : (
                     <View style={hf.itemImgPlaceholder}>
                       <FlameIcon size={40} color="#EA580C" strokeWidth={1.5} />
@@ -1578,7 +1579,7 @@ export default function CustomerHome() {
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
           <View style={om.overlay}>
             <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
-              <Image source={{ uri: selectedBanner.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
+              <Image source={{ uri: selectedBanner.imageUrl }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
               <ScrollView
                 style={om.bodyScroll}
                 contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
@@ -1751,7 +1752,7 @@ export default function CustomerHome() {
               </View>
             ) : null}
             {selectedOffer.imageUrl ? (
-              <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} />
+              <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
             ) : null}
             {/* om.bodyScroll's flex:1 needs a definite-height ancestor, which a real
                 <Modal> window used to seed for free. This overlay's sheet is sized
@@ -2091,7 +2092,7 @@ const styles = StyleSheet.create({
   hotFoodRow:          { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
   hotFoodCard:         { width: 148, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
   hotFoodClip:         { backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden' },
-  hotFoodImg:          { width: 148, height: 96, resizeMode: 'cover' },
+  hotFoodImg:          { width: 148, height: 96 },
   hotFoodImgPlaceholder:{ width: 148, height: 96, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
   hotFoodCardBody:     { padding: 10 },
   hotFoodItemName:     { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 2, lineHeight: 17 },
@@ -2105,7 +2106,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   offerSlideClip: { backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden' },
-  offerSlideImage: { width: 220, height: 110, resizeMode: 'cover' },
+  offerSlideImage: { width: 220, height: 110 },
   offerSlidePlaceholder: {
     width: 220, height: 110, alignItems: 'center', justifyContent: 'center',
   },
@@ -2135,7 +2136,7 @@ const styles = StyleSheet.create({
   ageLockEmoji: { fontSize: 22, marginBottom: 2 },
   ageLockText: { color: '#fff', fontWeight: '800', fontSize: 13, textAlign: 'center' },
   ageLockSubtext: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 11, textAlign: 'center' },
-  offerImage: { width: 84, height: 84, resizeMode: 'cover' },
+  offerImage: { width: 84, height: 84 },
   offerPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
   offerContent: { flex: 1, padding: 12, gap: 2 },
   offerTitle: { fontWeight: '700', fontSize: 14, color: COLORS.text },
@@ -2205,7 +2206,7 @@ const ds = StyleSheet.create({
     shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
   },
   slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
-  slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined, resizeMode: 'cover' },
+  slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   imageScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%', backgroundColor: 'rgba(0,0,0,0.55)' },
   decoCircleLg: { position: 'absolute', width: 200, height: 200, borderRadius: 100, top: -60, right: -50 },
   decoCircleSm: { position: 'absolute', width: 100, height: 100, borderRadius: 50, bottom: -30, left: -20 },
@@ -2308,7 +2309,7 @@ const bc = StyleSheet.create({
     shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
   },
   slideClip: { borderRadius: 20, overflow: 'hidden' },
-  image: { width: BANNER_W, height: 190, resizeMode: 'cover' },
+  image: { width: BANNER_W, height: 190 },
   titleBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.48)', paddingHorizontal: 16, paddingVertical: 12,
@@ -2338,7 +2339,7 @@ const om = StyleSheet.create({
     backgroundColor: COLORS.white, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     overflow: 'hidden', maxHeight: '88%',
   },
-  image: { width: '100%', height: 190, resizeMode: 'cover' },
+  image: { width: '100%', height: 190 },
   dealHeader: {
     backgroundColor: COLORS.accent, flexDirection: 'row', alignItems: 'center',
     gap: 10, paddingHorizontal: 24, paddingVertical: 16,
@@ -2406,7 +2407,7 @@ const hf = StyleSheet.create({
   overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet:            { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   handle:           { width: 36, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  itemImg:          { width: '100%', height: 160, borderRadius: 14, marginBottom: 16, resizeMode: 'cover' },
+  itemImg:          { width: '100%', height: 160, borderRadius: 14, marginBottom: 16 },
   itemImgPlaceholder:{ width: '100%', height: 120, backgroundColor: '#FFF7ED', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   itemName:         { fontSize: 20, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
   itemDesc:         { fontSize: 13, color: COLORS.textMuted, marginBottom: 16, lineHeight: 18 },

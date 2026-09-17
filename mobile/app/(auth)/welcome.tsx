@@ -194,7 +194,7 @@ export default function WelcomeScreen() {
   if (step === 'terms') {
     return (
       <View style={[ts.root, { backgroundColor: '#f8f9fa' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <StatusBar barStyle="dark-content" />
         <SafeAreaView style={ts.safeArea}>
           <View style={ts.termsHeader}>
             <Text style={ts.termsIcon}>📋</Text>
@@ -304,7 +304,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[ss.root, { backgroundColor: slide.bg }]}>
-      <StatusBar barStyle="light-content" backgroundColor={slide.bg} />
+      <StatusBar barStyle="light-content" />
 
       <FlatList
         ref={flatListRef}

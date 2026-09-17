@@ -1,7 +1,8 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, StatusBar, ActivityIndicator, Animated, Image,
+  RefreshControl, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -144,7 +145,7 @@ export default function ManagerHome() {
     <View style={{ flex: 1 }}>
       <DashboardWatermark color={COLORS.managerPrimary} />
       <SafeAreaView style={s.headerSafe} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0a3323" />
+        <StatusBar barStyle="light-content" />
 
         {/* ── Header with SVG gradient ── */}
         <View style={[s.header, stores.length > 1 && s.headerWithPicker]}>
@@ -197,7 +198,7 @@ export default function ManagerHome() {
               accessibilityLabel={t('managerHome.openProfileLabel')}
             >
               {user?.avatarUrl ? (
-                <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
+                <Image source={{ uri: user.avatarUrl }} style={s.avatarPhoto} cachePolicy="none" />
               ) : (
                 <View style={s.avatarCircle}>
                   <Text style={s.avatarText}>{initial}</Text>

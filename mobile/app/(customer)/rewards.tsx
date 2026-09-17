@@ -409,7 +409,7 @@ export default function RewardsScreen() {
 
   return (
     <View style={r.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={r.headerBg}>

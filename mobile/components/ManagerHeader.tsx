@@ -30,7 +30,7 @@ export default function ManagerHeader({
 }: ManagerHeaderProps) {
   return (
     <SafeAreaView style={s.headerBg} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.managerPrimary} />
+      <StatusBar barStyle="light-content" />
       <View style={[s.row, { paddingHorizontal }, size === 'sm' && s.rowCompact]}>
         {showBack && (
           <TouchableOpacity

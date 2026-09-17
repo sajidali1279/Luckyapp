@@ -150,7 +150,7 @@ export default function RoleTourScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: tour.color }]}>
-      <StatusBar barStyle="light-content" backgroundColor={tour.color} />
+      <StatusBar barStyle="light-content" />
 
       {/* Role badge */}
       <SafeAreaView edges={['top']} style={s.topSafe}>

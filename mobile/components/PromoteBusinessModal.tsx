@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Image,
+  ScrollView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -98,7 +99,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
             <Text style={s.label}>{t('promoModal.businessImage')}</Text>
             {promoImageUri ? (
               <View style={s.imgWrap}>
-                <Image source={{ uri: promoImageUri }} style={s.imgPreview} resizeMode="cover" />
+                <Image source={{ uri: promoImageUri }} style={s.imgPreview} contentFit="cover" />
                 <View style={s.imgActions}>
                   <TouchableOpacity
                     style={s.imgBtn}

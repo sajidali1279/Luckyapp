@@ -2,8 +2,9 @@ import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Image, Alert,
+  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -243,7 +244,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={headerBg} />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={[s.headerBg, { backgroundColor: headerBg }]}>
@@ -258,8 +259,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
               {user?.avatarUrl ? (
                 <Image
-                  source={{ uri: user.avatarUrl, cache: 'reload' }}
+                  source={{ uri: user.avatarUrl }}
                   style={s.avatarImage}
+                  cachePolicy="none"
                 />
               ) : (
                 <Text style={s.avatarText}>{initial}</Text>

@@ -1,7 +1,8 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, StatusBar, Animated,
+  ActivityIndicator, RefreshControl, StatusBar, Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -203,7 +204,7 @@ export default function EmployeeHomeScreen() {
                 accessibilityLabel="Open profile"
               >
                 {user?.avatarUrl ? (
-                  <Image source={{ uri: user.avatarUrl, cache: 'reload' }} style={s.avatarPhoto} />
+                  <Image source={{ uri: user.avatarUrl }} style={s.avatarPhoto} cachePolicy="none" />
                 ) : (
                   <View style={s.avatarCircle}>
                     <Text style={s.avatarText}>{initial}</Text>

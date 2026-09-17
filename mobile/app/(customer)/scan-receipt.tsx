@@ -99,7 +99,7 @@ export default function ScanReceiptScreen() {
     }
     return (
       <View style={s.root}>
-        <StatusBar barStyle="light-content" backgroundColor="#000" />
+        <StatusBar barStyle="light-content" />
         <CameraView
           style={s.camera}
           facing="back"
@@ -169,7 +169,7 @@ export default function ScanReceiptScreen() {
     const minsLeft = Math.ceil((new Date(tokenData.expiresAt).getTime() - Date.now()) / 60000);
     return (
       <Animated.View style={[s.root, { opacity: fadeAnim }]}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.secondary} />
+        <StatusBar barStyle="light-content" />
         <SafeAreaView style={s.confirmHeader}>
           <View style={s.confirmHeaderInner}>
             <Text style={s.confirmHeaderTitle}>Confirm Receipt</Text>
