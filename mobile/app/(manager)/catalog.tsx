@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, RefreshControl,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Modal, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -13,7 +13,7 @@ import { COLORS } from '../../constants';
 import { scannedProductApi, orderCategoriesApi } from '../../services/api';
 import {
   QrCodeScanIcon, PlusIcon, ListIcon,
-  CheckCircleIcon, Trash2Icon, PackageIcon, CameraIcon, XIcon,
+  CheckCircleIcon, Trash2Icon, PackageIcon, CameraIcon, XIcon, EditIcon,
 } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
@@ -543,7 +543,16 @@ function BrowseTab() {
   const { t } = useTranslation();
   const [searchQ, setSearchQ] = useState('');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<any | null>(null);
   const qc = useQueryClient();
+
+  // Same cache key Order List uses, so this costs nothing when it's already loaded.
+  const { data: approvedCatData } = useQuery({
+    queryKey: ['order-categories'],
+    queryFn: orderCategoriesApi.getApproved,
+    staleTime: 10 * 60 * 1000,
+  });
+  const approvedCategories: string[] = approvedCatData?.data?.data || [];
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['catalog-list', searchQ],
@@ -630,6 +639,7 @@ function BrowseTab() {
         >
         <FadeSlideIn>
           <Text style={s.totalLabel}>{t('managerCatalog.productCountInCatalog', { count: items.length })}</Text>
+          <Text style={s.browseHint}>{t('managerCatalog.browseHint')}</Text>
 
           {grouped.map(([cat, catItems]) => {
             const isExpanded = expandedCats.has(cat);
@@ -643,14 +653,29 @@ function BrowseTab() {
                 </View>
                 {visibleItems.map((item: any) => (
                   <View key={item.id} style={s.itemRow}>
-                    <View style={{ flex: 1 }}>
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => setEditing(item)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('managerCatalog.editItemLabel', { name: item.name })}
+                    >
                       <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
                       <Text style={s.itemMeta}>
                         {sourceLabel(item.source, item.barcode)}
                         {item.barcode && !item.barcode.startsWith('NOBARCODE_') ? `  ·  ${item.barcode}` : ''}
-                        {item.scanCount > 1 ? `  ·  scanned ${item.scanCount}×` : ''}
+                        {item.scanCount > 1 ? `  ·  ${t('managerCatalog.scannedTimes', { count: item.scanCount })}` : ''}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.editBtn}
+                      onPress={() => setEditing(item)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('managerCatalog.editItemLabel', { name: item.name })}
+                    >
+                      <EditIcon size={15} color={COLORS.textMuted} strokeWidth={2} />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={s.delBtn}
                       onPress={() => confirmDelete(item.id, item.name)}
@@ -689,7 +714,158 @@ function BrowseTab() {
         </FadeSlideIn>
         </ScrollView>
       )}
+
+      <EditProductSheet
+        product={editing}
+        categories={approvedCategories}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          qc.invalidateQueries({ queryKey: ['catalog-list'] });
+        }}
+      />
     </View>
+  );
+}
+
+// ─── Edit a catalog product ───────────────────────────────────────────────────
+// Rename or re-categorise a product the team already scanned. The barcode is
+// the lookup key everywhere else, so it is shown but can't be changed here.
+
+function EditProductSheet({ product, categories, onClose, onSaved }: {
+  product: any | null;
+  categories: string[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showSugg, setShowSugg] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { height: screenHeight } = useWindowDimensions();
+
+  // KeyboardAvoidingView is unreliable inside a Modal on Android, so track the
+  // real keyboard height and cap the sheet with it (same safety net the Labels
+  // form uses) so the Save button can never sit under the keyboard.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'android' ? 'keyboardDidShow' : 'keyboardWillShow';
+    const hideEvent = Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide';
+    const showSub = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (product) {
+      setName(product.name || '');
+      setCategory(product.category || '');
+      setSaving(false);
+      setShowSugg(false);
+    }
+  }, [product]);
+
+  const q = category.trim().toLowerCase();
+  const suggestions = q ? categories.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5) : [];
+  const trimmedName = name.trim();
+  const nextCategory = category.trim() || null;
+  const dirty = !!product && (trimmedName !== product.name || nextCategory !== (product.category || null));
+  const canSave = !!trimmedName && dirty && !saving;
+
+  async function save() {
+    if (!product || !canSave) return;
+    setSaving(true);
+    // A category nobody has approved yet goes through the same approval queue as
+    // everywhere else, instead of quietly bypassing it.
+    if (nextCategory && !categories.some(c => c.toLowerCase() === nextCategory.toLowerCase())) {
+      orderCategoriesApi.submitNew(nextCategory).catch(() => {});
+    }
+    try {
+      await scannedProductApi.update(product.id, { name: trimmedName, category: nextCategory });
+      onSaved();
+    } catch (err: any) {
+      const e = err?.response?.data?.error;
+      Alert.alert(t('managerCatalog.genericErrorTitle'), typeof e === 'string' ? e : t('managerCatalog.saveProductError'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal visible={!!product} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.editOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[s.editSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 24 }]}
+        >
+          <ScrollView contentContainerStyle={s.editScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.editHeader}>
+              <Text style={s.editTitle}>{t('managerCatalog.editTitle')}</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('managerCatalog.closeLabel')}>
+                <XIcon size={20} color={COLORS.textMuted} strokeWidth={2.5} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.editFieldLabel}>{t('managerCatalog.productNameLabel')}</Text>
+            <TextInput
+              style={s.editInput}
+              value={name}
+              onChangeText={setName}
+              placeholder={t('managerCatalog.productNamePlaceholder')}
+              placeholderTextColor="#B0B8C4"
+              autoCapitalize="words"
+              maxLength={200}
+            />
+
+            <Text style={[s.editFieldLabel, { marginTop: 16 }]}>{t('managerCatalog.categoryLabel')} <Text style={s.editFieldHint}>{t('managerCatalog.optionalHint')}</Text></Text>
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={s.editInput}
+                value={category}
+                onChangeText={v => { setCategory(v); setShowSugg(true); }}
+                onFocus={() => setShowSugg(suggestions.length > 0)}
+                onBlur={() => setTimeout(() => setShowSugg(false), 130)}
+                placeholder={t('managerCatalog.categoryPlaceholder')}
+                placeholderTextColor="#B0B8C4"
+                autoCapitalize="words"
+                maxLength={100}
+              />
+              {showSugg && suggestions.length > 0 && (
+                <View style={s.editSugg}>
+                  {suggestions.map(c => (
+                    <TouchableOpacity
+                      key={c}
+                      style={s.editSuggRow}
+                      onPress={() => { setCategory(c); setShowSugg(false); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('managerCatalog.useCategoryLabel', { category: c })}
+                    >
+                      <Text style={s.editSuggText}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {!!product?.barcode && !String(product.barcode).startsWith('NOBARCODE_') && (
+              <Text style={s.editBarcodeNote}>{t('managerCatalog.barcodeLabel')}: {product.barcode}  ·  {t('managerCatalog.barcodeFixedNote')}</Text>
+            )}
+
+            <TouchableOpacity
+              style={[s.editSaveBtn, !canSave && { opacity: 0.4 }]}
+              onPress={save}
+              disabled={!canSave}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('managerCatalog.saveChanges')}
+            >
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.editSaveText}>{t('managerCatalog.saveChanges')}</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 }
 
@@ -902,6 +1078,30 @@ const CRN        = 26;
 const CRN_W      = 3;
 
 const s = StyleSheet.create({
+  browseHint: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17, paddingHorizontal: 16, marginBottom: 6 },
+  editBtn: { padding: 6 },
+  editOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  editSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  editScroll: { padding: 20, paddingBottom: 32 },
+  editHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  editTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  editFieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  editFieldHint: { fontWeight: '400', color: COLORS.textMuted },
+  editInput: {
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: COLORS.text,
+  },
+  editSugg: {
+    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, backgroundColor: '#fff',
+    borderWidth: 1.5, borderColor: COLORS.border, borderTopWidth: 0, borderRadius: 12,
+    borderTopLeftRadius: 0, borderTopRightRadius: 0, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 6,
+  },
+  editSuggRow: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0' },
+  editSuggText: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  editBarcodeNote: { fontSize: 12, color: COLORS.textMuted, marginTop: 14 },
+  editSaveBtn: { backgroundColor: COLORS.managerPrimary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 22 },
+  editSaveText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   root:        { flex: 1, backgroundColor: COLORS.background },
   flex:        { flex: 1 },
   center:      { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },

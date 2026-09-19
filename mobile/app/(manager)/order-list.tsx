@@ -11,11 +11,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { orderListApi, employeeRequestApi, orderCategoriesApi, storesApi, managerApi, scannedProductApi } from '../../services/api';
 import { printOrderList } from '../../utils/printOrderList';
+import { runPool } from '../../utils/runPool';
 import { COLORS } from '../../constants';
 import {
   PackageIcon, PrinterIcon, CheckCircleIcon,
   PlusIcon, XIcon, ClipboardIcon,
-  ListIcon, ChevronDownIcon, QrCodeScanIcon, ZapIcon,
+  ListIcon, ChevronDownIcon, QrCodeScanIcon, ZapIcon, ListChecksIcon, Trash2Icon,
 } from '../../components/Icons';
 import BarcodeScannerModal from '../../components/BarcodeScannerModal';
 import type { BarcodeResult } from '../../components/BarcodeScannerModal';
@@ -249,9 +250,14 @@ interface ItemRowProps {
   onRemove: (item: OrderListItem) => void;
   onMarkOrdered: (item: OrderListItem) => void;
   onMarkReceived: (item: OrderListItem) => void;
+  // Selecting several rows to change together.
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: (item: OrderListItem) => void;
+  onStartSelect: (item: OrderListItem) => void;
 }
 
-function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: ItemRowProps) {
+function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, selectMode, selected, onToggleSelect, onStartSelect }: ItemRowProps) {
   const { t } = useTranslation();
   const isUrgent = item.priority === 'URGENT' && item.status === 'PENDING';
   // Backend only allows updateItem while PENDING (orderList.controller.ts) — don't offer
@@ -278,7 +284,24 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
     null;
 
   return (
-    <View style={[r.row, isUrgent && r.rowUrgent]}>
+    <TouchableOpacity
+      style={[r.row, isUrgent && r.rowUrgent, selected && r.rowSelected]}
+      activeOpacity={selectMode ? 0.7 : 1}
+      onPress={selectMode ? () => onToggleSelect(item) : undefined}
+      onLongPress={!selectMode ? () => onStartSelect(item) : undefined}
+      delayLongPress={350}
+      // Outside select mode this wrapper only exists for the touch-and-hold shortcut, so it must not
+      // group the row's own buttons into one screen-reader stop.
+      accessible={selectMode}
+      accessibilityRole={selectMode ? 'checkbox' : undefined}
+      accessibilityState={selectMode ? { checked: selected } : undefined}
+      accessibilityLabel={selectMode ? t(selected ? 'managerOrderList.deselectItemA11y' : 'managerOrderList.selectItemA11y', { name: item.name }) : undefined}
+    >
+      {selectMode && (
+        <View style={[r.checkbox, selected && r.checkboxOn]}>
+          {selected && <CheckCircleIcon size={14} color="#fff" strokeWidth={3} />}
+        </View>
+      )}
       {isUrgent && <View style={r.urgentBar} />}
 
       <View style={r.body}>
@@ -298,6 +321,7 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
         </View>
       </View>
 
+      {!selectMode && (
       <View style={r.right}>
         {nextAction ? (
           <TouchableOpacity
@@ -325,7 +349,8 @@ function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived }: Item
           </TouchableOpacity>
         )}
       </View>
-    </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -1307,6 +1332,10 @@ export default function ManagerOrderListScreen() {
   const [showReview,      setShowReview]       = useState(false);
   const [showHistory,     setShowHistory]      = useState(false);
   const [isPrinting,      setIsPrinting]       = useState(false);
+  // Selecting several items to change together (mark ordered/received, remove).
+  const [selectMode,     setSelectMode]       = useState(false);
+  const [selectedIds,    setSelectedIds]      = useState<Set<string>>(new Set());
+  const [bulkBusy,       setBulkBusy]         = useState(false);
   const [editingInstructions, setEditingInstructions] = useState(false);
   const [instructionsDraft,   setInstructionsDraft]   = useState('');
 
@@ -1340,6 +1369,110 @@ export default function ManagerOrderListScreen() {
   const neededItems   = items.filter(i => i.status === 'PENDING' && i.priority !== 'URGENT').sort((a, b) => a.name.localeCompare(b.name));
   const orderedItems  = items.filter(i => i.status === 'ORDERED').sort((a, b) => a.name.localeCompare(b.name));
   const receivedItems = items.filter(i => i.status === 'RECEIVED').sort((a, b) => a.name.localeCompare(b.name));
+
+  // ── Changing several items at once ───────────────────────────────────────
+  // The server updates one item per call and can't move an item back to
+  // PENDING, so bulk changes run a few requests at a time here and report
+  // exactly how many worked. Anything that failed stays selected for a retry.
+  useEffect(() => {
+    // items that disappeared (removed elsewhere, list closed) can't stay selected
+    setSelectedIds(prev => {
+      const live = new Set(items.map(i => i.id));
+      const next = new Set([...prev].filter(id => live.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [activeData]);
+
+  useEffect(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, [selectedStoreId]);
+
+  function startSelect(item?: OrderListItem) {
+    setSelectMode(true);
+    setSelectedIds(item ? new Set([item.id]) : new Set());
+  }
+
+  function exitSelect() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(item: OrderListItem) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+      return next;
+    });
+  }
+
+  function toggleSection(list: OrderListItem[]) {
+    const allSelected = list.every(i => selectedIds.has(i.id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      list.forEach(i => (allSelected ? next.delete(i.id) : next.add(i.id)));
+      return next;
+    });
+  }
+
+  const selectedItems = items.filter(i => selectedIds.has(i.id));
+  const toOrder   = selectedItems.filter(i => i.status === 'PENDING');
+  const toReceive = selectedItems.filter(i => i.status === 'ORDERED');
+  const toRemove  = selectedItems.filter(i => i.status !== 'RECEIVED');
+
+  async function runBulk(
+    targets: OrderListItem[],
+    worker: (item: OrderListItem) => Promise<unknown>,
+    doneKey: string,
+  ) {
+    if (targets.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    try {
+      const outcomes = await runPool(targets, 6, worker);
+      const failed = targets.filter((_, i) => outcomes[i].status === 'rejected');
+      const done = targets.length - failed.length;
+      await qc.invalidateQueries({ queryKey: ['order-list-active', selectedStoreId] });
+      if (failed.length === 0) {
+        Toast.show({ type: 'success', text1: t(doneKey, { count: done }) });
+        exitSelect();
+      } else {
+        Toast.show({ type: 'error', text1: t('managerOrderList.bulkPartial', { done, failed: failed.length }), text2: t('managerOrderList.bulkPartialHint') });
+        setSelectMode(true);
+        setSelectedIds(new Set(failed.map(i => i.id)));
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const bulkSetStatus = (targets: OrderListItem[], status: 'ORDERED' | 'RECEIVED') =>
+    runBulk(targets, it => orderListApi.updateItemStatus(it.id, status),
+      status === 'ORDERED' ? 'managerOrderList.bulkOrderedDone' : 'managerOrderList.bulkReceivedDone');
+
+  // Section-level shortcuts ask first: there is no way back to PENDING from the app.
+  function confirmBulkStatus(targets: OrderListItem[], status: 'ORDERED' | 'RECEIVED') {
+    if (targets.length === 0) return;
+    const ordered = status === 'ORDERED';
+    Alert.alert(
+      t(ordered ? 'managerOrderList.bulkOrderedTitle' : 'managerOrderList.bulkReceivedTitle'),
+      t(ordered ? 'managerOrderList.bulkOrderedBody' : 'managerOrderList.bulkReceivedBody', { count: targets.length }),
+      [
+        { text: t('managerOrderList.cancel'), style: 'cancel' },
+        { text: t(ordered ? 'managerOrderList.bulkConfirmOrdered' : 'managerOrderList.bulkConfirmReceived'), onPress: () => bulkSetStatus(targets, status) },
+      ],
+    );
+  }
+
+  function confirmBulkRemove() {
+    if (toRemove.length === 0) return;
+    Alert.alert(t('managerOrderList.bulkRemoveTitle', { count: toRemove.length }), t('managerOrderList.bulkRemoveBody'), [
+      { text: t('managerOrderList.cancel'), style: 'cancel' },
+      {
+        text: t('managerOrderList.remove'), style: 'destructive',
+        onPress: () => runBulk(toRemove, it => orderListApi.removeItem(it.id), 'managerOrderList.bulkRemoved'),
+      },
+    ]);
+  }
 
   // ── Employee request count ───────────────────────────────────────────────
   const { data: reqData } = useQuery({
@@ -1465,6 +1598,58 @@ export default function ManagerOrderListScreen() {
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
+
+  function renderItemRow(item: OrderListItem) {
+    return (
+      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
+        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
+        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })}
+        selectMode={selectMode} selected={selectedIds.has(item.id)}
+        onToggleSelect={toggleSelected} onStartSelect={startSelect} />
+    );
+  }
+
+  function renderSection(kind: 'URGENT' | 'NEEDED' | 'ORDERED' | 'RECEIVED', list: OrderListItem[]) {
+    if (list.length === 0) return null;
+    const colors = SECTION_HEADER_COLORS[kind];
+    const label =
+      kind === 'URGENT' ? t('managerOrderList.sectionUrgent', { count: list.length }) :
+      kind === 'NEEDED' ? t('managerOrderList.sectionNeeded', { count: list.length }) :
+      kind === 'ORDERED' ? t('managerOrderList.sectionOrdered', { count: list.length }) :
+      t('managerOrderList.sectionReceived', { count: list.length });
+    // Everything not yet ordered can be ordered together; ordered items can be received together.
+    const bulkStatus: 'ORDERED' | 'RECEIVED' | null = kind === 'ORDERED' ? 'RECEIVED' : kind === 'RECEIVED' ? null : 'ORDERED';
+    const allSelected = list.every(i => selectedIds.has(i.id));
+    return (
+      <React.Fragment key={kind}>
+        <View style={[r.sectionHeader, { backgroundColor: colors.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
+          {kind === 'URGENT' && <ZapIcon size={12} color={colors.text} strokeWidth={2.25} />}
+          <Text style={[r.sectionLabel, { color: colors.text, flex: 1 }]}>{label}</Text>
+          {selectMode ? (
+            <TouchableOpacity
+              onPress={() => toggleSection(list)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('managerOrderList.selectAllSectionA11y')}
+            >
+              <Text style={[r.sectionAction, { color: colors.text }]}>{allSelected ? t('managerOrderList.deselectAll') : t('managerOrderList.selectAll')}</Text>
+            </TouchableOpacity>
+          ) : bulkStatus ? (
+            <TouchableOpacity
+              onPress={() => confirmBulkStatus(list, bulkStatus)}
+              disabled={bulkBusy}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={bulkStatus === 'ORDERED' ? t('managerOrderList.markAllOrdered') : t('managerOrderList.markAllReceived')}
+            >
+              <Text style={[r.sectionAction, { color: colors.text }]}>{bulkStatus === 'ORDERED' ? t('managerOrderList.markAllOrdered') : t('managerOrderList.markAllReceived')}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        {list.map(renderItemRow)}
+      </React.Fragment>
+    );
+  }
 
   return (
     <View style={s.container}>
@@ -1601,6 +1786,32 @@ export default function ManagerOrderListScreen() {
               )}
             </View>
             <View style={s.bannerActions}>
+              {selectMode ? (
+                <>
+                  <Text style={s.selectedCountText}>{t('managerOrderList.selectedCount', { count: selectedItems.length })}</Text>
+                  <TouchableOpacity
+                    style={s.selectBtn}
+                    onPress={exitSelect}
+                    hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('managerOrderList.cancel')}
+                  >
+                    <Text style={s.selectBtnText}>{t('managerOrderList.cancel')}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[s.selectBtn, items.length === 0 && { opacity: 0.35 }]}
+                    onPress={() => startSelect()}
+                    disabled={items.length === 0}
+                    hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('managerOrderList.selectA11y')}
+                  >
+                    <ListChecksIcon size={14} color={COLORS.textMuted} strokeWidth={2} />
+                    <Text style={s.selectBtnText}>{t('managerOrderList.select')}</Text>
+                  </TouchableOpacity>
               <TouchableOpacity
                 style={[s.bannerIconBtn, (isPrinting || items.length === 0) && { opacity: 0.35 }]}
                 onPress={showPrintOptions}
@@ -1627,6 +1838,8 @@ export default function ManagerOrderListScreen() {
                   : <Text style={s.closeListBtnText}>{t('managerOrderList.closeListBtn')}</Text>
                 }
               </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
 
@@ -1708,61 +1921,48 @@ export default function ManagerOrderListScreen() {
                 keyboardShouldPersistTaps="handled"
                 refreshControl={<RefreshControl refreshing={listRefetching} onRefresh={handleRefresh} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
               >
-                {urgentItems.length > 0 && (
-                  <>
-                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.URGENT.bg, flexDirection: 'row', alignItems: 'center', gap: 5 }]}>
-                      <ZapIcon size={12} color={SECTION_HEADER_COLORS.URGENT.text} strokeWidth={2.25} />
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.URGENT.text }]}>{t('managerOrderList.sectionUrgent', { count: urgentItems.length })}</Text>
-                    </View>
-                    {urgentItems.map(item => (
-                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
-                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
-                    ))}
-                  </>
-                )}
-                {neededItems.length > 0 && (
-                  <>
-                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.NEEDED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.NEEDED.text }]}>{t('managerOrderList.sectionNeeded', { count: neededItems.length })}</Text>
-                    </View>
-                    {neededItems.map(item => (
-                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
-                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
-                    ))}
-                  </>
-                )}
-                {orderedItems.length > 0 && (
-                  <>
-                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.ORDERED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.ORDERED.text }]}>{t('managerOrderList.sectionOrdered', { count: orderedItems.length })}</Text>
-                    </View>
-                    {orderedItems.map(item => (
-                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
-                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
-                    ))}
-                  </>
-                )}
-                {receivedItems.length > 0 && (
-                  <>
-                    <View style={[r.sectionHeader, { backgroundColor: SECTION_HEADER_COLORS.RECEIVED.bg }]}>
-                      <Text style={[r.sectionLabel, { color: SECTION_HEADER_COLORS.RECEIVED.text }]}>{t('managerOrderList.sectionReceived', { count: receivedItems.length })}</Text>
-                    </View>
-                    {receivedItems.map(item => (
-                      <ItemRow key={item.id} item={item} onEdit={setEditingItem} onRemove={handleRemove}
-                        onMarkOrdered={(it) => statusMutation.mutate({ id: it.id, status: 'ORDERED' })}
-                        onMarkReceived={(it) => statusMutation.mutate({ id: it.id, status: 'RECEIVED' })} />
-                    ))}
-                  </>
-                )}
+                {renderSection('URGENT', urgentItems)}
+                {renderSection('NEEDED', neededItems)}
+                {renderSection('ORDERED', orderedItems)}
+                {renderSection('RECEIVED', receivedItems)}
               </ScrollView>
               </FadeSlideIn>
             )}
 
-            {/* Quick Add Bar - always pinned at bottom */}
-            <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
+            {/* Quick Add Bar - always pinned at bottom; while selecting, the bulk actions take its place */}
+            {selectMode ? (
+              <View style={s.bulkBar}>
+                <TouchableOpacity
+                  style={[s.bulkBtn, { backgroundColor: ACTION_COLORS.ORDERED.bg }, (toOrder.length === 0 || bulkBusy) && s.bulkBtnDim]}
+                  onPress={() => bulkSetStatus(toOrder, 'ORDERED')}
+                  disabled={toOrder.length === 0 || bulkBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('managerOrderList.bulkOrderedBtn', { n: toOrder.length })}
+                >
+                  <Text style={[s.bulkBtnText, { color: ACTION_COLORS.ORDERED.text }]}>{t('managerOrderList.bulkOrderedBtn', { n: toOrder.length })}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.bulkBtn, { backgroundColor: ACTION_COLORS.RECEIVED.bg }, (toReceive.length === 0 || bulkBusy) && s.bulkBtnDim]}
+                  onPress={() => bulkSetStatus(toReceive, 'RECEIVED')}
+                  disabled={toReceive.length === 0 || bulkBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('managerOrderList.bulkReceivedBtn', { n: toReceive.length })}
+                >
+                  <Text style={[s.bulkBtnText, { color: ACTION_COLORS.RECEIVED.text }]}>{t('managerOrderList.bulkReceivedBtn', { n: toReceive.length })}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.bulkRemoveBtn, (toRemove.length === 0 || bulkBusy) && s.bulkBtnDim]}
+                  onPress={confirmBulkRemove}
+                  disabled={toRemove.length === 0 || bulkBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('managerOrderList.bulkRemoveA11y', { n: toRemove.length })}
+                >
+                  {bulkBusy ? <ActivityIndicator size="small" color="#DC2626" /> : <Trash2Icon size={18} color="#DC2626" strokeWidth={2} />}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
+            )}
           </KeyboardAvoidingView>
         </>
       )}
@@ -1856,6 +2056,23 @@ const s = StyleSheet.create({
   bannerIconBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
   closeListBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.primary },
   closeListBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  selectBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: COLORS.background,
+  },
+  selectBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  selectedCountText: { flex: 1, fontSize: 13, fontWeight: '800', color: COLORS.text },
+  bulkBar: {
+    flexDirection: 'row', alignItems: 'stretch', gap: 8, padding: 12,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  bulkBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 6 },
+  bulkBtnText: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  bulkBtnDim: { opacity: 0.35 },
+  bulkRemoveBtn: {
+    width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2',
+  },
 
   openListBtn: {
     marginTop: 20, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.managerPrimary,
@@ -2019,6 +2236,13 @@ const r = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
   sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  sectionAction: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2, textDecorationLine: 'underline' },
+  rowSelected: { backgroundColor: '#EFF6FF' },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+  },
+  checkboxOn: { backgroundColor: COLORS.managerPrimary, borderColor: COLORS.managerPrimary },
 });
 
 // ─── Table Styles ─────────────────────────────────────────────────────────────

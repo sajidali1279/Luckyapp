@@ -318,6 +318,9 @@ export const scannedProductApi = {
     return api.get(`/scanned-products${qs}`);
   },
   delete: (id: string) => api.delete(`/scanned-products/${id}`),
+  // The barcode is the lookup key everywhere, so only the name/category/brand can change.
+  update: (id: string, data: { name?: string; category?: string | null; brand?: string | null }) =>
+    api.patch(`/scanned-products/${id}`, data),
   extractFromPhoto: (imageUri: string, mimeType = 'image/jpeg') => {
     const fd = new FormData();
     const filename = imageUri.split('/').pop() ?? 'photo.jpg';
