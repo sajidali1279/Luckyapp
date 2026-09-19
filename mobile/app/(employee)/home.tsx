@@ -177,9 +177,8 @@ export default function EmployeeHomeScreen() {
         <SafeAreaView style={s.headerBg} edges={['top']}>
           <View style={s.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.storeLine}>{t('employeeHome.headerEyebrow')}</Text>
               <Text style={s.greeting}>{getGreeting(t)},</Text>
-              <Text style={s.greetingName}>{firstName}!</Text>
+              <Text style={s.greetingName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{firstName}!</Text>
             </View>
             <View style={s.headerRight}>
               <TouchableOpacity
@@ -213,34 +212,6 @@ export default function EmployeeHomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
-          <View style={s.statusPill}>
-            <View style={s.statusDot} />
-            <Text style={s.statusText}>{t('employeeHome.onDutyStatus', { role: user?.role?.replace(/_/g, ' ') })}</Text>
-          </View>
-
-          {isOffTomorrow && (
-            <View style={s.offTomorrowPill}>
-              <Text style={s.offTomorrowEmoji}>😴</Text>
-              <Text style={s.offTomorrowText}>{t('employeeHome.offTomorrow')}</Text>
-            </View>
-          )}
-
-          <GasPriceCard
-            gasPrice={currentStorePrices?.gasPricePerGallon}
-            dieselPrice={currentStorePrices?.dieselPricePerGallon}
-            gasUpdatedAt={currentStorePrices?.gasPriceUpdatedAt}
-            dieselUpdatedAt={currentStorePrices?.dieselPriceUpdatedAt}
-          />
-
-          {promotions.length > 0 && (
-            <View style={s.promoStrip}>
-              <FlameIcon size={16} color="#fff" strokeWidth={2} />
-              <Text style={s.promoStripText}>
-                {t('employeeHome.promosActive', { count: promotions.length })}
-              </Text>
-            </View>
-          )}
         </SafeAreaView>
       </Animated.View>
 
@@ -266,6 +237,41 @@ export default function EmployeeHomeScreen() {
           />
         }
       >
+        {/* ── Status, gas prices and promo count ──
+            Same navy as the pinned header so it looks like one block at rest, but it lives
+            in the scroll view: pinned, it took over 40% of the screen and left about half
+            for the actual content. Negative margins cancel the body padding (full bleed). */}
+        <Animated.View style={[s.heroBlock, { opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }]}>
+          <View style={s.pillRow}>
+            <View style={s.statusPill}>
+              <View style={s.statusDot} />
+              <Text style={s.statusText}>{t('employeeHome.onDutyStatus', { role: user?.role?.replace(/_/g, ' ') })}</Text>
+            </View>
+            {isOffTomorrow && (
+              <View style={s.statusPill}>
+                <Text style={s.offTomorrowEmoji}>😴</Text>
+                <Text style={s.statusText}>{t('employeeHome.offTomorrow')}</Text>
+              </View>
+            )}
+          </View>
+
+          <GasPriceCard
+            gasPrice={currentStorePrices?.gasPricePerGallon}
+            dieselPrice={currentStorePrices?.dieselPricePerGallon}
+            gasUpdatedAt={currentStorePrices?.gasPriceUpdatedAt}
+            dieselUpdatedAt={currentStorePrices?.dieselPriceUpdatedAt}
+          />
+
+          {promotions.length > 0 && (
+            <View style={s.promoStrip}>
+              <FlameIcon size={16} color="#fff" strokeWidth={2} />
+              <Text style={s.promoStripText}>
+                {t('employeeHome.promosActive', { count: promotions.length })}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+
         {/* ── Quick Actions ── */}
         <Animated.View style={{ opacity: fadeAnims[1], transform: [{ translateY: slideAnims[1] }] }}>
           <Text style={s.sectionLabel}>{t('employeeHome.quickActions')}</Text>
@@ -515,11 +521,7 @@ const s = StyleSheet.create({
   headerBg: { backgroundColor: '#1D3557' },
   headerRow: {
     flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10,
-  },
-  storeLine: {
-    color: 'rgba(255,255,255,0.45)', fontSize: 10,
-    fontWeight: '800', letterSpacing: 1.5, marginBottom: 4,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12,
   },
   greeting: { color: 'rgba(255,255,255,0.75)', fontSize: 16, fontWeight: '600' },
   greetingName: { color: '#fff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: -2 },
@@ -550,29 +552,30 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  // Navy block at the top of the scroll body, continuing the pinned header
+  heroBlock: {
+    backgroundColor: '#1D3557',
+    marginHorizontal: -16, marginTop: -16, marginBottom: 16,
+    paddingTop: 2,
+  },
+  pillRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+    marginHorizontal: 20, marginBottom: 10,
+  },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: 20, marginBottom: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
+    paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 20,
   },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
   statusText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
-  offTomorrowPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: 20, marginBottom: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20,
-  },
   offTomorrowEmoji: { fontSize: 12 },
-  offTomorrowText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' },
   promoStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 20, marginBottom: 16,
+    marginHorizontal: 20, marginBottom: 14,
     backgroundColor: '#F4A261',
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
   promoStripText: { color: '#fff', fontSize: 12.5, fontWeight: '700', flex: 1 },
 
