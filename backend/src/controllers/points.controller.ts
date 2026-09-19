@@ -12,6 +12,8 @@ import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
+import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
+import { classifyCashbackRatio } from './billing.controller';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -634,7 +636,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   const todayStart = storeDayStart(now);
   const monthStart = storeMonthStart(now);
 
-  const [todayStats, monthStats, pendingCount, flaggedCount, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
+  const [todayStats, monthStats, pendingCount, flaggedCount, oldestReview, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: todayStart } },
       _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
@@ -645,6 +647,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
     }),
     prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
     prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } }),
+    prisma.pointsTransaction.aggregate({ where: { status: { in: ['PENDING', 'FLAGGED'] } }, _min: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED' },
       _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
@@ -702,6 +705,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       },
       pending: pendingCount,   // PENDING only (kept for older admin builds)
       flagged: flaggedCount,   // fraud-flagged, also waiting on a reviewer (the sidebar badge counts both)
+      oldestReviewAt: oldestReview._min?.createdAt?.toISOString() ?? null, // when the longest-waiting pending or flagged item arrived
       allTime: {
         transactions: allTimeStats._count,
         purchaseVolume: parseFloat((allTimeStats._sum.purchaseAmount ?? 0).toFixed(2)),
@@ -744,6 +748,99 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
   }));
 
   res.json({ success: true, data: { days, daily } });
+}
+
+// SuperAdmin+: this period against the same stretch of the previous one. ?range=today|7d|30d|month.
+// Both windows end at the same point in their period (see utils/dashboardWindows.ts), so a half-finished
+// day is compared with the same half of the day it is compared to. Today is hourly, the rest daily.
+export async function getPlatformCompare(req: AuthRequest, res: Response) {
+  const asked = String(req.query.range ?? 'today');
+  const range: CompareRange = (COMPARE_RANGES as string[]).includes(asked) ? (asked as CompareRange) : 'today';
+  const now = new Date();
+  const w = compareWindows(range, now);
+
+  const rows = await prisma.pointsTransaction.findMany({
+    where: { status: 'APPROVED', createdAt: { gte: w.previous.start, lte: now } },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true },
+  });
+
+  res.json({
+    success: true,
+    data: { range, granularity: w.granularity, nowIndex: w.nowIndex, ...summarize(w, rows), generatedAt: now.toISOString() },
+  });
+}
+
+// SuperAdmin+: one row per active store with what an owner needs to decide who to call: sales today against
+// the same time last week, month to date, cashback as a share of sales (30 days), what is waiting for review,
+// and when the last sale was. `status` is alert / watch / ok and `reasons` spells out why.
+export async function getStoreHealth(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const todayKey = storeDateKey(now);
+  const todayStart = storeDayStart(now);
+  const lastWeekStart = startOfStoreDate(addStoreDays(todayKey, -7));
+  const lastWeekEnd = new Date(lastWeekStart.getTime() + (now.getTime() - todayStart.getTime()));
+  const monthStart = storeMonthStart(now);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
+  const approved = { status: TransactionStatus.APPROVED };
+
+  const [stores, today, lastWeek, month, ratio, waiting, last] = await Promise.all([
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, city: true } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: true, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: lastWeekStart, lte: lastWeekEnd } }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: true, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: thirtyDaysAgo } }, _sum: { purchaseAmount: true, pointsAwarded: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId', 'status'], where: { status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] } }, _count: true, orderBy: [{ storeId: 'asc' }, { status: 'asc' }] }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: approved, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
+  ]);
+
+  const byStore = <T extends { storeId: string }>(rows: T[]) => new Map(rows.map((r) => [r.storeId, r]));
+  const todayBy = byStore(today), lastWeekBy = byStore(lastWeek), monthBy = byStore(month), ratioBy = byStore(ratio), lastBy = byStore(last);
+  const pendingBy = new Map<string, number>();
+  const flaggedBy = new Map<string, number>();
+  for (const w of waiting) (w.status === TransactionStatus.FLAGGED ? flaggedBy : pendingBy).set(w.storeId, Number(w._count));
+  const r2 = (n: number) => parseFloat(n.toFixed(2));
+
+  const data = stores.map((s) => {
+    const t = todayBy.get(s.id);
+    const m = monthBy.get(s.id);
+    const todayVolume = r2(t?._sum?.purchaseAmount ?? 0);
+    const lastWeekVolume = r2(lastWeekBy.get(s.id)?._sum?.purchaseAmount ?? 0);
+    const sales30 = ratioBy.get(s.id)?._sum?.purchaseAmount ?? 0;
+    const cash30 = ratioBy.get(s.id)?._sum?.pointsAwarded ?? 0;
+    const cashbackRatio30d = sales30 > 0 ? parseFloat((cash30 / sales30).toFixed(4)) : 0;
+    const lastSaleAt = lastBy.get(s.id)?._max?.createdAt ?? null;
+    const pending = pendingBy.get(s.id) ?? 0;
+    const flagged = flaggedBy.get(s.id) ?? 0;
+    const hoursSince = lastSaleAt ? (now.getTime() - lastSaleAt.getTime()) / 3_600_000 : null;
+
+    const reasons: { level: 'alert' | 'watch'; text: string }[] = [];
+    if (flagged > 0) reasons.push({ level: 'alert', text: `${flagged} flagged transaction${flagged > 1 ? 's' : ''} to review` });
+    const health = classifyCashbackRatio(cashbackRatio30d);
+    if (health === 'critical') reasons.push({ level: 'alert', text: `Cashback is ${(cashbackRatio30d * 100).toFixed(1)}% of sales (30 days)` });
+    else if (health === 'warn') reasons.push({ level: 'watch', text: `Cashback is ${(cashbackRatio30d * 100).toFixed(1)}% of sales (30 days)` });
+    if (hoursSince == null) reasons.push({ level: 'watch', text: 'No sales yet' });
+    else if (hoursSince > 24 * 14) reasons.push({ level: 'watch', text: `No sales in ${Math.floor(hoursSince / 24)} days` });
+    else if (hoursSince > 24) reasons.push({ level: 'alert', text: `No sale in ${Math.floor(hoursSince)} hours` });
+    if (pending > 0) reasons.push({ level: 'watch', text: `${pending} pending review` });
+    if (lastWeekVolume >= 100 && todayVolume < lastWeekVolume * 0.5) {
+      reasons.push({ level: 'watch', text: `Sales down ${Math.round((1 - todayVolume / lastWeekVolume) * 100)}% on this time last week` });
+    }
+
+    return {
+      id: s.id, name: s.name, city: s.city,
+      todayTransactions: t?._count ?? 0, todayVolume, lastWeekVolume,
+      monthTransactions: m?._count ?? 0, monthVolume: r2(m?._sum?.purchaseAmount ?? 0),
+      cashbackRatio30d, pending, flagged,
+      lastSaleAt: lastSaleAt ? lastSaleAt.toISOString() : null,
+      hoursSinceLastSale: hoursSince == null ? null : Math.floor(hoursSince),
+      status: reasons.some((x) => x.level === 'alert') ? 'alert' : reasons.length > 0 ? 'watch' : 'ok',
+      reasons: reasons.map((x) => x.text),
+    };
+  });
+
+  const rank: Record<string, number> = { alert: 0, watch: 1, ok: 2 };
+  data.sort((a, b) => rank[a.status] - rank[b.status] || b.todayVolume - a.todayVolume || a.name.localeCompare(b.name));
+  res.json({ success: true, data });
 }
 
 // GET /points/pending-count — badge count: transactions with an action waiting (PENDING + FLAGGED).

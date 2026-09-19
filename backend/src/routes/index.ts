@@ -17,6 +17,8 @@ import {
   redeemCredits,
   getPlatformSummary,
   getPlatformTrend,
+  getPlatformCompare,
+  getStoreHealth,
   getAllTransactions,
   exportTransactionsCsv,
   getCustomerInfo,
@@ -265,6 +267,8 @@ router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STO
 router.patch('/points/:transactionId/review', authenticate, requireRole(Role.STORE_MANAGER), reviewFlaggedTransaction);
 router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformSummary);
 router.get('/points/platform-trend', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformTrend);
+router.get('/points/platform-compare', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformCompare);
+router.get('/points/store-health', authenticate, requireRole(Role.SUPER_ADMIN), getStoreHealth);
 router.get('/points/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllTransactions);
 router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), exportTransactionsCsv);
 

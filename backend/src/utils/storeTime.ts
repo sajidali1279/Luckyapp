@@ -77,6 +77,23 @@ export function storePrevMonthStart(at: Date = new Date()): Date {
   return p.m === 1 ? localMidnightUtc(p.y - 1, 12, 1) : localMidnightUtc(p.y, p.m - 1, 1);
 }
 
+/** Store-local hour of day (0-23) of the instant. */
+export function storeHour(at: Date): number {
+  return partsAt(at).h;
+}
+
+/** Store-local day of the month (1-31) of the instant. */
+export function storeDayOfMonth(at: Date): number {
+  return partsAt(at).d;
+}
+
+/** Whole store days from date `a` to date `b` ('YYYY-MM-DD'), so b minus a. */
+export function storeDaysBetween(a: string, b: string): number {
+  const [y1, m1, d1] = a.split('-').map(Number);
+  const [y2, m2, d2] = b.split('-').map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000);
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Start of a 'YYYY-MM-DD' store date. An unparseable value gives an Invalid Date, as `new Date('bad')` did. */
