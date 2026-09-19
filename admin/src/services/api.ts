@@ -131,6 +131,8 @@ export const pointsApi = {
   reviewFlagged: (transactionId: string, action: 'APPROVE' | 'REJECT') => api.patch(`/points/${transactionId}/review`, { action }),
   getPlatformSummary: () => api.get('/points/platform-summary'),
   getPlatformTrend: (days = 30) => api.get(`/points/platform-trend?days=${days}`),
+  getPlatformCompare: (range: string) => api.get(`/points/platform-compare?range=${range}`),
+  getStoreHealth: () => api.get('/points/store-health'),
   getAllTransactions: (params: Record<string, string>) =>
     api.get('/points/all', { params }),
   getPendingCount: () => api.get('/points/pending-count'),
