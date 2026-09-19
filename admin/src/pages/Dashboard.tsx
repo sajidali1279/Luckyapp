@@ -1,17 +1,18 @@
-﻿import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, AreaChart, Area,
+  BarChart, Bar, LabelList, AreaChart, Area,
 } from 'recharts';
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, disputesApi, labelsApi } from '../services/api';
 import GlobalSearch from '../components/GlobalSearch';
 import { useAuthStore } from '../store/authStore';
-import toast from 'react-hot-toast';
 import { handleGlowMove, TRANSITION_FAST, TRANSITION_TRANSFORM } from '../lib/motion';
 import ErrorState from '../components/ErrorState';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
+import { Skeleton } from '../components/ui/skeleton';
+import { formatDate, formatChartTooltipDate, formatFullCurrency, formatInteger, formatRate } from '../components/formater';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 function greeting() {
@@ -21,25 +22,86 @@ function greeting() {
   return 'Good evening';
 }
 
-function fmt$(n: number) {
-  return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+const fmt$ = formatFullCurrency;
+const fmtDay = (iso: string) => formatDate(iso, 'day-month');
+const axisMoney = (v: number | string) => `$${Math.round(Number(v)).toLocaleString('en-US')}`;
 
 const CAT_ICONS: Record<string, string> = {
   GROCERIES: '🛒', FROZEN_FOODS: '🧊', FRESH_FOODS: '🥗',
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', OTHER: '🏪',
 };
 
-const CHART_COLORS = [PRIMARY, '#E63946', '#F4A261', '#2DC653', '#457b9d', '#6f42c1', '#fd7e14', '#20c997'];
 const AVATAR_PALETTE = ['#E63946','#457B9D','#2DC653','#F4A261','#7B2FBE','#0077B6','#E76F51','#2A9D8F','#E9C46A','#264653','#6A0572',PRIMARY];
 function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
 const MEDALS = ['🥇', '🥈', '🥉'];
+
+// "Lucky Stop #4" -> "4". A name without a number (every store name starts with "Lucky") uses the
+// initials of the words after the first, so "Lucky Truck Stop" -> "TS" instead of the same "L" for all.
+function storeBadge(name: string) {
+  const m = name.match(/#\s*(\d+)/);
+  if (m) return m[1];
+  const words = name.split(/\s+/).filter(Boolean);
+  return (words.slice(1).map((w) => w[0]).join('') || words[0]?.[0] || '?').slice(0, 2).toUpperCase();
+}
+
+function daysUntil(iso: string) { return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000); }
+
+function agoLabel(iso: string | null) {
+  if (!iso) return 'No sales yet';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'Last sale today';
+  return days === 1 ? 'Last sale yesterday' : `Last sale ${days} days ago`;
+}
+
+function whenLabel(iso: string) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toDateString() === new Date().toDateString()
+    ? time
+    : `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`;
+}
+
+// Clickable non-button elements get a real button role and Enter/Space support.
+function activate(fn: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: fn,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
+    },
+  };
+}
 
 const STAT_BG: Record<string, string> = {
   '🧾': '#eff6ff', '💵': '#f0fdf4', '⭐': '#fefce8', '🎁': '#fdf4ff',
   '💰': '#f0fdf4', '📋': '#f0f9ff', '🏪': '#eff6ff', '🙋': '#fdf4ff',
   '👷': '#fff7ed', '📢': '#fef2f2', '🖼️': '#f5f3ff', '⏳': '#fff7ed', '📅': '#f0f9ff',
 };
+
+// ── Loading and failure states, one per panel ─────────────────────────────────
+// A failed call must show up where the data would have been. Before this, a panel whose query
+// failed simply vanished, so a broken feed looked like "no sales" or "all clear".
+
+function SkeletonCards({ n, h = 118 }: { n: number; h?: number }) {
+  return (
+    <div style={s.statsGrid} aria-busy="true" aria-label="Loading">
+      {Array.from({ length: n }).map((_, i) => <Skeleton key={i} style={{ height: h, borderRadius: 16 }} />)}
+    </div>
+  );
+}
+
+function SkeletonBox({ h }: { h: number }) {
+  return <Skeleton style={{ height: h, borderRadius: 16, marginBottom: 28 }} aria-busy="true" aria-label="Loading" />;
+}
+
+function PanelError({ label, onRetry }: { label: string; onRetry: () => void }) {
+  return (
+    <div style={s.panelError}>
+      <ErrorState compact message={`Couldn't load ${label}.`} onRetry={onRetry} />
+    </div>
+  );
+}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -53,7 +115,7 @@ function StatCard({ icon, label, value, valueColor = '#111827', to }: {
       className="dash-card"
       style={{ ...s.statCard, cursor: to ? 'pointer' : 'default' }}
       onMouseMove={handleGlowMove}
-      onClick={() => to && navigate(to)}
+      {...(to ? { ...activate(() => navigate(to)), 'aria-label': `${label}: ${value}. Open` } : {})}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ ...s.statIconWrap, background: bg }}>
@@ -104,8 +166,8 @@ function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
   );
 }
 
-function SectionHeader({ title, subtitle, action }: {
-  title: string; subtitle?: string; action?: { label: string; to: string };
+function SectionHeader({ title, subtitle, action, right }: {
+  title: string; subtitle?: string; action?: { label: string; to: string }; right?: React.ReactNode;
 }) {
   const navigate = useNavigate();
   return (
@@ -114,36 +176,43 @@ function SectionHeader({ title, subtitle, action }: {
         <h2 style={s.section}>{title}</h2>
         {subtitle && <p style={s.sectionSub}>{subtitle}</p>}
       </div>
-      {action && (
-        <button
-          className="dash-section-link"
-          style={s.sectionLink}
-          onClick={() => navigate(action.to)}
-        >
-          {action.label} →
-        </button>
-      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' as const, justifyContent: 'flex-end' }}>
+        {right}
+        {action && (
+          <button
+            className="dash-section-link"
+            style={s.sectionLink}
+            onClick={() => navigate(action.to)}
+          >
+            {action.label} →
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWidth: number; color: string }) {
   const navigate = useNavigate();
+  const quiet = store.transactions === 0;
   return (
     <div
       className="dash-table-row"
       style={{ ...s.storeTableRow, cursor: 'pointer', '--row-bg': i % 2 === 0 ? '#fff' : '#fafbfc' } as React.CSSProperties}
-      onClick={() => navigate('/leaderboard')}
+      {...activate(() => navigate('/leaderboard'))}
+      aria-label={`${store.name}, ${store.transactions} transactions, ${fmt$(store.purchaseVolume)}`}
     >
       <span style={s.storeColName}>
-        <span style={s.storeRank}>{i < 3 ? MEDALS[i] : `#${i + 1}`}</span>
-        <div style={{ ...s.storeAvatar, background: color }}>{store.name[0]?.toUpperCase()}</div>
-        <span>
+        <span style={s.storeRank}>{i < 3 && !quiet ? MEDALS[i] : `#${i + 1}`}</span>
+        <div style={{ ...s.storeAvatar, background: color }}>{storeBadge(store.name)}</div>
+        <span style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: PRIMARY, fontSize: 14 }}>{store.name}</div>
-          <div style={{ fontSize: 13, color: TEXT_MUTED }}>{store.city}</div>
+          <div style={{ fontSize: 13, color: quiet ? '#b45309' : TEXT_MUTED }}>
+            {quiet ? `${agoLabel(store.lastSaleAt)}, none this month` : store.city}
+          </div>
         </span>
       </span>
-      <span style={s.storeColNum}>{store.transactions}</span>
+      <span style={s.storeColNum}>{formatInteger(store.transactions)}</span>
       <span style={{ ...s.storeColNum, fontWeight: 700 }}>{fmt$(store.purchaseVolume)}</span>
       <span style={{ ...s.storeColNum, color: '#2DC653', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
       <span style={s.storeColBar}>
@@ -155,26 +224,90 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
   );
 }
 
-function LiveRateCard({ r, bronzeBase }: { r: any; bronzeBase: number }) {
-  const [hov, setHov] = useState(false);
+// ── Live cashback rates: tier by category, computed the way a grant computes them ──────────
+// Mirrors initiateGrant in backend/src/controllers/points.controller.ts: tier base + category bonus +
+// one promo (a category-specific offer wins over an all-category one), capped at 10%. Gas and diesel pay
+// cents per gallon when the tier has a per-gallon rate and the gallons are known. Chain-wide offers only;
+// store-specific offers apply at one store and are not shown here.
+const RATE_CAP = 0.10;   // CASHBACK_RATE_CAP in backend/src/config/constants.ts
+const RATE_WARN = 0.075; // CASHBACK_RATE_WARN
+const TIER_COLS: { tier: string; label: string }[] = [
+  { tier: 'BRONZE', label: '🥉 Bronze' }, { tier: 'SILVER', label: '🥈 Silver' }, { tier: 'GOLD', label: '🥇 Gold' },
+  { tier: 'DIAMOND', label: '💎 Diamond' }, { tier: 'PLATINUM', label: '👑 Platinum' },
+];
+
+type RateCell = { text: string; title: string; flag: 'none' | 'promo' | 'warn' | 'cap' };
+
+function rateCell(tier: string, category: string, tierRates: any[], catRates: any[], chainOffers: any[]): RateCell {
+  const tr = tierRates.find((t) => t.tier === tier);
+  const tierBase: number = tr?.cashbackRate ?? 0;
+  const catBonus: number = catRates.find((c) => c.category === category)?.cashbackRate ?? 0;
+  const offer = chainOffers.find((o) => o.category === category) ?? chainOffers.find((o) => o.category == null) ?? null;
+  const promo: number = offer ? (offer.tierBonusRates?.[tier] ?? offer.bonusRate ?? 0) : 0;
+  const isGas = category === 'GAS' || category === 'DIESEL';
+  const cents: number | null = tr?.gasCentsPerGallon ?? null;
+
+  if (isGas && cents != null && cents > 0) {
+    const extra = offer?.gasBonusCentsPerGallon != null ? ` + ${offer.gasBonusCentsPerGallon}¢` : promo > 0 ? ` + ${formatRate(promo)}` : '';
+    return {
+      text: `${cents}¢/gal${extra}`,
+      title: `Per-gallon mode: ${cents}¢ per gallon${extra ? `, plus promo ${offer?.title}` : ''}. If the gallons are not known, the percentage rate applies instead.`,
+      flag: extra ? 'promo' : 'none',
+    };
+  }
+  let rate = parseFloat((tierBase + catBonus + promo).toFixed(4)); // the grant rounds the same way before comparing to the warn line
+  let flag: RateCell['flag'] = promo > 0 ? 'promo' : 'none';
+  if (rate > RATE_CAP) { rate = RATE_CAP; flag = 'cap'; } else if (rate > RATE_WARN) { flag = 'warn'; }
+  const parts = [`base ${formatRate(tierBase)}`, `category ${formatRate(catBonus)}`];
+  if (promo > 0) parts.push(`promo ${formatRate(promo)}`);
+  return { text: formatRate(rate), title: parts.join(' + ') + (flag === 'cap' ? ' (capped at 10%)' : ''), flag };
+}
+
+const FLAG_COLOR: Record<RateCell['flag'], string> = { none: '#111827', promo: '#157A3E', warn: '#b45309', cap: '#E63946' };
+
+function LiveRatesMatrix({ tierRates, catRates, offers }: { tierRates: any[]; catRates: any[]; offers: any[] }) {
+  const now = new Date();
+  const chainOffers = offers.filter((o: any) =>
+    o.isActive && (o.type ?? 'ALL_STORES') === 'ALL_STORES' && (o.bonusRate != null || o.gasBonusCentsPerGallon != null) &&
+    new Date(o.startDate) <= now && new Date(o.endDate) >= now);
   return (
-    <div
-      style={{ ...s.liveRateCard, ...(hov ? s.liveRateCardHov : {}) }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      <div style={s.liveRateTop}>
-        <span style={s.liveRateIcon}>{CAT_ICONS[r.category] || '🏪'}</span>
-        <span style={s.liveRateLabel}>{r.label}</span>
+    <div style={s.ratesWrap}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={s.ratesTable}>
+          <thead>
+            <tr>
+              <th style={{ ...s.ratesTh, textAlign: 'left' }}>Category</th>
+              {TIER_COLS.map((t) => <th key={t.tier} style={s.ratesTh}>{t.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {catRates.map((c: any) => (
+              <tr key={c.category}>
+                <td style={{ ...s.ratesTd, textAlign: 'left', fontWeight: 700, color: PRIMARY }}>
+                  <span style={{ marginRight: 8 }}>{CAT_ICONS[c.category] || '🏪'}</span>{c.label}
+                </td>
+                {TIER_COLS.map((t) => {
+                  const cell = rateCell(t.tier, c.category, tierRates, catRates, chainOffers);
+                  return (
+                    <td key={t.tier} style={{ ...s.ratesTd, color: FLAG_COLOR[cell.flag], fontWeight: cell.flag === 'none' ? 600 : 800 }} title={cell.title}>
+                      {cell.text}{cell.flag === 'cap' ? ' cap' : cell.flag === 'promo' ? ' ●' : ''}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div style={s.liveRateValue}>{(r.effectiveRate * 100).toFixed(1)}%</div>
-      <div style={s.rateTrack}>
-        <div style={{ ...s.rateFill, width: `${Math.min(r.effectiveRate * 500, 100)}%` }} />
-      </div>
-      <div style={s.liveRateBreakdown}>
-        <span style={s.liveRateRow}>Base (Bronze): {(bronzeBase * 100).toFixed(1)}%</span>
-        {r.catBonus > 0 && <span style={{ ...s.liveRateRow, color: '#457B9D' }}>Category: +{(r.catBonus * 100).toFixed(1)}%</span>}
-        {r.promoBonus > 0 && <span style={{ ...s.liveRateRow, color: '#2DC653' }}>🎉 {r.promoTitle}: +{(r.promoBonus * 100).toFixed(1)}%</span>}
+      <div style={s.ratesLegend}>
+        {chainOffers.length > 0
+          ? chainOffers.map((o: any) => (
+              <span key={o.id} style={{ color: '#157A3E', fontWeight: 600 }}>
+                ● {o.title}: {o.gasBonusCentsPerGallon != null && o.bonusRate == null ? `+${o.gasBonusCentsPerGallon}¢/gal` : `+${formatRate(o.bonusRate ?? 0)}`} on {o.category ? o.category.replace(/_/g, ' ').toLowerCase() : 'all categories'}
+              </span>
+            ))
+          : <span>No chain-wide promotion is running.</span>}
+        <span>Gas and diesel pay cents per gallon when the gallons are known, otherwise the percentage. Rates are capped at 10%. Hover a cell for the breakdown.</span>
       </div>
     </div>
   );
@@ -198,15 +331,11 @@ const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; co
 function CashbackHealthCard() {
   const [expandedStore, setExpandedStore] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['cashback-health'],
     queryFn: () => billingApi.getCashbackHealth(),
     staleTime: 5 * 60_000,
   });
-
-  // Quietly hide on error — this is a passive health indicator, not a critical-path
-  // feature; a failed fetch shouldn't show a scary error box on the main Dashboard.
-  if (isError) return null;
 
   const stores: CashbackStoreHealth[] = data?.data?.data ?? [];
   const problemStores = stores
@@ -215,9 +344,12 @@ function CashbackHealthCard() {
 
   return (
     <div>
-      <SectionHeader title="Cashback Health" subtitle="Cashback paid out vs. sales, trailing 30 days" />
+      <SectionHeader title="Cashback Health" subtitle="Cashback paid out vs. sales, trailing 30 days. Warn above 7.5%, critical above 9%." />
       {isLoading ? (
-        <div style={s.healthLoading}>Checking cashback health…</div>
+        <SkeletonBox h={64} />
+      ) : isError ? (
+        // A broken health check must not look like a healthy network.
+        <PanelError label="cashback health" onRetry={() => refetch()} />
       ) : problemStores.length === 0 ? (
         <div style={s.healthOk}>✅ All stores within cashback target</div>
       ) : (
@@ -270,20 +402,37 @@ function CashbackHealthCard() {
   );
 }
 
-function AttentionBanner({ pending, disputes }: { pending: number; disputes: number }) {
+function AttentionBanner({ awaiting, flagged, disputes, staleLabels, staleLabelStores, platformFailed, onRetry }: {
+  awaiting: number; flagged: number; disputes: number; staleLabels: number; staleLabelStores: number;
+  platformFailed: boolean; onRetry: () => void;
+}) {
   const navigate = useNavigate();
-  const items = [];
-  if (pending > 0) items.push({ label: `${pending} transaction${pending > 1 ? 's' : ''} awaiting review`, to: '/transactions', color: '#E63946' });
-  if (disputes > 0) items.push({ label: `${disputes} open dispute${disputes > 1 ? 's' : ''}`, to: '/customers?tab=disputes', color: '#F4A261' });
+  const items: { label: string; to?: string; color: string; onClick?: () => void }[] = [];
+  if (platformFailed) {
+    // Never let a failed check read as "nothing pending".
+    items.push({ label: "Couldn't check pending transactions. Retry", color: '#E63946', onClick: onRetry });
+  } else if (awaiting > 0) {
+    items.push({
+      label: `${formatInteger(awaiting)} transaction${awaiting > 1 ? 's' : ''} awaiting review${flagged > 0 ? ` (${formatInteger(flagged)} flagged)` : ''}`,
+      to: '/transactions', color: '#E63946',
+    });
+  }
+  if (disputes > 0) items.push({ label: `${disputes} open dispute${disputes > 1 ? 's' : ''}`, to: '/customers?tab=disputes', color: '#B45309' });
+  if (staleLabels > 0) {
+    items.push({
+      label: `${formatInteger(staleLabels)} label${staleLabels > 1 ? 's' : ''} need printing at ${staleLabelStores} store${staleLabelStores === 1 ? '' : 's'}`,
+      to: '/labels?tab=health', color: '#B45309',
+    });
+  }
   if (!items.length) return null;
   return (
-    <div style={s.attnBanner}>
+    <div style={s.attnBanner} role="status">
       <span style={s.attnIcon}>⚠️</span>
       <div style={s.attnBody}>
         <span style={s.attnTitle}>Needs your attention</span>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, marginTop: 4 }}>
           {items.map(item => (
-            <button key={item.to + item.label} onClick={() => navigate(item.to)}
+            <button key={item.label} onClick={() => (item.onClick ? item.onClick() : navigate(item.to!))}
               style={{ ...s.attnLink, color: item.color, border: `1px solid ${item.color}44` }}>
               {item.label} →
             </button>
@@ -304,9 +453,9 @@ function KPICard({ label, value, sub, color = PRIMARY, bg = '#eff6ff', icon }: {
           <span style={{ fontSize: 18 }}>{icon}</span>
         </div>
       </div>
-      <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
-      {sub && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 3 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 'auto', paddingTop: 3 }}>{sub}</div>}
     </div>
   );
 }
@@ -329,19 +478,27 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
         <div style={s.emptyState}>No active offers or banners right now.</div>
       ) : (
         <div style={s.offersGrid}>
-          {liveOffers.slice(0, 4).map((o: any) => (
-            <div key={o.id} style={s.offerChip}>
-              <div style={s.offerChipTop}>
-                <span style={s.offerChipBadge}>OFFER</span>
-                {o.bonusRate != null && (
-                  <span style={s.offerChipRate}>+{(o.bonusRate * 100).toFixed(0)}%</span>
-                )}
+          {liveOffers.slice(0, 4).map((o: any) => {
+            const left = daysUntil(o.endDate);
+            // Red only when it is actually about to end; a promo with weeks left is not an alarm.
+            const urgency = left <= 2 ? '#E63946' : left <= 7 ? '#B45309' : TEXT_MUTED;
+            return (
+              <div key={o.id} style={s.offerChip}>
+                <div style={s.offerChipTop}>
+                  <span style={s.offerChipBadge}>OFFER</span>
+                  {o.bonusRate != null && (
+                    <span style={s.offerChipRate}>+{formatRate(o.bonusRate)}</span>
+                  )}
+                </div>
+                <div style={s.offerChipName}>{o.title}</div>
+                {o.category && <div style={s.offerChipCat}>{o.category.replace(/_/g, ' ')}</div>}
+                <div style={{ ...s.offerChipExpiry, color: urgency }}>
+                  Ends {new Date(o.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {left <= 14 ? ` · ${left <= 0 ? 'today' : left === 1 ? '1 day left' : `${left} days left`}` : ''}
+                </div>
               </div>
-              <div style={s.offerChipName}>{o.title}</div>
-              {o.category && <div style={s.offerChipCat}>{o.category.replace(/_/g, ' ')}</div>}
-              <div style={s.offerChipExpiry}>Ends {new Date(o.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-            </div>
-          ))}
+            );
+          })}
           {liveBanners.slice(0, 2).map((b: any) => (
             <div key={b.id} style={{ ...s.offerChip, border: '1.5px solid #7c3aed22', background: '#faf5ff' }}>
               <div style={s.offerChipTop}>
@@ -357,136 +514,133 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
   );
 }
 
-function RecentTransactions({ txs }: { txs: any[] }) {
+const TX_STATUS: Record<string, { label: string; color: string }> = {
+  APPROVED: { label: 'Approved', color: '#157A3E' },
+  PENDING:  { label: 'Pending',  color: '#B45309' },
+  REJECTED: { label: 'Rejected', color: '#5a6472' },
+  FLAGGED:  { label: 'Flagged',  color: '#E63946' },
+};
+
+function RecentTransactions({ txs, loading, failed, onRetry }: { txs: any[]; loading: boolean; failed: boolean; onRetry: () => void }) {
   const navigate = useNavigate();
-  if (!txs.length) return null;
-  const STATUS_DOT: Record<string, string> = {
-    APPROVED: '#2DC653', PENDING: '#F4A261', REJECTED: '#5a6472', FLAGGED: '#E63946',
-  };
   return (
     <div style={s.recentPanel}>
       <div style={s.offersPanelHeader}>
         <span style={s.offersPanelTitle}>Recent Transactions</span>
         <button onClick={() => navigate('/transactions')} style={s.sectionLink}>View all →</button>
       </div>
-      <div>
-        {txs.map((tx: any) => (
-          <div key={tx.id} style={s.recentRow}>
-            <div style={{ ...s.recentDot, background: STATUS_DOT[tx.status] || '#dee2e6' }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>
-              <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '}</div>
-            </div>
-            <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
-              <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
-              <div style={s.recentTime}>
-                {new Date(tx.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+      {loading ? (
+        <div style={{ padding: 14 }}><Skeleton style={{ height: 220, borderRadius: 12 }} aria-busy="true" aria-label="Loading" /></div>
+      ) : failed ? (
+        <ErrorState compact message="Couldn't load recent transactions." onRetry={onRetry} />
+      ) : txs.length === 0 ? (
+        <div style={s.emptyState}>No transactions yet.</div>
+      ) : (
+        <div>
+          {txs.map((tx: any) => {
+            const st = TX_STATUS[tx.status] || { label: tx.status, color: TEXT_MUTED };
+            return (
+              <div key={tx.id} style={{ ...s.recentRow, cursor: 'pointer' }} {...activate(() => navigate('/transactions'))}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>
+                  <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '}</div>
+                </div>
+                <span style={{ ...s.recentStatus, color: st.color, borderColor: `${st.color}55` }}>{st.label}</span>
+                <div style={{ textAlign: 'right' as const, flexShrink: 0, minWidth: 74 }}>
+                  <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
+                  <div style={s.recentTime}>{whenLabel(tx.createdAt)}</div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+type RevPeriod = 'all' | 'month' | 'last-month';
+const PERIOD_LABEL: Record<RevPeriod, string> = { all: 'All time', month: 'This month', 'last-month': 'Last month' };
+
+function PeriodToggle({ value, onChange }: { value: RevPeriod; onChange: (p: RevPeriod) => void }) {
+  return (
+    <div style={s.periodToggle} role="group" aria-label="Revenue period">
+      {(['month', 'last-month', 'all'] as RevPeriod[]).map((p) => (
+        <button key={p} onClick={() => onChange(p)} aria-pressed={value === p}
+          style={{ ...s.periodBtn, ...(value === p ? s.periodBtnOn : {}) }}>
+          {PERIOD_LABEL[p]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function loadPeriod(): RevPeriod {
+  try {
+    const v = localStorage.getItem('dash-revenue-period');
+    if (v === 'all' || v === 'month' || v === 'last-month') return v;
+  } catch { /* storage unavailable */ }
+  return 'month';
 }
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const { notice: pinnedNotice, dismiss: dismissNotice } = usePinnedNotice();
+  const [revPeriod, setRevPeriod] = useState<RevPeriod>(loadPeriod);
+  const pickPeriod = (p: RevPeriod) => {
+    setRevPeriod(p);
+    try { localStorage.setItem('dash-revenue-period', p); } catch { /* storage unavailable */ }
+  };
 
-  const { data: offersData, isLoading: loadingOffers, isError: offersError, refetch: refetchOffers } = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
-  const { data: bannersData, isLoading: loadingBanners, isError: bannersError, refetch: refetchBanners } = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
-  const { data: customersData, isLoading: loadingCustomers, isError: customersError, refetch: refetchCustomers } = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
-  const { data: staffData, isLoading: loadingStaff, isError: staffError, refetch: refetchStaff } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
-  const { data: storesData, isLoading: loadingStores, isError: storesError, refetch: refetchStores } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
-  const kpiError = offersError || bannersError || customersError || staffError || storesError;
-  const refetchKpis = () => { refetchOffers(); refetchBanners(); refetchCustomers(); refetchStaff(); refetchStores(); };
+  const offersQ = useQuery({ queryKey: ['offers'], queryFn: () => offersApi.getActive() });
+  const bannersQ = useQuery({ queryKey: ['banners'], queryFn: () => bannersApi.getActive() });
+  const customersQ = useQuery({ queryKey: ['customers'], queryFn: () => customersApi.list() });
+  const staffQ = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list() });
+  const storesQ = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll() });
+  const kpiError = offersQ.isError || bannersQ.isError || customersQ.isError || staffQ.isError || storesQ.isError;
+  const refetchKpis = () => { offersQ.refetch(); bannersQ.refetch(); customersQ.refetch(); staffQ.refetch(); storesQ.refetch(); };
 
-  const { data: labelHealthData, isLoading: loadingLabelHealth } = useQuery({
-    queryKey: ['labels-health-summary'],
-    queryFn: () => labelsApi.getHealthSummary(),
-  });
-  const totalStaleLabels = labelHealthData?.data?.data?.totalStale ?? 0;
-  const storesWithStaleLabels = labelHealthData?.data?.data?.storesWithStale ?? 0;
+  const labelQ = useQuery({ queryKey: ['labels-health-summary'], queryFn: () => labelsApi.getHealthSummary() });
+  const totalStaleLabels: number = labelQ.data?.data?.data?.totalStale ?? 0;
+  const storesWithStaleLabels: number = labelQ.data?.data?.data?.storesWithStale ?? 0;
 
-  const { data: platformData } = useQuery({
-    queryKey: ['platform-summary'],
-    queryFn: () => pointsApi.getPlatformSummary(),
-    enabled: isSuperAdmin,
-    refetchInterval: 60000,
-  });
+  const platformQ = useQuery({ queryKey: ['platform-summary'], queryFn: () => pointsApi.getPlatformSummary(), enabled: isSuperAdmin, refetchInterval: 60_000 });
 
-  const { data: revenueData } = useQuery({ queryKey: ['revenue'], queryFn: () => billingApi.getRevenue(), enabled: isDevAdmin });
-  const { data: analyticsData } = useQuery({ queryKey: ['analytics-30d'], queryFn: () => billingApi.getAnalytics(), enabled: isDevAdmin });
-  const { data: ratesData } = useQuery({ queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled: isDevAdmin });
-  const { data: tierRatesData } = useQuery({ queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates(), enabled: isDevAdmin });
+  const revenueQ = useQuery({ queryKey: ['revenue', revPeriod], queryFn: () => billingApi.getRevenue(revPeriod), enabled: isDevAdmin });
+  const analyticsQ = useQuery({ queryKey: ['analytics-30d'], queryFn: () => billingApi.getAnalytics(), enabled: isDevAdmin });
+  const ratesQ = useQuery({ queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled: isDevAdmin });
+  const tierRatesQ = useQuery({ queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates(), enabled: isDevAdmin });
 
-  const thirtyDaysAgo = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString(); }, []);
-  const { data: trendRaw } = useQuery({
-    queryKey: ['sa-trend-30d'],
-    queryFn: () => pointsApi.getAllTransactions({ limit: '500', from: thirtyDaysAgo }),
-    enabled: isSuperAdmin && !isDevAdmin,
-    refetchInterval: 300_000,
-  });
-  const { data: disputesRaw } = useQuery({
-    queryKey: ['sa-disputes-pending'],
-    queryFn: () => disputesApi.getAll({ status: 'PENDING' }),
-    enabled: isSuperAdmin,
-    refetchInterval: 60_000,
-  });
+  // Server-side daily totals on the store calendar. The old chart paged raw transactions, and the list
+  // endpoint returns at most 100 rows, so it only ever drew the latest 100 sales.
+  const trendQ = useQuery({ queryKey: ['platform-trend-30d'], queryFn: () => pointsApi.getPlatformTrend(30), enabled: isSuperAdmin && !isDevAdmin, refetchInterval: 300_000 });
+  const recentQ = useQuery({ queryKey: ['recent-transactions'], queryFn: () => pointsApi.getAllTransactions({ limit: '8' }), enabled: isSuperAdmin && !isDevAdmin, refetchInterval: 30_000 });
+  const disputesQ = useQuery({ queryKey: ['sa-disputes-pending'], queryFn: () => disputesApi.getAll({ status: 'PENDING' }), enabled: isSuperAdmin, refetchInterval: 60_000 });
 
-  const trend30 = useMemo(() => {
-    const txs: any[] = trendRaw?.data?.data?.transactions || [];
-    const byDate: Record<string, { volume: number; count: number }> = {};
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      byDate[d.toISOString().slice(0, 10)] = { volume: 0, count: 0 };
-    }
-    txs.forEach((tx: any) => {
-      const key = new Date(tx.createdAt).toISOString().slice(0, 10);
-      if (byDate[key]) { byDate[key].volume += tx.purchaseAmount || 0; byDate[key].count += 1; }
-    });
-    return Object.entries(byDate).map(([date, d]) => ({
-      date: date.slice(5), volume: +d.volume.toFixed(2), count: d.count,
-    }));
-  }, [trendRaw]);
+  const trend30: { date: string; purchaseVolume: number; transactions: number }[] = trendQ.data?.data?.data?.daily ?? [];
+  const trendTotal = trend30.reduce((sum, d) => sum + d.purchaseVolume, 0);
+  const recentTxs: any[] = recentQ.data?.data?.data?.transactions ?? [];
+  const pendingDisputesCount: number = (disputesQ.data?.data?.data || []).length;
 
-  const recentTxs: any[] = useMemo(() => {
-    const txs: any[] = trendRaw?.data?.data?.transactions || [];
-    return [...txs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8);
-  }, [trendRaw]);
+  const activeOffersList: any[] = offersQ.data?.data?.data || [];
+  const activeOffersCount = activeOffersList.length;
+  const activeBanners = (bannersQ.data?.data?.data || []).length;
+  const totalCustomers = customersQ.data?.data?.data?.total || 0;
+  const totalStaff = (staffQ.data?.data?.data || []).length;
+  const activeStores = (storesQ.data?.data?.data || []).length;
+  const revenue = revenueQ.data?.data?.data;
+  const analytics = analyticsQ.data?.data?.data;
+  const categoryRates: any[] = ratesQ.data?.data?.data || [];
+  const tierRatesList: any[] = tierRatesQ.data?.data?.data || [];
+  const platform = platformQ.data?.data?.data;
+  const awaitingReview: number = (platform?.pending ?? 0) + (platform?.flagged ?? 0);
 
-  const pendingDisputesCount: number = (disputesRaw?.data?.data || []).length;
-
-  const activeOffersCount = (offersData?.data?.data || []).length;
-  const activeBanners = (bannersData?.data?.data || []).length;
-  const totalCustomers = customersData?.data?.data?.total || 0;
-  const totalStaff = (staffData?.data?.data || []).length;
-  const activeStores = (storesData?.data?.data || []).length;
-  const revenue = revenueData?.data?.data;
-  const analytics = analyticsData?.data?.data;
-  const categoryRates: { category: string; label: string; cashbackRate: number }[] = ratesData?.data?.data || [];
-  const tierRatesList: { tier: string; cashbackRate: number }[] = tierRatesData?.data?.data || [];
-  const activeOffersList: any[] = offersData?.data?.data || [];
-  const platform = platformData?.data?.data;
-
-  const bronzeBase = tierRatesList.find(r => r.tier === 'BRONZE')?.cashbackRate ?? 0.01;
-  const now = new Date();
-  const liveRates = categoryRates.map(r => {
-    const catBonus = r.cashbackRate ?? 0;
-    const promo = activeOffersList.find((o: any) => {
-      const notExpired = new Date(o.startDate) <= now && new Date(o.endDate) >= now;
-      const matchesCat = o.category === null || o.category === r.category;
-      return notExpired && o.isActive && o.bonusRate != null && matchesCat;
-    });
-    const promoBonus = promo?.bonusRate ?? 0;
-    return { ...r, catBonus, promoBonus, promoTitle: promo?.title ?? null, effectiveRate: bronzeBase + catBonus + promoBonus };
-  });
+  const count = (q: { isLoading: boolean; isError: boolean }, n: number) => (q.isLoading ? '…' : q.isError ? '–' : formatInteger(n));
+  const analyticsEmpty = analytics && !(analytics.daily || []).some((d: any) => d.transactions > 0);
 
   return (
     <div style={s.container}>
@@ -501,7 +655,7 @@ export default function Dashboard() {
           <p style={s.welcomeSub}>
             {isDevAdmin
               ? 'Full system access - billing, analytics, and platform settings.'
-              : `Managing ${loadingStores ? '…' : activeStores} Lucky Stop locations across the network.`}
+              : `Managing ${storesQ.isLoading ? '…' : activeStores} Lucky Stop locations across the network.`}
           </p>
         </div>
         <div style={{ ...s.roleBadge, ...(isDevAdmin ? s.roleBadgeDev : {}) }}>
@@ -535,37 +689,42 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Attention banner (shared: DevAdmin + SuperAdmin) ── */}
-      {isSuperAdmin && ((platform?.pending ?? 0) > 0 || pendingDisputesCount > 0) && (
+      {/* ── Needs attention (DevAdmin + SuperAdmin): pending AND flagged, disputes, stale labels ── */}
+      {isSuperAdmin && (
         <div className="dash-fade-in" style={{ animationDelay: '90ms' }}>
-          <AttentionBanner pending={platform?.pending ?? 0} disputes={pendingDisputesCount} />
+          <AttentionBanner
+            awaiting={awaitingReview}
+            flagged={platform?.flagged ?? 0}
+            disputes={pendingDisputesCount}
+            staleLabels={totalStaleLabels}
+            staleLabelStores={storesWithStaleLabels}
+            platformFailed={platformQ.isError}
+            onRetry={() => platformQ.refetch()}
+          />
         </div>
       )}
 
-      {/* ── Revenue (DevAdmin only) — Shelf Labels health folded in as a 7th
-           card instead of its own single-card section, which always left a
-           wide empty strip beside it since a section spans the full row
-           width regardless of how few cards are in it. ── */}
-      {isDevAdmin && revenue && (
+      {/* ── Revenue (DevAdmin only) ── */}
+      {isDevAdmin && (
         <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
-          <SectionHeader title="Revenue Overview" action={{ label: 'View Billing', to: '/billing' }} />
-          <div style={s.statsGrid}>
-            <StatCard icon="🧾" label="Transactions" value={revenue.totalTransactions} to="/transactions" />
-            <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
-            <StatCard icon="⭐" label="Points Issued" value={fmt$(revenue.totalPointsAwarded)} />
-            <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
-            <StatCard icon="💰" label="Dev Cut (cashback)" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
-            <StatCard icon="📋" label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
-            <StatCard
-              icon="🏷️" label="Labels Needing Print"
-              value={loadingLabelHealth ? '…' : totalStaleLabels}
-              valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined}
-              to="/labels?tab=health"
-            />
-          </div>
-          {storesWithStaleLabels > 0 && (
-            <div style={s.dashboardHint}>
-              {storesWithStaleLabels} store{storesWithStaleLabels === 1 ? '' : 's'} {storesWithStaleLabels === 1 ? 'has' : 'have'} labels behind
+          <SectionHeader
+            title="Revenue Overview"
+            subtitle={`${PERIOD_LABEL[revPeriod]}. Approved transactions only; subscriptions are what was collected in the period.`}
+            action={{ label: 'View Billing', to: '/billing' }}
+            right={<PeriodToggle value={revPeriod} onChange={pickPeriod} />}
+          />
+          {revenueQ.isLoading ? (
+            <SkeletonCards n={6} />
+          ) : revenueQ.isError || !revenue ? (
+            <PanelError label="revenue" onRetry={() => revenueQ.refetch()} />
+          ) : (
+            <div style={s.statsGrid}>
+              <StatCard icon="🧾" label="Transactions" value={formatInteger(revenue.totalTransactions)} to="/transactions" />
+              <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
+              <StatCard icon="⭐" label="Cashback Issued" value={fmt$(revenue.totalPointsAwarded)} />
+              <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
+              <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
+              <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
             </div>
           )}
         </div>
@@ -582,32 +741,42 @@ export default function Dashboard() {
       {isSuperAdmin && !isDevAdmin && (
         <>
           {/* KPI row */}
-          {platform && (
-            <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
-              <SectionHeader title="Today's Activity" action={{ label: 'View Transactions', to: '/transactions' }} />
+          <div className="dash-fade-in" style={{ animationDelay: '120ms' }}>
+            <SectionHeader title="Today's Activity" subtitle="Approved sales since midnight Central time." action={{ label: 'View Transactions', to: '/transactions' }} />
+            {platformQ.isLoading ? (
+              <SkeletonCards n={6} h={132} />
+            ) : platformQ.isError || !platform ? (
+              <PanelError label="today's activity" onRetry={() => platformQ.refetch()} />
+            ) : (
               <div style={s.kpiGrid}>
-                <KPICard icon="🧾" label="Transactions" value={platform.today.transactions} sub="Today" color={PRIMARY} bg="#eff6ff" />
+                <KPICard icon="🧾" label="Transactions" value={formatInteger(platform.today.transactions)} sub="Today" color={PRIMARY} bg="#eff6ff" />
                 <KPICard icon="💵" label="Purchase Volume" value={fmt$(platform.today.purchaseVolume)} sub="Today" color="#157A6E" bg="#f0fdf9" />
                 <KPICard icon="⭐" label="Cashback Issued" value={fmt$(platform.today.cashbackIssued)} sub="Today" color="#7C3AED" bg="#f5f3ff" />
                 <KPICard icon="📅" label="Monthly Volume" value={fmt$(platform.thisMonth.purchaseVolume)} sub="This month" color="#B45309" bg="#fffbeb" />
                 <KPICard
-                  icon="⏳" label="Pending Reviews" value={platform.pending}
-                  sub={platform.pending > 0 ? 'Need action' : 'All clear'}
-                  color={platform.pending > 0 ? '#E63946' : '#2DC653'}
-                  bg={platform.pending > 0 ? '#fff5f5' : '#f0fdf4'}
+                  icon="⏳" label="Pending Reviews" value={formatInteger(awaitingReview)}
+                  sub={awaitingReview > 0 ? ((platform.flagged ?? 0) > 0 ? `${formatInteger(platform.flagged)} flagged` : 'Need action') : 'All clear'}
+                  color={awaitingReview > 0 ? '#E63946' : '#2DC653'}
+                  bg={awaitingReview > 0 ? '#fff5f5' : '#f0fdf4'}
                 />
                 <KPICard icon="💰" label="Credits Outstanding" value={fmt$(platform.totalCreditsOutstanding)} sub="Unredeemed" color="#0369a1" bg="#f0f9ff" />
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* 30-day trend chart */}
-          {trend30.length > 0 && (
-            <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
-              <SectionHeader title="30-Day Purchase Volume" subtitle="Daily volume across all stores" />
+          <div className="dash-fade-in" style={{ animationDelay: '150ms' }}>
+            <SectionHeader title="30-Day Purchase Volume" subtitle="Approved sales per day, all stores, on the Central-time calendar" />
+            {trendQ.isLoading ? (
+              <SkeletonBox h={260} />
+            ) : trendQ.isError ? (
+              <PanelError label="the 30-day chart" onRetry={() => trendQ.refetch()} />
+            ) : trendTotal === 0 ? (
+              <div style={{ ...s.chartBoxFull, ...s.emptyState }}>No approved sales in the last 30 days.</div>
+            ) : (
               <div style={s.chartBoxFull}>
                 <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={trend30} margin={{ top: 4, right: 16, bottom: 0, left: -10 }}>
+                  <AreaChart data={trend30} margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                     <defs>
                       <linearGradient id="saGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.15} />
@@ -615,42 +784,61 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} interval={4} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Volume']} labelFormatter={(l) => `Date: ${l}`} />
-                    <Area type="monotone" dataKey="volume" stroke={PRIMARY} strokeWidth={2} fill="url(#saGrad)" dot={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
+                    <YAxis tick={{ fontSize: 12 }} tickFormatter={axisMoney} width={62} />
+                    <Tooltip
+                      formatter={(v: any, name: any) => name === 'purchaseVolume' ? [fmt$(Number(v)), 'Volume'] : [v, name]}
+                      labelFormatter={(l) => formatChartTooltipDate(String(l))}
+                    />
+                    <Area type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} fill="url(#saGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Store performance */}
-          {platform?.storeRanking?.length > 0 && (
-            <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
-              <SectionHeader title="Store Performance - This Month" action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
+          <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
+            <SectionHeader title="Store Performance - This Month" subtitle="Every active store, including any with no sales." action={{ label: 'Full Leaderboard', to: '/leaderboard' }} />
+            {platformQ.isLoading ? (
+              <SkeletonBox h={320} />
+            ) : platformQ.isError || !platform ? (
+              <PanelError label="store performance" onRetry={() => platformQ.refetch()} />
+            ) : platform.storeRanking.length === 0 ? (
+              <div style={{ ...s.storeTable, ...s.emptyState }}>No stores yet.</div>
+            ) : (
               <div style={s.storeTable}>
-                <div style={s.storeTableHeader}>
-                  <span style={s.storeColName}>Store</span>
-                  <span style={s.storeColNum}>Transactions</span>
-                  <span style={s.storeColNum}>Purchase Volume</span>
-                  <span style={s.storeColNum}>Cashback Issued</span>
-                  <span style={s.storeColBar}>Activity</span>
+                <div style={{ overflowX: 'auto' }}>
+                  <div style={{ minWidth: 780 }}>
+                    <div style={s.storeTableHeader}>
+                      <span style={s.storeColName}>Store</span>
+                      <span style={{ ...s.storeColNum, textAlign: 'right' }}>Transactions</span>
+                      <span style={{ ...s.storeColNum, textAlign: 'right' }}>Purchase Volume</span>
+                      <span style={{ ...s.storeColNum, textAlign: 'right' }}>Cashback Issued</span>
+                      <span style={s.storeColBar}>Activity</span>
+                    </div>
+                    {platform.storeRanking.map((store: any, i: number) => {
+                      const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
+                      const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
+                      return <StoreRow key={store.id} store={store} i={i} barWidth={barWidth} color={storeColor(i)} />;
+                    })}
+                  </div>
                 </div>
-                {platform.storeRanking.map((store: any, i: number) => {
-                  const maxVol = platform.storeRanking[0]?.purchaseVolume || 1;
-                  const barWidth = Math.max(4, (store.purchaseVolume / maxVol) * 100);
-                  return <StoreRow key={store.id} store={store} i={i} barWidth={barWidth} color={storeColor(i)} />;
-                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Active promotions + recent transactions side by side */}
           <div className="dash-fade-in" style={{ animationDelay: '210ms' }}>
             <div style={s.twoColRow}>
-              <ActiveOffersPanel offers={activeOffersList} banners={bannersData?.data?.data || []} />
-              <RecentTransactions txs={recentTxs} />
+              {offersQ.isError || bannersQ.isError ? (
+                <PanelError label="promotions" onRetry={() => { offersQ.refetch(); bannersQ.refetch(); }} />
+              ) : offersQ.isLoading || bannersQ.isLoading ? (
+                <SkeletonBox h={260} />
+              ) : (
+                <ActiveOffersPanel offers={activeOffersList} banners={bannersQ.data?.data?.data || []} />
+              )}
+              <RecentTransactions txs={recentTxs} loading={recentQ.isLoading} failed={recentQ.isError} onRetry={() => recentQ.refetch()} />
             </div>
           </div>
 
@@ -658,109 +846,116 @@ export default function Dashboard() {
           <div className="dash-fade-in" style={{ animationDelay: '240ms' }}>
             <SectionHeader title="Platform Overview" />
             <div style={s.statsGrid}>
-              <StatCard icon="🏪" label="Active Stores" value={loadingStores ? '…' : activeStores} to="/stores" />
-              <StatCard icon="🙋" label="Customers" value={loadingCustomers ? '…' : totalCustomers} to="/customers" />
-              <StatCard icon="👷" label="Staff Members" value={loadingStaff ? '…' : totalStaff} to="/staff" />
-              <StatCard icon="📢" label="Active Offers" value={loadingOffers ? '…' : activeOffersCount} to="/offers" />
-              <StatCard icon="🖼️" label="Active Banners" value={loadingBanners ? '…' : activeBanners} to="/banners" />
+              <StatCard icon="🏪" label="Active Stores" value={count(storesQ, activeStores)} to="/stores" />
+              <StatCard icon="🙋" label="Customers" value={count(customersQ, totalCustomers)} to="/customers" />
+              <StatCard icon="👷" label="Staff Members" value={count(staffQ, totalStaff)} to="/staff" />
+              <StatCard icon="📢" label="Active Offers" value={count(offersQ, activeOffersCount)} to="/offers" />
+              <StatCard icon="🖼️" label="Active Banners" value={count(bannersQ, activeBanners)} to="/banners" />
               <StatCard
-                icon="⚠️" label="Customer Disputes" value={pendingDisputesCount}
+                icon="⚠️" label="Customer Disputes" value={count(disputesQ, pendingDisputesCount)}
                 valueColor={pendingDisputesCount > 0 ? '#E63946' : undefined}
                 to="/customers?tab=disputes"
               />
               <StatCard
                 icon="🏷️" label="Labels Needing Print"
-                value={loadingLabelHealth ? '…' : totalStaleLabels}
+                value={count(labelQ, totalStaleLabels)}
                 valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined}
                 to="/labels?tab=health"
               />
             </div>
-            {storesWithStaleLabels > 0 && (
-              <div style={s.dashboardHint}>
-                {storesWithStaleLabels} store{storesWithStaleLabels === 1 ? '' : 's'} {storesWithStaleLabels === 1 ? 'has' : 'have'} labels behind
-              </div>
-            )}
           </div>
         </>
       )}
 
       {/* ── Analytics Charts (DevAdmin only) ── */}
-      {isDevAdmin && analytics && analytics.daily?.length > 0 && (
+      {isDevAdmin && (
         <div className="dash-fade-in" style={{ animationDelay: '180ms' }}>
-          <SectionHeader title="Last 30 Days - Activity" action={{ label: 'Full Analytics', to: '/analytics' }} />
-          <div style={s.chartsRow}>
-            <div style={s.chartBox}>
-              <div style={s.chartTitle}>Daily Transactions</div>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.12} />
-                      <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => l} />
-                  <Area type="monotone" dataKey="transactions" stroke={PRIMARY} strokeWidth={2} fill="url(#txGrad)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={s.chartBox}>
-              <div style={s.chartTitle}>Daily Dev Cut ($)</div>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2DC653" stopOpacity={0.12} />
-                      <stop offset="95%" stopColor="#2DC653" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Dev Cut']} />
-                  <Area type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} fill="url(#devGrad)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {analytics.byCategory?.length > 0 && (
+          <SectionHeader title="Last 30 Days - Activity" subtitle="Approved transactions by day, Central-time calendar." action={{ label: 'Full Analytics', to: '/analytics' }} />
+          {analyticsQ.isLoading ? (
+            <SkeletonBox h={250} />
+          ) : analyticsQ.isError || !analytics ? (
+            <PanelError label="the activity charts" onRetry={() => analyticsQ.refetch()} />
+          ) : analyticsEmpty ? (
+            <div style={{ ...s.chartBoxFull, ...s.emptyState }}>No approved sales in the last 30 days.</div>
+          ) : (
             <>
-              <SectionHeader title="Purchase Volume by Category" />
-              <div style={s.chartBoxFull}>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 80, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
-                    <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
-                    <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={(v) => v.replace('_', ' ')} width={80} />
-                    <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(2)}`, 'Purchase Volume']} />
-                    <Bar dataKey="purchaseVolume" radius={[0, 6, 6, 0]}>
-                      {analytics.byCategory.map((_: any, i: number) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div style={s.chartsRow}>
+                <div style={s.chartBox}>
+                  <div style={s.chartTitle}>Daily Transactions</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+                      <defs>
+                        <linearGradient id="txGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={PRIMARY} stopOpacity={0.12} />
+                          <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
+                      <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                      <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => formatChartTooltipDate(String(l))} />
+                      <Area type="monotone" dataKey="transactions" stroke={PRIMARY} strokeWidth={2} fill="url(#txGrad)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={s.chartBox}>
+                  <div style={s.chartTitle}>Daily Purchase Volume ($)</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: 6 }}>
+                      <defs>
+                        <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2DC653" stopOpacity={0.14} />
+                          <stop offset="95%" stopColor="#2DC653" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
+                      <YAxis tick={{ fontSize: 12 }} tickFormatter={axisMoney} width={58} />
+                      <Tooltip formatter={(v: any) => [fmt$(Number(v)), 'Purchase volume']} labelFormatter={(l) => formatChartTooltipDate(String(l))} />
+                      <Area type="monotone" dataKey="purchaseVolume" stroke="#2DC653" strokeWidth={2} fill="url(#devGrad)" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
+
+              {analytics.byCategory?.length > 0 && (
+                <>
+                  <SectionHeader title="Purchase Volume by Category" />
+                  <div style={s.chartBoxFull}>
+                    <ResponsiveContainer width="100%" height={Math.max(220, analytics.byCategory.length * 38)}>
+                      <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 8, right: 84 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={axisMoney} />
+                        <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={(v) => String(v).replace(/_/g, ' ')} width={128} />
+                        <Tooltip formatter={(v: any) => [fmt$(Number(v)), 'Purchase volume']} labelFormatter={(l) => String(l).replace(/_/g, ' ')} />
+                        <Bar dataKey="purchaseVolume" fill={PRIMARY} radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="purchaseVolume" position="right" formatter={(v: any) => axisMoney(v)} style={{ fontSize: 12, fill: '#374151', fontWeight: 600 }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
       )}
 
       {/* ── Live Cashback Rates (DevAdmin only) ── */}
-      {isDevAdmin && liveRates.length > 0 && (
+      {isDevAdmin && (
         <div className="dash-fade-in" style={{ animationDelay: '240ms' }}>
           <SectionHeader
             title="Live Cashback Rates Today"
-            subtitle="Effective rate each Bronze customer earns per category right now - tier base + category bonus + active promotions."
+            subtitle="What each tier earns per category right now: tier base + category bonus + the active chain-wide promotion."
             action={{ label: 'Edit Rates', to: '/rates' }}
           />
-          <div style={s.ratesGrid}>
-            {liveRates.map((r) => <LiveRateCard key={r.category} r={r} bronzeBase={bronzeBase} />)}
-          </div>
+          {ratesQ.isLoading || tierRatesQ.isLoading || offersQ.isLoading ? (
+            <SkeletonBox h={300} />
+          ) : ratesQ.isError || tierRatesQ.isError || offersQ.isError ? (
+            <PanelError label="the live rates" onRetry={() => { ratesQ.refetch(); tierRatesQ.refetch(); offersQ.refetch(); }} />
+          ) : (
+            <LiveRatesMatrix tierRates={tierRatesList} catRates={categoryRates} offers={activeOffersList} />
+          )}
         </div>
       )}
     </div>
@@ -805,17 +1000,32 @@ const s: Record<string, React.CSSProperties> = {
 
   sectionHeader: {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    marginBottom: 14, marginTop: 8,
+    marginBottom: 14, marginTop: 8, gap: 12, flexWrap: 'wrap' as const,
   },
   section: {
     fontSize: 15, fontWeight: 800, color: PRIMARY, margin: 0,
   },
-  sectionSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6, marginBottom: 0, paddingLeft: 16 },
+  sectionSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6, marginBottom: 0 },
   sectionLink: {
     background: 'none', border: '1px solid #dee2e6', borderRadius: 8,
     padding: '5px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
     color: TEXT_MUTED, transition: TRANSITION_FAST, whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
+  },
+
+  periodToggle: {
+    display: 'inline-flex', background: '#fff', border: '1px solid #dee2e6', borderRadius: 8,
+    padding: 2, gap: 2, marginTop: 2,
+  },
+  periodBtn: {
+    background: 'none', border: 'none', borderRadius: 6, padding: '4px 11px',
+    fontSize: 13, fontWeight: 600, color: TEXT_MUTED, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  },
+  periodBtnOn: { background: PRIMARY, color: '#fff' },
+
+  panelError: {
+    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28,
   },
 
   attnBanner: {
@@ -837,10 +1047,11 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff', borderRadius: 14, padding: '18px 18px 16px',
     boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)',
     border: '1px solid #f0f1f2',
+    display: 'flex', flexDirection: 'column',
   },
   kpiIconWrap: { width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
-  twoColRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28, alignItems: 'start' },
+  twoColRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 28, alignItems: 'start' },
 
   offersPanel: {
     background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
@@ -849,7 +1060,7 @@ const s: Record<string, React.CSSProperties> = {
   offersPanelHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '14px 18px', borderBottom: '1px solid #f0f1f2',
-    background: '#fafbfc',
+    background: '#fafbfc', gap: 8, flexWrap: 'wrap' as const,
   },
   offersPanelTitle: { fontSize: 15, fontWeight: 800, color: PRIMARY },
   offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
@@ -860,13 +1071,13 @@ const s: Record<string, React.CSSProperties> = {
   },
   offerChipTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   offerChipBadge: {
-    fontSize: 9, fontWeight: 800, background: '#E63946', color: '#fff',
+    fontSize: 11, fontWeight: 800, background: '#E63946', color: '#fff',
     borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
   },
-  offerChipRate: { fontSize: 14, fontWeight: 900, color: '#2DC653' },
+  offerChipRate: { fontSize: 14, fontWeight: 900, color: '#157A3E' },
   offerChipName: { fontSize: 15, fontWeight: 700, color: PRIMARY, marginBottom: 3, lineHeight: 1.3 },
   offerChipCat: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
-  offerChipExpiry: { fontSize: 12, color: '#E63946', fontWeight: 600, marginTop: 6 },
+  offerChipExpiry: { fontSize: 12, fontWeight: 600, marginTop: 6 },
   emptyState: { padding: '24px 18px', color: TEXT_MUTED, fontSize: 15, textAlign: 'center' as const },
 
   recentPanel: {
@@ -878,10 +1089,13 @@ const s: Record<string, React.CSSProperties> = {
     padding: '11px 18px', borderBottom: '1px solid #f9fafb',
     transition: 'background 0.12s ease',
   },
-  recentDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  recentStatus: {
+    fontSize: 12, fontWeight: 700, border: '1px solid', borderRadius: 20, padding: '2px 9px',
+    flexShrink: 0, background: '#fff',
+  },
   recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
   recentMeta: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
-  recentAmount: { fontSize: 15, fontWeight: 800, color: PRIMARY },
+  recentAmount: { fontSize: 15, fontWeight: 800, color: PRIMARY, fontVariantNumeric: 'tabular-nums' },
   recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
 
   // auto-fit (not auto-fill) collapses grid tracks that have no card in
@@ -889,7 +1103,6 @@ const s: Record<string, React.CSSProperties> = {
   // fill the last row - doesn't leave a strip of empty white space beside
   // it; remaining cards use the freed-up room to grow, up to the max.
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 260px))', gap: 14, marginBottom: 32 },
-  dashboardHint: { fontSize: 13, color: '#b7791f', marginTop: -20, marginBottom: 32 },
   statCard: {
     background: '#fff', borderRadius: 16, padding: '20px 18px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
@@ -903,14 +1116,13 @@ const s: Record<string, React.CSSProperties> = {
   statIcon: { fontSize: 22 },
   statArrow: { fontSize: 15, color: TEXT_MUTED, fontWeight: 700 },
   // minHeight reserves room for a two-line label so a short label ("Staff")
-  // and a long one ("Subscription Revenue") both leave the value number
+  // and a long one ("Subscriptions Collected") both leave the value number
   // starting at the same y position across a row of cards.
   statLabel: { color: TEXT_MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 1.3, minHeight: 34 },
-  statValue: { fontSize: 26, fontWeight: 800, letterSpacing: -0.5 },
+  statValue: { fontSize: 26, fontWeight: 800, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
 
-  healthLoading: { color: TEXT_MUTED, fontSize: 14, padding: '12px 0', fontStyle: 'italic' },
   healthOk: {
-    color: '#2DC653', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
+    color: '#157A3E', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
     border: '1px solid rgba(45,198,83,0.3)', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
   },
   healthList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 },
@@ -942,30 +1154,32 @@ const s: Record<string, React.CSSProperties> = {
   storeTable: {
     background: '#fff', borderRadius: 16, overflow: 'hidden',
     boxShadow: '0 2px 10px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2', marginBottom: 32,
+    // The table scrolls sideways inside this box; without this its min width still stretched the whole page.
+    contain: 'inline-size',
   },
   storeTableHeader: {
-    display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
+    display: 'grid', gridTemplateColumns: 'minmax(220px, 2.4fr) 1fr 1.2fr 1.2fr 1.3fr', columnGap: 12,
     padding: '10px 20px', background: '#f8f9fa',
     fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   storeTableRow: {
-    display: 'grid', gridTemplateColumns: '2.4fr 1fr 1fr 1fr 1.2fr',
+    display: 'grid', gridTemplateColumns: 'minmax(220px, 2.4fr) 1fr 1.2fr 1.2fr 1.3fr', columnGap: 12,
     padding: '13px 20px', alignItems: 'center',
     borderTop: '1px solid #f0f1f2', transition: 'background 0.12s ease',
   },
-  storeColName: { display: 'flex', alignItems: 'center', gap: 8 },
-  storeColNum: { fontSize: 14, color: '#495057' },
+  storeColName: { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 },
+  storeColNum: { fontSize: 14, color: '#495057', fontVariantNumeric: 'tabular-nums', textAlign: 'right' },
   storeColBar: { paddingRight: 12 },
   storeRank: { fontSize: 16, width: 26, textAlign: 'center' as const, flexShrink: 0 },
   storeAvatar: {
     width: 30, height: 30, borderRadius: 8, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 14, fontWeight: 800,
+    color: '#fff', fontSize: 13, fontWeight: 800,
   },
   barTrack: { height: 7, background: '#f0f1f2', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 4, transition: 'width 0.6s ease' },
 
-  chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 },
+  chartsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 28 },
   chartBox: {
     background: '#fff', borderRadius: 16, padding: '20px 20px 12px',
     border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
@@ -976,19 +1190,22 @@ const s: Record<string, React.CSSProperties> = {
   },
   chartTitle: { fontSize: 14, fontWeight: 700, color: TEXT_MUTED, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  ratesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, marginBottom: 36 },
-  liveRateCard: {
-    background: '#fff', borderRadius: 14, padding: '16px 18px',
-    border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+  ratesWrap: {
+    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 36, overflow: 'hidden',
+    contain: 'inline-size',
   },
-  liveRateCardHov: { transform: 'translateY(-2px)', boxShadow: '0 8px 20px rgba(0,0,0,0.08)' },
-  liveRateTop: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
-  liveRateIcon: { fontSize: 20 },
-  liveRateLabel: { fontWeight: 700, fontSize: 15, color: PRIMARY },
-  liveRateValue: { fontSize: 30, fontWeight: 900, color: PRIMARY, marginBottom: 8, letterSpacing: -1 },
-  rateTrack: { height: 5, background: '#f0f1f2', borderRadius: 3, overflow: 'hidden', marginBottom: 10 },
-  rateFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 3 },
-  liveRateBreakdown: { display: 'flex', flexDirection: 'column' as const, gap: 2 },
-  liveRateRow: { fontSize: 13, color: TEXT_MUTED },
+  ratesTable: { width: '100%', borderCollapse: 'collapse', minWidth: 640 },
+  ratesTh: {
+    padding: '12px 14px', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, background: '#f8f9fa',
+    textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #f0f1f2',
+  },
+  ratesTd: {
+    padding: '11px 14px', fontSize: 14, textAlign: 'center', borderBottom: '1px solid #f5f6f7',
+    whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
+  },
+  ratesLegend: {
+    display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 16px',
+    fontSize: 13, color: TEXT_MUTED, background: '#fafbfc', borderTop: '1px solid #f0f1f2',
+  },
 };

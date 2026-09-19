@@ -39,7 +39,7 @@ export const authApi = {
 
 export const billingApi = {
   getAllStores: () => api.get('/billing/stores'),
-  getRevenue: () => api.get('/billing/revenue'),
+  getRevenue: (period?: string) => api.get(`/billing/revenue${period && period !== 'all' ? `?period=${period}` : ''}`),
   getAnalytics: (from?: string, to?: string) =>
     api.get(`/billing/analytics${from ? `?from=${from}&to=${to}` : ''}`),
   getCashbackHealth: () => api.get('/billing/cashback-health'),
@@ -130,6 +130,7 @@ export const pointsApi = {
   reject: (transactionId: string) => api.patch(`/points/${transactionId}/reject`),
   reviewFlagged: (transactionId: string, action: 'APPROVE' | 'REJECT') => api.patch(`/points/${transactionId}/review`, { action }),
   getPlatformSummary: () => api.get('/points/platform-summary'),
+  getPlatformTrend: (days = 30) => api.get(`/points/platform-trend?days=${days}`),
   getAllTransactions: (params: Record<string, string>) =>
     api.get('/points/all', { params }),
   getPendingCount: () => api.get('/points/pending-count'),

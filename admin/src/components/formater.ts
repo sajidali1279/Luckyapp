@@ -93,3 +93,8 @@ export function formatInteger(value: number) {
 export function formatPercent(value: number, fractionDigits = 2) {
 	return `${value.toFixed(fractionDigits)}%`;
 }
+
+/** A fraction as a percent without a trailing ".0" (0.015 -> "1.5%", 0.02 -> "2%"). */
+export function formatRate(rate: number, maxFractionDigits = 1) {
+	return `${parseFloat((rate * 100).toFixed(maxFractionDigits))}%`;
+}

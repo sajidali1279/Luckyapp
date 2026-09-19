@@ -189,6 +189,14 @@
 .dash-card:hover .dash-stat-arrow {
   opacity: 1;
 }
+.dash-card:focus-visible,
+.dash-table-row:focus-visible {
+  outline: 2px solid #1D3557;
+  outline-offset: 2px;
+}
+.dash-card:focus-visible .dash-stat-arrow {
+  opacity: 1;
+}
 
 .dash-quick-btn {
   position: relative;
