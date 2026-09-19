@@ -20,12 +20,18 @@ Labeling rework plus a Spanish and usability pass across the three mobile roles.
 - **Employee** - A Retry screen when the Staff Rankings, Store Alerts, or Hot Food lists fail to load, instead of an empty list.
 - **Admin** - Dashboard: Revenue Overview can be switched between This month, Last month and All time. Live Cashback Rates is now a table of every tier and category that follows the same rules as a real grant: cents per gallon for gas and diesel, one promotion, and the 10% cap. Store Performance lists every store, including one with no sales, with the date of its last sale. Recent Transactions shows a status label instead of only a colored dot.
 - **Admin** - Each Dashboard panel now has its own loading placeholder and, if a request fails, a message with Try Again instead of quietly disappearing.
+- **Admin** - Dashboard Activity has a time range (Today, 7 days, 30 days, This month). Every number shows how it compares with the same stretch of the previous period, ending at the same point, so the morning is compared with last week's morning. Cards carry a 14-day trend line, there is a new Average Ticket card, and the chart draws the previous period as a dashed line. The chart can show sales, transactions or cashback.
+- **Admin** - Dashboard "Needs your attention" is one list: pending and flagged transactions (with how long the oldest has waited), disputes, store, support, schedule, hot food and business requests, billing, job applications, chat, and labels, plus alerts nobody watched before: a store with no sale in over a day, stores paying out more cashback than expected, and promotions ending within two days. Alerts that can stay true for a while have a 7-day snooze. The sidebar badges and this list read the same counts.
+- **Admin** - Dashboard Store Health: a tile for every store with today's sales against the same time last week, month to date, cashback as a share of sales, time of the last sale, and what needs a look. It switches to the monthly ranking table.
+- **Admin** - Flagged and pending transactions can be approved or rejected straight from the Dashboard, with a confirmation that shows the amount, store and customer. Fraud flags are listed on each one.
+- **Dev** - Dev Admin now sees the day-to-day Operations view on the Dashboard as well, with an Operations / Business switch. Revenue, cashback health, activity charts and live rates are on the Business side.
 
 ### Changed
 - **Customer, Employee, Manager** - Spanish translations for the Labels, scanner and Price Check screens, customer Home (offers, rewards, tier details, QR sheet, welcome bonus, local ads), the receipt scanner, Profile, the shared Retry screen, and the Daily Report and Daily Tasks menu entries. Screen-reader labels are translated as well.
 - **Customer** - The Home header title now shrinks on narrow phones instead of pushing the bell and profile buttons off the screen.
 - **Manager** - The manual no longer says that press-and-hold reorders Order List items (mobile has no drag reordering). Press-and-hold now starts selecting.
 - **Admin** - "Pending reviews" and the attention banner on the Dashboard now count flagged transactions as well as pending ones, matching the Transactions badge in the sidebar. Labels that need printing are listed in the banner too.
+- **Admin** - The Dashboard header is more compact and search and shortcuts share one row, so the numbers start higher on the screen. The Dashboard shows at most five attention items until you ask for more.
 - **Admin** - Dashboard counts and chart axes show thousands separators, an offer of 1.5% shows as 1.5% instead of 2%, and "Ends" turns red only in the last two days. The stat cards and store rows can be reached and opened with the keyboard.
 
 ### Fixed
