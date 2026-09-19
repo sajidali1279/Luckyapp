@@ -1,10 +1,10 @@
 import { DayOfWeek } from '@prisma/client';
+import { STORE_TIMEZONE } from './storeTime';
 
 // Stores are all in Texas, so every "what day/time is it right now" question
 // for hours display must be answered in Central time regardless of where
 // the server itself runs (Render is UTC). Same technique already used by
 // daily-report-reminder-cron.ts for the same reason.
-const STORE_TIMEZONE = 'America/Chicago';
 
 const DAY_ABBR_TO_ENUM: Record<string, DayOfWeek> = {
   Sun: DayOfWeek.SUN, Mon: DayOfWeek.MON, Tue: DayOfWeek.TUE, Wed: DayOfWeek.WED,

@@ -10,6 +10,7 @@ import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 import { computeTodayHoursLabel } from '../utils/storeHours';
+import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -301,11 +302,12 @@ export async function getCategoryRates(_req: AuthRequest, res: Response) {
   const stored = await prisma.categoryRate.findMany();
   const storedMap = Object.fromEntries(stored.map((r) => [r.category, r.cashbackRate]));
 
-  // Return all categories — use stored rate or default 5%
+  // Return all categories. A category with no saved rate gets no bonus when points are granted
+  // (points.controller and receipt.controller both use 0), so report 0, not a made-up default.
   const rates = (Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((cat) => ({
     category: cat,
     label: CATEGORY_LABELS[cat],
-    cashbackRate: storedMap[cat] ?? 0.05,
+    cashbackRate: storedMap[cat] ?? 0,
   }));
 
   res.json({ success: true, data: rates });
@@ -1300,25 +1302,35 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
 // ─── Revenue & Analytics ──────────────────────────────────────────────────────
 
 // DevAdmin: total revenue summary
-export async function getDevRevenue(_req: AuthRequest, res: Response) {
+// DevAdmin: revenue totals. ?period=all (default) | month | last-month, cut on the store calendar
+// (Central time). For a month, subscription revenue is what was collected (paidAt) in that month.
+export async function getDevRevenue(req: AuthRequest, res: Response) {
+  const asked = String(req.query.period ?? 'all');
+  const period: 'all' | 'month' | 'last-month' = asked === 'month' || asked === 'last-month' ? asked : 'all';
+  const now = new Date();
+  const range = period === 'month' ? { gte: storeMonthStart(now) }
+    : period === 'last-month' ? { gte: storePrevMonthStart(now), lt: storeMonthStart(now) }
+    : undefined;
+
   const [transactionStats, txDevCut, redemptionStats, subscriptionStats, devCutConfig] = await Promise.all([
     prisma.pointsTransaction.aggregate({
       _sum: { purchaseAmount: true, pointsAwarded: true },
       _count: true,
-      where: { status: 'APPROVED' },
+      where: { status: 'APPROVED', ...(range ? { createdAt: range } : {}) },
     }),
     // Dev cut earned at grant time (new model)
     prisma.pointsTransaction.aggregate({
       _sum: { devCut: true },
-      where: { status: 'APPROVED' },
+      where: { status: 'APPROVED', ...(range ? { createdAt: range } : {}) },
     }),
     prisma.creditRedemption.aggregate({
       _sum: { amount: true },
       _count: true,
+      where: range ? { createdAt: range } : undefined,
     }),
     prisma.billingRecord.aggregate({
       _sum: { amount: true },
-      where: { isPaid: true },
+      where: { isPaid: true, ...(range ? { paidAt: range } : {}) },
     }),
     prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
@@ -1328,6 +1340,7 @@ export async function getDevRevenue(_req: AuthRequest, res: Response) {
   res.json({
     success: true,
     data: {
+      period,
       devCutRate,
       totalTransactions: transactionStats._count,
       totalPurchaseVolume: transactionStats._sum.purchaseAmount ?? 0,
@@ -1344,8 +1357,8 @@ export async function getDevRevenue(_req: AuthRequest, res: Response) {
 export async function getAnalytics(req: AuthRequest, res: Response) {
   const { from, to } = req.query as { from?: string; to?: string };
 
-  const fromDate = from ? new Date(from.slice(0, 10) + 'T00:00:00') : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const toDate   = to   ? new Date(to.slice(0, 10)   + 'T23:59:59') : new Date();
+  const fromDate = from ? startOfStoreDate(from.slice(0, 10)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate   = to   ? endOfStoreDate(to.slice(0, 10))     : new Date();
 
   if (fromDate >= toDate) {
     res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
@@ -1375,7 +1388,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
   }> = {};
 
   for (const tx of transactions) {
-    const date = tx.createdAt.toISOString().slice(0, 10);
+    const date = storeDateKey(tx.createdAt);
     if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
     byDate[date].transactions++;
     byDate[date].purchaseVolume = parseFloat((byDate[date].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
@@ -1383,11 +1396,16 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     byDate[date].devCut = parseFloat((byDate[date].devCut + Number(tx.devCut)).toFixed(2));
   }
   for (const r of redemptions) {
-    const date = r.createdAt.toISOString().slice(0, 10);
+    const date = storeDateKey(r.createdAt);
     if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
     byDate[date].redemptions++;
     byDate[date].redeemedAmount = parseFloat((byDate[date].redeemedAmount + Number(r.amount)).toFixed(2));
     byDate[date].devCut = parseFloat((byDate[date].devCut + Number(r.devCut)).toFixed(2));
+  }
+
+  // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it.
+  for (let key = storeDateKey(fromDate), last = storeDateKey(toDate), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
+    if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
   }
 
   // Per-store grouping

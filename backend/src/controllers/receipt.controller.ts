@@ -8,6 +8,7 @@ import { getTierBonusRate, updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } fr
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
 import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
+import { storeDayStart } from '../utils/storeTime';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -195,7 +196,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   }
 
   // Daily self-grant cap — limits abuse if a store API key is compromised
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayStart = storeDayStart();
   const todaySelfGrantCount = await prisma.pointsTransaction.count({
     where: { customerId: customer.id, grantedById: customer.id, createdAt: { gte: todayStart } },
   });

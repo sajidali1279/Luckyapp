@@ -11,6 +11,7 @@ import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
+import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -141,7 +142,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   // ── Fraud detection ──────────────────────────────────────────────────────
   const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
   const oneHourAgo    = new Date(Date.now() - 60 * 60 * 1000);
-  const startOfToday  = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday  = storeDayStart();
 
   const [recentDuplicate, customerTodayCount, employeeHourCount, pairTodayCount] = await Promise.all([
     prisma.pointsTransaction.findFirst({
@@ -551,8 +552,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
 export async function getStoreSummary(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = storeDayStart();
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, address: true, city: true } });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
@@ -626,14 +626,15 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
 }
 
-// SuperAdmin+: platform-wide summary stats
+// SuperAdmin+: platform-wide summary stats. "Today" and "this month" are cut on the store calendar
+// (Central time), not the server clock. Every active store is ranked, including one with no sales
+// this month, so a quiet store shows up as a $0 row instead of vanishing from the list.
 export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayStart = storeDayStart(now);
+  const monthStart = storeMonthStart(now);
 
-  const [todayStats, monthStats, pendingCount, allTimeStats, perStore, creditsOut] = await prisma.$transaction([
+  const [todayStats, monthStats, pendingCount, flaggedCount, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: todayStart } },
       _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
@@ -643,6 +644,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
+    prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED' },
       _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
@@ -654,18 +656,36 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       _sum: { purchaseAmount: true, pointsAwarded: true },
       orderBy: { _sum: { purchaseAmount: 'desc' } },
     }),
+    prisma.pointsTransaction.groupBy({
+      by: ['storeId'],
+      where: { status: 'APPROVED' },
+      _max: { createdAt: true },
+      orderBy: { storeId: 'asc' },
+    }),
     prisma.user.aggregate({
       where: { role: 'CUSTOMER' },
       _sum: { pointsBalance: true },
     }),
+    prisma.store.findMany({ select: { id: true, name: true, city: true, isActive: true } }),
   ]);
 
-  const storeIds = perStore.map((r) => r.storeId);
-  const stores = await prisma.store.findMany({
-    where: { id: { in: storeIds } },
-    select: { id: true, name: true, city: true },
-  });
-  const storeMap = Object.fromEntries(stores.map((s) => [s.id, s]));
+  const monthByStore = new Map(perStore.map((r) => [r.storeId, r]));
+  const lastSaleByStore = new Map(lastSales.map((r) => [r.storeId, r._max?.createdAt ?? null]));
+  const storeRanking = allStores
+    .filter((s) => s.isActive || monthByStore.has(s.id))
+    .map((s) => {
+      const m = monthByStore.get(s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        city: s.city,
+        transactions: m?._count ?? 0,
+        purchaseVolume: parseFloat(((m?._sum?.purchaseAmount) ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((m?._sum?.pointsAwarded) ?? 0).toFixed(2)),
+        lastSaleAt: lastSaleByStore.get(s.id)?.toISOString() ?? null,
+      };
+    })
+    .sort((a, b) => b.purchaseVolume - a.purchaseVolume || a.name.localeCompare(b.name));
 
   res.json({
     success: true,
@@ -680,21 +700,50 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
         purchaseVolume: parseFloat((monthStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((monthStats._sum.pointsAwarded ?? 0).toFixed(2)),
       },
-      pending: pendingCount,
+      pending: pendingCount,   // PENDING only (kept for older admin builds)
+      flagged: flaggedCount,   // fraud-flagged, also waiting on a reviewer (the sidebar badge counts both)
       allTime: {
         transactions: allTimeStats._count,
         purchaseVolume: parseFloat((allTimeStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((allTimeStats._sum.pointsAwarded ?? 0).toFixed(2)),
       },
       totalCreditsOutstanding: parseFloat((creditsOut._sum.pointsBalance ?? 0).toFixed(2)),
-      storeRanking: perStore.map((r) => ({
-        ...(storeMap[r.storeId] ?? { id: r.storeId, name: 'Unknown', city: '' }),
-        transactions: r._count,
-        purchaseVolume: parseFloat(((r._sum?.purchaseAmount) ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat(((r._sum?.pointsAwarded) ?? 0).toFixed(2)),
-      })),
+      storeRanking,
     },
   });
+}
+
+// SuperAdmin+: approved sales per store day for the last N days (default 30, max 90), oldest first,
+// with quiet days filled in as zeros. The dashboard chart reads this instead of paging raw
+// transactions (the list endpoint caps at 100 rows, which silently truncated the old chart).
+export async function getPlatformTrend(req: AuthRequest, res: Response) {
+  const days = Math.min(Math.max(parseInt(String(req.query.days ?? '30'), 10) || 30, 1), 90);
+  const firstKey = addStoreDays(storeDateKey(), -(days - 1));
+
+  const rows = await prisma.pointsTransaction.findMany({
+    where: { status: 'APPROVED', createdAt: { gte: startOfStoreDate(firstKey) } },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true },
+  });
+
+  const byDate: Record<string, { date: string; transactions: number; purchaseVolume: number; cashbackIssued: number }> = {};
+  for (let i = 0; i < days; i++) {
+    const key = addStoreDays(firstKey, i);
+    byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, cashbackIssued: 0 };
+  }
+  for (const r of rows) {
+    const b = byDate[storeDateKey(r.createdAt)];
+    if (!b) continue;
+    b.transactions++;
+    b.purchaseVolume += r.purchaseAmount;
+    b.cashbackIssued += r.pointsAwarded;
+  }
+  const daily = Object.values(byDate).map((d) => ({
+    ...d,
+    purchaseVolume: parseFloat(d.purchaseVolume.toFixed(2)),
+    cashbackIssued: parseFloat(d.cashbackIssued.toFixed(2)),
+  }));
+
+  res.json({ success: true, data: { days, daily } });
 }
 
 // GET /points/pending-count — badge count: transactions with an action waiting (PENDING + FLAGGED).
@@ -734,8 +783,8 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
   const periodPoints = currentPeriod ? customer.periodPoints : 0;
 
   // Check today's daily benefit (Gold+)
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const todayStart = storeDayStart();
+  const todayEnd   = storeDayEnd();
 
   let benefitAvailable = false;
   let benefitType: string | null = null;
@@ -785,8 +834,8 @@ export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
   const currentPeriod = customer.tierPeriod === period;
   const tier = currentPeriod ? customer.tier : Tier.BRONZE;
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const todayStart = storeDayStart();
+  const todayEnd   = storeDayEnd();
 
   let available = false;
   let benefitType: string | null = null;
@@ -842,8 +891,8 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     }
     benefitType = 'SILVER_FOUNTAIN';
   } else {
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const todayStart = storeDayStart();
+    const todayEnd   = storeDayEnd();
     const usedToday = await prisma.tierBenefitClaim.count({
       where: { userId: customer.id, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
@@ -923,8 +972,8 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
   if (category) where.category = category;
   if (from || to) {
     const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = new Date(from.slice(0, 10) + 'T00:00:00');
-    if (to)   dateFilter.lte = new Date(to.slice(0, 10)   + 'T23:59:59');
+    if (from) dateFilter.gte = startOfStoreDate(from.slice(0, 10));
+    if (to)   dateFilter.lte = endOfStoreDate(to.slice(0, 10));
     where.createdAt = dateFilter;
   }
 
@@ -979,8 +1028,8 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
   if (category) where.category = category;
   if (from || to) {
     const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = new Date(from.slice(0, 10) + 'T00:00:00');
-    if (to)   dateFilter.lte = new Date(to.slice(0, 10)   + 'T23:59:59');
+    if (from) dateFilter.gte = startOfStoreDate(from.slice(0, 10));
+    if (to)   dateFilter.lte = endOfStoreDate(to.slice(0, 10));
     where.createdAt = dateFilter;
   }
 

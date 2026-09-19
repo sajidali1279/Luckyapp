@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { TransactionStatus } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../types';
+import { storeMonthStart } from '../utils/storeTime';
 
 // ─── Customer Leaderboard ─────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ export async function getEmployeeLeaderboard(req: AuthRequest, res: Response) {
 
   // This-month ratings for "Employee of the Month"
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStart = storeMonthStart(now);
   const monthRatings = await prisma.employeeRating.groupBy({
     by: ['employeeId'],
     where: { storeId, createdAt: { gte: monthStart } },
