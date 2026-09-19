@@ -36,6 +36,7 @@ export function formatAge(days: number): string {
   return `${days}d ago`;
 }
 
-export function formatEndsOn(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+// The locale follows the app language so a Spanish screen doesn't show an English month.
+export function formatEndsOn(iso: string, locale: string = 'en-US'): string {
+  return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }

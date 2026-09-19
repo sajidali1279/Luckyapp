@@ -10,6 +10,10 @@ import Toast from 'react-native-toast-message';
 import { COLORS } from '../constants';
 import { XIcon, DollarSignIcon, PlusIcon, CheckCircleIcon } from './Icons';
 import { labelsApi, scannedProductApi, orderCategoriesApi } from '../services/api';
+import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '../store/authStore';
+import { useLabelCart } from '../store/labelCartStore';
+import { cartKey } from '../utils/labelCart';
 
 type Phase = 'scanning' | 'loading' | 'result' | 'naming';
 type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
@@ -33,13 +37,6 @@ interface Props {
   storeId: string;
 }
 
-const STATUS_LABEL: Record<PrintStatus, string> = {
-  not_added: 'Not added',
-  new: 'New — not printed yet',
-  needs_reprint: 'Needs reprint — price changed',
-  needs_price: 'No price set yet',
-  printed: 'Printed and up to date',
-};
 const STATUS_COLOR: Record<PrintStatus, string> = {
   not_added: '#8892a0',
   new: '#2563eb',
@@ -54,12 +51,15 @@ const STATUS_COLOR: Record<PrintStatus, string> = {
 // flow feeding into Order List/Stock Request/Labels-create.
 export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const qc = useQueryClient();
+  const { t } = useTranslation();
+  const statusText = (status: PrintStatus) => t(`sharedPriceCheck.status_${status}`);
+  const { user } = useAuthStore();
+  const cartId = cartKey(user?.id, storeId);
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<Phase>('scanning');
   const [lastCode, setLastCode] = useState('');
   const [barcode, setBarcode] = useState('');
   const [result, setResult] = useState<LookupResult | null>(null);
-  const [adding, setAdding] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const manualInputRef = useRef<TextInput>(null);
@@ -86,7 +86,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
 
   useEffect(() => {
     if (visible) {
-      setPhase('scanning'); setLastCode(''); setBarcode(''); setResult(null); setAdding(false);
+      setPhase('scanning'); setLastCode(''); setBarcode(''); setResult(null);
       setShowManualEntry(false); setManualBarcode('');
       setProductName(''); setCategory(''); setRegistering(false); setJustRegistered(false);
       clearPendingScan();
@@ -146,24 +146,21 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
     clearPendingScan();
   }
 
-  async function handleAddToMyPrints() {
-    if (!result?.id || adding) return;
-    setAdding(true);
-    try {
-      await labelsApi.addToStore(result.id, storeId);
-      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
-      qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all', storeId] });
-      const newStatus: PrintStatus = result.basePriceText != null ? 'new' : 'needs_price';
-      Toast.show({
-        type: 'success',
-        text1: 'Added to My Prints',
-        text2: result.basePriceText != null ? `At base price $${result.basePriceText}` : 'No price set yet',
-      });
-      setResult({ ...result, status: newStatus, priceText: result.basePriceText ?? null, hasOverride: false });
-    } catch {
-      Toast.show({ type: 'error', text1: 'Failed to add' });
+  // My Prints is the personal print list on the Labels screen (see
+  // utils/labelCart.ts), so this only edits that list: nothing is written to
+  // the server until the labels are actually printed.
+  const inMyPrints = useLabelCart(st => !!(cartId && result?.id && st.carts[cartId]?.[result.id]));
+
+  function handleToggleMyPrints() {
+    if (!result?.id || !cartId) return;
+    const cartStore = useLabelCart.getState();
+    if (inMyPrints) {
+      cartStore.remove(cartId, [result.id]);
+      Toast.show({ type: 'success', text1: t('sharedPriceCheck.toastRemoved') });
+    } else {
+      cartStore.add(cartId, [result.id]);
+      Toast.show({ type: 'success', text1: t('sharedPriceCheck.toastAdded') });
     }
-    setAdding(false);
   }
 
   async function handleRegister() {
@@ -181,7 +178,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
       qc.invalidateQueries({ queryKey: ['scanned-products'] });
       setJustRegistered(true);
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to save product' });
+      Toast.show({ type: 'error', text1: t('sharedPriceCheck.toastSaveFailed') });
     }
     setRegistering(false);
   }
@@ -194,10 +191,10 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
       <SafeAreaView style={[{ flex: 1 }, isDark ? { backgroundColor: '#000' } : { backgroundColor: COLORS.background }]} edges={['top', 'bottom']}>
 
         <View style={[st.header, isDark ? { backgroundColor: '#000' } : { backgroundColor: COLORS.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border }]}>
-          <TouchableOpacity onPress={onClose} style={st.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Close price check">
+          <TouchableOpacity onPress={onClose} style={st.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.closeA11y')}>
             <XIcon size={22} color={isDark ? '#fff' : COLORS.textMuted} strokeWidth={2.5} />
           </TouchableOpacity>
-          <Text style={[st.title, !isDark && { color: COLORS.text }]}>Price Check</Text>
+          <Text style={[st.title, !isDark && { color: COLORS.text }]}>{t('sharedPriceCheck.title')}</Text>
           <View style={{ width: 42 }} />
         </View>
 
@@ -205,9 +202,9 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
           <View style={st.center}><ActivityIndicator color="#fff" size="large" /></View>
         ) : !permission.granted ? (
           <View style={st.center}>
-            <Text style={st.permText}>Camera access is required to scan barcodes.</Text>
-            <TouchableOpacity style={st.permBtn} onPress={requestPermission} accessibilityRole="button" accessibilityLabel="Allow camera access">
-              <Text style={st.permBtnText}>Allow Camera</Text>
+            <Text style={st.permText}>{t('sharedPriceCheck.cameraRequired')}</Text>
+            <TouchableOpacity style={st.permBtn} onPress={requestPermission} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.allowCameraA11y')}>
+              <Text style={st.permBtnText}>{t('sharedPriceCheck.allowCamera')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -235,13 +232,13 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
               {phase === 'loading' ? (
                 <View style={st.statusRow}>
                   <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
-                  <Text style={st.statusText}>Checking price…</Text>
+                  <Text style={st.statusText}>{t('sharedPriceCheck.checking')}</Text>
                 </View>
               ) : (
                 <>
-                  <Text style={st.statusText}>Point camera at a barcode</Text>
-                  <TouchableOpacity onPress={() => setShowManualEntry(true)} style={st.manualEntryLink} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Enter barcode manually instead of scanning">
-                    <Text style={st.manualEntryLinkText}>Enter barcode manually</Text>
+                  <Text style={st.statusText}>{t('sharedPriceCheck.pointCamera')}</Text>
+                  <TouchableOpacity onPress={() => setShowManualEntry(true)} style={st.manualEntryLink} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.enterManuallyA11y')}>
+                    <Text style={st.manualEntryLinkText}>{t('sharedPriceCheck.enterManually')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -250,13 +247,13 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
             {showManualEntry && (
               <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={st.manualEntryOverlay}>
                 <View style={st.manualEntryCard}>
-                  <Text style={st.manualEntryTitle}>Enter Barcode</Text>
+                  <Text style={st.manualEntryTitle}>{t('sharedPriceCheck.manualTitle')}</Text>
                   <TextInput
                     ref={manualInputRef}
                     style={st.manualEntryInput}
                     value={manualBarcode}
                     onChangeText={setManualBarcode}
-                    placeholder="Type the barcode number"
+                    placeholder={t('sharedPriceCheck.manualPlaceholder')}
                     placeholderTextColor="#B0B8C4"
                     autoFocus
                     autoCapitalize="none"
@@ -265,11 +262,11 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                     onSubmitEditing={submitManualBarcode}
                   />
                   <View style={st.manualEntryRow}>
-                    <TouchableOpacity style={st.manualEntryCancel} onPress={() => { setShowManualEntry(false); setManualBarcode(''); }} accessibilityRole="button" accessibilityLabel="Cancel manual entry">
-                      <Text style={st.manualEntryCancelText}>Cancel</Text>
+                    <TouchableOpacity style={st.manualEntryCancel} onPress={() => { setShowManualEntry(false); setManualBarcode(''); }} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.cancelManualA11y')}>
+                      <Text style={st.manualEntryCancelText}>{t('sharedPriceCheck.cancel')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[st.manualEntrySubmit, !manualBarcode.trim() && st.btnDim]} onPress={submitManualBarcode} disabled={!manualBarcode.trim()} accessibilityRole="button" accessibilityLabel="Look up this barcode">
-                      <Text style={st.manualEntrySubmitText}>Check Price</Text>
+                    <TouchableOpacity style={[st.manualEntrySubmit, !manualBarcode.trim() && st.btnDim]} onPress={submitManualBarcode} disabled={!manualBarcode.trim()} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.lookUpA11y')}>
+                      <Text style={st.manualEntrySubmitText}>{t('sharedPriceCheck.checkPrice')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -292,34 +289,40 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                 <>
                   <Text style={st.priceBig}>${result.priceText}</Text>
                   {result.dealText ? <Text style={st.dealText}>{result.dealText}</Text> : null}
-                  {result.hasOverride && <Text style={st.overrideNote}>Custom price for your store</Text>}
+                  {result.hasOverride && <Text style={st.overrideNote}>{t('sharedPriceCheck.customPrice')}</Text>}
                   {result.status && (
                     <View style={[st.statusChip, { borderColor: STATUS_COLOR[result.status] }]}>
-                      <Text style={[st.statusChipText, { color: STATUS_COLOR[result.status] }]}>{STATUS_LABEL[result.status]}</Text>
+                      <Text style={[st.statusChipText, { color: STATUS_COLOR[result.status] }]}>{statusText(result.status)}</Text>
                     </View>
                   )}
+                  {result.id ? (
+                    <TouchableOpacity
+                      style={[st.addBtn, inMyPrints && st.addBtnDone]}
+                      onPress={handleToggleMyPrints}
+                      accessibilityRole="button"
+                      accessibilityLabel={inMyPrints ? t('sharedPriceCheck.removeFromMyPrintsA11y') : t('sharedPriceCheck.addToMyPrints')}
+                    >
+                      {inMyPrints ? <CheckCircleIcon size={16} color="#fff" strokeWidth={2.5} /> : <PlusIcon size={16} color="#fff" strokeWidth={2.5} />}
+                      <Text style={st.addBtnText}>{inMyPrints ? t('sharedPriceCheck.inMyPrints') : t('sharedPriceCheck.addToMyPrints')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </>
               ) : (
                 <>
                   <Text style={st.notAddedText}>
-                    {result.status === 'needs_price' ? 'No price set yet. A manager can add one when labeling.' : 'Not priced at your store yet'}
+                    {result.status === 'needs_price' ? t('sharedPriceCheck.noPriceManager') : t('sharedPriceCheck.notPricedAtStore')}
                   </Text>
                   {result.status !== 'needs_price' && (
                     <>
-                      {result.basePriceText != null && <Text style={st.baseHint}>Chain base price: ${result.basePriceText}</Text>}
+                      {result.basePriceText != null && <Text style={st.baseHint}>{t('sharedPriceCheck.chainBasePrice', { price: result.basePriceText })}</Text>}
                       <TouchableOpacity
-                        style={[st.addBtn, adding && st.btnDim]}
-                        onPress={handleAddToMyPrints}
-                        disabled={adding}
+                        style={[st.addBtn, inMyPrints && st.addBtnDone]}
+                        onPress={handleToggleMyPrints}
                         accessibilityRole="button"
-                        accessibilityLabel="Add to My Prints"
+                        accessibilityLabel={inMyPrints ? t('sharedPriceCheck.removeFromMyPrintsA11y') : t('sharedPriceCheck.addToMyPrints')}
                       >
-                        {adding ? <ActivityIndicator color="#fff" size="small" /> : (
-                          <>
-                            <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-                            <Text style={st.addBtnText}>Add to My Prints</Text>
-                          </>
-                        )}
+                        {inMyPrints ? <CheckCircleIcon size={16} color="#fff" strokeWidth={2.5} /> : <PlusIcon size={16} color="#fff" strokeWidth={2.5} />}
+                        <Text style={st.addBtnText}>{inMyPrints ? t('sharedPriceCheck.inMyPrints') : t('sharedPriceCheck.addToMyPrints')}</Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -329,8 +332,8 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
 
             <Text style={st.barcodeSmall}>{result.barcode}</Text>
 
-            <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain} accessibilityRole="button" accessibilityLabel="Check another price" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={st.scanAgainText}>Check another price</Text>
+            <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.checkAnother')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={st.scanAgainText}>{t('sharedPriceCheck.checkAnother')}</Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -348,27 +351,24 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                     <CheckCircleIcon size={28} color={COLORS.secondary} strokeWidth={1.75} />
                   </View>
                   <Text style={st.productName}>{productName.trim()}</Text>
-                  <Text style={st.notAddedText}>No price set yet. A manager can add one when labeling.</Text>
+                  <Text style={st.notAddedText}>{t('sharedPriceCheck.noPriceManager')}</Text>
                 </View>
               ) : (
                 <>
                   <View style={st.barcodeChip}>
-                    <Text style={st.barcodeChipLabel}>Barcode</Text>
+                    <Text style={st.barcodeChipLabel}>{t('sharedPriceCheck.barcode')}</Text>
                     <Text style={st.barcodeChipValue}>{barcode}</Text>
                   </View>
 
-                  <Text style={st.namingHint}>
-                    This barcode isn't in the label catalog yet.{'\n'}
-                    Name it once - a manager can add a price when labeling.
-                  </Text>
+                  <Text style={st.namingHint}>{t('sharedPriceCheck.namingHint')}</Text>
 
-                  <Text style={st.fieldLabel}>Product name  <Text style={st.fieldLabelRequired}>*</Text></Text>
+                  <Text style={st.fieldLabel}>{t('sharedPriceCheck.productName')}  <Text style={st.fieldLabelRequired}>*</Text></Text>
                   <TextInput
                     ref={nameRef}
                     style={st.fieldInput}
                     value={productName}
                     onChangeText={setProductName}
-                    placeholder="e.g. Whole Milk 1 Gallon"
+                    placeholder={t('sharedPriceCheck.productNamePlaceholder')}
                     placeholderTextColor="#B0B8C4"
                     autoCapitalize="words"
                     autoCorrect={false}
@@ -376,7 +376,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                     maxLength={200}
                   />
 
-                  <Text style={[st.fieldLabel, { marginTop: 16 }]}>Category  <Text style={st.fieldLabelSub}>(optional)</Text></Text>
+                  <Text style={[st.fieldLabel, { marginTop: 16 }]}>{t('sharedPriceCheck.category')}  <Text style={st.fieldLabelSub}>{t('sharedPriceCheck.optional')}</Text></Text>
                   <View style={{ position: 'relative' }}>
                     <TextInput
                       style={st.fieldInput}
@@ -384,7 +384,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                       onChangeText={v => { setCategory(v); setShowCatSugg(true); }}
                       onFocus={() => setShowCatSugg(catSuggs.length > 0)}
                       onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
-                      placeholder="e.g. Dairy, Frozen Foods…"
+                      placeholder={t('sharedPriceCheck.categoryPlaceholder')}
                       placeholderTextColor="#B0B8C4"
                       autoCapitalize="words"
                       autoCorrect={false}
@@ -397,7 +397,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                           <TouchableOpacity key={c} style={st.catSuggRow}
                             onPress={() => { setCategory(c); setShowCatSugg(false); }}
                             accessibilityRole="button"
-                            accessibilityLabel={`Use category ${c}`}
+                            accessibilityLabel={t('sharedPriceCheck.useCategoryA11y', { category: c })}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             <Text style={st.catSuggText}>{c}</Text>
@@ -413,12 +413,12 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                     disabled={!productName.trim() || registering}
                     activeOpacity={0.85}
                     accessibilityRole="button"
-                    accessibilityLabel="Add product to catalog"
+                    accessibilityLabel={t('sharedPriceCheck.addToCatalogA11y')}
                   >
                     {registering ? <ActivityIndicator color="#fff" size="small" /> : (
                       <>
                         <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-                        <Text style={st.addBtnText}>Add to Catalog</Text>
+                        <Text style={st.addBtnText}>{t('sharedPriceCheck.addToCatalog')}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -427,8 +427,8 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
 
               <Text style={st.barcodeSmall}>{barcode}</Text>
 
-              <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain} accessibilityRole="button" accessibilityLabel="Check another price" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={st.scanAgainText}>Check another price</Text>
+              <TouchableOpacity style={st.scanAgainBtn} onPress={scanAgain} accessibilityRole="button" accessibilityLabel={t('sharedPriceCheck.checkAnother')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={st.scanAgainText}>{t('sharedPriceCheck.checkAnother')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -501,6 +501,7 @@ const st = StyleSheet.create({
     backgroundColor: COLORS.secondary, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 20, marginTop: 18,
   },
   addBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  addBtnDone: { backgroundColor: '#15803d' },
   btnDim: { opacity: 0.5 },
 
   barcodeSmall: { fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginBottom: 8, fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace' },

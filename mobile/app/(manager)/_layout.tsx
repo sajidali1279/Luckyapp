@@ -84,8 +84,8 @@ export default function ManagerLayout() {
       items: [
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
-        { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: 'Store Catalog' },
-        { route: '/(manager)/labels',     icon: (p) => <PrinterIcon {...p} />,   label: 'Labels' },
+        { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: t('nav.storeCatalog') },
+        { route: '/(manager)/labels',     icon: (p) => <PrinterIcon {...p} />,   label: t('nav.labels') },
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending + storeReqPending },
         { route: '/(manager)/disputes',   icon: (p) => <AlertTriangleIcon {...p} />, label: t('nav.disputes'), badge: disputesPending },
       ],

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants';
 import { XIcon, CheckCircleIcon, PackageIcon } from './Icons';
 import { scannedProductApi, orderCategoriesApi } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export interface BarcodeResult {
   name:     string;
@@ -25,6 +26,11 @@ interface Props {
   onResult:     (result: BarcodeResult) => void;
   hideQuantity?: boolean;
   confirmLabel?: string;
+  // Lets a caller act on a barcode it already knows, skipping the catalog
+  // lookup and confirm screen entirely and keeping the camera live for the
+  // next scan. Return a short message (shown briefly over the viewfinder)
+  // when the barcode was handled; return null to let the normal flow run.
+  onKnownBarcode?: (barcode: string) => string | null;
 }
 
 function mapOFFCategory(tags: string[]): string | null {
@@ -42,7 +48,10 @@ function mapOFFCategory(tags: string[]): string | null {
   return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
-export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false, confirmLabel = 'Add to List' }: Props) {
+export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false, confirmLabel, onKnownBarcode }: Props) {
+  const { t } = useTranslation();
+  // Callers that don't pass their own button text get the translated default.
+  const confirmText = confirmLabel ?? t('sharedScanner.addToList');
   const [permission, requestPermission] = useCameraPermissions();
   const [phase,        setPhase]        = useState<Phase>('scanning');
   const [lastCode,     setLastCode]     = useState('');
@@ -89,6 +98,22 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     }
   }
 
+  // Brief confirmation shown over the viewfinder when onKnownBarcode handled
+  // a scan. A toast can't do this job: it renders under a native Modal.
+  const [flash, setFlash] = useState<string | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showFlash(message: string) {
+    setFlash(message);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => { flashTimerRef.current = null; setFlash(null); }, 2200);
+  }
+
+  function clearFlash() {
+    if (flashTimerRef.current) { clearTimeout(flashTimerRef.current); flashTimerRef.current = null; }
+    setFlash(null);
+  }
+
   useEffect(() => {
     if (visible) {
       setPhase('scanning'); setLastCode(''); setBarcode('');
@@ -96,11 +121,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
       setProductName(''); setCategory(''); setSaving(false); setLookupError('');
       setShowManualEntry(false); setManualBarcode('');
       clearPendingScan();
+      clearFlash();
       orderCategoriesApi.getApproved()
         .then(r => setApprovedCats(r.data?.data || []))
         .catch(() => {});
     } else {
       clearPendingScan();
+      clearFlash();
     }
   }, [visible]);
 
@@ -128,6 +155,17 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   // ── Confirmed scan — actually look up/act on the code ───────────────────────
   async function handleScan({ data }: { data: string }) {
     if (phase !== 'scanning' || data === lastCode) return;
+
+    // A caller that already knows this barcode handles it itself: no lookup,
+    // no confirm screen, and the phase stays 'scanning' so the camera keeps
+    // going. pendingCodeRef still holds this code, so the same barcode
+    // lingering in frame isn't re-read until a different one is.
+    const handled = onKnownBarcode?.(data);
+    if (handled) {
+      showFlash(handled);
+      return;
+    }
+
     setLastCode(data);
     setBarcode(data);
     setPhase('loading');
@@ -214,13 +252,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
       setPhase('done');
     } catch (err: any) {
       setSaving(false);
-      const msg = err?.response?.data?.error || err?.message || 'Could not save product. Check your connection.';
-      Alert.alert('Save failed', msg, [
-        { text: 'Add anyway (won\'t remember)', onPress: () => {
+      const msg = err?.response?.data?.error || err?.message || t('sharedScanner.saveFailedDefault');
+      Alert.alert(t('sharedScanner.saveFailedTitle'), msg, [
+        { text: t('sharedScanner.addAnyway'), onPress: () => {
           onResult({ name, category: cat || null, barcode, quantity: '', source: 'manual' });
           setPhase('done');
         }},
-        { text: 'Try again', style: 'cancel' },
+        { text: t('sharedScanner.tryAgain'), style: 'cancel' },
       ]);
       return;
     }
@@ -239,8 +277,8 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const headerTitle =
-    phase === 'found'  ? 'Confirm Product' :
-    phase === 'naming' ? 'Name This Product' : 'Scan Barcode';
+    phase === 'found'  ? t('sharedScanner.titleConfirm') :
+    phase === 'naming' ? t('sharedScanner.titleName') : t('sharedScanner.titleScan');
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
@@ -256,7 +294,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
             style={st.closeBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
-            accessibilityLabel="Close scanner"
+            accessibilityLabel={t('sharedScanner.closeA11y')}
           >
             <XIcon size={22} color={phase === 'scanning' || phase === 'loading' ? '#fff' : COLORS.textMuted} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -271,23 +309,23 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
           </View>
         ) : !permission.granted ? (
           <View style={st.center}>
-            <Text style={st.permText}>Camera access is required to scan barcodes.</Text>
+            <Text style={st.permText}>{t('sharedScanner.cameraRequired')}</Text>
             <TouchableOpacity
               style={st.permBtn}
               onPress={requestPermission}
               accessibilityRole="button"
-              accessibilityLabel="Allow camera access"
+              accessibilityLabel={t('sharedScanner.allowCameraA11y')}
             >
-              <Text style={st.permBtnText}>Allow Camera</Text>
+              <Text style={st.permBtnText}>{t('sharedScanner.allowCamera')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={st.cancelLink}
               onPress={onClose}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('sharedScanner.cancel')}
               hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             >
-              <Text style={st.cancelLinkText}>Cancel</Text>
+              <Text style={st.cancelLinkText}>{t('sharedScanner.cancel')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -316,19 +354,21 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
               {phase === 'loading' ? (
                 <View style={st.statusRow}>
                   <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
-                  <Text style={st.statusText}>Looking up product…</Text>
+                  <Text style={st.statusText}>{t('sharedScanner.lookingUp')}</Text>
                 </View>
               ) : (
                 <>
-                  <Text style={st.statusText}>Point camera at a barcode</Text>
+                  {flash
+                    ? <Text style={st.flashText} accessibilityLiveRegion="polite">{flash}</Text>
+                    : <Text style={st.statusText}>{t('sharedScanner.pointCamera')}</Text>}
                   <TouchableOpacity
                     onPress={() => setShowManualEntry(true)}
                     style={st.manualEntryLink}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityRole="button"
-                    accessibilityLabel="Enter barcode manually instead of scanning"
+                    accessibilityLabel={t('sharedScanner.enterManuallyA11y')}
                   >
-                    <Text style={st.manualEntryLinkText}>Enter barcode manually</Text>
+                    <Text style={st.manualEntryLinkText}>{t('sharedScanner.enterManually')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -340,13 +380,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 style={st.manualEntryOverlay}
               >
                 <View style={st.manualEntryCard}>
-                  <Text style={st.manualEntryTitle}>Enter Barcode</Text>
+                  <Text style={st.manualEntryTitle}>{t('sharedScanner.manualTitle')}</Text>
                   <TextInput
                     ref={manualInputRef}
                     style={st.manualEntryInput}
                     value={manualBarcode}
                     onChangeText={setManualBarcode}
-                    placeholder="Type the barcode number"
+                    placeholder={t('sharedScanner.manualPlaceholder')}
                     placeholderTextColor="#B0B8C4"
                     autoFocus
                     autoCapitalize="none"
@@ -359,18 +399,18 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                       style={st.manualEntryCancel}
                       onPress={() => { setShowManualEntry(false); setManualBarcode(''); }}
                       accessibilityRole="button"
-                      accessibilityLabel="Cancel manual entry"
+                      accessibilityLabel={t('sharedScanner.cancelManualA11y')}
                     >
-                      <Text style={st.manualEntryCancelText}>Cancel</Text>
+                      <Text style={st.manualEntryCancelText}>{t('sharedScanner.cancel')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[st.manualEntrySubmit, !manualBarcode.trim() && st.addBtnDim]}
                       onPress={submitManualBarcode}
                       disabled={!manualBarcode.trim()}
                       accessibilityRole="button"
-                      accessibilityLabel="Look up this barcode"
+                      accessibilityLabel={t('sharedScanner.lookUpA11y')}
                     >
-                      <Text style={st.manualEntrySubmitText}>Look Up</Text>
+                      <Text style={st.manualEntrySubmitText}>{t('sharedScanner.lookUp')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -400,7 +440,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 <View style={st.sourceRow}>
                   <View style={[st.sourceBadge, foundSource === 'catalog' && st.sourceBadgeCatalog]}>
                     <Text style={[st.sourceBadgeText, foundSource === 'catalog' && st.sourceBadgeTextCatalog]}>
-                      {foundSource === 'catalog' ? 'From store catalog' : 'From Open Food Facts'}
+                      {foundSource === 'catalog' ? t('sharedScanner.fromStoreCatalog') : t('sharedScanner.fromOpenFoodFacts')}
                     </Text>
                   </View>
                 </View>
@@ -412,13 +452,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
               {/* Qty input - hidden for callers that don't use quantity (e.g. Labels) */}
               {!hideQuantity && (
                 <>
-                  <Text style={st.fieldLabel}>Quantity  <Text style={st.fieldLabelSub}>(optional - leave blank if not needed)</Text></Text>
+                  <Text style={st.fieldLabel}>{t('sharedScanner.quantity')}  <Text style={st.fieldLabelSub}>{t('sharedScanner.quantityHint')}</Text></Text>
                   <TextInput
                     ref={qtyRef}
                     style={[st.fieldInput, st.qtyInput]}
                     value={quantity}
                     onChangeText={setQuantity}
-                    placeholder="e.g. 5"
+                    placeholder={t('sharedScanner.quantityPlaceholder')}
                     placeholderTextColor="#B0B8C4"
                     keyboardType="numeric"
                     returnKeyType="done"
@@ -435,20 +475,20 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 onPress={handleConfirmFound}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Add product to list"
+                accessibilityLabel={t('sharedScanner.addProductA11y')}
               >
                 <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
-                <Text style={st.addBtnText}>{confirmLabel}</Text>
+                <Text style={st.addBtnText}>{confirmText}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={st.scanAgainBtn}
                 onPress={scanAgain}
                 accessibilityRole="button"
-                accessibilityLabel="Scan a different product"
+                accessibilityLabel={t('sharedScanner.scanDifferentProductA11y')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={st.scanAgainText}>Not this product? Scan again</Text>
+                <Text style={st.scanAgainText}>{t('sharedScanner.notThisProduct')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -463,22 +503,19 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
               showsVerticalScrollIndicator={false}
             >
               <View style={st.barcodeChip}>
-                <Text style={st.barcodeChipLabel}>Barcode</Text>
+                <Text style={st.barcodeChipLabel}>{t('sharedScanner.barcode')}</Text>
                 <Text style={st.barcodeChipValue}>{barcode}</Text>
               </View>
 
-              <Text style={st.namingHint}>
-                This barcode isn't in your store catalog or Open Food Facts yet.{'\n'}
-                Name it once - future scans will show it instantly.
-              </Text>
+              <Text style={st.namingHint}>{t('sharedScanner.namingHint')}</Text>
 
-              <Text style={st.fieldLabel}>Product name  <Text style={st.fieldLabelRequired}>*</Text></Text>
+              <Text style={st.fieldLabel}>{t('sharedScanner.productName')}  <Text style={st.fieldLabelRequired}>*</Text></Text>
               <TextInput
                 ref={nameRef}
                 style={st.fieldInput}
                 value={productName}
                 onChangeText={setProductName}
-                placeholder="e.g. Whole Milk 1 Gallon"
+                placeholder={t('sharedScanner.productNamePlaceholder')}
                 placeholderTextColor="#B0B8C4"
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -486,7 +523,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 maxLength={200}
               />
 
-              <Text style={[st.fieldLabel, { marginTop: 16 }]}>Category  <Text style={st.fieldLabelSub}>(optional)</Text></Text>
+              <Text style={[st.fieldLabel, { marginTop: 16 }]}>{t('sharedScanner.category')}  <Text style={st.fieldLabelSub}>{t('sharedScanner.optional')}</Text></Text>
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={st.fieldInput}
@@ -494,7 +531,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                   onChangeText={v => { setCategory(v); setShowCatSugg(true); }}
                   onFocus={() => setShowCatSugg(catSuggs.length > 0)}
                   onBlur={() => setTimeout(() => setShowCatSugg(false), 130)}
-                  placeholder="e.g. Dairy, Frozen Foods…"
+                  placeholder={t('sharedScanner.categoryPlaceholder')}
                   placeholderTextColor="#B0B8C4"
                   autoCapitalize="words"
                   autoCorrect={false}
@@ -507,7 +544,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                       <TouchableOpacity key={c} style={st.catSuggRow}
                         onPress={() => { setCategory(c); setShowCatSugg(false); }}
                         accessibilityRole="button"
-                        accessibilityLabel={`Use category ${c}`}
+                        accessibilityLabel={t('sharedScanner.useCategoryA11y', { category: c })}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Text style={st.catSuggText}>{c}</Text>
@@ -523,13 +560,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 disabled={!productName.trim() || saving}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Save and add product to list"
+                accessibilityLabel={t('sharedScanner.saveAndAddA11y')}
               >
                 {saving
                   ? <ActivityIndicator color="#fff" />
                   : <>
                       <CheckCircleIcon size={18} color="#fff" strokeWidth={2.5} />
-                      <Text style={st.addBtnText}>{`Save & ${confirmLabel}`}</Text>
+                      <Text style={st.addBtnText}>{t('sharedScanner.saveAnd', { action: confirmText })}</Text>
                     </>
                 }
               </TouchableOpacity>
@@ -538,10 +575,10 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 style={st.scanAgainBtn}
                 onPress={scanAgain}
                 accessibilityRole="button"
-                accessibilityLabel="Scan a different barcode"
+                accessibilityLabel={t('sharedScanner.scanDifferentBarcode')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={st.scanAgainText}>Scan a different barcode</Text>
+                <Text style={st.scanAgainText}>{t('sharedScanner.scanDifferentBarcode')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -592,6 +629,10 @@ const st = StyleSheet.create({
   statusText: {
     color: '#fff', fontSize: 14, fontWeight: '600',
     textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  flashText: {
+    color: '#86efac', fontSize: 15, fontWeight: '800', textAlign: 'center', paddingHorizontal: 24,
+    textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
 
   // Found card
