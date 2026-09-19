@@ -1,25 +1,27 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 
 export default function ErrorState({
-  message = 'Something went wrong.',
+  message,
   onRetry,
 }: {
   message?: string;
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={s.center}>
-      <Text style={s.errorText}>{message}</Text>
+      <Text style={s.errorText}>{message ?? t('sharedErrorState.defaultMessage')}</Text>
       {onRetry && (
         <TouchableOpacity
           onPress={onRetry}
           style={s.retryBtn}
           accessibilityRole="button"
-          accessibilityLabel="Retry loading"
+          accessibilityLabel={t('sharedErrorState.retryA11y')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={s.retryText}>Retry</Text>
+          <Text style={s.retryText}>{t('sharedErrorState.retry')}</Text>
         </TouchableOpacity>
       )}
     </View>

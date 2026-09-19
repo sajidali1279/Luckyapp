@@ -7,6 +7,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ErrorState from '../../components/ErrorState';
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -235,7 +236,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={t('employeeHotFood.closeA11y')}
             >
               <XIcon size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -297,7 +298,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
                     onPress={() => { setCategory(c); setShowCatSug(false); }}
                     hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Select category ${c}`}
+                    accessibilityLabel={t('employeeHotFood.selectCategoryA11y', { category: c })}
                   >
                     <Text style={sh.catSuggestText}>{c}</Text>
                   </TouchableOpacity>
@@ -362,7 +363,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
                 onPress={handleDelete}
                 disabled={saving || deleting}
                 accessibilityRole="button"
-                accessibilityLabel="Remove item from menu"
+                accessibilityLabel={t('employeeHotFood.removeItemA11y')}
               >
                 {deleting
                   ? <ActivityIndicator color="#EF4444" />
@@ -436,7 +437,7 @@ function OrderCard({
           disabled={updating}
           activeOpacity={0.82}
           accessibilityRole="button"
-          accessibilityLabel={`Accept order #${order.orderNumber}`}
+          accessibilityLabel={t('employeeHotFood.acceptOrderA11y', { number: order.orderNumber })}
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
@@ -451,7 +452,7 @@ function OrderCard({
           disabled={updating}
           activeOpacity={0.82}
           accessibilityRole="button"
-          accessibilityLabel={`Mark order #${order.orderNumber} ready`}
+          accessibilityLabel={t('employeeHotFood.markReadyA11y', { number: order.orderNumber })}
         >
           {updating
             ? <ActivityIndicator color="#fff" size="small" />
@@ -467,7 +468,7 @@ function OrderCard({
             disabled={updating}
             activeOpacity={0.82}
             accessibilityRole="button"
-            accessibilityLabel={`Mark order #${order.orderNumber} completed`}
+            accessibilityLabel={t('employeeHotFood.markCompletedA11y', { number: order.orderNumber })}
           >
             {updating
               ? <ActivityIndicator color="#fff" size="small" />
@@ -484,7 +485,7 @@ function OrderCard({
             disabled={updating}
             activeOpacity={0.82}
             accessibilityRole="button"
-            accessibilityLabel={`Cancel order #${order.orderNumber}`}
+            accessibilityLabel={t('employeeHotFood.cancelOrderA11y', { number: order.orderNumber })}
           >
             <XIcon size={15} color="#EF4444" strokeWidth={2.5} />
           </TouchableOpacity>
@@ -547,7 +548,7 @@ function MenuItemCard({
             onPress={() => onEdit(item)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel={`Edit ${item.name}`}
+            accessibilityLabel={t('employeeHotFood.editItemA11y', { name: item.name })}
           >
             <EditIcon size={15} color={COLORS.secondary} strokeWidth={2} />
           </TouchableOpacity>
@@ -559,7 +560,7 @@ function MenuItemCard({
           activeOpacity={0.8}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           accessibilityRole="switch"
-          accessibilityLabel={`Mark ${item.name} as ${item.isAvailable ? 'sold out' : 'available'}`}
+          accessibilityLabel={item.isAvailable ? t('employeeHotFood.markSoldOutA11y', { name: item.name }) : t('employeeHotFood.markAvailableA11y', { name: item.name })}
         >
           {updating
             ? <ActivityIndicator size="small" color={item.isAvailable ? '#16A34A' : '#EF4444'} />
@@ -607,7 +608,7 @@ export default function HotFoodOrders() {
   }, [tab]));
 
   // Orders
-  const { data: ordersData, isLoading: ordersLoading, isRefetching, refetch } = useQuery({
+  const { data: ordersData, isLoading: ordersLoading, isError: ordersError, isRefetching, refetch } = useQuery({
     queryKey: ['hot-food-orders', storeId],
     queryFn: () => hotFoodApi.getStoreOrders(storeId!),
     enabled: !!storeId,
@@ -615,7 +616,7 @@ export default function HotFoodOrders() {
   });
 
   // All items (menu + catalog)
-  const { data: menuData, isLoading: menuLoading, isRefetching: menuRefetching, refetch: refetchMenu } = useQuery({
+  const { data: menuData, isLoading: menuLoading, isError: menuError, isRefetching: menuRefetching, refetch: refetchMenu } = useQuery({
     queryKey: ['hot-food-all-items', storeId],
     queryFn: () => hotFoodApi.getStoreAllItems(storeId!),
     enabled: !!storeId,
@@ -731,6 +732,8 @@ export default function HotFoodOrders() {
   }
 
   const isLoading = activeTab === 'MENU' ? menuLoading : ordersLoading;
+  // Only when nothing has loaded yet: a failed background poll keeps showing the last good data.
+  const loadFailed = activeTab === 'MENU' ? (menuError && !menuData) : (ordersError && !ordersData);
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -755,7 +758,7 @@ export default function HotFoodOrders() {
             onPress={() => setShowAddSheet(true)}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Add menu item"
+            accessibilityLabel={t('employeeHotFood.addItemA11y')}
           >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addItemBtnText}>{t('employeeHotFood.addItemBtn')}</Text>
@@ -805,6 +808,8 @@ export default function HotFoodOrders() {
         <View style={s.empty}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
+      ) : loadFailed ? (
+        <ErrorState onRetry={() => (activeTab === 'MENU' ? refetchMenu() : refetch())} />
       ) : activeTab === 'MENU' ? (
         <FadeSlideIn style={{ flex: 1 }}>
           <FlatList

@@ -231,13 +231,13 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   // Role isn't repeated here — it's already shown as the colored pill badge
   // in the header above, so a plain-text row here would be pure duplication.
   const staffInfoRows: InfoRowDef[] = [
-    { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Store', value: storeCount > 0 ? t('profile.storeCount', { count: storeCount }) : t('profile.noStoreAssigned') },
-    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Phone', value: user?.phone || ' - ' },
+    { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.storeLabel'), value: storeCount > 0 ? t('profile.storeCount', { count: storeCount }) : t('profile.noStoreAssigned') },
+    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.phoneLabel'), value: user?.phone || ' - ' },
   ];
 
   const customerInfoRows: InfoRowDef[] = [
-    { icon: <GiftIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Redeem', value: t('profile.redeem') },
-    { icon: <MapPinIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: 'Locations', value: t('profile.locations') },
+    { icon: <GiftIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.redeemLabel'), value: t('profile.redeem') },
+    { icon: <MapPinIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.locationsLabel'), value: t('profile.locations') },
   ];
 
   const infoRows = isCustomer ? customerInfoRows : staffInfoRows;
@@ -254,7 +254,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             activeOpacity={0.8}
             style={s.avatarWrap}
             accessibilityRole="button"
-            accessibilityLabel="Change profile photo"
+            accessibilityLabel={t('profile.changePhotoA11y')}
           >
             <View style={[s.avatarCircle, isCustomer ? s.avatarCustomer : s.avatarStaff]}>
               {user?.avatarUrl ? (
@@ -304,7 +304,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => setPanel(panel === 'name' ? null : 'name')}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Edit name"
+          accessibilityLabel={t('profile.editNameA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: COLORS.primary + '18' }]}>
             <EditIcon size={20} color={COLORS.primary} strokeWidth={1.75} />
@@ -332,7 +332,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={handleUpdateName}
               disabled={loading}
               accessibilityRole="button"
-              accessibilityLabel="Save name"
+              accessibilityLabel={t('profile.saveNameA11y')}
             >
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.saveName')}</Text>}
             </TouchableOpacity>
@@ -345,7 +345,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => setPanel(panel === 'pin' ? null : 'pin')}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Change PIN"
+          accessibilityLabel={t('profile.changePinA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: COLORS.secondary + '18' }]}>
             <LockClosedIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
@@ -385,7 +385,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={handleChangePin}
               disabled={loading}
               accessibilityRole="button"
-              accessibilityLabel="Submit PIN change"
+              accessibilityLabel={t('profile.submitPinA11y')}
             >
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.changePinAction')}</Text>}
             </TouchableOpacity>
@@ -401,7 +401,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => { setSelectedLang(getLanguage()); setShowLangModal(true); }}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Change language"
+          accessibilityLabel={t('profile.changeLanguageA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#0EA5E918' }]}>
             <GlobeIcon size={20} color="#0EA5E9" strokeWidth={1.75} />
@@ -421,7 +421,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={() => setPanel(panel === 'email' ? null : 'email')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Edit recovery email"
+              accessibilityLabel={t('profile.editEmailA11y')}
             >
               <View style={[s.settingIconBg, { backgroundColor: '#00B4D818' }]}>
                 <MailIcon size={20} color="#00B4D8" strokeWidth={1.75} />
@@ -450,7 +450,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                   onPress={handleUpdateEmail}
                   disabled={loading}
                   accessibilityRole="button"
-                  accessibilityLabel="Save recovery email"
+                  accessibilityLabel={t('profile.saveEmailA11y')}
                 >
                   {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.panelBtnText}>{t('profile.saveEmail')}</Text>}
                 </TouchableOpacity>
@@ -468,7 +468,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={() => setPromoModalVisible(true)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Promote your business"
+              accessibilityLabel={t('profile.promoteA11y')}
             >
               <View style={[s.settingIconBg, { backgroundColor: '#f9731618' }]}>
                 <MegaphoneIcon size={20} color="#f97316" strokeWidth={1.75} />
@@ -535,7 +535,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           }}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="View leaderboard"
+          accessibilityLabel={t('profile.viewLeaderboardA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#FFD70020' }]}>
             <TrophyIcon size={20} color="#b8860b" strokeWidth={1.75} />
@@ -575,7 +575,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           }}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Open help guide"
+          accessibilityLabel={t('profile.openGuideA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: COLORS.secondary + '18' }]}>
             <BookOpenIcon size={20} color={COLORS.secondary} strokeWidth={1.75} />
@@ -601,7 +601,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={() => router.push('/(customer)/my-disputes')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="View or report missing points"
+              accessibilityLabel={t('profile.reportPointsA11y')}
             >
               <View style={[s.settingIconBg, { backgroundColor: '#fff7ed' }]}>
                 <MegaphoneIcon size={20} color="#ea580c" strokeWidth={1.75} />
@@ -663,7 +663,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => setLegalDoc('terms')}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="View terms of service"
+          accessibilityLabel={t('profile.viewTermsA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#eff6ff' }]}>
             <BookOpenIcon size={20} color="#1D3557" strokeWidth={1.75} />
@@ -679,7 +679,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => setLegalDoc('privacy')}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="View privacy policy"
+          accessibilityLabel={t('profile.viewPrivacyA11y')}
         >
           <View style={[s.settingIconBg, { backgroundColor: '#f0fdf9' }]}>
             <ShieldIcon size={20} color="#157A6E" strokeWidth={1.75} />
@@ -697,7 +697,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           onPress={() => logout()}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Log out"
+          accessibilityLabel={t('profile.logOutA11y')}
         >
           <Text style={s.signOutText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
@@ -709,7 +709,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             onPress={() => setShowDeleteModal(true)}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Delete my account"
+            accessibilityLabel={t('profile.deleteAccountA11y')}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Text style={s.deleteAccountText}>{t('profile.deleteMyAccount')}</Text>
@@ -747,7 +747,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 disabled={deletingAccount}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Confirm account deletion"
+                accessibilityLabel={t('profile.confirmDeleteA11y')}
               >
                 <Text style={s.deleteConfirmText}>{deletingAccount ? t('deleteModal.deleting') : t('deleteModal.confirm')}</Text>
               </TouchableOpacity>
@@ -756,7 +756,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 onPress={() => setShowDeleteModal(false)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel account deletion"
+                accessibilityLabel={t('profile.cancelDeleteA11y')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <Text style={s.deleteCancelText}>{t('deleteModal.cancel')}</Text>
@@ -775,7 +775,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           activeOpacity={1}
           onPress={() => setShowAvatarModal(false)}
           accessibilityRole="button"
-          accessibilityLabel="Close profile photo options"
+          accessibilityLabel={t('profile.closePhotoOptionsA11y')}
         >
           <View style={s.avatarModalSheet} onStartShouldSetResponder={() => true}>
             {/* Preview */}
@@ -797,7 +797,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={handlePickAvatar}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Choose photo from library"
+              accessibilityLabel={t('profile.choosePhotoA11y')}
             >
               <View style={[s.avatarModalOptionIcon, { backgroundColor: '#eff6ff' }]}>
                 <ImageIcon size={20} color="#1D3557" strokeWidth={1.75} />
@@ -810,7 +810,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={handleTakePhoto}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Take photo"
+              accessibilityLabel={t('profile.takePhotoA11y')}
             >
               <View style={[s.avatarModalOptionIcon, { backgroundColor: '#f0fdf4' }]}>
                 <CameraIcon size={20} color="#16a34a" strokeWidth={1.75} />
@@ -824,7 +824,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 onPress={handleRemoveAvatar}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Remove profile photo"
+                accessibilityLabel={t('profile.removePhotoA11y')}
               >
                 <View style={[s.avatarModalOptionIcon, { backgroundColor: '#fff5f5' }]}>
                   <Trash2Icon size={20} color={COLORS.error} strokeWidth={1.75} />
@@ -838,7 +838,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={() => setShowAvatarModal(false)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('profile.cancelA11y')}
             >
               <Text style={s.avatarModalCancelText}>{t('avatarModal.cancel')}</Text>
             </TouchableOpacity>
@@ -853,7 +853,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           activeOpacity={1}
           onPress={() => setShowLangModal(false)}
           accessibilityRole="button"
-          accessibilityLabel="Close language selection"
+          accessibilityLabel={t('profile.closeLanguageA11y')}
         >
           <View style={s.langModalCard} onStartShouldSetResponder={() => true}>
             <Text style={s.langModalTitle}>{t('langModal.title')}</Text>
@@ -866,7 +866,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                   onPress={() => setSelectedLang(lang.code)}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={`Select language: ${lang.nativeLabel}`}
+                  accessibilityLabel={t('profile.selectLanguageA11y', { language: lang.nativeLabel })}
                 >
                   <Text style={[s.langOptionText, selectedLang === lang.code && s.langOptionTextActive]}>
                     {lang.nativeLabel}
@@ -882,7 +882,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               onPress={handleSaveLanguage}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Save language selection"
+              accessibilityLabel={t('profile.saveLanguageA11y')}
             >
               <Text style={s.langSaveBtnText}>{t('langModal.save')}</Text>
             </TouchableOpacity>

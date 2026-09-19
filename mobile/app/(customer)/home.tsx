@@ -10,7 +10,7 @@ import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
-import { useCallback, useRef, useState, useEffect, memo } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
@@ -174,12 +174,13 @@ function OfferPlaceholder({ isGas }: { isGas?: boolean }) {
 // prop. The badge below stays fully opaque so it's legible over any
 // image, light or dark, sitting behind the blur.
 function AgeGateOverlay() {
+  const { t } = useTranslation();
   return (
     <BlurView intensity={35} tint="dark" blurMethod="dimezisBlurView" style={styles.ageLockOverlay}>
       <View style={styles.ageLockBadge}>
         <Text style={styles.ageLockEmoji}>🔞</Text>
-        <Text style={styles.ageLockText}>Age-restricted offer</Text>
-        <Text style={styles.ageLockSubtext}>Tap to verify your age</Text>
+        <Text style={styles.ageLockText}>{t('customerHome.ageLockTitle')}</Text>
+        <Text style={styles.ageLockSubtext}>{t('customerHome.ageLockTap')}</Text>
       </View>
     </BlurView>
   );
@@ -307,6 +308,19 @@ function promoIcon(kind: PromoKind, size: number) {
 }
 
 const PromoSlideshow = memo(function PromoSlideshow() {
+  const { t } = useTranslation();
+  // Slide copy comes from i18n (keyed by slide id); the English text in
+  // PROMO_SLIDES stays as the fallback.
+  const slides = useMemo(() => PROMO_SLIDES.map((sl) => {
+    const k = `customerHome.promo${sl.id[0].toUpperCase()}${sl.id.slice(1)}`;
+    return {
+      ...sl,
+      eyebrow: t(`${k}Eyebrow`, { defaultValue: sl.eyebrow }),
+      headline: t(`${k}Headline`, { defaultValue: sl.headline }),
+      body: t(`${k}Body`, { defaultValue: sl.body }),
+      cta: sl.cta ? t(`${k}Cta`, { defaultValue: sl.cta }) : null,
+    };
+  }), [t]);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -357,7 +371,7 @@ const PromoSlideshow = memo(function PromoSlideshow() {
     <View style={ps.root}>
       <FlatList
         ref={flatRef}
-        data={PROMO_SLIDES}
+        data={slides}
         keyExtractor={item => item.id}
         horizontal
         pagingEnabled
@@ -392,6 +406,7 @@ const DEAL_SLIDE_PALETTE = [
 ];
 
 const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { deals: any[]; onSelectOffer: (offer: any) => void }) {
+  const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -421,7 +436,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         activeOpacity={0.9}
         onPress={() => onSelectOffer(item)}
         accessibilityRole="button"
-        accessibilityLabel={`View deal: ${item.title}, ${item.dealText}`}
+        accessibilityLabel={t('customerHome.viewDealA11y', { title: item.title, deal: item.dealText })}
       >
         <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg }]}>
           {item.imageUrl ? (
@@ -448,7 +463,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         </View>
       </TouchableOpacity>
     );
-  }, [onSelectOffer]);
+  }, [onSelectOffer, t]);
 
   return (
     <View style={ds.root}>
@@ -487,9 +502,15 @@ const CAT_DISPLAY: Record<string, { label: string; emoji: string; color: string 
   GAS:       { label: 'Gas',       emoji: '⛽', color: '#F4A226' },
   HOT_FOODS: { label: 'Hot Foods', emoji: '🌮', color: '#E63946' },
 };
+const CAT_LABEL_KEYS: Record<string, string> = {
+  IN_STORE: 'customerRewards.categoryInStore',
+  GAS: 'customerRewards.categoryGas',
+  HOT_FOODS: 'customerRewards.categoryHotFoods',
+};
 const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
 
 const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any[]; userPts: number }) {
+  const { t } = useTranslation();
   if (items.length === 0) return null;
 
   // Derive category order from actual data so new categories appear automatically
@@ -511,7 +532,7 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
         <View key={section.key} style={rs.section}>
           <View style={[rs.catHeader, { backgroundColor: section.color + '18' }]}>
             <Text style={rs.catEmoji}>{section.emoji}</Text>
-            <Text style={[rs.catLabel, { color: section.color }]}>{section.label}</Text>
+            <Text style={[rs.catLabel, { color: section.color }]}>{CAT_LABEL_KEYS[section.key] ? t(CAT_LABEL_KEYS[section.key]) : section.label}</Text>
           </View>
           <View style={rs.tileRow}>
             {section.items.map((item: any) => {
@@ -523,7 +544,7 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
                   onPress={() => router.push('/(customer)/rewards')}
                   activeOpacity={0.82}
                   accessibilityRole="button"
-                  accessibilityLabel={`${item.title}, ${item.pointsCost.toLocaleString()} points. View in rewards`}
+                  accessibilityLabel={t('customerHome.rewardTileA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
                 >
                   <View style={[rs.tileIconWrap, { backgroundColor: section.color + '18' }]}>
                     <Text style={rs.tileEmoji}>{item.emoji || '🎁'}</Text>
@@ -531,7 +552,7 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
                   <Text style={rs.tileName} numberOfLines={2}>{item.title}</Text>
                   <View style={[rs.ptsBadge, canAfford && { backgroundColor: section.color }]}>
                     <Text style={[rs.ptsText, !canAfford && { color: COLORS.textMuted }]}>
-                      {item.pointsCost.toLocaleString()} pts
+                      {t('customerHome.ptsSuffix', { pts: item.pointsCost.toLocaleString() })}
                     </Text>
                   </View>
                   {!canAfford && (
@@ -549,6 +570,8 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
 
 /* ─── Main screen ─────────────────────────────────────────── */
 export default function CustomerHome() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
   const qc = useQueryClient();
   const { user, token, setAuth } = useAuthStore();
   const insets = useSafeAreaInsets();
@@ -649,10 +672,10 @@ export default function CustomerHome() {
         // cached session shouldn't keep showing the app as usable.
         if (err.response?.status === 401 || err.response?.status === 404) {
           useAuthStore.getState().logout();
-          Toast.show({ type: 'error', text1: 'Signed out', text2: 'Please sign in again' });
+          Toast.show({ type: 'error', text1: t('customerHome.signedOut'), text2: t('customerHome.signInAgain') });
         }
       });
-    }, [])
+    }, [t])
   );
 
   const { data: notifData } = useQuery({
@@ -835,9 +858,9 @@ export default function CustomerHome() {
         note: foodNote.trim() || undefined,
       });
       setSelectedFoodItem(null);
-      Alert.alert('Order Placed!', "Your order has been sent to the team. They'll have it ready for you shortly.");
+      Alert.alert(t('customerHome.orderPlacedTitle'), t('customerHome.orderPlacedBody'));
     } catch {
-      Alert.alert('Error', 'Could not place your order. Please try again.');
+      Alert.alert(t('customerHome.errorTitle'), t('customerHome.orderFailedBody'));
     } finally {
       setFoodOrdering(false);
     }
@@ -859,9 +882,9 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
         <SafeAreaView style={styles.headerBg}>
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>Hey {user?.name || 'there'}!</Text>
-              <Text style={styles.storeName}>Lucky Stop Rewards</Text>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.greeting} numberOfLines={1}>{user?.name ? t('customerHome.greeting', { name: user.name }) : t('customerHome.greetingNoName')}</Text>
+              <Text style={styles.storeName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t('customerHome.headerTitle')}</Text>
               {locationStatus !== 'detecting' && (
                 <View style={[styles.nearbyPill, locationStatus === 'found' && styles.nearbyPillFound]}>
                   <View style={[styles.nearbyDot, locationStatus === 'found' && styles.nearbyDotFound]} />
@@ -869,8 +892,8 @@ export default function CustomerHome() {
                     ? <MapPinIcon size={11} color="#fff" strokeWidth={2.5} />
                     : <GlobeIcon size={11} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />
                   }
-                  <Text style={styles.nearbyPillText}>
-                    {locationStatus === 'found' ? (nearestStore?.name ?? pendingAgeGateStore?.name ?? 'All Stores') : 'All Stores'}
+                  <Text style={styles.nearbyPillText} numberOfLines={1}>
+                    {locationStatus === 'found' ? (nearestStore?.name ?? pendingAgeGateStore?.name ?? t('customerHome.allStores')) : t('customerHome.allStores')}
                   </Text>
                 </View>
               )}
@@ -880,7 +903,7 @@ export default function CustomerHome() {
                 onPress={() => router.push('/(customer)/notifications')}
                 style={styles.bellBtn}
                 accessibilityRole="button"
-                accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                accessibilityLabel={unreadCount > 0 ? t('customerHome.notificationsUnreadA11y', { count: unreadCount }) : t('customerHome.notificationsA11y')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <BellIcon size={20} color="#fff" strokeWidth={2} />
@@ -894,7 +917,7 @@ export default function CustomerHome() {
                 onPress={() => router.push('/(customer)/profile')}
                 style={styles.profileBtn}
                 accessibilityRole="button"
-                accessibilityLabel="View profile"
+                accessibilityLabel={t('customerHome.viewProfileA11y')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {user?.avatarUrl ? (
@@ -930,20 +953,20 @@ export default function CustomerHome() {
           <View style={styles.tierRow}>
             <View style={[styles.tierBadge, { backgroundColor: (tier?.color ?? '#CD7F32') + '30' }]}>
               <View style={[styles.tierDot, { backgroundColor: tier?.color ?? '#CD7F32' }]} />
-              <Text style={styles.tierBadgeText}>{tier?.label ?? 'Bronze'} Member</Text>
+              <Text style={styles.tierBadgeText}>{t('customerHome.tierMember', { tier: tier?.label ?? 'Bronze' })}</Text>
             </View>
             {user?.tierPeriod && <Text style={styles.tierPeriod}>{user.tierPeriod}</Text>}
           </View>
-          <Text style={styles.balanceLabel}>Points Balance</Text>
+          <Text style={styles.balanceLabel}>{t('customerHome.pointsBalance')}</Text>
           <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
-          <Text style={styles.balanceSubtext}>redeemable points</Text>
+          <Text style={styles.balanceSubtext}>{t('customerHome.redeemablePoints')}</Text>
           <TouchableOpacity
             style={styles.redeemButton}
             onPress={() => router.push('/(customer)/rewards')}
             accessibilityRole="button"
-            accessibilityLabel="Redeem rewards with points"
+            accessibilityLabel={t('customerHome.redeemRewardsA11y')}
           >
-            <Text style={styles.redeemButtonText}>Redeem Rewards</Text>
+            <Text style={styles.redeemButtonText}>{t('customerHome.redeemRewards')}</Text>
           </TouchableOpacity>
 
           {/* Tier track */}
@@ -964,7 +987,7 @@ export default function CustomerHome() {
                     onPress={() => setSelectedTier(key)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`View ${cfg.label} tier details`}
+                    accessibilityLabel={t('customerHome.viewTierDetailsA11y', { tier: cfg.label })}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     {isCurrent ? (
@@ -995,11 +1018,11 @@ export default function CustomerHome() {
                 <View style={[styles.tierProgressFill, { width: `${Math.round(tierProgress * 100)}%` as any, backgroundColor: tier.color }]} />
               </View>
               <Text style={styles.tierProgressRight}>
-                {(tier.nextThresholdPts! - periodPts).toLocaleString()} pts to {tier.nextLabel}
+                {t('customerHome.ptsToTier', { pts: (tier.nextThresholdPts! - periodPts).toLocaleString(), tier: tier.nextLabel })}
               </Text>
             </View>
           ) : (
-            <Text style={styles.tierProgressMaxText}>✦ Platinum - Max tier achieved</Text>
+            <Text style={styles.tierProgressMaxText}>{t('customerHome.maxTierReached')}</Text>
           )}
 
           <TouchableOpacity
@@ -1007,11 +1030,11 @@ export default function CustomerHome() {
             onPress={() => setShowQR(true)}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Show my QR code"
+            accessibilityLabel={t('customerHome.showQrA11y')}
           >
             <View style={styles.qrFabInner}>
               <Text style={styles.qrFabIcon}>▦</Text>
-              <Text style={styles.qrFabLabel}>My QR</Text>
+              <Text style={styles.qrFabLabel}>{t('customerHome.myQr')}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -1025,7 +1048,7 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label="Why Lucky Stop?" />
+            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label={t('customerHome.whyLuckyStop')} />
           </View>
           <PromoSlideshow />
         </View>
@@ -1035,15 +1058,15 @@ export default function CustomerHome() {
       {catalogItems.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label="Redeem with Points" />
+            <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label={t('customerHome.redeemWithPoints')} />
             <TouchableOpacity
               onPress={() => router.push('/(customer)/rewards')}
               activeOpacity={0.7}
               accessibilityRole="link"
-              accessibilityLabel="See all rewards"
+              accessibilityLabel={t('customerHome.seeAllRewardsA11y')}
               hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>See all →</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>{t('customerHome.seeAllArrow')}</Text>
             </TouchableOpacity>
           </View>
           <RewardsShelf items={catalogItems} userPts={userPts} />
@@ -1056,7 +1079,7 @@ export default function CustomerHome() {
           ? (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
-                <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label="Today's Gas Prices" />
+                <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label={t('customerHome.todaysGasPrices')} />
               </View>
               <View style={gp.row}>
                 <SkeletonGasPriceCard />
@@ -1066,16 +1089,16 @@ export default function CustomerHome() {
           : gasPrices.length > 0 && (
             <View ref={gasSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
-                <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label="Today's Gas Prices" />
+                <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label={t('customerHome.todaysGasPrices')} />
                 {bestGasOffer && (
                   <View style={gp.sectionOfferChip}>
                     <GasPumpIcon size={10} color="#F4A226" strokeWidth={2.5} />
-                    <Text style={gp.sectionOfferChipText}>Gas offer active</Text>
+                    <Text style={gp.sectionOfferChipText}>{t('customerHome.gasOfferActive')}</Text>
                   </View>
                 )}
               </View>
               {gasPrices.some((store: any) => store.todayHours) && (
-                <Text style={gp.hoursDisclaimer}>Hours may vary on holidays, call ahead to confirm.</Text>
+                <Text style={gp.hoursDisclaimer}>{t('customerHome.hoursDisclaimer')}</Text>
               )}
               {gasPrices.map((store: any) => (
                 <View key={store.id} style={gp.row}>
@@ -1094,7 +1117,7 @@ export default function CustomerHome() {
                         activeOpacity={0.7}
                         style={{ alignSelf: 'flex-start', marginBottom: 5 }}
                         accessibilityRole="link"
-                        accessibilityLabel={`Call ${store.name} at ${store.phone}`}
+                        accessibilityLabel={t('customerHome.callStoreA11y', { name: store.name, phone: store.phone })}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Text style={styles.gasStorePhone}>📞 {store.phone}</Text>
@@ -1104,7 +1127,7 @@ export default function CustomerHome() {
                       {store.gasPricePerGallon != null && categoryEnabled(store, 'GAS') && (
                         <View style={gp.priceLine}>
                           <GasPumpIcon size={13} color={COLORS.accent} strokeWidth={2} />
-                          <Text style={gp.priceLabel}>Gas</Text>
+                          <Text style={gp.priceLabel}>{t('customerHome.gas')}</Text>
                           <Text style={gp.priceVal}>${Number(store.gasPricePerGallon).toFixed(3)}</Text>
                           <Text style={gp.priceUnit}>/gal</Text>
                         </View>
@@ -1112,7 +1135,7 @@ export default function CustomerHome() {
                       {store.dieselPricePerGallon != null && categoryEnabled(store, 'DIESEL') && (
                         <View style={gp.priceLine}>
                           <TruckIcon size={13} color={COLORS.secondary} strokeWidth={2} />
-                          <Text style={gp.priceLabel}>Diesel</Text>
+                          <Text style={gp.priceLabel}>{t('customerHome.diesel')}</Text>
                           <Text style={gp.priceVal}>${Number(store.dieselPricePerGallon).toFixed(3)}</Text>
                           <Text style={gp.priceUnit}>/gal</Text>
                         </View>
@@ -1120,7 +1143,7 @@ export default function CustomerHome() {
                     </View>
                     {store.gasPriceUpdatedAt && (
                       <Text style={gp.updatedAt}>
-                        Updated {new Date(store.gasPriceUpdatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {t('customerHome.updatedOn', { date: new Date(store.gasPriceUpdatedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }) })}
                       </Text>
                     )}
                   </View>
@@ -1131,16 +1154,16 @@ export default function CustomerHome() {
                       style={gp.offerCard}
                       onPress={() => onOfferPress(bestGasOffer)}
                       accessibilityRole="button"
-                      accessibilityLabel={`View gas offer: ${bestGasOffer.title}`}
+                      accessibilityLabel={t('customerHome.viewGasOfferA11y', { title: bestGasOffer.title })}
                     >
                       <View style={gp.offerIconWrap}>
                         <GasPumpIcon size={18} color="#fff" strokeWidth={2} />
                       </View>
                       <Text style={gp.offerBonus}>+{bestGasOffer.gasBonusCentsPerGallon}¢</Text>
-                      <Text style={gp.offerUnit}>per gallon</Text>
+                      <Text style={gp.offerUnit}>{t('customerHome.perGallon')}</Text>
                       <Text style={gp.offerTitle} numberOfLines={2}>{bestGasOffer.title}</Text>
                       <View style={gp.autoAppliedBadge}>
-                        <Text style={gp.autoAppliedText}>Auto-applied</Text>
+                        <Text style={gp.autoAppliedText}>{t('customerHome.autoApplied')}</Text>
                       </View>
                     </PressScale>
                   )}
@@ -1157,7 +1180,7 @@ export default function CustomerHome() {
           ? (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label="Active Promotions" />
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
               </View>
               <SkeletonOfferCard />
               <SkeletonOfferCard />
@@ -1167,17 +1190,17 @@ export default function CustomerHome() {
           ? (
             <View style={styles.section}>
               <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label="Active Promotions" />
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
               </View>
-              <ErrorState message="Failed to load promotions." onRetry={() => refetchOffers()} />
+              <ErrorState message={t('customerHome.loadPromotionsFailed')} onRetry={() => refetchOffers()} />
             </View>
           )
           : promotions.length > 0 && (
             <View ref={offersSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label="Active Promotions" />
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
                 {promotions.length > 2 && (
-                  <Text style={styles.sectionCount}>{promotions.length} offers</Text>
+                  <Text style={styles.sectionCount}>{t('customerHome.offersCount', { count: promotions.length })}</Text>
                 )}
               </View>
               {promotions.length <= 2 ? (
@@ -1187,7 +1210,7 @@ export default function CustomerHome() {
                     style={styles.offerCard}
                     onPress={() => onOfferPress(offer)}
                     accessibilityRole="button"
-                    accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
+                    accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
                   >
                     <View style={styles.offerCardClip}>
                       {isOfferLocked(offer) && <AgeGateOverlay />}
@@ -1204,7 +1227,7 @@ export default function CustomerHome() {
                               : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
                             }
                             <Text style={styles.offerStoreText}>
-                              {offer.store ? `${offer.store.name}` : 'All Lucky Stop Stores'}
+                              {offer.store ? `${offer.store.name}` : t('customerHome.allLuckyStopStores')}
                             </Text>
                           </View>
                         )}
@@ -1216,8 +1239,8 @@ export default function CustomerHome() {
                           }
                           <Text style={styles.offerBonusText}>
                             {offer.gasBonusCentsPerGallon != null
-                              ? `+${offer.gasBonusCentsPerGallon}¢/gal bonus`
-                              : `+${Math.round(offer.bonusRate * 100)}% cashback`}
+                              ? t('customerHome.bonusPerGal', { cents: offer.gasBonusCentsPerGallon })
+                              : t('customerHome.cashbackPill', { pct: Math.round(offer.bonusRate * 100) })}
                           </Text>
                         </View>
                       </View>
@@ -1234,7 +1257,7 @@ export default function CustomerHome() {
                       style={styles.offerSlideCard}
                       onPress={() => onOfferPress(offer)}
                       accessibilityRole="button"
-                      accessibilityLabel={isOfferLocked(offer) ? `Age-restricted offer: ${offer.title}, tap to verify your age` : `View promotion: ${offer.title}`}
+                      accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
                     >
                       <View style={styles.offerSlideClip}>
                         {isOfferLocked(offer) && <AgeGateOverlay />}
@@ -1258,7 +1281,7 @@ export default function CustomerHome() {
                                 : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
                               }
                               <Text style={styles.offerStoreText} numberOfLines={1}>
-                                {offer.store ? offer.store.name : 'All Stores'}
+                                {offer.store ? offer.store.name : t('customerHome.allStores')}
                               </Text>
                             </View>
                           )}
@@ -1291,8 +1314,8 @@ export default function CustomerHome() {
         <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label="Hot Food" />
-              <Text style={styles.sectionSubLabel}>Order ahead at {nearestStore.name}</Text>
+              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label={t('customerHome.hotFood')} />
+              <Text style={styles.sectionSubLabel}>{t('customerHome.orderAheadAt', { store: nearestStore.name })}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotFoodRow}>
               {hotFoodMenu.map((item: any) => (
@@ -1302,7 +1325,7 @@ export default function CustomerHome() {
                   onPress={() => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
                   activeOpacity={0.82}
                   accessibilityRole="button"
-                  accessibilityLabel={`Order ${item.name}, $${Number(item.price).toFixed(2)}`}
+                  accessibilityLabel={t('customerHome.orderItemA11y', { name: item.name, price: `$${Number(item.price).toFixed(2)}` })}
                 >
                   <View style={styles.hotFoodClip}>
                     {item.imageUrl
@@ -1333,9 +1356,9 @@ export default function CustomerHome() {
         {!contentLoading && deals.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label="Today's Deals" />
+              <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label={t('customerHome.todaysDeals')} />
               {deals.length > 1 && (
-                <Text style={styles.sectionCount}>{deals.length} deals</Text>
+                <Text style={styles.sectionCount}>{t('customerHome.dealsCount', { count: deals.length })}</Text>
               )}
             </View>
             <DealSlideshow deals={deals} onSelectOffer={setSelectedOffer} />
@@ -1346,9 +1369,9 @@ export default function CustomerHome() {
           style={styles.historyLink}
           onPress={() => router.push('/(customer)/history')}
           accessibilityRole="link"
-          accessibilityLabel="View points history"
+          accessibilityLabel={t('customerHome.viewPointsHistoryA11y')}
         >
-          <Text style={styles.historyLinkText}>View Points History</Text>
+          <Text style={styles.historyLinkText}>{t('customerHome.viewPointsHistory')}</Text>
           <ChevronRightIcon size={16} color={COLORS.primary} strokeWidth={2.5} />
         </TouchableOpacity>
       </Animated.View>
@@ -1375,10 +1398,10 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[8], transform: [{ translateY: slideAnims[8] }] }}>
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <SectionTitle icon={<GlobeIcon size={17} color="#f97316" />} label="Local Businesses" />
+            <SectionTitle icon={<GlobeIcon size={17} color="#f97316" />} label={t('customerHome.localBusinesses')} />
             {featuredAd && (
-              <TouchableOpacity onPress={() => router.push('/(customer)/ads')} accessibilityRole="link" accessibilityLabel="See all local business ads">
-                <Text style={styles.sectionCount}>See all</Text>
+              <TouchableOpacity onPress={() => router.push('/(customer)/ads')} accessibilityRole="link" accessibilityLabel={t('customerHome.seeAllLocalAdsA11y')}>
+                <Text style={styles.sectionCount}>{t('customerHome.seeAll')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1411,7 +1434,7 @@ export default function CustomerHome() {
                     onPress={() => setFoodQty(q => Math.max(1, q - 1))}
                     style={hf.qtyBtn}
                     accessibilityRole="button"
-                    accessibilityLabel="Decrease quantity"
+                    accessibilityLabel={t('customerHome.decreaseQtyA11y')}
                     hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                   >
                     <Text style={hf.qtyBtnText}>−</Text>
@@ -1421,7 +1444,7 @@ export default function CustomerHome() {
                     onPress={() => setFoodQty(q => Math.min(10, q + 1))}
                     style={hf.qtyBtn}
                     accessibilityRole="button"
-                    accessibilityLabel="Increase quantity"
+                    accessibilityLabel={t('customerHome.increaseQtyA11y')}
                     hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                   >
                     <Text style={hf.qtyBtnText}>+</Text>
@@ -1430,7 +1453,7 @@ export default function CustomerHome() {
 
                 <TextInput
                   style={hf.noteInput}
-                  placeholder="Special instructions (optional)"
+                  placeholder={t('customerHome.specialInstructions')}
                   placeholderTextColor={COLORS.textMuted}
                   value={foodNote}
                   onChangeText={setFoodNote}
@@ -1439,7 +1462,7 @@ export default function CustomerHome() {
                 />
 
                 <View style={hf.totalRow}>
-                  <Text style={hf.totalLabel}>Total</Text>
+                  <Text style={hf.totalLabel}>{t('customerHome.total')}</Text>
                   <Text style={hf.totalValue}>${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}</Text>
                 </View>
 
@@ -1449,20 +1472,20 @@ export default function CustomerHome() {
                   disabled={foodOrdering}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel={foodOrdering ? 'Placing order' : `Place order for ${selectedFoodItem.name}, total $${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}`}
+                  accessibilityLabel={foodOrdering ? t('customerHome.placingOrderA11y') : t('customerHome.placeOrderForA11y', { name: selectedFoodItem.name, total: `$${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}` })}
                 >
                   <FlameIcon size={16} color="#fff" strokeWidth={2} />
-                  <Text style={hf.orderBtnText}>{foodOrdering ? 'Placing Order…' : 'Place Order'}</Text>
+                  <Text style={hf.orderBtnText}>{foodOrdering ? t('customerHome.placingOrder') : t('customerHome.placeOrder')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => setSelectedFoodItem(null)}
                   style={hf.cancelLink}
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel order"
+                  accessibilityLabel={t('customerHome.cancelOrderA11y')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={hf.cancelLinkText}>Cancel</Text>
+                  <Text style={hf.cancelLinkText}>{t('customerHome.cancel')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -1478,10 +1501,10 @@ export default function CustomerHome() {
               <View style={rm.starIconWrap}>
                 <StarIcon size={36} color="#F59E0B" strokeWidth={1.5} filled />
               </View>
-              <Text style={rm.title}>How was your experience?</Text>
+              <Text style={rm.title}>{t('customerHome.ratingTitle')}</Text>
               <Text style={rm.sub}>
-                At {pendingRating.store?.name || 'Lucky Stop'}
-                {pendingRating.grantedBy?.name ? ` · served by ${pendingRating.grantedBy.name.split(' ')[0]}` : ''}
+                {t('customerHome.ratingAtStore', { store: pendingRating.store?.name || 'Lucky Stop' })}
+                {pendingRating.grantedBy?.name ? ` · ${t('customerHome.ratingServedBy', { name: pendingRating.grantedBy.name.split(' ')[0] })}` : ''}
               </Text>
               <View style={rm.stars}>
                 {[1, 2, 3, 4, 5].map((s) => (
@@ -1491,7 +1514,7 @@ export default function CustomerHome() {
                     activeOpacity={0.7}
                     style={rm.starBtn}
                     accessibilityRole="button"
-                    accessibilityLabel={`Rate ${s} star${s > 1 ? 's' : ''}`}
+                    accessibilityLabel={t('customerHome.rateStarsA11y', { count: s })}
                   >
                     <StarIcon
                       size={44}
@@ -1506,10 +1529,10 @@ export default function CustomerHome() {
                 onPress={() => setPendingRating(null)}
                 style={rm.skipBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Skip rating"
+                accessibilityLabel={t('customerHome.skipRatingA11y')}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Text style={rm.skipText}>Skip</Text>
+                <Text style={rm.skipText}>{t('customerHome.skip')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1524,11 +1547,11 @@ export default function CustomerHome() {
               <View style={ag.badge}>
                 <Text style={ag.badgeText}>21+</Text>
               </View>
-              <Text style={ag.title}>Age-Restricted Store</Text>
+              <Text style={ag.title}>{t('customerHome.ageStoreTitle')}</Text>
               <Text style={ag.storeName}>{pendingAgeGateStore.name}</Text>
               <Text style={ag.body}>
-                This store sells age-restricted products. You must be 21 or older to earn rewards here.{'\n\n'}
-                By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account.
+                {t('customerHome.ageStoreBody')}{'\n\n'}
+                {t('customerHome.ageStoreLegal')}
               </Text>
               <TouchableOpacity
                 style={[ag.confirmBtn, confirming21 && { opacity: 0.6 }]}
@@ -1550,9 +1573,9 @@ export default function CustomerHome() {
                 disabled={confirming21}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={confirming21 ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
+                accessibilityLabel={confirming21 ? t('customerHome.confirmingAgeA11y') : t('customerHome.confirmAge21A11y')}
               >
-                <Text style={ag.confirmBtnText}>{confirming21 ? 'Confirming…' : 'I am 21 or older - Continue'}</Text>
+                <Text style={ag.confirmBtnText}>{confirming21 ? t('customerHome.confirming') : t('customerHome.age21Continue')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={ag.backBtn}
@@ -1563,10 +1586,10 @@ export default function CustomerHome() {
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Go back, cancel age verification"
+                accessibilityLabel={t('customerHome.goBackAgeA11y')}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Text style={ag.backBtnText}>Go back</Text>
+                <Text style={ag.backBtnText}>{t('customerHome.goBack')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1591,19 +1614,19 @@ export default function CustomerHome() {
                     style={om.closeBtn}
                     onPress={() => Linking.openURL(selectedBanner.linkUrl).catch(() => {})}
                     accessibilityRole="link"
-                    accessibilityLabel="Visit link"
+                    accessibilityLabel={t('customerHome.visitLinkA11y')}
                   >
-                    <Text style={om.closeBtnText}>Visit →</Text>
+                    <Text style={om.closeBtnText}>{t('customerHome.visitArrow')}</Text>
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
                   style={[om.closeBtn, selectedBanner.linkUrl ? { backgroundColor: COLORS.background, marginTop: 10 } : null]}
                   onPress={() => setSelectedBanner(null)}
                   accessibilityRole="button"
-                  accessibilityLabel="Close banner"
+                  accessibilityLabel={t('customerHome.closeBannerA11y')}
                 >
                   <Text style={[om.closeBtnText, selectedBanner.linkUrl ? { color: COLORS.textMuted } : null]}>
-                    {selectedBanner.linkUrl ? 'Close' : 'Got it'}
+                    {selectedBanner.linkUrl ? t('customerHome.close') : t('customerHome.gotIt')}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1628,7 +1651,7 @@ export default function CustomerHome() {
               activeOpacity={1}
               onPress={() => setSelectedTier(null)}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss tier details"
+              accessibilityLabel={t('customerHome.dismissTierA11y')}
             >
               <TouchableOpacity style={ti.card} activeOpacity={1} onPress={() => {}}>
                 <View style={[ti.iconWrap, { backgroundColor: cfg.color + '22' }]}>
@@ -1636,21 +1659,21 @@ export default function CustomerHome() {
                 </View>
                 <Text style={[ti.tierName, { color: cfg.color }]}>{cfg.label}</Text>
                 {cfg.thresholdPts > 0 && (
-                  <Text style={ti.threshold}>{cfg.thresholdPts.toLocaleString()} pts earned in a period</Text>
+                  <Text style={ti.threshold}>{t('customerHome.tierThreshold', { pts: cfg.thresholdPts.toLocaleString() })}</Text>
                 )}
                 {isCurrent && (
                   <View style={[ti.badge, { backgroundColor: COLORS.secondary + '18' }]}>
-                    <Text style={[ti.badgeText, { color: COLORS.secondary }]}>Your Current Tier</Text>
+                    <Text style={[ti.badgeText, { color: COLORS.secondary }]}>{t('customerHome.yourCurrentTier')}</Text>
                   </View>
                 )}
                 {isPast && (
                   <View style={[ti.badge, { backgroundColor: '#E8F5E9' }]}>
-                    <Text style={[ti.badgeText, { color: '#2E7D32' }]}>✓ Achieved</Text>
+                    <Text style={[ti.badgeText, { color: '#2E7D32' }]}>{t('customerHome.achieved')}</Text>
                   </View>
                 )}
                 {!isCurrent && !isPast && ptsAway > 0 && (
                   <View style={[ti.badge, { backgroundColor: '#FFF3E0' }]}>
-                    <Text style={[ti.badgeText, { color: '#E65100' }]}>{ptsAway.toLocaleString()} pts away</Text>
+                    <Text style={[ti.badgeText, { color: '#E65100' }]}>{t('customerHome.ptsAway', { pts: ptsAway.toLocaleString() })}</Text>
                   </View>
                 )}
                 <View style={ti.divider} />
@@ -1658,7 +1681,7 @@ export default function CustomerHome() {
                   {cfg.benefits.map((b, idx) => (
                     <View key={idx} style={ti.benefitRow}>
                       <View style={[ti.dot, { backgroundColor: cfg.color }]} />
-                      <Text style={ti.benefitText}>{b}</Text>
+                      <Text style={ti.benefitText}>{t(`customerHome.benefit_${selectedTier}_${idx}`, { defaultValue: b })}</Text>
                     </View>
                   ))}
                 </View>
@@ -1666,9 +1689,9 @@ export default function CustomerHome() {
                   style={ti.closeBtn}
                   onPress={() => setSelectedTier(null)}
                   accessibilityRole="button"
-                  accessibilityLabel="Close tier details"
+                  accessibilityLabel={t('customerHome.closeTierA11y')}
                 >
-                  <Text style={ti.closeBtnText}>Got it</Text>
+                  <Text style={ti.closeBtnText}>{t('customerHome.gotIt')}</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -1685,11 +1708,11 @@ export default function CustomerHome() {
             <View style={ag.badge}>
               <Text style={ag.badgeText}>21+</Text>
             </View>
-            <Text style={ag.title}>Age-Restricted Offer</Text>
+            <Text style={ag.title}>{t('customerHome.ageOfferTitle')}</Text>
             <Text style={ag.storeName}>{ageGateOffer.title}</Text>
             <Text style={ag.body}>
-              This promotion involves age-restricted products. You must be 21 or older to view it.{'\n\n'}
-              By confirming, you declare under penalty of law that you are at least 21 years of age. This confirmation is stored on your account and applies everywhere in the app.
+              {t('customerHome.ageOfferBody')}{'\n\n'}
+              {t('customerHome.ageOfferLegal')}
             </Text>
             <TouchableOpacity
               style={[ag.confirmBtn, confirmingOfferAge && { opacity: 0.6 }]}
@@ -1710,9 +1733,9 @@ export default function CustomerHome() {
               disabled={confirmingOfferAge}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={confirmingOfferAge ? 'Confirming age' : 'Confirm I am 21 or older and continue'}
+              accessibilityLabel={confirmingOfferAge ? t('customerHome.confirmingAgeA11y') : t('customerHome.confirmAge21A11y')}
             >
-              <Text style={ag.confirmBtnText}>{confirmingOfferAge ? 'Confirming…' : "I'm 21 or older, continue"}</Text>
+              <Text style={ag.confirmBtnText}>{confirmingOfferAge ? t('customerHome.confirming') : t('customerHome.age21ContinueOffer')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={ag.backBtn}
@@ -1732,10 +1755,10 @@ export default function CustomerHome() {
               disabled={decliningOfferAge}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Not interested, hide age-restricted offers"
+              accessibilityLabel={t('customerHome.notInterestedA11y')}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={ag.backBtnText}>{decliningOfferAge ? 'Please wait…' : 'Not interested'}</Text>
+              <Text style={ag.backBtnText}>{decliningOfferAge ? t('customerHome.pleaseWait') : t('customerHome.notInterested')}</Text>
             </TouchableOpacity>
           </View>
         </InlineModal>
@@ -1767,14 +1790,14 @@ export default function CustomerHome() {
                 <View style={om.badgeRow}>
                   <View style={[om.badge, { backgroundColor: '#fff3e0' }]}>
                     <GasPumpIcon size={13} color="#c04000" strokeWidth={2} />
-                    <Text style={[om.badgeText, { color: '#c04000' }]}>+{selectedOffer.gasBonusCentsPerGallon}¢ per gallon - auto-applied</Text>
+                    <Text style={[om.badgeText, { color: '#c04000' }]}>{t('customerHome.offerGasBadge', { cents: selectedOffer.gasBonusCentsPerGallon })}</Text>
                   </View>
                 </View>
               ) : selectedOffer.bonusRate ? (
                 <View style={om.badgeRow}>
                   <View style={om.badge}>
                     <PercentIcon size={13} color={COLORS.primary} strokeWidth={2} />
-                    <Text style={om.badgeText}>+{Math.round(selectedOffer.bonusRate * 100)}% cashback - auto-applied</Text>
+                    <Text style={om.badgeText}>{t('customerHome.offerCashbackBadge', { pct: Math.round(selectedOffer.bonusRate * 100) })}</Text>
                   </View>
                 </View>
               ) : selectedOffer.dealText && selectedOffer.imageUrl ? (
@@ -1784,27 +1807,29 @@ export default function CustomerHome() {
               {selectedOffer.description ? <Text style={om.desc}>{selectedOffer.description}</Text> : null}
               <View style={om.dateRow}>
                 <Text style={om.dateText}>
-                  Valid {new Date(selectedOffer.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                  {new Date(selectedOffer.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {t('customerHome.validRange', {
+                    start: new Date(selectedOffer.startDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }),
+                    end: new Date(selectedOffer.endDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' }),
+                  })}
                 </Text>
               </View>
               <View style={om.howBox}>
-                <Text style={om.howTitle}>How it works</Text>
+                <Text style={om.howTitle}>{t('customerHome.howItWorks')}</Text>
                 <Text style={om.howText}>
                   {selectedOffer.gasBonusCentsPerGallon != null
-                    ? `You earn an extra ${selectedOffer.gasBonusCentsPerGallon}¢ per gallon on gas purchases. Automatically applied when the cashier scans your QR code.`
+                    ? t('customerHome.howGas', { cents: selectedOffer.gasBonusCentsPerGallon })
                     : selectedOffer.bonusRate
-                      ? 'Cashback is automatically applied when the cashier scans your QR code. No action needed!'
-                      : 'Show your QR code to the cashier and mention this deal to claim it.'}
+                      ? t('customerHome.howCashback')
+                      : t('customerHome.howDeal')}
                 </Text>
               </View>
               <TouchableOpacity
                 style={om.closeBtn}
                 onPress={() => setSelectedOffer(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Close offer details"
+                accessibilityLabel={t('customerHome.closeOfferA11y')}
               >
-                <Text style={om.closeBtnText}>Got it</Text>
+                <Text style={om.closeBtnText}>{t('customerHome.gotIt')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1820,7 +1845,7 @@ export default function CustomerHome() {
             onPress={() => setShowQR(false)}
             activeOpacity={1}
             accessibilityRole="button"
-            accessibilityLabel="Dismiss QR code"
+            accessibilityLabel={t('customerHome.dismissQrA11y')}
           />
           <View style={styles.qrModalSheet}>
             {/* Handle + header */}
@@ -1829,8 +1854,8 @@ export default function CustomerHome() {
               <View style={styles.qrModalLogoRow}>
                 <Image source={require('../../assets/store-icon-512.png')} style={styles.qrModalLogo} />
                 <View>
-                  <Text style={styles.qrModalTitle}>Your QR Code</Text>
-                  <Text style={styles.qrModalSub}>Show this to the cashier to earn points</Text>
+                  <Text style={styles.qrModalTitle}>{t('customerHome.yourQrCode')}</Text>
+                  <Text style={styles.qrModalSub}>{t('customerHome.qrSub')}</Text>
                 </View>
               </View>
             </View>
@@ -1850,27 +1875,27 @@ export default function CustomerHome() {
               </View>
             ) : (
               <View style={[styles.qrModalFrame, { alignItems: 'center', justifyContent: 'center' }]}>
-                <Text style={{ color: COLORS.textMuted }}>QR code loading…</Text>
+                <Text style={{ color: COLORS.textMuted }}>{t('customerHome.qrLoading')}</Text>
               </View>
             )}
-            <Text style={styles.qrHint}>🔒 Unique to your account</Text>
+            <Text style={styles.qrHint}>{t('customerHome.qrUnique')}</Text>
             <TouchableOpacity
               style={styles.scanReceiptLink}
               onPress={() => { setShowQR(false); router.push('/(customer)/scan-receipt'); }}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Scan a receipt QR code instead to claim points automatically"
+              accessibilityLabel={t('customerHome.scanReceiptA11y')}
             >
-              <Text style={styles.scanReceiptLinkText}>Got a receipt instead? Scan it →</Text>
+              <Text style={styles.scanReceiptLinkText}>{t('customerHome.scanReceiptLink')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.qrModalClose}
               onPress={() => setShowQR(false)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Close QR code"
+              accessibilityLabel={t('customerHome.closeQrA11y')}
             >
-              <Text style={styles.qrModalCloseText}>Close</Text>
+              <Text style={styles.qrModalCloseText}>{t('customerHome.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

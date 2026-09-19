@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 
 const STATUS_CONFIG = {
@@ -81,6 +82,7 @@ export default function RequestProductScreen() {
     staleTime: 60 * 1000,
   });
   const myRequests: ProductRequest[] = myRequestsData?.data?.data ?? [];
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
 
   const submitMut = useMutation({
     mutationFn: () => productRequestApi.submit({
@@ -132,7 +134,7 @@ export default function RequestProductScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
           {isLoading ? (
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : isError ? (

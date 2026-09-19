@@ -1,4 +1,4 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { leaderboardApi, chatApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import ErrorState from '../../components/ErrorState';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 
@@ -37,12 +39,13 @@ export default function EmployeeLeaderboardScreen() {
   const storeNameById: Record<string, string> = {};
   (myStoresData?.data?.data || []).forEach((s: { id: string; name: string }) => { storeNameById[s.id] = s.name; });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['leaderboard-employees', selectedStore],
     queryFn: () => leaderboardApi.getEmployees(selectedStore),
     enabled: !!selectedStore,
     staleTime: 5 * 60 * 1000,
   });
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
 
   const { storeName, leaderboard = [], employeeOfMonthId } = data?.data?.data || {};
 
@@ -57,7 +60,7 @@ export default function EmployeeLeaderboardScreen() {
             onPress={() => router.back()}
             style={st.backBtn}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('employeeLeaderboard.goBackA11y')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
@@ -80,7 +83,7 @@ export default function EmployeeLeaderboardScreen() {
                 style={[st.storePill, selectedStore === id && st.storePillActive]}
                 onPress={() => setSelectedStore(id)}
                 accessibilityRole="tab"
-                accessibilityLabel={`Filter by ${storeNameById[id] || 'store'}`}
+                accessibilityLabel={t('employeeLeaderboard.filterByStoreA11y', { store: storeNameById[id] || t('employeeLeaderboard.filterStoreFallback') })}
                 accessibilityState={{ selected: selectedStore === id }}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               >
@@ -118,6 +121,8 @@ export default function EmployeeLeaderboardScreen() {
 
       {isLoading ? (
         <View style={st.center}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+      ) : isError && !data ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : leaderboard.length === 0 ? (
         <FadeSlideIn style={{ flex: 1 }}>
           <View style={st.center}>
@@ -135,6 +140,7 @@ export default function EmployeeLeaderboardScreen() {
             keyExtractor={(item: any) => item.employeeId}
             contentContainerStyle={st.list}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             ListHeaderComponent={
               leaderboard.some((e: any) => e.rank <= 3) ? (
                 <View style={st.podium}>

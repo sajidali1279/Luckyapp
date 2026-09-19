@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity, FlatList, TextInput,
-  StyleSheet, ScrollView, ActivityIndicator, Modal, Alert,
+  StyleSheet, ScrollView, ActivityIndicator, Modal, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
@@ -12,6 +12,8 @@ import FadeSlideIn from './FadeSlideIn';
 import PulseHighlight from './PulseHighlight';
 import { TypeIcon } from './ManagerRequestsScreen';
 import { useHighlightParam } from '../hooks/useHighlightParam';
+import { usePullRefresh } from '../hooks/usePullRefresh';
+import ErrorState from './ErrorState';
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
@@ -81,12 +83,13 @@ export default function EmployeeRequestsScreen() {
   const stores: { id: string; name: string }[] = storesData?.data?.data || [];
   const effectiveStore = selectedStore || (stores.length === 1 ? stores[0]?.id : null);
 
-  const { data: myRequestsData, isLoading } = useQuery({
+  const { data: myRequestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-store-requests'],
     queryFn: () => storeRequestApi.getMine(),
     refetchInterval: 30000,
   });
   const myRequests: StoreRequest[] = myRequestsData?.data?.data || [];
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
   const pendingCount = myRequests.filter(r => r.status === 'PENDING').length;
 
   const submitMutation = useMutation({
@@ -204,6 +207,8 @@ export default function EmployeeRequestsScreen() {
       {/* ── List ── */}
       {isLoading ? (
         <View style={s.centered}><ActivityIndicator color={COLORS.primary} size="large" /></View>
+      ) : isError && !myRequestsData ? (
+        <ErrorState onRetry={() => refetch()} />
       ) : myRequests.length === 0 ? (
         <View style={s.centered}>
           <Text style={s.emptyEmoji}>📭</Text>
@@ -227,6 +232,7 @@ export default function EmployeeRequestsScreen() {
             renderItem={renderRequest}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           />
         </FadeSlideIn>
       )}

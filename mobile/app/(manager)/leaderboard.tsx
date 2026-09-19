@@ -1,6 +1,6 @@
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  TouchableOpacity, ScrollView,
+  TouchableOpacity, ScrollView, RefreshControl,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
@@ -11,6 +11,7 @@ import { COLORS, AVATAR_PALETTE, TEXT_GRAY } from '../../constants';
 import { TrophyIcon, StarIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import ManagerHeader from '../../components/ManagerHeader';
 
 interface Store { id: string; name: string }
@@ -66,6 +67,7 @@ export default function ManagerLeaderboardScreen() {
   const isLoading = tab === 'customers' ? custLoading : staffLoading;
   const isError = tab === 'customers' ? custError : staffError;
   const refetchCurrent = tab === 'customers' ? refetchCust : refetchStaff;
+  const { refreshing, onRefresh } = usePullRefresh([() => refetchCurrent()]);
 
   return (
     <View style={s.root}>
@@ -128,6 +130,7 @@ export default function ManagerLeaderboardScreen() {
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           ListEmptyComponent={
             <View style={s.centered}>
               <Text style={s.emptyText}>{t('managerLeaderboard.noCustomerData')}</Text>
@@ -162,6 +165,7 @@ export default function ManagerLeaderboardScreen() {
           keyExtractor={(item: any) => item.id}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           ListEmptyComponent={
             <View style={s.centered}>
               <Text style={s.emptyText}>{t('managerLeaderboard.noStaffRatings')}</Text>

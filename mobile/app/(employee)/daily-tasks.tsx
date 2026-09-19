@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { dailyTaskApi, storesApi } from '../../services/api';
 import { COLORS } from '../../constants';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { ListChecksIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, CircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useCurrentStoreId } from '../../utils/geo';
@@ -79,6 +80,7 @@ export default function DailyTasksScreen() {
     enabled: !!user,
   });
   const tasks: DailyTask[] = data?.data?.data ?? [];
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
 
   function toggleCheck(id: string) {
     setChecked(prev => {
@@ -143,7 +145,7 @@ export default function DailyTasksScreen() {
             onPress={() => refetch()}
             style={styles.retryBtn}
             accessibilityRole="button"
-            accessibilityLabel="Retry loading tasks"
+            accessibilityLabel={t('employeeDailyTasks.retryA11y')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.retryText}>{t('employeeDailyTasks.retry')}</Text>
@@ -156,7 +158,7 @@ export default function DailyTasksScreen() {
           <Text style={styles.emptySub}>{t('employeeDailyTasks.noTasksSub')}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
           {SHIFT_ORDER.map((shift, shiftIdx) => {
             const shiftTasks = grouped[shift];
             if (shiftTasks.length === 0) return null;
@@ -174,7 +176,7 @@ export default function DailyTasksScreen() {
                     onPress={() => toggleExpand(shift)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`${shiftLabel} shift, ${shiftDone} of ${shiftTasks.length} completed`}
+                    accessibilityLabel={t('employeeDailyTasks.shiftA11y', { shift: shiftLabel, done: shiftDone, total: shiftTasks.length })}
                     accessibilityState={{ expanded: isOpen }}
                   >
                     <View style={styles.shiftLeft}>

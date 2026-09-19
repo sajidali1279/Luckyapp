@@ -201,7 +201,7 @@ export default function EmployeeHomeScreen() {
                 onPress={() => router.push('/(employee)/profile')}
                 activeOpacity={0.75}
                 accessibilityRole="button"
-                accessibilityLabel="Open profile"
+                accessibilityLabel={t('employeeHome.openProfileA11y')}
               >
                 {user?.avatarUrl ? (
                   <Image source={{ uri: user.avatarUrl }} style={s.avatarPhoto} cachePolicy="none" />
@@ -275,7 +275,7 @@ export default function EmployeeHomeScreen() {
               onPress={() => router.push('/(employee)/scan')}
               activeOpacity={0.82}
               accessibilityRole="button"
-              accessibilityLabel="Grant points: scan customer QR code"
+              accessibilityLabel={t('employeeHome.grantPointsA11y')}
             >
               <View style={s.actionIconBg}>
                 <QrCodeScanIcon size={24} color="#fff" strokeWidth={1.75} />
@@ -292,7 +292,7 @@ export default function EmployeeHomeScreen() {
               onPress={() => router.push('/(employee)/scan')}
               activeOpacity={0.82}
               accessibilityRole="button"
-              accessibilityLabel="Redeem credits: scan customer QR code"
+              accessibilityLabel={t('employeeHome.redeemCreditsA11y')}
             >
               <View style={[s.actionIconBg, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                 <GiftIcon size={24} color="#fff" strokeWidth={1.75} />
@@ -470,13 +470,13 @@ export default function EmployeeHomeScreen() {
             </TouchableOpacity>
             {shiftTasks.length > 1 && (
               <View style={s.taskTickerDots}>
-                {shiftTasks.map((t: any, i: number) => (
+                {shiftTasks.map((task: any, i: number) => (
                   <TouchableOpacity
-                    key={t.id}
+                    key={task.id}
                     onPress={() => setTaskIdx(i)}
                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Show task ${i + 1}: ${t.title}`}
+                    accessibilityLabel={t('employeeHome.showTaskA11y', { n: i + 1, title: task.title })}
                   >
                     <View style={[s.taskTickerDot, i === (taskIdx % shiftTasks.length) && s.taskTickerDotActive]} />
                   </TouchableOpacity>

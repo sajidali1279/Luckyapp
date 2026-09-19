@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Animated, View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 import { BuildingIcon, MapPinIcon, GlobeIcon, MegaphoneIcon } from './Icons';
 
@@ -23,6 +24,7 @@ const CARD_HEIGHT = 168;
 // wall of text. When there's no active ad, shows the "advertise your
 // business" entry point instead of an empty/flippable card.
 export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
+  const { t } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
 
@@ -43,14 +45,14 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
         activeOpacity={0.88}
         onPress={() => router.push('/(customer)/ads')}
         accessibilityRole="button"
-        accessibilityLabel="Have a local business? Advertise it here"
+        accessibilityLabel={t('customerPromoCard.ctaA11y')}
       >
         <View style={s.ctaIconWrap}>
           <MegaphoneIcon size={22} color="#f97316" strokeWidth={1.75} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.ctaTitle}>Have a business? Promote it!</Text>
-          <Text style={s.ctaSub}>Check out our advertising options</Text>
+          <Text style={s.ctaTitle}>{t('customerPromoCard.ctaTitle')}</Text>
+          <Text style={s.ctaSub}>{t('customerPromoCard.ctaSub')}</Text>
         </View>
         <Text style={s.ctaArrow}>›</Text>
       </TouchableOpacity>
@@ -92,13 +94,13 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
           </View>
         )}
         <View style={s.sponsoredTag}>
-          <Text style={s.sponsoredTagText}>Sponsored</Text>
+          <Text style={s.sponsoredTagText}>{t('customerPromoCard.sponsored')}</Text>
         </View>
         <View style={s.frontTextWrap}>
           <Text style={s.frontBizName} numberOfLines={1}>{ad.businessName}</Text>
           <Text style={s.frontTitle} numberOfLines={1}>{ad.adTitle}</Text>
         </View>
-        <Text style={s.tapHintFront}>Tap for details</Text>
+        <Text style={s.tapHintFront}>{t('customerPromoCard.tapForDetails')}</Text>
       </Animated.View>
 
       <Animated.View style={[s.face, s.backFace, { opacity: backOpacity, transform: [{ rotateY: backInterpolate }] }]}>
@@ -119,11 +121,11 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
               onPress={openDirections}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Get directions to ${ad.businessName}`}
+              accessibilityLabel={t('customerPromoCard.directionsA11y', { name: ad.businessName })}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <MapPinIcon size={13} color="#fff" strokeWidth={2.5} />
-              <Text style={s.backActionBtnText}>Directions</Text>
+              <Text style={s.backActionBtnText}>{t('customerPromoCard.directions')}</Text>
             </TouchableOpacity>
           ) : null}
           {ad.website ? (
@@ -132,15 +134,15 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
               onPress={openWebsite}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Visit ${ad.businessName}'s website`}
+              accessibilityLabel={t('customerPromoCard.websiteA11y', { name: ad.businessName })}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <GlobeIcon size={13} color={COLORS.primary} strokeWidth={2.5} />
-              <Text style={[s.backActionBtnText, s.backActionBtnAltText]}>Website</Text>
+              <Text style={[s.backActionBtnText, s.backActionBtnAltText]}>{t('customerPromoCard.website')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
-        <Text style={s.tapHintBack}>Tap to flip back</Text>
+        <Text style={s.tapHintBack}>{t('customerPromoCard.tapToFlipBack')}</Text>
       </Animated.View>
     </TouchableOpacity>
   );

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform, TextInput,
+  TouchableOpacity, Modal, KeyboardAvoidingView, Platform, TextInput, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +14,7 @@ import BackButton from '../../components/BackButton';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 
 const DESC_MIN = 10;
@@ -162,6 +163,7 @@ export default function MyDisputesScreen() {
   });
 
   const disputes: any[] = data?.data?.data || [];
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -199,7 +201,7 @@ export default function MyDisputesScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
           {disputes.map((d, index) => (
             <FadeSlideIn key={d.id} delay={Math.min(index * 40, 200)}>
               <PulseHighlight active={d.id === highlightedId} style={s.card}>

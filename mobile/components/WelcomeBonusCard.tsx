@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { welcomeBonusApi } from '../services/api';
 import { COLORS } from '../constants';
 
 const REWARD_OPTIONS = [
-  { rewardType: 'FOUNTAIN_DRINK', label: 'Free Fountain Drink', emoji: '🥤' },
-  { rewardType: 'COFFEE',         label: 'Free Coffee',          emoji: '☕' },
-  { rewardType: 'SODA_12OZ',      label: 'Free 12oz Soda',       emoji: '🥤' },
-  { rewardType: 'HOT_SNACK',      label: 'Free Hot Food Snack',  emoji: '🌮' },
+  { rewardType: 'FOUNTAIN_DRINK', labelKey: 'customerWelcomeBonus.optionFountain', emoji: '🥤' },
+  { rewardType: 'COFFEE',         labelKey: 'customerWelcomeBonus.optionCoffee',   emoji: '☕' },
+  { rewardType: 'SODA_12OZ',      labelKey: 'customerWelcomeBonus.optionSoda',     emoji: '🥤' },
+  { rewardType: 'HOT_SNACK',      labelKey: 'customerWelcomeBonus.optionHotSnack', emoji: '🌮' },
 ];
 
 const GOLD = '#F59E0B';
 const GREEN = '#22C55E';
 
 export default function WelcomeBonusCard() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -51,9 +53,11 @@ export default function WelcomeBonusCard() {
     claimMut.mutate(selected);
   }
 
+  const optionLabel = (o: { labelKey: string } | null | undefined) => (o ? t(o.labelKey) : undefined);
   const claimedOption = bonus.claimed
     ? REWARD_OPTIONS.find(r => r.rewardType === bonus.rewardType) ?? null
     : null;
+  const selectedLabel = optionLabel(REWARD_OPTIONS.find(r => r.rewardType === selected));
 
   return (
     <>
@@ -77,37 +81,37 @@ export default function WelcomeBonusCard() {
         </View>
 
         <View style={st.body}>
-          <Text style={st.tag}>🎁 Welcome Bonus · Day {bonus.dayNumber} of 7</Text>
+          <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber })}</Text>
 
           {/* Already confirmed */}
           {bonus.confirmed && (
             <View style={st.confirmedBox}>
               <Text style={st.confirmedEmoji}>{claimedOption?.emoji}</Text>
-              <Text style={st.confirmedLabel}>{claimedOption?.label}</Text>
-              <Text style={st.confirmedSub}>✅ Confirmed! Enjoy your reward.</Text>
+              <Text style={st.confirmedLabel}>{optionLabel(claimedOption)}</Text>
+              <Text style={st.confirmedSub}>{t('customerWelcomeBonus.confirmedSub')}</Text>
             </View>
           )}
 
           {/* Claimed but not yet confirmed - show code */}
           {bonus.claimed && !bonus.confirmed && (
             <>
-              <Text style={st.pickTitle}>You chose:</Text>
+              <Text style={st.pickTitle}>{t('customerWelcomeBonus.youChose')}</Text>
               <View style={st.claimedOptionRow}>
                 <Text style={st.claimedOptionEmoji}>{claimedOption?.emoji}</Text>
-                <Text style={st.claimedOptionLabel}>{claimedOption?.label}</Text>
+                <Text style={st.claimedOptionLabel}>{optionLabel(claimedOption)}</Text>
               </View>
               <View style={st.codeBox}>
-                <Text style={st.codeLabel}>YOUR CODE</Text>
+                <Text style={st.codeLabel}>{t('customerWelcomeBonus.yourCode')}</Text>
                 <Text style={st.code}>{bonus.claimCode}</Text>
               </View>
-              <Text style={st.codeSub}>Show this code to your cashier</Text>
+              <Text style={st.codeSub}>{t('customerWelcomeBonus.showCodeToCashier')}</Text>
               <TouchableOpacity
                 style={st.viewBtn}
                 onPress={() => setShowModal(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`View your reward code for ${claimedOption?.label}`}
+                accessibilityLabel={t('customerWelcomeBonus.viewCodeA11y', { reward: optionLabel(claimedOption) })}
               >
-                <Text style={st.viewBtnText}>View Code</Text>
+                <Text style={st.viewBtnText}>{t('customerWelcomeBonus.viewCode')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -115,7 +119,7 @@ export default function WelcomeBonusCard() {
           {/* Not yet claimed - show choice grid */}
           {!bonus.claimed && (
             <>
-              <Text style={st.pickTitle}>Pick your free item for today:</Text>
+              <Text style={st.pickTitle}>{t('customerWelcomeBonus.pickTitle')}</Text>
               <View style={st.grid}>
                 {REWARD_OPTIONS.map(opt => {
                   const active = selected === opt.rewardType;
@@ -126,12 +130,12 @@ export default function WelcomeBonusCard() {
                       onPress={() => setSelected(opt.rewardType)}
                       activeOpacity={0.8}
                       accessibilityRole="radio"
-                      accessibilityLabel={opt.label}
+                      accessibilityLabel={t(opt.labelKey)}
                       accessibilityState={{ selected: active }}
                     >
                       <Text style={st.optionEmoji}>{opt.emoji}</Text>
                       <Text style={[st.optionLabel, active && st.optionLabelActive]} numberOfLines={2}>
-                        {opt.label}
+                        {t(opt.labelKey)}
                       </Text>
                       {active && <View style={st.checkDot}><Text style={st.checkMark}>✓</Text></View>}
                     </TouchableOpacity>
@@ -146,16 +150,16 @@ export default function WelcomeBonusCard() {
                 accessibilityRole="button"
                 accessibilityLabel={
                   claimMut.isPending
-                    ? 'Claiming reward'
+                    ? t('customerWelcomeBonus.claimingA11y')
                     : selected
-                      ? `Claim ${REWARD_OPTIONS.find(r => r.rewardType === selected)?.label}`
-                      : 'Choose an item above first'
+                      ? t('customerWelcomeBonus.claimA11y', { reward: selectedLabel })
+                      : t('customerWelcomeBonus.chooseFirstA11y')
                 }
               >
                 {claimMut.isPending
                   ? <ActivityIndicator color="#fff" size="small" />
                   : <Text style={st.btnText}>
-                      {selected ? `Claim ${REWARD_OPTIONS.find(r => r.rewardType === selected)?.label}` : 'Choose an item above'}
+                      {selected ? t('customerWelcomeBonus.claimA11y', { reward: selectedLabel }) : t('customerWelcomeBonus.chooseItem')}
                     </Text>
                 }
               </TouchableOpacity>
@@ -169,11 +173,11 @@ export default function WelcomeBonusCard() {
         <View style={md.overlay}>
           <View style={md.sheet}>
             <Text style={md.emoji}>{claimedOption?.emoji || bonus.rewardEmoji || '🎁'}</Text>
-            <Text style={md.title}>{claimedOption?.label || bonus.rewardLabel || 'Your Reward'}</Text>
-            <Text style={md.sub}>Show this code to your cashier to receive your free item</Text>
+            <Text style={md.title}>{optionLabel(claimedOption) || bonus.rewardLabel || t('customerWelcomeBonus.yourReward')}</Text>
+            <Text style={md.sub}>{t('customerWelcomeBonus.showCodeToReceive')}</Text>
 
             <View style={md.codeBox}>
-              <Text style={md.codeLabel}>YOUR CODE</Text>
+              <Text style={md.codeLabel}>{t('customerWelcomeBonus.yourCode')}</Text>
               <Text style={md.code}>{bonus.claimCode}</Text>
             </View>
 
@@ -181,22 +185,22 @@ export default function WelcomeBonusCard() {
               style={md.copyBtn}
               onPress={() => handleCopy(bonus.claimCode)}
               accessibilityRole="button"
-              accessibilityLabel={copied ? 'Code copied' : 'Copy code to clipboard'}
+              accessibilityLabel={copied ? t('customerWelcomeBonus.codeCopiedA11y') : t('customerWelcomeBonus.copyCodeA11y')}
             >
-              <Text style={md.copyBtnText}>{copied ? '✓ Copied!' : 'Copy Code'}</Text>
+              <Text style={md.copyBtnText}>{copied ? t('customerWelcomeBonus.copied') : t('customerWelcomeBonus.copyCode')}</Text>
             </TouchableOpacity>
 
             <Text style={md.note}>
-              Valid today only · 7 days from when you joined · One free item per day
+              {t('customerWelcomeBonus.note')}
             </Text>
 
             <TouchableOpacity
               style={md.closeBtn}
               onPress={() => setShowModal(false)}
               accessibilityRole="button"
-              accessibilityLabel="Done"
+              accessibilityLabel={t('customerWelcomeBonus.done')}
             >
-              <Text style={md.closeBtnText}>Done</Text>
+              <Text style={md.closeBtnText}>{t('customerWelcomeBonus.done')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -1,4 +1,4 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -11,6 +11,7 @@ import ErrorState from '../../components/ErrorState';
 import BackButton from '../../components/BackButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useCurrentStoreId } from '../../utils/geo';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
@@ -51,6 +52,7 @@ export default function CustomerLeaderboardScreen() {
   });
 
   const activeQuery = tab === 'chain' ? chainQuery : storeQuery;
+  const { refreshing, onRefresh } = usePullRefresh([() => activeQuery.refetch()]);
   const entries: any[] = activeQuery.data?.data?.data || [];
 
   const myEntry = entries.find((e: any) => e.isCurrentUser);
@@ -168,6 +170,7 @@ export default function CustomerLeaderboardScreen() {
             keyExtractor={(item) => item.customerId}
             contentContainerStyle={st.list}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             ListHeaderComponent={
               <View style={st.podium}>
                 {entries.slice(0, 3).map((e: any) => (

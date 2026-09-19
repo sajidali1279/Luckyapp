@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  StatusBar, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert,
+  StatusBar, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircleIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import FadeSlideIn from '../../components/FadeSlideIn';
 
 const POSITION_META: Record<string, { emoji: string; descKey: string }> = {
@@ -88,6 +89,7 @@ export default function CareersScreen() {
     queryFn: () => jobOpeningsApi.getActive(),
   });
   const openings: JobOpening[] = openingsData?.data?.data ?? [];
+  const { refreshing, onRefresh } = usePullRefresh([() => refetchOpenings()]);
 
   // Refetch on every focus so a newly-posted opening shows up without an app restart
   useFocusEffect(useCallback(() => {
@@ -162,7 +164,7 @@ export default function CareersScreen() {
       </View>
 
       <FadeSlideIn style={{ flex: 1 }}>
-      <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
 
         {/* Hero */}
         <View style={st.hero}>
