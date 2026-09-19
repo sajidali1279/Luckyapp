@@ -3,7 +3,7 @@
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.5 | Last Updated: August 23, 2026
+**Version:** 1.6 | Last Updated: September 18, 2026
 
 ---
 
@@ -160,6 +160,18 @@ To change status:
 1. Tap the item.
 2. Select the new status.
 
+**Changing several items at once**
+
+When a delivery arrives, or you place one big order, you do not have to open every item:
+1. Tap **Select** at the top of the list (or press and hold any item).
+2. Tap the items you want. A check mark shows what is selected, and the bar at the bottom shows how many will change.
+3. Tap **Mark ordered (n)** or **Mark received (n)**. Only the selected items that fit the action are changed.
+4. Tap **Select all** on a section header to pick that whole section, or **Cancel** to leave without changing anything.
+
+Two shortcuts are also on the section headers when you are not selecting: **Mark all ordered** (on Urgent and Needed) and **Mark all received** (on Ordered). Both ask you to confirm first.
+
+If the connection drops part way through, the app tells you how many items were updated and how many failed. The ones that failed stay selected, so you can tap the button again.
+
 ### 4.5 Editing an Item
 
 Tap any item to open its detail view. Tap **Edit** to modify:
@@ -170,9 +182,13 @@ Tap any item to open its detail view. Tap **Edit** to modify:
 
 Swipe the item left and tap **Remove**, or open the item and tap **Remove Item**.
 
-### 4.7 Reordering Items
+To remove several items at once, tap **Select**, pick them, and tap the trash can at the bottom. You are asked to confirm before anything is removed.
 
-Long-press any item to enter drag-reorder mode. Drag items to rearrange them in order of priority.
+### 4.7 Order of Items
+
+The list is grouped by status: **Urgent** items are always first, then **Needed**, **Ordered**, and **Received**. Inside each group, items are in alphabetical order. To move an item to the top, set its priority to **Urgent** (see 4.5).
+
+Pressing and holding an item starts selecting several items at once (see 4.4).
 
 ### 4.8 Printing the Order List
 
@@ -538,25 +554,60 @@ Your employees manage the order states (In Progress → Ready → Complete), but
 
 ## 13. Shelf/Price Labels
 
-Print ready-to-use shelf and price tags for products at your store, either from the mobile app or the web admin portal. The catalog is shared chain-wide, so labels added by any store are visible to everyone, with your own store's not-yet-printed labels surfaced first.
+Print ready-to-use shelf and price tags for products at your store, either from the mobile app or the web admin portal. The catalog is shared chain-wide, so a label added by any store is visible to everyone, but each store has its own price and its own print history.
 
-### 13.1 Creating a Label
+On mobile, the Labels screen has two tabs:
+- **Catalog** is where you browse and pick labels.
+- **My Prints** is your list. Whatever is on it is exactly what prints.
 
-Tap **Labels** in the menu, then **+ Add Label**.
-- Scan a barcode to auto-fill the product name from the shared Scanned Products catalog, or enter one manually.
-- Set the regular price, an optional deal price, and a category.
-- Save. The label is added to the chain-wide catalog immediately.
+Your My Prints list is kept on your own phone. It stays put if you close the app, and it is not shared with other staff.
 
-### 13.2 Printing Labels
+### 13.1 Picking Labels from the Catalog
 
-- The Labels screen defaults to **Ready to Print**: labels from your store that haven't been printed yet. Toggle to **Full Catalog** to see everything, including labels other stores added.
-- Select one or more labels (search and select-all are available for large batches), then **Print** to generate a formatted PDF sized for a standard Avery 5160 address-label sheet.
-- If you select a label another store created, a confirmation prompt appears before printing, so two stores scanning at the same time don't print each other's tags by mistake.
+Tap **Labels** in the menu.
+- Tap a label to add it to My Prints. Tap it again to take it off. The count on the **My Prints** tab goes up as you go.
+- Use the search box to find a product by name or barcode. Tap the filter icon to narrow the list by status (for example **Needs Reprint**) or by category.
+- Tap **Add all** to add everything currently shown, for example a whole category. Labels with no price yet are skipped, because they cannot be printed.
+- A yellow banner appears when some of your store's labels need a reprint (their price changed). Tap **Show** to jump straight to them.
+- Tap the pencil on a label to edit its name, price, deal, barcode, category, or template.
+- Labels you have already printed can be added again at any time to reprint them.
+- If you work at more than one store, tap the store name under **Labels** to switch. Prices, print history, and your My Prints list are kept separately for each store.
+- Below the search box, **Not here? Browse products without a label** lists products in your Store Catalog that have no label yet. Tap **Make label** on one, type the price, and save. It is added to My Prints, so nothing needs to be scanned again.
 
-### 13.3 Things to Note
+### 13.2 Scanning Labels
 
-- The catalog is shared chain-wide by design; any store's added labels are visible to everyone, the same way the Scanned Products catalog works.
+Tap **Scan** and point the camera at a barcode.
+- If the product is already in the catalog, it goes straight onto My Prints and the camera stays open for the next item. Scan the same barcode again to add one more copy. A short confirmation appears at the bottom of the camera view.
+- If the product is new, the app looks it up and fills in the name where it can. Confirm or type the name, then fill in the label (regular price, an optional deal such as 2 for $5, category, template) and save. The new label is added to the catalog and to My Prints, and the camera opens again so you can keep working down the shelf. Tap the X to stop.
+
+You can also search the Catalog for a barcode or name. If nothing matches, tap **Add ... as new label**. If the barcode is one the app already knows, the product's name and category are filled in for you.
+
+### 13.3 Printing Labels
+
+Open the **My Prints** tab.
+- Set how many copies of each label you want with the **-** and **+** buttons, or type a number.
+- Tap **Change price** to set a price for your store only, and optionally choose how long it lasts. After that date it goes back to the regular price by itself.
+- A label with no price shows **Set price**. Every label needs a price before you can print.
+- Tap the trash can to take a label off the list, or **Clear all** to start over. Nothing is deleted from the catalog.
+- Tap **Print** to print the whole list, or **PDF** to share it as a file. Labels are sized for a standard Avery 5160 address-label sheet (30 per sheet).
+- After a successful print the list empties and the labels are marked as printed for your store. If you cancel the print dialog, nothing changes and your list stays as it was.
+
+### 13.4 Checking a Price
+
+Tap **Price Check** at the top of the Labels screen and scan any item to see what it costs at your store. From there you can add it to My Prints.
+
+### 13.5 Things to Note
+
+- The catalog is shared chain-wide by design; any store's added labels are visible to everyone, the same way the Scanned Products catalog works. Prices are per store, so a price you set applies to your store only.
 - Every print is logged (who, which store, how many) to the developer's Activity Log.
+
+### 13.6 Fixing a Product in the Store Catalog
+
+A misspelled name or a wrong category on a scanned product is quick to fix. Open **Store Catalog** in the menu, go to the **Browse** tab, and tap the product (or its pencil icon).
+- Change the **name** or the **category**. Matching categories from the approved list are suggested as you type.
+- A category that is not on the approved list is still saved on the product, and it is also sent for approval like any other new category.
+- The barcode cannot be changed here.
+- Tap **Save Changes**. If the save does not go through, the sheet stays open so you do not lose what you typed.
 
 ---
 

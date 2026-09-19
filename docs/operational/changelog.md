@@ -7,6 +7,28 @@ Audience indicators: **Customer** · **Employee** · **Manager** · **Admin** ·
 
 ---
 
+## [Unreleased] - September 18, 2026
+
+Labeling rework plus a Spanish and usability pass across the three mobile roles. Needs a new mobile build to reach phones.
+
+### Added
+- **Manager, Employee** - Labels "My Prints" is now a personal cart, kept on the phone and separate for each store. Tap catalog items, scan barcodes, or make a label from a product the store already scanned, then print exactly what is in the cart in one go, with copies per label and store-only prices.
+- **Manager** - Store switcher on Labels, and a product list ("Not here? Browse products without a label") that makes a label without rescanning.
+- **Manager** - Order List multi-select: press and hold an item, or tap Select, to mark several items ordered or received, or to remove them. "Mark all ordered" and "Mark all received" shortcuts sit on the section headers. If some requests fail, the app says how many and keeps those items selected for a retry.
+- **Manager** - Store Catalog: tap a product in Browse to fix its name or category. A category that is not approved yet is sent for approval as usual.
+- **Customer, Employee, Manager** - Pull-to-refresh on the leaderboards, My Disputes, Careers, Request a Product, Daily Tasks, and Store Alerts.
+- **Employee** - A Retry screen when the Staff Rankings, Store Alerts, or Hot Food lists fail to load, instead of an empty list.
+
+### Changed
+- **Customer, Employee, Manager** - Spanish translations for the Labels, scanner and Price Check screens, customer Home (offers, rewards, tier details, QR sheet, welcome bonus, local ads), the receipt scanner, Profile, the shared Retry screen, and the Daily Report and Daily Tasks menu entries. Screen-reader labels are translated as well.
+- **Customer** - The Home header title now shrinks on narrow phones instead of pushing the bell and profile buttons off the screen.
+- **Manager** - The manual no longer says that press-and-hold reorders Order List items (mobile has no drag reordering). Press-and-hold now starts selecting.
+
+### Fixed
+- **Employee** - In Spanish, the hot-food order timer showed "{{minutes}}" instead of the number. Eight other Spanish strings had the same kind of mismatch and were corrected.
+
+---
+
 ## [1.5] "Shelf Tags" - August 23, 2026
 
 A major feature release centered on printable shelf/price labels, plus a full Store Manager admin-web parity pass and three billing fixes.

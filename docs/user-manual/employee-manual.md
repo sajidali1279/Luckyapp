@@ -3,7 +3,7 @@
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only - transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.5 | Last Updated: August 23, 2026
+**Version:** 1.6 | Last Updated: September 18, 2026
 
 ---
 
@@ -604,20 +604,45 @@ Tap the **Menu** tab to see every item currently on your store's hot food menu. 
 
 ## 19. Shelf/Price Labels
 
-Tap **Labels** in the menu to create and print shelf/price tags for products at your store. The catalog is shared chain-wide, so labels added by any store are visible to everyone, with your own store's not-yet-printed labels surfaced first under **Ready to Print**.
+Tap **Labels** in the menu to build a list of shelf/price tags and print them all at once. The catalog is shared chain-wide, so a label added by any store is visible to everyone, but each store has its own price and its own print history.
 
-### 19.1 Creating a Label
+The screen has two tabs:
+- **Catalog** is where you browse and pick labels.
+- **My Prints** is your list. Whatever is on it is exactly what prints.
 
-Tap **+ Add Label**.
-- Scan the item's barcode to auto-fill the product name from the shared Scanned Products catalog, or enter one manually.
-- Set the regular price, an optional deal price, and a category.
-- Save. The label is added to the chain-wide catalog immediately.
+Your My Prints list is kept on your own phone. It stays put if you close the app, and coworkers do not see it.
 
-### 19.2 Printing Labels
+### 19.1 Picking Labels from the Catalog
 
-- **Ready to Print** shows labels from your store that haven't been printed yet. Toggle to **Full Catalog** to see everything, including labels other stores added.
-- Select one or more labels (search and select-all help with large batches), then **Print** to generate a formatted PDF sized for a standard Avery 5160 address-label sheet, or share it as a file.
-- Selecting a label another store created shows a confirmation prompt first, so two stores scanning at the same time don't print each other's tags by mistake.
+- Tap a label to add it to My Prints. Tap it again to take it off. The count on the **My Prints** tab goes up as you go.
+- Use the search box to find a product by name or barcode. Tap the filter icon to narrow the list by status (for example **Needs Reprint**) or by category.
+- Tap **Add all** to add everything currently shown, for example a whole category. Labels with no price yet are skipped, because they cannot be printed.
+- A yellow banner appears when some of your store's labels need a reprint (their price changed). Tap **Show** to jump straight to them.
+- Tap the pencil on a label to edit its name, price, deal, barcode, category, or template.
+- Labels you have already printed can be added again at any time to reprint them.
+- If you work at more than one store, tap the store name under **Labels** to switch. Prices, print history, and your My Prints list are kept separately for each store.
+
+### 19.2 Scanning Labels
+
+Tap **Scan** and point the camera at a barcode.
+- If the product is already in the catalog, it goes straight onto My Prints and the camera stays open for the next item. Scan the same barcode again to add one more copy. A short confirmation appears at the bottom of the camera view.
+- If the product is new, the app looks it up and fills in the name where it can. Confirm or type the name, then fill in the label (regular price, an optional deal such as 2 for $5, category, template) and save. The new label is added to the catalog and to My Prints, and the camera opens again so you can keep working down the shelf. Tap the X to stop.
+
+You can also search the Catalog for a barcode or name. If nothing matches, tap **Add ... as new label**. If the barcode is one the app already knows, the product's name and category are filled in for you.
+
+### 19.3 Printing Labels
+
+Open the **My Prints** tab.
+- Set how many copies of each label you want with the **-** and **+** buttons, or type a number.
+- Tap **Change price** to set a price for your store only, and optionally choose how long it lasts. After that date it goes back to the regular price by itself.
+- A label with no price shows **Set price**. Every label needs a price before you can print.
+- Tap the trash can to take a label off the list, or **Clear all** to start over. Nothing is deleted from the catalog.
+- Tap **Print** to print the whole list, or **PDF** to share it as a file. Labels are sized for a standard Avery 5160 address-label sheet (30 per sheet).
+- After a successful print the list empties and the labels are marked as printed for your store. If you cancel the print dialog, nothing changes and your list stays as it was.
+
+### 19.4 Checking a Price
+
+Tap **Price Check** at the top of the Labels screen and scan any item to see what it costs at your store. From there you can add it to My Prints.
 
 ---
 
