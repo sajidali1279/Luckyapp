@@ -34,6 +34,9 @@ Labeling rework plus a Spanish and usability pass across the three mobile roles.
 - **Admin** - "Pending reviews" and the attention banner on the Dashboard now count flagged transactions as well as pending ones, matching the Transactions badge in the sidebar. Labels that need printing are listed in the banner too.
 - **Admin** - The Dashboard header is more compact and search and shortcuts share one row, so the numbers start higher on the screen. The Dashboard shows at most five attention items until you ask for more.
 - **Admin** - Dashboard counts and chart axes show thousands separators, an offer of 1.5% shows as 1.5% instead of 2%, and "Ends" turns red only in the last two days. The stat cards and store rows can be reached and opened with the keyboard.
+- **Admin** - Transactions opens on "Needs review": flagged sales first, then sales still waiting for a receipt, the same set the sidebar badge counts. Approve and Reject ask first with the customer, amount, reasons and what will happen, stay locked while sending, and show the server's own reason if a decision is refused. Times and default dates use the stores' Central time wherever the admin is opened. A rejected or pending sale no longer shows its cashback in green, the copy-ID control works from the keyboard, every control has a name, colours pass contrast, and the header and filters wrap on narrow windows.
+- **Admin** - The Dashboard's inline Approve and Reject stay locked while sending, show the server's reason, and Approve is disabled until the receipt is uploaded.
+- **Admin, Server** - The Transactions CSV export writes dates and times in Central time (the headings say so), names the file with the store date, and defuses text that a spreadsheet would read as a formula. The Customers export has the same guard and its Joined date is the Central date.
 
 ### Fixed
 - **Employee** - In Spanish, the hot-food order timer showed "{{minutes}}" instead of the number. Eight other Spanish strings had the same kind of mismatch and were corrected.
@@ -50,6 +53,10 @@ Labeling rework plus a Spanish and usability pass across the three mobile roles.
 - **Admin** - Signing out empties the data the page had loaded, so the next person to sign in on the same tab never sees the previous session's numbers. An expired session now says so on the sign-in page.
 - **Admin** - Every page has its own browser tab title, an address that does not exist shows "Page not found", there is a "Skip to the page content" link, the logo is a real link, and screen readers hear what a sidebar count means. Low-contrast text was fixed in the sidebar, the Approve button, store badges, and the red used for offers and alerts.
 - **Admin, Manager, Employee, Customer** - A login lock that has run out now starts a fresh set of tries. Before, one wrong PIN after the lock ended locked the account again for another 15 minutes. Resetting a PIN, by an admin or with the phone code, also clears the lock.
+- **Admin, Server** - Two people, or a double click, approving the same flagged sale could credit the customer twice, and a receipt upload landing just after an admin rejected a pending sale could credit a rejected sale. Every decision now only takes effect if the sale is still in the state it was seen in; the second one is told it was already handled.
+- **Admin, Server** - A flagged sale could be approved before any receipt was uploaded. Approval now needs the receipt, and the Approve button says it is waiting for it.
+- **Admin** - On laptop-sized screens (1366 px and narrower) a page with a wide table scrolled sideways as a whole, header and filters included. The table now scrolls inside its own box (Transactions and Rates showed it).
+- **Server** - Odd values on the transactions list and export (a letter for the page, an impossible date, an unknown status or category) are a clear error instead of a server error, and one sale with unreadable flag text no longer breaks the list.
 
 ---
 

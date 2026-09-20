@@ -1,13 +1,16 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, useId, useRef, CSSProperties, ReactNode } from 'react';
 import { PRIMARY } from '../lib/theme';
 
 interface ConfirmModalProps {
   open: boolean;
   title: string;
-  message: string;
+  /** Plain text, or a few lines of markup (who, how much, why) for decisions that move money. */
+  message: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  /** True while the action is running: both buttons are disabled so it cannot be sent twice. */
+  busy?: boolean;
   /** If set, shows a text input and passes its value to onConfirm */
   withInput?: boolean;
   inputLabel?: string;
@@ -20,34 +23,39 @@ interface ConfirmModalProps {
 export default function ConfirmModal({
   open, title, message,
   confirmLabel = 'Confirm', cancelLabel = 'Cancel',
-  danger = false,
+  danger = false, busy = false,
   withInput = false, inputLabel, inputPlaceholder = '', inputRequired = false,
   onConfirm, onCancel,
 }: ConfirmModalProps) {
   const [inputValue, setInputValue] = useState('');
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (!open) setInputValue(''); }, [open]);
 
+  // Keyboard and screen-reader users start inside the dialog (a dialog with a text box focuses that box itself)
+  useEffect(() => { if (open && !withInput) dialogRef.current?.focus(); }, [open, withInput]);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+  }, [open, onCancel, busy]);
 
   if (!open) return null;
 
-  const canConfirm = !withInput || !inputRequired || inputValue.trim().length > 0;
+  const canConfirm = !busy && (!withInput || !inputRequired || inputValue.trim().length > 0);
 
   return (
-    <div style={s.overlay} onClick={onCancel}>
-      <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+    <div style={s.overlay} onClick={busy ? undefined : onCancel}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} style={s.modal} onClick={(e) => e.stopPropagation()}>
         <div style={{ ...s.iconRow, background: danger ? '#fff5f5' : '#eff6ff' }}>
           <span style={{ fontSize: 28 }}>{danger ? '⚠️' : 'ℹ️'}</span>
         </div>
         <div style={s.body}>
-          <h3 style={s.title}>{title}</h3>
-          <p style={s.message}>{message}</p>
+          <h3 id={titleId} style={s.title}>{title}</h3>
+          <div style={s.message}>{message}</div>
           {withInput && (
             <>
               {inputLabel && <label style={s.inputLabel}>{inputLabel}</label>}
@@ -62,7 +70,7 @@ export default function ConfirmModal({
             </>
           )}
           <div style={s.btns}>
-            <button style={s.cancelBtn} onClick={onCancel}>{cancelLabel}</button>
+            <button style={s.cancelBtn} onClick={onCancel} disabled={busy}>{cancelLabel}</button>
             <button
               style={{ ...s.confirmBtn, ...(danger ? s.confirmDanger : s.confirmPrimary) }}
               onClick={() => onConfirm(withInput ? inputValue : undefined)}
@@ -84,6 +92,7 @@ const s: Record<string, CSSProperties> = {
     zIndex: 9999, backdropFilter: 'blur(2px)',
   },
   modal: {
+    outline: 'none',
     background: '#fff', borderRadius: 18,
     boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
     width: '100%', maxWidth: 420,
@@ -126,6 +135,6 @@ const s: Record<string, CSSProperties> = {
     border: 'none', fontSize: 15, fontWeight: 700,
     cursor: 'pointer',
   },
-  confirmDanger: { background: '#E63946', color: '#fff' },
+  confirmDanger: { background: '#D62839', color: '#fff' }, // #E63946 with white text is 3.8:1, this is 5:1
   confirmPrimary: { background: PRIMARY, color: '#fff' },
 };

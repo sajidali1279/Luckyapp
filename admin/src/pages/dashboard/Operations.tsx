@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { handleGlowMove } from '../../lib/motion';
 import { formatFullCurrency, formatInteger, formatRate } from '../../components/formater';
 import { pointsApi } from '../../services/api';
+import { serverMessage } from '../../lib/apiError';
 import { TEXT_MUTED, PRIMARY } from '../../lib/theme';
 import {
   s, fmt$, fmtDay, axisMoney, storeColor, storeBadge, badgeInk, MEDALS, agoLabel, since, whenLabel, daysUntil, activate, parseFlags,
@@ -323,9 +324,13 @@ function ReviewFeed() {
   const mutation = useMutation({
     mutationFn: ({ id, kind, flagged: isFlagged }: Decision) =>
       isFlagged ? pointsApi.reviewFlagged(id, kind) : pointsApi.reject(id),
-    onSuccess: (_r, d) => { toast.success(d.kind === 'APPROVE' ? 'Approved. Points credited.' : 'Rejected.'); done(); },
-    onError: () => toast.error('That did not go through. Try again.'),
+    onSuccess: (_r, d) => toast.success(d.kind === 'APPROVE' ? 'Approved. Points credited.' : 'Rejected.'),
+    // The server says why (over $800, no receipt yet, already handled by someone else); the lists reload either way.
+    onError: (e) => toast.error(serverMessage(e, 'That did not go through. Try again.')),
+    onSettled: done,
   });
+  // A fast double click can land before React disables the button: this lock is immediate.
+  const sending = useRef(false);
 
   const money = (n: number) => formatFullCurrency(n);
   const StatusChip = ({ status }: { status: string }) => {
@@ -344,12 +349,17 @@ function ReviewFeed() {
         title={decision?.kind === 'APPROVE' ? 'Approve this transaction?' : 'Reject this transaction?'}
         message={decision
           ? (decision.kind === 'APPROVE'
-              ? `${money(decision.amount)} at ${decision.store} for ${decision.who} will be approved and the points credited.`
-              : `${money(decision.amount)} at ${decision.store} for ${decision.who} will be rejected. The customer gets no points for it.`)
+              ? `${money(decision.amount)} at ${decision.store} for ${decision.who} will be approved and the points credited. This cannot be undone.`
+              : `${money(decision.amount)} at ${decision.store} for ${decision.who} will be rejected. The customer gets no points for it. This cannot be undone.`)
           : ''}
         confirmLabel={decision?.kind === 'APPROVE' ? 'Approve' : 'Reject'}
         danger={decision?.kind === 'REJECT'}
-        onConfirm={() => { if (decision) mutation.mutate(decision); setDecision(null); }}
+        busy={mutation.isPending}
+        onConfirm={() => {
+          if (!decision || sending.current) return;
+          sending.current = true;
+          mutation.mutate(decision, { onSettled: () => { sending.current = false; setDecision(null); } });
+        }}
         onCancel={() => setDecision(null)}
       />, document.body)}
       <div style={s.offersPanelHeader}>
@@ -377,12 +387,22 @@ function ReviewFeed() {
                       <div style={s.recentCustomer}>{who}</div>
                       <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '} · {since(tx.createdAt)}</div>
                       {flags.map((f) => <div key={f} style={s.recentFlags}>• {FRAUD_FLAG_LABELS[f] || f}</div>)}
+                      {isFlagged && !tx.receiptImageUrl && <div style={s.recentFlags}>• Waiting for the cashier's receipt</div>}
                     </div>
                     <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
                       <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
                       <div style={{ display: 'flex', gap: 6, marginTop: 5, justifyContent: 'flex-end' }}>
                         {isFlagged && (
-                          <button style={{ ...s.reviewBtn, borderColor: '#157A3E', background: '#157A3E', color: '#fff' }} onClick={() => setDecision(dec('APPROVE'))}>Approve</button>
+                          <button
+                            style={tx.receiptImageUrl
+                              ? { ...s.reviewBtn, borderColor: '#157A3E', background: '#157A3E', color: '#fff' }
+                              : { ...s.reviewBtn, borderColor: '#ced4da', background: '#e9ecef', color: '#6c757d', cursor: 'not-allowed' }}
+                            disabled={!tx.receiptImageUrl}
+                            title={tx.receiptImageUrl ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+                            onClick={() => setDecision(dec('APPROVE'))}
+                          >
+                            Approve
+                          </button>
                         )}
                         <button style={{ ...s.reviewBtn, borderColor: '#F3B1B7', color: '#C62828' }} onClick={() => setDecision(dec('REJECT'))}>Reject</button>
                       </div>

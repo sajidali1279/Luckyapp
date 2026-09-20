@@ -43,3 +43,15 @@ export function dayLabel(key: string): string {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
+
+const timeFormat = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+
+/** '9:30 PM' on the store clock, wherever the admin is opened. Newer browsers put a narrow no-break space before PM; a plain space is used. */
+export function storeTime(at: Date | string): string {
+  return timeFormat.format(new Date(at)).replace(/[\u202f\u00a0]/g, ' ');
+}
+
+/** 'Sep 19' for the instant, on the store calendar. */
+export function storeDay(at: Date | string): string {
+  return dayLabel(storeToday(new Date(at)));
+}
