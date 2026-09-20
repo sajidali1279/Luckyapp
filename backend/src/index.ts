@@ -13,6 +13,7 @@ import { startCatalogExpiryCron } from './utils/catalog-expiry-cron';
 import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron';
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
+import { clientKey } from './utils/rateLimitKey';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,12 +53,17 @@ app.use(cors(corsOptions));
 // every method/sub-path under that prefix (GET /disputes/all, /pending-count,
 // /mine, etc.), starving normal admin reads on the same 5-per-hour budget meant
 // only for customer submission abuse.
-app.use('/api/auth/login',      rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { success: false, error: 'Too many login attempts — try again in 15 minutes' } }));
-app.use('/api/auth/register',   rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { success: false, error: 'Too many registrations from this IP' } }));
-// General auth routes: 30 per 15min (covers /auth/me, push-token, etc.)
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }));
-// All other API routes: 200 per minute (generous for normal use)
-app.use('/api', rateLimit({ windowMs: 1 * 60 * 1000, max: 200 }));
+// Limits are per person, keyed by the real client address (see utils/rateLimitKey.ts), and sized for a store's shared
+// Wi-Fi where several staff and customers share one address. Guessing PINs is stopped per ACCOUNT by the database
+// lockout (5 wrong PINs, 15 minutes); these limits stop floods. A signup also needs a Firebase SMS code.
+const limiter = (windowMs: number, max: number, message?: { success: boolean; error: string }) =>
+  rateLimit({ windowMs, max, keyGenerator: clientKey, ...(message ? { message } : {}) });
+app.use('/api/auth/login',    limiter(15 * 60 * 1000, 30, { success: false, error: 'Too many login attempts. Try again in 15 minutes.' }));
+app.use('/api/auth/register', limiter(60 * 60 * 1000, 30, { success: false, error: 'Too many registrations from this connection. Try again in a while.' }));
+// General auth routes: 150 per 15 min (covers /auth/me, push-token, etc.)
+app.use('/api/auth', limiter(15 * 60 * 1000, 150));
+// All other API routes: 400 per minute (generous for normal use, several devices can share one address)
+app.use('/api', limiter(1 * 60 * 1000, 400));
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));

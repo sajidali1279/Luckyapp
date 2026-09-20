@@ -12,13 +12,10 @@ import cloudinary from '../config/cloudinary';
 import { anonymizeCustomerAccount, excludeDeletedCustomers } from '../utils/accountDeletion';
 import { csvText } from '../utils/csv';
 import { storeDateText } from '../utils/storeTime';
+import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
+import { canonicalPhone, staffPhone } from '../utils/phone';
 
 const SALT_ROUNDS = 12;
-
-const COMMON_PINS = new Set([
-  '0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
-  '1234','4321','0123','9876','1230','2580','1357','2468','1212','1122',
-]);
 
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
@@ -70,6 +67,21 @@ function issueJwt(user: { id: string; phone: string; name?: string | null; role:
   );
 }
 
+// Every action on someone else's account (reset PIN, deactivate, delete, store assignments) goes through this:
+// it refuses, with the reason, when the target is at or above the caller's role, and records the attempt.
+// Returns true when it has already answered the request.
+function refuseUnlessManageable(req: AuthRequest, res: Response, target: { id: string; role: Role }): boolean {
+  const actor = req.user!;
+  if (canManageAccount(actor.role, target.role)) return false;
+  audit({
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    action: 'DENIED_ACCOUNT_ACTION', entity: 'user', entityId: target.id,
+    details: { targetRole: target.role, request: `${req.method} ${req.originalUrl.split('?')[0]}` },
+  });
+  res.status(403).json({ success: false, error: CANNOT_MANAGE_MESSAGE });
+  return true;
+}
+
 // ─── Register (new customer self-signup) ─────────────────────────────────────
 
 const registerSchema = z.object({
@@ -97,10 +109,10 @@ export async function register(req: Request, res: Response) {
     return;
   }
 
-  // Firebase gives E.164 format (+12345678900); we store last 10 digits
-  const firebaseDigits = (decodedToken.phone_number ?? '').replace(/\D/g, '');
-  const submittedDigits = phone.replace(/\D/g, '');
-  if (!firebaseDigits.endsWith(submittedDigits)) {
+  // Firebase gives E.164 format (+12345678900). The account phone is the verified number's last ten digits and
+  // what the app sent has to agree with it (see canonicalPhone).
+  const accountPhone = canonicalPhone(phone, decodedToken.phone_number ?? '');
+  if (!accountPhone) {
     res.status(400).json({ success: false, error: 'Phone number does not match the verified number.' });
     return;
   }
@@ -108,7 +120,7 @@ export async function register(req: Request, res: Response) {
   // Clean up the Firebase Auth user — we manage sessions ourselves
   admin.auth().deleteUser(decodedToken.uid).catch(() => {});
 
-  const existing = await prisma.user.findUnique({ where: { phone: submittedDigits } });
+  const existing = await prisma.user.findUnique({ where: { phone: accountPhone } });
   if (existing) {
     res.status(409).json({ success: false, error: 'Phone number already registered' });
     return;
@@ -117,9 +129,19 @@ export async function register(req: Request, res: Response) {
   const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
   const qrCode = uuidv4();
 
-  const user = await prisma.user.create({
-    data: { phone: submittedDigits, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: { phone: accountPhone, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true },
+    });
+  } catch (e) {
+    // Two signups for the same number at the same moment: the second hits the unique phone
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      res.status(409).json({ success: false, error: 'Phone number already registered' });
+      return;
+    }
+    throw e;
+  }
 
   const token = issueJwt(user, []);
   res.status(201).json({
@@ -246,10 +268,6 @@ export async function changePin(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'New PIN must be 4 digits' });
     return;
   }
-  if (COMMON_PINS.has(newPin)) {
-    res.status(400).json({ success: false, error: 'That PIN is too common. Choose something more unique.' });
-    return;
-  }
 
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
   if (!user?.pinHash) {
@@ -257,11 +275,20 @@ export async function changePin(req: AuthRequest, res: Response) {
     return;
   }
 
+  // Guessing the current PIN from a stolen session counts against the same limit as guessing it at sign-in
+  const lockMsg = await checkLockout(user.phone);
+  if (lockMsg) {
+    res.status(429).json({ success: false, error: lockMsg });
+    return;
+  }
+
   const valid = await bcrypt.compare(currentPin, user.pinHash);
   if (!valid) {
+    await recordFailure(user.phone);
     res.status(401).json({ success: false, error: 'Current PIN is incorrect' });
     return;
   }
+  await clearFailures(user.phone);
 
   // Check PIN history (last 3 PINs cannot be reused)
   for (const oldHash of user.pinHistory) {
@@ -283,6 +310,10 @@ export async function updateProfile(req: AuthRequest, res: Response) {
   const { name } = req.body as { name: string };
   if (!name?.trim()) {
     res.status(400).json({ success: false, error: 'Name is required' });
+    return;
+  }
+  if (name.trim().length > 80) {
+    res.status(400).json({ success: false, error: 'Name is too long (80 characters at most)' });
     return;
   }
 
@@ -332,7 +363,7 @@ export async function deleteAvatar(req: AuthRequest, res: Response) {
 
 const createSuperAdminSchema = z.object({
   phone: z.string().min(10).max(15),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(80),
   pin: z.string().length(4).regex(/^\d{4}$/),
 });
 
@@ -343,7 +374,12 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { phone, name, pin } = parsed.data;
+  const { name, pin } = parsed.data;
+  const phone = staffPhone(parsed.data.phone);
+  if (!phone) {
+    res.status(400).json({ success: false, error: 'Enter a full ten-digit phone number' });
+    return;
+  }
 
   const existing = await prisma.user.findUnique({ where: { phone } });
   if (existing) {
@@ -356,6 +392,11 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
     data: { phone, name, pinHash, role: Role.SUPER_ADMIN, isProfileComplete: true },
   });
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CREATE_SUPER_ADMIN', entity: 'staff', entityId: user.id,
+    details: { name: user.name, phone: user.phone, role: user.role },
+  });
   res.status(201).json({
     success: true,
     data: { id: user.id, phone: user.phone, name: user.name, role: user.role },
@@ -479,9 +520,12 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
 
 // ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────
 
-export async function listStaff(_req: AuthRequest, res: Response) {
+export async function listStaff(req: AuthRequest, res: Response) {
+  // A Dev Admin sees every account. Anyone else does not get Dev Admin accounts at all, so their ids and phone
+  // numbers never reach a Super Admin's browser.
+  const hideDevAdmins = req.user!.role !== Role.DEV_ADMIN;
   const staff = await prisma.user.findMany({
-    where: { role: { not: Role.CUSTOMER } },
+    where: { role: hideDevAdmins ? { notIn: [Role.CUSTOMER, Role.DEV_ADMIN] } : { not: Role.CUSTOMER } },
     select: {
       id: true, phone: true, name: true, role: true, isActive: true, createdAt: true,
       storeRoles: { select: { store: { select: { id: true, name: true } }, role: true } },
@@ -503,6 +547,7 @@ export async function toggleUserActive(req: AuthRequest, res: Response) {
   }
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (refuseUnlessManageable(req, res, target)) return;
 
   const nowActive = !target.isActive;
   const updated = await prisma.user.update({
@@ -533,6 +578,13 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
   }
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, phone: true, role: true, pinHash: true, pinHistory: true } });
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  // Resetting your own PIN this way skips the current-PIN check that Change PIN asks for, which would let anyone
+  // holding a stolen session take the account over for good
+  if (user.id === req.user!.id) {
+    res.status(400).json({ success: false, error: 'Change your own PIN from your profile.' });
+    return;
+  }
+  if (refuseUnlessManageable(req, res, user)) return;
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
   const newHistory = user.pinHash ? [user.pinHash, ...user.pinHistory].slice(0, 3) : user.pinHistory;
   // Clearing the lock too: a reset for someone who is locked out has to let them in with the new PIN now
@@ -554,6 +606,7 @@ export async function addUserStore(req: AuthRequest, res: Response) {
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (refuseUnlessManageable(req, res, user)) return;
   if (!['EMPLOYEE', 'STORE_MANAGER'].includes(user.role)) {
     res.status(400).json({ success: false, error: 'Store assignment is only valid for EMPLOYEE or STORE_MANAGER accounts' });
     return;
@@ -575,6 +628,10 @@ export async function addUserStore(req: AuthRequest, res: Response) {
 
 export async function removeUserStore(req: AuthRequest, res: Response) {
   const { userId, storeId } = req.params;
+
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+  if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (refuseUnlessManageable(req, res, target)) return;
 
   const remaining = await prisma.userStoreRole.count({ where: { userId } });
   if (remaining <= 1) {
@@ -605,6 +662,7 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'User not found' });
     return;
   }
+  if (refuseUnlessManageable(req, res, target)) return;
   try {
     // Delete all records referencing this user (no cascade on these FKs)
     await prisma.pointsTransaction.deleteMany({ where: { customerId: userId } });
@@ -698,10 +756,6 @@ export async function resetPin(req: Request, res: Response) {
     res.status(400).json({ success: false, error: 'resetToken and 4-digit newPin are required' });
     return;
   }
-  if (COMMON_PINS.has(newPin)) {
-    res.status(400).json({ success: false, error: 'That PIN is too common. Choose something more unique.' });
-    return;
-  }
 
   let payload: { phone: string; purpose: string };
   try {
@@ -746,7 +800,7 @@ export async function resetPin(req: Request, res: Response) {
 
 const createStaffSchema = z.object({
   phone: z.string().min(10).max(15),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(80),
   pin: z.string().length(4).regex(/^\d{4}$/),
   role: z.enum(['EMPLOYEE', 'STORE_MANAGER']),
   storeId: z.string().uuid(),
@@ -759,7 +813,13 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { phone, name, pin, role, storeId } = parsed.data;
+  const { name, pin, role, storeId } = parsed.data;
+  // Stored as ten digits, the way customers' phones are, so the sign-in screen finds it whatever was typed here
+  const phone = staffPhone(parsed.data.phone);
+  if (!phone) {
+    res.status(400).json({ success: false, error: 'Enter a full ten-digit phone number' });
+    return;
+  }
 
   const existing = await prisma.user.findUnique({ where: { phone } });
   if (existing) {

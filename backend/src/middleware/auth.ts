@@ -32,8 +32,16 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   const token = authHeader.split(' ')[1];
   let payload: AuthUser;
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
+    // Only the algorithm we sign with (HS256) is accepted
+    payload = jwt.verify(token, process.env.JWT_SECRET!, { algorithms: ['HS256'] }) as AuthUser;
   } catch {
+    res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    return;
+  }
+
+  // Signed with the same secret, the 10-minute PIN-reset token ({ phone, purpose }) is not a session: it has no
+  // account id, and it must never be usable as one.
+  if (typeof payload.id !== 'string' || (payload as unknown as { purpose?: unknown }).purpose) {
     res.status(401).json({ success: false, error: 'Invalid or expired token' });
     return;
   }
