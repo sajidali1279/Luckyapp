@@ -202,6 +202,10 @@ model User {
   // Login rate limiting
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  // How many sign-in lockouts in a row (each one longer than the last). A good sign-in or a PIN reset sets it back to 0.
+  lockoutLevel        Int       @default(0)
+  // Session tokens issued before this moment are refused. Set when a PIN is reset, so a lost phone's session ends.
+  sessionsValidAfter  DateTime?
 
   // Customer-specific
   qrCode          String?  @unique

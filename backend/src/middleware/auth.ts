@@ -59,10 +59,17 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   // staleness risk to guard against there.
   const dbUser = await prisma.user.findUnique({
     where: { id: payload.id },
-    select: { isActive: true, storeRoles: { select: { storeId: true } } },
+    select: { isActive: true, sessionsValidAfter: true, storeRoles: { select: { storeId: true } } },
   });
   if (!dbUser || !dbUser.isActive) {
     res.status(401).json({ success: false, error: 'Account no longer active. Please sign in again.' });
+    return;
+  }
+  // A PIN reset ends every session issued before it, so a lost phone's session stops working. Compared in whole
+  // seconds, like the token's own issue time, so signing in right after the reset is never refused.
+  const issuedAt = (payload as unknown as { iat?: number }).iat;
+  if (dbUser.sessionsValidAfter && (typeof issuedAt !== 'number' || issuedAt < Math.floor(dbUser.sessionsValidAfter.getTime() / 1000))) {
+    res.status(401).json({ success: false, error: 'Your session has ended. Please sign in again.' });
     return;
   }
 
