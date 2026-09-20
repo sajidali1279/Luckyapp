@@ -9,6 +9,7 @@ import { broadcastToCustomers } from '../utils/push';
 import { offerUrl } from '../utils/notificationRoutes';
 import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
+import { refuse } from '../utils/refusal';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -32,15 +33,6 @@ const tierMapInput = (v: unknown) => {
 const tierMapField = z.preprocess(tierMapInput, z.record(z.string(), z.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG))
   .refine((m) => Object.keys(m).every((k) => k in Tier), 'Tier bonuses must be for Bronze, Silver, Gold, Diamond or Platinum.').optional());
 const cpgField = z.coerce.number().min(0).max(MAX_CENTS_PER_GALLON, `A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`);
-
-/** Sends the first problem as a plain sentence (the page shows it as is) and keeps the full detail alongside. */
-function refuse(res: Response, error: z.ZodError) {
-  const first = error.issues[0];
-  const field = first?.path.join('.') ?? '';
-  // Our own messages are full sentences ending in a period; anything else is a stock zod message that needs its field name
-  const text = !first ? 'Some of the values were not accepted.' : first.message.endsWith('.') || !field ? first.message : `${field}: ${first.message}`;
-  res.status(400).json({ success: false, error: text, details: error.flatten() });
-}
 
 // tierBonusRates: per-tier bonus map e.g. {"BRONZE": 0.03, "GOLD": 0.01}
 // When set, bonusRate should be the max of tierBonusRates values (for offer ordering)

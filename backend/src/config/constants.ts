@@ -1,6 +1,10 @@
 // Shared runtime constants — read once from env at startup
 export const DEFAULT_CASHBACK_RATE = parseFloat(process.env.DEFAULT_CASHBACK_RATE || '0.05'); // fallback only
-export const DEFAULT_DEV_CUT_RATE  = parseFloat(process.env.DEV_CUT_RATE          || '0.02'); // per-store override takes precedence
+// The platform fee is a share of the CASHBACK issued (the deal is 10%). This is the rate a store gets when none is set; every store has its own
+// rate (Billing > Stores) and that is the one billed. A store added later starts here.
+export const DEFAULT_DEV_CUT_RATE  = parseFloat(process.env.DEV_CUT_RATE          || '0.10');
+// The most a store's fee can be set to, so a slip (1 for 0.1) cannot bill 100% of a store's cashback.
+export const MAX_STORE_FEE_RATE    = 0.25;
 
 // Default tier-based cashback rates (used when TierCashbackRate rows not yet seeded in DB)
 // Bronze=1%, Silver=2%, Gold=3%, Diamond=4%, Platinum=5%

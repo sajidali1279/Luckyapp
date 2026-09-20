@@ -4,13 +4,16 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
-import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
+import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES, MAX_STORE_FEE_RATE } from '../config/constants';
 import { TIER_THRESHOLDS } from '../utils/tier';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 import { computeTodayHoursLabel } from '../utils/storeHours';
-import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
+import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText } from '../utils/storeTime';
+import { audit } from '../utils/audit';
+import { refuse } from '../utils/refusal';
+import { isRealPeriod, isFinishedPeriod, lastFinishedPeriod, periodBounds, periodFirstDay, periodLastDay, periodLabel, periodsSince, storePeriodOf } from '../utils/billingPeriods';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
@@ -120,22 +123,34 @@ export async function updateStore(req: AuthRequest, res: Response) {
 
 // DevAdmin only — change billing type for a store
 const billingSchema = z.object({
-  billingType: z.nativeEnum(BillingType),
-  subscriptionPrice: z.coerce.number().positive().optional(),
-  transactionFeeRate: z.coerce.number().min(0).max(1).optional(),
+  billingType: z.enum(['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'], { errorMap: () => ({ message: 'Choose a plan: Monthly Subscription, Per Transaction or Hybrid.' }) }),
+  subscriptionPrice: z.coerce.number().positive('The monthly price must be above $0.00.').max(10000, 'The monthly price can be at most $10,000.00.').optional(),
+  transactionFeeRate: z.coerce.number().min(0, 'The fee cannot be negative.').max(MAX_STORE_FEE_RATE, `The fee can be at most ${Math.round(MAX_STORE_FEE_RATE * 100)}% of the cashback.`).optional(),
 });
 
 export async function updateStoreBilling(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const parsed = billingSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    refuse(res, parsed.error);
     return;
   }
-  const store = await prisma.store.update({
-    where: { id: storeId },
-    data: parsed.data,
-    select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true },
+  const pick = { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true } as const;
+  const before = await prisma.store.findUnique({ where: { id: storeId }, select: pick });
+  if (!before) {
+    res.status(404).json({ success: false, error: 'Store not found' });
+    return;
+  }
+  const store = await prisma.store.update({ where: { id: storeId }, data: parsed.data, select: pick });
+  // The fee and plan apply to sales from now on: each sale keeps the fee it was granted at, and a bill that exists keeps its amount
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'STORE_BILLING_UPDATE', entity: 'store', entityId: store.id,
+    details: {
+      before: { billingType: before.billingType, subscriptionPrice: before.subscriptionPrice, transactionFeeRate: before.transactionFeeRate },
+      after: { billingType: store.billingType, subscriptionPrice: store.subscriptionPrice, transactionFeeRate: store.transactionFeeRate },
+    },
+    storeId: store.id, storeName: store.name,
   });
   res.json({ success: true, data: store });
 }
@@ -156,14 +171,14 @@ export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
     // Per-store transaction totals — last 30 days
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
-      where: { status: 'APPROVED', createdAt: { gte: thirtyDaysAgo } },
+      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: thirtyDaysAgo } },
       _sum: { purchaseAmount: true, pointsAwarded: true },
       _count: true,
     }),
     // Per-store transaction totals — last 90 days
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
-      where: { status: 'APPROVED', createdAt: { gte: ninetyDaysAgo } },
+      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: ninetyDaysAgo } },
       _sum: { purchaseAmount: true },
       _count: true,
     }),
@@ -210,27 +225,180 @@ export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: enriched });
 }
 
+// ─── Extra charges and payments ───────────────────────────────────────────────
+// Rules kept by everything below: a bill or a charge is never deleted or overwritten by a bulk action; a PAID record never
+// changes (a correction is a new extra charge); every change writes an Activity Log entry (who, when, what).
+
+const PAYMENT_METHODS = ['CHECK', 'BANK_TRANSFER', 'CASH', 'CARD', 'OTHER'] as const;
+const round2 = (n: number) => parseFloat(n.toFixed(2));
+const sameMoney = (a: number, b: number) => Math.abs(a - b) < 0.005;
+const dollars = (n: number) => `$${n.toFixed(2)}`;
+
+/** A record's notes are JSON text. One unreadable row must not break a list, so this never throws. */
+export function parseNotes(raw: string | null | undefined): Record<string, any> | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === 'object' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+const chargeSchema = z.object({
+  amount: z.coerce.number({ invalid_type_error: 'Enter the amount in dollars.' }).positive('The amount must be above $0.00.').max(100000, 'The amount can be at most $100,000.00.'),
+  period: z.string({ required_error: 'Choose the billing month.' }).refine(isRealPeriod, 'Choose a real month, like 2026-09.'),
+  billingType: z.literal('CUSTOM', { errorMap: () => ({ message: 'Only a one-off (custom) charge can be added by hand. Usage bills are made by the billing job.' }) }),
+  description: z.string({ required_error: 'Add a description of what the charge is for.' }).trim().min(1, 'Add a description of what the charge is for.').max(200, 'The description can be at most 200 characters.'),
+});
+
 export async function createBillingRecord(req: AuthRequest, res: Response) {
+  const parsed = chargeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
   // 'chain' is a reserved sentinel (never a real store id) meaning: bill the
-  // chain/SuperAdmin as a whole, not any one store — see BillingRecord.storeId
+  // chain/SuperAdmin as a whole, not any one store, see BillingRecord.storeId
   // in schema.prisma for the same null-means-chain-wide convention used by
   // AdminNotice/DailyTask.
   const storeId = req.params.storeId === 'chain' ? null : req.params.storeId;
-  const { amount, period, billingType, description } = req.body as { amount: number; period: string; billingType: BillingType; description?: string };
-  const notes = billingType === 'CUSTOM' && description ? JSON.stringify({ description }) : undefined;
-  const record = await prisma.billingRecord.create({ data: { storeId, amount, period, billingType, ...(notes ? { notes } : {}) } });
+  let storeName: string | null = null;
+  if (storeId) {
+    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true } });
+    if (!store) {
+      res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' });
+      return;
+    }
+    storeName = store.name;
+  }
+  const { amount, period, description } = parsed.data;
+  const record = await prisma.billingRecord.create({
+    data: { storeId, amount: round2(amount), period, billingType: BillingType.CUSTOM, notes: JSON.stringify({ description }) },
+  });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_CHARGE_ADD', entity: 'billing', entityId: record.id,
+    details: { amount: record.amount, period, description, chainWide: storeId === null },
+    storeId, storeName,
+  });
   res.status(201).json({ success: true, data: record });
 }
 
-export async function markBillingPaid(req: AuthRequest, res: Response) {
-  const record = await prisma.billingRecord.update({
-    where: { id: req.params.recordId },
-    data: { isPaid: true, paidAt: new Date() },
-  });
-  res.json({ success: true, data: record });
+const paymentSchema = z.object({
+  paidOn: z.string().optional(),
+  method: z.enum(PAYMENT_METHODS, { errorMap: () => ({ message: 'Choose how it was paid.' }) }).optional(),
+  note: z.string().trim().max(200, 'The note can be at most 200 characters.').optional(),
+  // What the person saw when they clicked: if the amount changed since, nothing is marked (they are told to reload)
+  expectedAmount: z.coerce.number().optional(),
+  expectedTotal: z.coerce.number().optional(),
+}).superRefine((d, ctx) => {
+  if (d.paidOn === undefined || d.paidOn === '') return;
+  if (!isRealDateKey(d.paidOn) || d.paidOn < '2020-01-01') ctx.addIssue({ code: 'custom', path: ['paidOn'], message: 'Choose a real payment date.' });
+  else if (d.paidOn > storeDateKey(new Date())) ctx.addIssue({ code: 'custom', path: ['paidOn'], message: 'The payment date cannot be in the future.' });
+});
+
+/** The instant a payment is recorded at: right now for today, otherwise noon on that store day (so the day never shifts). */
+function paidAtFor(paidOn: string | undefined, now: Date): Date {
+  if (!paidOn || paidOn === storeDateKey(now)) return now;
+  return new Date(startOfStoreDate(paidOn).getTime() + 12 * 3600_000);
 }
 
-// GET /billing/extra-charges — list all CUSTOM charges with optional filters
+function paymentInfo(req: AuthRequest, d: z.infer<typeof paymentSchema>, paidAt: Date, now: Date) {
+  return {
+    method: d.method ?? null,
+    note: d.note ? d.note : null,
+    paidOn: storeDateKey(paidAt),
+    markedById: req.user!.id,
+    markedByName: req.user!.name ?? null,
+    markedAt: now.toISOString(),
+  };
+}
+
+export async function markBillingPaid(req: AuthRequest, res: Response) {
+  const parsed = paymentSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
+  const rec = await prisma.billingRecord.findUnique({ where: { id: req.params.recordId }, include: { store: { select: { name: true } } } });
+  if (!rec) {
+    res.status(404).json({ success: false, error: 'Record not found' });
+    return;
+  }
+  if (rec.isPaid) {
+    res.status(409).json({ success: false, error: `Already marked paid${rec.paidAt ? ` on ${storeDateText(rec.paidAt)}` : ''}. Undo that first if it was a mistake.` });
+    return;
+  }
+  if (parsed.data.expectedAmount !== undefined && !sameMoney(rec.amount, parsed.data.expectedAmount)) {
+    res.status(409).json({ success: false, error: `This bill is now ${dollars(rec.amount)}, not ${dollars(parsed.data.expectedAmount)}. Reload the page and check it.` });
+    return;
+  }
+  const now = new Date();
+  const paidAt = paidAtFor(parsed.data.paidOn, now);
+  const payment = paymentInfo(req, parsed.data, paidAt, now);
+  // Conditional update: two clicks at once cannot both "win" and move the payment date
+  const changed = await prisma.billingRecord.updateMany({
+    where: { id: rec.id, isPaid: false },
+    data: { isPaid: true, paidAt, notes: JSON.stringify({ ...(parseNotes(rec.notes) ?? {}), payment }) },
+  });
+  if (changed.count === 0) {
+    res.status(409).json({ success: false, error: 'Someone else just marked this bill paid. Reload the page.' });
+    return;
+  }
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_MARK_PAID', entity: 'billing', entityId: rec.id,
+    details: { amount: rec.amount, period: rec.period, kind: rec.billingType, ...payment },
+    storeId: rec.storeId, storeName: rec.store?.name ?? null,
+  });
+  res.json({ success: true, data: await prisma.billingRecord.findUnique({ where: { id: rec.id } }) });
+}
+
+const unpaySchema = z.object({
+  reason: z.string({ required_error: 'Say why this payment is being undone.' }).trim().min(3, 'Say why this payment is being undone (a few words).').max(200, 'The reason can be at most 200 characters.'),
+});
+
+// PATCH /billing/records/:recordId/unpaid: the way back from a mistaken "paid". The payment stays in the record's history.
+export async function unmarkBillingPaid(req: AuthRequest, res: Response) {
+  const parsed = unpaySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
+  const rec = await prisma.billingRecord.findUnique({ where: { id: req.params.recordId }, include: { store: { select: { name: true } } } });
+  if (!rec) {
+    res.status(404).json({ success: false, error: 'Record not found' });
+    return;
+  }
+  if (!rec.isPaid) {
+    res.status(409).json({ success: false, error: 'That bill is not marked paid.' });
+    return;
+  }
+  const notes = parseNotes(rec.notes) ?? {};
+  const reversal = {
+    at: new Date().toISOString(), byId: req.user!.id, byName: req.user!.name ?? null, reason: parsed.data.reason,
+    previous: notes.payment ?? { paidOn: rec.paidAt ? storeDateKey(rec.paidAt) : null },
+  };
+  const nextNotes = { ...notes, payment: null, paymentReversals: [...(Array.isArray(notes.paymentReversals) ? notes.paymentReversals : []), reversal] };
+  const changed = await prisma.billingRecord.updateMany({
+    where: { id: rec.id, isPaid: true },
+    data: { isPaid: false, paidAt: null, notes: JSON.stringify(nextNotes) },
+  });
+  if (changed.count === 0) {
+    res.status(409).json({ success: false, error: 'Someone else just changed this bill. Reload the page.' });
+    return;
+  }
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_UNDO_PAID', entity: 'billing', entityId: rec.id,
+    details: { amount: rec.amount, period: rec.period, reason: parsed.data.reason, previous: reversal.previous },
+    storeId: rec.storeId, storeName: rec.store?.name ?? null,
+  });
+  res.json({ success: true, data: await prisma.billingRecord.findUnique({ where: { id: rec.id } }) });
+}
+
+// GET /billing/extra-charges: list all CUSTOM charges with optional filters
 export async function getExtraCharges(req: AuthRequest, res: Response) {
   const { storeId, period, isPaid } = req.query as { storeId?: string; period?: string; isPaid?: string };
   const records = await (prisma.billingRecord as any).findMany({
@@ -244,47 +412,103 @@ export async function getExtraCharges(req: AuthRequest, res: Response) {
     orderBy: { createdAt: 'desc' },
   });
   // Parse notes JSON to surface description field
-  const data = records.map((r: any) => ({
-    ...r,
-    description: (() => { try { return JSON.parse(r.notes ?? '{}').description ?? ''; } catch { return r.notes ?? ''; } })(),
-  }));
+  const data = records.map((r: any) => {
+    const n = parseNotes(r.notes);
+    return { ...r, description: n ? (n.description ?? '') : (r.notes ?? '') };
+  });
   res.json({ success: true, data });
 }
 
-// PATCH /billing/records/:recordId — update description/amount of a CUSTOM charge
+const chargeEditSchema = z.object({
+  amount: z.coerce.number({ invalid_type_error: 'Enter the amount in dollars.' }).positive('The amount must be above $0.00.').max(100000, 'The amount can be at most $100,000.00.').optional(),
+  description: z.string().trim().min(1, 'Add a description of what the charge is for.').max(200, 'The description can be at most 200 characters.').optional(),
+});
+
+// PATCH /billing/records/:recordId: update description/amount of an UNPAID custom charge
 export async function updateBillingRecord(req: AuthRequest, res: Response) {
   const { recordId } = req.params;
-  const { description, amount } = req.body as { description?: string; amount?: number };
-  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId } });
+  const parsed = chargeEditSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
+  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId }, include: { store: { select: { name: true } } } });
   if (!existing) { res.status(404).json({ success: false, error: 'Record not found' }); return; }
   if (existing.billingType !== 'CUSTOM') { res.status(400).json({ success: false, error: 'Only custom charges can be edited' }); return; }
+  if (existing.isPaid) { res.status(400).json({ success: false, error: 'A paid charge cannot be edited. Add a new charge for the difference instead.' }); return; }
+  const before = { amount: existing.amount, description: parseNotes(existing.notes)?.description ?? '' };
   const updates: any = {};
-  if (amount !== undefined && !isNaN(amount) && amount > 0) updates.amount = amount;
-  if (description !== undefined) updates.notes = JSON.stringify({ description: description.trim() });
+  if (parsed.data.amount !== undefined) updates.amount = round2(parsed.data.amount);
+  if (parsed.data.description !== undefined) updates.notes = JSON.stringify({ ...(parseNotes(existing.notes) ?? {}), description: parsed.data.description });
   const updated = await (prisma.billingRecord as any).update({ where: { id: recordId }, data: updates });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_CHARGE_EDIT', entity: 'billing', entityId: recordId,
+    details: { period: existing.period, before, after: { amount: updated.amount, description: parseNotes(updated.notes)?.description ?? '' } },
+    storeId: existing.storeId, storeName: existing.store?.name ?? null,
+  });
   res.json({ success: true, data: updated });
 }
 
-// DELETE /billing/records/:recordId — delete a CUSTOM charge only
+// DELETE /billing/records/:recordId: delete an UNPAID custom charge only
 export async function deleteBillingRecord(req: AuthRequest, res: Response) {
   const { recordId } = req.params;
-  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId } });
+  const existing = await (prisma.billingRecord as any).findUnique({ where: { id: recordId }, include: { store: { select: { name: true } } } });
   if (!existing) { res.status(404).json({ success: false, error: 'Record not found' }); return; }
   if (existing.billingType !== 'CUSTOM') { res.status(400).json({ success: false, error: 'Only custom charges can be deleted' }); return; }
   if (existing.isPaid) { res.status(400).json({ success: false, error: 'Cannot delete a paid charge' }); return; }
   await (prisma.billingRecord as any).delete({ where: { id: recordId } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_CHARGE_DELETE', entity: 'billing', entityId: recordId,
+    details: { amount: existing.amount, period: existing.period, description: parseNotes(existing.notes)?.description ?? '' },
+    storeId: existing.storeId, storeName: existing.store?.name ?? null,
+  });
   res.json({ success: true });
 }
 
-// Mark all billing records for a period as paid (consolidated invoice)
+// Mark every UNPAID record of a month paid (HQ pays one consolidated invoice), all or nothing, with what the person saw as a guard
 export async function markPeriodPaid(req: AuthRequest, res: Response) {
   const { period } = req.params;
+  if (!isRealPeriod(period)) {
+    res.status(400).json({ success: false, error: 'Choose a real month, like 2026-09.' });
+    return;
+  }
+  const parsed = paymentSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
+  const unpaid = await prisma.billingRecord.findMany({ where: { period, isPaid: false }, include: { store: { select: { name: true } } } });
+  if (unpaid.length === 0) {
+    res.status(409).json({ success: false, error: `Everything in ${periodLabel(period)} is already marked paid.` });
+    return;
+  }
+  const total = round2(unpaid.reduce((s, r) => s + r.amount, 0));
+  if (parsed.data.expectedTotal !== undefined && !sameMoney(total, parsed.data.expectedTotal)) {
+    res.status(409).json({ success: false, error: `${periodLabel(period)} now has ${dollars(total)} unpaid, not ${dollars(parsed.data.expectedTotal)}. Reload the page and check it.` });
+    return;
+  }
   const now = new Date();
-  const result = await prisma.billingRecord.updateMany({
-    where: { period, isPaid: false },
-    data: { isPaid: true, paidAt: now },
+  const paidAt = paidAtFor(parsed.data.paidOn, now);
+  const payment = paymentInfo(req, parsed.data, paidAt, now);
+  const updated = await prisma.$transaction(async (tx) => {
+    let n = 0;
+    for (const r of unpaid) {
+      const c = await tx.billingRecord.updateMany({
+        where: { id: r.id, isPaid: false },
+        data: { isPaid: true, paidAt, notes: JSON.stringify({ ...(parseNotes(r.notes) ?? {}), payment }) },
+      });
+      n += c.count;
+    }
+    return n;
   });
-  res.json({ success: true, data: { period, updated: result.count } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_MARK_PERIOD_PAID', entity: 'billing', entityId: period,
+    details: { period, records: updated, total, ...payment, recordIds: unpaid.map((r) => r.id) },
+  });
+  res.json({ success: true, data: { period, updated, total } });
 }
 
 // ─── Category Rates ───────────────────────────────────────────────────────────
@@ -397,44 +621,29 @@ export async function getDevCutRate(_req: AuthRequest, res: Response) {
 }
 
 export async function updateDevCutRate(req: AuthRequest, res: Response) {
-  const parsed = z.object({ rate: z.number().min(0).max(0.5) }).safeParse(req.body);
+  const parsed = z.object({ rate: z.number().min(0).max(MAX_STORE_FEE_RATE, `The rate can be at most ${Math.round(MAX_STORE_FEE_RATE * 100)}% of the cashback.`) }).safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    refuse(res, parsed.error);
     return;
   }
+  const before = await prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } });
   await prisma.appConfig.upsert({
     where: { key: 'DEV_CUT_RATE' },
     update: { value: String(parsed.data.rate) },
     create: { key: 'DEV_CUT_RATE', value: String(parsed.data.rate) },
+  });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DEV_CUT_RATE_UPDATE', entity: 'settings',
+    details: { before: before ? parseFloat(before.value) : null, after: parsed.data.rate, note: 'Default for stores added later. No existing store is billed at this rate.' },
   });
   res.json({ success: true, data: { rate: parsed.data.rate } });
 }
 
 // ─── Billing helpers ──────────────────────────────────────────────────────────
 
-function periodBounds(period: string): { start: Date; end: Date } {
-  const [y, m] = period.split('-').map(Number);
-  return {
-    start: new Date(y, m - 1, 1),
-    end:   new Date(y, m, 0, 23, 59, 59, 999),
-  };
-}
-
 export function toPeriod(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/** All month periods from storeCreated up to and including upTo, oldest first. */
-function allPeriodsSince(storeCreated: Date, upTo: string): string[] {
-  const periods: string[] = [];
-  const cur = new Date(storeCreated.getFullYear(), storeCreated.getMonth(), 1);
-  const [uy, um] = upTo.split('-').map(Number);
-  const endMonth = new Date(uy, um - 1, 1);
-  while (cur <= endMonth) {
-    periods.push(toPeriod(cur));
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  return periods;
+  return storePeriodOf(date);
 }
 
 interface CategoryRow {
@@ -467,6 +676,7 @@ interface BillNotes {
 export async function buildBillForPeriod(
   store: { id: string; billingType: string; subscriptionPrice: number; transactionFeeRate: number },
   period: string,
+  options?: { allowEmpty?: boolean },
 ): Promise<{ amount: number; notes: BillNotes } | null> {
   const { start, end } = periodBounds(period);
 
@@ -474,7 +684,7 @@ export async function buildBillForPeriod(
   // so changing rates later doesn't retroactively alter historical bills.
   const txRows = await prisma.pointsTransaction.groupBy({
     by: ['category'],
-    where: { storeId: store.id, status: 'APPROVED', createdAt: { gte: start, lte: end } },
+    where: { storeId: store.id, status: 'APPROVED', isTestData: false, createdAt: { gte: start, lte: end } },
     _count: { id: true },
     _sum: { purchaseAmount: true, storeCost: true, devCut: true, pointsAwarded: true },
   });
@@ -505,7 +715,7 @@ export async function buildBillForPeriod(
   const totalAmountOwed = parseFloat((subscriptionFee + devCutEarned).toFixed(2));
 
   // Skip stores with nothing to bill
-  if (subscriptionFee === 0 && txCount === 0) return null;
+  if (subscriptionFee === 0 && txCount === 0 && !options?.allowEmpty) return null;
 
   const notes: BillNotes = {
     txCount, purchaseVolume,
@@ -515,109 +725,170 @@ export async function buildBillForPeriod(
     categories,
     subscriptionFee, transactionFeeRate: store.transactionFeeRate,
     transactionFee: 0, cashbackFee, totalAmountOwed,
-    periodStart: start.toISOString().slice(0, 10),
-    periodEnd:   end.toISOString().slice(0, 10),
+    periodStart: periodFirstDay(period),
+    periodEnd:   periodLastDay(period),
   };
 
   return { amount: totalAmountOwed, notes };
 }
 
-// ─── Generate compound bill for one period (default = current month) ──────────
+/** The usage bills that already exist (extra charges never count: a charge does not stand in for a store's bill), as "storeId:period" keys. */
+async function usageBillKeys(where: { period?: string }): Promise<Set<string>> {
+  const rows = await prisma.billingRecord.findMany({
+    where: { ...where, billingType: { not: BillingType.CUSTOM } },
+    select: { storeId: true, period: true },
+  });
+  return new Set(rows.map((r) => `${r.storeId}:${r.period}`));
+}
+
+const billsWord = (n: number) => `${n} bill${n === 1 ? '' : 's'}`;
+
+// ─── Generate usage bills for one FINISHED month (default = the last one) ─────
+// Never replaces or deletes anything: a store that already has its usage bill for the month is left exactly as it is.
 
 export async function generateMonthlyBilling(req: AuthRequest, res: Response) {
-  const period = (req.query.period as string) || toPeriod(new Date());
+  const asked = typeof req.query.period === 'string' && req.query.period ? req.query.period : lastFinishedPeriod();
+  if (!isRealPeriod(asked)) {
+    res.status(400).json({ success: false, error: 'Choose a real month, like 2026-09.' });
+    return;
+  }
+  if (!isFinishedPeriod(asked)) {
+    res.status(400).json({ success: false, error: `${periodLabel(asked)} is not finished yet. Bills are made after a month ends (Central time) so they hold the whole month.` });
+    return;
+  }
+  const period = asked;
 
   const stores = await prisma.store.findMany({
     where: { isActive: true },
     select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true },
   });
   if (stores.length === 0) {
-    res.json({ success: true, message: 'No active stores', data: { created: 0, skipped: 0, period } });
+    res.json({ success: true, message: 'No active stores', data: { created: 0, alreadyBilled: 0, nothingToBill: 0, skipped: 0, period } });
     return;
   }
 
-  // One compound record per store per period — skip if already billed
-  const existingIds = new Set(
-    (await prisma.billingRecord.findMany({
-      where: { period, storeId: { in: stores.map((s) => s.id) } },
-      select: { storeId: true },
-    })).map((r) => r.storeId),
-  );
-
-  let created = 0; let skipped = 0;
+  const have = await usageBillKeys({ period });
+  let created = 0; let alreadyBilled = 0; let nothingToBill = 0;
   for (const store of stores) {
-    if (existingIds.has(store.id)) { skipped++; continue; }
+    if (have.has(`${store.id}:${period}`)) { alreadyBilled++; continue; }
     const bill = await buildBillForPeriod(store, period);
-    if (!bill) { skipped++; continue; }
+    if (!bill) { nothingToBill++; continue; }
     await (prisma.billingRecord as any).create({
       data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
     });
     created++;
   }
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_GENERATE', entity: 'billing', entityId: period,
+    details: { period, created, alreadyBilled, nothingToBill },
+  });
   res.json({
     success: true,
-    message: created ? `Generated ${created} compound bill(s) for ${period}` : `All stores already billed for ${period}`,
-    data: { created, skipped, period },
+    message: created ? `Made ${billsWord(created)} for ${periodLabel(period)}.`
+      : alreadyBilled ? `Every store with activity in ${periodLabel(period)} already has its bill.`
+      : `No store had anything to bill in ${periodLabel(period)}.`,
+    data: { created, alreadyBilled, nothingToBill, skipped: alreadyBilled + nothingToBill, period },
   });
 }
 
-// ─── Backfill: generate all missing bills since each store's creation date ────
+// ─── Fill in missing bills: every finished month since each store was created ─
+// Only creates bills that do not exist yet. It never recalculates, replaces or deletes an existing bill or charge.
 
-export async function generateAllMissingBills(_req: AuthRequest, res: Response) {
-  const currentPeriod = toPeriod(new Date());
-
+export async function generateAllMissingBills(req: AuthRequest, res: Response) {
+  const upTo = lastFinishedPeriod();
   const stores = await prisma.store.findMany({
     where: { isActive: true },
     select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true, createdAt: true },
   });
+  const have = await usageBillKeys({});
 
-  // Load ALL existing bills into a map so we can preserve isPaid/paidAt when regenerating
-  const existingBills = await (prisma.billingRecord as any).findMany({
-    select: { id: true, storeId: true, period: true, isPaid: true, paidAt: true },
-  });
-  const existingMap = new Map<string, { id: string; isPaid: boolean; paidAt: Date | null }>(
-    existingBills.map((r: any) => [`${r.storeId}:${r.period}`, { id: r.id, isPaid: r.isPaid, paidAt: r.paidAt }]),
-  );
-
-  let created = 0; let replaced = 0; let skipped = 0;
+  let created = 0; let alreadyBilled = 0; let nothingToBill = 0;
   const results: { store: string; period: string; amount: number; action: string }[] = [];
-
   for (const store of stores) {
-    for (const period of allPeriodsSince(store.createdAt, currentPeriod)) {
-      const key = `${store.id}:${period}`;
+    for (const period of periodsSince(store.createdAt, upTo)) {
+      if (have.has(`${store.id}:${period}`)) { alreadyBilled++; continue; }
       const bill = await buildBillForPeriod(store, period);
-      const existing = existingMap.get(key);
-
-      if (existing) {
-        // Always regenerate — delete old record and recreate with latest calculation, preserving payment status
-        if (!bill) { skipped++; continue; }
-        await prisma.billingRecord.delete({ where: { id: existing.id } });
-        await (prisma.billingRecord as any).create({
-          data: {
-            storeId: store.id, billingType: store.billingType as BillingType,
-            amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }),
-            isPaid: existing.isPaid, paidAt: existing.paidAt,
-          },
-        });
-        results.push({ store: store.name, period, amount: bill.amount, action: 'replaced' });
-        replaced++;
-      } else {
-        if (!bill) { skipped++; continue; }
-        await (prisma.billingRecord as any).create({
-          data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
-        });
-        results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
-        created++;
-      }
+      if (!bill) { nothingToBill++; continue; }
+      await (prisma.billingRecord as any).create({
+        data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
+      });
+      results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
+      created++;
     }
   }
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_FILL_MISSING', entity: 'billing',
+    details: { upTo, created, alreadyBilled, nothingToBill, bills: results.slice(0, 50) },
+  });
   res.json({
     success: true,
-    message: `Generated ${created + replaced} bill(s) — ${created} new, ${replaced} recalculated (${skipped} skipped — no activity)`,
-    data: { created, replaced, skipped, bills: results },
+    message: created ? `Made ${billsWord(created)} that were missing (up to ${periodLabel(upTo)}). ${alreadyBilled} existing bill${alreadyBilled === 1 ? ' was' : 's were'} left as they are.`
+      : `Nothing was missing up to ${periodLabel(upTo)}. ${alreadyBilled} existing bill${alreadyBilled === 1 ? ' was' : 's were'} left as they are.`,
+    data: { created, alreadyBilled, nothingToBill, skipped: alreadyBilled + nothingToBill, bills: results },
   });
+}
+
+// ─── Recalculate ONE unpaid usage bill ────────────────────────────────────────
+// POST /billing/records/:recordId/recalculate[?dryRun=1]. Rebuilds the bill from its month's approved sales, on the plan the bill
+// was made with (a later plan change never rewrites it). A paid bill is never touched: a correction is a new extra charge.
+
+export async function recalculateBillingRecord(req: AuthRequest, res: Response) {
+  const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true';
+  const rec = await prisma.billingRecord.findUnique({
+    where: { id: req.params.recordId },
+    include: { store: { select: { id: true, name: true, transactionFeeRate: true } } },
+  });
+  if (!rec) {
+    res.status(404).json({ success: false, error: 'Record not found' });
+    return;
+  }
+  if (rec.billingType === BillingType.CUSTOM || !rec.storeId) {
+    res.status(400).json({ success: false, error: 'Only usage bills can be recalculated. An extra charge is edited on the Manual Charges tab.' });
+    return;
+  }
+  if (rec.isPaid) {
+    res.status(400).json({ success: false, error: 'A paid bill is never changed. Add an extra charge for the difference instead.' });
+    return;
+  }
+  if (!isFinishedPeriod(rec.period)) {
+    res.status(400).json({ success: false, error: `${periodLabel(rec.period)} is not finished yet.` });
+    return;
+  }
+  const notes = parseNotes(rec.notes) ?? {};
+  const plan = {
+    id: rec.storeId,
+    billingType: rec.billingType as string,
+    subscriptionPrice: typeof notes.subscriptionFee === 'number' ? notes.subscriptionFee : 0,
+    transactionFeeRate: typeof notes.transactionFeeRate === 'number' ? notes.transactionFeeRate : (rec.store?.transactionFeeRate ?? 0),
+  };
+  const next = (await buildBillForPeriod(plan, rec.period, { allowEmpty: true }))!;
+  const difference = round2(next.amount - rec.amount);
+  if (dryRun) {
+    res.json({ success: true, data: { current: rec.amount, recalculated: next.amount, difference } });
+    return;
+  }
+  const changed = await prisma.billingRecord.updateMany({
+    where: { id: rec.id, isPaid: false },
+    data: {
+      amount: next.amount,
+      notes: JSON.stringify({ ...next.notes, generatedBy: notes.generatedBy ?? 'manual', recalculatedAt: new Date().toISOString(), previousAmount: rec.amount }),
+    },
+  });
+  if (changed.count === 0) {
+    res.status(409).json({ success: false, error: 'Someone just marked this bill paid, so it was not changed. Reload the page.' });
+    return;
+  }
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_RECALCULATE', entity: 'billing', entityId: rec.id,
+    details: { period: rec.period, before: rec.amount, after: next.amount, difference },
+    storeId: rec.storeId, storeName: rec.store?.name ?? null,
+  });
+  res.json({ success: true, data: { current: rec.amount, recalculated: next.amount, difference, record: await prisma.billingRecord.findUnique({ where: { id: rec.id } }) } });
 }
 
 // ─── Seed test transactions (DevAdmin only — for demo/testing) ────────────────
@@ -635,6 +906,11 @@ const AMOUNT_RANGES: Record<string, [number, number]> = {
 };
 
 export async function seedTestTransactions(_req: AuthRequest, res: Response) {
+  // Off unless ALLOW_SEED_TEST_DATA=true is set on the server. It fills the database with fake sales and gives real customers fake balances.
+  if (process.env.ALLOW_SEED_TEST_DATA !== 'true') {
+    res.status(403).json({ success: false, error: 'Seeding test data is switched off on this server. It fills the database with fake sales and gives real customers fake balances.' });
+    return;
+  }
   const [stores, employees, customers] = await Promise.all([
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, transactionFeeRate: true } }),
     prisma.user.findMany({ where: { role: { in: ['EMPLOYEE', 'STORE_MANAGER', 'DEV_ADMIN'] as any } } }),
@@ -702,7 +978,12 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
 // ─── Send monthly billing report to all SuperAdmins via push notification ─────
 
 export async function sendBillingReport(req: AuthRequest, res: Response) {
-  const period = (req.query.period as string) || toPeriod(new Date());
+  const asked = typeof req.query.period === 'string' && req.query.period ? req.query.period : lastFinishedPeriod();
+  if (!isRealPeriod(asked)) {
+    res.status(400).json({ success: false, error: 'Choose a real month, like 2026-09.' });
+    return;
+  }
+  const period = asked;
 
   const [records, superAdmins] = await Promise.all([
     (prisma.billingRecord as any).findMany({
@@ -747,6 +1028,11 @@ export async function sendBillingReport(req: AuthRequest, res: Response) {
     }
   }
 
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'BILLING_REPORT_SENT', entity: 'billing', entityId: period,
+    details: { period, records: records.length, totalOwed: parseFloat(totalOwed.toFixed(2)), notified: sent },
+  });
   res.json({
     success: true,
     message: `Report sent to ${sent} super admin(s)`,
@@ -768,7 +1054,7 @@ export async function getMonthlyRecords(req: AuthRequest, res: Response) {
   });
 
   // Parse notes JSON
-  const records = rawRecords.map((r: any) => ({ ...r, notes: r.notes ? JSON.parse(r.notes) : null }));
+  const records = rawRecords.map((r: any) => ({ ...r, notes: parseNotes(r.notes) }));
 
   const grouped: Record<string, typeof records> = {};
   for (const r of records) {
@@ -786,7 +1072,7 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
     orderBy: [{ period: 'desc' }, { createdAt: 'desc' }],
   });
 
-  const records = rawRecords.map((r: any) => ({ ...r, notes: r.notes ? JSON.parse(r.notes) : null }));
+  const records = rawRecords.map((r: any) => ({ ...r, notes: parseNotes(r.notes) }));
 
   // Consolidate by period
   const byPeriod: Record<string, any> = {};
@@ -1317,12 +1603,12 @@ export async function getDevRevenue(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.aggregate({
       _sum: { purchaseAmount: true, pointsAwarded: true },
       _count: true,
-      where: { status: 'APPROVED', ...(range ? { createdAt: range } : {}) },
+      where: { status: 'APPROVED', isTestData: false, ...(range ? { createdAt: range } : {}) },
     }),
     // Dev cut earned at grant time (new model)
     prisma.pointsTransaction.aggregate({
       _sum: { devCut: true },
-      where: { status: 'APPROVED', ...(range ? { createdAt: range } : {}) },
+      where: { status: 'APPROVED', isTestData: false, ...(range ? { createdAt: range } : {}) },
     }),
     prisma.creditRedemption.aggregate({
       _sum: { amount: true },
@@ -1617,7 +1903,7 @@ export async function getCashbackHealth(_req: AuthRequest, res: Response) {
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId', 'category'],
-      where: { status: 'APPROVED', createdAt: { gte: thirtyDaysAgo } },
+      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: thirtyDaysAgo } },
       _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
   ]);

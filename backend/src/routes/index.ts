@@ -173,6 +173,8 @@ import {
   getAllGasPrices,
   createBillingRecord,
   markBillingPaid,
+  unmarkBillingPaid,
+  recalculateBillingRecord,
   markPeriodPaid,
   getExtraCharges,
   updateBillingRecord,
@@ -322,6 +324,8 @@ router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMI
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
 router.get('/billing/extra-charges', authenticate, requireRole(Role.DEV_ADMIN), getExtraCharges);
 router.patch('/billing/records/:recordId/paid', authenticate, requireRole(Role.DEV_ADMIN), markBillingPaid);
+router.patch('/billing/records/:recordId/unpaid', authenticate, requireRole(Role.DEV_ADMIN), unmarkBillingPaid);
+router.post('/billing/records/:recordId/recalculate', authenticate, requireRole(Role.DEV_ADMIN), recalculateBillingRecord);
 router.patch('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), updateBillingRecord);
 router.delete('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), deleteBillingRecord);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);

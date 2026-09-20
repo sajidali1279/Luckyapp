@@ -1,71 +1,76 @@
 /**
- * Monthly billing cron — runs on the 1st of every month at 00:05 UTC.
- * Bills each active store for LAST month's activity, using the same
- * buildBillForPeriod logic the manual "Generate Monthly Billing" admin
- * route uses — so the cron and manual paths can never disagree on what
- * a store owes.
+ * Monthly billing job. Bills each active store for the last FINISHED month on the store calendar (Central time), using the same
+ * buildBillForPeriod logic the manual "Generate" route uses, so the job and the page can never disagree on what a store owes.
  *
- * Safe to run multiple times — skips stores that already have a record for the period.
+ * It runs at :05 past every hour (UTC) and once a minute after the server starts, and it is safe to run any number of times: a store
+ * that already has its usage bill for the month is skipped (an extra charge does not count as a bill). That means the September
+ * bills are made by the first run after midnight on October 1 in Texas, even if the server was asleep at that hour, and nothing is
+ * ever created twice. It never deletes or changes an existing bill.
  */
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { BillingType } from '@prisma/client';
 import { buildBillForPeriod } from '../controllers/billing.controller';
+import { lastFinishedPeriod, periodLabel } from './billingPeriods';
+import { audit } from './audit';
 
-/**
- * "Last month" as a "YYYY-MM" string, computed in UTC — the cron itself
- * runs on a UTC schedule ({ timezone: 'UTC' }), so this must use UTC date
- * components rather than the server process's local timezone to avoid
- * mislabeling the bill by a month if the server's local time ever differs
- * from UTC at the exact moment the cron fires.
- */
-function lastMonthPeriod(): string {
-  const now = new Date();
-  let year = now.getUTCFullYear();
-  let month = now.getUTCMonth(); // 0-11, current month
-  month -= 1;
-  if (month < 0) { month = 11; year -= 1; }
-  return `${year}-${String(month + 1).padStart(2, '0')}`;
-}
+let running = false; // two runs at once would race to create the same bill
 
-export async function runMonthlyBilling() {
-  const period = lastMonthPeriod();
-  console.log(`[billing-cron] Running monthly billing for period ${period}…`);
+export async function runMonthlyBilling(now: Date = new Date()) {
+  if (running) return;
+  running = true;
+  try {
+    const period = lastFinishedPeriod(now);
+    const stores = await prisma.store.findMany({ where: { isActive: true } });
 
-  const stores = await prisma.store.findMany({ where: { isActive: true } });
+    let created = 0;
+    let alreadyBilled = 0;
+    let nothingToBill = 0;
 
-  let created = 0;
-  let skipped = 0;
+    for (const store of stores) {
+      // Idempotency: skip if this store already has its USAGE bill for the period (an extra charge is not a usage bill)
+      const existing = await prisma.billingRecord.findFirst({
+        where: { storeId: store.id, period, billingType: { not: BillingType.CUSTOM } },
+      });
+      if (existing) { alreadyBilled++; continue; }
 
-  for (const store of stores) {
-    // Idempotency — skip if already billed for this period
-    const existing = await prisma.billingRecord.findFirst({
-      where: { storeId: store.id, period },
-    });
-    if (existing) { skipped++; continue; }
+      const bill = await buildBillForPeriod(store, period);
+      if (!bill) { nothingToBill++; continue; }
 
-    const bill = await buildBillForPeriod(store, period);
-    if (!bill) { skipped++; continue; }
+      await (prisma.billingRecord as any).create({
+        data: {
+          storeId: store.id,
+          billingType: store.billingType as BillingType,
+          amount: bill.amount,
+          period,
+          notes: JSON.stringify({ ...bill.notes, generatedBy: 'cron' }),
+          isPaid: false,
+        },
+      });
+      created++;
+      console.log(`[billing-cron]   made ${store.name}: $${bill.amount.toFixed(2)} (${store.billingType}) for ${period}`);
+    }
 
-    await (prisma.billingRecord as any).create({
-      data: {
-        storeId: store.id,
-        billingType: store.billingType as BillingType,
-        amount: bill.amount,
-        period,
-        notes: JSON.stringify({ ...bill.notes, generatedBy: 'cron' }),
-        isPaid: false,
-      },
-    });
-    created++;
-    console.log(`[billing-cron]   ✅ ${store.name} — $${bill.amount.toFixed(2)} (${store.billingType})`);
+    if (created > 0) {
+      console.log(`[billing-cron] ${periodLabel(period)}: made ${created} bill(s), ${alreadyBilled} already existed, ${nothingToBill} had nothing to bill`);
+      audit({
+        actorId: 'system', actorName: 'Monthly billing job (automatic)', actorRole: 'DEV_ADMIN',
+        action: 'BILLING_GENERATE', entity: 'billing', entityId: period,
+        details: { period, created, alreadyBilled, nothingToBill, source: 'cron' },
+      });
+    }
+  } finally {
+    running = false;
   }
-
-  console.log(`[billing-cron] Done. Created: ${created}, Skipped: ${skipped}`);
 }
 
-// Schedule: 1st of every month at 00:05 UTC
 export function startBillingCron() {
-  cron.schedule('5 0 1 * *', runMonthlyBilling, { timezone: 'UTC' });
-  console.log('[billing-cron] Monthly billing job scheduled (1st of month, 00:05 UTC)');
+  cron.schedule('5 * * * *', () => {
+    runMonthlyBilling().catch((e) => console.error('[billing-cron] run failed:', e?.message ?? e));
+  }, { timezone: 'UTC' });
+  // Catch-up after a restart or a sleep: if last month has no bills yet, make them now
+  setTimeout(() => {
+    runMonthlyBilling().catch((e) => console.error('[billing-cron] start-up run failed:', e?.message ?? e));
+  }, 60_000);
+  console.log('[billing-cron] Monthly billing job scheduled (every hour at :05 UTC, idempotent; also once after start-up)');
 }
