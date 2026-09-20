@@ -10,7 +10,8 @@ import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
+import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded } from '../utils/tier';
+import { pickOffer, percentBonus, isCentsPerGallon } from '../utils/offerPick';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
 import { csvText } from '../utils/csv';
@@ -60,7 +61,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     prisma.categoryRate.findUnique({ where: { category: category as any } }),
     prisma.offer.findMany({
       where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
-      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
+      select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
@@ -70,11 +71,6 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     (o.bonusRate !== null || o.gasBonusCentsPerGallon !== null) &&
     (o.type === OfferType.ALL_STORES || o.storeId === storeId)
   );
-
-  // Pick best offer: category-specific match first, then null-category (all-category offer)
-  const activeOffer = allStoreOffers.find((o) => o.category === category)
-    ?? allStoreOffers.find((o) => o.category === null)
-    ?? null;
 
   // Tier base rate + optional per-category bonus (additive)
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
@@ -93,14 +89,18 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
 
   const usePerGallonMode = isGasCategory && effectiveGallons != null && gasPerGallonRate != null && gasPerGallonRate > 0;
 
+  // Only one promotion applies to a sale; utils/offerPick.ts says which (same answer whatever order the rows come back in)
+  const activeOffer = pickOffer(allStoreOffers, { storeId, category, tier: customerTier, purchaseAmount, gallons: effectiveGallons });
+
   let cashbackIssued: number;
   let effectiveCashbackRate: number;
   let promotionApplied: string | null = null;
-  let promoBonus = 0;
+  let promotionCashback = 0; // the part of the cashback that comes from the promotion, in dollars
 
-  promoBonus = getTierBonusRate(activeOffer, customerTier);
-  const hasGasPromo = promoBonus > 0 || (activeOffer?.gasBonusCentsPerGallon != null);
-  promotionApplied = hasGasPromo ? activeOffer!.title : null;
+  // A cents-per-gallon promotion pays cents only: its percentage is 0 here even if an old row still carries one
+  const promoBonus = activeOffer ? percentBonus(activeOffer, customerTier) : 0;
+  const cpgPays = activeOffer != null && isCentsPerGallon(activeOffer) && effectiveGallons != null;
+  promotionApplied = promoBonus > 0 || cpgPays ? activeOffer!.title : null;
 
   if (usePerGallonMode) {
     const perGallonCashback = parseFloat((effectiveGallons! * gasPerGallonRate / 100).toFixed(4));
@@ -110,6 +110,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     } else {
       promoCashback = parseFloat((purchaseAmount * promoBonus).toFixed(4));
     }
+    promotionCashback     = promoCashback;
     cashbackIssued        = parseFloat((perGallonCashback + promoCashback).toFixed(4));
     effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   } else {
@@ -119,19 +120,24 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       : 0;
     const pctRate = parseFloat((tierBaseRate + categoryBonus + (gasCpgBonus > 0 ? 0 : promoBonus)).toFixed(4));
     const pctCashback = parseFloat((purchaseAmount * pctRate).toFixed(4));
+    promotionCashback     = gasCpgBonus > 0 ? gasCpgBonus : parseFloat((purchaseAmount * promoBonus).toFixed(4));
     cashbackIssued        = parseFloat((pctCashback + gasCpgBonus).toFixed(4));
     effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
   }
 
   // ── Compound rate cap — hard ceiling to protect against misconfigured category/promo rates ──
+  // The warn and cap lines are there to catch a tier or category rate set too high. When the excess comes from a
+  // live promotion (its size is limited when it is posted), the ceiling still applies but the sale is not held:
+  // otherwise every sale a +7% or +10% promotion touches would wait for a manager and bury the real alerts.
   const rateCappedFlags: string[] = [];
+  const standingRate = purchaseAmount > 0 ? (cashbackIssued - promotionCashback) / purchaseAmount : 0;
+  const promoExplainsRate = promotionCashback > 0 && standingRate <= CASHBACK_RATE_WARN;
   if (effectiveCashbackRate > CASHBACK_RATE_CAP) {
-    const uncapped = effectiveCashbackRate;
     cashbackIssued        = parseFloat((purchaseAmount * CASHBACK_RATE_CAP).toFixed(4));
     effectiveCashbackRate = CASHBACK_RATE_CAP;
-    rateCappedFlags.push('CASHBACK_RATE_CAPPED');
+    if (!promoExplainsRate) rateCappedFlags.push('CASHBACK_RATE_CAPPED');
   } else if (effectiveCashbackRate > CASHBACK_RATE_WARN) {
-    rateCappedFlags.push('HIGH_CASHBACK_RATE');
+    if (!promoExplainsRate) rateCappedFlags.push('HIGH_CASHBACK_RATE');
   }
 
   const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;

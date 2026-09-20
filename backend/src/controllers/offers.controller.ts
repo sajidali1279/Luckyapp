@@ -2,45 +2,111 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { OfferType, ProductCategory, Role } from '@prisma/client';
+import { OfferType, Prisma, ProductCategory, Role, Tier } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { broadcastToCustomers } from '../utils/push';
 import { offerUrl } from '../utils/notificationRoutes';
+import { hasMinRole } from '../middleware/auth';
+import { CASHBACK_RATE_CAP } from '../config/constants';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
+
+// Total cashback is held at CASHBACK_RATE_CAP of a sale (10%) whatever is configured, so a bonus above that can never
+// be paid. Refusing it here catches a typo (50 for 5) when it is made, not on every sale afterwards.
+const MAX_BONUS_TEXT = `${Math.round(CASHBACK_RATE_CAP * 100)}%`;
+const BONUS_TOO_BIG = `A bonus can be at most ${MAX_BONUS_TEXT}, because total cashback is capped at ${MAX_BONUS_TEXT} of the sale.`;
+const MAX_CENTS_PER_GALLON = 40; // about the 10% ceiling on a $4 gallon
+export const MANAGER_CASHBACK_MESSAGE = 'Cashback promotions need HQ approval. Ask a Super Admin to set one up for your store, or post a Deal (a price special) instead.';
+
+const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+// Multipart forms send everything as text: 'true' is true and anything else (including 'false') is not
+const flag = (v: unknown) => v === true || v === 'true';
+// tierBonusRates arrives as a JSON string in a multipart form and as an object in a JSON body
+const tierMapInput = (v: unknown) => {
+  if (typeof v !== 'string') return v;
+  if (v.trim() === '') return undefined;
+  try { return JSON.parse(v); } catch { return v; }
+};
+
+const tierMapField = z.preprocess(tierMapInput, z.record(z.string(), z.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG))
+  .refine((m) => Object.keys(m).every((k) => k in Tier), 'Tier bonuses must be for Bronze, Silver, Gold, Diamond or Platinum.').optional());
+const cpgField = z.coerce.number().min(0).max(MAX_CENTS_PER_GALLON, `A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`);
+
+/** Sends the first problem as a plain sentence (the page shows it as is) and keeps the full detail alongside. */
+function refuse(res: Response, error: z.ZodError) {
+  const first = error.issues[0];
+  const field = first?.path.join('.') ?? '';
+  // Our own messages are full sentences ending in a period; anything else is a stock zod message that needs its field name
+  const text = !first ? 'Some of the values were not accepted.' : first.message.endsWith('.') || !field ? first.message : `${field}: ${first.message}`;
+  res.status(400).json({ success: false, error: text, details: error.flatten() });
+}
 
 // tierBonusRates: per-tier bonus map e.g. {"BRONZE": 0.03, "GOLD": 0.01}
 // When set, bonusRate should be the max of tierBonusRates values (for offer ordering)
 const offerSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional().default(''),
+  title: z.string({ required_error: 'Add a title.' }).trim().min(1, 'Add a title.').max(100, 'The title can be at most 100 characters.'),
+  description: z.string().max(500, 'The description can be at most 500 characters.').optional().default(''),
   type: z.nativeEnum(OfferType).default(OfferType.ALL_STORES),
-  storeId: z.string().uuid().optional(),
-  category: z.nativeEnum(ProductCategory).optional(),
-  bonusRate: z.coerce.number().min(0).max(1).optional(),
-  tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).optional().nullable(),
-  gasBonusCentsPerGallon: z.coerce.number().min(0).max(100).optional().nullable(),
-  dealText: z.string().min(1).max(40).optional(), // e.g. "2 for $5"
-  requires21: z.coerce.boolean().optional().default(false),
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
+  storeId: z.preprocess(blankToUndefined, z.string().uuid('Choose a store from the list.').optional()),
+  category: z.preprocess(blankToUndefined, z.nativeEnum(ProductCategory).optional()),
+  bonusRate: z.preprocess(blankToUndefined, z.coerce.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG).optional()),
+  tierBonusRates: tierMapField.optional().nullable(),
+  gasBonusCentsPerGallon: z.preprocess(blankToUndefined, cpgField.optional().nullable()),
+  dealText: z.preprocess(blankToUndefined, z.string().trim().max(40, 'The deal text can be at most 40 characters.').optional()),
+  requires21: z.preprocess(flag, z.boolean()).optional().default(false),
+  startDate: z.string({ required_error: 'Choose a start date.' }).datetime({ message: 'Choose a start date.' }),
+  endDate: z.string({ required_error: 'Choose an end date.' }).datetime({ message: 'Choose an end date.' }),
+}).superRefine((d, ctx) => {
+  const start = new Date(d.startDate).getTime();
+  const end = new Date(d.endDate).getTime();
+  if (!(start < end)) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'The end date must be after the start date.' });
+  else if (end <= Date.now()) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'That end date has already passed.' });
+  if (d.type === OfferType.SPECIFIC_STORE && !d.storeId) ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'Choose which store this is for.' });
+  const pays = (d.bonusRate ?? 0) > 0 || (d.gasBonusCentsPerGallon ?? 0) > 0 || Object.values(d.tierBonusRates ?? {}).some((v) => v > 0);
+  if (!pays && !d.dealText) ctx.addIssue({ code: 'custom', path: ['bonusRate'], message: 'Add a bonus (a percentage or cents per gallon) or a deal text.' });
+  if (d.gasBonusCentsPerGallon != null && d.category !== ProductCategory.GAS && d.category !== ProductCategory.DIESEL) {
+    ctx.addIssue({ code: 'custom', path: ['gasBonusCentsPerGallon'], message: 'A cents-per-gallon promotion must be for Gas or Diesel.' });
+  }
 }).transform((data) => {
+  // A cents-per-gallon promotion pays cents only. It used to carry a percentage too (cents / 100), which paid that many
+  // percent of the sale when the gallons were unknown.
+  if (data.gasBonusCentsPerGallon != null) {
+    data.bonusRate = undefined;
+    data.tierBonusRates = undefined;
+  }
   // Auto-compute bonusRate as max of tierBonusRates values when per-tier bonuses are set
   if (data.tierBonusRates && Object.keys(data.tierBonusRates).length > 0 && !data.bonusRate) {
     data.bonusRate = Math.max(...Object.values(data.tierBonusRates));
   }
+  if (data.type === OfferType.ALL_STORES) data.storeId = undefined;
   return data;
 });
 
+/** True when the raw request asks for any cashback (a percentage, per-tier percentages or cents per gallon). */
+function asksForCashback(body: Record<string, unknown> | undefined): boolean {
+  const positive = (v: unknown) => Number(v) > 0;
+  if (positive(body?.bonusRate) || positive(body?.gasBonusCentsPerGallon)) return true;
+  const tiers = tierMapInput(body?.tierBonusRates);
+  if (typeof tiers === 'string') return true; // unreadable: treat as a request and refuse
+  return !!tiers && typeof tiers === 'object' && Object.values(tiers as Record<string, unknown>).some(positive);
+}
+
 export async function createOffer(req: AuthRequest, res: Response) {
-  const parsed = offerSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
+  const isManager = req.user!.role === Role.STORE_MANAGER;
+
+  // A store manager's promotion would go live at once for every customer and cost the store, so cashback is set by HQ
+  // (a Deal, which changes no cashback, is still theirs to post)
+  if (isManager && asksForCashback(req.body)) {
+    res.status(403).json({ success: false, error: MANAGER_CASHBACK_MESSAGE });
     return;
   }
 
-  const isManager = req.user!.role === Role.STORE_MANAGER;
+  const parsed = offerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
 
   // Store managers can only create store-specific offers for a store they're
   // actually assigned to — prefer the store they picked in the UI (a real
@@ -59,6 +125,12 @@ export async function createOffer(req: AuthRequest, res: Response) {
     }
     parsed.data.type = OfferType.SPECIFIC_STORE;
     parsed.data.storeId = targetStoreId;
+  } else if (parsed.data.storeId) {
+    const store = await prisma.store.findUnique({ where: { id: parsed.data.storeId }, select: { id: true } });
+    if (!store) {
+      res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' });
+      return;
+    }
   }
 
   let imageUrl: string | undefined;
@@ -78,12 +150,16 @@ export async function createOffer(req: AuthRequest, res: Response) {
   });
 
   // Notify all customers — notification auto-expires when the offer ends
-  broadcastToCustomers('🎉 New Promotion!', `${offer.title} — check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate), offerUrl());
+  broadcastToCustomers('🎉 New Promotion!', `${offer.title}. Check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate), offerUrl());
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_OFFER', entity: 'offer', entityId: offer.id,
-    details: { title: offer.title, type: offer.type, bonusRate: offer.bonusRate, dealText: offer.dealText },
+    details: {
+      title: offer.title, type: offer.type, category: offer.category, bonusRate: offer.bonusRate,
+      gasBonusCentsPerGallon: offer.gasBonusCentsPerGallon, dealText: offer.dealText,
+      startDate: offer.startDate, endDate: offer.endDate,
+    },
     storeId: offer.storeId,
   });
 
@@ -91,8 +167,12 @@ export async function createOffer(req: AuthRequest, res: Response) {
 }
 
 export async function getActiveOffers(req: AuthRequest, res: Response) {
-  const { storeId } = req.query as { storeId?: string };
+  const { storeId, includeScheduled } = req.query as { storeId?: string; includeScheduled?: string };
   const now = new Date();
+
+  // HQ (web admin) can also ask for promotions that are switched on but have not started yet, so a promotion made for
+  // next week is not invisible until its first day. Customers and the mobile screens never get them.
+  const withScheduled = includeScheduled === '1' && hasMinRole(req.user!.role, Role.SUPER_ADMIN);
 
   // A customer who has explicitly declined the 21+ prompt shouldn't even
   // receive age-restricted offers (not just have them blurred client-side)
@@ -107,7 +187,7 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
   const offers = await prisma.offer.findMany({
     where: {
       isActive: true,
-      startDate: { lte: now },
+      ...(withScheduled ? {} : { startDate: { lte: now } }),
       endDate: { gte: now },
       ...(hideRestricted ? { requires21: false } : {}),
       // With storeId (mobile): show ALL_STORES + that store's specific offers
@@ -127,15 +207,15 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
 }
 
 const updateOfferSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
+  title: z.string().trim().min(1, 'Add a title.').max(100, 'The title can be at most 100 characters.').optional(),
+  description: z.string().min(1).max(500, 'The description can be at most 500 characters.').optional(),
   type: z.nativeEnum(OfferType).optional(),
   storeId: z.string().uuid().nullable().optional(),
   category: z.nativeEnum(ProductCategory).nullable().optional(),
-  bonusRate: z.coerce.number().min(0).max(1).nullable().optional(),
-  tierBonusRates: z.record(z.string(), z.number().min(0).max(1)).nullable().optional(),
-  gasBonusCentsPerGallon: z.coerce.number().min(0).max(100).nullable().optional(),
-  dealText: z.string().min(1).max(40).nullable().optional(),
+  bonusRate: z.coerce.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG).nullable().optional(),
+  tierBonusRates: z.record(z.string(), z.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG)).nullable().optional(),
+  gasBonusCentsPerGallon: cpgField.nullable().optional(),
+  dealText: z.string().min(1).max(40, 'The deal text can be at most 40 characters.').nullable().optional(),
   requires21: z.coerce.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
@@ -143,14 +223,18 @@ const updateOfferSchema = z.object({
 }).refine(d => {
   if (d.startDate && d.endDate) return new Date(d.startDate) < new Date(d.endDate);
   return true;
-}, { message: 'startDate must be before endDate' });
+}, { message: 'The end date must be after the start date.' });
+
+// The mobile edit form rounds a rate to whole percent before sending it back, so a half-point difference is that
+// rounding and not a change
+const sameRate = (a: number | null | undefined, b: number | null | undefined) => Math.abs((a ?? 0) - (b ?? 0)) <= 0.005 + 1e-9;
 
 export async function updateOffer(req: AuthRequest, res: Response) {
   const { offerId } = req.params;
 
   const parsed = updateOfferSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
+    refuse(res, parsed.error);
     return;
   }
 
@@ -164,6 +248,24 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     // Cannot change type or storeId
     delete parsed.data.type;
     delete parsed.data.storeId;
+
+    // Nor what the promotion pays: that is set by HQ. The values the edit form sends back unchanged are dropped
+    // (the stored ones stay exactly as they are); anything different is refused.
+    const d = parsed.data;
+    const existingHasCashback = (existing.bonusRate ?? 0) > 0 || existing.tierBonusRates != null || existing.gasBonusCentsPerGallon != null;
+    const wantsChange =
+      (d.bonusRate !== undefined && !sameRate(d.bonusRate, existing.bonusRate)) ||
+      (d.tierBonusRates !== undefined && JSON.stringify(d.tierBonusRates ?? null) !== JSON.stringify(existing.tierBonusRates ?? null)) ||
+      (d.gasBonusCentsPerGallon !== undefined && (d.gasBonusCentsPerGallon ?? null) !== (existing.gasBonusCentsPerGallon ?? null)) ||
+      (existingHasCashback && d.category !== undefined && (d.category ?? null) !== (existing.category ?? null));
+    if (wantsChange) {
+      res.status(403).json({ success: false, error: MANAGER_CASHBACK_MESSAGE });
+      return;
+    }
+    delete d.bonusRate;
+    delete d.tierBonusRates;
+    delete d.gasBonusCentsPerGallon;
+    if (existingHasCashback) delete d.category;
   }
 
   const { startDate, endDate, ...rest } = parsed.data;
@@ -224,24 +326,44 @@ export async function getOffersHistory(req: AuthRequest, res: Response) {
 
 // ─── Banners ──────────────────────────────────────────────────────────────────
 
+const bannerSchema = z.object({
+  title: z.string({ required_error: 'Add a title for the banner.' }).trim().min(1, 'Add a title for the banner.').max(100, 'The title can be at most 100 characters.'),
+  linkUrl: z.preprocess(blankToUndefined, z.string().trim().max(500, 'The link can be at most 500 characters.')
+    .refine((u) => { try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; } }, 'The link must be a web address starting with http:// or https://.')
+    .optional()),
+  sortOrder: z.preprocess(blankToUndefined, z.coerce.number().int('The order must be a whole number.').min(0, 'The order must be between 0 and 999.').max(999, 'The order must be between 0 and 999.').optional()),
+  storeId: z.preprocess(blankToUndefined, z.string().uuid('Choose a store from the list.').optional()),
+});
+
 export async function createBanner(req: AuthRequest, res: Response) {
-  const { title, linkUrl, sortOrder } = req.body as {
-    title: string; storeId?: string; linkUrl?: string; sortOrder?: number;
-  };
+  const parsed = bannerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    refuse(res, parsed.error);
+    return;
+  }
+  const { title, linkUrl, sortOrder } = parsed.data;
 
   // Store managers can target any of their assigned stores — prefer the
   // store picked in the UI, falling back to their first store if the
   // requested one isn't actually theirs (or none was specified).
-  const requestedBannerStoreId: string | undefined = req.body.storeId;
+  const requestedBannerStoreId = parsed.data.storeId;
   const storeId = req.user!.role === Role.STORE_MANAGER
     ? (requestedBannerStoreId && req.user!.storeIds?.includes(requestedBannerStoreId)
         ? requestedBannerStoreId
         : req.user!.storeIds?.[0] || null)
-    : (req.body.storeId || null);
+    : (requestedBannerStoreId || null);
 
   if (req.user!.role === Role.STORE_MANAGER && !storeId) {
     res.status(403).json({ success: false, error: 'No store assigned to your account' });
     return;
+  }
+
+  if (req.user!.role !== Role.STORE_MANAGER && storeId) {
+    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } });
+    if (!store) {
+      res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' });
+      return;
+    }
   }
 
   if (!req.file) {
@@ -262,7 +384,7 @@ export async function createBanner(req: AuthRequest, res: Response) {
       imageUrl: result.secure_url,
       storeId,
       linkUrl: linkUrl || null,
-      sortOrder: sortOrder ? parseInt(String(sortOrder)) : 0,
+      sortOrder: sortOrder ?? 0,
     },
   });
 
@@ -278,12 +400,21 @@ export async function createBanner(req: AuthRequest, res: Response) {
 export async function getActiveBanners(req: AuthRequest, res: Response) {
   const { storeId } = req.query as { storeId?: string };
 
+  // With a store (the customer and staff apps): the all-store banners plus that store's own.
+  // With none: HQ (web admin) sees every banner so a one-store banner can still be found and removed, and a store
+  // manager sees the all-store banners plus their own stores'. Anyone else gets the all-store banners only.
+  let where: Prisma.BannerWhereInput;
+  if (!storeId && hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    where = { isActive: true };
+  } else if (!storeId && req.user!.role === Role.STORE_MANAGER) {
+    where = { isActive: true, OR: [{ storeId: null }, { storeId: { in: req.user!.storeIds ?? [] } }] };
+  } else {
+    where = { isActive: true, OR: [{ storeId: null }, ...(storeId ? [{ storeId }] : [])] };
+  }
+
   const banners = await prisma.banner.findMany({
-    where: {
-      isActive: true,
-      OR: [{ storeId: null }, ...(storeId ? [{ storeId }] : [])],
-    },
-    orderBy: { sortOrder: 'asc' },
+    where,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   });
 
   res.json({ success: true, data: banners });

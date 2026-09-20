@@ -4,7 +4,8 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getTierBonusRate, updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { pickOffer, percentBonus } from '../utils/offerPick';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
 import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
@@ -101,7 +102,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true },
+      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true },
     }),
   ]);
 
@@ -113,10 +114,6 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
 
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
-    // Pick best offer: category-specific match first, then null-category — both sorted by bonusRate desc
-    const offer = activeOffers.find((o) => o.category === item.category)
-      ?? activeOffers.find((o) => o.category === null);
-    const promoBonus = getTierBonusRate(offer ?? null, customerTier);
     const categoryBonus = categoryRateMap[item.category] ?? 0;
 
     // Per-gallon mode: estimate gallons from store's posted gas price
@@ -126,6 +123,10 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
       : null;
     const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
     const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null && tierGasCpg > 0;
+
+    // Same one-promotion rule as a cashier grant (utils/offerPick.ts): the answer never depends on row order
+    const offer = pickOffer(activeOffers, { storeId: token.storeId, category: item.category, tier: customerTier, purchaseAmount: item.amount, gallons: estimatedGallons });
+    const promoBonus = offer ? percentBonus(offer, customerTier) : 0;
 
     let cashback: number;
     let effectiveRate: number;
@@ -220,7 +221,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true },
+      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true },
     }),
   ]);
 
@@ -235,10 +236,6 @@ export async function selfGrant(req: AuthRequest, res: Response) {
 
   const transactions = await Promise.all(
     items.map(async (item) => {
-      // Pick best offer: category-specific first, then null-category — both sorted by bonusRate desc
-      const offer = activeOffers.find((o) => o.category === item.category)
-        ?? activeOffers.find((o) => o.category === null);
-      const promoBonus = getTierBonusRate(offer ?? null, customerTier);
       const categoryBonus = categoryRateMap[item.category] ?? 0;
 
       // Per-gallon mode: estimate gallons from store's posted gas price
@@ -248,6 +245,10 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         : null;
       const estimatedGallons = storeGasPrice && storeGasPrice > 0 ? item.amount / storeGasPrice : null;
       const usePerGallon = isGasItem && estimatedGallons != null && tierGasCpg != null && tierGasCpg > 0;
+
+      // Same one-promotion rule as a cashier grant (utils/offerPick.ts): the answer never depends on row order
+      const offer = pickOffer(activeOffers, { storeId: token.storeId, category: item.category, tier: customerTier, purchaseAmount: item.amount, gallons: estimatedGallons });
+      const promoBonus = offer ? percentBonus(offer, customerTier) : 0;
 
       let cashbackRate: number;
       let cashbackIssued: number;
