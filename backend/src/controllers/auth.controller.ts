@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../config/prisma';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { audit } from '../utils/audit';
@@ -24,8 +24,11 @@ const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const MAX_FAILURES = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
-async function checkLockout(phone: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({ where: { phone }, select: { lockedUntil: true } });
+// The helpers take a database client so a test can run them inside a transaction it rolls back.
+type LockoutDb = Prisma.TransactionClient;
+
+export async function checkLockout(phone: string, db: LockoutDb = prisma): Promise<string | null> {
+  const user = await db.user.findUnique({ where: { phone }, select: { lockedUntil: true } });
   if (!user?.lockedUntil) return null;
   if (user.lockedUntil > new Date()) {
     const mins = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
@@ -34,11 +37,14 @@ async function checkLockout(phone: string): Promise<string | null> {
   return null;
 }
 
-async function recordFailure(phone: string) {
-  const user = await prisma.user.findUnique({ where: { phone }, select: { failedLoginAttempts: true } });
+export async function recordFailure(phone: string, db: LockoutDb = prisma) {
+  const user = await db.user.findUnique({ where: { phone }, select: { failedLoginAttempts: true, lockedUntil: true } });
   if (!user) return;
-  const count = user.failedLoginAttempts + 1;
-  await prisma.user.update({
+  // A lock that has run out starts a fresh set of tries. The counter used to stay at the limit, so one
+  // wrong PIN after the lock ended locked the account again for another 15 minutes.
+  const lockRanOut = !!user.lockedUntil && user.lockedUntil <= new Date();
+  const count = (lockRanOut ? 0 : user.failedLoginAttempts) + 1;
+  await db.user.update({
     where: { phone },
     data: {
       failedLoginAttempts: count,
@@ -47,8 +53,8 @@ async function recordFailure(phone: string) {
   });
 }
 
-async function clearFailures(phone: string) {
-  await prisma.user.update({
+export async function clearFailures(phone: string, db: LockoutDb = prisma) {
+  await db.user.update({
     where: { phone },
     data: { failedLoginAttempts: 0, lockedUntil: null },
   });
@@ -532,7 +538,8 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
   const newHistory = user.pinHash ? [user.pinHash, ...user.pinHistory].slice(0, 3) : user.pinHistory;
-  await prisma.user.update({ where: { id: userId }, data: { pinHash, pinHistory: newHistory } });
+  // Clearing the lock too: a reset for someone who is locked out has to let them in with the new PIN now
+  await prisma.user.update({ where: { id: userId }, data: { pinHash, pinHistory: newHistory, failedLoginAttempts: 0, lockedUntil: null } });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'RESET_PIN', entity: 'user', entityId: userId,
@@ -732,7 +739,8 @@ export async function resetPin(req: Request, res: Response) {
 
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
   const newHistory = user.pinHash ? [user.pinHash, ...user.pinHistory].slice(0, 3) : user.pinHistory;
-  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory } });
+  // They proved they own the phone, so any lock from earlier wrong tries ends with the reset
+  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory, failedLoginAttempts: 0, lockedUntil: null } });
 
   res.json({ success: true, message: 'PIN reset successfully. You can now log in.' });
 }

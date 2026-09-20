@@ -156,6 +156,7 @@ import {
   getPendingRatings,
   getMyRatingSummary,
 } from '../controllers/leaderboard.controller';
+import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
 import { createNotice, getAllNotices, deactivateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
@@ -269,6 +270,7 @@ router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMI
 router.get('/points/platform-trend', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformTrend);
 router.get('/points/platform-compare', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformCompare);
 router.get('/points/store-health', authenticate, requireRole(Role.SUPER_ADMIN), getStoreHealth);
+router.get('/points/launch-stats', authenticate, requireRole(Role.SUPER_ADMIN), getLaunchStats);
 router.get('/points/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllTransactions);
 router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), exportTransactionsCsv);
 
