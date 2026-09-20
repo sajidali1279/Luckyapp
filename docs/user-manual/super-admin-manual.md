@@ -252,7 +252,7 @@ If an employee is locked out or forgets their PIN:
 4. Confirm and save.
 5. Communicate the temporary PIN to the employee securely.
 
-You can reset, deactivate and assign stores for store managers, employees and customers. Only a Dev Admin can change another Super Admin or a Dev Admin account, and nobody resets their own PIN this way: use **Profile** → **Change PIN**.
+You can reset, deactivate and assign stores for store managers, employees and customers. Only a Dev Admin can change another Super Admin or a Dev Admin account, and nobody resets their own PIN this way: use **Profile** → **Change PIN**. The person is signed out everywhere when you reset their PIN and signs in again with the new one. A reset also clears any lockout.
 
 ### 5.6 Deactivating a Staff Account
 

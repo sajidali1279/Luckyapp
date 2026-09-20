@@ -123,14 +123,13 @@ export default function SuperAdminBilling() {
                         {inv.isPaid && inv.paidAt && (
                           <div style={s.sub}>{new Date(inv.paidAt).toLocaleDateString()}</div>
                         )}
-                        {inv.isPaid && (
-                          <button
-                            style={s.pdfBtn}
-                            onClick={(e) => { e.stopPropagation(); downloadInvoicePdf(inv); }}
-                          >
-                            📄 PDF
-                          </button>
-                        )}
+                        <button
+                          style={s.pdfBtn}
+                          onClick={(e) => { e.stopPropagation(); downloadInvoicePdf(inv); }}
+                          aria-label={`Download the ${periodLabel(inv.period)} invoice as a PDF`}
+                        >
+                          📄 PDF
+                        </button>
                       </div>
                     </TableCell>
                   </TableRow>

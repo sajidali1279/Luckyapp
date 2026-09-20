@@ -615,13 +615,13 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | PATCH | /auth/email | JWT | Any | Save recovery email |
 | POST | /auth/push-token | JWT | Any | Register push notification token |
 | POST | /auth/verify-firebase-reset | JWT | Any | Verify Firebase OTP for PIN reset |
-| POST | /auth/reset-pin | JWT | Any | Reset PIN with reset token |
+| POST | /auth/reset-pin | JWT | Any | Reset PIN with reset token (single use: the token carries a fingerprint of the current PIN; ends that account's other sessions and clears its lockout) |
 | POST | /auth/super-admin | JWT | DEV_ADMIN | Create Super Admin account |
 | POST | /auth/staff | JWT | SUPER_ADMIN | Create employee/manager account |
 | GET | /staff | JWT | SUPER_ADMIN | List all staff |
 | GET | /users/customers | JWT | SUPER_ADMIN | List all customers |
 | PATCH | /users/:userId/toggle-active | JWT | SUPER_ADMIN | Deactivate / reactivate user (only accounts below the caller's role; a Dev Admin may act on any account but their own) |
-| PATCH | /users/:userId/reset-pin | JWT | SUPER_ADMIN | Reset a user's PIN (only accounts below the caller's role; a Dev Admin may act on any account but their own) |
+| PATCH | /users/:userId/reset-pin | JWT | SUPER_ADMIN | Reset a user's PIN (only accounts below the caller's role; a Dev Admin may act on any account but their own; ends that account's other sessions and clears its lockout) |
 | POST | /users/:userId/stores | JWT | SUPER_ADMIN | Add store to user (same role rule) |
 | DELETE | /users/:userId/stores/:storeId | JWT | SUPER_ADMIN | Remove store from user |
 | DELETE | /users/:userId | JWT | DEV_ADMIN | Permanently delete user |
@@ -797,11 +797,15 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | GET | /billing/revenue | JWT | DEV_ADMIN | Dev revenue summary |
 | GET | /billing/analytics | JWT | DEV_ADMIN | Billing analytics |
 | PATCH | /billing/stores/:storeId | JWT | DEV_ADMIN | Update store billing config |
-| POST | /billing/generate-monthly | JWT | DEV_ADMIN | Generate monthly bills |
+| POST | /billing/generate-monthly | JWT | DEV_ADMIN | Make usage bills for one FINISHED month (`?period=YYYY-MM`, default the last finished store month; a month still running or not started is refused). Skips any store that already has its usage bill (an extra charge does not count). Never replaces or deletes. |
+| POST | /billing/generate-all | JWT | DEV_ADMIN | Fill in missing bills: every finished month since each store was created. Only creates; never recalculates, replaces or deletes. |
+| POST | /billing/records/:recordId/recalculate | JWT | DEV_ADMIN | Rebuild ONE unpaid usage bill from its month's approved sales on the plan the bill was made with (`?dryRun=1` only reports current, recalculated and the difference). A paid bill is refused (400). |
 | POST | /billing/stores/:storeId/records | JWT | DEV_ADMIN | Add a manual/custom charge. `:storeId` accepts the literal `chain` as a reserved sentinel, meaning a chain-wide charge billed to the SuperAdmin rather than one store (stored as a null `storeId`) |
 | GET | /billing/extra-charges | JWT | DEV_ADMIN | List manual/custom charges, with the typed reason parsed out as `description` |
-| PATCH | /billing/records/:recordId/paid | JWT | DEV_ADMIN | Mark one charge paid (per-charge, not per-period) |
-| PATCH | /billing/records/:recordId | JWT | DEV_ADMIN | Edit a charge's amount/description |
+| PATCH | /billing/records/:recordId/paid | JWT | DEV_ADMIN | Mark ONE record paid. Body (all optional): `paidOn` (YYYY-MM-DD, not in the future), `method` (CHECK, BANK_TRANSFER, CASH, CARD, OTHER), `note`, `expectedAmount` (409 if the amount changed). 409 if already paid. The payment is kept in the record's `notes.payment`. |
+| PATCH | /billing/records/:recordId/unpaid | JWT | DEV_ADMIN | Undo a payment. Body `{ reason }` (required). The old payment moves to `notes.paymentReversals`. |
+| PATCH | /billing/period/:period/paid | JWT | DEV_ADMIN | Mark every UNPAID record of a month paid, all or nothing. Same body as above plus `expectedTotal` (409 if the unpaid total changed). Returns `{ period, updated, total }`. |
+| PATCH | /billing/records/:recordId | JWT | DEV_ADMIN | Edit an UNPAID charge's amount/description (a paid charge is refused: add a new charge for the difference) |
 | DELETE | /billing/records/:recordId | JWT | DEV_ADMIN | Delete an unpaid charge |
 | GET | /billing/monthly-records | JWT | DEV_ADMIN | All billing records, grouped by period |
 | GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates |
@@ -1266,7 +1270,9 @@ Both `devCut` and `storeCost` are stored on every transaction for audit and bill
 
 ### 17.3 Monthly Bill Generation
 
-DevAdmin triggers `POST /billing/generate-monthly` to create `BillingRecord` entries for all stores for the current period. Records include transaction volumes and subscription fees.
+Bills are per store per FINISHED month on the store calendar (Central time, whatever the server clock). A usage bill is the subscription fee (Monthly or Hybrid plans) plus the dev cut recorded on each approved, non-test sale (cashback x the store's fee at that moment), with a full breakdown in `notes`. The monthly job (`billing-cron.ts`) runs every hour at :05 UTC and once a minute after start-up and is idempotent: it makes any missing usage bill for the last finished month and never changes an existing one. `POST /billing/generate-monthly` and `POST /billing/generate-all` do the same on demand.
+
+Rules kept by every billing route: a bill or extra charge is never deleted or overwritten by a bulk action; a paid record never changes (a correction is a new CUSTOM charge); a CUSTOM extra charge never counts as a usage bill; every action writes an `audit()` entry (`BILLING_GENERATE`, `BILLING_FILL_MISSING`, `BILLING_RECALCULATE`, `BILLING_MARK_PAID`, `BILLING_MARK_PERIOD_PAID`, `BILLING_UNDO_PAID`, `BILLING_CHARGE_ADD`, `BILLING_CHARGE_EDIT`, `BILLING_CHARGE_DELETE`, `BILLING_REPORT_SENT`, `STORE_BILLING_UPDATE`, `DEV_CUT_RATE_UPDATE`). A store's `transactionFeeRate` is capped at 25% (`MAX_STORE_FEE_RATE`); the default for a store added later is `DEFAULT_DEV_CUT_RATE` (10%). `POST /billing/seed-test-data` returns 403 unless the server sets `ALLOW_SEED_TEST_DATA=true`.
 
 ### 17.4 Revenue Analytics
 

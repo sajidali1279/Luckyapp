@@ -41,6 +41,8 @@ export const authApi = {
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
 };
 
+export interface PaymentBody { paidOn?: string; method?: string; note?: string; expectedAmount?: number; expectedTotal?: number }
+
 export const billingApi = {
   getAllStores: () => api.get('/billing/stores'),
   getRevenue: (period?: string) => api.get(`/billing/revenue${period && period !== 'all' ? `?period=${period}` : ''}`),
@@ -49,8 +51,14 @@ export const billingApi = {
   getCashbackHealth: () => api.get('/billing/cashback-health'),
   updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),
-  markPaid: (recordId: string) => api.patch(`/billing/records/${recordId}/paid`),
-  markPeriodPaid: (period: string) => api.patch(`/billing/period/${period}/paid`),
+  /** Marks ONE record paid. The body says how and when, and what amount the person saw (the server refuses if it changed). */
+  markPaid: (recordId: string, body: PaymentBody = {}) => api.patch(`/billing/records/${recordId}/paid`, body),
+  /** The way back from a mistaken payment. The reason is kept in the record's history. */
+  unmarkPaid: (recordId: string, reason: string) => api.patch(`/billing/records/${recordId}/unpaid`, { reason }),
+  /** Marks every UNPAID record of a month paid, all or nothing. */
+  markPeriodPaid: (period: string, body: PaymentBody = {}) => api.patch(`/billing/period/${period}/paid`, body),
+  /** Rebuilds one UNPAID usage bill from its month's sales. dryRun only says what it would become. */
+  recalculateRecord: (recordId: string, dryRun = false) => api.post(`/billing/records/${recordId}/recalculate${dryRun ? '?dryRun=1' : ''}`),
   getTierRates: () => api.get('/billing/tier-rates'),
   updateTierRate: (tier: string, data: { cashbackRate?: number; gasCentsPerGallon?: number | null; pointsThreshold?: number }) =>
     api.put(`/billing/tier-rates/${tier}`, data),

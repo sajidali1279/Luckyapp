@@ -1,7 +1,9 @@
-﻿import { Fragment, useState } from 'react';
+﻿import { Fragment, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { billingApi } from '../services/api';
+import { billingApi, type PaymentBody } from '../services/api';
+import { serverMessage } from '../lib/apiError';
+import { storeToday, storeDayLong } from '../lib/storeDates';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -17,7 +19,13 @@ const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as c
 const TIER_EMOJI: Record<string, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
 
 function needsSubscription(type: string) { return type === 'MONTHLY_SUBSCRIPTION' || type === 'HYBRID'; }
-function needsTransactionFee(type: string) { return type === 'PER_TRANSACTION' || type === 'HYBRID'; }
+
+// The most a store's fee can be set to (MAX_STORE_FEE_RATE on the server), so a slip cannot bill 100% of a store's cashback
+const MAX_FEE_PERCENT = 25;
+const PAY_METHODS: [string, string][] = [['CHECK', 'Check'], ['BANK_TRANSFER', 'Bank transfer'], ['CASH', 'Cash'], ['CARD', 'Card'], ['OTHER', 'Other']];
+const METHOD_LABEL: Record<string, string> = Object.fromEntries(PAY_METHODS);
+const PLAN_LABEL: Record<string, string> = { MONTHLY_SUBSCRIPTION: 'Monthly subscription', PER_TRANSACTION: 'Per transaction', HYBRID: 'Hybrid' };
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function downloadBillsCSV(invoices: any[]) {
   const headers = ['Period', 'Stores', 'Transactions', 'Purchase Volume', 'Dev Cut Owed', 'Status', 'Paid At'];
@@ -47,11 +55,22 @@ export default function Billing() {
   const [tab, setTab] = useState<Tab>('monthly');
   const [showSeedConfirm, setShowSeedConfirm] = useState(false);
   const [confirmDeleteChargeId, setConfirmDeleteChargeId] = useState<string | null>(null);
+  // Payments: the box that records how and when a bill was paid, and the way back from a mistake
+  const [payTarget, setPayTarget] = useState<{ title: string; period: string; records: any[]; single: boolean } | null>(null);
+  const [payForm, setPayForm] = useState({ paidOn: '', method: 'CHECK', note: '' });
+  const [undoTarget, setUndoTarget] = useState<any | null>(null);
+  const [recalcTarget, setRecalcTarget] = useState<{ record: any; current: number; recalculated: number; difference: number } | null>(null);
+  const [confirmFill, setConfirmFill] = useState(false);
+  const [confirmNotify, setConfirmNotify] = useState(false);
+  const [feeConfirm, setFeeConfirm] = useState<{ store: any; payload: Record<string, any>; lines: string[] } | null>(null);
+  // A fast double click on a confirm button must send once: the box only locks after the next render, this lock is instant
+  const actionLock = useRef(false);
+  const once = (fn: () => void) => { if (actionLock.current) return; actionLock.current = true; fn(); };
 
   // ── Store billing state ──────────────────────────────────────────────────────
   const [editingStore, setEditingStore] = useState<string | null>(null);
   const [expandedStore, setExpandedStore] = useState<string | null>(null);
-  const [billingForm, setBillingForm] = useState({ billingType: '', subscriptionPrice: '', transactionFeeRate: '' });
+  const [billingForm, setBillingForm] = useState({ billingType: '', subscriptionPrice: '', feePercent: '' });
 
   // ── Monthly billing state ────────────────────────────────────────────────────
   const [selectedPeriod, setSelectedPeriod] = useState('');
@@ -64,8 +83,6 @@ export default function Billing() {
   const billingPendingCount: number = billingPendingData?.data?.data?.count ?? 0;
 
   // ── Settings state ───────────────────────────────────────────────────────────
-  const [editingRate, setEditingRate] = useState(false);
-  const [rateInput, setRateInput] = useState('');
   // Tier rates inline editing: { tier → { cashbackRate: string, gasCentsPerGallon: string } }
   const [tierEdits, setTierEdits] = useState<Record<string, { cashbackRate: string; gasCentsPerGallon: string }>>({});
 
@@ -91,7 +108,7 @@ export default function Billing() {
     enabled: tab === 'settings',
   });
 
-  const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
+  const { data: monthlyData, isLoading: monthlyLoading, isError: monthlyError, refetch: refetchMonthly } = useQuery({
     queryKey: ['monthly-records', selectedPeriod, filterPaid],
     queryFn: () => billingApi.getMonthlyRecords(
       selectedPeriod || undefined,
@@ -102,17 +119,19 @@ export default function Billing() {
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
+  const refreshBilling = () => {
+    qc.invalidateQueries({ queryKey: ['monthly-records'] });
+    qc.invalidateQueries({ queryKey: ['extra-charges'] });
+    qc.invalidateQueries({ queryKey: ['revenue'] });
+    qc.invalidateQueries({ queryKey: ['billing-pending-count'] });
+  };
+
   const updateBilling = useMutation({
     mutationFn: ({ storeId, data }: { storeId: string; data: object }) =>
       billingApi.updateStoreBilling(storeId, data),
     onSuccess: () => { toast.success('Billing updated'); setEditingStore(null); qc.invalidateQueries({ queryKey: ['billing-stores'] }); },
-    onError: () => toast.error('Failed to update billing'),
-  });
-
-  const updateRate = useMutation({
-    mutationFn: (rate: number) => billingApi.updateDevCutRate(rate),
-    onSuccess: () => { toast.success('Dev cut rate updated'); setEditingRate(false); qc.invalidateQueries({ queryKey: ['dev-cut-rate'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
-    onError: () => toast.error('Failed to update rate'),
+    onError: (e) => toast.error(serverMessage(e, 'Failed to update billing')),
+    onSettled: () => { actionLock.current = false; setFeeConfirm(null); },
   });
 
   const updateTierRate = useMutation({
@@ -132,36 +151,78 @@ export default function Billing() {
 
   const generateBills = useMutation({
     mutationFn: () => billingApi.generateMonthlyBilling(selectedPeriod || undefined),
-    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
-    onError: () => toast.error('Failed to generate bills'),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); refreshBilling(); },
+    onError: (e) => toast.error(serverMessage(e, 'Failed to generate bills')),
+    onSettled: () => { actionLock.current = false; },
   });
 
-  const generateAllBills = useMutation({
+  // Only makes bills that do not exist yet; never changes or deletes a bill or a charge
+  const fillMissing = useMutation({
     mutationFn: () => billingApi.generateAllMissingBills(),
-    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); },
-    onError: () => toast.error('Failed to generate all bills'),
+    onSuccess: (res) => { toast.success(res.data?.message || 'Done'); refreshBilling(); },
+    onError: (e) => toast.error(serverMessage(e, 'Failed to fill in the missing bills')),
+    onSettled: () => { actionLock.current = false; setConfirmFill(false); },
   });
 
   const seedData = useMutation({
     mutationFn: () => billingApi.seedTestData(),
     onSuccess: (res) => { toast.success(res.data?.message || 'Test data seeded!'); qc.invalidateQueries({ queryKey: ['billing-stores'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
-    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to seed test data'),
+    onError: (e) => toast.error(serverMessage(e, 'Failed to seed test data')),
   });
 
   const sendReport = useMutation({
     mutationFn: () => billingApi.sendReport(selectedPeriod || undefined),
     onSuccess: (res) => toast.success(res.data?.message || 'Report sent'),
-    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to send report'),
+    onError: (e) => toast.error(serverMessage(e, 'Failed to send report')),
+    onSettled: () => { actionLock.current = false; setConfirmNotify(false); },
   });
 
-  const markPeriodPaid = useMutation({
-    mutationFn: (period: string) => billingApi.markPeriodPaid(period),
-    onSuccess: () => { toast.success('Invoice marked as paid'); qc.invalidateQueries({ queryKey: ['monthly-records'] }); qc.invalidateQueries({ queryKey: ['revenue'] }); },
-    onError: () => toast.error('Failed to mark paid'),
+  // One mutation for "this bill" and "this whole month". What the person saw is sent along; if it changed, nothing is marked.
+  const payMutation = useMutation({
+    mutationFn: (v: { kind: 'one' | 'period'; id?: string; period?: string; body: PaymentBody }) =>
+      v.kind === 'one' ? billingApi.markPaid(v.id!, v.body) : billingApi.markPeriodPaid(v.period!, v.body),
+    onSuccess: (res, v) => {
+      const d = res.data?.data;
+      toast.success(v.kind === 'period' ? `${d?.updated ?? 0} marked paid, ${fmt$(d?.total ?? 0)}` : 'Marked paid');
+      refreshBilling();
+    },
+    onError: (e) => { toast.error(serverMessage(e, 'Could not mark it paid')); refreshBilling(); },
+    onSettled: () => { actionLock.current = false; setPayTarget(null); },
   });
+
+  const undoMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => billingApi.unmarkPaid(id, reason),
+    onSuccess: () => { toast.success('Payment undone. The bill is unpaid again.'); refreshBilling(); },
+    onError: (e) => { toast.error(serverMessage(e, 'Could not undo the payment')); refreshBilling(); },
+    onSettled: () => { actionLock.current = false; setUndoTarget(null); },
+  });
+
+  // Recalculate one UNPAID usage bill: first ask what it would become, then confirm
+  const previewRecalc = useMutation({
+    mutationFn: (record: any) => billingApi.recalculateRecord(record.id, true).then((res) => ({ record, ...res.data.data })),
+    onSuccess: (r: any) => { if (Math.abs(r.difference) < 0.005) toast.success('Already up to date: this bill matches its month\'s sales.'); else setRecalcTarget(r); },
+    onError: (e) => toast.error(serverMessage(e, 'Could not check the bill')),
+  });
+  const recalcMutation = useMutation({
+    mutationFn: (id: string) => billingApi.recalculateRecord(id, false),
+    onSuccess: (res) => { const d = res.data.data; toast.success(`Recalculated: ${fmt$(d.current)} to ${fmt$(d.recalculated)}`); refreshBilling(); },
+    onError: (e) => { toast.error(serverMessage(e, 'Could not recalculate the bill')); refreshBilling(); },
+    onSettled: () => { actionLock.current = false; setRecalcTarget(null); },
+  });
+
+  function openPay(title: string, period: string, records: any[], single: boolean) {
+    setPayForm({ paidOn: storeToday(), method: 'CHECK', note: '' });
+    setPayTarget({ title, period, records, single });
+  }
+  function confirmPay() {
+    if (!payTarget) return;
+    const body: PaymentBody = { paidOn: payForm.paidOn || undefined, method: payForm.method, note: payForm.note.trim() || undefined };
+    if (payTarget.single) once(() => payMutation.mutate({ kind: 'one', id: payTarget.records[0].id, body: { ...body, expectedAmount: payTarget.records[0].amount } }));
+    else once(() => payMutation.mutate({ kind: 'period', period: payTarget.period, body: { ...body, expectedTotal: round2(payTarget.records.reduce((sum: number, r: any) => sum + r.amount, 0)) } }));
+  }
 
   // ── Manual charge state ───────────────────────────────────────────────────────
-  const [manualForm, setManualForm] = useState({ storeId: '', amount: '', description: '', period: new Date().toISOString().slice(0, 7) });
+  const [manualForm, setManualForm] = useState({ storeId: '', amount: '', description: '', period: storeToday().slice(0, 7) });
   const [manualDone, setManualDone] = useState<any>(null);
   // Extra charges list filters
   const [ecStoreFilter, setEcStoreFilter] = useState('');
@@ -223,16 +284,6 @@ export default function Billing() {
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to delete'),
   });
 
-  const markChargePaid = useMutation({
-    mutationFn: (id: string) => billingApi.markPaid(id),
-    onSuccess: () => {
-      toast.success('Marked as paid');
-      qc.invalidateQueries({ queryKey: ['extra-charges'] });
-      qc.invalidateQueries({ queryKey: ['monthly-records'] });
-    },
-    onError: () => toast.error('Failed to mark paid'),
-  });
-
   const stores = data?.data?.data || [];
   const revenue = revenueData?.data?.data;
   const devCutRate = devCutData?.data?.data?.rate ?? 0.02;
@@ -261,11 +312,12 @@ export default function Billing() {
   function startEdit(store: any) {
     setEditingStore(store.id);
     setExpandedStore(store.id);
-    setBillingForm({ billingType: store.billingType, subscriptionPrice: String(store.subscriptionPrice), transactionFeeRate: String(store.transactionFeeRate) });
+    setBillingForm({ billingType: store.billingType, subscriptionPrice: String(store.subscriptionPrice), feePercent: String(parseFloat((store.transactionFeeRate * 100).toFixed(2))) });
   }
 
-  function saveEdit(storeId: string) {
-    const { billingType, subscriptionPrice, transactionFeeRate } = billingForm;
+  // Checks the form, then shows exactly what will change before anything is saved
+  function saveEdit(store: any) {
+    const { billingType, subscriptionPrice, feePercent } = billingForm;
     if (!billingType) { toast.error('Billing type is required'); return; }
     const payload: Record<string, any> = { billingType };
     if (needsSubscription(billingType)) {
@@ -273,18 +325,16 @@ export default function Billing() {
       if (isNaN(price) || price <= 0) { toast.error('Enter a valid monthly price'); return; }
       payload.subscriptionPrice = price;
     }
-    if (needsTransactionFee(billingType)) {
-      const fee = parseFloat(transactionFeeRate);
-      if (isNaN(fee) || fee < 0 || fee > 1) { toast.error('Transaction fee must be 0–1'); return; }
-      payload.transactionFeeRate = fee;
-    }
-    updateBilling.mutate({ storeId, data: payload });
-  }
-
-  function saveRate() {
-    const rate = parseFloat(rateInput);
-    if (isNaN(rate) || rate < 0 || rate > 0.5) { toast.error('Rate must be between 0 and 0.5 (50%)'); return; }
-    updateRate.mutate(rate);
+    const pct = parseFloat(feePercent);
+    if (isNaN(pct) || pct < 0) { toast.error('Enter the fee as a percent of the cashback, like 10'); return; }
+    if (pct > MAX_FEE_PERCENT) { toast.error(`The fee can be at most ${MAX_FEE_PERCENT}% of the cashback.`); return; }
+    payload.transactionFeeRate = parseFloat((pct / 100).toFixed(4));
+    const lines: string[] = [];
+    if (billingType !== store.billingType) lines.push(`Plan: ${PLAN_LABEL[store.billingType] ?? store.billingType} to ${PLAN_LABEL[billingType] ?? billingType}`);
+    if (payload.subscriptionPrice !== undefined && Math.abs(payload.subscriptionPrice - store.subscriptionPrice) > 0.004) lines.push(`Monthly price: ${fmt$(store.subscriptionPrice)} to ${fmt$(payload.subscriptionPrice)}`);
+    if (Math.abs(payload.transactionFeeRate - store.transactionFeeRate) > 1e-9) lines.push(`Fee: ${fmtPct(store.transactionFeeRate)} to ${fmtPct(payload.transactionFeeRate)} of the cashback`);
+    if (lines.length === 0) { setEditingStore(null); toast('Nothing changed'); return; }
+    setFeeConfirm({ store, payload, lines });
   }
 
   return (
@@ -308,6 +358,98 @@ export default function Billing() {
         danger
         onConfirm={() => { if (confirmDeleteChargeId) deleteCharge.mutate(confirmDeleteChargeId); setConfirmDeleteChargeId(null); }}
         onCancel={() => setConfirmDeleteChargeId(null)}
+      />
+      <ConfirmModal
+        open={!!payTarget}
+        title={payTarget?.single ? 'Record this payment' : `Record payment for ${payTarget?.period ?? ''}`}
+        message={payTarget && (
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontWeight: 800, color: '#111827', marginBottom: 6 }}>{payTarget.title}</div>
+            {payTarget.records.map((r: any) => (
+              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                <span>{r.store?.name ?? 'All stores (chain-wide)'}{r.billingType === 'CUSTOM' ? ` (${r.notes?.description || 'extra charge'})` : ''}</span>
+                <strong>{fmt$(r.amount)}</strong>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontWeight: 800, borderTop: '1px solid #e5e7eb', marginTop: 6, paddingTop: 6 }}>
+              <span>Total</span><span>{fmt$(round2(payTarget.records.reduce((sum: number, r: any) => sum + r.amount, 0)))}</span>
+            </div>
+            <label style={{ ...s.fieldLabel, display: 'block', marginTop: 12 }} htmlFor="pay-date">Payment date</label>
+            <input id="pay-date" type="date" style={s.input} max={storeToday()} value={payForm.paidOn} onChange={(e) => setPayForm((f) => ({ ...f, paidOn: e.target.value }))} />
+            <label style={{ ...s.fieldLabel, display: 'block', marginTop: 8 }} htmlFor="pay-method">How was it paid?</label>
+            <select id="pay-method" style={s.input} value={payForm.method} onChange={(e) => setPayForm((f) => ({ ...f, method: e.target.value }))}>
+              {PAY_METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <label style={{ ...s.fieldLabel, display: 'block', marginTop: 8 }} htmlFor="pay-note">Note (optional)</label>
+            <input id="pay-note" type="text" maxLength={200} style={s.input} placeholder="e.g. check number" value={payForm.note} onChange={(e) => setPayForm((f) => ({ ...f, note: e.target.value }))} />
+            <div style={{ marginTop: 10, fontSize: 13, color: TEXT_MUTED }}>Each bill can be undone later, one at a time, with a reason. Who marked it and when is kept in the Activity Log.</div>
+          </div>
+        )}
+        confirmLabel={payMutation.isPending ? 'Saving…' : `Mark ${fmt$(round2((payTarget?.records ?? []).reduce((sum: number, r: any) => sum + r.amount, 0)))} paid`}
+        busy={payMutation.isPending}
+        onConfirm={confirmPay}
+        onCancel={() => setPayTarget(null)}
+      />
+      <ConfirmModal
+        open={!!undoTarget}
+        title="Undo this payment?"
+        message={undoTarget && (
+          <span>{undoTarget.store?.name ?? 'This charge'}: {fmt$(undoTarget.amount)} for {undoTarget.period} goes back to unpaid. The old payment stays in its history.</span>
+        )}
+        withInput inputRequired
+        inputLabel="Why is this being undone?"
+        inputPlaceholder="e.g. the check bounced"
+        confirmLabel="Undo payment"
+        danger
+        busy={undoMutation.isPending}
+        onConfirm={(reason) => { if (undoTarget) once(() => undoMutation.mutate({ id: undoTarget.id, reason: (reason ?? '').trim() })); }}
+        onCancel={() => setUndoTarget(null)}
+      />
+      <ConfirmModal
+        open={!!recalcTarget}
+        title="Recalculate this bill?"
+        message={recalcTarget && (
+          <span>
+            {recalcTarget.record.store?.name}, {recalcTarget.record.period}: it reads {fmt$(recalcTarget.current)} now. Rebuilt from that month's approved sales, on the plan it was made with,
+            it would be <strong>{fmt$(recalcTarget.recalculated)}</strong> ({recalcTarget.difference > 0 ? '+' : ''}{fmt$(recalcTarget.difference)}). Only this unpaid bill changes.
+          </span>
+        )}
+        confirmLabel="Recalculate"
+        busy={recalcMutation.isPending}
+        onConfirm={() => { if (recalcTarget) once(() => recalcMutation.mutate(recalcTarget.record.id)); }}
+        onCancel={() => setRecalcTarget(null)}
+      />
+      <ConfirmModal
+        open={confirmFill}
+        title="Fill in missing bills?"
+        message="Makes any bill that does not exist yet, for every finished month since each store was created. It never changes or deletes a bill or a charge that already exists, and a month that is still running is left for after it ends."
+        confirmLabel="Fill in missing bills"
+        busy={fillMissing.isPending}
+        onConfirm={() => once(() => fillMissing.mutate())}
+        onCancel={() => setConfirmFill(false)}
+      />
+      <ConfirmModal
+        open={confirmNotify}
+        title="Notify every Super Admin?"
+        message={`Sends the ${selectedPeriod || 'last month'} billing report now: every Super Admin gets a push notification and, if they have an email, the invoices for their stores.`}
+        confirmLabel="Send now"
+        busy={sendReport.isPending}
+        onConfirm={() => once(() => sendReport.mutate())}
+        onCancel={() => setConfirmNotify(false)}
+      />
+      <ConfirmModal
+        open={!!feeConfirm}
+        title={`Change billing for ${feeConfirm?.store?.name ?? ''}?`}
+        message={feeConfirm && (
+          <div style={{ textAlign: 'left' }}>
+            {feeConfirm.lines.map((l) => <div key={l} style={{ fontWeight: 700 }}>{l}</div>)}
+            <div style={{ marginTop: 8 }}>This applies to sales from now on. Each sale keeps the fee it was granted at, and a bill that is already made keeps its amount.</div>
+          </div>
+        )}
+        confirmLabel="Save change"
+        busy={updateBilling.isPending}
+        onConfirm={() => { if (feeConfirm) once(() => updateBilling.mutate({ storeId: feeConfirm.store.id, data: feeConfirm.payload })); }}
+        onCancel={() => setFeeConfirm(null)}
       />
       <h1 style={s.title}>💳 Billing</h1>
 
@@ -346,7 +488,7 @@ export default function Billing() {
                 <TableHead style={s.th}>Store</TableHead>
                 <TableHead style={s.th}>Billing Type</TableHead>
                 <TableHead style={s.th}>Monthly Price</TableHead>
-                <TableHead style={s.th}>Tx Fee</TableHead>
+                <TableHead style={s.th}>Fee (of cashback)</TableHead>
                 <TableHead style={s.th}>30-day Volume</TableHead>
                 <TableHead style={s.th}>Avg/Month (90d)</TableHead>
                 <TableHead style={s.th}>Actions</TableHead>
@@ -388,10 +530,11 @@ export default function Billing() {
                       </TableCell>
                       <TableCell style={s.td}>
                         {isEditing ? (
-                          needsTransactionFee(activeType)
-                            ? <input type="number" min="0" max="1" step="0.001" placeholder="e.g. 0.02" value={billingForm.transactionFeeRate} onChange={(e) => setBillingForm((f) => ({ ...f, transactionFeeRate: e.target.value }))} style={s.input} />
-                            : <span style={s.na}> - </span>
-                        ) : needsTransactionFee(store.billingType) ? fmtPct(store.transactionFeeRate) : <span style={s.na}> - </span>}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <input type="number" min="0" max={MAX_FEE_PERCENT} step="0.1" placeholder="e.g. 10" aria-label="Fee, percent of the cashback" value={billingForm.feePercent} onChange={(e) => setBillingForm((f) => ({ ...f, feePercent: e.target.value }))} style={{ ...s.input, width: 80 }} />
+                            <span style={s.na}>%</span>
+                          </span>
+                        ) : fmtPct(store.transactionFeeRate)}
                       </TableCell>
                       <TableCell style={s.td}>
                         <span style={s.volValue}>{fmt$(rev.last30Days.purchaseVolume)}</span>
@@ -404,7 +547,7 @@ export default function Billing() {
                       <TableCell style={s.td}>
                         {isEditing ? (
                           <>
-                            <button style={s.saveBtn} onClick={() => saveEdit(store.id)} disabled={updateBilling.isPending}>{updateBilling.isPending ? '…' : 'Save'}</button>
+                            <button style={s.saveBtn} onClick={() => saveEdit(store)} disabled={updateBilling.isPending}>{updateBilling.isPending ? '…' : 'Save'}</button>
                             <button style={s.cancelBtn} onClick={() => setEditingStore(null)}>Cancel</button>
                           </>
                         ) : <button style={s.editBtn} onClick={() => startEdit(store)}>Edit</button>}
@@ -427,13 +570,6 @@ export default function Billing() {
                               <StatItem label="Transactions" value={rev.last90Days.transactions} />
                               <StatItem label="Avg Monthly Volume" value={fmt$(rev.last90Days.avgMonthlyVolume)} highlight />
                             </div>
-                            {isEditing && (
-                              <div style={{ ...s.statBox, borderColor: PRIMARY, background: '#f0f4ff' }}>
-                                <div style={{ ...s.statBoxLabel, color: PRIMARY }}>💡 Suggested Pricing</div>
-                                <p style={s.suggestionLine}><strong>Flat fee:</strong> {fmt$(rev.last90Days.avgMonthlyVolume)} avg → 1% = {fmt$(rev.last90Days.avgMonthlyVolume * 0.01)}/mo</p>
-                                <p style={s.suggestionLine}><strong>Per-transaction:</strong> ~{rev.last90Days.transactions / 3 | 0} txns/mo → at $0.30 = {fmt$((rev.last90Days.transactions / 3) * 0.30)}/mo</p>
-                              </div>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -469,16 +605,18 @@ export default function Billing() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button style={s.generateBtn} onClick={() => generateBills.mutate()} disabled={generateBills.isPending}>
-                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || 'Current Month'}`}
+              <button style={s.generateBtn} onClick={() => once(() => generateBills.mutate())} disabled={generateBills.isPending || (!!selectedPeriod && selectedPeriod >= storeToday().slice(0, 7))}
+                title="Makes the bills that do not exist yet for a finished month (default: last month). It never changes an existing bill.">
+                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || 'last month'}`}
               </button>
-              <button style={s.backfillBtn} onClick={() => generateAllBills.mutate()} disabled={generateAllBills.isPending}>
-                {generateAllBills.isPending ? '⏳ Recalculating All…' : '🔄 Regenerate All'}
+              <button style={s.backfillBtn} onClick={() => setConfirmFill(true)} disabled={fillMissing.isPending}
+                title="Makes every missing bill for every finished month. It never changes or deletes an existing bill or charge.">
+                {fillMissing.isPending ? '⏳ Filling in…' : '🧩 Fill in missing bills'}
               </button>
               <button style={s.exportBtn} onClick={() => consolidatedInvoices.length ? downloadBillsCSV(consolidatedInvoices) : toast.error('No records to export')} disabled={monthlyLoading}>
                 ⬇️ Export CSV
               </button>
-              <button style={s.sendBtn} onClick={() => sendReport.mutate()} disabled={sendReport.isPending}>
+              <button style={s.sendBtn} onClick={() => setConfirmNotify(true)} disabled={sendReport.isPending}>
                 {sendReport.isPending ? '⏳ Sending…' : '📨 Notify Super Admin'}
               </button>
               {/* Development builds only. On the live site this one click filled the real database with fake sales
@@ -492,11 +630,13 @@ export default function Billing() {
           </div>
 
           <p style={s.monthlyHint}>
-            Each bill is one compound record per store - subscription fee + transaction fee + full cashback breakdown. Rates are captured from actual transaction data so changing rates later won't alter historical bills. "Backfill All Missing" generates every month since each store's creation date.
+            Each bill is one record per store for a finished month (Central time): the subscription fee, if the plan has one, plus the platform fee recorded on each sale, with the full cashback breakdown. Bills are made automatically after a month ends and are never changed or deleted by the buttons on this page. A paid bill never changes: a correction is a new extra charge.
           </p>
 
           {monthlyLoading ? (
             <TableSkeleton columns={7} />
+          ) : monthlyError ? (
+            <ErrorState message="Could not load the bills." onRetry={refetchMonthly} />
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
               <p style={{ margin: 0, color: TEXT_MUTED }}>No billing records for this filter.</p>
@@ -549,7 +689,7 @@ export default function Billing() {
                               onClick={() => setCombinedInvoiceView(inv)}
                             >📄 Invoice</button>
                             {!inv.isPaid && (
-                              <button style={{ ...s.saveBtn, marginRight: 0 }} onClick={() => markPeriodPaid.mutate(inv.period)} disabled={markPeriodPaid.isPending}>
+                              <button style={{ ...s.saveBtn, marginRight: 0 }} onClick={() => openPay(`${inv.period} invoice`, inv.period, inv.stores.filter((r: any) => !r.isPaid), false)} disabled={payMutation.isPending}>
                                 Mark Paid
                               </button>
                             )}
@@ -566,7 +706,7 @@ export default function Billing() {
                               <Table style={{ width: '100%', fontSize: 15 }}>
                                 <TableHeader>
                                   <TableRow>
-                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Status', ''].map((h) => (
+                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Status', 'Actions'].map((h) => (
                                       <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: TEXT_MUTED, fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
                                     ))}
                                   </TableRow>
@@ -599,12 +739,28 @@ export default function Billing() {
                                           <TableCell style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</TableCell>
                                           <TableCell style={s.catTd}>
                                             <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                                            {r.isPaid && (
+                                              <div style={s.cityLabel}>
+                                                {r.paidAt ? storeDayLong(r.paidAt) : ''}{r.notes?.payment?.method ? ` · ${METHOD_LABEL[r.notes.payment.method] ?? r.notes.payment.method}` : ''}{r.notes?.payment?.note ? ` · ${r.notes.payment.note}` : ''}
+                                              </div>
+                                            )}
                                           </TableCell>
                                           <TableCell style={s.catTd}>
-                                            <button
-                                              style={{ padding: '4px 10px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
-                                              onClick={() => setInvoiceView({ record: r, period: inv.period })}
-                                            >📄 Invoice</button>
+                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                              <button
+                                                style={{ padding: '4px 10px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
+                                                onClick={() => setInvoiceView({ record: r, period: inv.period })}
+                                              >📄 Invoice</button>
+                                              {!r.isPaid && (
+                                                <button style={s.rowBtn} onClick={() => openPay(`${r.store?.name ?? 'Chain-wide'} - ${inv.period}`, inv.period, [r], true)} disabled={payMutation.isPending}>Mark paid</button>
+                                              )}
+                                              {!r.isPaid && !isManual && (
+                                                <button style={s.rowBtn} onClick={() => previewRecalc.mutate(r)} disabled={previewRecalc.isPending}>Recalculate</button>
+                                              )}
+                                              {r.isPaid && (
+                                                <button style={{ ...s.rowBtn, color: '#b91c1c', borderColor: '#fca5a5' }} onClick={() => setUndoTarget(r)}>Undo payment</button>
+                                              )}
+                                            </div>
                                           </TableCell>
                                         </TableRow>
                                       );
@@ -695,7 +851,7 @@ export default function Billing() {
             {/* ── Add form ── */}
             <div style={ec.card}>
               <h2 style={ec.cardTitle}>➕ Add Extra Charge</h2>
-              <p style={ec.cardSub}>One-time charges for setup fees, custom work, extra services, or anything outside the standard billing plan.</p>
+              <p style={ec.cardSub}>One-time charges for setup fees, custom work, extra services, or anything outside the standard billing plan. A charge is billed in addition to the store's usage bill for that month; it never replaces it.</p>
 
               {/* Service templates */}
               <div style={ec.templateRow}>
@@ -760,7 +916,7 @@ export default function Billing() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                 <div>
                   <h2 style={{ ...ec.cardTitle, marginBottom: 2 }}>📋 Existing Extra Charges</h2>
-                  <p style={ec.cardSub}>All custom charges across stores. Paid charges cannot be edited or deleted.</p>
+                  <p style={ec.cardSub}>All custom charges across stores. Paid charges cannot be edited or deleted: for a correction, add a new charge.</p>
                 </div>
                 <button style={s.editBtn} onClick={() => refetchCharges()}>↻ Refresh</button>
               </div>
@@ -857,8 +1013,8 @@ export default function Billing() {
                                   <>
                                     <button style={s.editBtn} onClick={() => startEditCharge(charge)}>Edit</button>
                                     <button style={{ ...s.saveBtn, marginRight: 0 }}
-                                      disabled={markChargePaid.isPending}
-                                      onClick={() => markChargePaid.mutate(charge.id)}>
+                                      disabled={payMutation.isPending}
+                                      onClick={() => openPay(charge.description || 'Extra charge', charge.period, [charge], true)}>
                                       Mark Paid
                                     </button>
                                     <button
@@ -977,61 +1133,43 @@ export default function Billing() {
             )}
           </div>
 
-          {/* Dev Cut Rate card */}
+          {/* Default fee card (read only: no bill reads this number; each store has its own fee on the Stores tab) */}
           <div style={s.settingsCard}>
-            <h3 style={s.settingsCardTitle}>💰 Dev Cut Rate (Global Default)</h3>
+            <h3 style={s.settingsCardTitle}>💰 Default fee for new stores</h3>
             <p style={s.settingsCardDesc}>
-              Your cut billed to each store - a % of <strong>total purchase amount</strong> per transaction.
-              Each store can have its own rate (set in the Stores tab). This is the fallback default.
+              The platform fee is a share of the <strong>cashback issued</strong> on each sale, not of the purchase amount. Every store has its own fee
+              (set on the Stores tab) and that is the one billed. A store added later starts at this default. Changing a store's fee never rewrites
+              sales already made or bills already created.
             </p>
 
             <div style={s.rateExampleBox}>
               <div style={s.rateExampleTitle}>How it works on a $20 purchase (Bronze tier, 1% cashback)</div>
               <div style={s.rateExampleRow}>
                 <span>Customer (Bronze tier, 1%) gets</span>
-                <span style={{ color: '#2DC653' }}>= <strong>$0.20</strong> cashback credits</span>
+                <span style={{ color: '#157A3E' }}>= <strong>$0.20</strong> cashback credits</span>
               </div>
               <div style={s.rateExampleRow}>
-                <span>Your dev cut ({fmtPct(rateLoading ? 0.02 : devCutRate)} × $0.20 cashback)</span>
-                <span style={{ color: '#E63946' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.02 : devCutRate))}</strong></span>
+                <span>Platform fee ({fmtPct(rateLoading ? 0.1 : devCutRate)} of the $0.20 cashback)</span>
+                <span style={{ color: '#D62839' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.1 : devCutRate))}</strong></span>
               </div>
               <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #dee2e6' }}>
-                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Store pays you monthly: sum of dev cut per transaction</span>
-                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Cashback is store's loyalty cost (redeemed as free products)</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>The store is billed monthly: the sum of the platform fee recorded on each sale</span>
+                <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Cashback is the store's loyalty cost (redeemed as free products)</span>
               </div>
             </div>
 
             {rateLoading ? (
               <div style={s.loading}>Loading…</div>
-            ) : editingRate ? (
-              <div style={s.rateEditRow}>
-                <input
-                  type="number"
-                  min="0"
-                  max="0.5"
-                  step="0.001"
-                  value={rateInput}
-                  onChange={(e) => setRateInput(e.target.value)}
-                  style={{ ...s.input, width: 120 }}
-                  placeholder="e.g. 0.04"
-                  autoFocus
-                />
-                <span style={{ color: TEXT_MUTED, fontSize: 15 }}>= {rateInput ? fmtPct(parseFloat(rateInput) || 0) : ' - '}</span>
-                <button style={s.saveBtn} onClick={saveRate} disabled={updateRate.isPending}>{updateRate.isPending ? '…' : 'Save'}</button>
-                <button style={s.cancelBtn} onClick={() => setEditingRate(false)}>Cancel</button>
-              </div>
             ) : (
               <div style={s.rateDisplayRow}>
                 <div>
                   <div style={s.rateValue}>{fmtPct(devCutRate)}</div>
-                  <div style={s.rateSub}>current dev cut rate</div>
+                  <div style={s.rateSub}>default for new stores</div>
                 </div>
-                <button
-                  style={s.editBtn}
-                  onClick={() => { setEditingRate(true); setRateInput(String(devCutRate)); }}
-                >
-                  Change Rate
-                </button>
+                <div style={{ ...s.rateSub, textAlign: 'right' }}>
+                  Fees in use today: {Object.entries(stores.reduce((acc: Record<string, number>, st: any) => { const k = fmtPct(st.transactionFeeRate); acc[k] = (acc[k] ?? 0) + 1; return acc; }, {}))
+                    .map(([pct, n]) => `${pct} at ${n} store${n === 1 ? '' : 's'}`).join(', ') || 'none'}
+                </div>
               </div>
             )}
           </div>
@@ -1041,11 +1179,10 @@ export default function Billing() {
             <h3 style={s.settingsCardTitle}>ℹ️ Billing Model</h3>
             <p style={s.settingsCardDesc}>How revenue flows in Lucky Stop:</p>
             <div style={s.infoList}>
-              <InfoItem icon="🏪" text="Stores pay a fixed monthly subscription fee (set per store on the Stores tab)." />
-              <InfoItem icon="💵" text="When an employee grants points, the store 'owes' the cashback amount to the customer." />
-              <InfoItem icon="💰" text={`Dev cut (${fmtPct(devCutRate)} of the cashback issued) is tracked per transaction and billed to the store monthly. Customer always receives their full tier-rate cashback. You earn a slice of the cashback pool - not the full purchase amount.`} />
-              <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken - the cut was already collected at grant time." />
-              <InfoItem icon="📅" text="Use the Monthly Bills tab to generate and track subscription invoices for each store." />
+              <InfoItem icon="🏪" text="Each store is billed a share of the cashback it issues (its fee, set on the Stores tab). A Monthly or Hybrid plan adds a fixed monthly subscription on top." />
+              <InfoItem icon="💵" text="When an employee grants points, the customer earns cashback and the platform fee is recorded on that sale at the store's fee at that moment." />
+              <InfoItem icon="📅" text="Bills are made automatically after each month ends (Central time). The buttons here never change or delete an existing bill or charge, and a paid bill never changes: a correction is a new extra charge." />
+              <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken: the cut was already recorded when the cashback was granted." />
             </div>
           </div>
         </div>
@@ -1138,6 +1275,7 @@ const s: Record<string, React.CSSProperties> = {
   filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginBottom: 4 },
   generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  rowBtn: { padding: '4px 10px', background: '#fff', color: PRIMARY, border: '1px solid #cbd5e1', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   exportBtn: { padding: '10px 20px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   sendBtn: { padding: '10px 20px', background: '#F4A261', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },

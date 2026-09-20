@@ -38,6 +38,19 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Store Requests
   SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#f59e0b', bg: '#f59e0b18', icon: '📋' },
   ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  // Billing
+  BILLING_GENERATE:          { label: 'Make Bills',             color: '#0369a1', bg: '#0369a118', icon: '🧾' },
+  BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#0369a1', bg: '#0369a118', icon: '🧩' },
+  BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#0369a1', bg: '#0369a118', icon: '🔄' },
+  BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#2DC653', bg: '#2DC65318', icon: '💳' },
+  BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#2DC653', bg: '#2DC65318', icon: '💳' },
+  BILLING_UNDO_PAID:         { label: 'Undo Payment',           color: '#E63946', bg: '#E6394618', icon: '↩️' },
+  BILLING_CHARGE_ADD:        { label: 'Add Extra Charge',       color: '#F4A261', bg: '#F4A26118', icon: '➕' },
+  BILLING_CHARGE_EDIT:       { label: 'Edit Extra Charge',      color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
+  BILLING_CHARGE_DELETE:     { label: 'Delete Extra Charge',    color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  BILLING_REPORT_SENT:       { label: 'Billing Report Sent',    color: '#457b9d', bg: '#457b9d18', icon: '📨' },
+  STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
+  DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
   // Labels
   CREATE_LABEL:              { label: 'Create Label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
   UPDATE_LABEL:              { label: 'Update Label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
@@ -203,6 +216,11 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Offers & Banners ──">
             {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','CREATE_BANNER','DELETE_BANNER'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Billing ──">
+            {['BILLING_GENERATE','BILLING_FILL_MISSING','BILLING_RECALCULATE','BILLING_MARK_PAID','BILLING_MARK_PERIOD_PAID','BILLING_UNDO_PAID','BILLING_CHARGE_ADD','BILLING_CHARGE_EDIT','BILLING_CHARGE_DELETE','BILLING_REPORT_SENT','STORE_BILLING_UPDATE','DEV_CUT_RATE_UPDATE'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
