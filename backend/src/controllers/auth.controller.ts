@@ -10,6 +10,8 @@ import { audit } from '../utils/audit';
 import admin from '../config/firebase';
 import cloudinary from '../config/cloudinary';
 import { anonymizeCustomerAccount, excludeDeletedCustomers } from '../utils/accountDeletion';
+import { csvText } from '../utils/csv';
+import { storeDateText } from '../utils/storeTime';
 
 const SALT_ROUNDS = 12;
 
@@ -453,23 +455,18 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   });
   const txMap = Object.fromEntries(txStats.map((r) => [r.customerId, r]));
 
-  function esc(v: string | null | undefined) {
-    const s = String(v ?? '');
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-  }
-
   const header = 'Name,Phone,Credits Balance,Transactions,Total Spent,Status,Fraud Note,Joined';
   const rows = customers.map((c) => {
     const stats = txMap[c.id];
     return [
-      esc(c.name),
-      esc(c.phone),
+      csvText(c.name),
+      csvText(c.phone),
       (c.pointsBalance ?? 0).toFixed(2),
       String(stats?._count.id ?? 0),
       (stats?._sum.purchaseAmount ?? 0).toFixed(2),
       c.isActive ? 'Active' : 'Restricted',
-      esc(c.fraudNote),
-      new Date(c.createdAt).toLocaleDateString('en-US'),
+      csvText(c.fraudNote),
+      storeDateText(new Date(c.createdAt)),
     ].join(',');
   });
 

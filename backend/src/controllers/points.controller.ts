@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { OfferType, ProductCategory, Role, TransactionStatus, Tier } from '@prisma/client';
+import { OfferType, Prisma, ProductCategory, Role, TransactionStatus, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
@@ -11,7 +11,9 @@ import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
 import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, getTierBonusRate, updateCustomerTierIfNeeded } from '../utils/tier';
-import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
+import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
+import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
+import { csvText } from '../utils/csv';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 
@@ -320,25 +322,23 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Normal path: approve and credit balance atomically
+  // Normal path: approve and credit balance atomically, and only if the sale is still waiting
+  // (an admin may have rejected it while the receipt was uploading)
   const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
-  const [updatedTransaction, updatedCustomer] = await prisma.$transaction([
-    prisma.pointsTransaction.update({
-      where: { id: transactionId },
-      data: {
-        status: TransactionStatus.APPROVED,
-        receiptImageUrl: uploadResult.secure_url,
-        receiptImageHash: receiptHash,
-      },
-    }),
-    prisma.user.update({
-      where: { id: transaction.customerId },
-      data: {
-        pointsBalance: { increment: totalPoints },
-        periodPoints:  { increment: totalPoints },
-      },
-    }),
-  ]);
+  const settled = await prisma.$transaction(async (db) => {
+    const customer = await approveAndCredit(db, transaction, TransactionStatus.PENDING, {
+      receiptImageUrl: uploadResult.secure_url,
+      receiptImageHash: receiptHash,
+    });
+    if (!customer) return null;
+    return { customer, sale: await db.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } }) };
+  });
+  if (!settled) {
+    res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+    return;
+  }
+  const updatedTransaction = settled.sale;
+  const updatedCustomer = settled.customer;
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
 
   sendPushToUser(
@@ -472,10 +472,10 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
     }
   }
 
-  await prisma.pointsTransaction.update({
-    where: { id: transactionId },
-    data: { status: TransactionStatus.REJECTED },
-  });
+  if (!(await rejectIfStill(transactionId, TransactionStatus.PENDING))) {
+    res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+    return;
+  }
 
   sendPushToUser(
     transaction.customerId,
@@ -524,26 +524,38 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
   }
 
   // High-value flagged transactions require SUPER_ADMIN to approve — prevents colluding manager sign-off
-  const flags: string[] = transaction.fraudFlags ? JSON.parse(transaction.fraudFlags) : [];
+  let flags: string[] = [];
+  try { flags = transaction.fraudFlags ? JSON.parse(transaction.fraudFlags) : []; } catch { /* unreadable flag text: treat as no flags */ }
   if (action === 'APPROVE' && flags.includes('LARGE_PURCHASE') && !hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     res.status(403).json({ success: false, error: 'Transactions over $800 require Super Admin approval.' });
     return;
   }
 
+  // The receipt is mandatory. A flagged sale exists from the moment the cashier starts the grant, before the
+  // receipt is uploaded, so approving it too early would credit points with nothing to check them against.
+  if (action === 'APPROVE' && !transaction.receiptImageUrl) {
+    res.status(400).json({ success: false, error: 'No receipt has been uploaded for this sale yet. Ask the cashier to upload it before approving.' });
+    return;
+  }
+
   if (action === 'REJECT') {
-    await prisma.pointsTransaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.REJECTED } });
+    if (!(await rejectIfStill(transactionId, TransactionStatus.FLAGGED))) {
+      res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+      return;
+    }
     sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.`, 'POINTS', pointsUrl(transactionId));
     audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'REJECT_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
     res.json({ success: true, message: 'Flagged transaction rejected' });
     return;
   }
 
-  // APPROVE — credit points now
+  // APPROVE — credit points now, once: the update only happens if the sale is still flagged
   const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
-  const [, updatedCustomer] = await prisma.$transaction([
-    prisma.pointsTransaction.update({ where: { id: transactionId }, data: { status: TransactionStatus.APPROVED } }),
-    prisma.user.update({ where: { id: transaction.customerId }, data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } } }),
-  ]);
+  const updatedCustomer = await prisma.$transaction((db) => approveAndCredit(db, transaction, TransactionStatus.FLAGGED));
+  if (!updatedCustomer) {
+    res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+    return;
+  }
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
   sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS', pointsUrl(transactionId));
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
@@ -1053,31 +1065,78 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   res.json({ success: true, message: `${item.title} redeemed`, data: { remainingPts: Math.round((customer.pointsBalance - costInDollars) * 100) } });
 }
 
+// status=NEEDS_REVIEW is the admin's default view: flagged sales first, then sales still waiting for a receipt.
+// It is the same set the sidebar badge counts (PENDING + FLAGGED).
+const NEEDS_REVIEW = 'NEEDS_REVIEW';
+
+// Turns the list / CSV query string into a database filter. The admin page only sends valid values; anything else
+// (a typed URL, a script) gets a clear 400 instead of a database error and a 500.
+function parseTransactionFilters(q: Record<string, unknown>):
+  | { where: Prisma.PointsTransactionWhereInput; needsReview: boolean }
+  | { error: string } {
+  for (const key of ['storeId', 'status', 'category', 'from', 'to']) {
+    if (q[key] !== undefined && typeof q[key] !== 'string') return { error: `"${key}" may be given only once` };
+  }
+  const { storeId, status, category, from, to } = q as Record<string, string | undefined>;
+  const where: Prisma.PointsTransactionWhereInput = {};
+  let needsReview = false;
+
+  if (storeId) where.storeId = storeId;
+  if (status) {
+    if (status === NEEDS_REVIEW) {
+      needsReview = true;
+      where.status = { in: [TransactionStatus.FLAGGED, TransactionStatus.PENDING] };
+    } else if ((Object.values(TransactionStatus) as string[]).includes(status)) {
+      where.status = status as TransactionStatus;
+    } else {
+      return { error: `"status" must be ${[NEEDS_REVIEW, ...Object.values(TransactionStatus)].join(', ')}` };
+    }
+  }
+  if (category) {
+    if (!(Object.values(ProductCategory) as string[]).includes(category)) return { error: `"category" must be ${Object.values(ProductCategory).join(', ')}` };
+    where.category = category as ProductCategory;
+  }
+  const fromDay = from?.slice(0, 10);
+  const toDay = to?.slice(0, 10);
+  if ((fromDay && !isRealDateKey(fromDay)) || (toDay && !isRealDateKey(toDay))) {
+    return { error: '"from" and "to" must be real dates written YYYY-MM-DD' };
+  }
+  if (fromDay || toDay) {
+    const range: Prisma.DateTimeFilter = {};
+    if (fromDay) range.gte = startOfStoreDate(fromDay);
+    if (toDay)   range.lte = endOfStoreDate(toDay);
+    where.createdAt = range;
+  }
+  return { where, needsReview };
+}
+
+function parsePaging(q: Record<string, unknown>): { page: number; take: number; skip: number } | { error: string } {
+  const page = q.page === undefined ? 1 : Number(q.page);
+  const limit = q.limit === undefined ? 25 : Number(q.limit);
+  if (!Number.isInteger(page) || page < 1 || page > 100_000) return { error: '"page" must be a whole number of 1 or more' };
+  if (!Number.isInteger(limit) || limit < 1) return { error: '"limit" must be a whole number of 1 or more' };
+  const take = Math.min(limit, 100);
+  return { page, take, skip: (page - 1) * take };
+}
+
 // SuperAdmin+: all-store transactions with filters
 export async function getAllTransactions(req: AuthRequest, res: Response) {
-  const {
-    storeId, status, category, from, to,
-    page = '1', limit = '25',
-  } = req.query as Record<string, string>;
+  const filters = parseTransactionFilters(req.query);
+  if ('error' in filters) { res.status(400).json({ success: false, error: filters.error }); return; }
+  const paging = parsePaging(req.query);
+  if ('error' in paging) { res.status(400).json({ success: false, error: paging.error }); return; }
+  const { where, needsReview } = filters;
+  const { page, take, skip } = paging;
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const take = Math.min(parseInt(limit), 100);
-
-  const where: Record<string, unknown> = {};
-  if (storeId)  where.storeId  = storeId;
-  if (status)   where.status   = status;
-  if (category) where.category = category;
-  if (from || to) {
-    const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = startOfStoreDate(from.slice(0, 10));
-    if (to)   dateFilter.lte = endOfStoreDate(to.slice(0, 10));
-    where.createdAt = dateFilter;
-  }
+  // Flagged before pending (the status enum sorts PENDING, APPROVED, REJECTED, FLAGGED), newest first within each
+  const orderBy: Prisma.PointsTransactionOrderByWithRelationInput[] = needsReview
+    ? [{ status: 'desc' }, { createdAt: 'desc' }]
+    : [{ createdAt: 'desc' }];
 
   const [transactions, total, aggStats] = await prisma.$transaction([
     prisma.pointsTransaction.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip,
       take,
       include: {
@@ -1097,7 +1156,7 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
     success: true,
     data: {
       transactions, total,
-      page: parseInt(page), limit: take,
+      page, limit: take,
       summary: {
         purchaseVolume: parseFloat((aggStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((aggStats._sum.pointsAwarded ?? 0).toFixed(2)),
@@ -1107,8 +1166,12 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
 }
 
 // SuperAdmin / StoreManager: export transactions as CSV
+// Dates and times are written in the stores' own (Central) time, like every screen, so a late-evening sale is on the
+// right day. Customer-typed text is defused so a spreadsheet never reads it as a formula.
 export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
-  const { storeId, from, to, status, category } = req.query as Record<string, string>;
+  const filters = parseTransactionFilters(req.query);
+  if ('error' in filters) { res.status(400).json({ success: false, error: filters.error }); return; }
+  const storeId = req.query.storeId as string | undefined;
 
   const user = req.user!;
   // StoreManager can only export their own store
@@ -1119,19 +1182,8 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
     }
   }
 
-  const where: Record<string, unknown> = {};
-  if (storeId)  where.storeId  = storeId;
-  if (status)   where.status   = status;
-  if (category) where.category = category;
-  if (from || to) {
-    const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = startOfStoreDate(from.slice(0, 10));
-    if (to)   dateFilter.lte = endOfStoreDate(to.slice(0, 10));
-    where.createdAt = dateFilter;
-  }
-
   const rows = await prisma.pointsTransaction.findMany({
-    where,
+    where: filters.where,
     orderBy: { createdAt: 'desc' },
     take: 10000,
     include: {
@@ -1141,23 +1193,16 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
     },
   });
 
-  const escape = (v: string | null | undefined) => {
-    if (v == null) return '';
-    const s = String(v);
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-
-  const header = 'Date,Time,Store,Customer Name,Customer Phone,Employee Name,Category,Purchase Amount,Points Awarded,Status\n';
+  const header = 'Date (Central),Time (Central),Store,Customer Name,Customer Phone,Employee Name,Category,Purchase Amount,Points Awarded,Status\n';
   const lines = rows.map(t => {
     const d = new Date(t.createdAt);
     return [
-      d.toLocaleDateString('en-US'),
-      d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      escape(t.store.name),
-      escape(t.customer.name),
-      escape(t.customer.phone),
-      escape(t.grantedBy?.name),
+      storeDateText(d),
+      storeTimeText(d),
+      csvText(t.store.name),
+      csvText(t.customer.name),
+      csvText(t.customer.phone),
+      csvText(t.grantedBy?.name),
       t.category,
       Number(t.purchaseAmount).toFixed(2),
       Number(t.pointsAwarded).toFixed(2),
@@ -1165,7 +1210,8 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
     ].join(',');
   }).join('\n');
 
-  const filename = `transactions-${(storeId ? rows[0]?.store?.name?.replace(/\s+/g, '-') ?? 'store' : 'all')}-${new Date().toISOString().slice(0,10)}.csv`;
+  const storePart = storeId ? (rows[0]?.store?.name ?? 'store').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'store' : 'all';
+  const filename = `transactions-${storePart}-${storeDateKey()}.csv`;
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(header + lines);

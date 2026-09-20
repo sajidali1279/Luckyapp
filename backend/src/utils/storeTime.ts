@@ -108,3 +108,24 @@ export function endOfStoreDate(dateKey: string): Date {
   if (!DATE_RE.test(dateKey)) return new Date(NaN);
   return new Date(startOfStoreDate(addStoreDays(dateKey, 1)).getTime() - 1);
 }
+
+/** True for a real calendar date written 'YYYY-MM-DD' ('2026-02-30' is not one). */
+export function isRealDateKey(key: string): boolean {
+  if (!DATE_RE.test(key)) return false;
+  const [y, m, d] = key.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+}
+
+const DATE_TEXT = new Intl.DateTimeFormat('en-US', { timeZone: STORE_TIMEZONE, year: 'numeric', month: 'numeric', day: 'numeric' });
+const TIME_TEXT = new Intl.DateTimeFormat('en-US', { timeZone: STORE_TIMEZONE, hour: 'numeric', minute: '2-digit' });
+
+/** '9/20/2026', the store's calendar date of the instant, for spreadsheets and printouts. */
+export function storeDateText(at: Date): string {
+  return DATE_TEXT.format(at);
+}
+
+/** '9:30 PM', the store's wall-clock time of the instant. Newer ICU puts a narrow no-break space before PM; a plain space is kept for files. */
+export function storeTimeText(at: Date): string {
+  return TIME_TEXT.format(at).replace(/[\u202f\u00a0]/g, ' ');
+}
