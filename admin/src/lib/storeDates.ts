@@ -48,10 +48,66 @@ const timeFormat = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numer
 
 /** '9:30 PM' on the store clock, wherever the admin is opened. Newer browsers put a narrow no-break space before PM; a plain space is used. */
 export function storeTime(at: Date | string): string {
-  return timeFormat.format(new Date(at)).replace(/[\u202f\u00a0]/g, ' ');
+  const d = new Date(at);
+  return isNaN(d.getTime()) ? '' : timeFormat.format(d).replace(/[\u202f\u00a0]/g, ' ');
 }
 
 /** 'Sep 19' for the instant, on the store calendar. */
 export function storeDay(at: Date | string): string {
-  return dayLabel(storeToday(new Date(at)));
+  const d = new Date(at);
+  return isNaN(d.getTime()) ? '' : dayLabel(storeToday(d)); // a missing date reads as blank, it must never take the page down
+}
+
+// ── Promotion dates ────────────────────────────────────────────────────────────
+// A promotion runs from the start of a store day to the end of one. These turn a 'YYYY-MM-DD' pick into the real instant
+// on the Central clock (same method as backend/src/utils/storeTime.ts, so both sides agree, daylight saving included),
+// wherever the admin is opened. A date picked as Sep 21 used to be sent as UTC midnight: 7 pm on Sep 20 in Texas.
+
+const partsFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+});
+
+// Milliseconds to ADD to a UTC instant to get the store wall clock (negative for Central).
+function offsetMsAt(instant: Date): number {
+  const p: Record<string, number> = {};
+  for (const { type, value } of partsFormat.formatToParts(instant)) if (type !== 'literal') p[type] = parseInt(value, 10);
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(instant.getTime() / 1000) * 1000;
+}
+
+/** First instant of the store day 'YYYY-MM-DD'. */
+export function startOfStoreDay(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  const guess = Date.UTC(y, m - 1, d, 0, 0, 0);
+  let utc = guess - offsetMsAt(new Date(guess));
+  const settled = guess - offsetMsAt(new Date(utc)); // the offset can differ near a daylight-saving change; settle it once
+  if (settled !== utc) utc = settled;
+  return new Date(utc);
+}
+
+/** Last millisecond of the store day 'YYYY-MM-DD'. */
+export function endOfStoreDay(key: string): Date {
+  return new Date(startOfStoreDay(addDays(key, 1)).getTime() - 1);
+}
+
+const longDayFormat = new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'short', day: 'numeric', year: 'numeric' });
+
+/** 'Sep 21, 2026' for the instant, on the store calendar. */
+export function storeDayLong(at: Date | string): string {
+  const d = new Date(at);
+  return isNaN(d.getTime()) ? '' : longDayFormat.format(d);
+}
+
+/** 'Sep 21, 12:00 AM' for the instant on the store clock (a plain space before AM or PM). */
+export function storeDayTime(at: Date | string): string {
+  const day = storeDay(at);
+  return day ? `${day}, ${storeTime(at)}` : '';
+}
+
+/** The date one calendar month after the given date, minus a day: a "1 month" promotion that starts on the 20th ends on the 19th. */
+export function monthEnd(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const next = new Date(Date.UTC(y, m, 1, 12)); // first of the month after
+  const last = new Date(Date.UTC(y, m + 1, 0, 12)).getUTCDate(); // days in that month
+  const target = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), Math.min(d, last), 12));
+  return addDays(target.toISOString().slice(0, 10), -1);
 }

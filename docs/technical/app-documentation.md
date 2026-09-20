@@ -520,15 +520,11 @@ let cashbackRate = BASE_RATE (from TierCashbackRate for customer's tier)
 const categoryRate = await prisma.categoryRate.findUnique({ where: { category } })
 cashbackRate += categoryRate?.cashbackRate ?? 0
 
-// 3. Add any active offer bonus rates
-const activeOffers = await getActiveOffersForStore(storeId, category)
-for (const offer of activeOffers) {
-  if (offer.tierBonusRates?.[customer.tier]) {
-    cashbackRate += offer.tierBonusRates[customer.tier]
-  } else if (offer.bonusRate) {
-    cashbackRate += offer.bonusRate
-  }
-}
+// 3. Add the ONE promotion that applies (utils/offerPick.ts). Rule: this category's before an all-category one,
+//    then the store's own before the chain-wide one, then the larger bonus for this sale, then the newer one.
+//    A cents-per-gallon promotion pays cents only (its percentage is ignored).
+const offer = pickOffer(activeOffersForStore, { storeId, category, tier, purchaseAmount, gallons })
+cashbackRate += offer ? percentBonus(offer, customer.tier) : 0
 
 // 4. Calculate points
 const pointsAwarded = purchaseAmount * cashbackRate
@@ -702,6 +698,13 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 
 **Query params for `GET /offers`:**
 - `storeId`: If provided, returns ALL_STORES offers + that store's specific offers. If omitted, returns all (admin use).
+- `includeScheduled=1`: SUPER_ADMIN and above only. Also returns offers that are active but start later (`startDate` in the future), so a scheduled promotion is visible in the admin. Ignored for every other role.
+
+**`GET /banners`:** with `storeId`, the all-store banners plus that store's; with none, SUPER_ADMIN and above get every active banner (one-store banners included), a STORE_MANAGER gets the all-store banners plus their own stores', anyone else the all-store banners only.
+
+**Validation on `POST /offers`** (a 400 answers with a plain sentence in `error` and the zod detail in `details`): the bonus is at most `CASHBACK_RATE_CAP` (10%) and cents per gallon at most 40, because total cashback is capped at 10% of a sale; `endDate` is after `startDate` and not already past; a `SPECIFIC_STORE` offer needs an existing `storeId`; an offer needs a bonus or `dealText`; cents per gallon needs the GAS or DIESEL category and is stored without a percentage; `tierBonusRates` may arrive as a JSON string (multipart). A STORE_MANAGER gets 403 for any cashback (percentage, per-tier or cents per gallon), can post Deals, and on `PATCH` keeps the stored rate (a difference of half a point or less, the mobile form's rounding, is dropped silently; a larger one is refused).
+
+**Rate flags:** `HIGH_CASHBACK_RATE` (above 7.5%) and `CASHBACK_RATE_CAPPED` (above 10%) hold a sale for review only when the tier and category rates alone are that high. When a live promotion lifts the total, the 10% ceiling still applies but the sale is not held.
 
 ### Catalog (Redemption Catalog)
 

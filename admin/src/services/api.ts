@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { refusalText } from '../lib/apiError';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -14,6 +15,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // A refused form can come back as an object of field messages; make it one sentence so no page tries to draw an object
+    const body = error.response?.data;
+    if (body && body.error !== undefined && typeof body.error !== 'string') body.error = refusalText(body.error);
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('luckystop-admin-auth');
@@ -87,6 +91,8 @@ export const offersApi = {
   update: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
   delete: (offerId: string) => api.delete(`/offers/${offerId}`),
   getActive: () => api.get('/offers'),
+  /** Live promotions plus the ones switched on that start later (HQ only), so a scheduled promotion is not invisible. */
+  getLiveAndScheduled: () => api.get('/offers?includeScheduled=1'),
   getHistory: () => api.get('/offers/history'),
 };
 

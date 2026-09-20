@@ -382,57 +382,62 @@ The Transactions page provides export functionality. To export:
 
 ## 8. Offers Management
 
-Offers are promotional deals displayed in the customer-facing App. Customers see active offers in their Offers tab, and the offers affect their cashback rates during qualifying purchases.
+Offers are what customers see in the App's Offers area. There are two kinds. **Promotions** raise a customer's cashback automatically. **Deals** show a price special ("2 for $5") and change no cashback. Super Admins and the Dev Admin post promotions. A Store Manager can post a Deal for their own store, but cannot post or change a cashback promotion.
 
-### 8.1 Viewing Active Offers
+### 8.1 Viewing Offers
 
-Navigate to **Offers** in the sidebar. You will see:
-- **Active offers:** Currently live promotions.
-- **Scheduled offers:** Upcoming promotions (start date in the future).
-- **Expired offers:** Past promotions (for reference and reuse).
+Navigate to **Offers** in the sidebar. The **Promotions** and **Deals** tabs each show:
+- **Live Now:** offers customers can see today.
+- **Scheduled:** offers that are switched on but start on a later day. Each card says when it starts.
+- **Past** (click "Past Promotions" or "Past Deals" to load them): offers that ended or were removed, kept so you can reuse them.
 
-### 8.2 Creating a New Offer
+If nothing is live, the page says so: customers see no promotion until you post one.
 
-1. Navigate to **Offers** → click **New Offer**.
-2. Fill in the offer form:
-   - **Title:** Offer name (displayed to customers).
-   - **Description:** Detailed description (optional).
-   - **Type:** All Stores or Specific Store.
-   - **Store** (if Specific Store): Select the applicable store.
-   - **Category:** (Optional) Restrict the offer to a specific product category.
-   - **Bonus Rate:** The additional cashback percentage for this offer.
-   - **Tier-Based Rates:** (Optional) Set different bonus rates for each tier (Bronze, Silver, Gold, Diamond, Platinum).
-   - **Gas Bonus (cents/gallon):** (Optional) Set a per-gallon gas bonus instead of/in addition to the rate.
-   - **Deal Text:** Short promotional text displayed on the offer card (max 40 characters, e.g., "2 for $5").
-   - **Start Date / End Date:** When the offer is active.
-   - **Offer Image:** (Optional) Upload an image for the offer card.
-3. Click **Create Offer**.
+### 8.2 Posting a Promotion
 
-When you create an offer, **all customers automatically receive a push notification** announcing the new promotion.
+There are three ways, all ending in the same confirmation box:
+- **Templates:** pick one and it fills the Full Form. Check the wording: a promotion applies to a whole category all day, so a template that mentions a brand, a time of day or a minimum purchase promises more than the system checks.
+- **Quick Post:** choose a category, a bonus (a chip or your own number) and a length, then **Review & Post**. It goes to all stores.
+- **Full Form:** choose the category first (**Store-wide** means every category), then the bonus (a percentage, optional per-tier percentages, or cents per gallon for Gas and Diesel), the start and end dates, **All Stores** or one store, an optional title, description and image, and the 21+ restriction.
 
-### 8.3 Editing an Offer
+Limits the page and the server both enforce: a bonus can be at most **10%** (cents per gallon at most **40**), because total cashback is capped at 10% of a sale; the end date must be on or after the start date and not already past.
 
-1. Navigate to **Offers** → click the offer you want to edit.
-2. Click **Edit**.
-3. Modify the desired fields.
-4. Click **Save Changes**.
+Dates are store days in **Central time**, wherever you open the admin: a promotion starts at 12:00 AM on its first day and ends at 11:59 PM on its last. Quick Post lengths count days including today ("1 Week" is seven days).
 
-### 8.4 Deactivating an Offer
+### 8.3 The Confirmation Box
 
-To end an offer early:
-1. Navigate to **Offers** → click the offer.
-2. Click **Deactivate** (or set the offer's end date to now).
+Before anything goes to customers the box shows: what it is, where (all stores or one), when (exact start and end, Central time), an example of what a customer earns, and:
+- **A clash warning** if a live or scheduled promotion covers the same category at an overlapping time. Only one promotion applies to a sale, and the box says which one.
+- **A ceiling note** if some tiers already reach the 10% cap at this size (they then earn 10% in total, less than the full bonus).
+- That **every customer gets a notification** right away.
 
-Deactivated offers no longer appear to customers and no longer apply bonus rates to transactions.
+Nothing is sent until you click **Post now**. A second click while it is sending does nothing.
 
-### 8.5 Reusing an Expired Offer
+### 8.4 Which Promotion Applies to a Sale
 
-The Expired Offers panel allows you to reuse previous promotions:
-1. Navigate to **Offers** → scroll to or filter for Expired Offers.
-2. Click the offer you want to reuse.
-3. Click **Duplicate / Reuse**.
-4. Set new start and end dates and adjust any fields.
-5. Click **Create Offer**.
+Only one promotion applies to a sale. The rule, in order:
+1. A promotion for the sale's category beats an all-category one.
+2. A store's own promotion beats the chain-wide one.
+3. The larger bonus for that sale wins (cents per gallon is compared by what it pays on that sale).
+4. If they are still equal, the newer one wins.
+
+Total cashback (tier rate + category rate + the promotion) never passes 10% of the sale.
+
+### 8.5 Posting a Deal
+
+1. Open the **Deals** tab and click **+ New Deal**.
+2. Enter the item name and the **Deal Text** (at most 40 characters, e.g. "2 for $5"), the dates, where it applies, an optional image, category and 21+ restriction.
+3. Click **Post Deal**, check the confirmation box and click **Post now**.
+
+### 8.6 Removing and Changing an Offer
+
+There is no edit. To end an offer, click **Remove**: it stops right away and moves to Past. To change one, remove it and post a new one, or use **Reuse** on the old one. A new post sends a new notification.
+
+### 8.7 Reusing a Past Promotion
+
+1. Open **Past Promotions** and click **Reuse** on the offer.
+2. The form is filled exactly as before (the same percentage, per-tier rates and 21+ setting) with new dates: today and a month on. A per-tier promotion for Gas or Diesel comes back as its highest rate, because the form has no per-tier boxes for gas.
+3. Adjust anything, then click **Create Offer** and confirm.
 
 ---
 
@@ -440,26 +445,24 @@ The Expired Offers panel allows you to reuse previous promotions:
 
 Banners are promotional images displayed at the top of the customer's home screen in a horizontal scrolling carousel.
 
-### 9.1 Viewing Active Banners
+### 9.1 Viewing Banners
 
-Navigate to **Banners** in the sidebar. You will see all active banners with their title, store association (or "All Stores"), sort order, and image preview.
+Navigate to **Banners** in the sidebar. You see every active banner with its title, its store (or "All Stores") and an image preview, including banners made for a single store. If none is showing, the page says customers see none on Home.
 
 ### 9.2 Creating a New Banner
 
-1. Navigate to **Banners** → click **New Banner**.
+1. Navigate to **Banners** → click **+ New Banner**.
 2. Fill in:
    - **Title:** Banner name (for your reference).
-   - **Image:** Upload the banner image. Recommended dimensions: 1200×400px, JPG or PNG.
-   - **Store:** Select "All Stores" or a specific Lucky Stop location.
-   - **Link URL:** (Optional) A URL to open when a customer taps the banner (e.g., a promotion page).
-   - **Sort Order:** The position of this banner in the carousel (lower numbers appear first).
-3. Click **Create Banner**.
+   - **Link:** (Optional) A web address starting with http:// or https://, shown as a Visit button when a customer taps the banner.
+   - **Apply To:** All Stores or a specific Lucky Stop location.
+   - **Banner Image:** Recommended dimensions: 1200×400px, JPG or PNG.
+3. Click **Upload Banner**. A second click while it uploads does nothing.
 
-### 9.3 Deleting a Banner
+### 9.3 Removing a Banner
 
 1. Navigate to **Banners** → find the banner.
-2. Click **Delete / Deactivate**.
-3. Confirm the deletion.
+2. Click **Remove** and confirm. It disappears from the app right away; to show it again, upload it again.
 
 ---
 

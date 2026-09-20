@@ -7,6 +7,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { serverMessage } from '../lib/apiError';
+import { storeDayLong } from '../lib/storeDates';
 
 export default function Banners() {
   const qc = useQueryClient();
@@ -20,6 +22,7 @@ export default function Banners() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const uploading = useRef(false); // a fast double click must not upload the banner twice
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['banners'],
@@ -45,13 +48,14 @@ export default function Banners() {
       if (fileRef.current) fileRef.current.value = '';
       qc.invalidateQueries({ queryKey: ['banners'] });
     },
-    onError: () => toast.error('Failed to create banner'),
+    onError: (err) => toast.error(serverMessage(err, 'Failed to create banner')),
+    onSettled: () => { uploading.current = false; },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => bannersApi.delete(id),
-    onSuccess: () => { toast.success('Banner deleted'); qc.invalidateQueries({ queryKey: ['banners'] }); },
-    onError: () => toast.error('Failed to delete banner'),
+    onSuccess: () => { toast.success('Banner removed'); qc.invalidateQueries({ queryKey: ['banners'] }); },
+    onError: (err) => toast.error(serverMessage(err, 'Failed to remove the banner')),
   });
 
   function handleCreate(e: React.FormEvent) {
@@ -59,6 +63,8 @@ export default function Banners() {
     if (!title.trim()) { toast.error('Title is required'); return; }
     if (!imageFile) { toast.error('Image is required for banners'); return; }
     if (storeTarget === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
+    if (uploading.current) return;
+    uploading.current = true;
     const fd = new FormData();
     fd.append('title', title.trim());
     fd.append('image', imageFile);
@@ -74,9 +80,9 @@ export default function Banners() {
     <div style={s.container}>
       <ConfirmModal
         open={!!confirmId}
-        title="Delete Banner"
-        message="This banner will be removed from the app immediately. This cannot be undone."
-        confirmLabel="Delete"
+        title="Remove this banner?"
+        message="It disappears from the app right away. To show it again you would upload it again."
+        confirmLabel="Remove"
         danger
         onConfirm={() => { if (confirmId) deleteMutation.mutate(confirmId); setConfirmId(null); }}
         onCancel={() => setConfirmId(null)}
@@ -93,13 +99,13 @@ export default function Banners() {
 
       {showForm && (
         <form style={s.form} onSubmit={handleCreate}>
-          <h3 style={{ margin: '0 0 16px', color: PRIMARY }}>Upload Banner</h3>
+          <h2 style={{ margin: '0 0 16px', color: PRIMARY, fontSize: 17, fontWeight: 800 }}>Upload Banner</h2>
 
-          <label style={s.label}>Title *</label>
-          <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
+          <label style={s.label} htmlFor="banner-title">Title *</label>
+          <input id="banner-title" style={s.input} maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
 
-          <label style={s.label}>Link (optional)</label>
-          <input style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... - shown as a 'Visit' button when tapped in the app" />
+          <label style={s.label} htmlFor="banner-link">Link (optional)</label>
+          <input id="banner-link" style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... - shown as a 'Visit' button when tapped in the app" />
 
           {isStoreManager ? (
             <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
@@ -107,15 +113,15 @@ export default function Banners() {
             </div>
           ) : (
             <>
-              <label style={s.label}>Apply To</label>
-              <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
+              <label style={s.label} htmlFor="banner-scope">Apply To</label>
+              <select id="banner-scope" style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
                 <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
                 <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
               </select>
               {storeTarget === 'SPECIFIC_STORE' && (
                 <>
-                  <label style={s.label}>Select Store *</label>
-                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                  <label style={s.label} htmlFor="banner-store">Select Store *</label>
+                  <select id="banner-store" style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
                     <option value="">-- Choose a store --</option>
                     {stores.map((store: any) => (
                       <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
@@ -126,8 +132,8 @@ export default function Banners() {
             </>
           )}
 
-          <label style={s.label}>Banner Image * (recommended 1200×400px)</label>
-          <input ref={fileRef} type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} style={s.input} required />
+          <label style={s.label} htmlFor="banner-image">Banner Image * (recommended 1200×400px)</label>
+          <input id="banner-image" ref={fileRef} type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} style={s.input} required />
 
           <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Uploading...' : 'Upload Banner'}
@@ -140,7 +146,7 @@ export default function Banners() {
       ) : isError ? (
         <ErrorState message="Failed to load banners." onRetry={refetch} />
       ) : banners.length === 0 ? (
-        <div style={s.empty}>No active banners. Upload one above.</div>
+        <div style={s.empty}>No banners are showing. Customers see none on Home until you upload one.</div>
       ) : (
         <div style={s.list}>
           {banners.map((banner: any) => (
@@ -154,9 +160,9 @@ export default function Banners() {
                     : '🌐 All Stores'}
                 </span>
                 {banner.linkUrl && <span style={s.tagLink}>🔗 Has link</span>}
-                <p style={s.cardDate}>Added {new Date(banner.createdAt).toLocaleDateString()}</p>
+                <p style={s.cardDate}>Added {storeDayLong(banner.createdAt)}</p>
               </div>
-              <button style={s.deleteBtn} onClick={() => setConfirmId(banner.id)}>Delete</button>
+              <button style={s.deleteBtn} onClick={() => setConfirmId(banner.id)} aria-label={`Remove banner ${banner.title}`}>Remove</button>
             </div>
           ))}
         </div>
@@ -166,11 +172,11 @@ export default function Banners() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
+  container: { padding: 'clamp(16px, 4vw, 32px)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  addBtn: { background: '#D62839', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
     background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32,
@@ -184,10 +190,10 @@ const s: Record<string, React.CSSProperties> = {
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
     background: '#fff', borderRadius: 16, overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 20, padding: '14px 18px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 20, padding: '14px 18px',
   },
-  img: { width: 220, height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
-  cardInfo: { flex: 1 },
+  img: { width: 220, maxWidth: '100%', height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
+  cardInfo: { flex: 1, minWidth: 160 },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' },
   cardDate: { color: TEXT_MUTED, fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
   tagAll: { display: 'inline-block', background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },

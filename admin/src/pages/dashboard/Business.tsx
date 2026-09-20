@@ -30,8 +30,12 @@ function rateCell(tier: string, category: string, tierRates: any[], catRates: an
   const tr = tierRates.find((t) => t.tier === tier);
   const tierBase: number = tr?.cashbackRate ?? 0;
   const catBonus: number = catRates.find((c) => c.category === category)?.cashbackRate ?? 0;
-  const offer = chainOffers.find((o) => o.category === category) ?? chainOffers.find((o) => o.category == null) ?? null;
-  const promo: number = offer ? (offer.tierBonusRates?.[tier] ?? offer.bonusRate ?? 0) : 0;
+  // One promotion applies (backend/src/utils/offerPick.ts): this category's before an all-category one, and the larger
+  // bonus when there are two (the newer wins a tie; the list arrives newest first, so the first of equals is kept).
+  const bonusOf = (o: any): number => (o.gasBonusCentsPerGallon != null ? 0 : (o.tierBonusRates?.[tier] ?? o.bonusRate ?? 0));
+  const bestOf = (pool: any[]) => pool.reduce((best: any, o: any) => (best == null || bonusOf(o) > bonusOf(best) ? o : best), null);
+  const offer = bestOf(chainOffers.filter((o) => o.category === category)) ?? bestOf(chainOffers.filter((o) => o.category == null));
+  const promo: number = offer ? bonusOf(offer) : 0;
   const isGas = category === 'GAS' || category === 'DIESEL';
   const cents: number | null = tr?.gasCentsPerGallon ?? null;
 
