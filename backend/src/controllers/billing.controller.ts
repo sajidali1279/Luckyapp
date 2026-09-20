@@ -1358,6 +1358,20 @@ export async function getDevRevenue(req: AuthRequest, res: Response) {
 export async function getAnalytics(req: AuthRequest, res: Response) {
   const { from, to } = req.query as { from?: string; to?: string };
 
+  // Dates are store days written YYYY-MM-DD. Anything else, or a day that does not exist (2026-02-31), is a clear 400
+  // (before: text became a 500 and an impossible date quietly rolled into the next month).
+  const realDay = (k: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k);
+    if (!m) return false;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+  };
+  if ((from && !realDay(from.slice(0, 10))) || (to && !realDay(to.slice(0, 10)))) {
+    res.status(400).json({ success: false, error: '"from" and "to" must be real dates written YYYY-MM-DD' });
+    return;
+  }
+
   const fromDate = from ? startOfStoreDate(from.slice(0, 10)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const toDate   = to   ? endOfStoreDate(to.slice(0, 10))     : new Date();
 
@@ -1365,10 +1379,15 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
     return;
   }
+  if (toDate.getTime() - fromDate.getTime() > 400 * 24 * 60 * 60 * 1000) {
+    res.status(400).json({ success: false, error: 'Choose a range of 400 days or less' });
+    return;
+  }
 
   const [transactions, redemptions] = await Promise.all([
     prisma.pointsTransaction.findMany({
-      where: { status: 'APPROVED', createdAt: { gte: fromDate, lte: toDate } },
+      // Seeded test sales never count toward revenue (the leaderboard already left them out)
+      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate } },
       select: {
         createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
         store: { select: { id: true, name: true } },
