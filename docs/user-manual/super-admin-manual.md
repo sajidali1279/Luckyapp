@@ -248,9 +248,11 @@ If an employee is locked out or forgets their PIN:
 
 1. Navigate to **Staff** → click the staff member's name.
 2. Click **Reset PIN**.
-3. Enter a new temporary 4-digit PIN.
+3. Enter a new temporary 4-digit PIN. Any four digits work.
 4. Confirm and save.
 5. Communicate the temporary PIN to the employee securely.
+
+You can reset, deactivate and assign stores for store managers, employees and customers. Only a Dev Admin can change another Super Admin or a Dev Admin account, and nobody resets their own PIN this way: use **Profile** → **Change PIN**.
 
 ### 5.6 Deactivating a Staff Account
 

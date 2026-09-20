@@ -24,6 +24,9 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CREATE_STAFF:              { label: 'Create Staff',           color: '#9b5de5', bg: '#9b5de518', icon: '👤' },
   TOGGLE_USER:               { label: 'Toggle User',            color: '#E63946', bg: '#E6394618', icon: '🔒' },
   RESET_PIN:                 { label: 'Reset PIN',              color: '#E63946', bg: '#E6394618', icon: '🔑' },
+  CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#9b5de5', bg: '#9b5de518', icon: '🏢' },
+  DELETE_USER:               { label: 'Delete Account',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  DENIED_ACCOUNT_ACTION:     { label: 'Refused (role too low)', color: '#E63946', bg: '#E6394618', icon: '⛔' },
   ADD_STORE:                 { label: 'Add Store Assignment',   color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
   REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#E63946', bg: '#E6394618', icon: '🚫' },
   // Scheduling
@@ -204,7 +207,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Staff & Access ──">
-            {['CREATE_STAFF','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE'].map(k => (
+            {['CREATE_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','DELETE_USER','DENIED_ACCOUNT_ACTION'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

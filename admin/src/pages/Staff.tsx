@@ -7,8 +7,17 @@ import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { serverMessage } from '../lib/apiError';
 
 type Tab = 'list' | 'create';
+
+// Mirrors the server's rule (backend/src/utils/rolePolicy.ts): a Dev Admin manages every account, everyone else only
+// accounts below their own role. The server enforces it either way; this just hides buttons that would be refused.
+const ROLE_RANK: Record<string, number> = { CUSTOMER: 0, EMPLOYEE: 1, STORE_MANAGER: 2, SUPER_ADMIN: 3, DEV_ADMIN: 4 };
+function canManage(viewerRole: string | undefined, targetRole: string): boolean {
+  if (viewerRole === 'DEV_ADMIN') return true;
+  return (ROLE_RANK[viewerRole || ''] ?? -1) > (ROLE_RANK[targetRole] ?? 99);
+}
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:    '#7c3aed',
@@ -95,7 +104,7 @@ export default function Staff() {
   const toggleMutation = useMutation({
     mutationFn: (userId: string) => staffApi.toggleActive(userId),
     onSuccess: () => { toast.success('Updated'); qc.invalidateQueries({ queryKey: ['staff'] }); },
-    onError: () => toast.error('Failed to update'),
+    onError: (err: any) => toast.error(serverMessage(err, 'Failed to update')),
   });
 
   const resetPinMutation = useMutation({
@@ -260,6 +269,7 @@ export default function Staff() {
                       const avatarColor = getAvatarColor(member.name || member.phone, i);
                       const initial = (member.name || member.phone || '?')[0].toUpperCase();
                       const isMe = member.id === user?.id;
+                      const manageable = canManage(user?.role, member.role);
 
                       return (
                         <div key={member.id} style={{ ...s.staffCard, ...(member.isActive ? {} : s.staffCardInactive) }}>
@@ -298,15 +308,17 @@ export default function Staff() {
 
                           {/* Actions */}
                           <div style={s.cardActions}>
-                            <button style={s.actionBtn} onClick={() => { setResetTarget({ id: member.id, name: member.name || member.phone }); setNewPin(''); }}>
-                              🔒 Reset PIN
-                            </button>
-                            {['EMPLOYEE', 'STORE_MANAGER'].includes(member.role) && (
+                            {manageable && !isMe && (
+                              <button style={s.actionBtn} onClick={() => { setResetTarget({ id: member.id, name: member.name || member.phone }); setNewPin(''); }}>
+                                🔒 Reset PIN
+                              </button>
+                            )}
+                            {manageable && ['EMPLOYEE', 'STORE_MANAGER'].includes(member.role) && (
                               <button style={s.actionBtn} onClick={() => openManageStores(member)}>
                                 🏪 Stores
                               </button>
                             )}
-                            {!isMe && (
+                            {manageable && !isMe && (
                               <button
                                 style={{ ...s.actionBtn, ...(member.isActive ? s.actionBtnDanger : s.actionBtnSuccess) }}
                                 onClick={() => toggleMutation.mutate(member.id)}
@@ -321,6 +333,11 @@ export default function Staff() {
                               >
                                 🗑️ Delete
                               </button>
+                            )}
+                            {(isMe || !manageable) && (
+                              <div style={s.lockedNote}>
+                                {isMe ? 'This is your account. Change your PIN from your profile.' : 'Only a Dev Admin can change this account.'}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -708,6 +725,7 @@ const s: Record<string, React.CSSProperties> = {
   cardDivider: { height: 1, background: '#f3f4f6', margin: '0 -4px' },
 
   cardActions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  lockedNote: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' },
   actionBtn: {
     padding: '6px 12px', background: '#f8fafc',
     border: '1.5px solid #e5e7eb', borderRadius: 8,

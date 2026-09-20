@@ -624,9 +624,9 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | POST | /auth/staff | JWT | SUPER_ADMIN | Create employee/manager account |
 | GET | /staff | JWT | SUPER_ADMIN | List all staff |
 | GET | /users/customers | JWT | SUPER_ADMIN | List all customers |
-| PATCH | /users/:userId/toggle-active | JWT | SUPER_ADMIN | Deactivate / reactivate user |
-| PATCH | /users/:userId/reset-pin | JWT | SUPER_ADMIN | Reset a user's PIN |
-| POST | /users/:userId/stores | JWT | SUPER_ADMIN | Add store to user |
+| PATCH | /users/:userId/toggle-active | JWT | SUPER_ADMIN | Deactivate / reactivate user (only accounts below the caller's role; a Dev Admin may act on any account but their own) |
+| PATCH | /users/:userId/reset-pin | JWT | SUPER_ADMIN | Reset a user's PIN (only accounts below the caller's role; a Dev Admin may act on any account but their own) |
+| POST | /users/:userId/stores | JWT | SUPER_ADMIN | Add store to user (same role rule) |
 | DELETE | /users/:userId/stores/:storeId | JWT | SUPER_ADMIN | Remove store from user |
 | DELETE | /users/:userId | JWT | DEV_ADMIN | Permanently delete user |
 
