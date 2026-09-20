@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +13,11 @@ export default function Login() {
   const [showForgot, setShowForgot] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  // The 401 handler sends people here with ?expired=1, so they know why they were signed out
+  const expired = new URLSearchParams(window.location.search).get('expired') === '1';
+
+  useEffect(() => { document.title = 'Sign in | Lucky Stop Admin'; }, []);
 
   function formatPhone(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, 10);
@@ -33,6 +39,7 @@ export default function Login() {
         toast.error('Access denied. Employees and customers use the mobile app.');
         return;
       }
+      queryClient.clear(); // start empty, whatever this tab showed before
       setAuth(user, data.data.token);
       navigate('/');
     } catch (err: any) {
@@ -75,6 +82,15 @@ export default function Login() {
           <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 15, margin: '0 0 28px' }}>
             Sign in to your admin account
           </p>
+
+          {expired && (
+            <div role="status" style={{
+              background: 'rgba(244,162,97,0.14)', border: '1px solid rgba(244,162,97,0.4)', color: '#F4A261',
+              borderRadius: 10, padding: '10px 14px', fontSize: 14, marginBottom: 20, lineHeight: 1.45,
+            }}>
+              Your session ended, so you were signed out. Please sign in again.
+            </div>
+          )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

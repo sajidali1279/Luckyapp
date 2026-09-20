@@ -84,7 +84,9 @@ export default function Dashboard() {
 
       {/* ── Search and quick actions, side by side ── */}
       {isSuperAdmin && (
-        <div className="dash-fade-in" style={{ ...s.toolRow, animationDelay: '5ms' }}>
+        // Above the sections below it: each of them is an animated layer, and a later layer paints over an earlier one,
+        // which hid the search results behind the "Needs your attention" panel.
+        <div className="dash-fade-in" style={{ ...s.toolRow, animationDelay: '5ms', position: 'relative', zIndex: 20 }}>
           <div style={{ flex: '0 1 300px', minWidth: 220 }}><GlobalSearch /></div>
           <QuickActions isDevAdmin={isDevAdmin} />
         </div>

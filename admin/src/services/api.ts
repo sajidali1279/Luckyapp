@@ -18,7 +18,7 @@ api.interceptors.response.use(
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('luckystop-admin-auth');
       if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
+        window.location.href = '/login?expired=1';
       }
     }
     return Promise.reject(error);
@@ -133,6 +133,7 @@ export const pointsApi = {
   getPlatformTrend: (days = 30) => api.get(`/points/platform-trend?days=${days}`),
   getPlatformCompare: (range: string) => api.get(`/points/platform-compare?range=${range}`),
   getStoreHealth: () => api.get('/points/store-health'),
+  getLaunchStats: () => api.get('/points/launch-stats'),
   getAllTransactions: (params: Record<string, string>) =>
     api.get('/points/all', { params }),
   getPendingCount: () => api.get('/points/pending-count'),

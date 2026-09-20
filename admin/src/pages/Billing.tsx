@@ -289,15 +289,17 @@ export default function Billing() {
 
   return (
     <div style={s.container}>
-      <ConfirmModal
-        open={showSeedConfirm}
-        title="Seed Test Data"
-        message="This will add 90 days of random test transactions to the live database. Only use this in a development environment. This cannot be undone."
-        confirmLabel="Seed Data"
-        danger
-        onConfirm={() => { seedData.mutate(); setShowSeedConfirm(false); }}
-        onCancel={() => setShowSeedConfirm(false)}
-      />
+      {import.meta.env.DEV && (
+        <ConfirmModal
+          open={showSeedConfirm}
+          title="Seed Test Data"
+          message="This will add 90 days of random test transactions to the live database. Only use this in a development environment. This cannot be undone."
+          confirmLabel="Seed Data"
+          danger
+          onConfirm={() => { seedData.mutate(); setShowSeedConfirm(false); }}
+          onCancel={() => setShowSeedConfirm(false)}
+        />
+      )}
       <ConfirmModal
         open={!!confirmDeleteChargeId}
         title="Delete Charge"
@@ -479,9 +481,13 @@ export default function Billing() {
               <button style={s.sendBtn} onClick={() => sendReport.mutate()} disabled={sendReport.isPending}>
                 {sendReport.isPending ? '⏳ Sending…' : '📨 Notify Super Admin'}
               </button>
-              <button style={s.clearBtn} onClick={() => setShowSeedConfirm(true)} disabled={seedData.isPending}>
-                {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
-              </button>
+              {/* Development builds only. On the live site this one click filled the real database with fake sales
+                  and gave every real customer fake cashback. */}
+              {import.meta.env.DEV && (
+                <button style={s.clearBtn} onClick={() => setShowSeedConfirm(true)} disabled={seedData.isPending}>
+                  {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
+                </button>
+              )}
             </div>
           </div>
 

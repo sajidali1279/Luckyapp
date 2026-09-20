@@ -1,12 +1,17 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+import { Menu } from 'lucide-react';
 import { useAuthStore } from './store/authStore';
 import { AppSidebar } from './components/AppSidebar';
-import { SidebarInset, SidebarProvider } from './components/ui/sidebar';
+import { SidebarInset, SidebarProvider, useSidebar } from './components/ui/sidebar';
 import { TooltipProvider } from './components/ui/tooltip';
 import PageLoader from './components/PageLoader';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotFound from './components/NotFound';
+import { usePageTitle } from './hooks/usePageTitle';
+import { useIsMobile } from './hooks/use-mobile';
 
 // Eagerly loaded (always needed)
 import Login from './pages/Login';
@@ -52,21 +57,57 @@ const queryClient = new QueryClient();
 
 const ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER', 'EMPLOYEE'];
 
+// On a phone the sidebar is a slide-out panel, and nothing opened it: the menu was unreachable.
+function MobileBar() {
+  const isMobile = useIsMobile();
+  const { toggleSidebar, setOpenMobile } = useSidebar();
+  const { pathname } = useLocation();
+  // Picking a page closes the slide-out menu (it stayed open over the page you just chose)
+  useEffect(() => { setOpenMobile(false); }, [pathname, setOpenMobile]);
+  if (!isMobile) return null;
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', gap: 10,
+      padding: '8px 12px', background: 'oklch(0.16 0.04 245)', color: '#fff',
+    }}>
+      <button
+        type="button"
+        aria-label="Open the menu"
+        onClick={toggleSidebar}
+        style={{
+          width: 40, height: 40, borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)',
+          background: 'transparent', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        }}
+      >
+        <Menu size={22} aria-hidden="true" />
+      </button>
+      <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: 0.2 }}>Lucky Stop Admin</span>
+    </div>
+  );
+}
+
 function ProtectedLayout() {
   const { user } = useAuthStore();
+  const { pathname } = useLocation();
+  usePageTitle();
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   if (user.role === 'EMPLOYEE') return <Navigate to="/employee-portal" replace />;
   return (
     <TooltipProvider delayDuration={0}>
       <SidebarProvider>
+        <a href="#main-content" className="skip-link">Skip to the page content</a>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+          <MobileBar />
           <div style={{
             minHeight: '100%',
             background: 'oklch(0.962 0.005 80)',
           }}>
-            <Outlet />
+            {/* One page failing must not take the sidebar and every other page with it */}
+            <ErrorBoundary resetKey={pathname} onReset={() => queryClient.clear()}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -106,6 +147,7 @@ function SuperAdminOnly() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Suspense fallback={<PageLoader />}>
@@ -161,15 +203,17 @@ export default function App() {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/promotions" element={<BusinessPromotions />} />
               </Route>
+              {/* An address that does not exist says so (signed-out visitors are sent to sign in first) */}
+              <Route path="*" element={<NotFound />} />
             </Route>
             <Route element={<EmployeeLayout />}>
               <Route path="/employee-portal" element={<EmployeePortal />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
         <Toaster position="top-right" />
       </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

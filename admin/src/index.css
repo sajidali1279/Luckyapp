@@ -256,3 +256,26 @@
 .dash-table-row:hover {
   background: #f0f4ff;
 }
+
+/* Skip link: hidden until a keyboard user tabs to it, then it jumps past the 30 sidebar links */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 100;
+  background: #1D3557;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 12px;
+}
+
+/* Sidebar group headings were 3.6:1 on the dark background (4.5:1 needed). Unlayered, so it wins over the utility class. */
+[data-sidebar="group-label"] {
+  color: oklch(0.72 0.02 245);
+}

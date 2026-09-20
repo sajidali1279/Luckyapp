@@ -71,14 +71,27 @@ export default function GlobalSearch() {
     setOpen(false);
   }
 
+  // Escape closes the results; the arrow keys move between the box and the results (Enter picks the focused one)
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setOpen(false); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const items = Array.from(containerRef.current?.querySelectorAll<HTMLButtonElement>('button[data-result]') ?? []);
+    if (!items.length) return;
+    e.preventDefault();
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = e.key === 'ArrowDown' ? (at + 1) % items.length : (at <= 0 ? items.length - 1 : at - 1);
+    items[next].focus();
+  }
+
   return (
-    <div ref={containerRef} style={s.wrap}>
+    <div ref={containerRef} style={s.wrap} onKeyDown={onKeyDown}>
       <input
         style={s.input}
         value={query}
         onChange={e => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="🔍 Search customers, staff, stores…"
+        placeholder="Search customers, staff, stores…"
+        aria-label="Search customers, staff and stores"
       />
       {open && active && (
         <div style={s.dropdown}>
@@ -91,7 +104,7 @@ export default function GlobalSearch() {
                 <div style={s.group}>
                   <div style={s.groupLabel}>Customers</div>
                   {customers.map((c: any) => (
-                    <button key={c.id} style={s.resultRow} onClick={() => goCustomer(c.id)}>
+                    <button key={c.id} data-result style={s.resultRow} onClick={() => goCustomer(c.id)}>
                       <span style={s.resultName}>{c.name || 'Unnamed'}</span>
                       <span style={s.resultSub}>{c.phone}</span>
                     </button>
@@ -102,7 +115,7 @@ export default function GlobalSearch() {
                 <div style={s.group}>
                   <div style={s.groupLabel}>Staff</div>
                   {staffResults.map((st: any) => (
-                    <button key={st.id} style={s.resultRow} onClick={() => goStaff(st.name || st.phone)}>
+                    <button key={st.id} data-result style={s.resultRow} onClick={() => goStaff(st.name || st.phone)}>
                       <span style={s.resultName}>{st.name}</span>
                       <span style={s.resultSub}>{st.phone}</span>
                     </button>
@@ -113,7 +126,7 @@ export default function GlobalSearch() {
                 <div style={s.group}>
                   <div style={s.groupLabel}>Stores</div>
                   {storeResults.map((st: any) => (
-                    <button key={st.id} style={s.resultRow} onClick={goStore}>
+                    <button key={st.id} data-result style={s.resultRow} onClick={goStore}>
                       <span style={s.resultName}>{st.name}</span>
                     </button>
                   ))}

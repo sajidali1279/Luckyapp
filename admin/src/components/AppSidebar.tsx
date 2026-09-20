@@ -1,4 +1,5 @@
 ﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useAdminBadges } from '../hooks/useAdminBadges';
 import {
@@ -62,6 +63,11 @@ const ROLE_COLOR: Record<string, string> = {
   STORE_MANAGER: 'oklch(0.58 0.14 145)',
 };
 
+// Visually hidden, still read aloud by screen readers
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0,
+};
+
 type NavItem = {
   to: string;
   icon: React.ReactNode;
@@ -111,6 +117,8 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
           }}
         >
           {badge}
+          {/* A bare number reads as "Transactions 3": say what it counts */}
+          <span style={SR_ONLY}>{badge === 1 ? ' item waiting' : ' items waiting'}</span>
         </SidebarMenuBadge>
       )}
     </SidebarMenuItem>
@@ -120,6 +128,7 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
 export function AppSidebar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -133,10 +142,11 @@ export function AppSidebar() {
     categoriesPendingCount, billingPendingCount,
   } = useAdminBadges();
 
-  function handleLogout() { logout(); navigate('/login'); }
+  // Empty the cache too, so the next person to sign in on this tab never sees the previous session's data
+  function handleLogout() { queryClient.clear(); logout(); navigate('/login'); }
 
   return (
-    <Sidebar collapsible="icon" variant="floating">
+    <Sidebar collapsible="icon" variant="floating" role="complementary" aria-label="Menu and account">
       {/* Brand */}
       <SidebarHeader style={{ padding: '14px 12px 10px' }}>
         <SidebarMenu>
@@ -146,9 +156,9 @@ export function AppSidebar() {
               asChild
               tooltip="Lucky Stop Admin"
               style={{ padding: '6px 8px', borderRadius: 10, cursor: 'pointer' }}
-              onClick={() => navigate('/')}
             >
-              <div>
+              {/* A real link (it was a div with a click handler, so the keyboard could not reach it) */}
+              <NavLink to="/" end aria-label="Lucky Stop Admin, go to the Dashboard">
                 {/* Logo mark */}
                 <div style={{
                   width: 34,
@@ -176,7 +186,7 @@ export function AppSidebar() {
                   </span>
                   <span style={{
                     fontSize: 10.5,
-                    color: 'oklch(0.48 0.022 245)',
+                    color: 'oklch(0.72 0.02 245)',
                     marginTop: 2,
                     fontWeight: 500,
                     letterSpacing: '0.04em',
@@ -184,13 +194,13 @@ export function AppSidebar() {
                     Admin Console
                   </span>
                 </div>
-              </div>
+              </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent style={{
+      <SidebarContent role="navigation" aria-label="Main menu" style={{
         padding: '2px 0',
         scrollbarWidth: 'thin',
         scrollbarColor: 'oklch(0.28 0.045 245) transparent',
@@ -395,7 +405,7 @@ export function AppSidebar() {
                 </div>
                 <div style={{
                   fontSize: 10.5,
-                  color: isActive ? 'oklch(0.97 0.005 27 / 0.7)' : 'oklch(0.48 0.022 245)',
+                  color: isActive ? 'oklch(0.97 0.005 27 / 0.7)' : 'oklch(0.72 0.02 245)',
                   marginTop: 1,
                 }}>
                   {roleLabel}
@@ -424,7 +434,7 @@ export function AppSidebar() {
             border: 'none',
             background: 'transparent',
             cursor: 'pointer',
-            color: 'oklch(0.42 0.022 245)',
+            color: 'oklch(0.72 0.02 245)',
             fontSize: 12.5,
             fontWeight: 500,
             transition: 'color 150ms ease, background 150ms ease',
@@ -436,7 +446,7 @@ export function AppSidebar() {
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.42 0.022 245)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.72 0.02 245)';
           }}
         >
           <LogOut size={13} />

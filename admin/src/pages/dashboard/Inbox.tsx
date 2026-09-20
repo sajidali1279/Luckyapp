@@ -16,7 +16,7 @@ interface Item {
   snoozable?: boolean; onClick?: () => void;
 }
 
-const SEV_COLOR: Record<Sev, string> = { high: '#E63946', med: '#F4A261', low: '#94A3B8' };
+const SEV_COLOR: Record<Sev, string> = { high: '#D62839', med: '#F4A261', low: '#94A3B8' };
 const SEV_RANK: Record<Sev, number> = { high: 0, med: 1, low: 2 };
 const SNOOZE_KEY = 'dash-inbox-snooze';
 const SNOOZE_MS = 7 * 86_400_000;

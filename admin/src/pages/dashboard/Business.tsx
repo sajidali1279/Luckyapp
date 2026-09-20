@@ -51,7 +51,7 @@ function rateCell(tier: string, category: string, tierRates: any[], catRates: an
   return { text: formatRate(rate), title: parts.join(' + ') + (flag === 'cap' ? ' (capped at 10%)' : ''), flag };
 }
 
-const FLAG_COLOR: Record<RateCell['flag'], string> = { none: '#111827', promo: '#157A3E', warn: '#b45309', cap: '#E63946' };
+const FLAG_COLOR: Record<RateCell['flag'], string> = { none: '#111827', promo: '#157A3E', warn: '#b45309', cap: '#D62839' };
 
 function LiveRatesMatrix({ tierRates, catRates, offers }: { tierRates: any[]; catRates: any[]; offers: any[] }) {
   const now = new Date();
@@ -112,7 +112,7 @@ type CashbackStoreHealth = {
 const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; color: string; bg: string; border: string }> = {
   ok:       { label: '✅ OK',       color: '#2DC653', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
   warn:     { label: '⚠️ Warn',     color: '#F4A261', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
-  critical: { label: '🚨 Critical', color: '#E63946', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
+  critical: { label: '🚨 Critical', color: '#D62839', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
 };
 
 function CashbackHealthCard() {

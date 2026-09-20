@@ -12,7 +12,7 @@ import { formatFullCurrency, formatInteger, formatRate } from '../../components/
 import { pointsApi } from '../../services/api';
 import { TEXT_MUTED, PRIMARY } from '../../lib/theme';
 import {
-  s, fmt$, fmtDay, axisMoney, storeColor, storeBadge, MEDALS, agoLabel, since, whenLabel, daysUntil, activate, parseFlags,
+  s, fmt$, fmtDay, axisMoney, storeColor, storeBadge, badgeInk, MEDALS, agoLabel, since, whenLabel, daysUntil, activate, parseFlags,
   FRAUD_FLAG_LABELS, SkeletonBox, SkeletonCards, PanelError, StatCard, SectionHeader, Segmented, Sparkline, Delta,
   readSetting, writeSetting,
 } from './shared';
@@ -21,6 +21,7 @@ import {
   useLabelHealth, useFeed,
 } from './queries';
 import { useAdminBadges } from '../../hooks/useAdminBadges';
+import LaunchTracker from './LaunchTracker';
 
 // ── Range: what the KPIs and the chart cover ─────────────────────────────────
 
@@ -211,12 +212,12 @@ function StoreBoard() {
         return (
           <div key={st.id} style={{ ...s.tile, borderColor: look.border }}>
             <div style={s.tileHead}>
-              <div style={{ ...s.tileBadge, background: storeColor(i) }}>{storeBadge(st.name)}</div>
+              <div style={{ ...s.tileBadge, background: storeColor(i), color: badgeInk(storeColor(i)) }}>{storeBadge(st.name)}</div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={s.tileName}>{st.name}</div>
                 <div style={s.tileCity}>{st.city}</div>
               </div>
-              <span title={look.label} aria-label={look.label} style={{ width: 10, height: 10, borderRadius: '50%', background: look.dot, flexShrink: 0 }} />
+              <span role="img" title={look.label} aria-label={look.label} style={{ width: 10, height: 10, borderRadius: '50%', background: look.dot, flexShrink: 0 }} />
             </div>
             <div style={s.tileBig}>{fmt$(st.todayVolume)}</div>
             <div style={s.tileLine}>
@@ -254,7 +255,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
     >
       <span style={s.storeColName}>
         <span style={s.storeRank}>{i < 3 && !quiet ? MEDALS[i] : `#${i + 1}`}</span>
-        <div style={{ ...s.storeAvatar, background: color }}>{storeBadge(store.name)}</div>
+        <div style={{ ...s.storeAvatar, background: color, color: badgeInk(color) }}>{storeBadge(store.name)}</div>
         <span style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: PRIMARY, fontSize: 14 }}>{store.name}</div>
           <div style={{ fontSize: 13, color: quiet ? '#b45309' : TEXT_MUTED }}>
@@ -328,7 +329,7 @@ function ReviewFeed() {
 
   const money = (n: number) => formatFullCurrency(n);
   const StatusChip = ({ status }: { status: string }) => {
-    const c = { APPROVED: '#157A3E', PENDING: '#B45309', REJECTED: '#5a6472', FLAGGED: '#E63946' }[status] ?? TEXT_MUTED;
+    const c = { APPROVED: '#157A3E', PENDING: '#B45309', REJECTED: '#5a6472', FLAGGED: '#D62839' }[status] ?? TEXT_MUTED;
     const label = { APPROVED: 'Approved', PENDING: 'Pending', REJECTED: 'Rejected', FLAGGED: 'Flagged' }[status] ?? status;
     return <span style={{ ...s.recentStatus, color: c, borderColor: `${c}55` }}>{label}</span>;
   };
@@ -381,7 +382,7 @@ function ReviewFeed() {
                       <div style={s.recentAmount}>{fmt$(tx.purchaseAmount)}</div>
                       <div style={{ display: 'flex', gap: 6, marginTop: 5, justifyContent: 'flex-end' }}>
                         {isFlagged && (
-                          <button style={{ ...s.reviewBtn, borderColor: '#2DC653', background: '#2DC653', color: '#fff' }} onClick={() => setDecision(dec('APPROVE'))}>Approve</button>
+                          <button style={{ ...s.reviewBtn, borderColor: '#157A3E', background: '#157A3E', color: '#fff' }} onClick={() => setDecision(dec('APPROVE'))}>Approve</button>
                         )}
                         <button style={{ ...s.reviewBtn, borderColor: '#F3B1B7', color: '#C62828' }} onClick={() => setDecision(dec('REJECT'))}>Reject</button>
                       </div>
@@ -436,7 +437,7 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
           {liveOffers.slice(0, 4).map((o: any) => {
             const left = daysUntil(o.endDate);
             // Red only when it is actually about to end; a promo with weeks left is not an alarm.
-            const urgency = left <= 2 ? '#E63946' : left <= 7 ? '#B45309' : TEXT_MUTED;
+            const urgency = left <= 2 ? '#D62839' : left <= 7 ? '#B45309' : TEXT_MUTED;
             return (
               <div key={o.id} style={s.offerChip}>
                 <div style={s.offerChipTop}>
@@ -487,8 +488,13 @@ export default function OperationsView() {
 
   return (
     <>
-      {/* ── Range, KPIs and the chart ── */}
+      {/* ── How the launch is going ── */}
       <div className="dash-fade-in" style={{ animationDelay: '0ms' }}>
+        <LaunchTracker />
+      </div>
+
+      {/* ── Range, KPIs and the chart ── */}
+      <div className="dash-fade-in" style={{ animationDelay: '10ms' }}>
         <SectionHeader
           title="Activity"
           subtitle="Compared with the same stretch of the previous period, ending at the same point."

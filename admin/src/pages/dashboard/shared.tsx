@@ -16,9 +16,24 @@ export const CAT_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', OTHER: '🏪',
 };
 
-const AVATAR_PALETTE = ['#E63946', '#457B9D', '#2DC653', '#F4A261', '#7B2FBE', '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653', '#6A0572', PRIMARY];
+const AVATAR_PALETTE = ['#D62839', '#457B9D', '#2DC653', '#F4A261', '#7B2FBE', '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653', '#6A0572', PRIMARY];
 export function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
 export const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Text colour that stays readable (4.5:1) on a coloured badge: white on dark colours, near-black on light ones. */
+export function badgeInk(bg: string): string {
+  const hex = bg.replace('#', '');
+  const n = parseInt(hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex, 16);
+  if (Number.isNaN(n)) return '#ffffff';
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const onWhite = 1.05 / (luminance + 0.05);
+  const onDark = (luminance + 0.05) / (0.0093 + 0.05); // #111827 has a relative luminance of about 0.0093
+  return onWhite >= onDark ? '#ffffff' : '#111827';
+}
 
 // "Lucky Stop #4" -> "4". A name without a number (every store name starts with "Lucky") uses the
 // initials of the words after the first, so "Lucky Truck Stop" -> "TS" instead of the same "L" for all.
@@ -353,7 +368,7 @@ export const s: Record<string, React.CSSProperties> = {
   },
   offerChipTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   offerChipBadge: {
-    fontSize: 11, fontWeight: 800, background: '#E63946', color: '#fff',
+    fontSize: 11, fontWeight: 800, background: '#D62839', color: '#fff',
     borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
   },
   offerChipRate: { fontSize: 14, fontWeight: 900, color: '#157A3E' },
