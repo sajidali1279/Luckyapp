@@ -4,6 +4,7 @@ import { TransactionStatus } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../types';
 import { storeMonthStart } from '../utils/storeTime';
+import { excludeDeletedCustomers } from '../utils/accountDeletion';
 
 // ─── Customer Leaderboard ─────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ export async function getCustomerLeaderboard(req: AuthRequest, res: Response) {
     where: {
       status: TransactionStatus.APPROVED,
       isTestData: false,
+      customer: excludeDeletedCustomers,
       ...(storeId ? { storeId } : {}),
     },
     _sum: { pointsAwarded: true, gasBonusPoints: true },

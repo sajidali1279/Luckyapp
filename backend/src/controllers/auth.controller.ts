@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { audit } from '../utils/audit';
 import admin from '../config/firebase';
 import cloudinary from '../config/cloudinary';
+import { anonymizeCustomerAccount, excludeDeletedCustomers } from '../utils/accountDeletion';
 
 const SALT_ROUNDS = 12;
 
@@ -361,6 +362,7 @@ export async function listCustomers(req: AuthRequest, res: Response) {
 
   const where = {
     role: Role.CUSTOMER,
+    ...excludeDeletedCustomers,
     ...(search ? {
       OR: [
         { phone: { contains: search } },
@@ -419,6 +421,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
 
   const where = {
     role: Role.CUSTOMER,
+    ...excludeDeletedCustomers,
     ...(search ? {
       OR: [
         { phone: { contains: search } },
@@ -814,26 +817,25 @@ export async function deleteOwnAccount(req: AuthRequest, res: Response) {
   }
 
   try {
-    await prisma.$transaction([
-      prisma.userNotification.deleteMany({ where: { userId } }),
-      prisma.pushToken.deleteMany({ where: { userId } }),
-      prisma.catalogRedemption.deleteMany({ where: { customerId: userId } }),
-      prisma.creditRedemption.deleteMany({ where: { customerId: userId } }),
-      prisma.welcomeBonusClaim.deleteMany({ where: { customerId: userId } }),
-      prisma.tierBenefitClaim.deleteMany({ where: { userId } }),
-      prisma.productRequest.deleteMany({ where: { customerId: userId } }),
-      prisma.businessPromotion.deleteMany({ where: { requesterId: userId } }),
-      prisma.employeeRating.deleteMany({ where: { customerId: userId } }),
-      prisma.pointsTransaction.updateMany({
-        where: { customerId: userId },
-        data: { notes: 'ACCOUNT_DELETED' },
-      }),
-      prisma.user.delete({ where: { id: userId } }),
-    ]);
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: `Account deletion failed: ${err?.message ?? 'unknown'}` });
+    // Anonymise instead of deleting the row: transactions, redemptions, ratings and
+    // hot food orders all point at it with RESTRICT foreign keys, so a hard delete
+    // failed for every customer who had ever earned or spent anything.
+    await prisma.$transaction((tx) => anonymizeCustomerAccount(tx, userId));
+  } catch (err) {
+    console.error('[deleteOwnAccount] failed:', err);
+    // No message on purpose: the app falls back to its own translated one, and
+    // database internals never reach the client.
+    res.status(500).json({ success: false });
     return;
   }
 
+  // Best effort, after the account is already gone
+  try {
+    await cloudinary.uploader.destroy(`lucky-stop/avatars/avatar_${userId}`);
+  } catch {
+    // Non-fatal, the customer may never have uploaded a photo
+  }
+
+  audit({ actorId: userId, actorRole: 'CUSTOMER', action: 'DELETE_OWN_ACCOUNT', entity: 'user', entityId: userId });
   res.json({ success: true, message: 'Account deleted' });
 }

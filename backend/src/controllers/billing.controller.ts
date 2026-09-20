@@ -11,6 +11,7 @@ import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUr
 import { sendBillingInvoiceEmail } from '../utils/email';
 import { computeTodayHoursLabel } from '../utils/storeHours';
 import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate } from '../utils/storeTime';
+import { excludeDeletedCustomers } from '../utils/accountDeletion';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -1089,7 +1090,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       where: { status: 'REJECTED', updatedAt: { gte: thirtyDaysAgo } },
     }),
     prisma.user.count({
-      where: { role: 'CUSTOMER', createdAt: { gte: thirtyDaysAgo } },
+      where: { role: 'CUSTOMER', ...excludeDeletedCustomers, createdAt: { gte: thirtyDaysAgo } },
     }),
     prisma.shiftRequest.findMany({
       where: { status: 'PENDING' },

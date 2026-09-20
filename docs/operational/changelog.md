@@ -39,6 +39,7 @@ Labeling rework plus a Spanish and usability pass across the three mobile roles.
 - **Admin** - The SuperAdmin 30-day purchase chart drew only the latest 100 sales, so most of the month looked like $0. It now uses daily totals for the full 30 days.
 - **Admin, Employee, Customer** - "Today" and "this month" (Dashboard, transaction date filters and exports, the Employee of the Month cut-off), the per-day fraud checks, the receipt daily limit and the free daily refill now reset at midnight Central time. They used to reset at 7 pm (6 pm in winter).
 - **Admin, Employee** - A category with no saved cashback rate showed a 5% bonus in Rates and in the cashier's cashback preview, but earns nothing when points are granted. It now shows 0%.
+- **Customer** - Delete My Account failed for any customer who had ever earned or spent credit, because the database refuses to remove an account that transaction records point to. It now works as the privacy policy describes: the customer's personal information is removed and the sign-in stops working at once, while the sale records stay, with no name attached, for the store's billing. The phone number can be used to sign up again. Deleted customers no longer appear in the admin Customers list, its CSV export, the 30-day new-customer count or the Top Customers leaderboard. No app update needed.
 
 ---
 
