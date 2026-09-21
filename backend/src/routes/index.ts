@@ -72,7 +72,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
-import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
+import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -526,6 +526,7 @@ router.delete('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE)
 router.get   ('/store-labels',          authenticate, requireRole(Role.EMPLOYEE), getStoreLabels);
 router.post  ('/store-labels',          authenticate, requireRole(Role.EMPLOYEE), upsertStoreLabel);
 router.patch ('/store-labels/:storeLabelId', authenticate, requireRole(Role.EMPLOYEE), updateStoreLabel);
+router.delete('/store-labels/:storeLabelId', authenticate, requireRole(Role.SUPER_ADMIN), removeStoreLabel);  // Takes a never-printed label out of one store
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison

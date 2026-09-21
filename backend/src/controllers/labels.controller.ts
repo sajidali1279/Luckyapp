@@ -8,8 +8,9 @@ import { resolveEffectivePrice } from '../utils/labelPricing';
 import { hasMinRole } from '../middleware/auth';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { refuse } from '../utils/refusal';
-import { priceField } from '../utils/labelPrice';
+import { priceField, samePrice } from '../utils/labelPrice';
 import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MESSAGE, ITEM_GONE_MESSAGE, barcodeTakenText } from '../utils/labelRules';
+import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -80,7 +81,7 @@ export async function getAllLabels(req: AuthRequest, res: Response) {
     const { storeLabels, ...rest } = label as typeof label & {
       storeLabels: { id: string; priceText: string | null; printedAt: Date | null; everPrinted: boolean; overrideExpiresAt: Date | null }[];
     };
-    const myStoreLabel = storeLabels[0] ?? null;
+    const myStoreLabel = endedSaleView(storeLabels[0] ?? null); // a sale that has ended is over now, not when the 15-minute job gets to it
     const effectivePrice = resolveEffectivePrice(label, myStoreLabel);
     return {
       ...rest,
@@ -121,7 +122,7 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
   });
 
   let data = labels.map((label) => {
-    const storeLabel = label.storeLabels[0] ?? null;
+    const storeLabel = endedSaleView(label.storeLabels[0] ?? null);
     const effectivePrice = resolveEffectivePrice(label, storeLabel);
     return {
       id: label.id,
@@ -393,17 +394,55 @@ export async function deleteLabel(req: AuthRequest, res: Response) {
   res.json({ success: true, data: deleted, removed: impact });
 }
 
+const storeLabelBody = {
+  priceText: priceField.optional().nullable(),
+  // A store day ("2026-09-29", the sale runs to the end of that day) or an exact instant (the phone). Missing keeps the current end,
+  // null clears it.
+  expiresAt: z.string().min(1).optional().nullable(),
+};
+
 const upsertStoreLabelSchema = z.object({
   labelId: z.string().uuid(),
   storeId: z.string().uuid(),
-  priceText: priceField.optional().nullable(),
-  expiresAt: z.string().min(1).optional().nullable(),
+  ...storeLabelBody,
 });
 
-// POST /store-labels — "Add from Catalog." Upserts a store's own copy of a
-// catalog item. Omitting priceText (or passing null) means "use the base
-// price." If the row already exists and the effective price is actually
-// changing, printedAt resets; otherwise it's left alone.
+// The end date of a request: undefined keeps the current end, null clears it, a string is a real end that has not passed yet.
+function requestedEnd(expiresAt: string | null | undefined, now: Date): { end: Date | null | undefined } | { refusal: string } {
+  if (expiresAt === undefined || expiresAt === null) return { end: expiresAt };
+  const parsed = parseSaleEnd(expiresAt, now);
+  return parsed.ok ? { end: parsed.date } : { refusal: parsed.message };
+}
+
+const storeNameOf = async (storeId: string) => (await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }))?.name ?? 'the store';
+
+// Saves a planned store price only if the row still holds the price and end the plan was made from, so a fast double click or two people
+// saving at once record ONE change. If the row moved, the request is planned again against the row as it is now: when that leaves nothing
+// to change, the other save already did it (a repeat); otherwise someone changed it differently and the person is told.
+async function savePlanned(
+  existing: { id: string; priceText: string | null; overrideExpiresAt: Date | null; printedAt: Date | null },
+  label: { priceText: string | null },
+  price: string | null,
+  end: Date | null | undefined,
+  now: Date,
+) {
+  const plan = planPriceSave(label, existing, price, end, now);
+  if (!plan.changed) return { kind: 'same' as const, row: existing };
+  const claimed = await prisma.storeLabel.updateMany({
+    where: { id: existing.id, priceText: existing.priceText, overrideExpiresAt: existing.overrideExpiresAt },
+    data: plan.data,
+  });
+  if (claimed.count > 0) return { kind: 'saved' as const, row: await prisma.storeLabel.findUnique({ where: { id: existing.id } }), plan };
+  const fresh = await prisma.storeLabel.findUnique({ where: { id: existing.id } });
+  if (!fresh) return { kind: 'conflict' as const };
+  return planPriceSave(label, fresh, price, end, now).changed ? { kind: 'conflict' as const } : { kind: 'same' as const, row: fresh };
+}
+
+const CHANGED_UNDERFOOT = 'Someone changed this price a moment ago. Reload the page and look at the price before changing it again.';
+
+// POST /store-labels — "Add from Catalog." Adds a store's own copy of a catalog item, at the base price or, when a price is given, at
+// that store price. Adding what is already there changes nothing (it used to put the base price back over the store's own price).
+// Giving a price for an item the store already has is the same as PATCH /store-labels/:id.
 export async function upsertStoreLabel(req: AuthRequest, res: Response) {
   const parsed = upsertStoreLabelSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
@@ -416,44 +455,65 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
 
   const label = await prisma.label.findUnique({ where: { id: labelId } });
   if (!label) {
-    res.status(404).json({ success: false, error: 'Label not found' });
+    res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });
     return;
   }
 
-  if (expiresAt) {
-    const parsedDate = new Date(expiresAt);
-    if (isNaN(parsedDate.getTime())) {
-      res.status(400).json({ success: false, error: 'Invalid expiresAt date' });
-      return;
-    }
+  const now = new Date();
+  const asked = requestedEnd(expiresAt, now);
+  if ('refusal' in asked) { res.status(400).json({ success: false, error: asked.refusal }); return; }
+
+  const existing = await prisma.storeLabel.findUnique({ where: { labelId_storeId: { labelId, storeId } } });
+  const price = priceText ?? null;
+
+  if (existing && price === null) {
+    res.json({ success: true, data: existing, changed: false });
+    return;
   }
 
-  const existing = await prisma.storeLabel.findUnique({
-    where: { labelId_storeId: { labelId, storeId } },
+  if (!existing) {
+    let created;
+    try {
+      // An expiry only means anything alongside an actual override: never stored against the base price.
+      created = await prisma.storeLabel.create({ data: { labelId, storeId, priceText: price, overrideExpiresAt: price ? (asked.end ?? null) : null } });
+    } catch (err: any) {
+      if (err?.code !== 'P2002') throw err;
+      // Two adds at once: the other one won, and this one is a repeat of it
+      const winner = await prisma.storeLabel.findUnique({ where: { labelId_storeId: { labelId, storeId } } });
+      res.json({ success: true, data: winner, changed: false });
+      return;
+    }
+    if (price !== null) {
+      const storeName = await storeNameOf(storeId);
+      const plan = planPriceSave(label, null, price, asked.end, now);
+      audit({
+        actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+        action: 'STORE_LABEL_PRICE', entity: 'label', entityId: labelId, storeId, storeName,
+        details: { summary: describeStorePrice(label.productName, storeName, plan), productName: label.productName, priceBefore: plan.before.price, priceAfter: plan.after.price, endsAt: plan.after.ends?.toISOString() ?? null },
+      });
+    }
+    res.status(201).json({ success: true, data: created, changed: true });
+    return;
+  }
+
+  const outcome = await savePlanned(existing, label, price, asked.end, now);
+  if (outcome.kind === 'conflict') { res.status(409).json({ success: false, error: CHANGED_UNDERFOOT }); return; }
+  if (outcome.kind === 'same') { res.json({ success: true, data: outcome.row, changed: false }); return; }
+
+  const storeName = await storeNameOf(storeId);
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'STORE_LABEL_PRICE', entity: 'label', entityId: labelId, storeId, storeName,
+    details: { summary: describeStorePrice(label.productName, storeName, outcome.plan), productName: label.productName, priceBefore: outcome.plan.before.price, priceAfter: outcome.plan.after.price, endsAt: outcome.plan.after.ends?.toISOString() ?? null },
   });
-
-  const nextPriceText = priceText ?? null;
-  // An expiry only means anything alongside an actual override — never
-  // persisted against the base price.
-  const nextExpiresAt = nextPriceText && expiresAt ? new Date(expiresAt) : null;
-  const priceIsChanging = !existing || resolveEffectivePrice(label, existing) !== resolveEffectivePrice(label, { priceText: nextPriceText });
-
-  const storeLabel = await prisma.storeLabel.upsert({
-    where: { labelId_storeId: { labelId, storeId } },
-    create: { labelId, storeId, priceText: nextPriceText, overrideExpiresAt: nextExpiresAt },
-    update: priceIsChanging ? { priceText: nextPriceText, overrideExpiresAt: nextExpiresAt, printedAt: null } : { overrideExpiresAt: nextExpiresAt },
-  });
-
-  res.status(existing ? 200 : 201).json({ success: true, data: storeLabel });
+  res.json({ success: true, data: outcome.row, changed: true, needsReprint: outcome.plan.priceChanged });
 }
 
-const updateStoreLabelSchema = z.object({
-  priceText: priceField.optional().nullable(),
-  expiresAt: z.string().min(1).optional().nullable(),
-});
+const updateStoreLabelSchema = z.object(storeLabelBody);
 
-// PATCH /store-labels/:storeLabelId — edit or clear (pass null) one store's
-// own override. Resets that row's own printedAt on any change.
+// PATCH /store-labels/:storeLabelId — set one store's own price (with an end date), or clear it (null) to go back to the base price.
+// Only a real change counts: the same price and end again records nothing and does not flag the label for reprint. The label is flagged
+// only when the price on the shelf really changes. A price sent without an end date keeps the sale's end date; null clears it.
 export async function updateStoreLabel(req: AuthRequest, res: Response) {
   const { storeLabelId } = req.params;
   const parsed = updateStoreLabelSchema.safeParse(req.body);
@@ -461,7 +521,7 @@ export async function updateStoreLabel(req: AuthRequest, res: Response) {
 
   const existing = await prisma.storeLabel.findUnique({ where: { id: storeLabelId } });
   if (!existing) {
-    res.status(404).json({ success: false, error: 'Store label not found' });
+    res.status(404).json({ success: false, error: 'That store label no longer exists. It may have been removed. Reload the page.' });
     return;
   }
   if (!(await canTouchStore(req.user!.id, req.user!.role, existing.storeId))) {
@@ -469,42 +529,81 @@ export async function updateStoreLabel(req: AuthRequest, res: Response) {
     return;
   }
 
-  if (parsed.data.expiresAt) {
-    const parsedDate = new Date(parsed.data.expiresAt);
-    if (isNaN(parsedDate.getTime())) {
-      res.status(400).json({ success: false, error: 'Invalid expiresAt date' });
-      return;
-    }
-  }
+  const now = new Date();
+  const asked = requestedEnd(parsed.data.expiresAt, now);
+  if ('refusal' in asked) { res.status(400).json({ success: false, error: asked.refusal }); return; }
 
-  const nextPriceText = parsed.data.priceText ?? null;
-  const nextExpiresAt = nextPriceText && parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null;
+  const label = await prisma.label.findUnique({ where: { id: existing.labelId } });
+  if (!label) { res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE }); return; }
 
-  const storeLabel = await prisma.storeLabel.update({
-    where: { id: storeLabelId },
-    data: { priceText: nextPriceText, overrideExpiresAt: nextExpiresAt, printedAt: null },
+  const outcome = await savePlanned(existing, label, parsed.data.priceText ?? null, asked.end, now);
+  if (outcome.kind === 'conflict') { res.status(409).json({ success: false, error: CHANGED_UNDERFOOT }); return; }
+  if (outcome.kind === 'same') { res.json({ success: true, data: outcome.row, changed: false }); return; }
+
+  const storeName = await storeNameOf(existing.storeId);
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'STORE_LABEL_PRICE', entity: 'label', entityId: existing.labelId, storeId: existing.storeId, storeName,
+    details: { summary: describeStorePrice(label.productName, storeName, outcome.plan), productName: label.productName, priceBefore: outcome.plan.before.price, priceAfter: outcome.plan.after.price, endsAt: outcome.plan.after.ends?.toISOString() ?? null },
   });
+  res.json({ success: true, data: outcome.row, changed: true, needsReprint: outcome.plan.priceChanged });
+}
 
-  res.json({ success: true, data: storeLabel });
+// DELETE /store-labels/:storeLabelId — HQ only. Takes an item out of ONE store's list, for an item that was added there by mistake (or by
+// "Push to all stores") and never printed. A label that has been printed there stays on record, and the chain-wide item is not touched.
+export async function removeStoreLabel(req: AuthRequest, res: Response) {
+  const { storeLabelId } = req.params;
+  const existing = await prisma.storeLabel.findUnique({ where: { id: storeLabelId }, include: { label: { select: { productName: true } } } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'That label is not in this store any more. Reload the page.' });
+    return;
+  }
+  const storeName = await storeNameOf(existing.storeId);
+  const KEPT = `"${existing.label.productName}" was printed at ${storeName} before, so it stays on record and cannot be removed from this store. Only labels that were never printed there can be removed.`;
+  if (existing.everPrinted) { res.status(409).json({ success: false, error: KEPT }); return; }
+
+  // Decide once: removed only if it is still never printed
+  const removed = await prisma.storeLabel.deleteMany({ where: { id: storeLabelId, everPrinted: false } });
+  if (removed.count === 0) { res.status(409).json({ success: false, error: KEPT }); return; }
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'STORE_LABEL_REMOVED', entity: 'label', entityId: existing.labelId, storeId: existing.storeId, storeName,
+    details: { summary: `Took "${existing.label.productName}" out of ${storeName}'s labels (it was never printed there).`, productName: existing.label.productName },
+  });
+  res.json({ success: true, removed: true });
 }
 
 const printLabelsSchema = z.object({
   items: z.array(z.object({
     storeLabelId: z.string().uuid(),
     quantity: z.number().int().min(1).max(999).default(1),
+    // The price that is on the paper. When it is sent, the label counts as printed only if it is still the store's price (a price changed
+    // while the sheet was printing means the paper is out of date). The phone does not send it yet, and then the check is skipped.
+    printedPrice: priceField.optional(),
   })).min(1),
 });
 
+export interface NotMarked {
+  storeLabelId: string;
+  productName: string | null;
+  reason: 'gone' | 'no_price' | 'price_changed';
+  printedPrice?: string;
+  currentPrice?: string | null;
+}
+
 // POST /labels/print — stamps printedAt on specific StoreLabel rows (not
 // the shared Label anymore), so printing at one store never affects
-// another store's queue.
+// another store's queue. Called after the person confirms the paper came
+// out. Each label is judged on its own: one that is gone, has lost its
+// price, or now has a different price than the one printed is reported in
+// `notMarked` and stays in the queue, and the rest are marked.
 export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   const parsed = printLabelsSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { items } = parsed.data;
   const storeLabelIds = items.map(i => i.storeLabelId);
-  const totalCopies = items.reduce((sum, i) => sum + i.quantity, 0);
 
   const rows = await prisma.storeLabel.findMany({
     where: { id: { in: storeLabelIds } },
@@ -517,26 +616,46 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
     }
   }
 
-  const priceless = rows.filter((r) => resolveEffectivePrice(r.label, r) === null);
-  if (priceless.length > 0) {
-    res.status(400).json({ success: false, error: `${priceless.length} item(s) have no price set and can't be marked printed` });
-    return;
+  const now = new Date();
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const notMarked: NotMarked[] = [];
+  const good: { row: (typeof rows)[number]; quantity: number }[] = [];
+  for (const item of items) {
+    const row = byId.get(item.storeLabelId);
+    if (!row) { notMarked.push({ storeLabelId: item.storeLabelId, productName: null, reason: 'gone' }); continue; }
+    const current = resolveEffectivePrice(row.label, endedSaleView(row, now));
+    if (current === null) { notMarked.push({ storeLabelId: row.id, productName: row.label.productName, reason: 'no_price' }); continue; }
+    if (item.printedPrice !== undefined && !samePrice(item.printedPrice, current)) {
+      notMarked.push({ storeLabelId: row.id, productName: row.label.productName, reason: 'price_changed', printedPrice: item.printedPrice, currentPrice: current });
+      continue;
+    }
+    good.push({ row, quantity: item.quantity });
   }
 
-  await prisma.storeLabel.updateMany({
-    where: { id: { in: storeLabelIds } },
-    data: { printedAt: new Date(), everPrinted: true },
-  });
+  if (good.length > 0) {
+    // A sale that ended a few minutes ago may still be stored as the store's price. It was printed at the base price, so the ended sale
+    // goes with it (otherwise the job that ends sales would flag this fresh print for a reprint).
+    const ended = good.filter((g) => saleEnded(g.row, now)).map((g) => g.row.id);
+    const rest = good.filter((g) => !saleEnded(g.row, now)).map((g) => g.row.id);
+    if (rest.length > 0) await prisma.storeLabel.updateMany({ where: { id: { in: rest } }, data: { printedAt: now, everPrinted: true } });
+    if (ended.length > 0) await prisma.storeLabel.updateMany({ where: { id: { in: ended } }, data: { printedAt: now, everPrinted: true, priceText: null, overrideExpiresAt: null } });
+  }
+  const totalCopies = good.reduce((sum, g) => sum + g.quantity, 0);
 
   const storeId = rows[0]?.storeId ?? req.user!.storeIds?.[0] ?? null;
+  const storeName = storeId ? await storeNameOf(storeId) : null;
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'PRINT_LABEL', entity: 'label',
-    details: { labelCount: storeLabelIds.length, totalCopies, storeLabelIds },
+    details: {
+      summary: `Marked ${good.length} ${good.length === 1 ? 'label' : 'labels'} (${totalCopies} ${totalCopies === 1 ? 'copy' : 'copies'}) as printed${storeName ? ` at ${storeName}` : ''}${notMarked.length ? `; ${notMarked.length} left in the queue` : ''}.`,
+      labelCount: good.length, totalCopies, storeLabelIds: good.map((g) => g.row.id), notMarked: notMarked.length,
+    },
     storeId,
+    storeName,
   });
 
-  res.json({ success: true, data: { printedCount: storeLabelIds.length, totalCopies } });
+  res.json({ success: true, data: { printedCount: good.length, totalCopies, notMarked } });
 }
 
 // GET /labels/lookup?storeId=X&barcode=Y — mobile Price Check. Resolves a
@@ -563,7 +682,7 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
     return;
   }
 
-  const storeLabel = label.storeLabels[0] ?? null;
+  const storeLabel = endedSaleView(label.storeLabels[0] ?? null); // a sale that has ended is over now, not when the 15-minute job gets to it
   const effectivePrice = storeLabel ? resolveEffectivePrice(label, storeLabel) : null;
   res.json({
     success: true,
@@ -613,7 +732,7 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
     const rows = byLabel.get(label.id) ?? [];
     const byStore = new Map(rows.map((r) => [r.storeId, r]));
     const coverage = stores.map((store) => {
-      const sl = byStore.get(store.id) ?? null;
+      const sl = endedSaleView(byStore.get(store.id) ?? null);
       const effectivePrice = sl ? resolveEffectivePrice(label, sl) : null;
       return {
         storeId: store.id,
@@ -643,7 +762,10 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
 // its base price, to every active store that doesn't already have it —
 // closing the "add once, chase 12 stores individually" gap the coverage
 // view exists to surface. Stores that already have this label (in any
-// state) are left untouched, so this is safe to call repeatedly.
+// state) are left untouched, so this is safe to call repeatedly, even
+// twice at once. The answer names the stores, and the Activity Log keeps
+// them (a store can be taken out again with DELETE /store-labels/:id
+// while the label has never been printed there).
 export async function pushLabelToAllStores(req: AuthRequest, res: Response) {
   if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     res.status(403).json({ success: false, error: 'Requires SuperAdmin access' });
@@ -653,61 +775,84 @@ export async function pushLabelToAllStores(req: AuthRequest, res: Response) {
   const { labelId } = req.params;
   const label = await prisma.label.findUnique({ where: { id: labelId } });
   if (!label) {
-    res.status(404).json({ success: false, error: 'Label not found' });
+    res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });
     return;
   }
 
   const [stores, existing] = await Promise.all([
-    prisma.store.findMany({ where: { isActive: true }, select: { id: true } }),
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     prisma.storeLabel.findMany({ where: { labelId }, select: { storeId: true } }),
   ]);
   const existingIds = new Set(existing.map((e) => e.storeId));
   const missing = stores.filter((s) => !existingIds.has(s.id));
 
+  let addedCount = 0;
   if (missing.length > 0) {
-    await prisma.storeLabel.createMany({
+    const result = await prisma.storeLabel.createMany({
       data: missing.map((s) => ({ labelId, storeId: s.id, priceText: null })),
+      skipDuplicates: true, // a second click at the same moment adds nothing twice
+    });
+    addedCount = result.count;
+  }
+  const storeNames = addedCount > 0 ? missing.map((s) => s.name) : [];
+
+  if (addedCount > 0) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'PUSH_LABEL_TO_ALL_STORES', entity: 'label', entityId: labelId,
+      details: {
+        summary: `Added "${label.productName}" to ${addedCount} ${addedCount === 1 ? 'store' : 'stores'}: ${storeNames.join(', ')}.`,
+        productName: label.productName, storesAdded: addedCount, storeNames,
+      },
+      storeId: null,
     });
   }
 
-  audit({
-    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
-    action: 'PUSH_LABEL_TO_ALL_STORES', entity: 'label', entityId: labelId,
-    details: { productName: label.productName, storesAdded: missing.length },
-    storeId: null,
-  });
-
-  res.json({ success: true, data: { added: missing.length } });
+  res.json({ success: true, data: { added: addedCount, storeNames } });
 }
 
 // GET /labels/health-summary — SuperAdmin+ only. A cheap, chain-wide count
 // (not the full per-item breakdown Coverage returns) for the Dashboard's
-// "one glance" stat card: how many labels need printing right now, and
-// which stores are behind. printedAt IS NULL already covers both 'new' and
-// 'needs_reprint' in one filter — no need to compute status per row here.
+// "one glance" stat card: how many labels can be printed right now, and
+// which stores are behind. It counts only what can really be printed: a
+// copy at a closed store, and a copy whose item has no price, are not
+// "waiting to print" (an item with no price is reported on its own, as
+// `noPriceItems`). A sale that has ended counts as waiting for a reprint
+// even before the job that ends sales has run.
 export async function getLabelsHealthSummary(req: AuthRequest, res: Response) {
   if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     res.status(403).json({ success: false, error: 'Requires SuperAdmin access' });
     return;
   }
 
-  const [staleRows, stores] = await Promise.all([
+  const now = new Date();
+  const [rows, stores] = await Promise.all([
     prisma.storeLabel.findMany({
-      where: { printedAt: null },
-      select: { storeId: true, everPrinted: true, createdAt: true, updatedAt: true },
+      where: { OR: [{ printedAt: null }, { overrideExpiresAt: { lte: now } }] },
+      select: {
+        labelId: true, storeId: true, everPrinted: true, createdAt: true, updatedAt: true,
+        priceText: true, overrideExpiresAt: true, printedAt: true,
+        label: { select: { priceText: true } },
+      },
     }),
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
   ]);
+  const active = new Set(stores.map((st) => st.id));
 
   const byStoreMap = new Map<string, { count: number; oldestMs: number }>();
-  const now = Date.now();
-  for (const row of staleRows) {
+  const noPrice = new Set<string>();
+  let totalStale = 0;
+  for (const raw of rows) {
+    if (!active.has(raw.storeId)) continue; // a closed store prints nothing
+    const row = endedSaleView(raw, now)!;
+    if (resolveEffectivePrice(raw.label, row) === null) { noPrice.add(raw.labelId); continue; }
+    if (row.printedAt) continue;
     const staleSince = row.everPrinted ? row.updatedAt : row.createdAt;
-    const ageMs = now - staleSince.getTime();
     const entry = byStoreMap.get(row.storeId) ?? { count: 0, oldestMs: 0 };
     entry.count += 1;
-    entry.oldestMs = Math.max(entry.oldestMs, ageMs);
+    entry.oldestMs = Math.max(entry.oldestMs, now.getTime() - staleSince.getTime());
     byStoreMap.set(row.storeId, entry);
+    totalStale += 1;
   }
 
   const byStore = stores
@@ -718,7 +863,7 @@ export async function getLabelsHealthSummary(req: AuthRequest, res: Response) {
         storeId: store.id,
         storeName: store.name,
         staleCount: entry.count,
-        oldestStaleDays: Math.floor(entry.oldestMs / 86400000),
+        oldestStaleDays: Math.max(0, Math.floor(entry.oldestMs / 86400000)),
       };
     })
     .filter((s): s is NonNullable<typeof s> => !!s)
@@ -727,9 +872,10 @@ export async function getLabelsHealthSummary(req: AuthRequest, res: Response) {
   res.json({
     success: true,
     data: {
-      totalStale: staleRows.length,
+      totalStale,
       storesWithStale: byStore.length,
       totalStores: stores.length,
+      noPriceItems: noPrice.size,
       byStore,
     },
   });
