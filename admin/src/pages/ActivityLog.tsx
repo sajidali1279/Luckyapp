@@ -51,6 +51,10 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   BILLING_REPORT_SENT:       { label: 'Billing Report Sent',    color: '#457b9d', bg: '#457b9d18', icon: '📨' },
   STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
   DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
+  // Rates
+  RATE_TIER_UPDATE:          { label: 'Tier Rates Changed',     color: '#9b5de5', bg: '#9b5de518', icon: '🏆' },
+  RATE_CATEGORY_UPDATE:      { label: 'Category Bonus Changed', color: '#9b5de5', bg: '#9b5de518', icon: '📦' },
+  TIER_PERIOD_RESET:         { label: 'Tier Period Reset',      color: '#457b9d', bg: '#457b9d18', icon: '🔄' },
   // Labels
   CREATE_LABEL:              { label: 'Create Label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
   UPDATE_LABEL:              { label: 'Update Label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
@@ -84,6 +88,8 @@ function fmtDetails(details: string | null): string {
   try {
     const d = JSON.parse(details);
     const parts: string[] = [];
+    // Rates (a ready-made sentence)
+    if (typeof d.summary === 'string' && d.summary) parts.push(d.summary);
     // Points
     if (d.purchaseAmount != null) parts.push(`Purchase $${Number(d.purchaseAmount).toFixed(2)}`);
     if (d.pointsAwarded != null)  parts.push(`+$${Number(d.pointsAwarded).toFixed(2)} cashback`);
@@ -216,6 +222,11 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Offers & Banners ──">
             {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','CREATE_BANNER','DELETE_BANNER'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Rates ──">
+            {['RATE_TIER_UPDATE','RATE_CATEGORY_UPDATE','TIER_PERIOD_RESET'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

@@ -1,14 +1,20 @@
-﻿import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
+import ConfirmModal from '../components/ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-
-const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
-type TierKey = typeof TIERS[number];
+import { serverMessage } from '../lib/apiError';
+import { storeDayTime } from '../lib/storeDates';
+import {
+  TIERS, CATEGORY_NAMES, GAS_CATEGORIES, CASHBACK_WARN, CASHBACK_CAP, MAX_TIER_RATE, MAX_CATEGORY_BONUS, MAX_GAS_CENTS,
+  MIN_THRESHOLD_POINTS, EXAMPLE_SALE, exampleGallons, pct, pctOne, money, tierName,
+  stateFromRows, applyChanges, refusalFor, changeLines, effectLines, holdWarnings, touchesAppText, gasFill, salePays,
+  type TierKey, type TierRow, type CategoryRow, type TierChange, type CategoryChange, type RateState,
+} from '../lib/rateRules';
 
 const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'HOT_FOODS', 'OTHER'] as const;
 type CatKey = typeof CATEGORIES[number];
@@ -31,186 +37,259 @@ const TIER_META: Record<TierKey, { emoji: string; color: string }> = {
   PLATINUM: { emoji: '👑', color: '#9B5DE5' },
 };
 
-type RateRow = { tier: string; cashbackRate: number; gasCentsPerGallon: number | null; pointsThreshold: number };
-type EditState = Record<string, { cashbackRate: string; gasCentsPerGallon: string; pointsThreshold: string }>;
-type CatRateRow = { category: string; cashbackRate: number };
-type CatEditState = Record<string, string>;
+// Text colours that pass 4.5 to 1 on white (the old bright green and orange were about 2 to 1)
+const GREEN_TEXT = '#1a7a3a';
+const AMBER_TEXT = '#8a4b00';
+const RED_TEXT = '#b42318';
 
-function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
+const APP_TEXT_NOTE = 'The customer app shows fixed numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier) and does not follow this page. Tell customers about this change.';
 
-function tierRateFor(tierKey: TierKey, tiers: RateRow[]): number {
-  return tiers.find(t => t.tier === tierKey)?.cashbackRate ?? 0;
+type Field = 'cashbackRate' | 'gasCentsPerGallon' | 'pointsThreshold';
+type TierDraft = Partial<Record<Field, string>>;
+
+interface Plan {
+  title: string;
+  lines: string[];
+  effects: string[];
+  warnings: string[];
+  notes: string[];
+  confirmLabel: string;
+  danger?: boolean;
+  run: () => Promise<void>;
+}
+
+interface LastChange { at: string; by: string; summary: string }
+
+/** 0.02 -> "2", 0.0125 -> "1.25" */
+const pctInput = (rate: number) => String(parseFloat((rate * 100).toFixed(3)));
+
+function serverText(row: TierRow, field: Field): string {
+  if (field === 'cashbackRate') return pctInput(row.cashbackRate);
+  if (field === 'gasCentsPerGallon') return row.gasCentsPerGallon == null ? '' : String(row.gasCentsPerGallon);
+  return String(row.pointsThreshold ?? 0);
+}
+
+/** Two texts mean the same number ("2" and "2.0"); an empty gas box only equals another empty one. */
+function sameText(field: Field, a: string, b: string): boolean {
+  if (field === 'gasCentsPerGallon' && (a.trim() === '' || b.trim() === '')) return a.trim() === b.trim();
+  return parseFloat(a) === parseFloat(b);
 }
 
 export default function Rates() {
   const qc = useQueryClient();
-  const [form, setForm] = useState<EditState>({});
-  const [dirty, setDirty] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, TierDraft>>({});
+  const [catDraft, setCatDraft] = useState<Record<string, string>>({});
+  const [showPerGallon, setShowPerGallon] = useState<boolean | null>(null); // null until the rates arrive, then follows what is live
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['tier-rates'],
-    queryFn: () => billingApi.getTierRates(),
-  });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates() });
+  const { data: catData, isLoading: catLoading, isError: catError, refetch: catRefetch } = useQuery({ queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates() });
+  const { data: lastData } = useQuery({ queryKey: ['rates-last-change'], queryFn: () => billingApi.getRatesLastChange(), retry: false });
 
-  // ── Category bonus rates ──────────────────────────────────────────────────
-  const [catForm, setCatForm] = useState<CatEditState>({});
-  const [catDirty, setCatDirty] = useState<Set<string>>(new Set());
-  const [catSaving, setCatSaving] = useState<string | null>(null);
+  const tiers: TierRow[] = data?.data?.data || [];
+  const catRows: CategoryRow[] = catData?.data?.data || [];
+  const last: LastChange | null = lastData?.data?.data ?? null;
+  const before: RateState = stateFromRows(tiers, catRows);
+  const liveCents = tiers.some((t) => t.gasCentsPerGallon != null);
+  const viewCents = showPerGallon ?? liveCents;
+  const ratesReady = tiers.length > 0 && !catError && !catLoading && catRows.length > 0;
 
-  const { data: catData, isLoading: catLoading } = useQuery({
-    queryKey: ['category-rates'],
-    queryFn: () => billingApi.getCategoryRates(),
-  });
+  // ── What the boxes show: the person's typing, or else what the server has ─────────────────────────────────────
+  const rowOf = (tier: string) => tiers.find((r) => r.tier === tier);
+  const shown = (tier: string, field: Field) => draft[tier]?.[field] ?? (rowOf(tier) ? serverText(rowOf(tier)!, field) : '');
+  const setField = (tier: string, field: Field, value: string) => setDraft((p) => ({ ...p, [tier]: { ...p[tier], [field]: value } }));
+  const isDirty = (tier: string) => {
+    const row = rowOf(tier);
+    return !!row && Object.entries(draft[tier] ?? {}).some(([f, v]) => !sameText(f as Field, v as string, serverText(row, f as Field)));
+  };
+  const dirtyTiers = TIERS.filter((t) => isDirty(t));
+  const catShown = (cat: string) => catDraft[cat] ?? pctInput(before.categories[cat] ?? 0);
+  const catIsDirty = (cat: string) => catDraft[cat] !== undefined && parseFloat(catDraft[cat]) !== parseFloat(pctInput(before.categories[cat] ?? 0));
+  const dirtyCats = CATEGORIES.filter((c) => catIsDirty(c));
 
-  const catRates: CatRateRow[] = catData?.data?.data || [];
+  function undoTier(tier: string) { setDraft((p) => { const n = { ...p }; delete n[tier]; return n; }); }
+  function undoCat(cat: string) { setCatDraft((p) => { const n = { ...p }; delete n[cat]; return n; }); }
 
-  useEffect(() => {
-    if (catRates.length === 0) return;
-    const initial: CatEditState = {};
-    for (const r of catRates) {
-      initial[r.category] = String((r.cashbackRate * 100).toFixed(1));
+  /** What the person changed in one tier's row, as a change the server understands (or the sentence to say what is wrong with it). */
+  function buildChange(tier: string): { change: TierChange | null; error: string | null } {
+    const d = draft[tier]; const row = rowOf(tier);
+    if (!d || !row) return { change: null, error: null };
+    const name = tierName(tier);
+    const c: TierChange = { tier };
+    if (d.cashbackRate !== undefined && !sameText('cashbackRate', d.cashbackRate, serverText(row, 'cashbackRate'))) {
+      const v = parseFloat(d.cashbackRate);
+      if (!isFinite(v) || v < 0) return { change: null, error: `${name} cashback must be a number from 0 to ${parseFloat((MAX_TIER_RATE * 100).toFixed(2))}.` };
+      c.cashbackRate = parseFloat((v / 100).toFixed(6));
     }
-    // Ensure all 8 categories are present (default 0)
-    for (const cat of CATEGORIES) {
-      if (!(cat in initial)) initial[cat] = '0.0';
+    if (d.gasCentsPerGallon !== undefined && !sameText('gasCentsPerGallon', d.gasCentsPerGallon, serverText(row, 'gasCentsPerGallon'))) {
+      if (d.gasCentsPerGallon.trim() === '') c.gasCentsPerGallon = null;
+      else {
+        const v = parseFloat(d.gasCentsPerGallon);
+        if (!isFinite(v) || v < 0) return { change: null, error: `${name} cents per gallon must be a number (leave it empty to pay gas as a percent).` };
+        c.gasCentsPerGallon = v;
+      }
     }
-    setCatForm(initial);
-    setCatDirty(new Set());
-  }, [catRates.length]);
-
-  const catUpdateMut = useMutation({
-    mutationFn: ({ category, rate }: { category: string; rate: number }) =>
-      billingApi.updateCategoryRate(category, rate),
-    onSuccess: (_res, { category }) => {
-      toast.success(`${CAT_META[category as CatKey]?.label ?? category} bonus saved`);
-      setCatSaving(null);
-      setCatDirty(p => { const n = new Set(p); n.delete(category); return n; });
-      qc.invalidateQueries({ queryKey: ['category-rates'] });
-    },
-    onError: () => { toast.error('Failed to save'); setCatSaving(null); },
-  });
-
-  function handleCatChange(cat: string, value: string) {
-    setCatForm(p => ({ ...p, [cat]: value }));
-    setCatDirty(p => new Set(p).add(cat));
+    if (tier !== 'BRONZE' && d.pointsThreshold !== undefined && !sameText('pointsThreshold', d.pointsThreshold, serverText(row, 'pointsThreshold'))) {
+      const v = parseFloat(d.pointsThreshold);
+      if (!isFinite(v) || v < 0 || !Number.isInteger(v)) return { change: null, error: `${name} points to reach the tier must be a whole number.` };
+      c.pointsThreshold = v;
+    }
+    const any = c.cashbackRate !== undefined || c.gasCentsPerGallon !== undefined || c.pointsThreshold !== undefined;
+    return { change: any ? c : null, error: null };
   }
 
-  function handleCatSave(cat: string) {
-    const val = parseFloat(catForm[cat] ?? '0');
-    if (isNaN(val) || val < 0 || val > 100) {
-      toast.error('Bonus must be 0 – 100%');
-      return;
-    }
-    setCatSaving(cat);
-    catUpdateMut.mutate({ category: cat, rate: val / 100 });
+  function needRates(): boolean {
+    if (ratesReady) return true;
+    toast.error('The rates did not all load, so the effect of a change cannot be shown. Use Try Again first.');
+    return false;
   }
 
-  function handleCatReset(cat: string) {
-    const original = catRates.find(r => r.category === cat);
-    setCatForm(p => ({ ...p, [cat]: String(((original?.cashbackRate ?? 0) * 100).toFixed(1)) }));
-    setCatDirty(p => { const n = new Set(p); n.delete(cat); return n; });
-  }
-
-  const tiers: RateRow[] = data?.data?.data || [];
-
-  // ── Gas & Diesel mode ─────────────────────────────────────────────────────
-  const [showPerGallon, setShowPerGallon] = useState(false);
-
-  // Populate form once data loads
-  useEffect(() => {
-    if (tiers.length === 0) return;
-    const initial: EditState = {};
-    for (const r of tiers) {
-      initial[r.tier] = {
-        cashbackRate: String((r.cashbackRate * 100).toFixed(1)),
-        gasCentsPerGallon: r.gasCentsPerGallon != null ? String(r.gasCentsPerGallon) : '',
-        pointsThreshold: String(r.pointsThreshold ?? 0),
-      };
-    }
-    setForm(initial);
-    setDirty(new Set());
-    setShowPerGallon(tiers.some(t => t.gasCentsPerGallon != null));
-  }, [tiers.length]);
-
-  function switchToPercent() {
-    // Clear gasCentsPerGallon for every tier and save
-    TIERS.forEach(tierKey => {
-      const row = form[tierKey];
-      if (!row) return;
-      const rate = parseFloat(row.cashbackRate) / 100;
-      if (!isNaN(rate)) updateMut.mutate({ tier: tierKey, payload: { cashbackRate: rate, gasCentsPerGallon: null } });
-    });
-    setShowPerGallon(false);
-  }
-
-  const updateMut = useMutation({
-    mutationFn: ({ tier, payload }: { tier: string; payload: object }) =>
-      billingApi.updateTierRate(tier, payload),
-    onSuccess: (_res, { tier }) => {
-      toast.success(`${tier[0] + tier.slice(1).toLowerCase()} rate saved`);
-      setSaving(null);
-      setDirty(p => { const n = new Set(p); n.delete(tier); return n; });
+  // ── Saving: every change is confirmed first, then sent as one all-or-nothing request ──────────────────────────
+  async function saveTiers(changes: TierChange[], after?: () => void) {
+    setBusy(true);
+    try {
+      const res = await billingApi.updateTierRates(changes);
+      const body = res.data;
+      qc.setQueryData(['tier-rates'], (old: any) => (old ? { ...old, data: { ...old.data, data: body.data } } : old));
+      if (body.lastChange) qc.setQueryData(['rates-last-change'], { data: { success: true, data: body.lastChange } });
       qc.invalidateQueries({ queryKey: ['tier-rates'] });
-    },
-    onError: () => { toast.error('Failed to save'); setSaving(null); },
-  });
-
-  function handleChange(tier: string, field: 'cashbackRate' | 'gasCentsPerGallon' | 'pointsThreshold', value: string) {
-    setForm(p => ({ ...p, [tier]: { ...p[tier], [field]: value } }));
-    setDirty(p => new Set(p).add(tier));
+      setDraft((p) => { const n = { ...p }; for (const c of changes) delete n[c.tier]; return n; });
+      setPlan(null);
+      toast.success(body.changed ? (changes.length === 1 ? `${tierName(changes[0].tier)} saved` : `${body.changed} tiers saved`) : 'Nothing was different, so nothing changed');
+      after?.();
+    } catch (e) {
+      setPlan(null);
+      toast.error(serverMessage(e, 'Could not save. Nothing was changed.'), { duration: 8000 });
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function handleSave(tier: string) {
-    const row = form[tier];
-    if (!row) return;
-    const rate = parseFloat(row.cashbackRate) / 100;
-    const cpg = row.gasCentsPerGallon.trim() === '' ? null : parseFloat(row.gasCentsPerGallon);
-    const threshold = parseInt(row.pointsThreshold ?? '0', 10);
-    if (isNaN(rate) || rate < 0 || rate > 1) {
-      toast.error('Cashback must be 0 – 100%');
+  async function saveCategories(changes: CategoryChange[]) {
+    setBusy(true);
+    const failed: string[] = [];
+    let lastText: LastChange | null = null;
+    let lastError = '';
+    for (const c of changes) {
+      try {
+        const res = await billingApi.updateCategoryRate(c.category, c.cashbackRate);
+        if (res.data?.lastChange) lastText = res.data.lastChange;
+        setCatDraft((p) => { const n = { ...p }; delete n[c.category]; return n; });
+      } catch (e) {
+        failed.push(CATEGORY_NAMES[c.category] ?? c.category);
+        lastError = serverMessage(e, 'Could not save.');
+      }
+    }
+    if (lastText) qc.setQueryData(['rates-last-change'], { data: { success: true, data: lastText } });
+    await qc.invalidateQueries({ queryKey: ['category-rates'] });
+    setPlan(null);
+    setBusy(false);
+    if (failed.length === 0) toast.success(changes.length === 1 ? `${CATEGORY_NAMES[changes[0].category]} bonus saved` : `${changes.length} bonuses saved`);
+    else toast.error(`${failed.join(', ')} not saved. ${lastError}`, { duration: 8000 });
+  }
+
+  function openTierPlan(tiersToSave: string[], opts: Partial<Pick<Plan, 'title' | 'confirmLabel' | 'danger'>> & { after?: () => void } = {}) {
+    if (!needRates()) return;
+    const changes: TierChange[] = [];
+    for (const t of tiersToSave) {
+      const { change, error } = buildChange(t);
+      if (error) { toast.error(error, { duration: 7000 }); return; }
+      if (change) changes.push(change);
+    }
+    if (changes.length === 0) { toast('No changes to save'); return; }
+    const problem = refusalFor(before, changes);
+    if (problem) { toast.error(problem, { duration: 9000 }); return; }
+    const afterState = applyChanges(before, changes);
+    const byGallon = TIERS.filter((t) => afterState.tiers[t]?.gasCentsPerGallon != null).length;
+    const mixed = byGallon > 0 && byGallon < TIERS.length && changes.some((c) => c.gasCentsPerGallon !== undefined);
+    setPlan({
+      title: opts.title ?? (changes.length === 1 ? `Save the ${tierName(changes[0].tier)} rates?` : `Save ${changes.length} tiers?`),
+      lines: changeLines(before, changes),
+      effects: effectLines(before, changes),
+      warnings: [
+        ...holdWarnings(before, changes),
+        ...(mixed ? [`Only ${byGallon} of the ${TIERS.length} tiers would be paid for gas by the gallon. The others stay a percent of the sale.`] : []),
+      ],
+      notes: touchesAppText(changes) ? [APP_TEXT_NOTE] : [],
+      confirmLabel: opts.confirmLabel ?? 'Save changes',
+      danger: opts.danger,
+      run: () => saveTiers(changes, opts.after),
+    });
+  }
+
+  function openCategoryPlan(cats: string[]) {
+    if (!needRates()) return;
+    const changes: CategoryChange[] = [];
+    for (const cat of cats) {
+      const v = parseFloat(catShown(cat));
+      if (!isFinite(v) || v < 0) { toast.error(`${CATEGORY_NAMES[cat]} bonus must be a number from 0 to ${parseFloat((MAX_CATEGORY_BONUS * 100).toFixed(2))}.`); return; }
+      changes.push({ category: cat, cashbackRate: parseFloat((v / 100).toFixed(6)) });
+    }
+    const problem = refusalFor(before, [], changes);
+    if (problem) { toast.error(problem, { duration: 9000 }); return; }
+    setPlan({
+      title: changes.length === 1 ? `Save the ${CATEGORY_NAMES[changes[0].category]} bonus?` : `Save ${changes.length} bonuses?`,
+      lines: changeLines(before, [], changes),
+      effects: effectLines(before, [], changes),
+      warnings: holdWarnings(before, [], changes),
+      notes: [],
+      confirmLabel: 'Save changes',
+      run: () => saveCategories(changes),
+    });
+  }
+
+  function switchGasToPercent() {
+    if (!liveCents) {
+      // Nothing is live yet, so this only closes the ¢/gallon view and drops any unsaved cents typed there
+      setShowPerGallon(false);
+      setDraft((p) => {
+        const n: Record<string, TierDraft> = {};
+        for (const [t, d] of Object.entries(p)) {
+          const rest: TierDraft = { ...d };
+          delete rest.gasCentsPerGallon;
+          if (Object.keys(rest).length) n[t] = rest;
+        }
+        return n;
+      });
       return;
     }
-    if (cpg !== null && isNaN(cpg)) {
-      toast.error('Enter a valid ¢/gallon or leave blank');
-      return;
-    }
-    if (tier !== 'BRONZE' && (isNaN(threshold) || threshold < 0)) {
-      toast.error('Threshold must be a positive number of points');
-      return;
-    }
-    setSaving(tier);
-    updateMut.mutate({ tier, payload: { cashbackRate: rate, gasCentsPerGallon: cpg, ...(tier !== 'BRONZE' && { pointsThreshold: threshold }) } });
+    if (!needRates()) return;
+    const changes: TierChange[] = tiers.filter((t) => t.gasCentsPerGallon != null).map((t) => ({ tier: t.tier, gasCentsPerGallon: null }));
+    const problem = refusalFor(before, changes);
+    if (problem) { toast.error(problem, { duration: 9000 }); return; }
+    setPlan({
+      title: 'Pay gas as a percent of the sale?',
+      lines: ['Every tier stops paying gas by the gallon and pays a percent of the sale instead (the tier rate plus the Gas and Diesel bonus).'],
+      effects: effectLines(before, changes),
+      warnings: holdWarnings(before, changes),
+      notes: ['This changes what every gas customer earns from the next sale. To go back you have to type the cents for each tier again.'],
+      confirmLabel: 'Switch to percent',
+      danger: true,
+      run: () => saveTiers(changes, () => setShowPerGallon(false)),
+    });
   }
 
-  function handleSaveAll() {
-    const pending = [...dirty];
-    if (pending.length === 0) { toast('No changes to save'); return; }
-    for (const tier of pending) handleSave(tier);
-  }
+  const enterSaves = (tier: string) => (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') openTierPlan([tier]); };
 
-  function handleReset(tier: string) {
-    const original = tiers.find(r => r.tier === tier);
-    if (!original) return;
-    setForm(p => ({
-      ...p,
-      [tier]: {
-        cashbackRate: String((original.cashbackRate * 100).toFixed(1)),
-        gasCentsPerGallon: original.gasCentsPerGallon != null ? String(original.gasCentsPerGallon) : '',
-        pointsThreshold: String(original.pointsThreshold ?? 0),
-      },
-    }));
-    setDirty(p => { const n = new Set(p); n.delete(tier); return n; });
-  }
+  // ── Worked examples (from the rates on screen) ────────────────────────────────────────────────────────────────
+  const bronzeGroceries = ratesReady ? salePays(before, 'BRONZE', 'GROCERIES') : 0;
+  const goldFill = ratesReady ? gasFill(before, 'GOLD') : null;
 
-  const highestTier = tiers.length > 0
-    ? tiers.reduce((max, t) => (t.cashbackRate > max.cashbackRate ? t : max), tiers[0])
-    : null;
-
-  const tiersWithGasCpg = tiers.filter(t => t.gasCentsPerGallon != null);
-  const highestGasTier = tiersWithGasCpg.length > 0
-    ? tiersWithGasCpg.reduce((max, t) => (t.gasCentsPerGallon! > max.gasCentsPerGallon! ? t : max), tiersWithGasCpg[0])
-    : null;
+  const planMessage = plan && (
+    <div style={{ textAlign: 'left' }}>
+      {plan.lines.map((l, i) => <div key={i} style={{ fontWeight: 700, color: '#111827', marginBottom: 4 }}>{l}</div>)}
+      {plan.effects.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <strong>What it does</strong>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>{plan.effects.map((l, i) => <li key={i}>{l}</li>)}</ul>
+        </div>
+      )}
+      {plan.warnings.map((w, i) => <div key={i} style={s.confirmWarn}>⚠️ {w}</div>)}
+      {plan.notes.map((n, i) => <div key={i} style={s.confirmNote}>ℹ️ {n}</div>)}
+      <div style={{ marginTop: 10, fontWeight: 700, color: '#111827' }}>It applies to the next sale. Sales already started keep their rate.</div>
+    </div>
+  );
 
   return (
     <div style={s.page}>
@@ -221,15 +300,18 @@ export default function Rates() {
             Set the base cashback % each customer tier earns. Promotions stack on top of these.
           </p>
         </div>
-        {dirty.size > 0 && (
-          <button style={s.saveAllBtn} onClick={handleSaveAll}>
-            💾 Save {dirty.size} change{dirty.size > 1 ? 's' : ''}
+        {dirtyTiers.length > 0 && (
+          <button style={s.saveAllBtn} onClick={() => openTierPlan(dirtyTiers)}>
+            💾 Save {dirtyTiers.length} change{dirtyTiers.length > 1 ? 's' : ''}
           </button>
         )}
       </div>
 
       <div style={s.storeCostNote}>
-        💡 Store cost = cashback paid out × (1 + that store's dev cut rate). Dev cut rate is set per-store on the Stores page, not here.
+        💡 Store cost = cashback paid out × (1 + that store's platform fee). The platform fee is set per store on Billing, Stores tab, not here.
+      </div>
+      <div style={s.appNote}>
+        📱 The customer app shows fixed tier numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier, +5, +7 and +10 cents a gallon). It does not follow this page, so tell customers if you change a tier's cashback or points.
       </div>
 
       {isLoading && <TableSkeleton columns={5} />}
@@ -244,112 +326,109 @@ export default function Rates() {
           <Table style={s.table}>
             <TableHeader>
               <TableRow style={s.thead}>
-                <TableHead style={{ ...s.th, width: 160 }}>Tier</TableHead>
+                <TableHead style={{ ...s.th, width: 170 }}>Tier</TableHead>
                 <TableHead style={s.th}>
                   Cashback %
-                  <div style={s.thSub}>earned on every purchase</div>
+                  <div style={s.thSub}>earned on every purchase, at most {parseFloat((MAX_TIER_RATE * 100).toFixed(2))}%</div>
                 </TableHead>
                 <TableHead style={s.th}>
                   Gas ¢ / gallon
-                  <div style={s.thSub}>optional - overrides % for gas & diesel</div>
+                  <div style={s.thSub}>optional, replaces the % for gas and diesel (at most {MAX_GAS_CENTS})</div>
                 </TableHead>
                 <TableHead style={s.th}>
-                  Min $ earned to reach tier
-                  <div style={s.thSub}>period earnings threshold (cashback dollars)</div>
+                  Points to reach the tier
+                  <div style={s.thSub}>earned in a half-year, 100 points = $1 of cashback</div>
                 </TableHead>
-                <TableHead style={{ ...s.th, width: 80 }}></TableHead>
+                <TableHead style={{ ...s.th, width: 100 }}><span className="sr-only">Save or undo</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {TIERS.map((tierKey) => {
-                const r = tiers.find(x => x.tier === tierKey);
+                const r = rowOf(tierKey);
                 if (!r) return null;
-                const row = form[tierKey];
                 const meta = TIER_META[tierKey];
-                const isDirty = dirty.has(tierKey);
-                const isSaving = saving === tierKey;
+                const name = tierName(tierKey);
+                const dirty = isDirty(tierKey);
+                const rateNum = parseFloat(shown(tierKey, 'cashbackRate'));
+                const ptsNum = parseFloat(shown(tierKey, 'pointsThreshold'));
 
                 return (
-                  <TableRow key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
-                    {/* Tier label */}
+                  <TableRow key={tierKey} style={{ ...s.tr, ...(dirty ? s.trDirty : {}) }}>
                     <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
-                          <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
+                          <div style={s.tierName}>{meta.emoji} {name}</div>
                           <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? ' - '}+ earned`}
+                            {tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}
                           </div>
                         </div>
                       </div>
                     </TableCell>
 
-                    {/* Cashback % */}
                     <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
-                          type="number"
-                          min="0" max="100" step="0.5"
-                          value={row?.cashbackRate ?? ''}
-                          onChange={e => handleChange(tierKey, 'cashbackRate', e.target.value)}
-                          style={{ ...s.input, ...( isDirty ? s.inputDirty : {} ) }}
+                          type="number" min="0" max={MAX_TIER_RATE * 100} step="0.5"
+                          aria-label={`${name} cashback percent`}
+                          value={shown(tierKey, 'cashbackRate')}
+                          onChange={(e) => setField(tierKey, 'cashbackRate', e.target.value)}
+                          onKeyDown={enterSaves(tierKey)}
+                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
                           placeholder="e.g. 3"
                         />
                         <span style={s.suffix}>%</span>
-                        {row?.cashbackRate && !isNaN(parseFloat(row.cashbackRate)) && (
-                          <span style={s.preview}>{fmtPct(parseFloat(row.cashbackRate) / 100)} back per $1</span>
+                        {isFinite(rateNum) && shown(tierKey, 'cashbackRate') !== '' && (
+                          <span style={s.preview}>{pct(rateNum / 100)} back per $1</span>
                         )}
                       </div>
                     </TableCell>
 
-                    {/* Gas ¢/gallon */}
                     <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
-                          type="number"
-                          min="0" step="0.5"
-                          value={row?.gasCentsPerGallon ?? ''}
-                          onChange={e => handleChange(tierKey, 'gasCentsPerGallon', e.target.value)}
-                          style={{ ...s.input, ...( isDirty ? s.inputDirty : {} ) }}
-                          placeholder="leave blank to use %"
+                          type="number" min="0" max={MAX_GAS_CENTS} step="0.5"
+                          aria-label={`${name} gas cents per gallon`}
+                          value={shown(tierKey, 'gasCentsPerGallon')}
+                          onChange={(e) => setField(tierKey, 'gasCentsPerGallon', e.target.value)}
+                          onKeyDown={enterSaves(tierKey)}
+                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
+                          placeholder="empty = use %"
                         />
-                        {row?.gasCentsPerGallon ? <span style={s.suffix}>¢</span> : null}
+                        {shown(tierKey, 'gasCentsPerGallon') !== '' ? <span style={s.suffix}>¢</span> : null}
                       </div>
-                      {r.gasCentsPerGallon != null && !isDirty && (
+                      {r.gasCentsPerGallon != null && !dirty && (
                         <div style={s.gasActive}>Active: {r.gasCentsPerGallon}¢/gal for GAS & DIESEL</div>
                       )}
                     </TableCell>
 
-                    {/* Tier threshold */}
                     <TableCell style={s.td}>
                       {tierKey === 'BRONZE' ? (
                         <span style={{ fontSize: 14, color: TEXT_MUTED }}>Starting tier</span>
                       ) : (
                         <div style={s.inputGroup}>
-                          <span style={s.suffix}>$</span>
                           <input
-                            type="number"
-                            min="0" step="10"
-                            value={row?.pointsThreshold ?? ''}
-                            onChange={e => handleChange(tierKey, 'pointsThreshold', e.target.value)}
-                            style={{ ...s.input, width: 100, ...(isDirty ? s.inputDirty : {}) }}
-                            placeholder="e.g. 50"
+                            type="number" min={MIN_THRESHOLD_POINTS} step="500"
+                            aria-label={`${name} points to reach the tier`}
+                            value={shown(tierKey, 'pointsThreshold')}
+                            onChange={(e) => setField(tierKey, 'pointsThreshold', e.target.value)}
+                            onKeyDown={enterSaves(tierKey)}
+                            style={{ ...s.input, width: 110, ...(dirty ? s.inputDirty : {}) }}
+                            placeholder="e.g. 5000"
                           />
-                          {row?.pointsThreshold && !isNaN(parseInt(row.pointsThreshold)) && (
-                            <span style={s.preview}>= {(parseInt(row.pointsThreshold) * 100).toLocaleString()} pts in-app</span>
+                          <span style={s.suffix}>pts</span>
+                          {isFinite(ptsNum) && shown(tierKey, 'pointsThreshold') !== '' && (
+                            <span style={s.preview}>= {money(ptsNum / 100)} of cashback</span>
                           )}
                         </div>
                       )}
                     </TableCell>
 
-                    {/* Actions */}
                     <TableCell style={{ ...s.td, textAlign: 'right' }}>
-                      {isDirty ? (
+                      {dirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button style={s.saveBtn} disabled={isSaving} onClick={() => handleSave(tierKey)}>
-                            {isSaving ? '…' : 'Save'}
-                          </button>
-                          <button style={s.undoBtn} onClick={() => handleReset(tierKey)}>↩</button>
+                          <button style={s.saveBtn} aria-label={`Save ${name}`} disabled={busy} onClick={() => openTierPlan([tierKey])}>Save</button>
+                          <button style={s.undoBtn} aria-label={`Undo ${name}`} onClick={() => undoTier(tierKey)}>↩</button>
                         </div>
                       ) : (
                         <span style={s.savedTag}>✓ Saved</span>
@@ -360,6 +439,11 @@ export default function Rates() {
               })}
             </TableBody>
           </Table>
+          <div style={s.lastChange}>
+            {last
+              ? <>Last changed by <strong>{last.by}</strong>, {storeDayTime(last.at)}: {last.summary}</>
+              : 'No change has been recorded yet. From now on every change to a rate is recorded here and in the Activity Log.'}
+          </div>
         </div>
       )}
 
@@ -368,24 +452,22 @@ export default function Rates() {
         <div>
           <h2 style={s.sectionTitle}>📦 Category Bonus Rates</h2>
           <p style={s.sectionSubtitle}>
-            This bonus adds to the tier base rate on every purchase in this category - it's not a
-            promotion, it's a permanent part of the rate. The columns to the right show the
+            This bonus adds to the tier base rate on every purchase in this category. It is not a
+            promotion, it is a permanent part of the rate. The columns to the right show the
             resulting total cashback % for each tier.
           </p>
         </div>
-        {catDirty.size > 0 && (
-          <button
-            style={s.saveAllBtn}
-            onClick={() => [...catDirty].forEach(cat => handleCatSave(cat))}
-          >
-            💾 Save {catDirty.size} change{catDirty.size > 1 ? 's' : ''}
+        {dirtyCats.length > 0 && (
+          <button style={s.saveAllBtn} onClick={() => openCategoryPlan(dirtyCats)}>
+            💾 Save {dirtyCats.length} change{dirtyCats.length > 1 ? 's' : ''}
           </button>
         )}
       </div>
 
       {catLoading && <TableSkeleton columns={7} />}
+      {catError && <ErrorState message="Could not load the category bonuses. Check your connection." onRetry={catRefetch} />}
 
-      {!catLoading && (
+      {!catLoading && !catError && (
         <div style={s.tableWrap}>
           <Table style={s.table}>
             <TableHeader>
@@ -393,49 +475,28 @@ export default function Rates() {
                 <TableHead style={{ ...s.th, width: 180 }}>Category</TableHead>
                 <TableHead style={s.th}>
                   Bonus %
-                  <div style={s.thSub}>added on top of tier base rate</div>
+                  <div style={s.thSub}>added on top of tier base rate, at most {parseFloat((MAX_CATEGORY_BONUS * 100).toFixed(2))}%</div>
                 </TableHead>
-                {TIERS.map(tierKey => (
+                {TIERS.map((tierKey) => (
                   <TableHead key={tierKey} style={{ ...s.th, textAlign: 'center' as const }}>
-                    {TIER_META[tierKey].emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}
+                    {TIER_META[tierKey].emoji} {tierName(tierKey)}
                     <div style={s.thSub}>total cashback %</div>
                   </TableHead>
                 ))}
-                <TableHead style={{ ...s.th, width: 80 }}></TableHead>
+                <TableHead style={{ ...s.th, width: 100 }}><span className="sr-only">Save or undo</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {CATEGORIES.map((cat) => {
                 const meta = CAT_META[cat];
-                const isGasDiesel = cat === 'GAS' || cat === 'DIESEL';
-                const isDirty = catDirty.has(cat);
-                const isSaving = catSaving === cat;
-                const rawVal = catForm[cat] ?? '0';
+                const isGasDiesel = GAS_CATEGORIES.includes(cat);
+                const dirty = catIsDirty(cat);
+                const rawVal = catShown(cat);
                 const numVal = parseFloat(rawVal);
-                const bonusFraction = !isNaN(numVal) ? numVal / 100 : 0;
-
-                // GAS/DIESEL in ¢/gallon mode — show redirect badge, no editable %
-                if (isGasDiesel && showPerGallon) {
-                  return (
-                    <TableRow key={cat} style={s.tr}>
-                      <TableCell style={s.td}>
-                        <div style={s.tierCell}>
-                          <span style={s.catEmoji}>{meta.emoji}</span>
-                          <div>
-                            <div style={s.tierName}>{meta.label}</div>
-                            <div style={s.tierSub}>{meta.desc}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell style={s.td} colSpan={7}>
-                        <span style={s.perGallonBadge}>⛽ ¢/gallon mode - configure per-tier rates below</span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                }
+                const bonusFraction = isFinite(numVal) ? numVal / 100 : 0;
 
                 return (
-                  <TableRow key={cat} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                  <TableRow key={cat} style={{ ...s.tr, ...(dirty ? s.trDirty : {}) }}>
                     <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={s.catEmoji}>{meta.emoji}</span>
@@ -448,37 +509,47 @@ export default function Rates() {
                     <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
-                          type="number"
-                          min="0" max="20" step="0.5"
+                          type="number" min="0" max={MAX_CATEGORY_BONUS * 100} step="0.5"
+                          aria-label={`${meta.label} bonus percent`}
                           value={rawVal}
-                          onChange={e => handleCatChange(cat, e.target.value)}
-                          style={{ ...s.input, ...(isDirty ? s.inputDirty : {}) }}
+                          onChange={(e) => setCatDraft((p) => ({ ...p, [cat]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') openCategoryPlan([cat]); }}
+                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
                           placeholder="0"
                         />
                         <span style={s.suffix}>%</span>
-                        {!isNaN(numVal) && numVal > 0 && (
-                          <span style={s.preview}>+{numVal.toFixed(1)}% bonus</span>
-                        )}
-                        {!isNaN(numVal) && numVal === 0 && (
-                          <span style={{ ...s.preview, color: TEXT_MUTED }}>no bonus</span>
-                        )}
+                        {isFinite(numVal) && numVal > 0 && <span style={s.preview}>+{numVal.toFixed(1)}% bonus</span>}
+                        {isFinite(numVal) && numVal === 0 && <span style={{ ...s.preview, color: TEXT_MUTED }}>no bonus</span>}
                       </div>
                     </TableCell>
-                    {TIERS.map(tierKey => (
-                      <TableCell key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}>
-                        <span style={s.effectiveTag}>{fmtPct(tierRateFor(tierKey, tiers) + bonusFraction)}</span>
-                      </TableCell>
-                    ))}
+                    {TIERS.map((tierKey) => {
+                      const t = before.tiers[tierKey];
+                      const byGallon = isGasDiesel && !!t && t.gasCentsPerGallon != null && t.gasCentsPerGallon > 0;
+                      if (byGallon) {
+                        return <TableCell key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}><span style={s.byGallonTag}>by the gallon</span></TableCell>;
+                      }
+                      const total = (t?.cashbackRate ?? 0) + bonusFraction;
+                      const over10 = total > CASHBACK_CAP + 1e-9;
+                      const over75 = total > CASHBACK_WARN + 1e-9;
+                      return (
+                        <TableCell key={tierKey} style={{ ...s.td, textAlign: 'center' as const }}>
+                          <span
+                            style={over10 ? s.tagRed : over75 ? s.tagAmber : s.effectiveTag}
+                            title={over10 ? `A sale never pays more than ${pct(CASHBACK_CAP)}` : over75 ? `Sales over ${pct(CASHBACK_WARN)} are held for a manager` : undefined}
+                          >
+                            {over10 ? '⛔ ' : over75 ? '⚠ ' : ''}{pct(total)}
+                          </span>
+                        </TableCell>
+                      );
+                    })}
                     <TableCell style={{ ...s.td, textAlign: 'right' }}>
-                      {isDirty ? (
+                      {dirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button style={s.saveBtn} disabled={isSaving} onClick={() => handleCatSave(cat)}>
-                            {isSaving ? '…' : 'Save'}
-                          </button>
-                          <button style={s.undoBtn} onClick={() => handleCatReset(cat)}>↩</button>
+                          <button style={s.saveBtn} aria-label={`Save ${meta.label}`} disabled={busy} onClick={() => openCategoryPlan([cat])}>Save</button>
+                          <button style={s.undoBtn} aria-label={`Undo ${meta.label}`} onClick={() => undoCat(cat)}>↩</button>
                         </div>
                       ) : (
-                        <span style={s.savedTag}>✓</span>
+                        <span style={s.savedTag}><span aria-hidden="true">✓</span><span className="sr-only">Saved</span></span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -486,6 +557,10 @@ export default function Rates() {
               })}
             </TableBody>
           </Table>
+          <div style={s.legend}>
+            ⚠ over {pct(CASHBACK_WARN)}: those sales are held for a manager to review. ⛔ over {pct(CASHBACK_CAP)}: a sale never pays more than {pct(CASHBACK_CAP)}.
+            {' '}Gas and Diesel are paid by the gallon for a tier that has a ¢/gallon rate, so this bonus is not used for that tier.
+          </div>
         </div>
       )}
 
@@ -495,118 +570,122 @@ export default function Rates() {
           <h2 style={s.sectionTitle}>⛽ Gas & Diesel Mode</h2>
           <p style={s.sectionSubtitle}>
             Choose how cashback is calculated for gas and diesel. In ¢/gallon mode each tier earns a flat
-            rate per gallon pumped - active promotions still stack on top as a % of the purchase amount.
+            rate per gallon pumped. Gold, Diamond and Platinum also get a fixed extra 5, 7 and 10 cents a gallon
+            (set in the code, paid on top, not part of the platform fee). Active promotions still stack on top as a % of the purchase amount.
           </p>
         </div>
       </div>
 
       <div style={s.gasModeCard}>
-        {/* Mode toggle */}
         <div style={s.gasModeToggleRow}>
           <button
-            style={{ ...s.modeBtn, ...(showPerGallon ? {} : s.modeBtnActive) }}
-            onClick={switchToPercent}
+            style={{ ...s.modeBtn, ...(viewCents ? {} : s.modeBtnActive) }}
+            aria-pressed={!viewCents}
+            disabled={busy}
+            onClick={switchGasToPercent}
           >
             💲 % of amount
           </button>
           <button
-            style={{ ...s.modeBtn, ...(showPerGallon ? s.modeBtnActive : {}) }}
+            style={{ ...s.modeBtn, ...(viewCents ? s.modeBtnActive : {}) }}
+            aria-pressed={viewCents}
             onClick={() => setShowPerGallon(true)}
           >
             ⛽ ¢ / gallon
           </button>
 
-          {/* Live status - based on DB state, not local toggle */}
-          {tiers.some(t => t.gasCentsPerGallon != null) ? (
+          {liveCents ? (
             <span style={s.liveBadge}>● LIVE: ¢/gallon</span>
           ) : (
             <span style={s.liveInactiveBadge}>● LIVE: % of amount</span>
           )}
 
           <span style={s.gasModeHint}>
-            {showPerGallon
+            {viewCents
               ? 'Base = ¢/gallon × gallons pumped · promos still add on top as % of purchase'
-              : 'Base = tier % × purchase amount · set bonus % for Gas/Diesel in the table above'}
+              : 'Base = tier % × purchase amount · set the bonus % for Gas and Diesel in the table above'}
           </span>
         </div>
 
-        {/* Unsaved reminder when ¢/gallon is selected but nothing is saved yet */}
-        {showPerGallon && !tiers.some(t => t.gasCentsPerGallon != null) && (
+        {viewCents && !liveCents && (
           <div style={s.gasModeWarning}>
-            ⚠️ ¢/gallon mode is not active yet - enter a rate for each tier below and click <strong>Save</strong> to switch.
+            ⚠️ ¢/gallon mode is not active yet. Enter a rate for each tier below and click <strong>Save</strong> to switch.
           </div>
         )}
 
-        {/* Per-tier ¢/gallon table */}
-        {showPerGallon && tiers.length > 0 && (
+        {viewCents && tiers.length > 0 && (
           <Table style={{ ...s.table, marginTop: 16 }}>
             <TableHeader>
               <TableRow style={s.thead}>
                 <TableHead style={{ ...s.th, width: 200 }}>Tier</TableHead>
                 <TableHead style={s.th}>
                   ¢ / gallon
-                  <div style={s.thSub}>applies to GAS & DIESEL</div>
+                  <div style={s.thSub}>applies to GAS & DIESEL, at most {MAX_GAS_CENTS}</div>
                 </TableHead>
                 <TableHead style={s.th}>
-                  Example (1 gal)
-                  <div style={s.thSub}>cashback earned</div>
+                  What a {money(EXAMPLE_SALE)} fill pays
+                  <div style={s.thSub}>{exampleGallons.toFixed(1)} gallons, fixed extra included</div>
                 </TableHead>
-                <TableHead style={{ ...s.th, width: 100 }}></TableHead>
+                <TableHead style={{ ...s.th, width: 100 }}><span className="sr-only">Save or undo</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {TIERS.map((tierKey) => {
-                const r = tiers.find(x => x.tier === tierKey);
+                const r = rowOf(tierKey);
                 if (!r) return null;
-                const row = form[tierKey];
                 const meta = TIER_META[tierKey];
-                const isDirty = dirty.has(tierKey);
-                const isSaving = saving === tierKey;
-                const cpgVal = row?.gasCentsPerGallon ?? '';
+                const name = tierName(tierKey);
+                const dirty = isDirty(tierKey);
+                const cpgVal = shown(tierKey, 'gasCentsPerGallon');
                 const cpgNum = parseFloat(cpgVal);
+                const bonusCents = before.tiers[tierKey]?.gasBonusCents ?? 0;
+                const fill = cpgVal !== '' && isFinite(cpgNum) && cpgNum > 0
+                  ? gasFill({ ...before, tiers: { ...before.tiers, [tierKey]: { ...before.tiers[tierKey], gasCentsPerGallon: cpgNum } } }, tierKey)
+                  : null;
 
                 return (
-                  <TableRow key={tierKey} style={{ ...s.tr, ...(isDirty ? s.trDirty : {}) }}>
+                  <TableRow key={tierKey} style={{ ...s.tr, ...(dirty ? s.trDirty : {}) }}>
                     <TableCell style={s.td}>
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
-                          <div style={s.tierName}>{meta.emoji} {tierKey[0] + tierKey.slice(1).toLowerCase()}</div>
-                          <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `$${r.pointsThreshold?.toLocaleString() ?? ' - '}+ earned`}
-                          </div>
+                          <div style={s.tierName}>{meta.emoji} {name}</div>
+                          <div style={s.tierSub}>{tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}</div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell style={s.td}>
                       <div style={s.inputGroup}>
                         <input
-                          type="number" min="0" step="0.5"
+                          type="number" min="0" max={MAX_GAS_CENTS} step="0.5"
+                          aria-label={`${name} gas cents per gallon`}
                           value={cpgVal}
-                          onChange={e => handleChange(tierKey, 'gasCentsPerGallon', e.target.value)}
-                          style={{ ...s.input, ...(isDirty ? s.inputDirty : {}) }}
+                          onChange={(e) => setField(tierKey, 'gasCentsPerGallon', e.target.value)}
+                          onKeyDown={enterSaves(tierKey)}
+                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
                           placeholder="e.g. 3"
                         />
                         {cpgVal !== '' && <span style={s.suffix}>¢</span>}
                       </div>
                     </TableCell>
                     <TableCell style={s.td}>
-                      {!isNaN(cpgNum) && cpgNum > 0 ? (
-                        <span style={s.effectiveTag}>${(1 * cpgNum / 100).toFixed(2)} cashback</span>
+                      {fill ? (
+                        <div>
+                          <span style={s.effectiveTag}>{money(fill.total)} ({pctOne(fill.percent)} of the sale)</span>
+                          {bonusCents > 0 && <div style={s.tierSub}>{cpgNum}¢ + {bonusCents}¢ fixed extra = {parseFloat((cpgNum + bonusCents).toFixed(2))}¢ a gallon</div>}
+                        </div>
                       ) : (
-                        <span style={{ fontSize: 14, color: TEXT_MUTED }}>enter rate above</span>
+                        <span style={{ fontSize: 14, color: TEXT_MUTED }}>enter a rate</span>
                       )}
                     </TableCell>
                     <TableCell style={{ ...s.td, textAlign: 'right' }}>
-                      {isDirty ? (
+                      {dirty ? (
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button style={s.saveBtn} disabled={isSaving} onClick={() => handleSave(tierKey)}>
-                            {isSaving ? '…' : 'Save'}
-                          </button>
-                          <button style={s.undoBtn} onClick={() => handleReset(tierKey)}>↩</button>
+                          <button style={s.saveBtn} aria-label={`Save ${name}`} disabled={busy} onClick={() => openTierPlan([tierKey])}>Save</button>
+                          <button style={s.undoBtn} aria-label={`Undo ${name}`} onClick={() => undoTier(tierKey)}>↩</button>
                         </div>
                       ) : (
-                        <span style={s.savedTag}>✓</span>
+                        <span style={s.savedTag}><span aria-hidden="true">✓</span><span className="sr-only">Saved</span></span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -615,47 +694,61 @@ export default function Rates() {
             </TableBody>
           </Table>
         )}
+        {viewCents && dirtyTiers.length > 1 && (
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <button style={s.saveAllBtn} disabled={busy} onClick={() => openTierPlan(dirtyTiers, { title: `Save ${dirtyTiers.length} tiers?` })}>
+              💾 Save {dirtyTiers.length} tiers together
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* How it works */}
+      {/* How it works, with the numbers on this page */}
       <div style={s.infoGrid}>
         <div style={s.infoCard}>
           <div style={s.infoCardTitle}>📐 How rates apply</div>
           <p style={s.infoCardText}>
             When an employee grants points, the customer's tier rate is used automatically,
-            plus any category bonus for that purchase (see the table above).
+            plus any category bonus for that purchase (see the table above). A sale never pays more than {pct(CASHBACK_CAP)}.
           </p>
           <div style={s.calcBox}>
             <div style={s.calcRow}>
-              <span>{highestTier ? `${TIER_META[highestTier.tier as TierKey].emoji} ${highestTier.tier[0] + highestTier.tier.slice(1).toLowerCase()} tier base rate` : 'Tier base rate'}</span>
-              <span style={{ color: '#F4A226', fontWeight: 700 }}>{highestTier ? fmtPct(highestTier.cashbackRate) : ' - '}</span>
+              <span>Bronze customer, {money(EXAMPLE_SALE)} of groceries</span>
+              <span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{ratesReady ? `${pct(before.tiers.BRONZE.cashbackRate)} + ${pct(before.categories.GROCERIES ?? 0)}` : ' - '}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
-              <span>Customer earns on $50</span>
-              <span style={{ fontWeight: 800 }}>{highestTier ? `= $${(50 * highestTier.cashbackRate).toFixed(2)}` : ' - '}</span>
+              <span>Customer earns</span>
+              <span style={{ fontWeight: 800 }}>{ratesReady ? `= ${money(bronzeGroceries)}` : ' - '}</span>
             </div>
           </div>
         </div>
 
         <div style={s.infoCard}>
-          <div style={s.infoCardTitle}>⛽ Gas ¢/gallon (optional)</div>
+          <div style={s.infoCardTitle}>⛽ Gas by the gallon</div>
           <p style={s.infoCardText}>
-            For GAS and DIESEL only, you can set a flat cents-per-gallon rate instead of a percentage.
-            Leave blank to use the cashback % for gas too.
+            For GAS and DIESEL you can set a flat cents-per-gallon rate instead of a percentage. Gold, Diamond and
+            Platinum get a fixed extra on top, paid whichever way gas is set.
           </p>
           <div style={s.calcBox}>
-            <div style={s.calcRow}><span>Gallons pumped</span><span style={{ fontWeight: 700 }}>1 gal</span></div>
-            <div style={s.calcRow}>
-              <span>{highestGasTier ? `${TIER_META[highestGasTier.tier as TierKey].emoji} ${highestGasTier.tier[0] + highestGasTier.tier.slice(1).toLowerCase()} flat rate` : 'Flat rate'}</span>
-              <span style={{ color: '#F4A261', fontWeight: 700 }}>{highestGasTier ? `${highestGasTier.gasCentsPerGallon}¢/gal` : ' - '}</span>
-            </div>
+            <div style={s.calcRow}><span>Gold customer, {money(EXAMPLE_SALE)} fill ({exampleGallons.toFixed(1)} gal)</span><span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{goldFill ? `${money(goldFill.cashback)} + ${money(goldFill.bonus)}` : ' - '}</span></div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{highestGasTier ? `= $${(1 * highestGasTier.gasCentsPerGallon! / 100).toFixed(2)}` : ' - '}</span>
+              <span style={{ fontWeight: 800 }}>{goldFill ? `= ${money(goldFill.total)} (${pctOne(goldFill.percent)})` : ' - '}</span>
             </div>
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!plan}
+        title={plan?.title ?? ''}
+        message={planMessage}
+        confirmLabel={busy ? 'Saving…' : (plan?.confirmLabel ?? 'Save changes')}
+        danger={plan?.danger}
+        busy={busy}
+        onConfirm={() => { plan?.run(); }}
+        onCancel={() => setPlan(null)}
+      />
     </div>
   );
 }
@@ -674,12 +767,15 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(29,53,87,0.25)',
   },
 
-  loading: { textAlign: 'center' as const, color: TEXT_MUTED, padding: 60, fontSize: 15 },
-  error: { textAlign: 'center' as const, color: '#E63946', padding: 40, background: '#fff5f5', borderRadius: 10 },
+  error: { textAlign: 'center' as const, color: '#b42318', padding: 40, background: '#fff5f5', borderRadius: 10 },
 
   storeCostNote: {
     background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
-    padding: '10px 16px', fontSize: 14, color: '#1d4ed8', marginBottom: 24,
+    padding: '10px 16px', fontSize: 14, color: '#1d4ed8', marginBottom: 12,
+  },
+  appNote: {
+    background: '#fff8e6', border: '1px solid #f3d98b', borderRadius: 10,
+    padding: '10px 16px', fontSize: 14, color: '#5c4400', marginBottom: 24,
   },
 
   tableWrap: {
@@ -714,11 +810,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   inputDirty: { borderColor: '#F4A226' },
   suffix: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
-  preview: { fontSize: 13, color: '#2DC653', fontStyle: 'italic' },
-  gasActive: { fontSize: 13, color: '#F4A261', marginTop: 4 },
+  preview: { fontSize: 13, color: GREEN_TEXT, fontStyle: 'italic' },
+  gasActive: { fontSize: 13, color: AMBER_TEXT, marginTop: 4 },
 
   saveBtn: {
-    padding: '6px 14px', background: '#2DC653', color: '#fff',
+    padding: '6px 14px', background: GREEN_TEXT, color: '#fff',
     border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15, fontWeight: 700,
   },
   undoBtn: {
@@ -726,7 +822,8 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #dee2e6', borderRadius: 6,
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED,
   },
-  savedTag: { fontSize: 14, color: '#2DC653', fontWeight: 600 },
+  savedTag: { fontSize: 14, color: GREEN_TEXT, fontWeight: 600 },
+  lastChange: { padding: '12px 16px', fontSize: 14, color: TEXT_MUTED, borderTop: '1px solid #f1f3f5' },
 
   sectionHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
@@ -735,12 +832,6 @@ const s: Record<string, React.CSSProperties> = {
   sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: PRIMARY },
   sectionSubtitle: { margin: 0, color: TEXT_MUTED, fontSize: 15 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
-  perGallonBadge: {
-    display: 'inline-block', padding: '4px 12px',
-    background: '#fff3e0', color: '#e65100',
-    borderRadius: 20, fontSize: 14, fontWeight: 600,
-    border: '1px solid #ffcc80',
-  },
   gasModeCard: {
     background: '#fff', borderRadius: 12,
     boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
@@ -758,7 +849,7 @@ const s: Record<string, React.CSSProperties> = {
   gasModeHint: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginLeft: 4 },
   liveBadge: {
     display: 'inline-block', padding: '3px 10px',
-    background: '#e8f8ed', color: '#1a7a3a',
+    background: '#e8f8ed', color: GREEN_TEXT,
     borderRadius: 20, fontSize: 14, fontWeight: 700,
     border: '1px solid #a3d9b1',
   },
@@ -776,9 +867,28 @@ const s: Record<string, React.CSSProperties> = {
   },
   effectiveTag: {
     display: 'inline-block', padding: '3px 10px',
-    background: '#e8f8ed', color: '#1a7a3a',
+    background: '#e8f8ed', color: GREEN_TEXT,
     borderRadius: 20, fontSize: 14, fontWeight: 700,
   },
+  tagAmber: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#fff3d6', color: AMBER_TEXT,
+    borderRadius: 20, fontSize: 14, fontWeight: 700,
+  },
+  tagRed: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#fde8e8', color: RED_TEXT,
+    borderRadius: 20, fontSize: 14, fontWeight: 700,
+  },
+  byGallonTag: {
+    display: 'inline-block', padding: '3px 10px',
+    background: '#f1f3f5', color: TEXT_MUTED,
+    borderRadius: 20, fontSize: 13, fontWeight: 600,
+  },
+  legend: { padding: '12px 16px', fontSize: 13, color: TEXT_MUTED, borderTop: '1px solid #f1f3f5', lineHeight: 1.5 },
+
+  confirmNote: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#eef4ff', color: '#1e3a8a', fontSize: 14, lineHeight: 1.45 },
+  confirmWarn: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#fff8e6', color: '#5c4400', fontSize: 14, lineHeight: 1.45 },
 
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   infoCard: {
@@ -789,5 +899,5 @@ const s: Record<string, React.CSSProperties> = {
   infoCardTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, marginBottom: 8 },
   infoCardText: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.55, margin: '0 0 12px' },
   calcBox: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  calcRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057' },
+  calcRow: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15, color: '#495057' },
 };

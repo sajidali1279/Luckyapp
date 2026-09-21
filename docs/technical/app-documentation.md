@@ -579,20 +579,15 @@ Stored in the `TierCashbackRate` table. Each tier record has:
 
 ### 8.2 Tier Upgrade Logic
 
-After each transaction, the backend checks if the customer's `periodPoints` has crossed the next tier threshold:
+After each credited sale the backend recalculates the customer's tier from `periodPoints` (the cashback earned in the current half-year, kept in dollars; the API and the app show points, 100 per dollar) and moves the customer UP when they qualify, with a "Tier Up" notification (`updateCustomerTierIfNeeded` in `utils/tier.ts`). A tier never goes down here: after the half-year step down a customer keeps the lower tier while they earn their way back.
 
-```typescript
-const tierRates = await prisma.tierCashbackRate.findMany({ orderBy: { pointsThreshold: 'asc' } })
-const newTier = tierRates.filter(t => t.pointsThreshold <= customer.periodPoints).pop()?.tier ?? 'BRONZE'
-if (newTier !== customer.tier) {
-  await prisma.user.update({ where: { id: customer.id }, data: { tier: newTier } })
-  // Send tier upgrade push notification
-}
-```
+### 8.3 Tier Periods and the Reset
 
-### 8.3 Tier Period Reset
+The rewards year is two half-years, `tierPeriod` = `YYYY-H1` (January to June) or `YYYY-H2` (July to December), counted on the store calendar (Central time), so a period starts at midnight in Texas. A new customer is created in the current period.
 
-A cron job (or manual trigger by DevAdmin) resets `periodPoints` for all users at the end of the tier period. The `tier` field is preserved - users start the new period at their current tier.
+At each new period every customer falls back ONE tier (Platinum to Diamond ... Silver to Bronze; Bronze stays) and `periodPoints` starts again from 0. `utils/tier-reset-cron.ts` does it: it runs at :07 past every hour (UTC) and 90 seconds after the server starts, and each run only touches customers whose `tierPeriod` is not the current one, so it is safe to repeat and catches up after a sleep (a customer who missed several half-years falls one tier for each). Customers are notified one by one, only when their own tier fell. A run that moves anyone writes a `TIER_PERIOD_RESET` Activity Log entry.
+
+Every read of a customer's tier goes through `effectiveTier()` (the cashier's customer screen, the customer's benefit screen, benefit claims and the rate a sale is paid at), which treats a customer whose period is old as one tier down per half-year missed with no progress, so all of them agree even before the job has reached that customer. Crediting a sale calls `rollCustomerPeriod()` first inside the same transaction, so the points of a sale made before the job runs count in the new period and are not wiped later.
 
 ---
 
@@ -809,9 +804,12 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | DELETE | /billing/records/:recordId | JWT | DEV_ADMIN | Delete an unpaid charge |
 | GET | /billing/monthly-records | JWT | DEV_ADMIN | All billing records, grouped by period |
 | GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates |
-| PUT | /billing/tier-rates/:tier | JWT | SUPER_ADMIN | Update tier rate |
+| GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates. Each row: `tier`, `cashbackRate` (fraction), `gasCentsPerGallon` (null = percent), `pointsThreshold` (POINTS, 100 = $1), `gasBonusCentsPerGallon` (the fixed Gold/Diamond/Platinum extra: 5, 7, 10) |
+| PUT | /billing/tier-rates | JWT | SUPER_ADMIN | Change several tiers all or nothing. Body `{ changes: [{ tier, cashbackRate?, gasCentsPerGallon?, pointsThreshold? }] }` (thresholds in points). Refused with a sentence by `utils/rateRules.ts`: tier at most 7.5%, gas at most 25 cents, thresholds 100 to 10,000,000 points and strictly rising, a tier plus a category bonus at most 10%. Writes one `RATE_TIER_UPDATE` audit entry (with `summary`, before and after). Returns every tier, `changed`, `lastChange`. |
+| PUT | /billing/tier-rates/:tier | JWT | SUPER_ADMIN | Change one tier (same rules and audit as the bulk route) |
 | GET | /billing/category-rates | JWT | EMPLOYEE+ | Category cashback rates |
-| PATCH | /billing/category-rates/:category | JWT | DEV_ADMIN | Update category rate |
+| PATCH | /billing/category-rates/:category | JWT | SUPER_ADMIN | Change a category bonus (at most 5%; same 10% rule; writes `RATE_CATEGORY_UPDATE`). Was DEV_ADMIN only while the page offered it to Super Admins. |
+| GET | /billing/rates/last-change | JWT | SUPER_ADMIN | Who last changed a tier or category rate, when, and a sentence saying what (null if never recorded) |
 | GET | /billing/stores/:storeId/api-key | JWT | DEV_ADMIN | Get store API key |
 | POST | /billing/stores/:storeId/api-key/regenerate | JWT | DEV_ADMIN | Regenerate API key |
 | GET | /my-invoices | JWT | SUPER_ADMIN | SuperAdmin's invoices |

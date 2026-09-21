@@ -62,6 +62,11 @@ export const billingApi = {
   getTierRates: () => api.get('/billing/tier-rates'),
   updateTierRate: (tier: string, data: { cashbackRate?: number; gasCentsPerGallon?: number | null; pointsThreshold?: number }) =>
     api.put(`/billing/tier-rates/${tier}`, data),
+  /** Several tiers in one all-or-nothing save (thresholds are in points). The answer carries every tier as it now stands and the "last changed" line. */
+  updateTierRates: (changes: { tier: string; cashbackRate?: number; gasCentsPerGallon?: number | null; pointsThreshold?: number }[]) =>
+    api.put('/billing/tier-rates', { changes }),
+  /** Who last changed a tier or category rate, when, and what (null if never recorded). */
+  getRatesLastChange: () => api.get('/billing/rates/last-change'),
   getCategoryRates: () => api.get('/billing/category-rates'),
   updateCategoryRate: (category: string, cashbackRate: number) =>
     api.patch(`/billing/category-rates/${category}`, { cashbackRate }),

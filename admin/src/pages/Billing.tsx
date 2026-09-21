@@ -11,12 +11,12 @@ import TableSkeleton from '../components/TableSkeleton';
 import InvoiceModal from '../components/InvoiceModal';
 import CombinedInvoiceModal from '../components/CombinedInvoiceModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { Link } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 
 type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
 
 const BILLING_TYPES = ['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'] as const;
-const TIER_EMOJI: Record<string, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
 
 function needsSubscription(type: string) { return type === 'MONTHLY_SUBSCRIPTION' || type === 'HYBRID'; }
 
@@ -82,10 +82,6 @@ export default function Billing() {
   });
   const billingPendingCount: number = billingPendingData?.data?.data?.count ?? 0;
 
-  // ── Settings state ───────────────────────────────────────────────────────────
-  // Tier rates inline editing: { tier → { cashbackRate: string, gasCentsPerGallon: string } }
-  const [tierEdits, setTierEdits] = useState<Record<string, { cashbackRate: string; gasCentsPerGallon: string }>>({});
-
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data, isLoading: storesLoading, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['billing-stores'],
@@ -100,12 +96,6 @@ export default function Billing() {
   const { data: devCutData, isLoading: rateLoading } = useQuery({
     queryKey: ['dev-cut-rate'],
     queryFn: () => billingApi.getDevCutRate(),
-  });
-
-  const { data: tierRatesData, isLoading: tierRatesLoading } = useQuery({
-    queryKey: ['tier-rates'],
-    queryFn: () => billingApi.getTierRates(),
-    enabled: tab === 'settings',
   });
 
   const { data: monthlyData, isLoading: monthlyLoading, isError: monthlyError, refetch: refetchMonthly } = useQuery({
@@ -132,17 +122,6 @@ export default function Billing() {
     onSuccess: () => { toast.success('Billing updated'); setEditingStore(null); qc.invalidateQueries({ queryKey: ['billing-stores'] }); },
     onError: (e) => toast.error(serverMessage(e, 'Failed to update billing')),
     onSettled: () => { actionLock.current = false; setFeeConfirm(null); },
-  });
-
-  const updateTierRate = useMutation({
-    mutationFn: ({ tier, data }: { tier: string; data: { cashbackRate?: number; gasCentsPerGallon?: number | null } }) =>
-      billingApi.updateTierRate(tier, data),
-    onSuccess: (_res, vars) => {
-      toast.success(`${vars.tier} tier updated`);
-      setTierEdits(prev => { const n = { ...prev }; delete n[vars.tier]; return n; });
-      qc.invalidateQueries({ queryKey: ['tier-rates'] });
-    },
-    onError: () => toast.error('Failed to update tier rate'),
   });
 
   const [expandedBill, setExpandedBill] = useState<string | null>(null);
@@ -287,7 +266,6 @@ export default function Billing() {
   const stores = data?.data?.data || [];
   const revenue = revenueData?.data?.data;
   const devCutRate = devCutData?.data?.data?.rate ?? 0.02;
-  const tierRates: { tier: string; cashbackRate: number; gasCentsPerGallon: number | null }[] = tierRatesData?.data?.data || [];
   const monthlyRecords: any[] = monthlyData?.data?.data?.records || [];
 
   // Consolidate per-store records into one invoice per period
@@ -1062,75 +1040,14 @@ export default function Billing() {
       {tab === 'settings' && (
         <div style={s.settingsGrid}>
 
-          {/* Tier Cashback Rates card */}
+          {/* Cashback rates live on one page only (a second editor here used fractions and skipped the checks) */}
           <div style={{ ...s.settingsCard, gridColumn: '1 / -1' }}>
-            <h3 style={s.settingsCardTitle}>🏆 Tier Cashback Rates</h3>
+            <h3 style={s.settingsCardTitle}>🏆 Cashback rates</h3>
             <p style={s.settingsCardDesc}>
-              Base cashback rate per customer tier. Promotions add on top of these rates.
-              For GAS/DIESEL, you can optionally set a flat <strong>¢ per gallon</strong> rate instead of a percentage.
-              Leave blank to use the percentage rate for gas too.
+              Tier cashback, gas cents per gallon, points to reach a tier and category bonuses are all set on the{' '}
+              <Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates page</Link>,
+              where every change is confirmed and recorded.
             </p>
-            {tierRatesLoading ? <TableSkeleton columns={4} /> : (
-              <Table style={{ width: '100%', marginTop: 12 }}>
-                <TableHeader>
-                  <TableRow style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                    <TableHead style={s.th}>Tier</TableHead>
-                    <TableHead style={s.th}>Cashback %</TableHead>
-                    <TableHead style={s.th}>Gas ¢/gallon <span style={{ fontWeight: 400, color: TEXT_MUTED, fontSize: 13 }}>(optional - overrides % for gas)</span></TableHead>
-                    <TableHead style={s.th}></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tierRates.map((r) => {
-                    const edit = tierEdits[r.tier];
-                    const isEditing = !!edit;
-                    return (
-                      <TableRow key={r.tier} style={{ borderBottom: '1px solid #dee2e6' }}>
-                        <TableCell style={s.td}><strong>{TIER_EMOJI[r.tier]} {r.tier[0] + r.tier.slice(1).toLowerCase()}</strong></TableCell>
-                        <TableCell style={s.td}>
-                          {isEditing ? (
-                            <input type="number" min="0" max="1" step="0.01" value={edit.cashbackRate}
-                              onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], cashbackRate: e.target.value } }))}
-                              style={{ ...s.input, width: 80 }} placeholder="e.g. 0.03" />
-                          ) : (
-                            <span style={{ fontWeight: 600, color: '#2DC653' }}>{fmtPct(r.cashbackRate)}</span>
-                          )}
-                        </TableCell>
-                        <TableCell style={s.td}>
-                          {isEditing ? (
-                            <input type="number" min="0" step="0.5" value={edit.gasCentsPerGallon}
-                              onChange={(e) => setTierEdits(p => ({ ...p, [r.tier]: { ...p[r.tier], gasCentsPerGallon: e.target.value } }))}
-                              style={{ ...s.input, width: 80 }} placeholder="e.g. 3" />
-                          ) : (
-                            r.gasCentsPerGallon != null
-                              ? <span style={{ fontWeight: 600, color: '#F4A261' }}>{r.gasCentsPerGallon}¢/gal</span>
-                              : <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>use %</span>
-                          )}
-                        </TableCell>
-                        <TableCell style={{ ...s.td, textAlign: 'right' }}>
-                          {isEditing ? (
-                            <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                              <button style={s.saveBtn} disabled={updateTierRate.isPending} onClick={() => {
-                                const cr = parseFloat(edit.cashbackRate);
-                                const cpg = edit.gasCentsPerGallon === '' ? null : parseFloat(edit.gasCentsPerGallon);
-                                if (isNaN(cr) || cr < 0 || cr > 1) { toast.error('Rate must be 0–1 (e.g. 0.03 for 3%)'); return; }
-                                if (cpg !== null && isNaN(cpg)) { toast.error('Enter a valid ¢/gallon or leave blank'); return; }
-                                updateTierRate.mutate({ tier: r.tier, data: { cashbackRate: cr, gasCentsPerGallon: cpg } });
-                              }}>{updateTierRate.isPending ? '…' : 'Save'}</button>
-                              <button style={s.cancelBtn} onClick={() => setTierEdits(p => { const n = { ...p }; delete n[r.tier]; return n; })}>Cancel</button>
-                            </span>
-                          ) : (
-                            <button style={s.editBtn} onClick={() => setTierEdits(p => ({
-                              ...p, [r.tier]: { cashbackRate: String(r.cashbackRate), gasCentsPerGallon: r.gasCentsPerGallon != null ? String(r.gasCentsPerGallon) : '' }
-                            }))}>Edit</button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
           </div>
 
           {/* Default fee card (read only: no bill reads this number; each store has its own fee on the Stores tab) */}

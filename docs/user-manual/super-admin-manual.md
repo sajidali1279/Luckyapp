@@ -24,7 +24,7 @@
 13. [Careers - Job Applications](#13-careers--job-applications)
 14. [Business Promotions](#14-business-promotions)
 15. [Billing and Invoices](#15-billing-and-invoices)
-16. [Tier Rates Configuration](#16-tier-rates-configuration)
+16. [Cashback Rates](#16-cashback-rates)
 17. [Inventory Analytics (Inventory Intelligence)](#17-inventory-analytics-inventory-intelligence)
 18. [Activity Log (Audit Trail)](#18-activity-log-audit-trail)
 19. [Support Tickets](#19-support-tickets)
@@ -619,29 +619,31 @@ For billing questions or disputes, contact the Developer (DevAdmin) via the Supp
 
 ---
 
-## 16. Tier Rates Configuration
+## 16. Cashback Rates
 
-### 16.1 Viewing Tier Rates
+### 16.1 Viewing the rates
 
-Navigate to **Rates** in the sidebar. The Rates page shows:
+Navigate to **Cashback Rates** in the sidebar (Reports). The page shows:
 
-**Tier Cashback Rates:**
-The cashback percentage applied to qualifying transactions for each loyalty tier (Bronze, Silver, Gold, Diamond, Platinum). These are the rates customers earn based on their tier level.
+**Tier table** - for Bronze, Silver, Gold, Diamond and Platinum: the cashback percentage earned on every purchase, an optional gas rate in cents per gallon, and the **points to reach the tier** in a half-year (100 points = $1 of cashback, so 5,000 points is $50.00). Under the table it says who last changed a rate and what they changed.
 
-**Gas Rates (per tier):**
-Some tiers may earn a per-gallon cents bonus instead of a percentage on gas/diesel purchases. If the tier has a cents-per-gallon rate configured, gas transactions use that mode instead of the percentage.
+**Category bonus table** - a permanent extra percentage for a product category (for example Groceries +1%). The columns to the right show the total for each tier. A total over 7.5% is marked with a warning (those sales are held for a manager to review) and a total over 10% is marked as the most a sale can ever pay.
 
-**Category Rates:**
-Bonus cashback rates that apply to specific product categories (e.g., Groceries: +1%, GAS: +2%). These are added on top of the base tier rate.
+**Gas & Diesel Mode** - gas and diesel are paid either as a percent of the sale or as a flat number of cents per gallon for each tier. In cents-per-gallon mode Gold, Diamond and Platinum also get a fixed extra of 5, 7 and 10 cents a gallon (set in the system, not on this page, and not part of the platform fee). The table shows what a $40 fill pays each tier, extra included.
 
-### 16.2 Updating Tier Rates
+### 16.2 Changing a rate
 
-1. Navigate to **Rates** → scroll to **Tier Rates**.
-2. Click the **Edit** icon next to the tier you want to change.
-3. Enter the new cashback percentage.
-4. Click **Save Rate**.
+1. Type the new number in the box (the row turns yellow) and click **Save**, or press Enter.
+2. A box lists what will change and what it does to a $40 sale (for example "a Silver customer's $40 grocery sale pays $1.20 instead of $0.80"), and warns if some sales would be held for a manager.
+3. Click **Save changes**. Several tiers saved together are saved all or nothing.
 
-**Caution:** Changes to tier rates take effect immediately on all new transactions. This affects the cost to Lucky Stop and the reward rate for customers. Coordinate with management before changing rates.
+The page refuses a slip with a sentence before anything is saved: a tier's cashback can be at most 7.5%, a category bonus at most 5%, gas at most 25 cents a gallon, each tier must need more points than the one below it, and a tier plus a category bonus can never be more than 10%.
+
+**Caution:** a change applies to the next sale. Sales that are already started keep their rate. It changes what the stores' customers earn, so coordinate with management first. Every change is written to the Activity Log with who, when, and the values before and after.
+
+**The customer app does not follow this page.** It shows fixed numbers (1% to 5% cashback, 5,000 to 45,000 points to reach a tier, +5, +7 and +10 cents a gallon). If you change a tier's cashback or its points, tell customers, because the app will keep showing the old numbers until the app itself is updated.
+
+**Switching gas to a percent** changes what every gas customer earns from the next sale, so it asks first and shows a $40 fill before and after. To go back you type the cents for each tier again.
 
 ### 16.3 Understanding How Rates Stack
 
@@ -649,11 +651,15 @@ The effective cashback rate on any transaction is:
 
 > **Effective Rate = Tier Base Rate + Category Bonus Rate + Offer Bonus Rate**
 
+Only one promotion applies to a sale, and the total is never more than 10% of the sale.
+
 Example:
-- Customer is Gold tier: Base rate = 7%
-- Customer buys groceries with a +1% category bonus: 7% + 1% = 8%
-- There is an active offer with +2% for groceries: 8% + 2% = 10%
-- Total: Customer earns 10% on that grocery purchase.
+- Customer is Gold tier: Base rate = 3%
+- Customer buys groceries with a +1% category bonus: 3% + 1% = 4%
+- There is an active offer with +2% for groceries: 4% + 2% = 6%
+- Total: Customer earns 6% on that grocery purchase.
+
+For gas paid by the gallon the tier's cents per gallon replace the percent and the category bonus (the fixed Gold, Diamond and Platinum extra is added on top).
 
 ---
 

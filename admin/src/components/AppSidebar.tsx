@@ -280,7 +280,7 @@ export function AppSidebar() {
               <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
-                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Tier Rates" />
+                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Cashback Rates" />
                   <SidebarNavItem to="/leaderboard" icon={<Trophy size={16} />} label="Leaderboard" />
                 </>
               )}

@@ -24,7 +24,7 @@ const TITLES: Record<string, string> = {
   '/transactions': 'Transactions',
   '/daily-reports': 'Daily Reports',
   '/daily-tasks': 'Daily Tasks',
-  '/rates': 'Tier Rates',
+  '/rates': 'Cashback Rates',
   '/leaderboard': 'Leaderboard',
   '/activity': 'Activity Log',
   '/stores': 'Stores',
