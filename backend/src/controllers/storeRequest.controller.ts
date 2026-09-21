@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { StoreRequestType, StoreRequestPriority, Role } from '@prisma/client';
 import { audit } from '../utils/audit';
+import { emailHQ } from '../utils/adminEmail';
 import { sendPushToUser } from '../utils/push';
 import { alertUrlManager, storeRequestUrlEmployee } from '../utils/notificationRoutes';
 
@@ -76,6 +77,16 @@ export async function submitRequest(req: AuthRequest, res: Response) {
   managerIds.forEach(id =>
     sendPushToUser(id, '🔔 New Store Alert', `${user.name || 'An employee'} flagged: ${request.type.replace(/_/g, ' ').toLowerCase()}`, 'STORE_REQUEST', alertUrlManager(request.id))
   );
+
+  // A high-priority alert (a pump out of order, a safety problem) also goes to HQ's email
+  if (request.priority === StoreRequestPriority.HIGH) {
+    emailHQ(
+      `High-priority store alert at ${request.store.name}`,
+      'A high-priority store alert was raised',
+      [`Store: ${request.store.name}`, `Type: ${request.type.replace(/_/g, ' ').toLowerCase()}`, `From: ${user.name || 'an employee'}`, ...(request.notes ? [`Note: ${request.notes}`] : [])],
+      { path: `/store-requests?storeId=${storeId}&tab=alert&highlightId=${request.id}`, label: 'Review the alert' },
+    );
+  }
 
   res.status(201).json({ success: true, data: request });
 }

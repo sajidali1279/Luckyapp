@@ -8,6 +8,7 @@ import { disputeSubmittedUrlEmployee, disputeResolvedUrl } from '../utils/notifi
 import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
+import { emailHQ } from '../utils/adminEmail';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -76,6 +77,14 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     'DISPUTE_SUBMITTED',
     disputeSubmittedUrlEmployee(),
   ).catch(() => {});
+
+  // Every report reaches HQ's email too: a customer waiting on missing money is the one thing that should not sit unseen
+  emailHQ(
+    `Missing-points report at ${store.name}`,
+    'A customer reported missing points',
+    [`Store: ${store.name}`, `Customer: ${req.user!.name || req.user!.phone || 'a customer'}`, `They wrote: ${description}`, ...(estimatedAmt ? [`They say the purchase was about $${Number(estimatedAmt).toFixed(2)}.`] : [])],
+    { path: '/customers?tab=disputes', label: 'Review the report' },
+  );
 
   res.status(201).json({ success: true, data: dispute });
 }

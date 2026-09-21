@@ -17,6 +17,7 @@ import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../uti
 import { csvText } from '../utils/csv';
 import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
 import { refuseIfStoreClosed } from '../utils/storeRules';
+import { emailHQ, URGENT_SALE_AMOUNT } from '../utils/adminEmail';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 
@@ -223,6 +224,15 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     const recipients = await flaggedSaleRecipientIds(storeId);
     for (const id of recipients) {
       sendPushToUser(id, '🚨 Sale held for review', `$${purchaseAmount.toFixed(2)} sale held for review at ${store?.name ?? 'your store'}.`, 'ALERT');
+    }
+    // A large one also goes to HQ's email: an admin who is not looking at the page or the phone would not hear about it until much later
+    if (purchaseAmount >= URGENT_SALE_AMOUNT) {
+      emailHQ(
+        `Sale held for review: $${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}`,
+        'A large sale is held for review',
+        [`$${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${employee.name || 'a cashier'} for ${customer.name || customer.phone}.`, `Held because: ${fraudFlags.join(', ')}.`, 'It is not credited until a manager or HQ approves it.'],
+        { path: '/transactions', label: 'Review the sale' },
+      );
     }
   }
 

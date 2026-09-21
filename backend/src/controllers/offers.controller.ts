@@ -5,8 +5,7 @@ import { AuthRequest } from '../types';
 import { OfferType, Prisma, ProductCategory, Role, Tier } from '@prisma/client';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
-import { broadcastToCustomers } from '../utils/push';
-import { offerUrl } from '../utils/notificationRoutes';
+import { announceOffer } from '../utils/offerAnnounce';
 import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
@@ -141,8 +140,11 @@ export async function createOffer(req: AuthRequest, res: Response) {
     data: { ...parsed.data, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) } as any,
   });
 
-  // Notify all customers — notification auto-expires when the offer ends
-  broadcastToCustomers('🎉 New Promotion!', `${offer.title}. Check the Lucky Stop app for details.`, 'OFFER', new Date(parsed.data.endDate), offerUrl());
+  // Customers hear about it when it STARTS: now if it already has, otherwise the hourly job announces it on its first day. A single-store promotion goes
+  // to that store's customers, not to everyone. The message expires when the promotion ends.
+  if (offer.startDate.getTime() <= Date.now() + 60_000) {
+    announceOffer({ id: offer.id, title: offer.title, storeId: offer.storeId, endDate: offer.endDate, createdAt: offer.createdAt }).catch((e) => console.error('[offers] announcement failed:', e?.message ?? e));
+  }
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

@@ -8,8 +8,9 @@ function withHighlight(base: string, id?: string): string {
 }
 
 // ─── Mobile: Customer ──────────────────────────────────────────────────────
-export function offerUrl(): string {
-  return '/(customer)/home?scrollTo=offers';
+export function offerUrl(offerId?: string): string {
+  // The id lets the server tell that a promotion has already been announced; the home screen only reads scrollTo
+  return `/(customer)/home?scrollTo=offers${offerId ? `&offerId=${offerId}` : ''}`;
 }
 export function careersUrl(): string {
   return '/(customer)/careers';

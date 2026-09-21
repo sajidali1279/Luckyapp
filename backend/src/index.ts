@@ -13,6 +13,8 @@ import { startCatalogExpiryCron } from './utils/catalog-expiry-cron';
 import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron';
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
+import { startOfferAnnounceCron } from './utils/offerAnnounce';
+import { startMorningSummaryCron } from './utils/morning-summary';
 import { clientKey } from './utils/rateLimitKey';
 
 const app = express();
@@ -120,6 +122,8 @@ app.listen(PORT, () => {
   startDailyReportReminderCron();
   startLabelPriceExpiryCron();
   startNotificationRetentionCron();
+  startOfferAnnounceCron();
+  startMorningSummaryCron();
 });
 
 export default app;

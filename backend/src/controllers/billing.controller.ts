@@ -17,6 +17,7 @@ import { refuse } from '../utils/refusal';
 import { isRealPeriod, isFinishedPeriod, lastFinishedPeriod, periodBounds, periodFirstDay, periodLastDay, periodLabel, periodsSince, storePeriodOf } from '../utils/billingPeriods';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_MESSAGE, COORDINATE_PAIR_MESSAGE } from '../utils/storeRules';
+import { resolveAudience } from '../utils/audience';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -1293,7 +1294,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [allBills, rejectedTx, devCutConfig] = await Promise.all([
+  const [allBills, rejectedTx, flaggedSales] = await Promise.all([
     (prisma.billingRecord as any).findMany({
       where: {
         OR: [
@@ -1307,7 +1308,13 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     prisma.pointsTransaction.count({
       where: { status: 'REJECTED', updatedAt: { gte: thirtyDaysAgo } },
     }),
-    prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
+    // Sales held for review: the most urgent thing here, and until now the one thing this list did not contain
+    prisma.pointsTransaction.findMany({
+      where: { status: 'FLAGGED' },
+      select: { id: true, purchaseAmount: true, fraudFlags: true, createdAt: true, store: { select: { id: true, name: true } }, customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }).catch(() => [] as any[]),
   ]);
 
   // Fetch pending shift requests separately so a failure here never breaks billing notifications
@@ -1355,8 +1362,6 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     }).catch(() => [] as any[]),
   ]);
 
-  const devCutRate = parseFloat(devCutConfig?.value ?? '0.04');
-
   // Group bills by period
   const byPeriod: Record<string, { total: number; storeCount: number; isPaid: boolean; paidAt: string | null; stores: { name: string; city: string; amount: number }[] }> = {};
   for (const bill of allBills) {
@@ -1365,7 +1370,6 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       byPeriod[bill.period] = { total: 0, storeCount: 0, isPaid: true, paidAt: bill.paidAt ? bill.paidAt.toISOString() : null, stores: [] };
     }
     byPeriod[bill.period].total += amt;
-    byPeriod[bill.period].storeCount++;
     byPeriod[bill.period].stores.push({ name: bill.store?.name ?? 'All Stores (Chain-wide)', city: bill.store?.city ?? '', amount: amt });
     if (!bill.isPaid) byPeriod[bill.period].isPaid = false;
     if (bill.isPaid && bill.paidAt) byPeriod[bill.period].paidAt = bill.paidAt.toISOString();
@@ -1383,6 +1387,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     const [y, m] = period.split('-').map(Number);
     const monthName = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
     const total = parseFloat(info.total.toFixed(2));
+    const storeCount = new Set(info.stores.map((st) => st.name)).size;   // stores, not bills: a store with a usage bill and an extra charge is one store
 
     if (info.isPaid) {
       notifications.push({
@@ -1406,7 +1411,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
         type: 'BILLING',
         category: 'billing',
         title: `Invoice Due — ${monthName}`,
-        message: `$${total.toFixed(2)} in platform fees outstanding (${(devCutRate * 100).toFixed(0)}% dev cut across ${info.storeCount} stores).`,
+        message: `$${total.toFixed(2)} in platform fees outstanding across ${storeCount} store${storeCount !== 1 ? 's' : ''}.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
         severity: 'warning',
@@ -1419,15 +1424,35 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     }
   }
 
-  // Rejected transaction alert
+  // Sales held for review, one card each. The id is the sale's own id, so a card you have read stays read.
+  for (const t of flaggedSales) {
+    let flags: string[] = [];
+    try { flags = t.fraudFlags ? JSON.parse(t.fraudFlags) : []; } catch { /* unreadable flags: shown without them */ }
+    const big = t.purchaseAmount >= 500;
+    notifications.push({
+      id: `flagged-${t.id}`,
+      type: 'TRANSACTION',
+      category: 'transactions',
+      title: `Sale held for review at ${t.store?.name ?? 'a store'}`,
+      message: `$${Number(t.purchaseAmount).toFixed(2)} for ${t.customer?.name || t.customer?.phone || 'a customer'}, granted by ${t.grantedBy?.name || 'a cashier'}${flags.length ? `. Held because: ${flags.join(', ')}` : ''}.`,
+      createdAt: t.createdAt.toISOString(),
+      isRead: false,
+      severity: big ? 'error' : 'warning',
+      actionUrl: '/transactions',
+      actionLabel: 'Review Sale',
+      storeId: t.store?.id,
+    });
+  }
+
+  // Rejected transaction alert. The id holds the count, so it stays read until the number changes (it used to hold the date 30 days ago, which changed at midnight and brought it back as new every day).
   if (rejectedTx > 0) {
     notifications.push({
-      id: `rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      id: `rejected-30d-${rejectedTx}`,
       type: 'TRANSACTION',
       category: 'transactions',
       title: `${rejectedTx} Transaction${rejectedTx !== 1 ? 's' : ''} Rejected`,
       message: `${rejectedTx} point grant${rejectedTx !== 1 ? 's were' : ' was'} rejected in the last 30 days. Review your transactions page for details.`,
-      createdAt: thirtyDaysAgo.toISOString(),
+      createdAt: now.toISOString(),
       isRead: false,
       severity: rejectedTx >= 5 ? 'error' : 'info',
       actionUrl: '/transactions',
@@ -1533,7 +1558,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo  = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
+  const [allBills, rejectedTx, newCustomers, pendingShiftRequests, pendingDisputes, pendingStoreAlerts, pendingProductRequests, pendingStockRequests, flaggedSales] = await Promise.all([
     (prisma.billingRecord as any).findMany({
       where: {
         OR: [
@@ -1578,21 +1603,46 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       include: { store: { select: { id: true, name: true } }, submittedBy: { select: { name: true } }, lines: true },
       orderBy: { createdAt: 'desc' },
     }).catch(() => [] as any[]),
+    prisma.pointsTransaction.findMany({
+      where: { status: 'FLAGGED' },
+      select: { id: true, purchaseAmount: true, fraudFlags: true, createdAt: true, store: { select: { id: true, name: true } }, customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }).catch(() => [] as any[]),
   ]);
 
   const notifications: any[] = [];
 
+  for (const t of flaggedSales) {
+    let flags: string[] = [];
+    try { flags = t.fraudFlags ? JSON.parse(t.fraudFlags) : []; } catch { /* unreadable flags: shown without them */ }
+    notifications.push({
+      id: `flagged-${t.id}`,
+      type: 'TRANSACTION',
+      category: 'transactions',
+      title: `Sale held for review at ${t.store?.name ?? 'a store'}`,
+      message: `$${Number(t.purchaseAmount).toFixed(2)} for ${t.customer?.name || t.customer?.phone || 'a customer'}, granted by ${t.grantedBy?.name || 'a cashier'}${flags.length ? `. Held because: ${flags.join(', ')}` : ''}.`,
+      createdAt: t.createdAt.toISOString(),
+      isRead: false,
+      severity: t.purchaseAmount >= 500 ? 'error' : 'warning',
+      actionUrl: '/transactions',
+      actionLabel: 'Review Sale',
+      storeId: t.store?.id,
+    });
+  }
+
   // Group bills by period+chain (company)
-  const byPeriod: Record<string, { total: number; unpaidCount: number; isPaid: boolean; paidAt: string | null; storeCount: number }> = {};
+  const byPeriod: Record<string, { total: number; unpaidStores: Set<string>; isPaid: boolean; paidAt: string | null; stores: Set<string> }> = {};
   for (const bill of allBills) {
     if (!byPeriod[bill.period]) {
-      byPeriod[bill.period] = { total: 0, unpaidCount: 0, isPaid: true, paidAt: null, storeCount: 0 };
+      byPeriod[bill.period] = { total: 0, unpaidStores: new Set(), isPaid: true, paidAt: null, stores: new Set() };
     }
+    const storeName = bill.store?.name ?? 'All Stores (Chain-wide)';
     byPeriod[bill.period].total += parseFloat(String(bill.amount));
-    byPeriod[bill.period].storeCount++;
+    byPeriod[bill.period].stores.add(storeName);   // stores, not bills
     if (!bill.isPaid) {
       byPeriod[bill.period].isPaid = false;
-      byPeriod[bill.period].unpaidCount++;
+      byPeriod[bill.period].unpaidStores.add(storeName);
     } else if (bill.paidAt) {
       byPeriod[bill.period].paidAt = bill.paidAt.toISOString();
     }
@@ -1609,7 +1659,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         type: 'REVENUE',
         category: 'billing',
         title: `Payment Received — ${monthName}`,
-        message: `$${total.toFixed(2)} subscription revenue collected across ${info.storeCount} store${info.storeCount !== 1 ? 's' : ''}.`,
+        message: `$${total.toFixed(2)} in platform fees collected across ${info.stores.size} store${info.stores.size !== 1 ? 's' : ''}.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
         severity: 'success',
@@ -1625,7 +1675,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         type: 'REVENUE',
         category: 'billing',
         title: `Payment Pending — ${monthName}`,
-        message: `$${total.toFixed(2)} outstanding from ${info.unpaidCount} store${info.unpaidCount !== 1 ? 's' : ''}. Mark as paid once received.`,
+        message: `$${total.toFixed(2)} outstanding from ${info.unpaidStores.size} store${info.unpaidStores.size !== 1 ? 's' : ''}. Mark as paid once received.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
         severity: 'warning',
@@ -1641,7 +1691,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   // Platform health alerts
   if (rejectedTx > 0) {
     notifications.push({
-      id: `dev-rejected-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      id: `dev-rejected-30d-${rejectedTx}`,   // holds the count, not the date 30 days ago (which changed every midnight)
       type: 'PLATFORM',
       category: 'transactions',
       title: `${rejectedTx} Rejected Transaction${rejectedTx !== 1 ? 's' : ''} (Last 30 Days)`,
@@ -1656,10 +1706,10 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
 
   if (newCustomers > 0) {
     notifications.push({
-      id: `dev-customers-${thirtyDaysAgo.toISOString().slice(0, 10)}`,
+      id: `dev-customers-30d-${newCustomers}`,
       type: 'PLATFORM',
       category: 'customers',
-      title: `${newCustomers} New Customer${newCustomers !== 1 ? 's' : ''} This Month`,
+      title: `${newCustomers} New Customer${newCustomers !== 1 ? 's' : ''} (Last 30 Days)`,
       message: `${newCustomers} customer${newCustomers !== 1 ? 's have' : ' has'} signed up in the last 30 days across all stores.`,
       createdAt: now.toISOString(),
       isRead: true,
@@ -2037,18 +2087,16 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     gasPriceUrlEmployee(),
   );
 
-  // In-app only → all customers (no push — routine daily change)
-  prisma.user.findMany({ where: { role: 'CUSTOMER', isActive: true }, select: { id: true } })
-    .then((customers) => {
-      if (customers.length > 0) {
-        saveNotificationMany(
-          customers.map((c) => c.id),
-          `⛽ New Prices at ${store.name}`,
-          priceText,
-          'GAS_PRICE_UPDATE',
-          gasPriceUrlCustomer(),
-        );
-      }
+  // In-app only (no push, it is a routine change) → the customers of THIS store, meaning an approved purchase there in the last six months, and one
+  // line per store: the new price replaces the store's unread old line instead of stacking up (before, every save at any store added a line for every
+  // customer: 360 lines, 333 of them unread, for 13 customers in a month)
+  resolveAudience('STORE_CUSTOMERS', storeId)
+    .then(async (members) => {
+      if (members.length === 0) return;
+      const ids = members.map((m) => m.id);
+      const title = `⛽ New Prices at ${store.name}`;
+      await prisma.userNotification.deleteMany({ where: { userId: { in: ids }, type: 'GAS_PRICE_UPDATE', title, isRead: false } });
+      await saveNotificationMany(ids, title, priceText, 'GAS_PRICE_UPDATE', gasPriceUrlCustomer());
     })
     .catch(() => { /* non-critical */ });
 
