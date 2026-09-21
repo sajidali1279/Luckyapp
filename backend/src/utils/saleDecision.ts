@@ -7,6 +7,7 @@
 
 import { Prisma, TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
+import { rollCustomerPeriod } from './tier';
 
 export interface SaleToCredit {
   id: string;
@@ -27,6 +28,8 @@ export async function approveAndCredit(
     data: { ...alsoSet, status: TransactionStatus.APPROVED },
   });
   if (moved.count === 0) return null;
+  // If the half-year turned and the reset has not reached this customer yet, apply it first so these points count in the new period
+  await rollCustomerPeriod(db, sale.customerId);
   const totalPoints = sale.pointsAwarded + sale.gasBonusPoints;
   return db.user.update({
     where: { id: sale.customerId },

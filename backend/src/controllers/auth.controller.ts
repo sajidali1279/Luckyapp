@@ -13,6 +13,7 @@ import cloudinary from '../config/cloudinary';
 import { anonymizeCustomerAccount, excludeDeletedCustomers } from '../utils/accountDeletion';
 import { csvText } from '../utils/csv';
 import { storeDateText } from '../utils/storeTime';
+import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
 import { canonicalPhone, staffPhone } from '../utils/phone';
 
@@ -143,7 +144,7 @@ export async function register(req: Request, res: Response) {
   let user;
   try {
     user = await prisma.user.create({
-      data: { phone: accountPhone, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true },
+      data: { phone: accountPhone, name, pinHash, qrCode, role: Role.CUSTOMER, isProfileComplete: true, tierPeriod: getCurrentPeriod() },
     });
   } catch (e) {
     // Two signups for the same number at the same moment: the second hits the unique phone

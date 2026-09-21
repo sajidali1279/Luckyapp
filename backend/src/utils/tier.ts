@@ -1,6 +1,7 @@
-import { Tier } from '@prisma/client';
+import { Prisma, Tier } from '@prisma/client';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
+import { storeDateKey } from './storeTime';
 
 // Default tier thresholds in dollars (internally). Display: × 100 = pts
 export const TIER_THRESHOLDS: Record<string, number> = {
@@ -35,11 +36,60 @@ export function calculateTier(
   return Tier.BRONZE;
 }
 
-export function getCurrentPeriod(): string {
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const half = now.getUTCMonth() < 6 ? 'H1' : 'H2';
-  return `${year}-${half}`;
+// The rewards half-year is counted on the store calendar (Central time) like every other store day, so a new period starts at
+// midnight in Texas on January 1 and July 1, not at 6 or 7 pm the evening before (which is what UTC did).
+export function getCurrentPeriod(at: Date = new Date()): string {
+  const [year, month] = storeDateKey(at).split('-').map(Number);
+  return `${year}-H${month <= 6 ? 1 : 2}`;
+}
+
+/** Lowest to highest. */
+export const TIER_LADDER: Tier[] = [Tier.BRONZE, Tier.SILVER, Tier.GOLD, Tier.DIAMOND, Tier.PLATINUM];
+const rank = (t: Tier) => TIER_LADDER.indexOf(t);
+
+/** How many half-year boundaries lie between two periods ("2026-H1" to "2027-H1" is 2). 0 when equal; text that is not a period counts as 1. */
+export function periodsBetween(from: string, to: string): number {
+  const number = (p: string) => { const m = /^(\d{4})-H([12])$/.exec(p); return m ? Number(m[1]) * 2 + Number(m[2]) : null; };
+  const a = number(from);
+  const b = number(to);
+  if (a == null || b == null) return from === to ? 0 : 1;
+  return Math.max(0, b - a);
+}
+
+/** The tier after falling `steps` levels (Bronze is the floor). */
+export function stepDownTier(tier: Tier, steps: number): Tier {
+  return TIER_LADDER[Math.max(0, rank(tier) - Math.max(0, steps))] ?? Tier.BRONZE;
+}
+
+/**
+ * A customer's tier and progress as they stand NOW. When the stored period is the current one that is what is stored. When it is
+ * an old one (the reset has not reached this customer yet) it is what the reset will make of them: one tier down for each
+ * half-year missed and no progress. Every screen and every sale reads a customer through this, so they all give the same answer.
+ */
+export function effectiveTier(
+  customer: { tier: Tier; tierPeriod: string; periodPoints: number },
+  at: Date = new Date(),
+): { tier: Tier; periodPoints: number; period: string; current: boolean } {
+  const period = getCurrentPeriod(at);
+  if (customer.tierPeriod === period) return { tier: customer.tier, periodPoints: customer.periodPoints, period, current: true };
+  return { tier: stepDownTier(customer.tier, periodsBetween(customer.tierPeriod, period)), periodPoints: 0, period, current: false };
+}
+
+/**
+ * Applies the reset to one customer whose stored period is old, so points credited next land in the new period instead of being
+ * wiped by the job later. Safe to call at any time and from two places at once: it only changes a row that still has the old
+ * period, so a customer is never stepped down twice. Returns true when it changed the customer.
+ */
+export async function rollCustomerPeriod(db: Prisma.TransactionClient | typeof prisma, customerId: string, at: Date = new Date()): Promise<boolean> {
+  const c = await db.user.findUnique({ where: { id: customerId }, select: { tier: true, tierPeriod: true } });
+  if (!c) return false;
+  const period = getCurrentPeriod(at);
+  if (c.tierPeriod === period) return false;
+  const moved = await db.user.updateMany({
+    where: { id: customerId, tierPeriod: c.tierPeriod },
+    data: { tier: stepDownTier(c.tier, periodsBetween(c.tierPeriod, period)), tierPeriod: period, periodPoints: 0 },
+  });
+  return moved.count > 0;
 }
 
 // Bonus points per gallon IN DOLLARS (e.g. 0.05 = 5 pts)
@@ -68,7 +118,8 @@ export function getTierBonusRate(
   return map?.[tier] ?? offer.bonusRate ?? 0;
 }
 
-// Updates a customer's tier after points are credited, sending a push if they tier up.
+// Moves a customer UP a tier after points are credited (and says so). A tier never goes down here: after the half-year step down a
+// customer keeps their lower tier while they earn their way back, instead of being dropped to what one small sale is worth.
 export async function updateCustomerTierIfNeeded(
   customerId: string,
   updatedPeriodPoints: number,
@@ -76,7 +127,7 @@ export async function updateCustomerTierIfNeeded(
 ): Promise<void> {
   const thresholds = await getStoredThresholds();
   const newTier = calculateTier(updatedPeriodPoints, thresholds);
-  if (newTier !== currentTier) {
+  if (rank(newTier) > rank(currentTier)) {
     await prisma.user.update({ where: { id: customerId }, data: { tier: newTier } });
     sendPushToUser(customerId, '🎉 Tier Up!', `You're now ${newTier} tier. Check your new benefits!`, 'GENERAL');
   }

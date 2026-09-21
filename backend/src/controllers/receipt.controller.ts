@@ -4,7 +4,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON, effectiveTier, rollCustomerPeriod } from '../utils/tier';
 import { pickOffer, percentBonus } from '../utils/offerPick';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
@@ -207,7 +207,9 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   }
 
   const items: { category: ProductCategory; amount: number }[] = JSON.parse(token.items);
-  const customerTier: Tier = (customer.tier as Tier) ?? Tier.BRONZE;
+  // The tier after any half-year step down that has not been written yet (the signed-in user object only carries the stored tier)
+  const tierState = await prisma.user.findUnique({ where: { id: customer.id }, select: { tier: true, tierPeriod: true, periodPoints: true } });
+  const customerTier: Tier = tierState ? effectiveTier(tierState).tier : Tier.BRONZE;
   const now = new Date();
 
   // Fetch tier rate, category rates, active offers for this store, and store's dev cut rate
@@ -315,6 +317,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       if (claimed.count === 0) {
         throw Object.assign(new Error('ALREADY_CLAIMED'), { code: 'ALREADY_CLAIMED' });
       }
+      await rollCustomerPeriod(tx, customer.id);
       return tx.user.update({
         where: { id: customer.id },
         data: {

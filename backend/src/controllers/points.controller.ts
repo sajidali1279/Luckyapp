@@ -10,7 +10,7 @@ import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded } from '../utils/tier';
+import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded, effectiveTier } from '../utils/tier';
 import { pickOffer, percentBonus, isCentsPerGallon } from '../utils/offerPick';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
@@ -54,7 +54,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
 
   // Look up tier base rate, active promo offer, and store dev-cut rate simultaneously
   const now = new Date();
-  const customerTier = customer.tier;
+  const customerTier = effectiveTier(customer).tier; // the tier after any half-year step down that has not been written yet
 
   const [tierRate, categoryRate, allActiveOffers, store] = await Promise.all([
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
@@ -146,7 +146,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const storeCost = devCut;
 
   // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode)
-  const gasBonusRate = (isGasCategory && effectiveGallons && customer.tier) ? (GAS_BONUS_PER_GALLON[customer.tier] ?? 0) : 0;
+  const gasBonusRate = (isGasCategory && effectiveGallons) ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
   const gasBonusPoints = parseFloat(((effectiveGallons ?? 0) * gasBonusRate).toFixed(2));
 
   // ── Fraud detection ──────────────────────────────────────────────────────
@@ -231,7 +231,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       customer: { id: customer.id, name: customer.name, phone: customer.phone },
       pointsAwarded,
       purchaseAmount,
-      tier: customer.tier,
+      tier: customerTier,
       gasMode: usePerGallonMode ? 'PER_GALLON' : 'PERCENTAGE',
       gasCentsPerGallon: usePerGallonMode ? gasPerGallonRate : null,
       tierBaseRate,
@@ -890,12 +890,8 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
     return;
   }
 
-  const period = getCurrentPeriod();
-
-  // Ensure period is current — if not, no benefits from old period
-  const currentPeriod = customer.tierPeriod === period;
-  const tier = currentPeriod ? customer.tier : Tier.BRONZE;
-  const periodPoints = currentPeriod ? customer.periodPoints : 0;
+  // The tier and progress as they stand now: after a half-year turns, one tier down and no progress (utils/tier.ts effectiveTier)
+  const { tier, periodPoints, period } = effectiveTier(customer);
 
   // Check today's daily benefit (Gold+)
   const todayStart = storeDayStart();
@@ -945,9 +941,7 @@ export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
   const customer = await prisma.user.findUnique({ where: { id: userId } });
   if (!customer) { res.status(404).json({ success: false, error: 'User not found' }); return; }
 
-  const period = getCurrentPeriod();
-  const currentPeriod = customer.tierPeriod === period;
-  const tier = currentPeriod ? customer.tier : Tier.BRONZE;
+  const { tier, period } = effectiveTier(customer);
 
   const todayStart = storeDayStart();
   const todayEnd   = storeDayEnd();
@@ -987,8 +981,7 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     return;
   }
 
-  const period = getCurrentPeriod();
-  const tier = customer.tier;
+  const { tier, period } = effectiveTier(customer);
 
   if (tier === 'BRONZE') {
     res.status(400).json({ success: false, error: 'No tier benefit available for Bronze' });
