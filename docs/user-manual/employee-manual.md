@@ -618,7 +618,7 @@ Your My Prints list is kept on your own phone. It stays put if you close the app
 - Use the search box to find a product by name or barcode. Tap the filter icon to narrow the list by status (for example **Needs Reprint**) or by category.
 - Tap **Add all** to add everything currently shown, for example a whole category. Labels with no price yet are skipped, because they cannot be printed.
 - A yellow banner appears when some of your store's labels need a reprint (their price changed). Tap **Show** to jump straight to them.
-- Tap the pencil on a label to edit its name, price, deal, barcode, category, or template.
+- Tap the pencil on a label to see it. You can set your own store's price on the printing screen; changing an item's name, barcode, category, deal or design, its chain-wide price, or removing it is done by a manager or HQ, and the app says so if you try.
 - Labels you have already printed can be added again at any time to reprint them.
 - If you work at more than one store, tap the store name under **Labels** to switch. Prices, print history, and your My Prints list are kept separately for each store.
 

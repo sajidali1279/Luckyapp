@@ -123,6 +123,8 @@ export const labelsApi = {
     api.patch(`/labels/${labelId}`, data),
   print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+  // What a price change or a delete would touch: how many stores hold the item and in what state
+  impact: (labelId: string) => api.get(`/labels/${labelId}/impact`),
   getStoreLabels: (storeId: string, unprinted?: boolean) =>
     api.get(`/store-labels?storeId=${encodeURIComponent(storeId)}${unprinted ? '&unprinted=true' : ''}`),
   addToStore: (labelId: string, storeId: string, priceText?: string | null, expiresAt?: string | null) =>

@@ -769,9 +769,10 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
 | GET | /labels | JWT | EMPLOYEE+ | Chain-wide label catalog |
-| POST | /labels | JWT | EMPLOYEE+ | Create a label |
-| PATCH | /labels/:labelId | JWT | EMPLOYEE+ | Update a label (resets `printedAt` to null) |
-| DELETE | /labels/:labelId | JWT | EMPLOYEE+ | Delete a label |
+| POST | /labels | JWT | EMPLOYEE+ | Create a label. The price must be dollars and cents (0.01 to 999.99, stored as `3.99`, a leading `$` is dropped) and the barcode must not be on another item (409 `BARCODE_TAKEN` naming the first) |
+| PATCH | /labels/:labelId | JWT | EMPLOYEE+ | Update a label. Only a real change counts (the phone sends every field on every edit): a change to the chain-wide price needs SUPER_ADMIN, a change to name, barcode, category, deal or template needs STORE_MANAGER, otherwise 403 with a sentence and a `LABEL_CHANGE_REFUSED` Activity Log entry. Runs in one transaction, resets `printedAt` at the affected stores, answers `{ changed, reprint: { stores, keptOwnPrice } }`; the Activity Log keeps before and after |
+| DELETE | /labels/:labelId | JWT | SUPER_ADMIN (checked in the handler, so an employee gets a sentence) | Delete a label from every store; the Activity Log keeps its price, barcode and how many store copies, print records, store prices and sale prices went with it; 404 when it is already gone |
+| GET | /labels/:labelId/impact | JWT | SUPER_ADMIN | How many stores hold the item and in what state (`storeCopies`, `inheritingBase`, `ownPrice`, `salePrice`, `printed`): what a price change or a delete would touch |
 | POST | /labels/print | JWT | EMPLOYEE+ | Mark labels printed; logs a `PRINT_LABEL` audit event |
 
 ### Employee Item Requests

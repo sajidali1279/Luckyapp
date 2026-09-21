@@ -818,6 +818,11 @@ Navigate to **Labels** in the sidebar. This is a chain-wide catalog of printable
 
 - **Add a label** by scanning a barcode (the product name autocompletes from the shared Scanned Products catalog) or typing one in manually. Set the regular price, an optional deal price, and a category.
 - **Filter** by store, print status ("Ready to Print" vs. already printed), or category chips.
+- **A price is dollars and cents:** from 0.01 to 999.99 with at most two decimals. A "$" you type is dropped (the label draws its own), and "3.9" is saved as 3.90. The price boxes say so and stay off until the price is one.
+- **Editing an item** shows a box first: what changes (for a price, before and after and the percentage, with a warning when it is more than 50%), how many stores use the chain price and will be told to reprint, and how many keep their own price. Changing anything else on the item tells all stores to reprint it. The Activity Log keeps the before and after.
+- **Who may change what:** only a Super Admin or Dev Admin can change an item's chain-wide price or remove an item. A store manager can change its name, barcode, category, deal and design. A cashier can add items and set their own store's price, nothing more. A refused change gives a sentence and is recorded in the Activity Log.
+- **One barcode belongs to one item.** Adding or editing an item with a barcode another item already has is refused, naming that item. **Duplicate** starts with the barcode empty.
+- **Removing an item** asks first and says how many stores hold it and what goes with it (print records, store prices, sale prices). It cannot be undone, and the Activity Log keeps what it was.
 - **Search and select-all** to work through a batch quickly.
 - **Print** generates a formatted PDF sized to a real 1in x 2-5/8in address-label sheet (Avery 5160), across 7 available templates including seasonal designs. Every print logs a PRINT_LABEL event to the Activity Log, recording who printed, which store, and how many labels.
 

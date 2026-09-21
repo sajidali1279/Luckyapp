@@ -7,8 +7,11 @@ import ConfirmModal from './ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import TableSkeleton from './TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { failureMessage } from '../lib/apiError';
+import { canonicalPrice, priceProblem } from '../lib/labelPrice';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import PrintTray from './PrintTray';
+import Modal from './Modal';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge } from '../utils/labelStatus';
 
 interface StoreLabel {
@@ -84,7 +87,7 @@ export default function StoreLabelsPanel() {
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       toast.success('Added at the base price');
     },
-    onError: () => toast.error('Failed to add'),
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not add the item to this store.')),
   });
 
   const priceMutation = useMutation({
@@ -93,8 +96,8 @@ export default function StoreLabelsPanel() {
       // that day, not that it lapses at midnight going into it.
       const expiresAtIso = expiryDraft ? new Date(`${expiryDraft}T23:59:59`).toISOString() : null;
       return editingPrice!.storeLabelId
-        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, priceDraft.trim(), expiresAtIso)
-        : labelsApi.addToStore(editingPrice!.id, storeId, priceDraft.trim(), expiresAtIso);
+        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, canonicalPrice(priceDraft) ?? priceDraft.trim(), expiresAtIso)
+        : labelsApi.addToStore(editingPrice!.id, storeId, canonicalPrice(priceDraft) ?? priceDraft.trim(), expiresAtIso);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
@@ -102,7 +105,7 @@ export default function StoreLabelsPanel() {
       setEditingPrice(null);
       setExpiryDraft('');
     },
-    onError: () => toast.error('Failed to update price'),
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not update the price.')),
   });
 
   const revertMutation = useMutation({
@@ -111,7 +114,7 @@ export default function StoreLabelsPanel() {
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       toast.success('Reverted to base price');
     },
-    onError: () => toast.error('Failed to revert'),
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not go back to the base price.')),
   });
 
   // Inline price edits made directly in the print tray — same override
@@ -126,7 +129,7 @@ export default function StoreLabelsPanel() {
       qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
       toast.success('Price updated for this store');
     },
-    onError: () => toast.error('Failed to update price'),
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not update the price.')),
   });
 
   function toggleSelected(item: StoreLabel) {
@@ -186,7 +189,9 @@ export default function StoreLabelsPanel() {
 
   function changeTrayPrice(storeLabelId: string, price: string) {
     const item = items.find(i => i.storeLabelId === storeLabelId);
-    if (item) trayPriceMutation.mutate({ item, price });
+    const problem = priceProblem(price);
+    if (problem) { toast.error(problem); return; }
+    if (item) trayPriceMutation.mutate({ item, price: canonicalPrice(price) ?? price });
   }
 
   function buildPrintEntries(): PrintableLabelEntry[] {
@@ -242,22 +247,31 @@ export default function StoreLabelsPanel() {
       />
 
       {editingPrice && (
-        <div style={m.overlay} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }}>
-          <div style={m.modal} onClick={e => e.stopPropagation()}>
-            <h3 style={m.title}>Price at {stores.find(st => st.id === storeId)?.name}</h3>
-            <p style={m.sub}>{editingPrice.productName} — base price {editingPrice.basePriceText != null ? `$${editingPrice.basePriceText}` : 'not set'}</p>
+        <Modal
+          title={`Price at ${stores.find(st => st.id === storeId)?.name ?? 'this store'}`}
+          subtitle={<>{editingPrice.productName} — base price {editingPrice.basePriceText != null ? `$${editingPrice.basePriceText}` : 'not set'}</>}
+          onClose={() => { setEditingPrice(null); setExpiryDraft(''); }}
+          busy={priceMutation.isPending}
+          maxWidth={400}
+        >
+          <div>
             <div style={m.priceInputWrap}>
-              <span style={m.priceInputDollar}>$</span>
+              <span style={m.priceInputDollar} aria-hidden="true">$</span>
               <input
                 style={m.input}
                 value={priceDraft}
                 onChange={e => setPriceDraft(e.target.value.replace(/[^0-9.]/g, ''))}
                 placeholder={editingPrice.basePriceText ?? 'Enter a price'}
                 autoFocus
+                inputMode="decimal"
+                maxLength={6}
+                aria-label="Price at this store"
               />
             </div>
-            <div style={m.expiryLabel}>Ends on <span style={m.expiryLabelSub}>(optional — reverts to base price automatically, no expiry = stays until changed)</span></div>
+            {priceProblem(priceDraft) && <div role="alert" style={{ color: '#b91c1c', fontSize: 13, marginTop: 6 }}>{priceProblem(priceDraft)}</div>}
+            <label style={m.expiryLabel} htmlFor="store-price-ends">Ends on <span style={m.expiryLabelSub}>(optional — reverts to base price automatically, no expiry = stays until changed)</span></label>
             <input
+              id="store-price-ends"
               type="date"
               style={m.expiryInput}
               value={expiryDraft}
@@ -265,17 +279,17 @@ export default function StoreLabelsPanel() {
               min={new Date().toISOString().slice(0, 10)}
             />
             <div style={m.actions}>
-              <button style={m.cancelBtn} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }}>Cancel</button>
+              <button style={m.cancelBtn} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }} disabled={priceMutation.isPending}>Cancel</button>
               <button
-                style={{ ...m.saveBtn, ...(!priceDraft.trim() ? m.saveBtnDim : {}) }}
-                disabled={!priceDraft.trim() || priceMutation.isPending}
+                style={{ ...m.saveBtn, ...(!priceDraft.trim() || !canonicalPrice(priceDraft) ? m.saveBtnDim : {}) }}
+                disabled={!canonicalPrice(priceDraft) || priceMutation.isPending}
                 onClick={() => priceMutation.mutate()}
               >
                 {priceMutation.isPending ? 'Saving…' : 'Save Override'}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       <div style={s.pickerRow}>
@@ -500,16 +514,6 @@ const s: Record<string, CSSProperties> = {
 };
 
 const m: Record<string, CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 380,
-    margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 24,
-  },
-  title: { margin: 0, fontSize: 18, fontWeight: 800, color: PRIMARY },
-  sub: { fontSize: 13, color: TEXT_MUTED, marginTop: 4, marginBottom: 16 },
   priceInputWrap: { position: 'relative' as const },
   priceInputDollar: {
     position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)',
@@ -520,7 +524,7 @@ const m: Record<string, CSSProperties> = {
     padding: '10px 14px 10px 26px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
-  expiryLabel: { fontSize: 12.5, fontWeight: 700, color: '#333', marginTop: 14, marginBottom: 6 },
+  expiryLabel: { display: 'block', fontSize: 12.5, fontWeight: 700, color: '#333', marginTop: 14, marginBottom: 6 },
   expiryLabelSub: { fontWeight: 400, color: TEXT_MUTED },
   expiryInput: {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',

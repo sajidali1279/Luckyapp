@@ -15,6 +15,10 @@ import HealthView from '../components/HealthView';
 import PrintTray from '../components/PrintTray';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import DataTablePagination from '../components/DataTablePagination';
+import Modal from '../components/Modal';
+import { failureMessage } from '../lib/apiError';
+import { useSingleFlight } from '../hooks/useSingleFlight';
+import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERCENT } from '../lib/labelPrice';
 
 const CATALOG_PAGE_SIZE = 50;
 
@@ -29,6 +33,9 @@ interface Label {
   createdByStoreId: string | null;
   updatedAt: string;
 }
+
+interface LabelImpact { storeCopies: number; inheritingBase: number; ownPrice: number; salePrice: number; printed: number }
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 // Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
 const UNCATEGORIZED = '__uncategorized__';
@@ -84,6 +91,9 @@ export default function Labels() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [dupHint, setDupHint] = useState(false);
 
   const nameQuery = formProductName.trim().toLowerCase();
   const suggestions = nameQuery
@@ -228,6 +238,40 @@ export default function Labels() {
     runCatalogPrint(entries);
   }
 
+  // What a price change or a delete would touch, asked before the box that confirms it is shown
+  const impactId = confirmSave ? editingLabel?.id : confirmDelete?.id;
+  const impactQuery = useQuery({
+    queryKey: ['label-impact', impactId],
+    queryFn: () => labelsApi.impact(impactId!),
+    enabled: !!impactId,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+  const impact = impactQuery.data?.data?.data as LabelImpact | undefined;
+
+  function refreshLabels() {
+    ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  }
+
+  // What the edit box would change, field by field, against the item as it is now
+  const priceOk = canonicalPrice(formPriceText) !== null;
+  const priceIssue = priceProblem(formPriceText);
+  const barcodeClash = formBarcode.trim() ? labels.find(l => l.barcode === formBarcode.trim() && l.id !== editingLabel?.id) : undefined;
+  const formChanges: { field: string; from: string; to: string }[] = [];
+  if (editingLabel) {
+    const newPrice = canonicalPrice(formPriceText);
+    if (formProductName.trim() !== editingLabel.productName) formChanges.push({ field: 'Name', from: editingLabel.productName, to: formProductName.trim() });
+    if (newPrice !== null && newPrice !== canonicalPrice(editingLabel.priceText)) formChanges.push({ field: 'Price', from: editingLabel.priceText ? `$${editingLabel.priceText}` : 'none', to: `$${newPrice}` });
+    if ((formDealText.trim() || null) !== (editingLabel.dealText || null)) formChanges.push({ field: 'Deal', from: editingLabel.dealText || 'none', to: formDealText.trim() || 'none' });
+    if ((formBarcode.trim() || null) !== (editingLabel.barcode || null)) formChanges.push({ field: 'Barcode', from: editingLabel.barcode || 'none', to: formBarcode.trim() || 'none' });
+    if ((formCategory.trim() || null) !== (editingLabel.category || null)) formChanges.push({ field: 'Category', from: editingLabel.category || 'none', to: formCategory.trim() || 'none' });
+    if (formTemplate !== editingLabel.template) formChanges.push({ field: 'Design', from: TEMPLATE_LABELS[editingLabel.template] || editingLabel.template, to: TEMPLATE_LABELS[formTemplate] || formTemplate });
+  }
+  const pricePct = editingLabel ? priceChangePercent(editingLabel.priceText, formPriceText) : null;
+  const bigChange = pricePct !== null && Math.abs(pricePct) > BIG_PRICE_CHANGE_PERCENT;
+  const priceOnly = formChanges.length > 0 && formChanges.every(c => c.field === 'Price');
+
   const saveMutation = useMutation({
     mutationFn: () => {
       const category = formCategory.trim() || null;
@@ -235,44 +279,57 @@ export default function Labels() {
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
       }
-      return editingLabel
-        ? labelsApi.update(editingLabel.id, { productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate })
-        : labelsApi.create({ productName: formProductName.trim(), priceText: formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate });
+      const body = { productName: formProductName.trim(), priceText: canonicalPrice(formPriceText) ?? formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate };
+      return editingLabel ? labelsApi.update(editingLabel.id, body) : labelsApi.create(body);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['labels'] });
-      qc.invalidateQueries({ queryKey: ['store-labels'] });
-      toast.success(editingLabel ? 'Label updated' : 'Label added');
-      if (editingLabel) toast('Affected stores were flagged to reprint', { icon: '🔄' });
+    onSuccess: (res) => {
+      refreshLabels();
+      if (editingLabel) {
+        const d = res.data;
+        if (d?.changed === false) toast('Nothing was changed.');
+        else toast.success(`Saved. ${plural(d?.reprint?.stores ?? 0, 'store is', 'stores are')} told to reprint${d?.reprint?.keptOwnPrice ? `; ${plural(d.reprint.keptOwnPrice, 'store keeps', 'stores keep')} its own price` : ''}.`, { duration: 6000 });
+      } else {
+        toast.success('Label added');
+      }
+      setConfirmSave(false);
       closeModal();
     },
     onError: (e: any) => {
-      const err = e.response?.data?.error;
-      toast.error(typeof err === 'string' ? err : 'Failed to save label');
+      setConfirmSave(false);
+      setFormError(failureMessage(e, 'Could not save the label. Nothing was changed.'));
     },
   });
+  const runSave = useSingleFlight(saveMutation);
 
   const deleteMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.delete(labelId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['labels'] });
-      toast.success('Label removed');
+      refreshLabels();
+      toast.success(`"${confirmDelete?.productName}" was removed from every store.`);
       setConfirmDelete(null);
     },
     onError: (e: any) => {
-      const err = e.response?.data?.error;
-      toast.error(typeof err === 'string' ? err : 'Failed to remove label');
+      if (e?.response?.status === 404) refreshLabels();
+      toast.error(failureMessage(e, 'Could not remove the item. Nothing was changed.'));
+      setConfirmDelete(null);
     },
   });
+  const runDelete = useSingleFlight(deleteMutation);
 
-  function openAddModal() {
-    setEditingLabel(null);
+  function resetForm() {
     setFormProductName('');
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode('');
     setFormCategory('');
     setFormTemplate('CLASSIC_RED_BLACK');
+    setFormError('');
+    setDupHint(false);
+  }
+
+  function openAddModal() {
+    setEditingLabel(null);
+    resetForm();
     setShowModal(true);
   }
 
@@ -284,41 +341,99 @@ export default function Labels() {
     setFormBarcode(label.barcode || '');
     setFormCategory(label.category || '');
     setFormTemplate(label.template);
+    setFormError('');
+    setDupHint(false);
     setShowModal(true);
   }
 
+  // A copy starts without the barcode: one barcode belongs to one item, and the server refuses a second item with the same one
   function duplicateLabel(label: Label) {
     setEditingLabel(null);
     setFormProductName(label.productName);
     setFormPriceText(label.priceText || '');
     setFormDealText(label.dealText || '');
-    setFormBarcode(label.barcode || '');
+    setFormBarcode('');
     setFormCategory(label.category || '');
     setFormTemplate(label.template);
+    setFormError('');
+    setDupHint(!!label.barcode);
     setShowModal(true);
   }
 
   function closeModal() {
     setShowModal(false);
     setEditingLabel(null);
-    setFormProductName('');
-    setFormPriceText('');
-    setFormDealText('');
-    setFormBarcode('');
-    setFormCategory('');
-    setFormTemplate('CLASSIC_RED_BLACK');
+    resetForm();
   }
+
+  function handleSaveClick() {
+    if (!formProductName.trim() || !priceOk || barcodeClash || saveMutation.isPending) return;
+    setFormError('');
+    if (!editingLabel) { runSave(); return; }
+    if (formChanges.length === 0) { toast('Nothing was changed.'); closeModal(); return; }
+    setConfirmSave(true);
+  }
+
+  const editMessage = (
+    <div style={{ textAlign: 'left' }}>
+      <ul style={m.changeList}>
+        {formChanges.map(c => (
+          <li key={c.field}><strong>{c.field}:</strong> {c.from} → {c.to}{c.field === 'Price' && pricePct !== null ? ` (${pricePct > 0 ? '+' : ''}${pricePct}%)` : ''}</li>
+        ))}
+      </ul>
+      {bigChange && <p style={m.warn}>That is a change of more than {BIG_PRICE_CHANGE_PERCENT}%. Check that the new price is right.</p>}
+      {impactQuery.isError ? (
+        <p style={m.warn}>Could not check which stores this affects. You can still save. <button type="button" style={m.linkBtn} onClick={() => impactQuery.refetch()}>Try again</button></p>
+      ) : !impact ? (
+        <p style={m.note}>Checking which stores this affects…</p>
+      ) : priceOnly ? (
+        <p style={m.note}>
+          {plural(impact.inheritingBase, 'store uses', 'stores use')} this price and will be told to reprint
+          {impact.ownPrice > 0 ? `; ${plural(impact.ownPrice, 'store keeps', 'stores keep')} its own price` : ''}.
+        </p>
+      ) : (
+        <p style={m.note}>All {plural(impact.storeCopies, 'store', 'stores')} will be told to reprint this label.</p>
+      )}
+    </div>
+  );
+
+  const deleteMessage = confirmDelete ? (
+    impactQuery.isError ? (
+      <>Could not check what removing this would do, so nothing was changed. <button type="button" style={m.linkBtn} onClick={() => impactQuery.refetch()}>Try again</button></>
+    ) : !impact ? (
+      'Checking what this removes…'
+    ) : (
+      <>
+        <strong>{confirmDelete.productName}</strong>{confirmDelete.priceText ? ` ($${confirmDelete.priceText})` : ''} is in {plural(impact.storeCopies, 'store', 'stores')}. Removing it erases{' '}
+        {plural(impact.printed, 'print record', 'print records')}, {plural(impact.ownPrice, 'store price', 'store prices')} and {plural(impact.salePrice, 'sale price', 'sale prices')} with it.
+        This cannot be undone.
+      </>
+    )
+  ) : '';
 
   return (
     <div style={s.page}>
       <ConfirmModal
         open={!!confirmDelete}
-        title="Remove Label"
-        message={`Remove the label for "${confirmDelete?.productName}"? It will no longer appear in any store's catalog.`}
+        title="Remove this item from every store?"
+        message={deleteMessage}
         confirmLabel="Remove"
         danger
-        onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); }}
+        busy={deleteMutation.isPending}
+        confirmDisabled={!impact}
+        onConfirm={() => { if (confirmDelete) runDelete(confirmDelete.id); }}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmModal
+        open={confirmSave}
+        title={`Save changes to ${editingLabel?.productName ?? 'this item'}?`}
+        message={editMessage}
+        confirmLabel={priceOnly ? 'Change price' : 'Save changes'}
+        danger={bigChange}
+        busy={saveMutation.isPending}
+        onConfirm={() => runSave()}
+        onCancel={() => setConfirmSave(false)}
       />
 
       <ConfirmModal
@@ -331,117 +446,124 @@ export default function Labels() {
       />
 
       {showModal && (
-        <div style={m.overlay} onClick={closeModal}>
-          <div style={m.modal} onClick={e => e.stopPropagation()}>
-            <div style={m.header}>
-              <h2 style={m.title}>{editingLabel ? 'Edit Label' : 'Add Label'}</h2>
-              <button style={m.closeBtn} onClick={closeModal}>✕</button>
-            </div>
-            <div style={m.form}>
-              <div style={m.label}>Product Name *</div>
-              <div style={{ position: 'relative' as const }}>
-                <input
-                  style={m.input}
-                  value={formProductName}
-                  onChange={e => { setFormProductName(e.target.value); setShowSuggestions(true); }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  placeholder="e.g. Monster Energy 16oz"
-                  maxLength={40}
-                  autoComplete="off"
-                  autoFocus
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <div style={m.sugg}>
-                    {suggestions.map(p => (
-                      <div key={p.name} style={m.suggRow} onMouseDown={() => applyPreset(p)}>
-                        <span style={{ fontWeight: 600 }}>{p.name}</span>
-                        <span style={m.suggPrice}>{p.priceText}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={m.label}>Base Price *</div>
-              <div style={m.priceInputWrap}>
-                <span style={m.priceInputDollar}>$</span>
-                <input
-                  style={{ ...m.input, ...m.priceInput }}
-                  value={formPriceText}
-                  onChange={e => setFormPriceText(e.target.value.replace(/[^0-9.]/g, ''))}
-                  placeholder="3.99"
-                  inputMode="decimal"
-                  maxLength={7}
-                />
-              </div>
-              {editingLabel && (
-                <div style={m.hint}>Editing this flags every store still using the base price to reprint. A store with its own price override is unaffected.</div>
-              )}
-              <div style={m.label}>Deal (optional, chain-wide)</div>
+        <Modal title={editingLabel ? 'Edit Label' : 'Add Label'} onClose={closeModal} busy={saveMutation.isPending} maxWidth={480}>
+          <form style={m.form} onSubmit={e => { e.preventDefault(); handleSaveClick(); }} noValidate>
+            <label style={m.label} htmlFor="lbl-name">Product Name *</label>
+            <div style={{ position: 'relative' as const }}>
               <input
+                id="lbl-name"
                 style={m.input}
-                value={formDealText}
-                onChange={e => setFormDealText(e.target.value)}
-                placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
-                maxLength={20}
-              />
-              <div style={m.label}>Barcode (optional)</div>
-              <input
-                style={m.input}
-                value={formBarcode}
-                onChange={e => setFormBarcode(e.target.value)}
-                placeholder="Scan or type the product's UPC/EAN - for order lookups, not tied to the price/deal above"
+                value={formProductName}
+                onChange={e => { setFormProductName(e.target.value); setShowSuggestions(true); setFormError(''); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="e.g. Monster Energy 16oz"
                 maxLength={40}
+                autoComplete="off"
+                autoFocus
               />
-              <div style={m.label}>Category (optional)</div>
-              <div style={{ position: 'relative' as const }}>
-                <input
-                  style={m.input}
-                  value={formCategory}
-                  onChange={e => { setFormCategory(e.target.value); setShowCatSugg(true); }}
-                  onFocus={() => setShowCatSugg(catSuggs.length > 0)}
-                  onBlur={() => setTimeout(() => setShowCatSugg(false), 150)}
-                  placeholder="e.g. Groceries, Frozen Foods…"
-                  maxLength={100}
-                  autoComplete="off"
-                />
-                {showCatSugg && catSuggs.length > 0 && (
-                  <div style={m.sugg}>
-                    {catSuggs.map(c => (
-                      <div key={c} style={m.suggRow} onMouseDown={() => { setFormCategory(c); setShowCatSugg(false); }}>
-                        <span>{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={m.label}>Template</div>
-              <div style={m.templateRow}>
-                {TEMPLATE_OPTIONS.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    style={{ ...m.templateChip, ...(formTemplate === t.value ? m.templateChipActive : {}) }}
-                    onClick={() => setFormTemplate(t.value)}
-                  >
-                    <span style={{ ...m.templateSwatch, background: t.accent }} />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <div style={m.actions}>
-                <button style={m.cancelBtn} onClick={closeModal}>Cancel</button>
-                <button
-                  style={{ ...m.saveBtn, ...(!formProductName.trim() || !formPriceText.trim() || saveMutation.isPending ? m.saveBtnDim : {}) }}
-                  onClick={() => saveMutation.mutate()}
-                  disabled={!formProductName.trim() || !formPriceText.trim() || saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? 'Saving…' : 'Save Label'}
-                </button>
-              </div>
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={m.sugg}>
+                  {suggestions.map(p => (
+                    <div key={p.name} style={m.suggRow} onMouseDown={() => applyPreset(p)}>
+                      <span style={{ fontWeight: 600 }}>{p.name}</span>
+                      <span style={m.suggPrice}>{p.priceText}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+            <label style={m.label} htmlFor="lbl-price">Base Price *</label>
+            <div style={m.priceInputWrap}>
+              <span style={m.priceInputDollar} aria-hidden="true">$</span>
+              <input
+                id="lbl-price"
+                style={{ ...m.input, ...m.priceInput }}
+                value={formPriceText}
+                onChange={e => { setFormPriceText(e.target.value.replace(/[^0-9.]/g, '')); setFormError(''); }}
+                placeholder="3.99"
+                inputMode="decimal"
+                maxLength={6}
+                aria-invalid={!!priceIssue}
+                aria-describedby={priceIssue ? 'lbl-price-err' : undefined}
+              />
+            </div>
+            {priceIssue && <div id="lbl-price-err" role="alert" style={m.err}>{priceIssue}</div>}
+            {editingLabel && (
+              <div style={m.hint}>Changing the price flags every store still using the base price to reprint. A store with its own price is unaffected. You will see what it does before it is saved.</div>
+            )}
+            <label style={m.label} htmlFor="lbl-deal">Deal (optional, chain-wide)</label>
+            <input
+              id="lbl-deal"
+              style={m.input}
+              value={formDealText}
+              onChange={e => { setFormDealText(e.target.value); setFormError(''); }}
+              placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
+              maxLength={20}
+            />
+            <label style={m.label} htmlFor="lbl-barcode">Barcode (optional)</label>
+            <input
+              id="lbl-barcode"
+              style={m.input}
+              value={formBarcode}
+              onChange={e => { setFormBarcode(e.target.value); setFormError(''); }}
+              placeholder="Scan or type the product's UPC/EAN - for order lookups, not tied to the price/deal above"
+              maxLength={40}
+              aria-invalid={!!barcodeClash}
+            />
+            {dupHint && !formBarcode.trim() && <div style={m.hint}>The barcode was left empty: one barcode belongs to one item. Scan or type this copy's own.</div>}
+            {barcodeClash && <div role="alert" style={m.err}>The barcode {formBarcode.trim()} already belongs to "{barcodeClash.productName}". Use that item, or change the barcode.</div>}
+            <label style={m.label} htmlFor="lbl-category">Category (optional)</label>
+            <div style={{ position: 'relative' as const }}>
+              <input
+                id="lbl-category"
+                style={m.input}
+                value={formCategory}
+                onChange={e => { setFormCategory(e.target.value); setShowCatSugg(true); setFormError(''); }}
+                onFocus={() => setShowCatSugg(catSuggs.length > 0)}
+                onBlur={() => setTimeout(() => setShowCatSugg(false), 150)}
+                placeholder="e.g. Groceries, Frozen Foods…"
+                maxLength={100}
+                autoComplete="off"
+              />
+              {showCatSugg && catSuggs.length > 0 && (
+                <div style={m.sugg}>
+                  {catSuggs.map(c => (
+                    <div key={c} style={m.suggRow} onMouseDown={() => { setFormCategory(c); setShowCatSugg(false); }}>
+                      <span>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={m.label} id="lbl-template-label">Template</div>
+            <div style={m.templateRow} role="group" aria-labelledby="lbl-template-label">
+              {TEMPLATE_OPTIONS.map(t => (
+                <button
+                  key={t.value}
+                  type="button"
+                  aria-pressed={formTemplate === t.value}
+                  style={{ ...m.templateChip, ...(formTemplate === t.value ? m.templateChipActive : {}) }}
+                  onClick={() => setFormTemplate(t.value)}
+                >
+                  <span style={{ ...m.templateSwatch, background: t.accent }} aria-hidden="true" />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {formError && <div role="alert" style={m.err}>{formError}</div>}
+            <div style={m.actions}>
+              <button type="button" style={m.cancelBtn} onClick={closeModal} disabled={saveMutation.isPending}>Cancel</button>
+              <button
+                type="submit"
+                style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || saveMutation.isPending ? m.saveBtnDim : {}) }}
+                disabled={!formProductName.trim() || !priceOk || !!barcodeClash || saveMutation.isPending}
+              >
+                {saveMutation.isPending ? 'Saving…' : 'Save Label'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       <div style={s.inner}>
@@ -707,23 +829,12 @@ const s: Record<string, CSSProperties> = {
 };
 
 const m: Record<string, CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 480,
-    margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
-    maxHeight: '90vh', overflowY: 'auto',
-  },
-  header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '20px 24px', borderBottom: '1px solid #eee',
-    position: 'sticky', top: 0, background: '#fff', zIndex: 1,
-  },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
-  closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
-  form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
+  form: { display: 'flex', flexDirection: 'column', gap: 8 },
+  err: { fontSize: 13, color: '#b91c1c', lineHeight: 1.4 },
+  warn: { fontSize: 14, color: '#b91c1c', fontWeight: 700, margin: '8px 0 0', lineHeight: 1.5 },
+  note: { fontSize: 14, color: '#374151', margin: '8px 0 0', lineHeight: 1.5 },
+  changeList: { margin: '0 0 4px', paddingLeft: 18, fontSize: 15, color: '#111827', lineHeight: 1.6 },
+  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
   label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   input: {

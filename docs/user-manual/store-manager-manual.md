@@ -569,7 +569,7 @@ Tap **Labels** in the menu.
 - Use the search box to find a product by name or barcode. Tap the filter icon to narrow the list by status (for example **Needs Reprint**) or by category.
 - Tap **Add all** to add everything currently shown, for example a whole category. Labels with no price yet are skipped, because they cannot be printed.
 - A yellow banner appears when some of your store's labels need a reprint (their price changed). Tap **Show** to jump straight to them.
-- Tap the pencil on a label to edit its name, price, deal, barcode, category, or template.
+- Tap the pencil on a label to edit its name, deal, barcode, category, or template. Changing an item's price for the whole chain is done by HQ, and the app says so if you try; to change your own store's price, set it on the printing screen. Removing an item from the catalog is also HQ's job.
 - Labels you have already printed can be added again at any time to reprint them.
 - If you work at more than one store, tap the store name under **Labels** to switch. Prices, print history, and your My Prints list are kept separately for each store.
 - Below the search box, **Not here? Browse products without a label** lists products in your Store Catalog that have no label yet. Tap **Make label** on one, type the price, and save. It is added to My Prints, so nothing needs to be scanned again.

@@ -12,6 +12,8 @@ interface ConfirmModalProps {
   danger?: boolean;
   /** True while the action is running: both buttons are disabled so it cannot be sent twice. */
   busy?: boolean;
+  /** True while the box is still finding out what it is about to do: the confirm button stays off until it is known. */
+  confirmDisabled?: boolean;
   /** If set, shows a text input and passes its value to onConfirm */
   withInput?: boolean;
   inputLabel?: string;
@@ -24,7 +26,7 @@ interface ConfirmModalProps {
 export default function ConfirmModal({
   open, title, message,
   confirmLabel = 'Confirm', cancelLabel = 'Cancel',
-  danger = false, busy = false,
+  danger = false, busy = false, confirmDisabled = false,
   withInput = false, inputLabel, inputPlaceholder = '', inputRequired = false,
   onConfirm, onCancel,
 }: ConfirmModalProps) {
@@ -40,7 +42,7 @@ export default function ConfirmModal({
 
   if (!open) return null;
 
-  const canConfirm = !busy && (!withInput || !inputRequired || inputValue.trim().length > 0);
+  const canConfirm = !busy && !confirmDisabled && (!withInput || !inputRequired || inputValue.trim().length > 0);
 
   return (
     <div style={s.overlay} onClick={busy ? undefined : onCancel}>
