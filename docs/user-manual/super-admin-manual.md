@@ -392,7 +392,7 @@ Dates are store days in **Central time**, wherever you open the admin: a promoti
 Before anything goes to customers the box shows: what it is, where (all stores or one), when (exact start and end, Central time), an example of what a customer earns, and:
 - **A clash warning** if a live or scheduled promotion covers the same category at an overlapping time. Only one promotion applies to a sale, and the box says which one.
 - **A ceiling note** if some tiers already reach the 10% cap at this size (they then earn 10% in total, less than the full bonus).
-- That **every customer gets a notification** right away.
+- **Who is notified, and when:** customers hear about a promotion when it **starts**. One that starts today goes out right away; one that starts later goes out on its first day (an hourly job sends it, once). A promotion for **one store** goes to that store's customers (an approved purchase there in the last 6 months), not to everyone; a chain-wide promotion goes to every active customer.
 
 Nothing is sent until you click **Post now**. A second click while it is sending does nothing.
 
@@ -414,7 +414,7 @@ Total cashback (tier rate + category rate + the promotion) never passes 10% of t
 
 ### 8.6 Removing and Changing an Offer
 
-There is no edit. To end an offer, click **Remove**: it stops right away and moves to Past. To change one, remove it and post a new one, or use **Reuse** on the old one. A new post sends a new notification.
+There is no edit. To end an offer, click **Remove**: it stops right away and moves to Past. To change one, remove it and post a new one, or use **Reuse** on the old one. A new post sends a new notification when it starts.
 
 ### 8.7 Reusing a Past Promotion
 
@@ -510,7 +510,19 @@ After a send, a panel says what happened: "Sent to 13 customers. 12 phones reach
 
 The **Sent recently** list under the form shows the last sends: when, who, the audience, the title and message, and how many people and phones. Every send is also an Activity Log entry ("Push Sent").
 
-### 11.2 Notification Best Practices
+### 11.2 Automatic Messages and Alerts to HQ
+
+**Gas price changes.** When a store's gas or diesel price really changes, the store's staff are told to update the pumps, and the **customers of that store** (an approved purchase there in the last 6 months) get one line in the app's inbox. A new price replaces the unread old line for that store, so nothing piles up. Saving a price that is already saved sends nothing.
+
+**The alert list** (the Notifications page) now includes **sales held for review**, one card each (red for $500 or more), and its cards keep their identity from day to day: the rejected-sales card only comes back as new when its number changes. The invoice alert counts stores, not bills.
+
+**Email to HQ.** So that nothing waits for someone to open the admin, an email goes to every active Super Admin and Dev Admin who has an email address on their account (and to the address in the server's ADMIN_EMAIL setting) when:
+- a sale of **$500 or more** is held for review,
+- a customer sends a **missing-points report**,
+- a store raises a **high-priority alert**.
+Each email says what happened and has a button into the right page. A **morning summary** email (one a day, after 8 am Central) lists what is waiting: sales held, missing-points reports, store alerts, requests and unpaid bills. It is not sent when nothing is waiting, and a server that slept through 8 am sends it on its first run after.
+
+### 11.3 Notification Best Practices
 
 - Keep titles short (under 50 characters for full display on most devices).
 - Keep the body informative and action-oriented.

@@ -97,7 +97,7 @@ function fmtDate(d: string) { return storeDayLong(d); }
 type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
-type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[] };
+type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string };
 
 const BONUS_TOO_BIG = `A bonus can be at most ${CASHBACK_CAP * 100}%, because total cashback is capped at ${CASHBACK_CAP * 100}% of a sale.`;
 /** A percentage typed as 7.5 as the fraction the server stores (0.075), without 0.07500000000000001. */
@@ -404,7 +404,15 @@ export default function Offers() {
       }
       clashes = findClashes(draft, offers as PostedOffer[]);
     }
-    return { kind, fd, title, what, where, when, example, notes, clashes };
+    // Customers are told when the promotion STARTS (right away if it already has), and a single-store promotion goes to that store's customers only
+    const startMs = Date.parse(String(fd.get('startDate') ?? ''));
+    const startsNow = isNaN(startMs) || startMs <= Date.now() + 60_000;
+    const single = fd.get('type') === 'SPECIFIC_STORE';
+    const timing = startsNow ? 'right away' : `on its first day (${storeDayLong(new Date(startMs))})`;
+    const notify = single
+      ? `Customers of ${where} (an approved purchase there in the last 6 months) are notified ${timing}.`
+      : `Every customer is notified ${timing}.`;
+    return { kind, fd, title, what, where, when, example, notes, clashes, notify };
   }
 
   function handleCreateDeal(e: React.FormEvent) {
@@ -479,7 +487,7 @@ export default function Offers() {
               <div key={c.offer.id} style={s.confirmNote}>⚠️ {c.text}</div>
             ))}
             {pending.notes.map((n, i) => <div key={i} style={s.confirmNote}>ℹ️ {n}</div>)}
-            <div style={{ marginTop: 10, fontWeight: 700, color: '#111827' }}>Every customer gets a notification about this right away.</div>
+            <div style={{ marginTop: 10, fontWeight: 700, color: '#111827' }}>{pending.notify}</div>
           </div>
         )}
         confirmLabel={createMutation.isPending ? 'Posting…' : 'Post now'}
