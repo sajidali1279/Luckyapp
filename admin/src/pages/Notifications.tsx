@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { superAdminApi, devAdminApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import SendPushPanel from '../components/SendPushPanel';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 interface Notification {
@@ -192,22 +193,6 @@ export default function Notifications() {
     downloadInvoicePdf(invoice);
   }
 
-  // ── Broadcast form state ──
-  const [bTarget, setBTarget] = useState('ALL_CUSTOMERS');
-  const [bStoreId, setBStoreId] = useState('');
-  const [bTitle, setBTitle] = useState('');
-  const [bBody, setBBody] = useState('');
-
-  const broadcastMutation = useMutation({
-    mutationFn: () => superAdminApi.broadcast({ target: bTarget, storeId: bStoreId || undefined, title: bTitle, body: bBody }),
-    onSuccess: (res) => {
-      const { recipientCount } = res.data.data;
-      toast.success(`Push sent to ${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}!`);
-      setBTitle(''); setBBody('');
-    },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Broadcast failed'),
-  });
-
   // ── Tab definitions ──
   const SUPER_TABS: { key: TabKey; label: string }[] = [
     { key: 'all',          label: 'All' },
@@ -335,89 +320,7 @@ export default function Notifications() {
 
       {/* ── Send Push Panel ── */}
       {activeTab === 'send' ? (
-        <div style={sp.panel}>
-          <div style={sp.panelHeader}>
-            <div style={sp.panelIcon}>📢</div>
-            <div>
-              <div style={sp.panelTitle}>Send Push Notification</div>
-              <div style={sp.panelSub}>Compose a message and send it instantly to customers or staff</div>
-            </div>
-          </div>
-
-          <div style={sp.field}>
-            <label style={sp.label}>Audience</label>
-            <select style={sp.select} value={bTarget} onChange={(e) => { setBTarget(e.target.value); setBStoreId(''); }}>
-              <option value="ALL_CUSTOMERS">👥 All Customers (chain-wide)</option>
-              <option value="STORE_CUSTOMERS">🏪 Customers at a Specific Store</option>
-              <option value="ALL_STAFF">👔 All Staff (chain-wide)</option>
-              <option value="STORE_STAFF">🏪 Staff at a Specific Store</option>
-            </select>
-          </div>
-
-          {(bTarget === 'STORE_CUSTOMERS' || bTarget === 'STORE_STAFF') && (
-            <div style={sp.field}>
-              <label style={sp.label}>Store</label>
-              <select style={sp.select} value={bStoreId} onChange={(e) => setBStoreId(e.target.value)}>
-                <option value="">- Select a store -</option>
-                {stores.map((st) => (
-                  <option key={st.id} value={st.id}>{st.name} - {st.city}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={sp.field}>
-            <label style={sp.label}>Title <span style={sp.charCount}>{bTitle.length}/65</span></label>
-            <input
-              style={sp.input}
-              placeholder="e.g. 🎉 Weekend Special at Lucky Stop!"
-              value={bTitle}
-              maxLength={65}
-              onChange={(e) => setBTitle(e.target.value)}
-            />
-          </div>
-
-          <div style={sp.field}>
-            <label style={sp.label}>Message <span style={sp.charCount}>{bBody.length}/200</span></label>
-            <textarea
-              style={sp.textarea}
-              placeholder="e.g. Get double points on all gas purchases this Saturday and Sunday only. Visit any Lucky Stop location to redeem!"
-              value={bBody}
-              maxLength={200}
-              rows={4}
-              onChange={(e) => setBBody(e.target.value)}
-            />
-          </div>
-
-          {bTitle && bBody && (
-            <div style={sp.preview}>
-              <div style={sp.previewLabel}>Preview</div>
-              <div style={sp.previewCard}>
-                <div style={sp.previewTitle}>{bTitle}</div>
-                <div style={sp.previewBody}>{bBody}</div>
-              </div>
-            </div>
-          )}
-
-          <button
-            style={{
-              ...sp.sendBtn,
-              ...((broadcastMutation.isPending || !bTitle.trim() || !bBody.trim() ||
-                ((bTarget === 'STORE_CUSTOMERS' || bTarget === 'STORE_STAFF') && !bStoreId))
-                ? sp.sendBtnDisabled : {}),
-            }}
-            disabled={broadcastMutation.isPending || !bTitle.trim() || !bBody.trim() ||
-              ((bTarget === 'STORE_CUSTOMERS' || bTarget === 'STORE_STAFF') && !bStoreId)}
-            onClick={() => broadcastMutation.mutate()}
-          >
-            {broadcastMutation.isPending ? 'Sending…' : '📤 Send Push Notification'}
-          </button>
-
-          <div style={sp.hint}>
-            Recipients will receive both a push notification on their device and an in-app inbox message.
-            Only users with a registered device token will receive push alerts.
-          </div>
-        </div>
+        <SendPushPanel stores={stores} />
 
       ) : isLoading ? (
         <CardSkeleton count={4} />
@@ -631,57 +534,4 @@ const s: Record<string, React.CSSProperties> = {
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
   emptyText: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6 },
   emptyLink: { background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
-};
-
-const sp: Record<string, React.CSSProperties> = {
-  panel: { maxWidth: 560 },
-  panelHeader: {
-    display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28,
-    padding: '20px 24px',
-    background: 'linear-gradient(135deg, #1D3557 0%, #457B9D 100%)',
-    borderRadius: 16,
-  },
-  panelIcon: { fontSize: 40, lineHeight: 1 },
-  panelTitle: { fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 4 },
-  panelSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)' },
-  field: { marginBottom: 18 },
-  label: { display: 'block', fontSize: 14, fontWeight: 700, color: PRIMARY, marginBottom: 6 },
-  charCount: { fontWeight: 400, color: TEXT_MUTED, fontSize: 13 },
-  select: {
-    width: '100%', padding: '10px 14px', borderRadius: 10,
-    border: '1.5px solid #d1d5db', fontSize: 14, color: '#111827',
-    background: '#fff', cursor: 'pointer',
-  },
-  input: {
-    width: '100%', padding: '10px 14px', borderRadius: 10,
-    border: '1.5px solid #d1d5db', fontSize: 14, color: '#111827',
-    boxSizing: 'border-box' as const,
-  },
-  textarea: {
-    width: '100%', padding: '10px 14px', borderRadius: 10,
-    border: '1.5px solid #d1d5db', fontSize: 14, color: '#111827',
-    resize: 'vertical', boxSizing: 'border-box' as const, fontFamily: 'inherit',
-  },
-  preview: {
-    marginBottom: 20, padding: '14px 18px',
-    background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb',
-  },
-  previewLabel: {
-    fontSize: 12, fontWeight: 700, color: TEXT_MUTED,
-    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
-  },
-  previewCard: {
-    background: '#fff', borderRadius: 10, padding: '14px 16px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #1D3557',
-  },
-  previewTitle: { fontSize: 15, fontWeight: 800, color: '#111827', marginBottom: 4 },
-  previewBody: { fontSize: 14, color: '#374151', lineHeight: 1.5 },
-  sendBtn: {
-    width: '100%', padding: '14px',
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
-    color: '#fff', border: 'none', borderRadius: 12,
-    fontSize: 15, fontWeight: 800, cursor: 'pointer',
-  },
-  sendBtnDisabled: { opacity: 0.45, cursor: 'not-allowed' },
-  hint: { marginTop: 16, fontSize: 13, color: TEXT_MUTED, lineHeight: 1.6 },
 };

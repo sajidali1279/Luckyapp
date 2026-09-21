@@ -726,7 +726,9 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | GET | /notifications/unread-count | JWT | Any | Unread notification count |
 | PATCH | /notifications/mark-all-read | JWT | Any | Mark all as read |
 | PATCH | /notifications/:id/read | JWT | Any | Mark one as read |
-| POST | /notifications/broadcast | JWT | SUPER_ADMIN | Broadcast to customers/staff |
+| POST | /notifications/broadcast | JWT | SUPER_ADMIN | Send a push to `ALL_CUSTOMERS`, `STORE_CUSTOMERS`, `ALL_STAFF` or `STORE_STAFF`. Title 1 to 65 and message 1 to 200 characters (enforced). Audience = active accounts only (`utils/audience.ts`): customers of a store means an approved purchase there in the last 6 months, staff at a store includes chain-wide managers. The same message to the same audience is refused (409) for 5 minutes, and while one is being sent. `test: true` sends only to the caller's own phones with `[Test]` in front (no inbox row, no log entry). The push service's answer for every phone is read (`utils/pushSend.ts`: batches of 100, a failed batch retried once, 429 and unreachable counted as failures, `DeviceNotRegistered` phones deleted). Answers `people`, `phones`, `withoutPhone`, `accepted`, `failed`, `removed`, `retried`, `partial` (and `recipientCount`); writes a `BROADCAST` Activity Log entry |
+| GET | /notifications/audience | JWT | SUPER_ADMIN | Who a message would reach (`target`, `storeId`): `people`, `phones`, `withoutPhone`, from the same rule as the send |
+| GET | /notifications/broadcasts | JWT | SUPER_ADMIN | The last 50 sends (from the Activity Log), newest first |
 
 ### Scheduling
 

@@ -230,8 +230,13 @@ export const staffApi = {
 export const superAdminApi = {
   getInvoices: () => api.get('/my-invoices'),
   getNotifications: () => api.get('/notifications'),
-  broadcast: (data: { target: string; storeId?: string; title: string; body: string }) =>
+  broadcast: (data: { target: string; storeId?: string; title: string; body: string; test?: boolean }) =>
     api.post('/notifications/broadcast', data),
+  // Who a message would reach, in people and phones, before anything is sent
+  audience: (target: string, storeId?: string) =>
+    api.get(`/notifications/audience?target=${encodeURIComponent(target)}${storeId ? `&storeId=${encodeURIComponent(storeId)}` : ''}`),
+  // The last 50 sends, newest first
+  broadcasts: () => api.get('/notifications/broadcasts'),
 };
 
 export const devAdminApi = {

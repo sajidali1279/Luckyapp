@@ -487,31 +487,33 @@ Navigate to **Catalog** in the sidebar. You will see all catalog items, active a
 
 ## 11. Notifications - Broadcasting Messages
 
-### 11.1 Sending a Broadcast Notification
+### 11.1 Sending a Push Notification
 
 To send a push notification to customers or staff:
 
-1. Navigate to **Notifications** in the sidebar.
-2. Click **Send Broadcast**.
-3. Configure the broadcast:
-   - **Target Audience:**
-     - **All Customers:** Every active customer on the platform.
-     - **Store Customers:** Customers who have transacted at a specific store.
-     - **All Staff:** All employees and store managers.
-     - **Store Staff:** Staff assigned to a specific store.
-   - **Store** (if store-specific): Select the applicable store.
-   - **Title:** Notification title (shown in bold on the device).
-   - **Body:** Notification message text.
-4. Review the audience and message carefully.
-5. Click **Send Broadcast**.
+1. Navigate to **Notifications** in the sidebar and open the **Send Push** tab.
+2. Choose **Who gets this?**:
+   - **All customers:** every active customer. Restricted and deleted customers are never included.
+   - **Customers of one store:** customers with an approved purchase at that store in the last 6 months.
+   - **All staff:** every active employee and store manager. Deactivated staff are never included.
+   - **Staff at one store:** the active staff assigned to that store, and managers with chain-wide access.
+   - For a store audience, choose the **Store** (closed stores are not offered).
+3. A line under the audience says who the message would reach, in **people and phones**: for example "This reaches 13 customers. 9 of them have the app signed in on a phone (12 phones in all); the other 4 will only see it in the app's inbox." Everyone in the audience gets the message in the app's inbox; only people with the app signed in on a phone also get the push.
+4. Write the **Title** (65 characters at most) and the **Message** (200 at most; the server enforces the same limits).
+5. Click **Send me a test first**. The message goes to your own phone only, with "[Test]" in front, and is not recorded as a send. It needs you to be signed in to the Lucky Stop app on a phone.
+6. Click **Review and send...**. A box shows who it goes to and the exact message. Click **Send to N customers** to send it.
 
-**This action cannot be undone.** Notifications are delivered immediately and cannot be recalled. Review all content carefully before sending.
+**This action cannot be undone.** A message cannot be recalled once sent. The page asks first, and it sends once even if you click twice.
+
+After a send, a panel says what happened: "Sent to 13 customers. 12 phones reached." If some phones failed it says so ("9 phones reached, 3 failed") and tells you **not** to send it again, because it already reached the others. The push service is asked to send again once for a batch that fails, and a phone it reports as no longer having the app is taken off the list. The same message to the same audience cannot be sent again within five minutes (a second click, or a colleague doing the same), and the page says when it went out.
+
+The **Sent recently** list under the form shows the last sends: when, who, the audience, the title and message, and how many people and phones. Every send is also an Activity Log entry ("Push Sent").
 
 ### 11.2 Notification Best Practices
 
 - Keep titles short (under 50 characters for full display on most devices).
 - Keep the body informative and action-oriented.
-- Test messages with a small audience (Store Staff) before broadcasting to all customers.
+- Always send yourself a test first, on an iPhone as well as an Android phone if you can.
 - Avoid sending multiple broadcasts on the same day - notification fatigue reduces engagement.
 
 ---
