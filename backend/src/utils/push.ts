@@ -1,7 +1,7 @@
 import prisma from '../config/prisma';
 import { Role } from '@prisma/client';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+import { sendExpoBatch } from './pushSend';
+import { excludeDeletedCustomers } from './accountDeletion';
 
 async function saveNotification(userId: string, title: string, body: string, type: string, actionUrl?: string, expiresAt?: Date) {
   try {
@@ -47,11 +47,7 @@ async function sendPushToStoreByRole(storeId: string, title: string, body: strin
     const tokens = storeRoles.flatMap((r) => r.user.pushTokens.map((t) => t.token));
     if (tokens.length === 0) return;
 
-    await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(tokens.map((token) => ({ to: token, title, body, sound: 'default', ...(actionUrl && { data: { actionUrl } }) }))),
-    });
+    await sendExpoBatch(tokens, { title, body, actionUrl });
   } catch { /* non-critical */ }
 }
 
@@ -62,19 +58,16 @@ export async function sendPushToUser(userId: string, title: string, body: string
   try {
     const tokens = await prisma.pushToken.findMany({ where: { userId }, select: { token: true } });
     if (tokens.length === 0) return;
-    await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(tokens.map(({ token }) => ({ to: token, title, body, sound: 'default', ...(actionUrl && { data: { actionUrl } }) }))),
-    });
+    await sendExpoBatch(tokens.map((t) => t.token), { title, body, actionUrl });
   } catch { /* non-critical */ }
 }
 
 /** Broadcast a push notification to all customers (role = CUSTOMER). */
 export async function broadcastToCustomers(title: string, body: string, type = 'OFFER', expiresAt?: Date, actionUrl?: string): Promise<void> {
   try {
+    // Active customers only: a restricted account and a deleted one are not messaged
     const customers = await prisma.user.findMany({
-      where: { role: 'CUSTOMER' },
+      where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers },
       select: { id: true, pushTokens: { select: { token: true } } },
     });
     if (customers.length === 0) return;
@@ -84,13 +77,6 @@ export async function broadcastToCustomers(title: string, body: string, type = '
     const allTokens = customers.flatMap((c) => c.pushTokens.map((t) => t.token));
     if (allTokens.length === 0) return;
 
-    for (let i = 0; i < allTokens.length; i += 100) {
-      const chunk = allTokens.slice(i, i + 100);
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(chunk.map((token) => ({ to: token, title, body, sound: 'default', ...(actionUrl && { data: { actionUrl } }) }))),
-      });
-    }
+    await sendExpoBatch(allTokens, { title, body, actionUrl });
   } catch { /* non-critical */ }
 }

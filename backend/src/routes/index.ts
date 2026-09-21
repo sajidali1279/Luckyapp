@@ -41,7 +41,7 @@ import {
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
-import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification } from '../controllers/notifications.controller';
+import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
 import { getMyChatStores, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
@@ -357,6 +357,8 @@ router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSup
 
 // ─── Push Broadcast (SuperAdmin+) ────────────────────────────────────────────
 router.post('/notifications/broadcast', authenticate, requireRole(Role.SUPER_ADMIN), broadcastNotification);
+router.get('/notifications/audience', authenticate, requireRole(Role.SUPER_ADMIN), getBroadcastAudience);   // Who a message would reach (people and phones)
+router.get('/notifications/broadcasts', authenticate, requireRole(Role.SUPER_ADMIN), listBroadcasts);       // The last 50 sends
 
 // ─── In-App Notifications (all authenticated users) ──────────────────────────
 router.get('/notifications/my', authenticate, getMyNotifications);
