@@ -72,7 +72,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
-import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
+import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -518,6 +518,7 @@ router.get   ('/labels/health-summary', authenticate, requireRole(Role.SUPER_ADM
 router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE), createLabel);
 router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE), markLabelsPrinted);
 router.post  ('/labels/:labelId/push-to-all', authenticate, requireRole(Role.SUPER_ADMIN), pushLabelToAllStores);
+router.get   ('/labels/:labelId/impact', authenticate, requireRole(Role.SUPER_ADMIN), getLabelImpact);  // What a price change or a delete would touch
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);
 router.delete('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), deleteLabel);
 router.get   ('/store-labels',          authenticate, requireRole(Role.EMPLOYEE), getStoreLabels);

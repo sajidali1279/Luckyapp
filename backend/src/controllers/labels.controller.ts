@@ -2,11 +2,14 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { LabelTemplate, Role } from '@prisma/client';
+import { LabelTemplate, Prisma, Role } from '@prisma/client';
 import { audit } from '../utils/audit';
 import { resolveEffectivePrice } from '../utils/labelPricing';
 import { hasMinRole } from '../middleware/auth';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
+import { refuse } from '../utils/refusal';
+import { priceField } from '../utils/labelPrice';
+import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MESSAGE, ITEM_GONE_MESSAGE, barcodeTakenText } from '../utils/labelRules';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -36,14 +39,18 @@ function printStatus(storeLabel: { printedAt: Date | null; everPrinted: boolean 
   return storeLabel.everPrinted ? 'needs_reprint' : 'new';
 }
 
+// A text box the person may leave empty (empty becomes "none")
+const textField = (what: string, max: number) =>
+  z.string({ message: `Enter the ${what}.` }).trim().max(max, `The ${what} is too long (${max} characters at most).`).transform((v) => (v === '' ? null : v));
+
 const createLabelSchema = z.object({
-  productName: z.string().min(1).max(40),
-  priceText: z.string().min(1).max(7).optional().nullable(),
-  dealText: z.string().max(20).optional().nullable(),
-  barcode: z.string().max(40).optional().nullable(),
-  category: z.string().max(100).optional().nullable(),
-  template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
-  storeId: z.string().uuid().optional(),
+  productName: z.string({ message: 'Enter the product name.' }).trim().min(1, 'Enter the product name.').max(40, 'The product name is too long (40 characters at most).'),
+  priceText: priceField.optional().nullable(),
+  dealText: textField('deal text', 20).optional().nullable(),
+  barcode: textField('barcode', 40).optional().nullable(),
+  category: textField('category', 100).optional().nullable(),
+  template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).default(LabelTemplate.CLASSIC_RED_BLACK),
+  storeId: z.string().uuid('That store is not valid.').optional(),
 });
 
 // GET /labels — the global catalog (base price only). ?myStoreId=X is
@@ -146,18 +153,25 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
 // own StoreLabel in one step, so the person who just made this immediately
 // has it in their own print queue. Only called when the barcode has no
 // existing catalog match (client-side dedupe, same as before this feature).
+// One barcode belongs to one item: a second item with the same barcode is
+// refused, naming the first.
 export async function createLabel(req: AuthRequest, res: Response) {
   const parsed = createLabelSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { storeId: requestedStoreId, ...labelData } = parsed.data;
 
   if (requestedStoreId && !(await canTouchStore(req.user!.id, req.user!.role, requestedStoreId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
     return;
+  }
+
+  if (labelData.barcode) {
+    const taken = await prisma.label.findFirst({ where: { barcode: labelData.barcode }, select: { id: true, productName: true } });
+    if (taken) {
+      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+      return;
+    }
   }
 
   const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
@@ -193,7 +207,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
-    details: { productName: label.productName, priceText: label.priceText, category: label.category },
+    details: { productName: label.productName, priceText: label.priceText, category: label.category, barcode: label.barcode },
     storeId: creatorStoreId,
   });
 
@@ -201,43 +215,106 @@ export async function createLabel(req: AuthRequest, res: Response) {
 }
 
 const updateLabelSchema = z.object({
-  productName: z.string().min(1).max(40).optional(),
-  priceText: z.string().min(1).max(7).optional().nullable(),
-  dealText: z.string().max(20).optional().nullable(),
-  barcode: z.string().max(40).optional().nullable(),
-  category: z.string().max(100).optional().nullable(),
-  template: z.nativeEnum(LabelTemplate).optional(),
+  productName: z.string({ message: 'Enter the product name.' }).trim().min(1, 'Enter the product name.').max(40, 'The product name is too long (40 characters at most).').optional(),
+  priceText: priceField.optional().nullable(),
+  dealText: textField('deal text', 20).optional().nullable(),
+  barcode: textField('barcode', 40).optional().nullable(),
+  category: textField('category', 100).optional().nullable(),
+  template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).optional(),
 });
 
+// How many stores hold an item, and in what state: what a change or a delete would touch.
+async function labelImpact(labelId: string) {
+  const rows = await prisma.storeLabel.findMany({ where: { labelId }, select: { priceText: true, overrideExpiresAt: true, printedAt: true } });
+  return {
+    storeCopies: rows.length,
+    inheritingBase: rows.filter((r) => r.priceText == null).length,
+    ownPrice: rows.filter((r) => r.priceText != null).length,
+    salePrice: rows.filter((r) => r.overrideExpiresAt != null).length,
+    printed: rows.filter((r) => r.printedAt != null).length,
+  };
+}
+
+// GET /labels/:labelId/impact — SuperAdmin+. What changing this item's price, or removing it, would do at the stores, so the
+// admin can say so in the box before anything is sent.
+export async function getLabelImpact(req: AuthRequest, res: Response) {
+  const { labelId } = req.params;
+  const label = await prisma.label.findUnique({ where: { id: labelId }, select: { id: true, productName: true, priceText: true, barcode: true } });
+  if (!label) { res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE }); return; }
+  res.json({ success: true, data: { ...label, ...(await labelImpact(labelId)) } });
+}
+
 // PATCH /labels/:labelId — edits the base catalog record. Only a REAL
-// change to priceText cascades a reprint flag, and only to stores still
-// inheriting the base price (no override of their own) — a store with its
-// own override has an unchanged effective price. A real change to any
-// other field (name, barcode, category, template, deal text) means the
-// physical label content itself is stale, so it cascades to every store
-// regardless of price override, matching this app's long-standing "any
-// edit un-prints the label" rule from before per-store pricing existed.
+// change counts (the phone sends every field on every edit), and who may
+// make it depends on what it changes: the chain-wide price needs HQ, the
+// item's name/barcode/category/deal/design needs a store manager or above.
+// A real change to priceText cascades a reprint flag, and only to stores
+// still inheriting the base price (no override of their own) — a store with
+// its own override has an unchanged effective price. A real change to any
+// other field means the physical label content itself is stale, so it
+// cascades to every store regardless of price override. The Activity Log
+// keeps before and after and how many stores were told to reprint.
 export async function updateLabel(req: AuthRequest, res: Response) {
   const { labelId } = req.params;
 
   const parsed = updateLabelSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const before = await prisma.label.findUnique({ where: { id: labelId } });
   if (!before) {
-    res.status(404).json({ success: false, error: 'Label not found' });
+    res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });
     return;
   }
 
-  const storeId = req.user!.storeIds?.[0] ?? null;
+  const changes = labelChanges(before, parsed.data);
+  const refusal = refusalFor(req.user!.role, changes);
+  if (refusal) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'LABEL_CHANGE_REFUSED', entity: 'label', entityId: labelId,
+      details: { summary: `${before.productName}: tried ${describeChanges(changes)}, refused (${req.user!.role})` },
+      storeId: null,
+    });
+    res.status(403).json({ success: false, error: refusal });
+    return;
+  }
+  if (Object.keys(changes).length === 0) {
+    res.json({ success: true, data: before, changed: false, reprint: { stores: 0, keptOwnPrice: 0 } });
+    return;
+  }
 
-  const label = await prisma.label.update({
-    where: { id: labelId },
-    data: parsed.data,
-  });
+  if (changes.barcode?.to) {
+    const taken = await prisma.label.findFirst({ where: { barcode: changes.barcode.to, id: { not: labelId } }, select: { id: true, productName: true } });
+    if (taken) {
+      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(changes.barcode.to, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+      return;
+    }
+  }
+
+  const priceOnly = Object.keys(changes).every((k) => k === 'priceText');
+  let flagged = 0;
+  let keptOwnPrice = 0;
+  let label;
+  try {
+    label = await prisma.$transaction(async (tx) => {
+      const updated = await tx.label.update({ where: { id: labelId }, data: parsed.data });
+      if (priceOnly) {
+        // Only the base price changed — only stores inheriting it are affected.
+        flagged = (await tx.storeLabel.updateMany({ where: { labelId, priceText: null }, data: { printedAt: null } })).count;
+        keptOwnPrice = await tx.storeLabel.count({ where: { labelId, priceText: { not: null } } });
+      } else {
+        // Content itself changed — every store's printed copy is now stale.
+        flagged = (await tx.storeLabel.updateMany({ where: { labelId }, data: { printedAt: null } })).count;
+      }
+      return updated;
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });
+      return;
+    }
+    throw err;
+  }
 
   // Same sync as createLabel — a barcode edited/confirmed here should stay
   // findable from the scan-lookup cache. Not rolled back on failure. Only
@@ -251,55 +328,75 @@ export async function updateLabel(req: AuthRequest, res: Response) {
         name: label.productName,
         category: label.category,
         brand: label.brand,
-        overwriteName: parsed.data.productName !== undefined,
-        overwriteCategory: parsed.data.category !== undefined,
+        overwriteName: !!changes.productName,
+        overwriteCategory: !!changes.category,
       });
     } catch (err) {
       console.error('ensureScannedProductForBarcode failed for label', label.id, err);
     }
   }
 
-  const priceChanged = parsed.data.priceText !== undefined && parsed.data.priceText !== before.priceText;
-  const otherFieldChanged = (['productName', 'barcode', 'category', 'template', 'dealText'] as const)
-    .some((field) => parsed.data[field] !== undefined && parsed.data[field] !== before[field]);
-
-  if (otherFieldChanged) {
-    // Content itself changed — every store's printed copy is now stale.
-    await prisma.storeLabel.updateMany({ where: { labelId }, data: { printedAt: null } });
-  } else if (priceChanged) {
-    // Only the base price changed — only stores inheriting it are affected.
-    await prisma.storeLabel.updateMany({ where: { labelId, priceText: null }, data: { printedAt: null } });
-  }
-
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'UPDATE_LABEL', entity: 'label', entityId: label.id,
-    details: { productName: label.productName, priceText: label.priceText, category: label.category },
-    storeId,
+    details: { summary: editSummary(before.productName, changes, flagged, keptOwnPrice), changes, storesFlagged: flagged, keptOwnPrice },
+    storeId: null,
   });
 
-  res.json({ success: true, data: label });
+  res.json({ success: true, data: label, changed: true, reprint: { stores: flagged, keptOwnPrice } });
 }
 
+// DELETE /labels/:labelId — HQ only. Removing an item removes every store's copy of it with its print history and sale prices, so
+// the Activity Log keeps what it was (price, barcode) and how much went with it.
 export async function deleteLabel(req: AuthRequest, res: Response) {
   const { labelId } = req.params;
 
-  const deleted = await prisma.label.delete({ where: { id: labelId } });
+  const label = await prisma.label.findUnique({ where: { id: labelId } });
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'LABEL_CHANGE_REFUSED', entity: 'label', entityId: labelId,
+      details: { summary: `${label?.productName ?? 'An item'}: tried to remove it from the catalog, refused (${req.user!.role})` },
+      storeId: null,
+    });
+    res.status(403).json({ success: false, error: DELETE_ROLE_MESSAGE });
+    return;
+  }
+  if (!label) {
+    res.status(404).json({ success: false, error: 'That item was already removed.' });
+    return;
+  }
 
+  const impact = await labelImpact(labelId);
+  let deleted;
+  try {
+    deleted = await prisma.label.delete({ where: { id: labelId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      res.status(404).json({ success: false, error: 'That item was already removed.' });
+      return;
+    }
+    throw err;
+  }
+
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'DELETE_LABEL', entity: 'label', entityId: deleted.id,
-    details: { productName: deleted.productName },
-    storeId: req.user!.storeIds?.[0] ?? null,
+    details: {
+      summary: `${deleted.productName} (${deleted.priceText ? `$${deleted.priceText}` : 'no price'}${deleted.barcode ? `, barcode ${deleted.barcode}` : ''}) removed from ${plural(impact.storeCopies, 'store', 'stores')}; ${plural(impact.printed, 'print record', 'print records')}, ${plural(impact.ownPrice, 'store price', 'store prices')} and ${plural(impact.salePrice, 'sale price', 'sale prices')} went with it`,
+      basePrice: deleted.priceText, barcode: deleted.barcode, ...impact,
+    },
+    storeId: null,
   });
 
-  res.json({ success: true, data: deleted });
+  res.json({ success: true, data: deleted, removed: impact });
 }
 
 const upsertStoreLabelSchema = z.object({
   labelId: z.string().uuid(),
   storeId: z.string().uuid(),
-  priceText: z.string().min(1).max(7).optional().nullable(),
+  priceText: priceField.optional().nullable(),
   expiresAt: z.string().min(1).optional().nullable(),
 });
 
@@ -309,10 +406,7 @@ const upsertStoreLabelSchema = z.object({
 // changing, printedAt resets; otherwise it's left alone.
 export async function upsertStoreLabel(req: AuthRequest, res: Response) {
   const parsed = upsertStoreLabelSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
   const { labelId, storeId, priceText, expiresAt } = parsed.data;
 
   if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
@@ -354,7 +448,7 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
 }
 
 const updateStoreLabelSchema = z.object({
-  priceText: z.string().min(1).max(7).optional().nullable(),
+  priceText: priceField.optional().nullable(),
   expiresAt: z.string().min(1).optional().nullable(),
 });
 
@@ -363,10 +457,7 @@ const updateStoreLabelSchema = z.object({
 export async function updateStoreLabel(req: AuthRequest, res: Response) {
   const { storeLabelId } = req.params;
   const parsed = updateStoreLabelSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const existing = await prisma.storeLabel.findUnique({ where: { id: storeLabelId } });
   if (!existing) {
@@ -409,10 +500,7 @@ const printLabelsSchema = z.object({
 // another store's queue.
 export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   const parsed = printLabelsSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { items } = parsed.data;
   const storeLabelIds = items.map(i => i.storeLabelId);
