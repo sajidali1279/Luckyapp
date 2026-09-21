@@ -14,12 +14,23 @@ let scrollBefore = '';
  */
 export function useDialog(open: boolean, ref: RefObject<HTMLElement | null>, onClose: () => void, busy: boolean) {
   const token = useRef({}).current;
+  // Whatever had focus when the dialog first rendered is what opened it. Read while rendering, because an input marked autoFocus takes
+  // focus during the commit, before any effect could look.
+  const openerRef = useRef<HTMLElement | null>(null);
+  // The element inside the dialog that took focus on its own (an input marked autoFocus): where focus goes again if the effect below runs twice
+  // (React's development mode mounts, unmounts and mounts again, and the unmount hands focus back to the opener).
+  const startedOnRef = useRef<HTMLElement | null>(null);
+  if (!open) { openerRef.current = null; startedOnRef.current = null; }
+  else if (openerRef.current === null) openerRef.current = document.activeElement as HTMLElement | null;
 
   useEffect(() => {
     if (!open) return;
-    const opener = document.activeElement as HTMLElement | null;
+    const opener = openerRef.current;
     const node = ref.current;
-    if (node && !node.contains(document.activeElement)) node.focus();
+    if (node) {
+      if (node.contains(document.activeElement)) startedOnRef.current = document.activeElement as HTMLElement;
+      else (startedOnRef.current && node.contains(startedOnRef.current) ? startedOnRef.current : node).focus();
+    }
     openDialogs.push(token);
     if (scrollLocks++ === 0) { scrollBefore = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
     return () => {

@@ -162,8 +162,9 @@ export const pointsApi = {
 
 export const customersApi = {
   list: (search = '', page = 1) => api.get(`/users/customers?search=${encodeURIComponent(search)}&page=${page}`),
-  toggleActive: (userId: string, fraudNote?: string) =>
-    api.patch(`/users/${userId}/toggle-active`, fraudNote ? { fraudNote } : {}),
+  // Say which state you want: restricting twice, or a double click, cannot switch the account back on
+  setActive: (userId: string, isActive: boolean, fraudNote?: string) =>
+    api.patch(`/users/${userId}/toggle-active`, { isActive, ...(fraudNote ? { fraudNote } : {}) }),
   delete: (userId: string) => api.delete(`/users/${userId}`),
   exportCsv: (search = '', isActive?: boolean) => {
     const params = new URLSearchParams();

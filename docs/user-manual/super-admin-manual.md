@@ -273,60 +273,49 @@ A customer is never erased: Delete removes their name, phone number and personal
 
 ### 6.1 Viewing All Customers
 
-Navigate to **Customers** in the sidebar. You will see a paginated list of all registered customer accounts with:
-- Name.
-- Phone number.
-- Current tier.
-- Points balance.
-- Account status.
-- Registration date.
+Navigate to **Customers** in the sidebar. The header counts every customer (not only the page you are on): **Total**, **Active**, **Restricted** and the **Credits Out** (unspent credit). Each customer is a card, 50 to a page, showing:
+- Name and phone number, written as (940) 290-2772.
+- The **credit balance**, the number of approved **transactions**, the **total spent** and the **joined** date (a store date in Central time, with the year).
+- **Restricted** in words for a restricted account, followed by the reason you gave.
 
-Use the search bar to find a specific customer by name or phone number.
+The search box finds a customer by part of a name (any case, spaces around it do not matter) or by phone number written any way: with brackets, dashes, spaces, "+1" or a leading 1. A search that finds nobody says so. **Export CSV** downloads the customers that match the search.
 
-### 6.2 Viewing a Customer's Account
+### 6.2 Restricting a Customer Account
 
-Click on a customer's name to see their full account detail:
-- Profile photo (if uploaded).
-- Phone number, email (if provided), tier, and points balance.
-- Full transaction history.
-- Redemption history.
-- Account creation date and last activity.
+To block an account (for suspected fraud or at the customer's request):
 
-### 6.3 Deactivating a Customer Account
+1. Find the customer and click **Restrict Account**.
+2. A box says what restricting does (they cannot sign in or earn points; their balance and history stay). Type a **reason** if you want one: it is shown on their card and in the CSV.
+3. Click **Restrict**.
 
-To disable a customer account (for suspected fraud or at the customer's request):
+The page asks for the state "restricted", so a double click, or two admins acting at once, cannot switch the account back on. Every restriction is in the Activity Log.
 
-1. Navigate to **Customers** → find the customer.
-2. Click **Deactivate Account**.
-3. The customer will no longer be able to log in or earn/redeem points.
+### 6.3 Restoring a Customer Account
 
-### 6.4 Reactivating a Customer Account
+Find the restricted customer and click **Restore Account**, then **Restore** in the box. The reason on the card is cleared.
 
-1. Navigate to **Customers** → find the deactivated account.
-2. Click **Reactivate Account**.
+### 6.4 Deleting a Customer Account (Dev Admin only)
 
-### 6.5 Resetting a Customer's PIN
+**Delete Account** removes the customer's name, phone number and personal details and frees the number to sign up again (the same as **Delete My Account** in the app). Their sales are **not** erased, so balances, store bills, analytics and the leaderboards keep adding up. Unspent credit is forfeited.
 
-If a customer is locked out and cannot use the phone OTP reset flow:
+The box says how many of their sales stay, and asks you to type the last four digits of the customer's phone number to confirm. This cannot be undone. Every delete is in the Activity Log.
 
-1. Navigate to **Customers** → find the customer.
-2. Click **Reset PIN**.
-3. Set a temporary PIN and communicate it securely to the customer.
+### 6.5 A Customer's PIN
 
-### 6.6 Reviewing Customer Transactions
+There is no PIN reset on the Customers page. A customer who forgets their PIN uses **Forgot PIN** in the app (a code sent by text message), which also clears a lockout.
 
-From a customer's detail page, you can see every transaction associated with their account, including the receipt image uploaded for each qualifying transaction. This is the primary tool for investigating customer disputes.
+### 6.6 Reviewing Disputes
 
-### 6.7 Reviewing Disputes
+Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view - both land in the same queue here. A store manager sees the reports for their store in the mobile app and can decide them there too; both use the same rules.
 
-Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view - both land in the same queue here.
+1. Navigate to **Customers** and click the **Disputes** tab. The tab shows how many reports are pending, whatever filter is on.
+2. Filter by **Store** and **Status** (Pending, Approved, Rejected). A list cut at its limit says how many reports there are in all.
+3. Click **Review** on a report. It shows the customer, what they wrote, the store and date, what they say the purchase was, and, if it was filed against a specific transaction, that transaction and its receipt photo.
+4. Decide:
+   - **Approve and credit $X:** type the credit to award, from $0.01 to $50 (dollars and cents). The button says the outcome ("Approve and credit $2.50") and stays off until the amount is valid. Add a note to the customer if you like. The credit is added at once and the customer is notified.
+   - **Reject:** add a note explaining why. Nothing is credited and the customer is told.
 
-1. Navigate to **Customers** → click the **Disputes** tab. A count badge shows how many are pending.
-2. Filter by **Store** and **Status** (Pending, Approved, Rejected).
-3. Click a dispute to open it. If it was filed against a specific transaction, that transaction's details and receipt photo are shown inline - otherwise you're working from the customer's written description alone.
-4. Click **Resolve**:
-   - **Approve:** enter the points/credit amount to award, add an internal note, and confirm. Points are credited immediately.
-   - **Reject:** add a note explaining why, and confirm. No points are credited.
+A report is decided **once**. If someone else (another admin, or the store manager on their phone) decided it a moment earlier, the box says so ("Someone already decided this report: it was approved for $2.50. Nothing was changed.") and nothing is credited twice. Every decision is written to the Activity Log with who, how much and the note. A report from a customer who has since deleted their account can only be rejected.
 
 A dispute tapped from a push notification scrolls to and highlights the matching row automatically.
 

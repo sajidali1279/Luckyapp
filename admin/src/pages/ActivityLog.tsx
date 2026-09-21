@@ -14,6 +14,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   REDEEM_CREDITS:            { label: 'Redeem Credits',         color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
   REJECT_TRANSACTION:        { label: 'Reject Transaction',     color: '#E63946', bg: '#E6394618', icon: '❌' },
   SELF_GRANT:                { label: 'Self Grant (QR)',        color: '#2DC653', bg: '#2DC65318', icon: '📄' },
+  DISPUTE_APPROVED:          { label: 'Dispute Approved',       color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  DISPUTE_REJECTED:          { label: 'Dispute Rejected',       color: '#E63946', bg: '#E6394618', icon: '❌' },
   // Offers & Banners
   CREATE_OFFER:              { label: 'Create Offer',           color: '#F4A261', bg: '#F4A26118', icon: '📢' },
   UPDATE_OFFER:              { label: 'Update Offer',           color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
@@ -223,7 +225,7 @@ export default function ActivityLog() {
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
-            {['GRANT_POINTS','REDEEM_CREDITS','REJECT_TRANSACTION','SELF_GRANT'].map(k => (
+            {['GRANT_POINTS','REDEEM_CREDITS','REJECT_TRANSACTION','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
