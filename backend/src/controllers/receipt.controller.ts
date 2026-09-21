@@ -9,6 +9,7 @@ import { pickOffer, percentBonus } from '../utils/offerPick';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
 import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
+import { audit } from '../utils/audit';
 import { storeDayStart } from '../utils/storeTime';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -372,5 +373,12 @@ export async function regenerateStoreApiKey(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const { rawKey, hashedKey } = generateStoreApiKey();
   const store = await prisma.store.update({ where: { id: storeId }, data: { apiKey: hashedKey }, select: { id: true, name: true } });
+  // Recorded (never the key itself): making a new key stops the printer agent that used the old one
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'REGENERATE_API_KEY', entity: 'store', entityId: storeId,
+    details: { summary: `${store.name}: printer API key regenerated (the old key stopped working)` },
+    storeId, storeName: store.name,
+  });
   res.json({ success: true, data: { storeId: store.id, name: store.name, apiKey: rawKey } });
 }

@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory } from '@prisma/client';
 import { getStoreByApiKey } from '../utils/storeApiKey';
+import { audit } from '../utils/audit';
 
 const VALID_CATEGORIES = Object.values(ProductCategory);
 
@@ -21,17 +22,27 @@ export async function addMapping(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const { keyword, category } = req.body as { keyword: string; category: string };
 
-  if (!keyword?.trim()) {
-    res.status(400).json({ success: false, error: 'keyword is required' }); return;
-  }
+  const word = typeof keyword === 'string' ? keyword.trim().toLowerCase() : '';
+  if (!word) { res.status(400).json({ success: false, error: 'Enter the word to look for on the receipt.' }); return; }
+  // A keyword matches part of a receipt line, so a one- or two-letter word would put almost every line into one category
+  if (word.length < 3) { res.status(400).json({ success: false, error: 'A keyword needs at least three characters, because it matches part of a receipt line ("a" would match almost every line).' }); return; }
+  if (word.length > 40) { res.status(400).json({ success: false, error: 'The keyword is too long (40 characters at most).' }); return; }
   if (!VALID_CATEGORIES.includes(category as ProductCategory)) {
-    res.status(400).json({ success: false, error: 'Invalid category' }); return;
+    res.status(400).json({ success: false, error: 'Choose one of the product categories.' }); return;
   }
 
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
   const mapping = await prisma.storeKeywordMapping.upsert({
-    where: { storeId_keyword: { storeId, keyword: keyword.trim().toLowerCase() } },
-    create: { storeId, keyword: keyword.trim().toLowerCase(), category: category as ProductCategory },
+    where: { storeId_keyword: { storeId, keyword: word } },
+    create: { storeId, keyword: word, category: category as ProductCategory },
     update: { category: category as ProductCategory },
+  });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'ADD_KEYWORD_MAPPING', entity: 'store', entityId: storeId,
+    details: { summary: `${store.name}: receipt keyword "${word}" counts as ${String(category).replace(/_/g, ' ').toLowerCase()}` },
+    storeId, storeName: store.name,
   });
   res.json({ success: true, data: mapping });
 }
@@ -39,7 +50,16 @@ export async function addMapping(req: AuthRequest, res: Response) {
 // DELETE /stores/:storeId/keyword-mappings/:id  (SuperAdmin+)
 export async function deleteMapping(req: AuthRequest, res: Response) {
   const { storeId, id } = req.params;
+  const mapping = await prisma.storeKeywordMapping.findFirst({ where: { id, storeId }, select: { keyword: true } });
+  if (!mapping) { res.status(404).json({ success: false, error: 'That keyword was already removed.' }); return; }
   await prisma.storeKeywordMapping.deleteMany({ where: { id, storeId } });
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DELETE_KEYWORD_MAPPING', entity: 'store', entityId: storeId,
+    details: { summary: `${store?.name ?? 'Store'}: receipt keyword "${mapping.keyword}" removed` },
+    storeId, storeName: store?.name ?? null,
+  });
   res.json({ success: true });
 }
 

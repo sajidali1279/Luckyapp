@@ -16,6 +16,7 @@ import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
 import { csvText } from '../utils/csv';
 import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
+import { refuseIfStoreClosed } from '../utils/storeRules';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 
@@ -64,8 +65,13 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
       select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
     }),
-    prisma.store.findUnique({ where: { id: storeId }, select: { name: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { name: true, isActive: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
+
+  if (store && store.isActive === false) {
+    res.status(409).json({ success: false, error: `${store.name} is closed, so sales cannot be recorded there. Ask HQ to reopen it.` });
+    return;
+  }
 
   // Filter to relevant offers for this store (JS filter — avoids Prisma AND/OR nesting bugs)
   const allStoreOffers = allActiveOffers.filter((o) =>
@@ -389,6 +395,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
 
   const { customerQrCode, storeId, amount } = parsed.data;
   const employee = req.user!;
+  if (await refuseIfStoreClosed(res, storeId)) return;
 
   const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
   if (!customer) {
@@ -973,6 +980,7 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'customerQrCode and storeId required' });
     return;
   }
+  if (await refuseIfStoreClosed(res, storeId)) return;
 
   const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
   if (!customer) {
@@ -1028,6 +1036,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
     res.status(400).json({ success: false, error: 'customerQrCode, catalogItemId, storeId required' });
     return;
   }
+  if (await refuseIfStoreClosed(res, storeId)) return;
 
   const [customer, item] = await Promise.all([
     prisma.user.findUnique({ where: { qrCode: customerQrCode } }),

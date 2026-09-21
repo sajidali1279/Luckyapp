@@ -16,6 +16,7 @@ import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { isRealPeriod, isFinishedPeriod, lastFinishedPeriod, periodBounds, periodFirstDay, periodLastDay, periodLabel, periodsSince, storePeriodOf } from '../utils/billingPeriods';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
+import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_MESSAGE, COORDINATE_PAIR_MESSAGE } from '../utils/storeRules';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -42,7 +43,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
     select: {
       id: true, name: true, address: true, city: true, state: true, zipCode: true,
       phone: true, latitude: true, longitude: true, shiftsPerDay: true,
-      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+      gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true,
       enabledCategories: true, hotFoodEnabled: true,
       minimumAge: true, isActive: true,
       storeHours: true,
@@ -86,40 +87,96 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   res.json({ success: true, data: assignments.map(a => a.store) });
 }
 
-// DevAdmin only — update store details (name, address, lat/lng, etc.)
+// SuperAdmin+ — update store details (name, address, lat/lng, etc.). Closing or reopening a store (isActive) is Dev Admin only, here on the
+// server and not only on the page. Every change is checked with a sentence for the person, written to the Activity Log, and a request that changes
+// nothing is a harmless repeat. The phone is stored as +1 and ten digits; clearing it now clears it.
+const storeText = (what: string, max: number) =>
+  z.string({ message: `Enter the ${what}.` }).trim().min(1, `Enter the ${what}.`).max(max, `The ${what} is too long (${max} characters at most).`);
+
 const updateStoreSchema = z.object({
-  name: z.string().min(1).optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  phone: z.string().optional(),
-  latitude: z.number().min(-90).max(90).nullable().optional(),
-  longitude: z.number().min(-180).max(180).nullable().optional(),
-  shiftsPerDay: z.number().int().min(2).max(3).optional(),
-  enabledCategories: z.array(z.nativeEnum(ProductCategory)).optional(),
-  hotFoodEnabled: z.boolean().optional(),
-  minimumAge: z.number().int().min(0).max(100).nullable().optional(),
-  isActive: z.boolean().optional(),
+  name: storeText('store name', 60).optional(),
+  address: storeText('address', 120).optional(),
+  city: storeText('city', 60).optional(),
+  state: z.string({ message: 'The state is its two-letter code, such as TX.' }).trim().regex(/^[A-Za-z]{2}$/, 'The state is its two-letter code, such as TX.').transform((v) => v.toUpperCase()).optional(),
+  zipCode: z.string({ message: 'The ZIP code is five digits, such as 75090.' }).trim().regex(/^\d{5}(-\d{4})?$/, 'The ZIP code is five digits, such as 75090.').optional(),
+  phone: z.string({ message: 'The phone number must be text.' }).trim().max(30, 'That phone number is too long.').nullable().optional(),
+  latitude: z.number({ message: 'The latitude must be a number.' }).min(-90, 'The latitude must be between -90 and 90.').max(90, 'The latitude must be between -90 and 90.').nullable().optional(),
+  longitude: z.number({ message: 'The longitude must be a number.' }).min(-180, 'The longitude must be between -180 and 180.').max(180, 'The longitude must be between -180 and 180.').nullable().optional(),
+  shiftsPerDay: z.number({ message: 'Shifts per day must be 2 or 3.' }).int('Shifts per day must be 2 or 3.').min(2, 'Shifts per day must be 2 or 3.').max(3, 'Shifts per day must be 2 or 3.').optional(),
+  enabledCategories: z.array(z.nativeEnum(ProductCategory, { message: 'One of those categories is not a real category.' })).optional(),
+  hotFoodEnabled: z.boolean({ message: 'Hot food must be on or off.' }).optional(),
+  minimumAge: z.number({ message: 'The minimum age must be a number.' }).int('The minimum age must be a whole number.').min(0, 'The minimum age must be between 0 and 100.').max(100, 'The minimum age must be between 0 and 100.').nullable().optional(),
+  isActive: z.boolean({ message: 'Open or closed must be true or false.' }).optional(),
 });
+
+const STORE_SELECT = {
+  id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true,
+  latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true,
+  minimumAge: true, isActive: true,
+} as const;
 
 export async function updateStore(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const parsed = updateStoreSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.errors[0].message });
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const data: Record<string, unknown> = { ...parsed.data };
+
+  const before = await prisma.store.findUnique({ where: { id: storeId }, select: STORE_SELECT });
+  if (!before) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+
+  if (data.isActive !== undefined && data.isActive !== before.isActive && !hasMinRole(req.user!.role, Role.DEV_ADMIN)) {
+    res.status(403).json({ success: false, error: 'Only a Dev Admin can close or reopen a store.' });
     return;
   }
-  const store = await prisma.store.update({
-    where: { id: storeId },
-    data: parsed.data,
-    select: {
-      id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true,
-      latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true,
-      minimumAge: true, isActive: true,
-    },
+
+  if (data.phone !== undefined) {
+    const raw = String(data.phone ?? '').trim();
+    if (raw === '') data.phone = null;
+    else {
+      const phone = storePhone(raw);
+      if (!phone) { res.status(400).json({ success: false, error: 'Enter a full ten-digit phone number, or leave it empty.' }); return; }
+      data.phone = phone;
+    }
+  }
+
+  // Coordinates go together, and they must be in the United States
+  if (data.latitude !== undefined || data.longitude !== undefined) {
+    const lat = data.latitude !== undefined ? (data.latitude as number | null) : before.latitude;
+    const lng = data.longitude !== undefined ? (data.longitude as number | null) : before.longitude;
+    if ((lat === null) !== (lng === null)) { res.status(400).json({ success: false, error: COORDINATE_PAIR_MESSAGE }); return; }
+    if (lat !== null && lng !== null && !inUnitedStates(lat, lng)) { res.status(400).json({ success: false, error: COORDINATES_MESSAGE }); return; }
+  }
+
+  if (typeof data.name === 'string' && data.name.toLowerCase() !== before.name.toLowerCase()) {
+    const same = await prisma.store.findFirst({ where: { name: { equals: data.name, mode: 'insensitive' }, id: { not: storeId } }, select: { name: true } });
+    if (same) { res.status(409).json({ success: false, error: `Another store is already called "${same.name}".` }); return; }
+  }
+
+  // Only what really changes is written and recorded
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const changed: string[] = [];
+  const parts: string[] = [];
+  const show = (v: unknown) => (v === null || v === undefined || v === '' ? 'none' : Array.isArray(v) ? (v.length ? v.join(', ') : 'all') : String(v));
+  for (const [k, v] of Object.entries(data)) {
+    const was = (before as Record<string, unknown>)[k];
+    const differs = k === 'enabledCategories' ? !same([...(was as string[])].sort(), [...(v as string[])].sort()) : !same(was, v);
+    if (!differs) { delete data[k]; continue; }
+    changed.push(k);
+    parts.push(`${k === 'isActive' ? (v ? 'reopened' : 'closed') : `${k} ${show(was)} to ${show(v)}`}`);
+  }
+  if (changed.length === 0) {
+    res.json({ success: true, data: before, changed: false });
+    return;
+  }
+
+  const store = await prisma.store.update({ where: { id: storeId }, data, select: STORE_SELECT });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'UPDATE_STORE', entity: 'store', entityId: storeId,
+    details: { summary: `${before.name}: ${parts.join('; ')}`, changed },
+    storeId, storeName: store.name,
   });
-  res.json({ success: true, data: store });
+  res.json({ success: true, data: store, changed: true });
 }
 
 // DevAdmin only — change billing type for a store
@@ -1885,42 +1942,90 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
 
 // ─── Gas Prices ───────────────────────────────────────────────────────────────
 
+const gasPrice = (what: string) =>
+  z.number({ message: `The ${what} price must be a number.` })
+    .min(GAS_PRICE_MIN, `The ${what} price must be at least $${GAS_PRICE_MIN.toFixed(2)} a gallon.`)
+    .max(GAS_PRICE_MAX, `The ${what} price can be at most $${GAS_PRICE_MAX.toFixed(2)} a gallon.`)
+    .refine((v) => Math.abs(v * 1000 - Math.round(v * 1000)) < 1e-6, `The ${what} price has at most three decimals, such as 3.199.`);
+
 const gasPriceSchema = z.object({
-  gasPricePerGallon:    z.number().min(0).max(20).optional(),
-  dieselPricePerGallon: z.number().min(0).max(20).optional(),
+  gasPricePerGallon:    gasPrice('gas').optional(),
+  dieselPricePerGallon: gasPrice('diesel').optional(),
 });
 
-/** PATCH /stores/:storeId/gas-prices — SuperAdmin or StoreManager */
+/**
+ * PATCH /stores/:storeId/gas-prices — SuperAdmin or StoreManager. A price that is already the saved price changes nothing: no write, no message to the
+ * store's staff, no line in customers' inboxes (a double click, or saving the form without touching a box, used to send them all again). Each real change
+ * is an Activity Log entry with the old and new price.
+ */
 export async function updateGasPrices(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const parsed = gasPriceSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { gasPricePerGallon, dieselPricePerGallon } = parsed.data;
   if (gasPricePerGallon === undefined && dieselPricePerGallon === undefined) {
-    res.status(400).json({ success: false, error: 'Provide at least one price to update' });
+    res.status(400).json({ success: false, error: 'Enter a gas or a diesel price to update.' });
     return;
   }
+
+  const before = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true },
+  });
+  if (!before) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
 
   // Each commodity tracks its own updatedAt — a diesel-only edit must not
   // make mobile's "change needed" indicator blink for gas too, and vice versa.
   const now = new Date();
   const updateData: Record<string, unknown> = {};
-  if (gasPricePerGallon    !== undefined) { updateData.gasPricePerGallon    = gasPricePerGallon;    updateData.gasPriceUpdatedAt    = now; }
-  if (dieselPricePerGallon !== undefined) { updateData.dieselPricePerGallon = dieselPricePerGallon; updateData.dieselPriceUpdatedAt = now; }
+  const parts: string[] = [];
+  const log: string[] = [];
+  if (gasPricePerGallon !== undefined && gasPricePerGallon !== before.gasPricePerGallon) {
+    updateData.gasPricePerGallon = gasPricePerGallon; updateData.gasPriceUpdatedAt = now;
+    parts.push(`Gas $${gasPricePerGallon.toFixed(3)}/gal`);
+    log.push(`gas ${before.gasPricePerGallon != null ? `$${before.gasPricePerGallon.toFixed(3)}` : 'not set'} to $${gasPricePerGallon.toFixed(3)}`);
+  }
+  if (dieselPricePerGallon !== undefined && dieselPricePerGallon !== before.dieselPricePerGallon) {
+    updateData.dieselPricePerGallon = dieselPricePerGallon; updateData.dieselPriceUpdatedAt = now;
+    parts.push(`Diesel $${dieselPricePerGallon.toFixed(3)}/gal`);
+    log.push(`diesel ${before.dieselPricePerGallon != null ? `$${before.dieselPricePerGallon.toFixed(3)}` : 'not set'} to $${dieselPricePerGallon.toFixed(3)}`);
+  }
 
-  const store = await prisma.store.update({
-    where: { id: storeId },
+  if (parts.length === 0) {
+    res.json({ success: true, data: before, changed: false });
+    return;
+  }
+
+  // Written only if the price is still what was just read: two identical requests at once (a double click, two managers) cannot both count as the
+  // change, so staff are told once and the log has one entry
+  const claimed = await prisma.store.updateMany({
+    where: {
+      id: storeId,
+      ...('gasPricePerGallon' in updateData ? { gasPricePerGallon: before.gasPricePerGallon } : {}),
+      ...('dieselPricePerGallon' in updateData ? { dieselPricePerGallon: before.dieselPricePerGallon } : {}),
+    },
     data: updateData,
+  });
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
     select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true },
   });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  if (claimed.count === 0) {
+    const nowSame = (gasPricePerGallon === undefined || store.gasPricePerGallon === gasPricePerGallon) && (dieselPricePerGallon === undefined || store.dieselPricePerGallon === dieselPricePerGallon);
+    if (nowSame) { res.json({ success: true, data: store, changed: false }); return; }   // the same price was saved a moment ago
+    res.status(409).json({ success: false, error: "Someone changed this store's price a moment ago. Reload to see the new price, then try again if it still needs changing." });
+    return;
+  }
 
-  const parts: string[] = [];
-  if (gasPricePerGallon    !== undefined) parts.push(`Gas $${gasPricePerGallon.toFixed(3)}/gal`);
-  if (dieselPricePerGallon !== undefined) parts.push(`Diesel $${dieselPricePerGallon.toFixed(3)}/gal`);
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'GAS_PRICE_UPDATE', entity: 'store', entityId: storeId,
+    details: { summary: `${store.name}: ${log.join('; ')}`, before: { gas: before.gasPricePerGallon, diesel: before.dieselPricePerGallon }, after: { gas: store.gasPricePerGallon, diesel: store.dieselPricePerGallon } },
+    storeId, storeName: store.name,
+  });
+
   const priceText = parts.join(' · ');
 
   // Push + in-app → employees only (they update pump displays; managers don't need push)
@@ -1947,7 +2052,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
     })
     .catch(() => { /* non-critical */ });
 
-  res.json({ success: true, data: store });
+  res.json({ success: true, data: store, changed: true });
 }
 
 // STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store) — standing order instructions
