@@ -10,12 +10,14 @@ import { z } from 'zod';
 import { audit } from '../utils/audit';
 import admin from '../config/firebase';
 import cloudinary from '../config/cloudinary';
-import { anonymizeCustomerAccount, excludeDeletedCustomers } from '../utils/accountDeletion';
+import { anonymizeCustomerAccount, excludeDeletedCustomers, DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
 import { csvText } from '../utils/csv';
 import { storeDateText } from '../utils/storeTime';
 import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
+import { refuse } from '../utils/refusal';
 import { canonicalPhone, staffPhone } from '../utils/phone';
+import { staffFootprint, footprintTotal, cannotDeleteMessage } from '../utils/accountRecords';
 
 const SALT_ROUNDS = 12;
 
@@ -93,6 +95,29 @@ function refuseUnlessManageable(req: AuthRequest, res: Response, target: { id: s
   res.status(403).json({ success: false, error: CANNOT_MANAGE_MESSAGE });
   return true;
 }
+
+const ROLE_WORDS: Record<string, string> = { DEV_ADMIN: 'Dev Admin', SUPER_ADMIN: 'Super Admin', STORE_MANAGER: 'Store Manager', EMPLOYEE: 'Employee', CUSTOMER: 'customer' };
+
+/** The sentence for a phone number that already has an account. A Super Admin is not told about a Dev Admin's account. */
+function phoneTakenAnswer(actorRole: Role, existing: { name: string | null; role: Role; isActive: boolean }) {
+  if (existing.role === Role.CUSTOMER) {
+    return { code: 'PHONE_IS_CUSTOMER', error: 'This number already has a customer account. The person can delete it in the app (Profile, Delete My Account) to free the number, or you can use another number.' };
+  }
+  if (existing.role === Role.DEV_ADMIN && actorRole !== Role.DEV_ADMIN) {
+    return { code: 'PHONE_IN_USE', error: 'That number is already in use by another account.' };
+  }
+  const who = existing.name?.trim() || 'a staff member';
+  return { code: 'PHONE_IS_STAFF', error: `This number already belongs to ${who} (${ROLE_WORDS[existing.role] ?? existing.role}${existing.isActive ? '' : ', deactivated'}).` };
+}
+
+/** True when deactivating or deleting this account would leave the system with no active Dev Admin. */
+async function wouldLeaveNoDevAdmin(target: { id: string; role: Role }): Promise<boolean> {
+  if (target.role !== Role.DEV_ADMIN) return false;
+  const others = await prisma.user.count({ where: { role: Role.DEV_ADMIN, isActive: true, id: { not: target.id } } });
+  return others === 0;
+}
+const LAST_DEV_ADMIN_MESSAGE = 'This is the last active Dev Admin account, so it cannot be deactivated or deleted. Make another Dev Admin first.';
+const isUniqueViolation = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
 
 // ─── Register (new customer self-signup) ─────────────────────────────────────
 
@@ -374,17 +399,14 @@ export async function deleteAvatar(req: AuthRequest, res: Response) {
 // ─── Create Super Admin (DevAdmin only) ───────────────────────────────────────
 
 const createSuperAdminSchema = z.object({
-  phone: z.string().min(10).max(15),
-  name: z.string().trim().min(1).max(80),
-  pin: z.string().length(4).regex(/^\d{4}$/),
+  phone: z.string({ message: 'Enter a full ten-digit phone number.' }).min(10, 'Enter a full ten-digit phone number.').max(25, 'That phone number is too long.'),
+  name: z.string({ message: 'Enter the name.' }).trim().min(1, 'Enter the name.').max(80, 'The name is too long (80 letters at most).'),
+  pin: z.string({ message: 'The PIN must be four digits.' }).regex(/^\d{4}$/, 'The PIN must be four digits.'),
 });
 
 export async function createSuperAdmin(req: AuthRequest, res: Response) {
   const parsed = createSuperAdminSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { name, pin } = parsed.data;
   const phone = staffPhone(parsed.data.phone);
@@ -393,16 +415,22 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
     return;
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  const existing = await prisma.user.findUnique({ where: { phone }, select: { name: true, role: true, isActive: true } });
   if (existing) {
-    res.status(409).json({ success: false, error: 'Phone number already in use' });
+    res.status(409).json({ success: false, ...phoneTakenAnswer(req.user!.role, existing) });
     return;
   }
 
   const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
-  const user = await prisma.user.create({
-    data: { phone, name, pinHash, role: Role.SUPER_ADMIN, isProfileComplete: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: { phone, name, pinHash, role: Role.SUPER_ADMIN, isProfileComplete: true },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) { res.status(409).json({ success: false, code: 'PHONE_IN_USE', error: 'That number was just taken by another account.' }); return; }
+    throw e;
+  }
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
@@ -411,7 +439,7 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
   });
   res.status(201).json({
     success: true,
-    data: { id: user.id, phone: user.phone, name: user.name, role: user.role },
+    data: { id: user.id, phone: user.phone, name: user.name, role: user.role, store: null },
   });
 }
 
@@ -539,29 +567,42 @@ export async function listStaff(req: AuthRequest, res: Response) {
   const staff = await prisma.user.findMany({
     where: { role: hideDevAdmins ? { notIn: [Role.CUSTOMER, Role.DEV_ADMIN] } : { not: Role.CUSTOMER } },
     select: {
-      id: true, phone: true, name: true, role: true, isActive: true, createdAt: true,
-      storeRoles: { select: { store: { select: { id: true, name: true } }, role: true } },
+      id: true, phone: true, name: true, role: true, isActive: true, createdAt: true, allStoresAccess: true,
+      storeRoles: { select: { store: { select: { id: true, name: true, isActive: true } }, role: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
   res.json({ success: true, data: staff });
 }
 
-// ─── Toggle User Active (SuperAdmin+) ────────────────────────────────────────
+// ─── Deactivate or reactivate (SuperAdmin+) ──────────────────────────────────
+//
+// The page says which state it wants ({ isActive }), so a second click, a double click or a second admin cannot flip it back:
+// asking for the state the account already has changes nothing and records nothing. A caller that sends nothing still toggles,
+// as before. Deactivating ends the person's access on their very next request (authenticate checks isActive every time).
 
 export async function toggleUserActive(req: AuthRequest, res: Response) {
   const { userId } = req.params;
-  const { fraudNote } = req.body as { fraudNote?: string };
+  const { fraudNote, isActive } = req.body as { fraudNote?: string; isActive?: boolean };
 
   if (userId === req.user!.id) {
-    res.status(400).json({ success: false, error: 'Cannot deactivate your own account' });
+    res.status(400).json({ success: false, error: 'You cannot deactivate your own account.' });
     return;
   }
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   if (refuseUnlessManageable(req, res, target)) return;
 
-  const nowActive = !target.isActive;
+  const nowActive = typeof isActive === 'boolean' ? isActive : !target.isActive;
+  if (nowActive === target.isActive) {
+    res.json({ success: true, data: { id: target.id, isActive: target.isActive, fraudNote: target.fraudNote, changed: false } });
+    return;
+  }
+  if (!nowActive && (await wouldLeaveNoDevAdmin(target))) {
+    res.status(409).json({ success: false, error: LAST_DEV_ADMIN_MESSAGE });
+    return;
+  }
+
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -576,7 +617,7 @@ export async function toggleUserActive(req: AuthRequest, res: Response) {
     action: 'TOGGLE_USER', entity: 'user', entityId: userId,
     details: { targetName: target.name, targetPhone: target.phone, targetRole: target.role, isActive: updated.isActive, fraudNote: updated.fraudNote },
   });
-  res.json({ success: true, data: updated });
+  res.json({ success: true, data: { ...updated, changed: true } });
 }
 
 // ─── Reset User PIN (SuperAdmin+) ─────────────────────────────────────────────
@@ -610,7 +651,7 @@ export async function resetUserPin(req: AuthRequest, res: Response) {
   res.json({ success: true, message: 'PIN reset successfully' });
 }
 
-// ─── Add / Remove Store Assignment (SuperAdmin only) ─────────────────────────
+// ─── Store assignments (SuperAdmin+) ─────────────────────────────────────────
 
 export async function addUserStore(req: AuthRequest, res: Response) {
   const { userId } = req.params;
@@ -624,6 +665,9 @@ export async function addUserStore(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'Store assignment is only valid for EMPLOYEE or STORE_MANAGER accounts' });
     return;
   }
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, isActive: true } });
+  if (!store) { res.status(400).json({ success: false, error: 'That store does not exist.' }); return; }
+  if (!store.isActive) { res.status(400).json({ success: false, error: `${store.name} is closed, so nobody can be newly assigned to it.` }); return; }
 
   await prisma.userStoreRole.upsert({
     where: { userId_storeId: { userId, storeId } },
@@ -637,6 +681,61 @@ export async function addUserStore(req: AuthRequest, res: Response) {
     details: { storeId }, storeId,
   });
   res.json({ success: true });
+}
+
+const setStoresSchema = z.object({
+  storeIds: z.array(z.string().uuid('One of those stores is not valid.')).min(1, 'Choose at least one store.').max(50, 'That is too many stores.'),
+});
+
+/**
+ * PUT /users/:userId/stores: the person's whole list of stores in one all-or-nothing save. Moving someone from store A to store B used to
+ * be two requests sent at the same instant, and if the removal arrived first it was refused as "the last store" while the addition went
+ * through, leaving the person at both stores.
+ */
+export async function setUserStores(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const parsed = setStoresSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const storeIds = [...new Set(parsed.data.storeIds)];
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true } });
+  if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (refuseUnlessManageable(req, res, user)) return;
+  if (!['EMPLOYEE', 'STORE_MANAGER'].includes(user.role)) {
+    res.status(400).json({ success: false, error: 'Stores can only be assigned to an employee or a store manager.' });
+    return;
+  }
+
+  const [stores, currentRows] = await Promise.all([
+    prisma.store.findMany({ where: { id: { in: storeIds } }, select: { id: true, name: true, isActive: true } }),
+    prisma.userStoreRole.findMany({ where: { userId }, select: { storeId: true, store: { select: { name: true } } } }),
+  ]);
+  if (stores.length !== storeIds.length) { res.status(400).json({ success: false, error: 'One of those stores does not exist.' }); return; }
+  const currentIds = new Set(currentRows.map((r) => r.storeId));
+  const closedNew = stores.filter((st) => !st.isActive && !currentIds.has(st.id));
+  if (closedNew.length > 0) {
+    res.status(400).json({ success: false, error: `${closedNew.map((st) => st.name).join(', ')} ${closedNew.length === 1 ? 'is' : 'are'} closed, so nobody can be newly assigned to ${closedNew.length === 1 ? 'it' : 'them'}.` });
+    return;
+  }
+
+  const toAdd = storeIds.filter((id) => !currentIds.has(id));
+  const toRemove = [...currentIds].filter((id) => !storeIds.includes(id));
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    res.json({ success: true, data: { changed: false, stores: stores.map((st) => ({ id: st.id, name: st.name })) } });
+    return;
+  }
+
+  await prisma.$transaction([
+    ...(toAdd.length ? [prisma.userStoreRole.createMany({ data: toAdd.map((storeId) => ({ userId, storeId, role: user.role as Role })), skipDuplicates: true })] : []),
+    ...(toRemove.length ? [prisma.userStoreRole.deleteMany({ where: { userId, storeId: { in: toRemove } } })] : []),
+  ]);
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'SET_STORES', entity: 'user', entityId: userId,
+    details: { targetName: user.name, before: currentRows.map((r) => r.store.name), after: stores.map((st) => st.name), added: toAdd.length, removed: toRemove.length },
+  });
+  res.json({ success: true, data: { changed: true, stores: stores.map((st) => ({ id: st.id, name: st.name })) } });
 }
 
 export async function removeUserStore(req: AuthRequest, res: Response) {
@@ -662,12 +761,35 @@ export async function removeUserStore(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
-// ─── Delete User (DevAdmin only) ──────────────────────────────────────────────
+// ─── Delete or anonymize (DevAdmin only) ─────────────────────────────────────
+//
+// A customer is anonymized, the way "Delete My Account" does it: personal details go, the sales stay (they are in balances, bills and
+// analytics). A staff account can be deleted only when it has no work on record; otherwise it can only be deactivated. Both run in ONE
+// transaction, so a refusal by the database can never leave the sales erased and the account still there, as the old delete did.
+
+/** GET /users/:userId/footprint: what Delete would do, so the box can say it before anyone clicks. */
+export async function getAccountFootprint(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true, phone: true } });
+  if (!target) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+  if (refuseUnlessManageable(req, res, target)) return;
+
+  if (target.role === Role.CUSTOMER) {
+    const sales = await prisma.pointsTransaction.count({ where: { customerId: userId } });
+    res.json({ success: true, data: { mode: 'anonymize', canDelete: true, sales, message: sales > 0 ? `Their ${sales === 1 ? 'sale stays' : `${sales} sales stay`} in the books (balances, bills and reports keep adding up). Their name, phone number and personal details are removed and the number can be used again.` : 'Their name, phone number and personal details are removed and the number can be used again.' } });
+    return;
+  }
+
+  const footprint = await staffFootprint(prisma, userId);
+  const lastDevAdmin = await wouldLeaveNoDevAdmin(target);
+  const canDelete = footprintTotal(footprint) === 0 && !lastDevAdmin;
+  res.json({ success: true, data: { mode: 'delete', canDelete, footprint, message: lastDevAdmin ? LAST_DEV_ADMIN_MESSAGE : canDelete ? '' : cannotDeleteMessage(target.name, footprint) } });
+}
 
 export async function deleteUser(req: AuthRequest, res: Response) {
   const { userId } = req.params;
   if (userId === req.user!.id) {
-    res.status(400).json({ success: false, error: 'Cannot delete your own account' });
+    res.status(400).json({ success: false, error: 'You cannot delete your own account.' });
     return;
   }
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, phone: true, role: true } });
@@ -676,31 +798,53 @@ export async function deleteUser(req: AuthRequest, res: Response) {
     return;
   }
   if (refuseUnlessManageable(req, res, target)) return;
-  try {
-    // Delete all records referencing this user (no cascade on these FKs)
-    await prisma.pointsTransaction.deleteMany({ where: { customerId: userId } });
-    await prisma.pointsTransaction.deleteMany({ where: { grantedById: userId } });
-    await prisma.creditRedemption.deleteMany({ where: { customerId: userId } });
-    await prisma.creditRedemption.deleteMany({ where: { processedBy: userId } });
-    await prisma.redemption.deleteMany({ where: { customerId: userId } });
-    await prisma.catalogRedemption.deleteMany({ where: { customerId: userId } });
-    await prisma.catalogRedemption.deleteMany({ where: { processedById: userId } });
-    await prisma.employeeRating.deleteMany({ where: { OR: [{ customerId: userId }, { employeeId: userId }] } });
-    await prisma.hotFoodOrder.deleteMany({ where: { customerId: userId } });
-    await prisma.userStoreRole.deleteMany({ where: { userId } });
-    await prisma.pushToken.deleteMany({ where: { userId } });
-    await prisma.user.delete({ where: { id: userId } });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: `Delete failed: ${err?.message ?? 'unknown error'}` });
+
+  const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
+
+  if (target.role === Role.CUSTOMER) {
+    if (target.phone.startsWith(DELETED_PHONE_PREFIX)) { res.json({ success: true, data: { mode: 'anonymize', changed: false } }); return; }
+    try {
+      await prisma.$transaction((tx) => anonymizeCustomerAccount(tx, userId));
+    } catch (err) {
+      console.error('[deleteUser] anonymize failed:', err);
+      res.status(500).json({ success: false, error: 'Could not remove the customer. Nothing was changed.' });
+      return;
+    }
+    audit({ ...actor, action: 'DELETE_USER', entity: 'user', entityId: userId, details: { name: target.name, phone: target.phone, role: target.role, mode: 'anonymized' } });
+    res.json({ success: true, data: { mode: 'anonymize', changed: true } });
     return;
   }
 
-  audit({
-    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
-    action: 'DELETE_USER', entity: 'user', entityId: userId,
-    details: { name: target.name, phone: target.phone, role: target.role },
-  });
-  res.json({ success: true });
+  if (await wouldLeaveNoDevAdmin(target)) {
+    res.status(409).json({ success: false, error: LAST_DEV_ADMIN_MESSAGE });
+    return;
+  }
+  const footprint = await staffFootprint(prisma, userId);
+  if (footprintTotal(footprint) > 0) {
+    const error = cannotDeleteMessage(target.name, footprint);
+    audit({ ...actor, action: 'DELETE_USER_REFUSED', entity: 'user', entityId: userId, details: { name: target.name, phone: target.phone, role: target.role, footprint, reason: error } });
+    res.status(409).json({ success: false, error, data: { footprint } });
+    return;
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.userStoreRole.deleteMany({ where: { userId } });
+      await tx.pushToken.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+  } catch (err) {
+    console.error('[deleteUser] failed:', err);
+    const linked = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003';
+    const error = linked
+      ? `${target.name || 'This account'} is still linked to other records, so it can only be deactivated.`
+      : 'Could not delete the account. Nothing was changed.';
+    audit({ ...actor, action: 'DELETE_USER_REFUSED', entity: 'user', entityId: userId, details: { name: target.name, role: target.role, reason: error } });
+    res.status(linked ? 409 : 500).json({ success: false, error });
+    return;
+  }
+
+  audit({ ...actor, action: 'DELETE_USER', entity: 'user', entityId: userId, details: { name: target.name, phone: target.phone, role: target.role, mode: 'deleted' } });
+  res.json({ success: true, data: { mode: 'delete', changed: true } });
 }
 
 // ─── Update Email (authenticated user) ───────────────────────────────────────
@@ -819,19 +963,16 @@ export async function resetPin(req: Request, res: Response) {
 // ─── Create Staff Account (SuperAdmin only) ───────────────────────────────────
 
 const createStaffSchema = z.object({
-  phone: z.string().min(10).max(15),
-  name: z.string().trim().min(1).max(80),
-  pin: z.string().length(4).regex(/^\d{4}$/),
-  role: z.enum(['EMPLOYEE', 'STORE_MANAGER']),
-  storeId: z.string().uuid(),
+  phone: z.string({ message: 'Enter a full ten-digit phone number.' }).min(10, 'Enter a full ten-digit phone number.').max(25, 'That phone number is too long.'),
+  name: z.string({ message: 'Enter the name.' }).trim().min(1, 'Enter the name.').max(80, 'The name is too long (80 letters at most).'),
+  pin: z.string({ message: 'The PIN must be four digits.' }).regex(/^\d{4}$/, 'The PIN must be four digits.'),
+  role: z.enum(['EMPLOYEE', 'STORE_MANAGER'], { message: 'Choose Employee or Store Manager.' }),
+  storeId: z.string({ message: 'Choose a store.' }).uuid('Choose a store.'),
 });
 
 export async function createStaffAccount(req: AuthRequest, res: Response) {
   const parsed = createStaffSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
+  if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { name, pin, role, storeId } = parsed.data;
   // Stored as ten digits, the way customers' phones are, so the sign-in screen finds it whatever was typed here
@@ -841,21 +982,30 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
     return;
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone } });
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, isActive: true } });
+  if (!store) { res.status(400).json({ success: false, error: 'That store does not exist.' }); return; }
+  if (!store.isActive) { res.status(400).json({ success: false, error: `${store.name} is closed. Pick another store, or reopen it on the Stores page first.` }); return; }
+
+  const existing = await prisma.user.findUnique({ where: { phone }, select: { name: true, role: true, isActive: true } });
   if (existing) {
-    res.status(409).json({ success: false, error: 'Phone number already in use' });
+    res.status(409).json({ success: false, ...phoneTakenAnswer(req.user!.role, existing) });
     return;
   }
 
   const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
 
-  const staff = await prisma.user.create({
-    data: { phone, name, pinHash, role: role as Role, isProfileComplete: true },
-  });
-
-  await prisma.userStoreRole.create({
-    data: { userId: staff.id, storeId, role: role as Role },
-  });
+  // The account and its store are made together: if the store link fails there is no account left behind to block the number
+  let staff;
+  try {
+    staff = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { phone, name, pinHash, role: role as Role, isProfileComplete: true } });
+      await tx.userStoreRole.create({ data: { userId: created.id, storeId, role: role as Role } });
+      return created;
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) { res.status(409).json({ success: false, code: 'PHONE_IN_USE', error: 'That number was just taken by another account.' }); return; }
+    throw e;
+  }
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
@@ -865,7 +1015,7 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
   });
   res.status(201).json({
     success: true,
-    data: { id: staff.id, phone: staff.phone, name: staff.name, role: staff.role },
+    data: { id: staff.id, phone: staff.phone, name: staff.name, role: staff.role, store: { id: store.id, name: store.name } },
   });
 }
 

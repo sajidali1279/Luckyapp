@@ -36,7 +36,7 @@ export async function sendPushToStoreManagers(storeId: string, title: string, bo
 async function sendPushToStoreByRole(storeId: string, title: string, body: string, type: string, actionUrl?: string, role?: Role): Promise<void> {
   try {
     const storeRoles = await prisma.userStoreRole.findMany({
-      where: { storeId, ...(role ? { role } : {}) },
+      where: { storeId, ...(role ? { role } : {}), user: { isActive: true } },   // a deactivated person is not told about the store any more
       include: { user: { include: { pushTokens: { select: { token: true } } } } },
     });
     if (storeRoles.length === 0) return;

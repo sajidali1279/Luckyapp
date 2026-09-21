@@ -15,6 +15,7 @@ import { pickOffer, percentBonus, isCentsPerGallon } from '../utils/offerPick';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
 import { csvText } from '../utils/csv';
+import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 
@@ -63,7 +64,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
       select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
     }),
-    prisma.store.findUnique({ where: { id: storeId }, select: { transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { name: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
 
   // Filter to relevant offers for this store (JS filter — avoids Prisma AND/OR nesting bugs)
@@ -211,13 +212,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     },
   });
 
-  // Notify store manager if flagged
+  // Tell the people who can decide: this store's active managers and every active Super Admin (not every store's managers, and not anyone who has left)
   if (isFlagged) {
-    const managers = await prisma.user.findMany({
-      where: { role: { in: [Role.STORE_MANAGER, Role.SUPER_ADMIN] as any } },
-    });
-    for (const mgr of managers) {
-      sendPushToUser(mgr.id, '🚨 Suspicious Transaction', `$${purchaseAmount.toFixed(2)} transaction flagged for review at your store.`, 'ALERT');
+    const recipients = await flaggedSaleRecipientIds(storeId);
+    for (const id of recipients) {
+      sendPushToUser(id, '🚨 Sale held for review', `$${purchaseAmount.toFixed(2)} sale held for review at ${store?.name ?? 'your store'}.`, 'ALERT');
     }
   }
 

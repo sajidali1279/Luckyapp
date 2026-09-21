@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { clientKey } from '../utils/rateLimitKey';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -234,6 +234,8 @@ router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPE
 router.patch('/users/:userId/reset-pin', authenticate, requireRole(Role.SUPER_ADMIN), resetUserPin); // Reset PIN
 router.post('/users/:userId/stores', authenticate, requireRole(Role.SUPER_ADMIN), addUserStore);    // Add store assignment
 router.delete('/users/:userId/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), removeUserStore); // Remove store assignment
+router.put('/users/:userId/stores', authenticate, requireRole(Role.SUPER_ADMIN), setUserStores);                 // Set the whole list of stores in one save
+router.get('/users/:userId/footprint', authenticate, requireRole(Role.DEV_ADMIN), getAccountFootprint);       // What Delete would do (work on record)
 router.delete('/users/:userId', authenticate, requireRole(Role.DEV_ADMIN), deleteUser);                       // Delete account (DevAdmin only)
 
 // ─── Receipt QR (Printer Agent → Customer Self-Serve) ────────────────────────
