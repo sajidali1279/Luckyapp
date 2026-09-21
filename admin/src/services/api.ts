@@ -212,10 +212,15 @@ export const storesApi = {
 
 export const staffApi = {
   list: () => api.get('/staff'),
-  toggleActive: (userId: string) => api.patch(`/users/${userId}/toggle-active`),
+  // Say which state you want: a second identical request changes nothing (a double click can no longer switch the person back on)
+  toggleActive: (userId: string, isActive: boolean) => api.patch(`/users/${userId}/toggle-active`, { isActive }),
   resetPin: (userId: string, newPin: string) => api.patch(`/users/${userId}/reset-pin`, { newPin }),
   addStore: (userId: string, storeId: string) => api.post(`/users/${userId}/stores`, { storeId }),
   removeStore: (userId: string, storeId: string) => api.delete(`/users/${userId}/stores/${storeId}`),
+  // The person's whole list of stores in one all-or-nothing save
+  setStores: (userId: string, storeIds: string[]) => api.put(`/users/${userId}/stores`, { storeIds }),
+  // What Delete would do (work on record), Dev Admin only
+  footprint: (userId: string) => api.get(`/users/${userId}/footprint`),
   deleteUser: (userId: string) => api.delete(`/users/${userId}`),
 };
 

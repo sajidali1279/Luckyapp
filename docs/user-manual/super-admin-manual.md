@@ -203,76 +203,69 @@ Each store has a unique API key used for POS receipt QR code integration. Store 
 
 ### 5.1 Viewing All Staff
 
-Navigate to **Staff** in the sidebar. You will see a list of all employee and manager accounts across all stores, showing:
-- Name.
-- Phone number.
-- Role (STORE_MANAGER or EMPLOYEE).
-- Assigned stores.
-- Account status (active/inactive).
-- Date created.
+Navigate to **Staff** in the sidebar. The accounts are grouped by role (Dev Admin, Super Admin, Store Manager, Employee), one card each, showing:
+- Name and phone number, written the way you read it: (940) 555-1212.
+- Role, and **Deactivated** in words when the account is switched off.
+- Assigned stores. A store that has closed says "(closed)". A Super Admin or a manager with chain-wide access shows "All stores"; an employee or manager with no store shows **No store assigned**, which needs fixing.
+
+The search box finds a person by name, phone number (typed any way: with brackets, dashes or the country code 1), store name or role.
 
 ### 5.2 Creating a New Staff Account
 
-To add a new employee or manager to the platform:
-
-1. Navigate to **Staff** → click **Add Staff Member**.
-2. Fill in:
-   - **Full Name:** Employee's name.
-   - **Phone Number:** Their mobile number (must be unique).
-   - **Role:** Employee or Store Manager.
-   - **PIN:** Set an initial 4-digit PIN (employee should change this on first login).
-   - **Store Assignment:** Select which store(s) this person is assigned to.
+1. Navigate to **Staff** and click **+ New Account**.
+2. Choose the account type, then fill in:
+   - **Full Name.**
+   - **Phone Number:** their mobile number. You can paste it with the country code, "+1 (281) 555-0100" becomes (281) 555-0100.
+   - **4-Digit PIN**, typed twice (tick **Show the PIN while I type it** to see it). Any four digits work.
+   - **Assign to Store** (not for a Super Admin). A closed store is marked and cannot be picked.
 3. Click **Create Account**.
-4. The employee can now log in with their phone number and the initial PIN, then change their PIN through the App.
+4. A card follows with the name, phone number, PIN and store. The PIN is shown there once and is not saved anywhere you can read it later, so give it to the person then. **Create another** starts a fresh form.
 
-**Best practice:** Communicate the initial PIN to the employee securely and ask them to change it upon first login.
+The account and its store are made together: if something goes wrong nothing is left behind, and you can try again. If the phone number already belongs to someone the page says whose: a customer account (the person can delete it in the app under Profile, Delete My Account, to free the number, or you use another number) or a staff member (it names them, and says if they are deactivated).
 
-### 5.3 Assigning an Employee to Additional Stores
+**Best practice:** give the PIN to the person securely and ask them to change it after signing in.
 
-A staff member can be assigned to multiple stores (common for managers who oversee multiple locations):
+### 5.3 Changing a Person's Stores
 
-1. Navigate to **Staff** → click the staff member's name.
-2. In the **Store Assignments** section, click **Add Store**.
-3. Select the additional store from the dropdown.
-4. Click **Save**.
+A store manager or employee can work at several stores.
 
-### 5.4 Removing a Store Assignment
+1. On the person's card click **Stores**.
+2. Tick every store they work at. **Select All** skips closed stores; a closed store they already have can stay or be un-ticked, but nobody can be newly given one.
+3. The box says what will change ("Adds Lucky Stop #5. Removes Lucky Stop #4.") and **Save Changes** sends the whole list as one save: it either all happens or none of it does. At least one store must stay.
 
-1. Navigate to **Staff** → click the staff member's name.
-2. In **Store Assignments**, click the **×** next to the store to remove.
-3. Confirm the removal.
-
-### 5.5 Resetting a Staff Member's PIN
+### 5.4 Resetting a Staff Member's PIN
 
 If an employee is locked out or forgets their PIN:
 
-1. Navigate to **Staff** → click the staff member's name.
-2. Click **Reset PIN**.
-3. Enter a new temporary 4-digit PIN. Any four digits work.
-4. Confirm and save.
-5. Communicate the temporary PIN to the employee securely.
+1. On the person's card click **Reset PIN**.
+2. Type the new 4-digit PIN twice (any four digits work).
+3. Click **Reset PIN**, then give them the new PIN securely.
 
-You can reset, deactivate and assign stores for store managers, employees and customers. Only a Dev Admin can change another Super Admin or a Dev Admin account, and nobody resets their own PIN this way: use **Profile** → **Change PIN**. The person is signed out everywhere when you reset their PIN and signs in again with the new one. A reset also clears any lockout.
+You can reset, deactivate and assign stores for store managers, employees and customers. Only a Dev Admin can change another Super Admin or a Dev Admin account, and nobody resets their own PIN this way: use **Profile** then **Change PIN**. The person is signed out everywhere when you reset their PIN and signs in again with the new one. A reset also clears any lockout.
 
-### 5.6 Deactivating a Staff Account
+### 5.5 Deactivating a Staff Account
 
 When an employee leaves the company:
 
-1. Navigate to **Staff** → click the staff member's name.
-2. Click **Deactivate Account**.
-3. Confirm the deactivation.
+1. On the person's card click **Deactivate**.
+2. Read the question and click **Deactivate**. It says what happens: they are signed out on their next request, cannot sign in until you reactivate them, and stop getting store alerts. Everything they did stays on record.
 
-The account is immediately deactivated - the employee will not be able to log in. Their historical transaction records are preserved for audit purposes.
+Clicking twice, or two admins at once, cannot switch the person back on: the page asks for a state ("deactivated") rather than "flip it".
 
-**Do this promptly when an employee is terminated.** Delays in deactivating accounts are a security risk.
+**Do this promptly when an employee leaves.** Delays in deactivating accounts are a security risk. The last active Dev Admin cannot be deactivated.
 
-### 5.7 Reactivating a Staff Account
+### 5.6 Reactivating a Staff Account
 
-If a previously deactivated staff member returns:
+If a previously deactivated staff member returns, click **Reactivate** on their card. There is no question; the message says they can sign in again.
 
-1. Navigate to **Staff** → click the staff member's name.
-2. Click **Reactivate Account**.
-3. Confirm reactivation.
+### 5.7 Deleting an Account (Dev Admin only)
+
+**Delete** is for an account made by mistake. Deleting someone who has sold or handled anything would erase the sales that customers were credited for and that stores are billed on, so the page checks first:
+
+- **The account has work on record** (sales, redemptions, ratings, daily reports, item requests, order lists, label prints, notices or job postings): the box says so with the biggest counts ("Maria has work on record (240 sales, 4 daily reports and 16 item requests), so the account can only be deactivated") and offers **Deactivate instead**. Nothing is deleted.
+- **Nothing is on record:** the box says deleting removes only the sign-in, and **Yes, delete** removes it. This cannot be undone.
+
+A customer is never erased: Delete removes their name, phone number and personal details and keeps their sales so balances, bills and reports keep adding up (the same as Delete My Account in the app). Every delete, and every refusal, is written to the Activity Log. The last active Dev Admin cannot be deleted.
 
 ---
 
@@ -852,9 +845,9 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 
 | Task | Where to Go | Steps |
 |---|---|---|
-| Add a new employee | Staff → Add Staff Member | Fill in details, assign store, set initial PIN |
-| Deactivate a terminated employee | Staff → [Employee Name] → Deactivate | Confirm deactivation |
-| Reset an employee's PIN | Staff → [Employee Name] → Reset PIN | Set new temporary PIN |
+| Add a new employee | Staff → + New Account | Fill in details, assign store, set the PIN twice |
+| Deactivate a terminated employee | Staff → [Employee card] → Deactivate | Read the question, confirm |
+| Reset an employee's PIN | Staff → [Employee card] → Reset PIN | Type the new PIN twice |
 | Look up a customer | Customers → Search bar | Enter name or phone |
 | Deactivate a fraudulent customer | Customers → [Customer] → Deactivate | Confirm |
 | Resolve a customer dispute | Customers → Disputes tab → open dispute | Approve (credit points) or Reject, with a note |

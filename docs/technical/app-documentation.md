@@ -611,15 +611,17 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | POST | /auth/push-token | JWT | Any | Register push notification token |
 | POST | /auth/verify-firebase-reset | JWT | Any | Verify Firebase OTP for PIN reset |
 | POST | /auth/reset-pin | JWT | Any | Reset PIN with reset token (single use: the token carries a fingerprint of the current PIN; ends that account's other sessions and clears its lockout) |
-| POST | /auth/super-admin | JWT | DEV_ADMIN | Create Super Admin account |
-| POST | /auth/staff | JWT | SUPER_ADMIN | Create employee/manager account |
-| GET | /staff | JWT | SUPER_ADMIN | List all staff |
+| POST | /auth/super-admin | JWT | DEV_ADMIN | Create Super Admin account (a number already in use gets a 409 with a sentence saying whose it is) |
+| POST | /auth/staff | JWT | SUPER_ADMIN | Create employee/manager account (the account and its store link are one transaction; a closed or missing store is refused; a number that is already a customer or staff account gets a 409 with a sentence and a `code`) |
+| GET | /staff | JWT | SUPER_ADMIN | List all staff (with `allStoresAccess` and whether each store is open) |
 | GET | /users/customers | JWT | SUPER_ADMIN | List all customers |
-| PATCH | /users/:userId/toggle-active | JWT | SUPER_ADMIN | Deactivate / reactivate user (only accounts below the caller's role; a Dev Admin may act on any account but their own) |
+| PATCH | /users/:userId/toggle-active | JWT | SUPER_ADMIN | Deactivate / reactivate user (only accounts below the caller's role; a Dev Admin may act on any account but their own). Body `{ isActive }` sets that state, and asking for the state the account already has changes and records nothing (`changed: false`); a body without it still toggles. The last active Dev Admin cannot be deactivated |
 | PATCH | /users/:userId/reset-pin | JWT | SUPER_ADMIN | Reset a user's PIN (only accounts below the caller's role; a Dev Admin may act on any account but their own; ends that account's other sessions and clears its lockout) |
-| POST | /users/:userId/stores | JWT | SUPER_ADMIN | Add store to user (same role rule) |
+| POST | /users/:userId/stores | JWT | SUPER_ADMIN | Add store to user (same role rule; the store must exist and be open) |
+| PUT | /users/:userId/stores | JWT | SUPER_ADMIN | The person's whole list of stores, `{ storeIds }`, in one all-or-nothing save (at least one store; a closed store cannot be newly added; Activity Log `SET_STORES` with the names before and after). The admin page uses this instead of an add and a remove sent at the same moment |
 | DELETE | /users/:userId/stores/:storeId | JWT | SUPER_ADMIN | Remove store from user |
-| DELETE | /users/:userId | JWT | DEV_ADMIN | Permanently delete user |
+| GET | /users/:userId/footprint | JWT | DEV_ADMIN | What Delete would do: for staff the work on record (sales, redemptions, ratings, daily reports, item requests, order lists and items, label prints, notices, job postings) and whether the account can be deleted; for a customer what stays and what goes |
+| DELETE | /users/:userId | JWT | DEV_ADMIN | Delete an account. A customer is anonymized like Delete My Account (personal details removed, sales kept, number freed). A staff account is deleted only when it has no work on record (otherwise 409 with a sentence and a `DELETE_USER_REFUSED` entry: deactivate instead), all in one transaction; the last active Dev Admin cannot be deleted |
 
 ### Points and Transactions
 

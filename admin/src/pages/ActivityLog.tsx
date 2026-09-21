@@ -22,13 +22,15 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   DELETE_BANNER:             { label: 'Delete Banner',          color: '#E63946', bg: '#E6394618', icon: '🗑️' },
   // Staff & Access
   CREATE_STAFF:              { label: 'Create Staff',           color: '#9b5de5', bg: '#9b5de518', icon: '👤' },
-  TOGGLE_USER:               { label: 'Toggle User',            color: '#E63946', bg: '#E6394618', icon: '🔒' },
+  TOGGLE_USER:               { label: 'Deactivate / Reactivate', color: '#E63946', bg: '#E6394618', icon: '🔒' },
   RESET_PIN:                 { label: 'Reset PIN',              color: '#E63946', bg: '#E6394618', icon: '🔑' },
   CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#9b5de5', bg: '#9b5de518', icon: '🏢' },
   DELETE_USER:               { label: 'Delete Account',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  DELETE_USER_REFUSED:       { label: 'Delete Refused',         color: '#E63946', bg: '#E6394618', icon: '⛔' },
   DENIED_ACCOUNT_ACTION:     { label: 'Refused (role too low)', color: '#E63946', bg: '#E6394618', icon: '⛔' },
   ADD_STORE:                 { label: 'Add Store Assignment',   color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
   REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#E63946', bg: '#E6394618', icon: '🚫' },
+  SET_STORES:                { label: 'Change Stores',          color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
   // Scheduling
   ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#0369a1', bg: '#0369a118', icon: '📅' },
   REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
@@ -102,6 +104,10 @@ function fmtDetails(details: string | null): string {
     if (d.targetPhone)            parts.push(d.targetPhone);
     if (d.targetRole)             parts.push(d.targetRole);
     if (d.isActive != null)       parts.push(d.isActive ? 'activated' : 'deactivated');
+    if (Array.isArray(d.before) && Array.isArray(d.after)) parts.push(`${d.before.join(', ') || 'no store'} → ${d.after.join(', ') || 'no store'}`);
+    if (d.mode === 'anonymized')  parts.push('personal details removed, sales kept');
+    if (d.mode === 'deleted')     parts.push('deleted');
+    if (d.footprint && typeof d.reason === 'string') parts.push(d.reason);
     // Scheduling
     if (d.employeeName)           parts.push(d.employeeName);
     if (d.dayOfWeek)              parts.push(d.dayOfWeek);
@@ -236,7 +242,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Staff & Access ──">
-            {['CREATE_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','DELETE_USER','DENIED_ACCOUNT_ACTION'].map(k => (
+            {['CREATE_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

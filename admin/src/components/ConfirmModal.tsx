@@ -1,5 +1,6 @@
 import { useState, useEffect, useId, useRef, CSSProperties, ReactNode } from 'react';
 import { PRIMARY } from '../lib/theme';
+import { useDialog } from '../hooks/useDialog';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -33,15 +34,9 @@ export default function ConfirmModal({
 
   useEffect(() => { if (!open) setInputValue(''); }, [open]);
 
-  // Keyboard and screen-reader users start inside the dialog (a dialog with a text box focuses that box itself)
-  useEffect(() => { if (open && !withInput) dialogRef.current?.focus(); }, [open, withInput]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onCancel(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel, busy]);
+  // Starts focus inside (a dialog with a text box focuses that box itself), keeps Tab inside, Escape cancels, the page behind stays put,
+  // and focus goes back to the button that opened it
+  useDialog(open, dialogRef, onCancel, busy);
 
   if (!open) return null;
 

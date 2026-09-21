@@ -4,6 +4,16 @@ export function serverMessage(e: unknown, fallback: string): string {
   return typeof msg === 'string' && msg ? msg : fallback;
 }
 
+/**
+ * What to tell someone when a save failed: the server's own sentence when it sent one, a line about the connection when it never
+ * answered (so nobody wonders whether the change went through), otherwise the fallback.
+ */
+export function failureMessage(e: unknown, fallback: string): string {
+  const answered = (e as { response?: unknown })?.response;
+  if (!answered) return 'Could not reach the server, so nothing was changed. Check the connection and try again.';
+  return serverMessage(e, fallback);
+}
+
 const FIELD_NAMES: Record<string, string> = {
   storeId: 'Store', bonusRate: 'Bonus', tierBonusRates: 'Tier bonuses', gasBonusCentsPerGallon: 'Cents per gallon',
   dealText: 'Deal text', startDate: 'Start date', endDate: 'End date', linkUrl: 'Link', sortOrder: 'Order',
