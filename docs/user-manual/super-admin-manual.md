@@ -157,45 +157,46 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 
 ### 4.1 Viewing All Stores
 
-Navigate to **Stores** in the sidebar. You will see a list of all registered Lucky Stop locations with:
-- Store name, address, city, state, and phone number.
-- Active/inactive status.
-- Billing type.
-- Number of assigned staff.
-- Current gas price.
+Navigate to **Stores** in the sidebar. Each store is a card showing:
+- Name, city and state, and whether it is inactive.
+- Address, phone number (written as (580) 924-9898), today's opening hours ("Hours not set" in red until you set them) and its coordinates ("Located" or "No coords").
+- The product categories it offers.
+- Its **gas and diesel prices**, each with how old it is: "Updated today", "Updated 3 days ago", or "Never set". A price more than two days old is red.
+- A **21+ Required** badge for an age-restricted store, and a count of pending customer disputes.
 
-### 4.2 Viewing a Store's Details
+### 4.2 Gas and Diesel Prices
 
-Click on any store name to view its full detail page, including:
-- Complete address and contact information.
-- Assigned employees and managers.
-- Current gas and diesel prices.
-- Enabled product categories.
-- Recent transaction summary.
+Each store has its own gas and diesel price, shown to customers in the app. On the store's card:
+1. Type the new price in the **Gas** or **Diesel** box (dollars per gallon, up to three decimals, such as 3.499). Changing one box leaves the other as it is.
+2. Click **Update**. Only the price that really changed is sent, and the store's staff are told to update the pumps. A price that is already saved changes nothing.
+3. A move of more than 15%, or a price under $1, opens a box first with the old and new price and the change ("Gas from $3.399 to $4.499 (+32%)"). Check it, then **Change prices**. Prices below $0.50 or above $20 are refused.
+
+If two people change the same price at the same moment, one wins and the other is told someone changed it a moment ago. Every change is in the Activity Log with the old and new price.
 
 ### 4.3 Editing a Store
 
-To update store information:
-1. Navigate to **Stores** → click the store name.
-2. Click **Edit Store**.
-3. Modify any fields (name, address, phone, active status).
-4. Click **Save Changes**.
+1. On the store's card click **Edit Store**.
+2. Change the details. The page checks them as you save: the state is its two-letter code (TX), the ZIP code is five digits, the phone is a full ten-digit number (or empty, which clears it), and the latitude and longitude go together and must be in the United States (a longitude without its minus sign, or a swapped pair, is refused; a pair outside Texas and Oklahoma gets a note). **Auto-fill from Address** looks the coordinates up.
+3. Choose which product categories the store offers (empty means all) and whether it needs the 21+ confirmation.
+4. Click **Save Changes**. Every change is written to the Activity Log.
 
-**Note:** Deactivating a store (setting it to inactive) will prevent transactions from being processed at that location but will not delete the store's data.
+The app finds the nearest store from the coordinates, so check them.
 
-### 4.4 Store Gas Prices
+### 4.4 Store Hours and Holidays
 
-Each store has its own configurable gas and diesel price, displayed to customers in the App. To update:
-1. Navigate to **Stores** → click the store name.
-2. Find the **Gas Prices** section.
-3. Enter the current price per gallon for regular and diesel.
-4. Click **Save Gas Prices**.
+Click **Store Hours** on the card. To fill the week in one go, set the opening and closing time and click **Same every day**, or **Open 24 hours every day**, or set Monday and click **Copy Monday to all days**; then change any single day (**Closed**, **24 Hours**, or its own times) and **Save Weekly Hours**. A day that is open needs both times, and opening and closing at the same time is refused. Under it you can add a **date override** (closed on Thanksgiving, shorter hours on Christmas Eve) with a real calendar date and a name.
 
-Gas prices are displayed to all App users and should be updated whenever fuel prices change at a location.
+### 4.5 POS Keyword Mappings
 
-### 4.5 API Keys
+**POS Mappings** on the card maps words on a POS receipt line to a category (used by the receipt system). A keyword needs at least three characters, because it matches part of a receipt line. Additions and removals are recorded.
 
-Each store has a unique API key used for POS receipt QR code integration. Store API keys are managed by DevAdmin and are not visible to Super Admins.
+### 4.6 Deactivating a Store (Dev Admin only)
+
+**Deactivate** is available to a Dev Admin only, on the page and on the server. A deactivated store disappears from the customer app, and **sales, redemptions, tier-benefit claims and catalog redemptions can no longer be recorded there** (the person at the till is told the store is closed). Staff keep their accounts and all data stays. **Reactivate** brings it back.
+
+### 4.7 API Keys
+
+Each store has a unique API key used for POS receipt QR code integration. Store API keys are managed by Dev Admin and are not visible to Super Admins. Regenerating a key is recorded in the Activity Log (never the key itself) and stops the printer agent that used the old one.
 
 ---
 

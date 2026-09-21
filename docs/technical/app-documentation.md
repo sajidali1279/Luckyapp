@@ -673,12 +673,17 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
-| GET | /stores | JWT | SUPER_ADMIN | All stores |
+| GET | /stores | JWT | SUPER_ADMIN | All stores (with `dieselPriceUpdatedAt` for price age) |
 | GET | /stores/accessible | JWT | STORE_MANAGER+ | Accessible stores for user |
 | GET | /stores/:storeId | JWT | STORE_MANAGER+ | Store detail |
-| PATCH | /stores/:storeId | JWT | SUPER_ADMIN | Update store |
+| PATCH | /stores/:storeId | JWT | SUPER_ADMIN | Update store. Two-letter state, five-digit ZIP, phone stored as `+1` and ten digits (an empty phone clears it), coordinates as a pair inside the United States (`utils/storeRules.ts`), no duplicate names (409), sentences for every refusal; a request that changes nothing answers `changed: false` and records nothing; every change is an `UPDATE_STORE` Activity Log entry. Changing `isActive` needs DEV_ADMIN (403 otherwise) |
 | GET | /stores/gas-prices | JWT | Any | All stores gas prices |
-| PATCH | /stores/:storeId/gas-prices | JWT | STORE_MANAGER+ | Update gas prices |
+| PATCH | /stores/:storeId/gas-prices | JWT | STORE_MANAGER+ | Update gas prices: $0.50 to $20, at most three decimals. Only prices that really change are written, sent to staff and put in customers' inboxes (a repeat answers `changed: false`); the write is compare-and-set, so two identical requests at once count once and two different ones at once give the second a 409; `GAS_PRICE_UPDATE` Activity Log entry with old and new price |
+| PUT | /stores/:storeId/hours | JWT | STORE_MANAGER+ | The seven days in one call; an open day needs both times and opening and closing may not be the same; the log lists the days that changed (`UPDATE_STORE_HOURS`); answers `changed` |
+| POST | /stores/:storeId/holidays | JWT | STORE_MANAGER+ | A date override: a real calendar date, an open day needs times; `ADD_STORE_HOLIDAY` (and `DELETE_STORE_HOLIDAY` on removal, 404 when already removed) |
+| POST | /stores/:storeId/keyword-mappings | JWT | SUPER_ADMIN | A POS receipt keyword, 3 to 40 characters; `ADD_KEYWORD_MAPPING` / `DELETE_KEYWORD_MAPPING` |
+
+A closed store (`isActive: false`) refuses `POST /points/grant`, `POST /points/redeem`, `POST /points/tier-benefit` and `POST /points/catalog-redeem` with a 409 sentence naming the store (`utils/storeRules.ts` `refuseIfStoreClosed`).
 
 ### Offers and Banners
 
@@ -816,7 +821,7 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | PATCH | /billing/category-rates/:category | JWT | SUPER_ADMIN | Change a category bonus (at most 5%; same 10% rule; writes `RATE_CATEGORY_UPDATE`). Was DEV_ADMIN only while the page offered it to Super Admins. |
 | GET | /billing/rates/last-change | JWT | SUPER_ADMIN | Who last changed a tier or category rate, when, and a sentence saying what (null if never recorded) |
 | GET | /billing/stores/:storeId/api-key | JWT | DEV_ADMIN | Get store API key |
-| POST | /billing/stores/:storeId/api-key/regenerate | JWT | DEV_ADMIN | Regenerate API key |
+| POST | /billing/stores/:storeId/api-key/regenerate | JWT | DEV_ADMIN | Regenerate API key (recorded as `REGENERATE_API_KEY`, never the key) |
 | GET | /my-invoices | JWT | SUPER_ADMIN | SuperAdmin's invoices |
 
 ### Standard Response Format

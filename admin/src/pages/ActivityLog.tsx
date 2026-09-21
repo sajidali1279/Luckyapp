@@ -34,6 +34,15 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   ADD_STORE:                 { label: 'Add Store Assignment',   color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
   REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#E63946', bg: '#E6394618', icon: '🚫' },
   SET_STORES:                { label: 'Change Stores',          color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
+  // Stores
+  UPDATE_STORE:              { label: 'Store Edited',           color: '#0369a1', bg: '#0369a118', icon: '🏪' },
+  GAS_PRICE_UPDATE:          { label: 'Gas / Diesel Price',     color: '#0369a1', bg: '#0369a118', icon: '⛽' },
+  UPDATE_STORE_HOURS:        { label: 'Store Hours Changed',    color: '#0369a1', bg: '#0369a118', icon: '🕐' },
+  ADD_STORE_HOLIDAY:         { label: 'Holiday Hours Added',    color: '#0369a1', bg: '#0369a118', icon: '📅' },
+  DELETE_STORE_HOLIDAY:      { label: 'Holiday Hours Removed',  color: '#E63946', bg: '#E6394618', icon: '📅' },
+  ADD_KEYWORD_MAPPING:       { label: 'POS Keyword Added',      color: '#0369a1', bg: '#0369a118', icon: '🗂️' },
+  DELETE_KEYWORD_MAPPING:    { label: 'POS Keyword Removed',    color: '#E63946', bg: '#E6394618', icon: '🗂️' },
+  REGENERATE_API_KEY:        { label: 'Printer Key Regenerated', color: '#E63946', bg: '#E6394618', icon: '🔑' },
   // Scheduling
   ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#0369a1', bg: '#0369a118', icon: '📅' },
   REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
@@ -247,6 +256,11 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Staff & Access ──">
             {['CREATE_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Stores ──">
+            {['UPDATE_STORE','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

@@ -17,6 +17,9 @@ export function typedPhone(text: string): string {
 
 /** A stored number for reading: (281) 555-0100. Anything that is not ten digits is shown as it is. */
 export function showPhone(phone: string | null | undefined): string {
-  const d = String(phone ?? '');
-  return /^\d{10}$/.test(d) ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d;
+  const raw = String(phone ?? '');
+  const digits = raw.replace(/\D/g, '');
+  // Ten digits, or "+1" and ten digits (how stores keep their number): read as (580) 924-9898. Anything else is shown as it is.
+  const ten = /^\+?1?[\s-]*\(?\d{3}\)?[\s-]*\d{3}[\s-]*\d{4}$/.test(raw) && (digits.length === 10 || (digits.length === 11 && digits.startsWith('1'))) ? digits.slice(-10) : '';
+  return ten ? `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}` : raw;
 }
