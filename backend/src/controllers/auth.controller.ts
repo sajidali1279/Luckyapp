@@ -17,6 +17,7 @@ import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
 import { refuse } from '../utils/refusal';
 import { canonicalPhone, staffPhone } from '../utils/phone';
+import { customerSearchWhere, customerListQuery, customerExportQuery } from '../utils/customerSearch';
 import { staffFootprint, footprintTotal, cannotDeleteMessage } from '../utils/accountRecords';
 
 const SALT_ROUNDS = 12;
@@ -446,29 +447,24 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
 // ─── List Customers (SuperAdmin+) ────────────────────────────────────────────
 
 export async function listCustomers(req: AuthRequest, res: Response) {
-  const { search = '', page = '1', limit = '50' } = req.query as { search?: string; page?: string; limit?: string };
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const parsed = customerListQuery.safeParse(req.query);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { search = '', page, limit } = parsed.data;
 
-  const where = {
-    role: Role.CUSTOMER,
-    ...excludeDeletedCustomers,
-    ...(search ? {
-      OR: [
-        { phone: { contains: search } },
-        { name: { contains: search, mode: 'insensitive' as const } },
-      ],
-    } : {}),
-  };
+  const everyone = { role: Role.CUSTOMER, ...excludeDeletedCustomers };
+  const where = { ...everyone, ...customerSearchWhere(search) };
 
-  const [customers, total] = await prisma.$transaction([
+  const [customers, total, activeTotal, restrictedTotal] = await prisma.$transaction([
     prisma.user.findMany({
       where,
-      select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, createdAt: true },
+      select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, fraudNote: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take: parseInt(limit),
+      skip: (page - 1) * limit,
+      take: limit,
     }),
     prisma.user.count({ where }),
+    prisma.user.count({ where: { ...everyone, isActive: true } }),
+    prisma.user.count({ where: { ...everyone, isActive: false } }),
   ]);
 
   // Enrich with transaction stats
@@ -488,7 +484,7 @@ export async function listCustomers(req: AuthRequest, res: Response) {
 
   // Total credits outstanding across all customers (not just this page)
   const creditsAgg = await prisma.user.aggregate({
-    where: { role: 'CUSTOMER' },
+    where: everyone,
     _sum: { pointsBalance: true },
   });
 
@@ -497,7 +493,12 @@ export async function listCustomers(req: AuthRequest, res: Response) {
     data: {
       customers: enriched,
       total,
-      page: parseInt(page),
+      page,
+      pageSize: limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      // Counted over every customer, not just the page being shown
+      activeTotal,
+      restrictedTotal,
       totalCreditsOutstanding: parseFloat((creditsAgg._sum.pointsBalance ?? 0).toFixed(2)),
     },
   });
@@ -506,17 +507,14 @@ export async function listCustomers(req: AuthRequest, res: Response) {
 // ─── Export Customers CSV (SuperAdmin+) ──────────────────────────────────────
 
 export async function exportCustomersCsv(req: AuthRequest, res: Response) {
-  const { search = '', isActive } = req.query as { search?: string; isActive?: string };
+  const parsed = customerExportQuery.safeParse(req.query);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { search = '', isActive } = parsed.data;
 
   const where = {
     role: Role.CUSTOMER,
     ...excludeDeletedCustomers,
-    ...(search ? {
-      OR: [
-        { phone: { contains: search } },
-        { name: { contains: search, mode: 'insensitive' as const } },
-      ],
-    } : {}),
+    ...customerSearchWhere(search),
     ...(isActive !== undefined ? { isActive: isActive === 'true' } : {}),
   };
 
@@ -587,6 +585,10 @@ export async function toggleUserActive(req: AuthRequest, res: Response) {
 
   if (userId === req.user!.id) {
     res.status(400).json({ success: false, error: 'You cannot deactivate your own account.' });
+    return;
+  }
+  if (fraudNote !== undefined && (typeof fraudNote !== 'string' || fraudNote.trim().length > 300)) {
+    res.status(400).json({ success: false, error: 'The reason is too long (300 characters at most).' });
     return;
   }
   const target = await prisma.user.findUnique({ where: { id: userId } });
