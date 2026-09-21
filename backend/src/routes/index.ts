@@ -188,6 +188,8 @@ import {
   updateDevCutRate,
   getTierRates,
   updateTierRate,
+  updateTierRates,
+  getRatesLastChange,
   generateMonthlyBilling,
   generateAllMissingBills,
   getMonthlyRecords,
@@ -330,9 +332,11 @@ router.patch('/billing/records/:recordId', authenticate, requireRole(Role.DEV_AD
 router.delete('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), deleteBillingRecord);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
 router.get('/billing/tier-rates', authenticate, requireRole(Role.EMPLOYEE), getTierRates);
+router.put('/billing/tier-rates', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRates);
 router.put('/billing/tier-rates/:tier', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRate);
+router.get('/billing/rates/last-change', authenticate, requireRole(Role.SUPER_ADMIN), getRatesLastChange);
 router.get('/billing/category-rates', authenticate, requireRole(Role.EMPLOYEE), getCategoryRates);
-router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.DEV_ADMIN), updateCategoryRate);
+router.patch('/billing/category-rates/:category', authenticate, requireRole(Role.SUPER_ADMIN), updateCategoryRate);
 router.get('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), getDevCutRate);
 router.put('/billing/config/dev-cut-rate', authenticate, requireRole(Role.DEV_ADMIN), updateDevCutRate);
 router.post('/billing/generate-monthly', authenticate, requireRole(Role.DEV_ADMIN), generateMonthlyBilling);

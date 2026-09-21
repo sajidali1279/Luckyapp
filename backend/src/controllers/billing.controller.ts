@@ -5,7 +5,8 @@ import { AuthRequest } from '../types';
 import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES, MAX_STORE_FEE_RATE } from '../config/constants';
-import { TIER_THRESHOLDS } from '../utils/tier';
+import { TIER_THRESHOLDS, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { TIER_ORDER as RATE_TIER_ORDER, RateState, TierChange, CategoryChange, applyChanges, refusalFor, tierName, categoryName, pct } from '../utils/rateRules';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
@@ -511,7 +512,10 @@ export async function markPeriodPaid(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { period, updated, total } });
 }
 
-// ─── Category Rates ───────────────────────────────────────────────────────────
+// ─── Cashback rates (tier and category) ──────────────────────────────────────
+//
+// The Rates page changes what every sale pays. Every change goes through refusalFor() (utils/rateRules.ts: limits, the ladder of
+// thresholds, the 10% ceiling), is written in one transaction, and leaves an Activity Log entry with the values before and after.
 
 const CATEGORY_LABELS: Record<ProductCategory, string> = {
   GROCERIES: 'Groceries',
@@ -523,93 +527,204 @@ const CATEGORY_LABELS: Record<ProductCategory, string> = {
   OTHER: 'Other',
 };
 
-export async function getCategoryRates(_req: AuthRequest, res: Response) {
-  const stored = await prisma.categoryRate.findMany();
-  const storedMap = Object.fromEntries(stored.map((r) => [r.category, r.cashbackRate]));
+/** The rates as they stand now (a row that was never saved reads as its default). Thresholds in points, bonuses as fractions. */
+async function loadRateState(): Promise<RateState> {
+  const [tiers, categories] = await Promise.all([prisma.tierCashbackRate.findMany(), prisma.categoryRate.findMany()]);
+  const state: RateState = { tiers: {}, categories: {} };
+  for (const tier of RATE_TIER_ORDER) {
+    const row = tiers.find((r) => r.tier === tier);
+    state.tiers[tier] = {
+      cashbackRate: row?.cashbackRate ?? DEFAULT_TIER_RATES[tier],
+      gasCentsPerGallon: row?.gasCentsPerGallon ?? null,
+      thresholdPoints: tier === 'BRONZE' ? null : Math.round((row?.pointsThreshold ?? TIER_THRESHOLDS[tier]) * 100),
+    };
+  }
+  for (const cat of Object.keys(CATEGORY_LABELS)) state.categories[cat] = categories.find((r) => r.category === cat)?.cashbackRate ?? 0;
+  return state;
+}
 
+/** One tier as the API sends it: thresholds in points (what the app shows), plus the fixed gas bonus the code adds for Gold and up. */
+function tierRow(tier: string, t: RateState['tiers'][string]) {
+  return {
+    tier,
+    cashbackRate: t.cashbackRate,
+    gasCentsPerGallon: t.gasCentsPerGallon,
+    pointsThreshold: t.thresholdPoints ?? 0,
+    gasBonusCentsPerGallon: Math.round((GAS_BONUS_PER_GALLON[tier] ?? 0) * 100),
+  };
+}
+
+export async function getCategoryRates(_req: AuthRequest, res: Response) {
+  const state = await loadRateState();
   // Return all categories. A category with no saved rate gets no bonus when points are granted
   // (points.controller and receipt.controller both use 0), so report 0, not a made-up default.
   const rates = (Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((cat) => ({
     category: cat,
     label: CATEGORY_LABELS[cat],
-    cashbackRate: storedMap[cat] ?? 0,
+    cashbackRate: state.categories[cat] ?? 0,
   }));
 
   res.json({ success: true, data: rates });
 }
 
-export async function updateCategoryRate(req: AuthRequest, res: Response) {
-  const { category } = req.params;
-  const parsed = z.object({ cashbackRate: z.number().min(0).max(1) }).safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
-  }
-  if (!Object.values(ProductCategory).includes(category as ProductCategory)) {
-    res.status(400).json({ success: false, error: 'Invalid category' });
-    return;
-  }
-  const rate = await prisma.categoryRate.upsert({
-    where: { category: category as ProductCategory },
-    update: { cashbackRate: parsed.data.cashbackRate },
-    create: { category: category as ProductCategory, cashbackRate: parsed.data.cashbackRate },
-  });
-  res.json({ success: true, data: rate });
+const centsText = (n: number | null) => (n == null ? 'percent of the sale' : `${parseFloat(n.toFixed(2))} cents a gallon`);
+
+/** Sentences for the Activity Log and the "last changed" line under the tables. */
+function tierSummary(name: string, from: RateState['tiers'][string], to: RateState['tiers'][string]): string[] {
+  const out: string[] = [];
+  if (from.cashbackRate !== to.cashbackRate) out.push(`${name} cashback ${pct(from.cashbackRate)} to ${pct(to.cashbackRate)}`);
+  if (from.gasCentsPerGallon !== to.gasCentsPerGallon) out.push(`${name} gas ${centsText(from.gasCentsPerGallon)} to ${centsText(to.gasCentsPerGallon)}`);
+  if (from.thresholdPoints !== to.thresholdPoints) out.push(`${name} threshold ${from.thresholdPoints} to ${to.thresholdPoints} points`);
+  return out;
 }
 
-// ─── Tier Cashback Rates (DevAdmin configurable) ─────────────────────────────
+const NUMBER_MESSAGE = (what: string) => ({ invalid_type_error: `${what} must be a number.`, required_error: `${what} is required.` });
 
-const TIER_ORDER: Tier[] = [Tier.BRONZE, Tier.SILVER, Tier.GOLD, Tier.DIAMOND, Tier.PLATINUM];
+const tierChangeSchema = z.object({
+  cashbackRate: z.number(NUMBER_MESSAGE('Cashback')).min(0, 'Cashback cannot be below 0%.').max(1, 'Cashback cannot be above 100%.').optional(),
+  gasCentsPerGallon: z.number(NUMBER_MESSAGE('Cents per gallon')).min(0, 'Cents per gallon cannot be negative.').nullable().optional(),
+  pointsThreshold: z.number(NUMBER_MESSAGE('The points threshold')).int('The points threshold must be a whole number of points.').min(0, 'The points threshold cannot be negative.').optional(),
+});
+const atLeastOneField = (d: { cashbackRate?: unknown; gasCentsPerGallon?: unknown; pointsThreshold?: unknown }) =>
+  d.cashbackRate !== undefined || d.gasCentsPerGallon !== undefined || d.pointsThreshold !== undefined;
+
+const tierEnum = z.nativeEnum(Tier, { errorMap: () => ({ message: 'That tier does not exist.' }) });
+
+interface LastChange { at: string; by: string; summary: string }
+
+/**
+ * Saves changes to one or more tiers at once, all or nothing: refuses with a sentence, writes nothing when nothing differs, and
+ * otherwise writes in one transaction and records who changed what. Answers the request itself.
+ */
+async function saveTierChanges(
+  req: AuthRequest, res: Response, changes: TierChange[],
+  answer: (rows: ReturnType<typeof tierRow>[], extra: { changed: number; lastChange: LastChange | null }) => object,
+) {
+  const before = await loadRateState();
+  const problem = refusalFor(before, changes);
+  if (problem) { res.status(400).json({ success: false, error: problem }); return; }
+
+  const after = applyChanges(before, changes);
+  const differing = changes.filter((c) => tierSummary(tierName(c.tier), before.tiers[c.tier], after.tiers[c.tier]).length > 0);
+  let lastChange: LastChange | null = null;
+
+  if (differing.length > 0) {
+    await prisma.$transaction(differing.map((c) => {
+      const t = after.tiers[c.tier];
+      return prisma.tierCashbackRate.upsert({
+        where: { tier: c.tier as Tier },
+        update: {
+          ...(c.cashbackRate !== undefined && { cashbackRate: t.cashbackRate }),
+          ...(c.gasCentsPerGallon !== undefined && { gasCentsPerGallon: t.gasCentsPerGallon }),
+          ...(c.pointsThreshold !== undefined && { pointsThreshold: (t.thresholdPoints as number) / 100 }),
+        },
+        create: {
+          tier: c.tier as Tier,
+          cashbackRate: t.cashbackRate,
+          gasCentsPerGallon: t.gasCentsPerGallon,
+          pointsThreshold: c.tier === 'BRONZE' ? null : (t.thresholdPoints as number) / 100,
+        },
+      });
+    }));
+
+    const sentences = differing.flatMap((c) => tierSummary(tierName(c.tier), before.tiers[c.tier], after.tiers[c.tier]));
+    const everyTier = (state: RateState, test: (t: RateState['tiers'][string]) => boolean) => RATE_TIER_ORDER.every((t) => test(state.tiers[t]));
+    const wasCents = everyTier(before, (t) => t.gasCentsPerGallon != null);
+    const wasPercent = everyTier(before, (t) => t.gasCentsPerGallon == null);
+    const nowCents = everyTier(after, (t) => t.gasCentsPerGallon != null);
+    const nowPercent = everyTier(after, (t) => t.gasCentsPerGallon == null);
+    const gasMode = wasCents && nowPercent ? 'percent' : wasPercent && nowCents ? 'cents' : undefined;
+    const summary = gasMode === 'percent' ? 'Gas switched to a percent of the sale for every tier'
+      : gasMode === 'cents' ? 'Gas switched to cents per gallon for every tier'
+      : sentences.join('; ');
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'RATE_TIER_UPDATE', entity: 'rates', entityId: differing.length === 1 ? differing[0].tier : 'tiers',
+      details: {
+        summary,
+        gasMode,
+        changes: differing.map((c) => ({ tier: c.tier, from: before.tiers[c.tier], to: after.tiers[c.tier] })),
+      },
+    });
+    lastChange = { at: new Date().toISOString(), by: req.user!.name ?? 'Unknown', summary };
+  }
+
+  res.json(answer(RATE_TIER_ORDER.map((t) => tierRow(t, after.tiers[t])), { changed: differing.length, lastChange }));
+}
 
 export async function getTierRates(_req: AuthRequest, res: Response) {
-  const stored = await prisma.tierCashbackRate.findMany();
-  const fullMap = Object.fromEntries(stored.map((r) => [r.tier, r]));
-  const rates = TIER_ORDER.map((tier) => ({
-    tier,
-    cashbackRate:      fullMap[tier]?.cashbackRate      ?? DEFAULT_TIER_RATES[tier],
-    gasCentsPerGallon: fullMap[tier]?.gasCentsPerGallon ?? null,
-    // pointsThreshold stored in dollars internally; return as pts (× 100) for display
-    pointsThreshold:   fullMap[tier]?.pointsThreshold != null
-      ? Math.round(fullMap[tier].pointsThreshold * 100)
-      : (TIER_THRESHOLDS[tier] != null ? Math.round(TIER_THRESHOLDS[tier] * 100) : 0),
-  }));
-
-  res.json({ success: true, data: rates });
+  const state = await loadRateState();
+  res.json({ success: true, data: RATE_TIER_ORDER.map((tier) => tierRow(tier, state.tiers[tier])) });
 }
 
+/** PUT /billing/tier-rates/:tier: one tier (kept for older callers). */
 export async function updateTierRate(req: AuthRequest, res: Response) {
   const { tier } = req.params;
-  if (!Object.values(Tier).includes(tier as Tier)) {
-    res.status(400).json({ success: false, error: 'Invalid tier' });
+  const tierOk = tierEnum.safeParse(tier);
+  if (!tierOk.success) { refuse(res, tierOk.error); return; }
+  const parsed = tierChangeSchema.refine(atLeastOneField, { message: 'Provide at least one field to update.' }).safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  await saveTierChanges(req, res, [{ tier, ...parsed.data }], (rows, extra) => ({ success: true, data: rows.find((r) => r.tier === tier), ...extra }));
+}
+
+/** PUT /billing/tier-rates: several tiers in one all-or-nothing save (the Rates page's Save, Save all and gas switch). */
+export async function updateTierRates(req: AuthRequest, res: Response) {
+  const parsed = z.object({
+    changes: z.array(tierChangeSchema.extend({ tier: tierEnum }).refine(atLeastOneField, { message: 'Provide at least one field to update.' }))
+      .min(1, 'Nothing to change.').max(5, 'A save can change at most the five tiers.'),
+  }).safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const tiers = parsed.data.changes.map((c) => c.tier);
+  if (new Set(tiers).size !== tiers.length) { res.status(400).json({ success: false, error: 'Each tier can appear only once in a save.' }); return; }
+  await saveTierChanges(req, res, parsed.data.changes as TierChange[], (rows, extra) => ({ success: true, data: rows, ...extra }));
+}
+
+/** PATCH /billing/category-rates/:category */
+export async function updateCategoryRate(req: AuthRequest, res: Response) {
+  const { category } = req.params;
+  if (!Object.values(ProductCategory).includes(category as ProductCategory)) {
+    res.status(400).json({ success: false, error: 'That category does not exist.' });
     return;
   }
   const parsed = z.object({
-    cashbackRate:      z.number().min(0).max(1).optional(),
-    gasCentsPerGallon: z.number().min(0).nullable().optional(),
-    pointsThreshold:   z.number().int().min(0).optional(), // in pts; stored as dollars (÷ 100) internally
-  }).refine(d => d.cashbackRate !== undefined || d.gasCentsPerGallon !== undefined || d.pointsThreshold !== undefined, {
-    message: 'Provide at least one field to update',
+    cashbackRate: z.number(NUMBER_MESSAGE('The bonus')).min(0, 'A bonus cannot be below 0%.').max(1, 'A bonus cannot be above 100%.'),
   }).safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ success: false, error: parsed.error.flatten() });
-    return;
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+
+  const before = await loadRateState();
+  const change: CategoryChange = { category, cashbackRate: parsed.data.cashbackRate };
+  const problem = refusalFor(before, [], [change]);
+  if (problem) { res.status(400).json({ success: false, error: problem }); return; }
+
+  const was = before.categories[category] ?? 0;
+  let lastChange: LastChange | null = null;
+  if (was !== change.cashbackRate) {
+    await prisma.categoryRate.upsert({
+      where: { category: category as ProductCategory },
+      update: { cashbackRate: change.cashbackRate },
+      create: { category: category as ProductCategory, cashbackRate: change.cashbackRate },
+    });
+    const summary = `${categoryName(category)} bonus ${pct(was)} to ${pct(change.cashbackRate)}`;
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'RATE_CATEGORY_UPDATE', entity: 'rates', entityId: category,
+      details: { summary, category, from: was, to: change.cashbackRate },
+    });
+    lastChange = { at: new Date().toISOString(), by: req.user!.name ?? 'Unknown', summary };
   }
-  const defaultRate = DEFAULT_TIER_RATES[tier] ?? 0.01;
-  const updateData: Record<string, unknown> = {};
-  if (parsed.data.cashbackRate !== undefined)      updateData.cashbackRate      = parsed.data.cashbackRate;
-  if (parsed.data.gasCentsPerGallon !== undefined) updateData.gasCentsPerGallon = parsed.data.gasCentsPerGallon;
-  if (parsed.data.pointsThreshold !== undefined)   updateData.pointsThreshold   = parsed.data.pointsThreshold / 100;
-  const rate = await prisma.tierCashbackRate.upsert({
-    where:  { tier: tier as Tier },
-    update: updateData,
-    create: {
-      tier: tier as Tier,
-      cashbackRate:      (updateData.cashbackRate      as number) ?? defaultRate,
-      gasCentsPerGallon: (updateData.gasCentsPerGallon as number | null) ?? null,
-      pointsThreshold:   (updateData.pointsThreshold   as number) ?? null,
-    },
+  res.json({ success: true, data: { category, cashbackRate: change.cashbackRate }, changed: lastChange ? 1 : 0, lastChange });
+}
+
+/** GET /billing/rates/last-change: who last changed a tier or category rate, and what they did (null if never recorded). */
+export async function getRatesLastChange(_req: AuthRequest, res: Response) {
+  const row = await prisma.auditLog.findFirst({
+    where: { action: { in: ['RATE_TIER_UPDATE', 'RATE_CATEGORY_UPDATE'] } },
+    orderBy: { createdAt: 'desc' },
   });
-  res.json({ success: true, data: { ...rate, pointsThreshold: rate.pointsThreshold != null ? Math.round(rate.pointsThreshold * 100) : null } });
+  if (!row) { res.json({ success: true, data: null }); return; }
+  let summary = '';
+  try { summary = (JSON.parse(row.details ?? '{}') as { summary?: string }).summary ?? ''; } catch { /* details are optional */ }
+  res.json({ success: true, data: { at: row.createdAt, by: row.actorName ?? 'Unknown', summary } });
 }
 
 // ─── Dev Cut Rate Config ──────────────────────────────────────────────────────

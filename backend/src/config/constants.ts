@@ -20,3 +20,11 @@ export const DEFAULT_TIER_RATES: Record<string, number> = {
 // Warn flag added above WARN, hard-cap applied at CAP (transaction still processes, just capped).
 export const CASHBACK_RATE_WARN = 0.075; // 7.5% — flag for admin review
 export const CASHBACK_RATE_CAP  = 0.10;  // 10% — hard ceiling, never exceeded
+
+// What the Rates page will accept (utils/rateRules.ts; the admin repeats these in lib/rateRules.ts). A sale never pays more than the cap
+// above, but a rate typed wrong still holds every sale it touches for a manager, so the page refuses the slips before they are saved.
+export const MAX_TIER_CASHBACK_RATE    = CASHBACK_RATE_WARN; // a tier's own rate stays under the review line
+export const MAX_CATEGORY_BONUS_RATE   = 0.05;               // a category's permanent bonus
+export const MAX_GAS_CENTS_PER_GALLON  = 25;                 // a flat gas rate; a gallon paying more is a typing slip
+export const MIN_TIER_THRESHOLD_POINTS = 100;                // $1 of cashback in the half-year
+export const MAX_TIER_THRESHOLD_POINTS = 10_000_000;
