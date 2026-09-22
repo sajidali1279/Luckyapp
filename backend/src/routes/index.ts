@@ -200,6 +200,7 @@ import {
   getSuperAdminNotifications,
   getDevAdminNotifications,
 } from '../controllers/billing.controller';
+import { getAdminBadgeCounts } from '../controllers/adminBadges.controller';
 import {
   getStoreHours,
   updateStoreHours,
@@ -354,6 +355,9 @@ router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, require
 router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
 router.get('/billing/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getBillingPendingCount); // Badge count
 router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
+
+// ─── Admin shell — every sidebar badge count in one request (shell audit batch S3) ────────────────────────
+router.get('/admin/badges', authenticate, requireRole(Role.SUPER_ADMIN), getAdminBadgeCounts);
 
 // ─── Push Broadcast (SuperAdmin+) ────────────────────────────────────────────
 router.post('/notifications/broadcast', authenticate, requireRole(Role.SUPER_ADMIN), broadcastNotification);
