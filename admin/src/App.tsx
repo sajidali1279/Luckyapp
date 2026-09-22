@@ -52,7 +52,19 @@ const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 const DailyReports           = lazy(() => import('./pages/DailyReports'));
 const DailyTasks             = lazy(() => import('./pages/DailyTasks'));
 
-const queryClient = new QueryClient();
+// A 4xx (a refused form, an unauthorized or not-found request) will not succeed by asking again, so it is
+// not retried; a network error, a timeout, or a real 5xx gets up to 2 more tries. A query that sets its own
+// `retry` (several already do, for a count that would rather just show 0 than keep trying) is unaffected —
+// this default only applies where a query does not say.
+function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  if (status !== undefined && status < 500) return false;
+  return failureCount < 2;
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: shouldRetryQuery } },
+});
 
 const ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER', 'EMPLOYEE'];
 

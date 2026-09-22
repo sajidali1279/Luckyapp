@@ -1,28 +1,18 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Pin } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useDialog } from '../hooks/useDialog';
 import { visibleNavItems } from '../lib/navItems';
 import { useAdminBadges, type BadgeKey } from '../hooks/useAdminBadges';
+import { usePinnedPages } from '../hooks/usePinnedPages';
+import { readRecents, pushRecent } from '../lib/recentPages';
 import { customersApi, staffApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
-const RECENTS_KEY = 'admin-palette-recents';
-const RECENTS_MAX = 5;
-
-function readRecents(): string[] {
-  try { return JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]'); } catch { return []; }
-}
-function pushRecent(to: string) {
-  try {
-    const next = [to, ...readRecents().filter((r) => r !== to)].slice(0, RECENTS_MAX);
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
-  } catch { /* storage unavailable, quietly skip remembering */ }
-}
-
 type Row =
-  | { kind: 'nav'; key: string; to: string; label: string; group: string; count: number }
+  | { kind: 'nav'; key: string; to: string; label: string; group: string; count: number; pinned: boolean }
   | { kind: 'customer'; key: string; to: string; label: string; sub: string }
   | { kind: 'staff'; key: string; to: string; label: string; sub: string };
 
@@ -41,6 +31,7 @@ export default function CommandPalette({ open, onClose }: Props) {
   const { user } = useAuthStore();
   const isDevOrSuper = user?.role === 'DEV_ADMIN' || user?.role === 'SUPER_ADMIN';
   const badges = useAdminBadges();
+  const { pinned: pinnedPaths, isPinned, togglePin } = usePinnedPages();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [selected, setSelected] = useState(0);
@@ -70,15 +61,19 @@ export default function CommandPalette({ open, onClose }: Props) {
 
   const rows: Row[] = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const countFor = (i: (typeof items)[number]) => (i.badgeKey ? (badges[i.badgeKey as BadgeKey] as number) ?? 0 : 0);
     const navRows: Row[] = (q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items).map((i) => ({
       kind: 'nav' as const, key: i.to, to: i.to, label: i.label, group: i.group,
-      count: i.badgeKey ? (badges[i.badgeKey as BadgeKey] as number) ?? 0 : 0,
+      count: countFor(i), pinned: isPinned(i.to),
     }));
     if (!q) {
-      // No query yet: recent pages first (most recently opened via this palette), then everything else grouped as usual
-      const recent: Row[] = recentPaths.map((p) => items.find((i) => i.to === p)).filter((i): i is NonNullable<typeof i> => !!i)
-        .map((i) => ({ kind: 'nav' as const, key: 'recent-' + i.to, to: i.to, label: i.label, group: 'Recent', count: i.badgeKey ? (badges[i.badgeKey as BadgeKey] as number) ?? 0 : 0 }));
-      return [...recent, ...navRows];
+      // No query yet: pinned pages first (in the order pinned), then recent (most recently opened via this palette, excluding
+      // anything already shown as pinned), then everything else grouped as usual.
+      const pinned: Row[] = pinnedPaths.map((p) => items.find((i) => i.to === p)).filter((i): i is NonNullable<typeof i> => !!i)
+        .map((i) => ({ kind: 'nav' as const, key: 'pinned-' + i.to, to: i.to, label: i.label, group: 'Pinned', count: countFor(i), pinned: true }));
+      const recent: Row[] = recentPaths.filter((p) => !pinnedPaths.includes(p)).map((p) => items.find((i) => i.to === p)).filter((i): i is NonNullable<typeof i> => !!i)
+        .map((i) => ({ kind: 'nav' as const, key: 'recent-' + i.to, to: i.to, label: i.label, group: 'Recent', count: countFor(i), pinned: false }));
+      return [...pinned, ...recent, ...navRows];
     }
     // Both params: highlightId alone would only ever work if that customer happened to already be on page 1 of the unfiltered list
     // (the page is not scoped to one customer on its own) — the search narrows the list down to them, highlightId then scrolls to
@@ -92,7 +87,7 @@ export default function CommandPalette({ open, onClose }: Props) {
       kind: 'staff' as const, key: 'staff-' + st.id, to: `/staff?search=${encodeURIComponent(st.name || st.phone)}`, label: st.name || st.phone, sub: st.phone,
     })) : [];
     return [...navRows, ...customerRows, ...staffRows];
-  }, [items, query, recentPaths, badges, active, customerResults, staffResults]);
+  }, [items, query, recentPaths, pinnedPaths, isPinned, badges, active, customerResults, staffResults]);
 
   useEffect(() => { setSelected(0); }, [query]);
   useEffect(() => {
@@ -110,11 +105,21 @@ export default function CommandPalette({ open, onClose }: Props) {
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelected((i) => (rows.length ? (i + 1) % rows.length : 0)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSelected((i) => (rows.length ? (i - 1 + rows.length) % rows.length : 0)); }
+    else if (e.key === 'Enter' && e.shiftKey) {
+      // Shift+Enter pins or unpins the highlighted page instead of opening it, and stays open so several
+      // can be pinned in a row. A plain button inside the listbox's option row would itself become a second,
+      // rule-breaking child of the listbox in the accessible tree, so this stays keyboard-only on purpose.
+      e.preventDefault();
+      const row = rows[selected];
+      if (row && row.kind === 'nav') togglePin(row.to);
+    }
     else if (e.key === 'Enter') { e.preventDefault(); if (rows[selected]) activate(rows[selected]); }
   }
 
   if (!open) return null;
 
+  const selectedRow = rows[selected];
+  const selectedNavRow = selectedRow?.kind === 'nav' ? selectedRow : undefined;
   let lastGroup = '';
   const showSearching = active && customersLoading && customerResults.length === 0;
   return (
@@ -161,9 +166,15 @@ export default function CommandPalette({ open, onClose }: Props) {
                       onMouseEnter={() => setSelected(i)}
                       onClick={() => activate(row)}
                     >
-                      <span style={s.rowLabel}>{row.label}</span>
+                      <span style={s.rowLabel}>
+                        {row.label}
+                        {row.kind === 'nav' && row.pinned && <span style={{ position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' as const, border: 0 }}>, pinned</span>}
+                      </span>
                       {row.kind === 'nav' ? (
-                        row.count > 0 && <span style={{ ...s.countBadge, ...(i === selected ? s.countBadgeActive : {}) }}>{row.count}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {row.pinned && <Pin aria-hidden="true" size={12} style={{ color: i === selected ? 'rgba(255,255,255,0.75)' : TEXT_MUTED, flexShrink: 0 }} />}
+                          {row.count > 0 && <span style={{ ...s.countBadge, ...(i === selected ? s.countBadgeActive : {}) }}>{row.count}</span>}
+                        </span>
                       ) : (
                         <span style={{ ...s.rowHint, ...(i === selected ? { color: 'rgba(255,255,255,0.75)' } : {}) }}>{row.sub}</span>
                       )}
@@ -177,6 +188,9 @@ export default function CommandPalette({ open, onClose }: Props) {
         <div style={s.footer}>
           <span><kbd style={s.kbdSmall}>&uarr;</kbd><kbd style={s.kbdSmall}>&darr;</kbd> move</span>
           <span><kbd style={s.kbdSmall}>&crarr;</kbd> open</span>
+          {selectedNavRow && (
+            <span><kbd style={s.kbdSmall}>Shift</kbd>+<kbd style={s.kbdSmall}>&crarr;</kbd> {selectedNavRow.pinned ? 'unpin' : 'pin'}</span>
+          )}
           <span><kbd style={s.kbdSmall}>Esc</kbd> close</span>
         </div>
       </div>

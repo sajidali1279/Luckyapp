@@ -97,8 +97,10 @@ Every page in the Admin Portal shares the same bar across the top:
   - Type a page name ("billing", "rates", "staff") to jump to that page.
   - See your most recently opened pages under **Recent** when the box is empty.
   - Move through the results with the arrow keys and press Enter, or click a result with the mouse. Escape closes the box without going anywhere.
+  - Highlight a page and press **Shift+Enter** to pin or unpin it, instead of opening it. A pinned page shows in its own **Pinned** group at the top of the sidebar, above the usual menu groups, so it is one click away no matter which page you are on. Click the small unpin control next to it in the sidebar, or highlight it in the search box again and press Shift+Enter, to remove it. Up to 8 pages can be pinned at once.
 - **Bell** - shows how many things across the whole admin need your attention (pending and flagged sales, disputes, requests, unread support tickets, and more), even on a page that has none of its own. Click it to see the list and jump straight to any item.
 - **Refresh** - reloads the numbers on the page you are viewing, and the bar says how long ago the page last updated ("Updated just now", "Updated 2m ago").
+- **Recent** - the sidebar also keeps a short list of the pages you opened most recently through Search, above the usual menu groups, so a page you just left stays close by.
 
 ---
 

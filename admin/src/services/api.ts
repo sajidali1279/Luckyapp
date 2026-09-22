@@ -3,7 +3,9 @@ import { refusalText } from '../lib/apiError';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const api = axios.create({ baseURL: API_URL });
+// 30 seconds: long enough for the slowest real request (a CSV export, a cold backend waking up), short
+// enough that a hung request fails instead of leaving a button stuck on "Saving..." forever.
+const api = axios.create({ baseURL: API_URL, timeout: 30_000 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('jwt_token');
@@ -491,6 +493,12 @@ export const inventoryAnalyticsApi = {
     if (params.category) qs.set('category', params.category);
     return api.get(`/order-lists/suggestions?${qs.toString()}`);
   },
+};
+
+// The admin shell's sidebar badges and command palette bell: every "something is waiting" count in one
+// request. See useAdminBadges.ts.
+export const adminApi = {
+  getBadgeCounts: () => api.get('/admin/badges'),
 };
 
 export default api;

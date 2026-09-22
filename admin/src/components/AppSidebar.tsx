@@ -1,7 +1,11 @@
-﻿import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+﻿import { useMemo } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
-import { useAdminBadges } from '../hooks/useAdminBadges';
+import { useAdminBadges, type BadgeKey } from '../hooks/useAdminBadges';
+import { usePinnedPages } from '../hooks/usePinnedPages';
+import { useRecentPages } from '../lib/recentPages';
+import { visibleNavItems } from '../lib/navItems';
 import {
   Sidebar,
   SidebarContent,
@@ -46,6 +50,7 @@ import {
   Fuel,
   Flame,
   Pin,
+  PinOff,
   ChevronRight,
   Barcode,
   Printer,
@@ -74,9 +79,11 @@ type NavItem = {
   label: string;
   badge?: number;
   end?: boolean;
+  /** Present only on a row in the "Pinned" group: renders a small unpin control next to the badge. */
+  onUnpin?: () => void;
 };
 
-function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
+function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem) {
   const location = useLocation();
   const toPath = to.split('?')[0];
   const isActive = isEnd
@@ -121,6 +128,26 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd }: NavItem) {
           <span style={SR_ONLY}>{badge === 1 ? ' item waiting' : ' items waiting'}</span>
         </SidebarMenuBadge>
       )}
+      {onUnpin && (
+        <button
+          type="button"
+          onClick={onUnpin}
+          aria-label={`Unpin ${label}`}
+          title="Unpin"
+          style={{
+            // The count badge (SidebarMenuBadge) is itself absolutely positioned at the right edge; when
+            // both show on one row, sit to its left instead of underneath it.
+            position: 'absolute', right: badge != null && badge > 0 ? 30 : 6, top: '50%', transform: 'translateY(-50%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 20, height: 20, padding: 0, border: 'none', borderRadius: 5,
+            background: 'transparent', color: 'oklch(0.55 0.02 245)', cursor: 'pointer',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.24 0.042 245)'; (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.87 0.015 245)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.55 0.02 245)'; }}
+        >
+          <PinOff size={12} aria-hidden="true" />
+        </button>
+      )}
     </SidebarMenuItem>
   );
 }
@@ -136,11 +163,24 @@ export function AppSidebar() {
   const roleLabel = ROLE_LABELS[user?.role || ''] || user?.role || '';
   const avatarColor = ROLE_COLOR[user?.role || ''] || 'oklch(0.50 0.22 27)';
 
+  const badges = useAdminBadges();
   const {
     unreadCount, supportUnread, careersNewCount, requestsPendingCount, disputesPendingCount, chatUnreadCount,
     transactionsPendingCount, schedulingPendingCount, promotionsPendingCount, hotFoodPendingCount,
     categoriesPendingCount, billingPendingCount,
-  } = useAdminBadges();
+  } = badges;
+
+  // Pinned pages (from the command palette, Shift+Enter) and pages opened recently through it. Both are
+  // looked up in navItems.ts's own list purely for their icon/label/badgeKey — the icons and role-gating
+  // for the sidebar's own regular groups below stay hand-written here on purpose (see navItems.ts's own
+  // comment); this only reuses it as a lookup table so a pinned page shows the same icon it does elsewhere.
+  const { pinned, togglePin } = usePinnedPages();
+  const recent = useRecentPages();
+  const navByPath = useMemo(() => new Map(visibleNavItems(user?.role).map((i) => [i.to, i])), [user?.role]);
+  const pinnedItems = pinned.map((p) => navByPath.get(p)).filter((i): i is NonNullable<typeof i> => !!i);
+  const recentItems = recent.filter((r) => !pinned.includes(r)).map((r) => navByPath.get(r))
+    .filter((i): i is NonNullable<typeof i> => !!i).slice(0, 3);
+  const badgeFor = (key?: BadgeKey) => (key ? (badges[key] as number) : undefined);
 
   // Empty the cache too, so the next person to sign in on this tab never sees the previous session's data
   function handleLogout() { queryClient.clear(); logout(); navigate('/login'); }
@@ -205,6 +245,55 @@ export function AppSidebar() {
         scrollbarWidth: 'thin',
         scrollbarColor: 'oklch(0.28 0.045 245) transparent',
       }}>
+        {/* Pinned, if any: a page saved from the command palette (Shift+Enter there) */}
+        {pinnedItems.length > 0 && (
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel>Pinned</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {pinnedItems.map((item) => (
+                    <SidebarNavItem
+                      key={item.to}
+                      to={item.to}
+                      icon={<item.icon size={16} />}
+                      label={item.label}
+                      badge={badgeFor(item.badgeKey)}
+                      end={item.to === '/'}
+                      onUnpin={() => togglePin(item.to)}
+                    />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarSeparator />
+          </>
+        )}
+
+        {/* Recent, if any: opened through the command palette a moment ago, so it does not have to be found again */}
+        {recentItems.length > 0 && (
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel>Recent</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {recentItems.map((item) => (
+                    <SidebarNavItem
+                      key={item.to}
+                      to={item.to}
+                      icon={<item.icon size={16} />}
+                      label={item.label}
+                      badge={badgeFor(item.badgeKey)}
+                      end={item.to === '/'}
+                    />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarSeparator />
+          </>
+        )}
+
         {/* Overview */}
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
