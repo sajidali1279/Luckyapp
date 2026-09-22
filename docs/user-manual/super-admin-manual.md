@@ -86,6 +86,20 @@ Most administrative functions are only available through the web portal.
 - Log out of the Admin Portal when using a shared or public computer.
 - Enable biometric login on your mobile device for added convenience and security.
 
+### 2.4 Finding Your Way Around
+
+Every page in the Admin Portal shares the same bar across the top:
+
+- **Menu button** - on a phone or narrow window, opens the navigation as a slide-out; on a wider screen, collapses or expands the sidebar so a long list of stores can fit.
+- **Page title** - shows which page you are on, so a screenshot or a shared screen is unambiguous.
+- **Search** - click Search, or press **Ctrl+K** (**Cmd+K** on a Mac) from anywhere in the admin. It opens a box where you can:
+  - Type a customer's name or phone number, or a staff member's name or phone number, to jump straight to their record, already searched down to them and highlighted.
+  - Type a page name ("billing", "rates", "staff") to jump to that page.
+  - See your most recently opened pages under **Recent** when the box is empty.
+  - Move through the results with the arrow keys and press Enter, or click a result with the mouse. Escape closes the box without going anywhere.
+- **Bell** - shows how many things across the whole admin need your attention (pending and flagged sales, disputes, requests, unread support tickets, and more), even on a page that has none of its own. Click it to see the list and jump straight to any item.
+- **Refresh** - reloads the numbers on the page you are viewing, and the bar says how long ago the page last updated ("Updated just now", "Updated 2m ago").
+
 ---
 
 ## 3. Dashboard - Overview
@@ -869,6 +883,7 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 | Deactivate a terminated employee | Staff → [Employee card] → Deactivate | Read the question, confirm |
 | Reset an employee's PIN | Staff → [Employee card] → Reset PIN | Type the new PIN twice |
 | Look up a customer | Customers → Search bar | Enter name or phone |
+| Jump straight to a customer or staff member from any page | Search (top bar) or Ctrl+K / Cmd+K | Type a name or phone, pick the result |
 | Deactivate a fraudulent customer | Customers → [Customer] → Deactivate | Confirm |
 | Resolve a customer dispute | Customers → Disputes tab → open dispute | Approve (credit points) or Reject, with a note |
 | Create a new promotion offer | Offers → New Offer | Fill details, set dates |

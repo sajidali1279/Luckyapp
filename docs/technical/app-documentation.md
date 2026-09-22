@@ -1127,7 +1127,7 @@ Pluralization uses the i18next `_one` / `_other` suffix convention (e.g., `store
 ```
 admin/src/
 ├── main.tsx               # Entry point
-├── App.tsx                # Router setup
+├── App.tsx                # Router setup, ProtectedLayout (sidebar + TopBar)
 ├── pages/
 │   ├── Login.tsx
 │   ├── Dashboard.tsx
@@ -1140,7 +1140,10 @@ admin/src/
 │   ├── Offers.tsx
 │   ├── Banners.tsx
 │   ├── Catalog.tsx
+│   ├── ScannedProducts.tsx
+│   ├── Labels.tsx
 │   ├── Notifications.tsx
+│   ├── Notices.tsx
 │   ├── Leaderboard.tsx
 │   ├── Careers.tsx
 │   ├── BusinessPromotions.tsx
@@ -1151,19 +1154,43 @@ admin/src/
 │   ├── Support.tsx
 │   ├── Chat.tsx
 │   ├── Scheduling.tsx
+│   ├── HotFood.tsx
 │   ├── OrderList.tsx
 │   ├── StoreRequests.tsx
 │   ├── InventoryAnalytics.tsx
+│   ├── DailyReports.tsx
+│   ├── DailyTasks.tsx
+│   ├── Documents.tsx
+│   ├── EmployeePortal.tsx
+│   ├── ComingSoon.tsx
 │   ├── Profile.tsx
 │   └── Privacy.tsx
-└── components/
-    ├── Navbar.tsx
-    └── PageLoader.tsx
+├── components/
+│   ├── AppSidebar.tsx      # The collapsible sidebar; groups and items come from lib/navItems.ts
+│   ├── TopBar.tsx          # Menu/collapse trigger, page title, Search, bell, refresh + "Updated Xs ago"
+│   ├── CommandPalette.tsx  # Ctrl/Cmd+K dialog: pages, live customer/staff search, Recent
+│   ├── GlobalSearch.tsx    # The Dashboard's own inline search box (customers, staff, stores)
+│   ├── ErrorBoundary.tsx
+│   ├── NotFound.tsx
+│   ├── Modal.tsx, ConfirmModal.tsx
+│   └── ... (page-specific panels: StoreLabelsPanel, CoverageView, InvoiceModal, etc.)
+└── lib/
+    ├── navItems.ts         # NAV_ITEMS + visibleNavItems(role): the shell's own nav/role list
+    └── ... (apiError, phoneText, storeDates, offerRules, rateRules, labelPrice, theme, utils)
 ```
 
 ### 13.2 Role-Gated Pages
 
-The Navbar component uses the user's role to determine which navigation items are visible. Routes are also protected client-side by checking `user.role` before rendering admin-only content.
+`AppSidebar` and the Command Palette each read `lib/navItems.ts`'s `visibleNavItems(role)` to decide which pages a role can see; the two lists are kept deliberately separate rather than sharing one component tree, so a change to one cannot silently regress the other. Routes are also protected client-side by checking `user.role` before rendering admin-only content, and every route is enforced again on the server.
+
+### 13.3 Top Bar and Command Palette (Shell Batch S2)
+
+Every authenticated page renders inside `ProtectedLayout` (`App.tsx`), which pairs `AppSidebar` with `TopBar`:
+
+- **TopBar** shows the current page's title (`hooks/usePageTitle.ts`), a menu/collapse trigger (`SidebarTrigger`, from the sidebar primitives), a Search button, a bell button, and a refresh button with a live "Updated Xs ago" ticker. Refresh calls `queryClient.refetchQueries({ type: 'active' })`, so it re-fetches whatever the current page already has open rather than a hardcoded list.
+- **CommandPalette** opens on Search or **Ctrl/Cmd+K** from any page (a `window` keydown listener in `TopBar`). With no query it lists nav pages by group, plus a "Recent" group (up to 5, from `localStorage` key `admin-palette-recents`) built from pages actually opened through the palette. A query of two or more characters also searches live customers (`customersApi.list`, 250ms debounce) and staff (`staffApi.list`, client-filtered) for a Dev Admin or Super Admin. Choosing a customer or staff result navigates to `/customers?search=...&highlightId=...` or `/staff?search=...` — both `search` and `highlightId` are sent together, because `highlightId` alone only highlights a match that is already on the current, unfiltered page of results.
+- **Bell popover** reads the same `useAdminBadges` counts the sidebar badges use (`lib/BADGE_LABELS` gives each one a singular/plural label), so the number is consistent everywhere it appears; it lists only the badges that are non-zero and links each one to its page via `navItems.ts`.
+- The result list is a real ARIA `listbox`/`option` structure: each row is a sibling `<li role="presentation">` wrapping a `<button role="option">`, never a `<li>` with a bare group-label `<div>` next to it, which is what an accessible listbox's children are required to be.
 
 ---
 

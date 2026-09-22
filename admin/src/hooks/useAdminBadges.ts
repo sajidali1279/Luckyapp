@@ -154,3 +154,22 @@ export function useAdminBadges() {
     categoriesPendingCount, billingPendingCount,
   };
 }
+
+export type AdminBadges = ReturnType<typeof useAdminBadges>;
+export type BadgeKey = keyof AdminBadges;
+
+/** Singular and plural wording for a bell popover or similar summary — written out, not guessed by adding "s" (category/categories). */
+export const BADGE_LABELS: Record<BadgeKey, { one: string; many: string }> = {
+  transactionsPendingCount: { one: 'transaction needs a decision', many: 'transactions need a decision' },
+  disputesPendingCount: { one: 'missing-points report to review', many: 'missing-points reports to review' },
+  requestsPendingCount: { one: 'store request waiting', many: 'store requests waiting' },
+  chatUnreadCount: { one: 'unread chat message', many: 'unread chat messages' },
+  schedulingPendingCount: { one: 'schedule request waiting', many: 'schedule requests waiting' },
+  categoriesPendingCount: { one: 'new order category to review', many: 'new order categories to review' },
+  careersNewCount: { one: 'new job application', many: 'new job applications' },
+  promotionsPendingCount: { one: 'promotion request waiting', many: 'promotion requests waiting' },
+  hotFoodPendingCount: { one: 'hot food order waiting', many: 'hot food orders waiting' },
+  billingPendingCount: { one: 'unpaid billing period', many: 'unpaid billing periods' },
+  unreadCount: { one: 'unread notification', many: 'unread notifications' },
+  supportUnread: { one: 'unread support ticket', many: 'unread support tickets' },
+};

@@ -116,7 +116,7 @@ export default function Staff() {
     return staffList.filter((m) =>
       (m.name || '').toLowerCase().includes(q)
       || (qDigits.length > 0 && (m.phone || '').replace(/\D/g, '').includes(qDigits))
-      || (ROLE_LABELS[m.role] || m.role).toLowerCase().includes(q)
+      || (ROLE_LABELS[m.role] || m.role || '').toLowerCase().includes(q)
       || (m.storeRoles || []).some((sr: any) => (sr.store?.name || '').toLowerCase().includes(q)),
     );
   }, [staffList, search]);

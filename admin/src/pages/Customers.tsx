@@ -44,8 +44,10 @@ export default function Customers() {
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const isDevAdmin = user?.role === 'DEV_ADMIN';
 
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchParams] = useSearchParams();
+  // Seeded from ?search= (the Command Palette's "Search customers" jumps here with a query already typed)
+  const [search, setSearch] = useState(() => searchParams.get('search')?.trim() ?? '');
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search')?.trim() ?? '');
   const [page, setPage] = useState(1);
   const [restrictTarget, setRestrictTarget] = useState<{ id: string; name: string; isActive: boolean } | null>(null);
   const [restrictError, setRestrictError] = useState('');
@@ -53,7 +55,6 @@ export default function Customers() {
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [fraudNote, setFraudNote] = useState('');
-  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>(
     searchParams.get('tab') === 'disputes' ? 'disputes' : 'customers'
   );
@@ -192,7 +193,7 @@ export default function Customers() {
       document.querySelector('.ls-highlight-pulse')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 200);
     return () => clearTimeout(timer);
-  }, [highlightId, disputes]);
+  }, [highlightId, disputes, customers]);
 
   const creditIssue = creditProblem(creditAmt);
   const creditNumber = Number(creditAmt);
@@ -339,7 +340,7 @@ export default function Customers() {
               const color = avatarColor(c.name || c.phone || '');
               const balance = Number(c.pointsBalance || 0);
               return (
-                <div key={c.id} style={{ ...s.card, ...(c.isActive ? {} : s.cardInactive) }}>
+                <div key={c.id} className={c.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(c.isActive ? {} : s.cardInactive) }}>
                   {/* Top row */}
                   <div style={s.cardTop}>
                     <div style={{ ...s.avatar, background: color }} aria-hidden="true">{initial}</div>

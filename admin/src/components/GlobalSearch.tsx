@@ -55,8 +55,10 @@ export default function GlobalSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  function goCustomer(id: string) {
-    navigate(`/customers?highlightId=${id}`);
+  function goCustomer(c: { id: string; phone?: string; name?: string }) {
+    // highlightId alone only works if this customer already happens to be on page 1 of the unfiltered list; search narrows the
+    // list down to them first, so the card highlightId then scrolls to and pulses is actually on the page.
+    navigate(`/customers?search=${encodeURIComponent(c.phone || c.name || '')}&highlightId=${c.id}`);
     setQuery('');
     setOpen(false);
   }
@@ -104,7 +106,7 @@ export default function GlobalSearch() {
                 <div style={s.group}>
                   <div style={s.groupLabel}>Customers</div>
                   {customers.map((c: any) => (
-                    <button key={c.id} data-result style={s.resultRow} onClick={() => goCustomer(c.id)}>
+                    <button key={c.id} data-result style={s.resultRow} onClick={() => goCustomer(c)}>
                       <span style={s.resultName}>{c.name || 'Unnamed'}</span>
                       <span style={s.resultSub}>{c.phone}</span>
                     </button>
