@@ -75,6 +75,7 @@ enum TransactionStatus {
   FLAGGED    // Suspicious — receipt uploaded but points held for manager review
   APPROVED   // Points granted
   REJECTED   // Rejected by admin/auto
+  VOIDED     // Was APPROVED; undone after the fact, the credited points clawed back
 }
 
 enum OfferType {
@@ -443,6 +444,9 @@ model PointsTransaction {
   gasBonusPoints    Float   @default(0)
   fraudFlags        String?           // JSON array of fraud flag reasons
   isTestData        Boolean @default(false)
+  voidedAt          DateTime?         // when an APPROVED sale was voided (undone after the fact)
+  voidedById        String?           // the admin who voided it (not a relation: a rare admin action, looked up by id when shown)
+  voidReason        String?           // required when voiding; shown nowhere the customer can see it
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

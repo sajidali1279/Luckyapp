@@ -10,6 +10,7 @@ import {
   initiateGrant,
   uploadReceiptAndApprove,
   reviewFlaggedTransaction,
+  voidTransaction,
   getMyTransactions,
   rejectTransaction,
   getStoreTransactions,
@@ -274,6 +275,7 @@ router.get('/points/store/:storeId/summary', authenticate, requireRole(Role.STOR
 router.get('/points/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreTransactions);
 router.patch('/points/:transactionId/reject', authenticate, requireRole(Role.STORE_MANAGER), rejectTransaction);
 router.patch('/points/:transactionId/review', authenticate, requireRole(Role.STORE_MANAGER), reviewFlaggedTransaction);
+router.patch('/points/:transactionId/void', authenticate, requireRole(Role.SUPER_ADMIN), voidTransaction);
 router.get('/points/platform-summary', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformSummary);
 router.get('/points/platform-trend', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformTrend);
 router.get('/points/platform-compare', authenticate, requireRole(Role.SUPER_ADMIN), getPlatformCompare);

@@ -149,14 +149,19 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     if (!promoExplainsRate) rateCappedFlags.push('HIGH_CASHBACK_RATE');
   }
 
-  const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
-  const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4));
-  const pointsAwarded = cashbackIssued;
-  const storeCost = devCut;
-
-  // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode)
+  // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode). Computed BEFORE the
+  // platform fee, not after: this money is credited to the customer exactly like the rest of their cashback,
+  // so the store's fee has to be taken on the full total, not just the base rate. Before this fix, devCut was
+  // computed on cashbackIssued alone, so a Gold+ customer's gas bonus was credited to them at the store's full
+  // cost with no platform fee collected on that portion at all (docs/confidential/admin-audit/04-transactions.md
+  // finding #10 — no live exposure yet, since no real customer had reached Gold when this was found).
   const gasBonusRate = (isGasCategory && effectiveGallons) ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
   const gasBonusPoints = parseFloat(((effectiveGallons ?? 0) * gasBonusRate).toFixed(2));
+
+  const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
+  const devCut = parseFloat(((cashbackIssued + gasBonusPoints) * devCutRate).toFixed(4));
+  const pointsAwarded = cashbackIssued;
+  const storeCost = devCut;
 
   // ── Fraud detection ──────────────────────────────────────────────────────
   const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
@@ -602,6 +607,81 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
   sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS', pointsUrl(transactionId));
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
   res.json({ success: true, message: 'Flagged transaction approved and points credited' });
+}
+
+const VOID_REASON_MAX = 300;
+
+// SuperAdmin+: undo an approved sale after the fact. Unlike Reject (which never credited anything), voiding
+// claws the points back from the customer's current balance. A reason is REQUIRED here, not optional like a
+// reject's — this is the one action on this page that takes money back from a customer after the fact, and
+// it needs a real explanation on the record every time. The policy for a balance already partly or fully
+// spent: it is simply decremented, and can go negative (the response says so) rather than the admin having to
+// chase a partial recovery by hand; there is no separate debt-repayment mechanism.
+export async function voidTransaction(req: AuthRequest, res: Response) {
+  const { transactionId } = req.params;
+  const { reason } = req.body as { reason?: unknown };
+  if (typeof reason !== 'string' || !reason.trim()) {
+    res.status(400).json({ success: false, error: 'A reason is required to void a sale.' });
+    return;
+  }
+  const cleanReason = reason.trim();
+  if (cleanReason.length > VOID_REASON_MAX) {
+    res.status(400).json({ success: false, error: `"reason" is too long (${VOID_REASON_MAX} characters at most)` });
+    return;
+  }
+
+  const transaction = await prisma.pointsTransaction.findUnique({ where: { id: transactionId } });
+  if (!transaction || transaction.status !== TransactionStatus.APPROVED) {
+    res.status(400).json({ success: false, error: 'Only an approved sale can be voided.' });
+    return;
+  }
+
+  const actor = req.user!;
+  const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
+
+  const updatedCustomer = await prisma.$transaction(async (db) => {
+    // Decide-once: only if the sale is still APPROVED (a double click, or someone else voiding the same sale
+    // at the same moment, must not claw points back twice).
+    const moved = await db.pointsTransaction.updateMany({
+      where: { id: transactionId, status: TransactionStatus.APPROVED },
+      data: { status: TransactionStatus.VOIDED, voidedAt: new Date(), voidedById: actor.id, voidReason: cleanReason },
+    });
+    if (moved.count === 0) return null;
+    return db.user.update({
+      where: { id: transaction.customerId },
+      data: { pointsBalance: { decrement: totalPoints }, periodPoints: { decrement: totalPoints } },
+    });
+  });
+
+  if (!updatedCustomer) {
+    res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+    return;
+  }
+
+  const wentNegative = updatedCustomer.pointsBalance < 0;
+
+  sendPushToUser(
+    transaction.customerId,
+    '⚠️ Transaction Voided',
+    `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and voided. ${Math.round(totalPoints * 100)} pts were removed from your balance. Visit the store if you have questions.`,
+    'POINTS',
+    pointsUrl(transactionId)
+  );
+
+  audit({
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    action: 'VOID_TRANSACTION', entity: 'transaction', entityId: transactionId,
+    details: {
+      purchaseAmount: transaction.purchaseAmount,
+      pointsClawedBack: totalPoints,
+      customerId: transaction.customerId,
+      reason: cleanReason,
+      customerBalanceWentNegative: wentNegative,
+    },
+    storeId: transaction.storeId,
+  });
+
+  res.json({ success: true, message: 'Transaction voided', data: { customerBalanceWentNegative: wentNegative } });
 }
 
 // Manager: store dashboard summary stats
@@ -1211,7 +1291,10 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.count({ where }),
     prisma.pointsTransaction.aggregate({
       where: { ...where, status: 'APPROVED' },
-      _sum: { purchaseAmount: true, pointsAwarded: true },
+      // gasBonusPoints too: a Gold+ customer's per-gallon bonus is real cashback, credited on top of
+      // pointsAwarded, not folded into it (docs/confidential/admin-audit/04-transactions.md finding #10 —
+      // this summary used to under-count it).
+      _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
     }),
   ]);
 
@@ -1222,7 +1305,7 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
       page, limit: take,
       summary: {
         purchaseVolume: parseFloat((aggStats._sum.purchaseAmount ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat((aggStats._sum.pointsAwarded ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((aggStats._sum.pointsAwarded ?? 0) + (aggStats._sum.gasBonusPoints ?? 0)).toFixed(2)),
       },
     },
   });

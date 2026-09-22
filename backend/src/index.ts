@@ -15,6 +15,7 @@ import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
 import { startOfferAnnounceCron } from './utils/offerAnnounce';
 import { startMorningSummaryCron } from './utils/morning-summary';
+import { startPendingExpiryCron } from './utils/pending-expiry-cron';
 import { clientKey } from './utils/rateLimitKey';
 
 const app = express();
@@ -124,6 +125,7 @@ app.listen(PORT, () => {
   startNotificationRetentionCron();
   startOfferAnnounceCron();
   startMorningSummaryCron();
+  startPendingExpiryCron();
 });
 
 export default app;
