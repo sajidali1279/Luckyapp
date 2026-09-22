@@ -20,6 +20,7 @@ import { refuseIfStoreClosed } from '../utils/storeRules';
 import { emailHQ, URGENT_SALE_AMOUNT } from '../utils/adminEmail';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
+import { transactionSearchWhere } from '../utils/transactionSearch';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -476,9 +477,24 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
 }
 
+// A reason typed on Reject is optional, kept in the audit log, and told to the customer when given (a plain
+// "could not be verified" otherwise). Shared by both reject paths (pending and flagged) so they refuse the
+// same way.
+function parseRejectReason(body: unknown): { reason?: string } | { error: string } {
+  const raw = (body as { reason?: unknown } | null)?.reason;
+  if (raw === undefined || raw === null || raw === '') return {};
+  if (typeof raw !== 'string') return { error: '"reason" must be text' };
+  const reason = raw.trim();
+  if (reason.length > 300) return { error: '"reason" is too long (300 characters at most)' };
+  return reason ? { reason } : {};
+}
+
 // Admin: reject a pending transaction
 export async function rejectTransaction(req: AuthRequest, res: Response) {
   const { transactionId } = req.params;
+  const parsedReason = parseRejectReason(req.body);
+  if ('error' in parsedReason) { res.status(400).json({ success: false, error: parsedReason.error }); return; }
+  const { reason } = parsedReason;
 
   const transaction = await prisma.pointsTransaction.findUnique({ where: { id: transactionId } });
   if (!transaction || transaction.status !== TransactionStatus.PENDING) {
@@ -502,7 +518,7 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
   sendPushToUser(
     transaction.customerId,
     '❌ Transaction Rejected',
-    `Your $${transaction.purchaseAmount.toFixed(2)} ${transaction.category.replace(/_/g, ' ').toLowerCase()} transaction could not be verified. Visit the store if you have questions.`,
+    `Your $${transaction.purchaseAmount.toFixed(2)} ${transaction.category.replace(/_/g, ' ').toLowerCase()} transaction could not be verified.${reason ? ` Reason: ${reason}.` : ''} Visit the store if you have questions.`,
     'POINTS',
     pointsUrl(transactionId)
   );
@@ -515,6 +531,7 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
       pointsAwarded: transaction.pointsAwarded,
       category: transaction.category,
       customerId: transaction.customerId,
+      ...(reason ? { reason } : {}),
     },
     storeId: transaction.storeId,
   });
@@ -531,6 +548,9 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     res.status(400).json({ success: false, error: 'action must be APPROVE or REJECT' });
     return;
   }
+  const parsedReason = parseRejectReason(req.body);
+  if ('error' in parsedReason) { res.status(400).json({ success: false, error: parsedReason.error }); return; }
+  const { reason } = parsedReason;
 
   const transaction = await prisma.pointsTransaction.findUnique({ where: { id: transactionId } });
   if (!transaction || transaction.status !== TransactionStatus.FLAGGED) {
@@ -565,8 +585,8 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
       res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
       return;
     }
-    sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.`, 'POINTS', pointsUrl(transactionId));
-    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'REJECT_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
+    sendPushToUser(transaction.customerId, '❌ Transaction Rejected', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was reviewed and rejected.${reason ? ` Reason: ${reason}.` : ''}`, 'POINTS', pointsUrl(transactionId));
+    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'REJECT_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags, ...(reason ? { reason } : {}) }, storeId: transaction.storeId });
     res.json({ success: true, message: 'Flagged transaction rejected' });
     return;
   }
@@ -1091,10 +1111,10 @@ const NEEDS_REVIEW = 'NEEDS_REVIEW';
 function parseTransactionFilters(q: Record<string, unknown>):
   | { where: Prisma.PointsTransactionWhereInput; needsReview: boolean }
   | { error: string } {
-  for (const key of ['storeId', 'status', 'category', 'from', 'to']) {
+  for (const key of ['storeId', 'status', 'category', 'from', 'to', 'search', 'customerId', 'grantedById', 'minAmount', 'maxAmount', 'includeTestData']) {
     if (q[key] !== undefined && typeof q[key] !== 'string') return { error: `"${key}" may be given only once` };
   }
-  const { storeId, status, category, from, to } = q as Record<string, string | undefined>;
+  const { storeId, status, category, from, to, search, customerId, grantedById, minAmount, maxAmount, includeTestData } = q as Record<string, string | undefined>;
   const where: Prisma.PointsTransactionWhereInput = {};
   let needsReview = false;
 
@@ -1124,6 +1144,32 @@ function parseTransactionFilters(q: Record<string, unknown>):
     if (toDay)   range.lte = endOfStoreDate(toDay);
     where.createdAt = range;
   }
+
+  if (customerId) where.customerId = customerId;
+  if (grantedById) where.grantedById = grantedById;
+
+  if (search !== undefined && search.trim() !== '') {
+    if (search.length > 100) return { error: '"search" is too long (100 characters at most)' };
+    Object.assign(where, transactionSearchWhere(search));
+  }
+
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    const min = minAmount !== undefined ? Number(minAmount) : undefined;
+    const max = maxAmount !== undefined ? Number(maxAmount) : undefined;
+    if (minAmount !== undefined && !(Number.isFinite(min) && min! >= 0)) return { error: '"minAmount" must be a number of 0 or more' };
+    if (maxAmount !== undefined && !(Number.isFinite(max) && max! >= 0)) return { error: '"maxAmount" must be a number of 0 or more' };
+    if (min !== undefined && max !== undefined && min > max) return { error: '"minAmount" cannot be more than "maxAmount"' };
+    const range: Prisma.FloatFilter = {};
+    if (min !== undefined) range.gte = min;
+    if (max !== undefined) range.lte = max;
+    where.purchaseAmount = range;
+  }
+
+  // Test sales (the seed-test-data route, or a sale flagged by hand) are left out by default, the same as
+  // Analytics, billing and the store health figures — this page's own numbers should match those without
+  // asking. "includeTestData=true" shows both; there is no "test data only" mode, since nothing needs it yet.
+  if (includeTestData !== 'true') where.isTestData = false;
+
   return { where, needsReview };
 }
 
@@ -1199,37 +1245,48 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
     }
   }
 
+  const TAKE = 10000;
   const rows = await prisma.pointsTransaction.findMany({
     where: filters.where,
     orderBy: { createdAt: 'desc' },
-    take: 10000,
+    take: TAKE,
     include: {
       customer:  { select: { name: true, phone: true } },
       grantedBy: { select: { name: true, phone: true } },
       store:     { select: { name: true } },
     },
   });
+  const truncated = rows.length === TAKE;
 
-  const header = 'Date (Central),Time (Central),Store,Customer Name,Customer Phone,Employee Name,Category,Purchase Amount,Points Awarded,Status\n';
+  const header = 'Transaction ID,Date (Central),Time (Central),Store,Customer Name,Customer Phone,Employee Name,Employee Phone,Category,Purchase Amount,Points Awarded,Gallons,Status,Fraud Flags,Receipt Link,Test Data\n';
   const lines = rows.map(t => {
     const d = new Date(t.createdAt);
+    let flags: string[] = [];
+    try { flags = t.fraudFlags ? JSON.parse(t.fraudFlags) : []; } catch { /* unreadable flag text: leave blank rather than fail the whole export */ }
     return [
+      t.id,
       storeDateText(d),
       storeTimeText(d),
       csvText(t.store.name),
       csvText(t.customer.name),
       csvText(t.customer.phone),
       csvText(t.grantedBy?.name),
+      csvText(t.grantedBy?.phone),
       t.category,
       Number(t.purchaseAmount).toFixed(2),
       Number(t.pointsAwarded).toFixed(2),
+      t.isGas && t.gasGallons != null ? Number(t.gasGallons).toFixed(3) : '',
       t.status,
+      csvText(flags.join('; ')),
+      csvText(t.receiptImageUrl),
+      t.isTestData ? 'Yes' : '',
     ].join(',');
   }).join('\n');
+  const notice = truncated ? `\n"Showing the first ${TAKE.toLocaleString()} rows for this filter. Narrow the dates or store to see the rest."\n` : '';
 
   const storePart = storeId ? (rows[0]?.store?.name ?? 'store').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'store' : 'all';
   const filename = `transactions-${storePart}-${storeDateKey()}.csv`;
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(header + lines);
+  res.send(header + lines + notice);
 }
