@@ -121,12 +121,12 @@ const s: Record<string, CSSProperties> = {
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   storeName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   countBadge: {
-    display: 'inline-block', fontSize: 13, fontWeight: 700, color: '#b7791f',
+    display: 'inline-block', fontSize: 13, fontWeight: 700, color: '#92620a',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 10px',
   },
   goBtn: {

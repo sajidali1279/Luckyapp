@@ -99,14 +99,22 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
-export function printLabels(entries: PrintableLabelEntry[]): boolean {
+function grid(entries: PrintableLabelEntry[]): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Print Labels</title>
-  <style>
+  return `<div class="grid">${labels.map(renderLabel).join('')}</div>`;
+}
+
+// One store's name on an otherwise blank sheet of its own, ahead of that store's labels — so a stack of sheets for several stores can
+// be split apart correctly by whoever is handing them out, without opening a bulk print and cutting a single store's labels off
+// mid-sheet. Never mistaken for a label: full page, no die-cut grid, plain text.
+function dividerPage(storeName: string, count: number, first: boolean): string {
+  return `<div class="divider-page${first ? '' : ' divider-break'}">
+    <div class="divider-title">${esc(storeName)}</div>
+    <div class="divider-sub">${count} label${count === 1 ? '' : 's'}</div>
+  </div>`;
+}
+
+const PAGE_STYLE = `
     /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
        (Avery 5160-compatible - e.g. the Walmart "3000 Mailing Address
        Labels" box), 30 labels/sheet, 3 columns x 10 rows, on US Letter.
@@ -314,13 +322,33 @@ export function printLabels(entries: PrintableLabelEntry[]): boolean {
       margin-top: 0.2mm;
       word-break: break-all;
     }
-  </style>
+    /* One store's heading page, ahead of a bulk print's grouped sheets (printLabelsGrouped only) */
+    .divider-page {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      break-after: page;
+      page-break-after: always;
+    }
+    .divider-break { break-before: page; page-break-before: always; }
+    .divider-title { font-size: 28pt; font-weight: 800; color: #1a1a1a; }
+    .divider-sub { margin-top: 6pt; font-size: 13pt; font-weight: 600; color: #667; }
+`;
+
+function openPrintWindow(bodyHtml: string): boolean {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Print Labels</title>
+  <style>${PAGE_STYLE}</style>
   <script>window.onload = () => window.print();</script>
 </head>
 <body>
-  <div class="grid">
-    ${labels.map(renderLabel).join('')}
-  </div>
+  ${bodyHtml}
 </body>
 </html>`;
 
@@ -329,4 +357,26 @@ export function printLabels(entries: PrintableLabelEntry[]): boolean {
   win.document.write(html);
   win.document.close();
   return true;
+}
+
+export function printLabels(entries: PrintableLabelEntry[]): boolean {
+  return openPrintWindow(grid(entries));
+}
+
+export interface PrintableLabelStoreGroup {
+  storeName: string;
+  entries: PrintableLabelEntry[];
+}
+
+// A bulk print across several stores: each store's sheets are preceded by a heading page with its name, so the stack can be split apart
+// correctly afterward. A group with no labels is skipped (nothing to divide).
+export function printLabelsGrouped(groups: PrintableLabelStoreGroup[]): boolean {
+  const real = groups.filter((g) => g.entries.length > 0);
+  const body = real
+    .map((g, i) => {
+      const count = g.entries.reduce((sum, e) => sum + Math.max(1, e.quantity), 0);
+      return dividerPage(g.storeName, count, i === 0) + grid(g.entries);
+    })
+    .join('');
+  return openPrintWindow(body);
 }

@@ -315,6 +315,7 @@ export default function StoreLabelsPanel() {
         title="Print This Many Labels?"
         message={pendingBulkPrint ? `You're about to print ${pendingBulkPrint.length} labels (${pendingBulkPrint.reduce((sum, e) => sum + e.quantity, 0)} total copies) for this store. Continue?` : ''}
         confirmLabel="Print"
+        headingLevel="h2"
         onConfirm={() => { if (pendingBulkPrint) runPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
         onCancel={() => setPendingBulkPrint(null)}
       />
@@ -368,6 +369,7 @@ export default function StoreLabelsPanel() {
         message={removing ? `"${removing.productName}" was never printed at ${stores.find(st => st.id === storeId)?.name ?? 'this store'}. Removing it takes it out of this store's list only. It stays in the catalog and in every other store.` : ''}
         confirmLabel="Remove"
         danger
+        headingLevel="h2"
         busy={removeMutation.isPending}
         onConfirm={() => { if (removing?.storeLabelId) removeMutation.mutate(removing.storeLabelId); }}
         onCancel={() => setRemoving(null)}
@@ -420,7 +422,7 @@ export default function StoreLabelsPanel() {
       )}
 
       <div style={s.pickerRow}>
-        <select style={s.storeSelect} value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); setSearch(''); setCategoryFilter(''); }}>
+        <select style={s.storeSelect} aria-label="Choose a store" value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); setSearch(''); setCategoryFilter(''); }}>
           <option value="">Choose a store…</option>
           {stores.map((st: any) => (
             <option key={st.id} value={st.id}>{st.name}</option>
@@ -435,7 +437,7 @@ export default function StoreLabelsPanel() {
               placeholder="Search by product name or barcode…"
             />
             {(availableCategories.length > 0 || hasUncategorized) && (
-              <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+              <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                 <option value="">All Categories</option>
                 {availableCategories.map(c => (
                   <option key={c} value={c}>{c}</option>
@@ -475,7 +477,8 @@ export default function StoreLabelsPanel() {
             <TableHeader>
               <TableRow>
                 <TableHead style={s.th}>
-                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                  <span className="sr-only">Select</span>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                 </TableHead>
                 {['Product', 'Price', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
@@ -491,6 +494,7 @@ export default function StoreLabelsPanel() {
                         type="checkbox"
                         checked={selectedIds.has(item.storeLabelId)}
                         onChange={() => toggleSelected(item)}
+                        aria-label={`Select ${item.productName}`}
                       />
                     )}
                   </TableCell>
@@ -607,12 +611,12 @@ const s: Record<string, CSSProperties> = {
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   overrideBadge: {
-    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#b7791f',
+    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#92620a',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
   },
   expiryBadge: {
@@ -620,7 +624,7 @@ const s: Record<string, CSSProperties> = {
     background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px',
   },
   noPriceBadge: {
-    fontSize: 12, fontWeight: 700, color: '#b7791f',
+    fontSize: 12, fontWeight: 700, color: '#92620a',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '3px 8px',
   },
   statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },

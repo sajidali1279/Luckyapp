@@ -19,6 +19,10 @@ interface ConfirmModalProps {
   inputLabel?: string;
   inputPlaceholder?: string;
   inputRequired?: boolean;
+  /** h3 (the default) fits every page whose own page title renders before this dialog in the JSX tree. A page whose title lives in a
+   * parent that renders it AFTER a component that can open this dialog (e.g. a tab panel mounted below the page header) needs 'h2'
+   * instead, so a screen reader never meets an h3 with no h1/h2 before it in document order while the dialog is open. */
+  headingLevel?: 'h2' | 'h3';
   onConfirm: (inputValue?: string) => void;
   onCancel: () => void;
 }
@@ -28,6 +32,7 @@ export default function ConfirmModal({
   confirmLabel = 'Confirm', cancelLabel = 'Cancel',
   danger = false, busy = false, confirmDisabled = false,
   withInput = false, inputLabel, inputPlaceholder = '', inputRequired = false,
+  headingLevel = 'h3',
   onConfirm, onCancel,
 }: ConfirmModalProps) {
   const [inputValue, setInputValue] = useState('');
@@ -51,7 +56,9 @@ export default function ConfirmModal({
           <span style={{ fontSize: 28 }}>{danger ? '⚠️' : 'ℹ️'}</span>
         </div>
         <div style={s.body}>
-          <h3 id={titleId} style={s.title}>{title}</h3>
+          {headingLevel === 'h2'
+            ? <h2 id={titleId} style={s.title}>{title}</h2>
+            : <h3 id={titleId} style={s.title}>{title}</h3>}
           <div style={s.message}>{message}</div>
           {withInput && (
             <>

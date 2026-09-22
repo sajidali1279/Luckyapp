@@ -636,7 +636,7 @@ export default function Labels() {
                   placeholder="Search by product name or barcode…"
                 />
                 {(availableCategories.length > 0 || hasUncategorized) && (
-                  <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                  <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                     <option value="">All Categories</option>
                     {availableCategories.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -669,7 +669,8 @@ export default function Labels() {
                   <TableHeader>
                     <TableRow>
                       <TableHead style={s.th}>
-                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                        <span className="sr-only">Select</span>
+                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                       </TableHead>
                       {['Product', 'Category', 'Base Price / Deal', 'Template', 'Updated', 'Actions'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
@@ -683,7 +684,7 @@ export default function Labels() {
                         <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                           <TableCell style={s.td}>
                             {label.priceText != null ? (
-                              <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} />
+                              <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
                             ) : (
                               <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>-</span>
                             )}
@@ -801,9 +802,9 @@ const s: Record<string, CSSProperties> = {
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
-  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
+  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#92620a', marginTop: 2 },
   noPriceBadge: {
-    fontSize: 12.5, fontWeight: 700, color: '#b7791f',
+    fontSize: 12.5, fontWeight: 700, color: '#92620a',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '2px 8px',
   },
   editBtn: {

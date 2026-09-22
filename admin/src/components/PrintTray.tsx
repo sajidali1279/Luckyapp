@@ -221,11 +221,11 @@ const s: Record<string, CSSProperties> = {
 
   badgeRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginTop: 6 },
   overrideBadge: {
-    fontSize: 10.5, fontWeight: 700, color: '#b7791f',
+    fontSize: 10.5, fontWeight: 700, color: '#92620a',
     background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
   },
   statusBadge: { fontSize: 10.5, fontWeight: 700, borderRadius: 6, padding: '2px 6px' },
-  dealBadge: { fontSize: 11.5, fontWeight: 600, color: '#b7791f' },
+  dealBadge: { fontSize: 11.5, fontWeight: 600, color: '#92620a' },
 
   totalCount: { fontWeight: 800, color: PRIMARY, fontSize: 13.5 },
   printBtn: {

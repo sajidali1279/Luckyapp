@@ -2,7 +2,7 @@ import { useState, CSSProperties } from 'react';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { labelsApi } from '../services/api';
-import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
+import { printLabelsGrouped, PrintableLabelEntry } from '../utils/printLabels';
 import { failureMessage } from '../lib/apiError';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Modal from './Modal';
@@ -32,8 +32,9 @@ interface NotMarked {
 
 type Stage = 'review' | 'asking' | 'result';
 
-// A single combined print job across every store in the queue. The physical label itself never prints a store name (it's a generic
-// shelf price tag, see printLabels.ts); one window.open() call with every entry avoids the browser's multi-popup-per-click block.
+// A single combined print job across every store in the queue (one window.open() call avoids the browser's multi-popup-per-click
+// block). Each store's sheets are preceded by a heading page with its name, so the labels themselves (which never carry a store name -
+// a generic shelf price tag, see printLabels.ts) can still be split apart correctly by whoever hands the stack out.
 //
 // Three steps: review the list, print, then say whether the labels really came out of the printer. Nothing is marked as printed until
 // the person says yes, and each label is marked at the price that is on its paper (a price changed meanwhile keeps that label queued).
@@ -48,7 +49,7 @@ export default function BulkPrintWizard({ queue, onClose }: Props) {
   const storeOf = new Map(queue.flatMap(g => g.items.map(i => [i.storeLabelId, g.storeName] as const)));
 
   function handlePrintAll() {
-    const opened = printLabels(allItems.map(i => i.entry));
+    const opened = printLabelsGrouped(queue.map(g => ({ storeName: g.storeName, entries: g.items.map(i => i.entry) })));
     if (!opened) {
       toast.error('Print window was blocked. Allow pop-ups and try again.');
       return;

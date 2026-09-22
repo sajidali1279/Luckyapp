@@ -185,6 +185,7 @@ export default function CoverageView() {
           </div>
         ) : ''}
         confirmLabel={pushing ? `Add to ${missingStores(pushing).length} store${missingStores(pushing).length === 1 ? '' : 's'}` : 'Add'}
+        headingLevel="h2"
         busy={pushMutation.isPending}
         onConfirm={() => { if (pushing) pushMutation.mutate(pushing.id); }}
         onCancel={() => setPushing(null)}
@@ -196,6 +197,7 @@ export default function CoverageView() {
         message={removing ? `"${removing.label.productName}" was never printed at ${removing.storeName}. Removing it takes it out of ${removing.storeName}'s list only. It stays in the catalog and in every other store.` : ''}
         confirmLabel="Remove"
         danger
+        headingLevel="h2"
         busy={removeMutation.isPending}
         onConfirm={() => { if (removing?.entry.storeLabelId) removeMutation.mutate(removing.entry.storeLabelId); }}
         onCancel={() => setRemoving(null)}
@@ -229,7 +231,7 @@ export default function CoverageView() {
             placeholder="Search by product name or barcode…"
           />
           {(availableCategories.length > 0 || hasUncategorized) && (
-            <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+            <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
               <option value="">All Categories</option>
               {availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
               {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
@@ -260,7 +262,8 @@ export default function CoverageView() {
             <TableHeader>
               <TableRow>
                 <TableHead style={s.th}>
-                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} />
+                  <span className="sr-only">Select</span>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                 </TableHead>
                 {['Product', 'Category', 'Base Price', 'Coverage', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
@@ -277,7 +280,7 @@ export default function CoverageView() {
                   <Fragment key={label.id}>
                     <TableRow style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
                       <TableCell style={s.td}>
-                        <input type="checkbox" checked={selectedIds.has(label.id)} onChange={() => toggleSelected(label.id)} />
+                        <input type="checkbox" checked={selectedIds.has(label.id)} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
                       </TableCell>
                       <TableCell style={s.td}>
                         <button style={s.expandBtn} onClick={() => toggleExpanded(label.id)} aria-label={isExpanded ? 'Collapse' : 'Expand'}>
@@ -393,11 +396,11 @@ const s: Record<string, CSSProperties> = {
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: '#888', background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
   },
   td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
-  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#b7791f', marginTop: 2 },
+  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#92620a', marginTop: 2 },
 
   expandBtn: {
     background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED,
@@ -406,7 +409,7 @@ const s: Record<string, CSSProperties> = {
 
   coverageBadge: { fontSize: 12.5, fontWeight: 700, borderRadius: 8, padding: '4px 10px' },
   coverageFull: { color: '#0f5132', background: '#f0fdf4' },
-  coveragePartial: { color: '#b7791f', background: '#fffbeb' },
+  coveragePartial: { color: '#92620a', background: '#fffbeb' },
 
   pushBtn: {
     background: PRIMARY, color: '#fff', border: 'none',

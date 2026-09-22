@@ -15,11 +15,13 @@ export const STATUS_LABEL: Record<LabelPrintStatus, string> = {
 // blue (informational, no action needed yet), amber (the one that actually
 // wants attention — a printed sticker on a shelf is now wrong, or nothing
 // can be printed at all yet), green (done).
+// Text colors, each checked against its own STATUS_BG below and against a plain white row (both appear): all read at 4.5:1 or better,
+// small bold text's AA floor (not_added and needs_reprint/needs_price used to read at 2.9:1 and 3.6:1, both below it).
 export const STATUS_COLOR: Record<LabelPrintStatus, string> = {
-  not_added: '#8892a0',
+  not_added: '#5a6472',
   new: '#2563eb',
-  needs_reprint: '#b7791f',
-  needs_price: '#b7791f',
+  needs_reprint: '#92620a',
+  needs_price: '#92620a',
   printed: '#0f5132',
 };
 

@@ -832,6 +832,8 @@ Navigate to **Labels** in the sidebar. This is a chain-wide catalog of printable
 - **A store's own price ("sale price")** is set from By Store: **Set Price** for one item, or type it right in the print tray for a one-off (the tray price only changes what is on the paper; it does not become the store's price unless you press **Save as this store's price**). An **end date** is optional — the price goes back to the base price by itself at the end of that day (Texas time), and correcting the price (say $1.99 to $1.79) keeps that end date rather than clearing it. A sale that has ended is treated as over the moment you look at it, not just after the next cleanup run.
 - **Coverage's "Push to All"** asks first, names every store it will add to and what each gets, and warns when the item has no price yet. A label added this way and never printed at a store can be taken back out with **Remove** (on that store's row in By Store, or on its chip in Coverage) — this only works before the label has ever printed there; once printed, it stays on record.
 - **Barcodes on the printed sheet are drawn by the admin itself**, not fetched from an outside website, so a store's network cannot block them.
+- **Print for All Stores (Coverage)** is one combined print job, but each store's sheets are preceded by a heading page with that store's name and how many labels follow, so the stack can be split apart correctly afterward.
+- **Every checkbox, list and store picker on this page has a name a screen reader can read**, and the amber "needs attention" text and table headers read at a clear contrast.
 - Every print logs a `PRINT_LABEL` event to the Activity Log, recording who printed, which store, and how many labels.
 
 ---
