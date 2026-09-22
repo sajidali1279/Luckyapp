@@ -379,9 +379,11 @@ If nothing is live, the page says so: customers see no promotion until you post 
 ### 8.2 Posting a Promotion
 
 There are three ways, all ending in the same confirmation box:
-- **Templates:** pick one and it fills the Full Form. Check the wording: a promotion applies to a whole category all day, so a template that mentions a brand, a time of day or a minimum purchase promises more than the system checks.
+- **Templates:** pick one and it fills the Full Form. A promotion applies to a whole category, all day, chain-wide or store-wide, whatever the box says: it cannot single out one brand, a time of day or a minimum purchase, so the built-in templates never promise any of those. If you write your own title or description, keep the same rule in mind: the system cannot check anything the templates themselves do not claim.
 - **Quick Post:** choose a category, a bonus (a chip or your own number) and a length, then **Review & Post**. It goes to all stores.
 - **Full Form:** choose the category first (**Store-wide** means every category), then the bonus (a percentage, optional per-tier percentages, or cents per gallon for Gas and Diesel), the start and end dates, **All Stores** or one store, an optional title, description and image, and the 21+ restriction.
+
+**Per-tier bonuses:** fill in a percentage for only the tiers you want to reward. A tier you leave blank gets **no bonus at all** from that promotion, not the top listed tier's rate (an earlier version paid every tier the highest one entered).
 
 Limits the page and the server both enforce: a bonus can be at most **10%** (cents per gallon at most **40**), because total cashback is capped at 10% of a sale; the end date must be on or after the start date and not already past.
 

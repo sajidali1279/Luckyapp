@@ -31,10 +31,10 @@ const TEMPLATES: Template[] = [
   { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Driver Deal', description: 'Truckers and fleet drivers earn bonus cashback on every diesel fill. Valid all week.', bonusRate: '3', category: 'DIESEL' },
   { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Double Up Week', description: 'Earn 6% cashback on all diesel fills this week. A special thank-you to our big rig regulars.', bonusRate: '3', category: 'DIESEL' },
   // 🌮 Hot Foods
-  { icon: '🌮', group: 'Hot Foods', title: 'Hot Food Happy Hour', description: 'Double points on all hot food purchases between 11am and 2pm, every day this week.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '☕', group: 'Hot Foods', title: 'Morning Commuter Special', description: 'Earn 10% cashback on hot coffee and breakfast items before noon. Start your day rewarded.', bonusRate: '3', category: 'HOT_FOODS' },
+  { icon: '🌮', group: 'Hot Foods', title: 'Hot Food Happy Hour', description: 'Double points on all hot food purchases, all day, every day this week.', bonusRate: '7', category: 'HOT_FOODS' },
+  { icon: '☕', group: 'Hot Foods', title: 'Morning Commuter Special', description: 'Earn 10% cashback on hot coffee and breakfast items. Start your day rewarded.', bonusRate: '3', category: 'HOT_FOODS' },
   { icon: '🌮', group: 'Hot Foods', title: 'Taco Tuesday', description: 'Double cashback on all hot foods every Tuesday. Make Tuesday your Lucky Stop day!', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '🌮', group: 'Hot Foods', title: 'Lunch Rush Deal', description: 'Grab lunch from 11am–1pm and earn bonus credits on all hot food items.', bonusRate: '7', category: 'HOT_FOODS' },
+  { icon: '🌮', group: 'Hot Foods', title: 'Lunch Rush Deal', description: 'Grab lunch and earn bonus credits on all hot food items, all day this week.', bonusRate: '7', category: 'HOT_FOODS' },
   { icon: '❄️', group: 'Hot Foods', title: 'Cold Weather Comfort', description: 'Warm up and earn more. Double points on all hot foods and hot beverages this week.', bonusRate: '7', category: 'HOT_FOODS' },
   // 🛒 Groceries
   { icon: '🛒', group: 'Groceries', title: 'Weekend Grocery Bonus', description: 'Double credits on all grocery purchases Saturday and Sunday. Stock up and save.', bonusRate: '5', category: 'GROCERIES' },
@@ -52,23 +52,23 @@ const TEMPLATES: Template[] = [
   // 💎 Loyalty
   { icon: '💎', group: 'Loyalty', title: 'Thank You Month', description: 'Every purchase earns 2x cashback this month. Our way of saying thank you to our loyal customers.', bonusRate: '5', category: '' },
   { icon: '⚡', group: 'Loyalty', title: 'Flash 24-Hour Sale', description: "Triple points for exactly 24 hours - today only! Don't miss this limited-time Lucky Stop deal.", bonusRate: '10', category: '' },
-  { icon: '💰', group: 'Loyalty', title: 'Big Spender Bonus', description: 'Earn 3x points on any single purchase over $50 this week. Bigger purchase, bigger rewards.', bonusRate: '10', category: '' },
+  { icon: '💰', group: 'Loyalty', title: 'Big Spender Bonus', description: 'Earn 3x points on every purchase this week. The more you shop, the more you earn.', bonusRate: '10', category: '' },
   { icon: '🌟', group: 'Loyalty', title: 'Weekend Double Points', description: 'Every Saturday and Sunday, earn double cashback on all purchases store-wide.', bonusRate: '5', category: '' },
   { icon: '🎁', group: 'Loyalty', title: 'Surprise Bonus Week', description: 'Surprise! All customers earn extra cashback on every purchase this week. No limits, no exclusions.', bonusRate: '5', category: '' },
-  // 🥤 Products
-  { icon: '🥤', group: 'Products', title: 'Coca-Cola Double Points Day', description: 'Buy any Coca-Cola product today and earn double cashback. Classic taste, better rewards at Lucky Stop!', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🥤', group: 'Products', title: 'Coke Variety Pack Bonus', description: 'Pick up a Coke, Diet Coke, Coke Zero, or Sprite and earn 2x points. Mix and match - all Coca-Cola products included.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🔵', group: 'Products', title: 'Pepsi Points Fiesta', description: 'Earn double cashback on all Pepsi products this week. Pepsi, Diet Pepsi, Mountain Dew - all count!', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🔵', group: 'Products', title: 'Pepsi Weekend Rush', description: 'Grab a cold Pepsi this weekend and earn 3x points. The refreshing choice that keeps on rewarding.', bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🟢', group: 'Products', title: 'Monster Energy Madness', description: 'Fuel your day with Monster Energy and earn triple cashback on every can. All Monster flavors included!', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🟢', group: 'Products', title: 'Monster Monday Boost', description: 'Start your week with a Monster Energy and earn 3x points every Monday. Stay charged, stay rewarded.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🐂', group: 'Products', title: 'Red Bull Give You Wings Deal', description: 'Red Bull earns you double cashback all week long. Pick up your favorite flavor and soar with rewards.', bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🐂', group: 'Products', title: 'Red Bull 4-Pack Bonus', description: 'Buy a Red Bull 4-pack and earn 3x points. The more cans, the more credits back in your Lucky Stop wallet.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🟡', group: 'Products', title: "Frito-Lay Snack Attack", description: "Double points on all Frito-Lay snacks this week - Lay's, Doritos, Cheetos, Fritos, and more. Snack big, earn big!", bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🟡', group: 'Products', title: 'Game Day Frito-Lay Bundle', description: "Stock up on Doritos, Lay's, and Tostitos for game day and earn 2x cashback. Snack smarter at Lucky Stop.", bonusRate: '5', category: 'GROCERIES' },
+  // 🥤 Products (category-wide, not brand-specific: the system applies a promotion to a whole category, not one product)
+  { icon: '🥤', group: 'Products', title: 'Cold Drinks Double Points Day', description: 'Earn double cashback on cold drinks today. Grab your favorite and get rewarded at Lucky Stop!', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🥤', group: 'Products', title: 'Soda Six-Pack Bonus', description: 'Pick up a six-pack of soda and earn 2x points. Any brand, any flavor, all count.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🔵', group: 'Products', title: 'Soda Fiesta Week', description: 'Earn double cashback on soda purchases this week. Stock up and save.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '🔵', group: 'Products', title: 'Weekend Soda Rush', description: 'Grab a cold soda this weekend and earn 3x points. The refreshing choice that keeps on rewarding.', bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🟢', group: 'Products', title: 'Energy Drink Madness', description: 'Fuel your day with an energy drink and earn triple cashback. Any brand, every can.', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🟢', group: 'Products', title: 'Energy Drink Monday Boost', description: 'Start your week with an energy drink and earn 3x points every Monday. Stay charged, stay rewarded.', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🐂', group: 'Products', title: 'Energy Drink Week', description: 'Energy drinks earn you double cashback all week long. Pick up your favorite and soar with rewards.', bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🐂', group: 'Products', title: 'Energy Drink Multi-Pack Bonus', description: 'Buy a multi-pack of energy drinks and earn 3x points. The more cans, the more credits back in your Lucky Stop wallet.', bonusRate: '10', category: 'GROCERIES' },
+  { icon: '🟡', group: 'Products', title: 'Snack Attack', description: 'Double points on snack purchases this week. Chips, pretzels, and more. Snack big, earn big!', bonusRate: '7', category: 'GROCERIES' },
+  { icon: '🟡', group: 'Products', title: 'Game Day Snack Bundle', description: 'Stock up on snacks for game day and earn 2x cashback. Snack smarter at Lucky Stop.', bonusRate: '5', category: 'GROCERIES' },
   { icon: '☕', group: 'Products', title: 'Coffee Lover Bonus', description: 'Earn 3x points on all hot coffee purchases this week. Whether it\'s your morning cup or afternoon pick-me-up - you\'re covered.', bonusRate: '10', category: 'HOT_FOODS' },
-  { icon: '☕', group: 'Products', title: 'Morning Coffee Double Points', description: 'First coffee of the day earns double cashback before 10am every day this week. Wake up and earn at Lucky Stop.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Dasani, Aquafina, Smartwater - stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
+  { icon: '☕', group: 'Products', title: 'Coffee Double Points Days', description: 'Coffee earns double cashback every day this week. Wake up and earn at Lucky Stop.', bonusRate: '7', category: 'HOT_FOODS' },
+  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Any brand, stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
   { icon: '💧', group: 'Products', title: 'Water Case Bonus', description: 'Buy a case of water and earn 3x points instantly. Stock up at Lucky Stop and save big on your balance.', bonusRate: '10', category: 'GROCERIES' },
 ];
 
@@ -807,6 +807,7 @@ export default function Offers() {
                           <span style={{ fontSize: 14, color: TEXT_MUTED }}>%</span>
                         </div>
                       ))}
+                      <div style={{ gridColumn: '1 / -1', fontSize: 13, color: TEXT_MUTED }}>A tier left blank gets no bonus from this promotion, not the top tier's rate.</div>
                     </div>
                   )}
                   {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
