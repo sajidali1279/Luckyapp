@@ -107,15 +107,17 @@ export const TIER_LABELS: Record<string, string> = {
   PLATINUM: '👑 Platinum',
 };
 
-// Extracts the promo bonus rate for a given tier from an offer's tierBonusRates map,
-// falling back to the offer's flat bonusRate.
+// Extracts the promo bonus rate for a given tier. A per-tier promotion (tierBonusRates is a real map) pays each tier only the rate
+// typed in for it — a tier the admin left blank gets nothing, not the top tier's rate. A plain flat-rate promotion (tierBonusRates
+// null, one bonusRate for every tier) still falls back to bonusRate, since that IS the whole promotion.
 export function getTierBonusRate(
   offer: { bonusRate: number | null; tierBonusRates: unknown } | null,
   tier: string,
 ): number {
   if (!offer) return 0;
   const map = offer.tierBonusRates as Record<string, number> | null;
-  return map?.[tier] ?? offer.bonusRate ?? 0;
+  if (map) return map[tier] ?? 0;
+  return offer.bonusRate ?? 0;
 }
 
 // Moves a customer UP a tier after points are credited (and says so). A tier never goes down here: after the half-year step down a
