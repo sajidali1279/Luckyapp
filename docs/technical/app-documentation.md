@@ -659,12 +659,16 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | GET | /points/my-benefit-status | JWT | CUSTOMER | Customer tier benefit status |
 | GET | /points/store/:storeId | JWT | STORE_MANAGER+ | Store transaction list |
 | GET | /points/store/:storeId/summary | JWT | STORE_MANAGER+ | Store transaction summary |
-| PATCH | /points/:txId/reject | JWT | STORE_MANAGER+ | Reject a transaction |
+| PATCH | /points/:txId/reject | JWT | STORE_MANAGER+ | Reject a pending transaction; body may include `reason` (optional, 300 chars max) |
+| PATCH | /points/:txId/review | JWT | STORE_MANAGER+ | Approve or reject a flagged transaction; body `{ action: 'APPROVE'\|'REJECT', reason? }` |
 | GET | /points/platform-summary | JWT | SUPER_ADMIN | Platform-wide transaction summary |
-| GET | /points/all | JWT | SUPER_ADMIN | All transactions |
+| GET | /points/all | JWT | SUPER_ADMIN | All transactions, filterable (see below) |
+| GET | /points/export | JWT | SUPER_ADMIN / STORE_MANAGER (own store) | Transactions as CSV, same filters as `/points/all` |
 | POST | /points/receipt-token | API-KEY | Store API | Generate receipt QR token (POS) |
 | GET | /points/receipt-token/:tokenId | JWT | CUSTOMER | Preview receipt QR token |
 | POST | /points/self-grant | JWT | CUSTOMER | Self-grant from receipt QR |
+
+**`GET /points/all` and `GET /points/export` query params** (`parseTransactionFilters` in `points.controller.ts`, `utils/transactionSearch.ts`): `storeId`, `status` (a real `TransactionStatus`, or `NEEDS_REVIEW` for flagged + pending), `category`, `from`/`to` (`YYYY-MM-DD`, store-calendar days), `search` (customer/employee name or phone, or a transaction id, up to 100 chars), `customerId`, `grantedById` (exact match — what the admin's transaction-details side panel uses to show a customer's or employee's other recent sales), `minAmount`/`maxAmount` (on `purchaseAmount`), `includeTestData` (`'true'` to include `isTestData` rows; left out by default, matching Analytics and billing).
 
 **Request body for `POST /points/grant`:**
 ```json

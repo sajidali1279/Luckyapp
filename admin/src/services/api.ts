@@ -153,8 +153,9 @@ export const pointsApi = {
   getStoreSummary: (storeId: string) => api.get(`/points/store/${storeId}/summary`),
   getStoreTransactions: (storeId: string, status?: string, page = 1) =>
     api.get(`/points/store/${storeId}?page=${page}${status ? `&status=${status}` : ''}`),
-  reject: (transactionId: string) => api.patch(`/points/${transactionId}/reject`),
-  reviewFlagged: (transactionId: string, action: 'APPROVE' | 'REJECT') => api.patch(`/points/${transactionId}/review`, { action }),
+  reject: (transactionId: string, reason?: string) => api.patch(`/points/${transactionId}/reject`, reason ? { reason } : {}),
+  reviewFlagged: (transactionId: string, action: 'APPROVE' | 'REJECT', reason?: string) =>
+    api.patch(`/points/${transactionId}/review`, reason ? { action, reason } : { action }),
   getPlatformSummary: () => api.get('/points/platform-summary'),
   getPlatformTrend: (days = 30) => api.get(`/points/platform-trend?days=${days}`),
   getPlatformCompare: (range: string) => api.get(`/points/platform-compare?range=${range}`),

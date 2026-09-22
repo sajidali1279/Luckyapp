@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, addDays, storeDay, storeTime } from '../lib/storeDates';
 import { badgeInk } from './dashboard/shared';
 import { serverMessage } from '../lib/apiError';
+import { useDialog } from '../hooks/useDialog';
 
 const CATEGORIES = [
   { value: 'GAS', label: '⛽ Gas' },
@@ -75,14 +76,54 @@ export default function Transactions() {
 
   const [decision, setDecision] = useState<Decision | null>(null);
 
-  // Filters. Platform admins open on "Needs review": flagged sales first, then sales still waiting for a receipt.
-  // That is exactly what the sidebar badge counts, so the badge and this page always agree.
-  const [selectedStore, setSelectedStore] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>(isSuperAdmin ? 'NEEDS_REVIEW' : 'PENDING');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [from, setFrom] = useState(monthAgoStr);
-  const [to, setTo] = useState(todayStr);
-  const [page, setPage] = useState(1);
+  // Filters live in the URL (so a view — a store's flagged sales, a customer's last month — can be bookmarked
+  // or shared) and are only READ from it once, on the first render; after that, this state is the source of
+  // truth and a dedicated effect below keeps the URL in sync with it, one direction, so typing never fights
+  // with the address bar. Platform admins open on "Needs review": flagged sales first, then sales still
+  // waiting for a receipt. That is exactly what the sidebar badge counts, so the badge and this page agree.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = useRef(searchParams);
+  const paramOr = (key: string, fallback: string) => { const v = initial.current.get(key); return v !== null ? v : fallback; };
+
+  const [selectedStore, setSelectedStore] = useState<string>(() => paramOr('store', ''));
+  const [statusFilter, setStatusFilter] = useState<string>(() => paramOr('status', isSuperAdmin ? 'NEEDS_REVIEW' : 'PENDING'));
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => paramOr('category', ''));
+  const [from, setFrom] = useState<string>(() => paramOr('from', monthAgoStr()));
+  const [to, setTo] = useState<string>(() => paramOr('to', todayStr()));
+  const [searchInput, setSearchInput] = useState<string>(() => paramOr('search', ''));
+  const [search, setSearch] = useState<string>(() => paramOr('search', ''));
+  const [minAmountInput, setMinAmountInput] = useState<string>(() => paramOr('minAmount', ''));
+  const [maxAmountInput, setMaxAmountInput] = useState<string>(() => paramOr('maxAmount', ''));
+  const [minAmount, setMinAmount] = useState<string>(() => paramOr('minAmount', ''));
+  const [maxAmount, setMaxAmount] = useState<string>(() => paramOr('maxAmount', ''));
+  const [includeTestData, setIncludeTestData] = useState<boolean>(() => paramOr('includeTestData', '') === 'true');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState<boolean>(() => !!minAmount || !!maxAmount || includeTestData);
+  const [page, setPage] = useState<number>(() => { const p = Number(paramOr('page', '1')); return Number.isInteger(p) && p >= 1 ? p : 1; });
+
+  // The search and amount boxes commit 300ms after the last keystroke, so a fetch does not fire on every character.
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setMinAmount(minAmountInput); setMaxAmount(maxAmountInput); setPage(1); }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, minAmountInput, maxAmountInput]);
+
+  // Keeps the address bar in sync, one direction only (state -> URL); empty/default values are left out so the
+  // URL stays short and clean.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (selectedStore) next.set('store', selectedStore);
+    if (statusFilter) next.set('status', statusFilter);
+    if (categoryFilter) next.set('category', categoryFilter);
+    if (from) next.set('from', from);
+    if (to) next.set('to', to);
+    if (search) next.set('search', search);
+    if (minAmount) next.set('minAmount', minAmount);
+    if (maxAmount) next.set('maxAmount', maxAmount);
+    if (includeTestData) next.set('includeTestData', 'true');
+    if (page > 1) next.set('page', String(page));
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, page]);
 
   // Changing a filter always goes back to page 1 in the same step, so the old page number is never sent with the new filter.
   const withPageReset = (setter: (v: string) => void) => (v: string) => { setter(v); setPage(1); };
@@ -91,6 +132,7 @@ export default function Transactions() {
   const changeCategory = withPageReset(setCategoryFilter);
   const changeFrom = withPageReset(setFrom);
   const changeTo = withPageReset(setTo);
+  const changeIncludeTestData = (v: boolean) => { setIncludeTestData(v); setPage(1); };
 
   // Pre-fill status filter from notification deep-link (e.g. navigate('/transactions', { state: { statusFilter: 'REJECTED' } }))
   useEffect(() => {
@@ -120,19 +162,24 @@ export default function Transactions() {
   }, [storesData, user, selectedStore, isSuperAdmin]);
 
   const badRange = !!from && !!to && from > to;
+  const badAmounts = !!minAmount && !!maxAmount && Number(minAmount) > Number(maxAmount);
 
   // SuperAdmin: use all-transactions endpoint. Dates travel as plain store dates (YYYY-MM-DD).
   const allTxParams: Record<string, string> = { page: String(page), limit: '25' };
-  if (selectedStore)  allTxParams.storeId   = selectedStore;
-  if (statusFilter)   allTxParams.status    = statusFilter;
-  if (categoryFilter) allTxParams.category  = categoryFilter;
-  if (from)           allTxParams.from      = from;
-  if (to)             allTxParams.to        = to;
+  if (selectedStore)   allTxParams.storeId  = selectedStore;
+  if (statusFilter)    allTxParams.status   = statusFilter;
+  if (categoryFilter)  allTxParams.category = categoryFilter;
+  if (from)             allTxParams.from    = from;
+  if (to)               allTxParams.to      = to;
+  if (search)           allTxParams.search  = search;
+  if (minAmount)        allTxParams.minAmount = minAmount;
+  if (maxAmount)        allTxParams.maxAmount = maxAmount;
+  if (includeTestData)  allTxParams.includeTestData = 'true';
 
   const { data: allTxData, isLoading: allTxLoading, isError: allTxError, refetch: refetchAll } = useQuery({
     queryKey: ['all-transactions', allTxParams],
     queryFn: () => pointsApi.getAllTransactions(allTxParams),
-    enabled: isSuperAdmin && !badRange,
+    enabled: isSuperAdmin && !badRange && !badAmounts,
   });
 
   // StoreManager: use per-store endpoint
@@ -150,15 +197,15 @@ export default function Transactions() {
   }
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => pointsApi.reject(id),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => pointsApi.reject(id, reason),
     onSuccess: () => toast.success('Transaction rejected'),
     onError: (e: any) => toast.error(serverMessage(e, 'Failed to reject')),
     onSettled: refreshLists,
   });
 
   const reviewMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'APPROVE' | 'REJECT' }) =>
-      pointsApi.reviewFlagged(id, action),
+    mutationFn: ({ id, action, reason }: { id: string; action: 'APPROVE' | 'REJECT'; reason?: string }) =>
+      pointsApi.reviewFlagged(id, action, reason),
     onSuccess: (_res, { action }) => {
       toast.success(action === 'APPROVE' ? 'Transaction approved - points credited' : 'Flagged transaction rejected');
     },
@@ -172,14 +219,15 @@ export default function Transactions() {
   // The button only disables after React re-renders, and a fast double click can land before that: this lock is immediate.
   const sending = useRef(false);
 
-  function confirmDecision() {
+  function confirmDecision(reasonInput?: string) {
     if (!decision || sending.current) return;
     sending.current = true;
-    const closeWhenDone = { onSettled: () => { sending.current = false; setDecision(null); } };
+    const reason = reasonInput?.trim() || undefined;
+    const closeWhenDone = { onSettled: () => { sending.current = false; setDecision(null); setPanelId(null); } };
     if (decision.kind === 'REJECT_PENDING') {
-      rejectMutation.mutate(decision.tx.id, closeWhenDone);
+      rejectMutation.mutate({ id: decision.tx.id, reason }, closeWhenDone);
     } else {
-      reviewMutation.mutate({ id: decision.tx.id, action: decision.kind === 'APPROVE_FLAGGED' ? 'APPROVE' : 'REJECT' }, closeWhenDone);
+      reviewMutation.mutate({ id: decision.tx.id, action: decision.kind === 'APPROVE_FLAGGED' ? 'APPROVE' : 'REJECT', reason }, closeWhenDone);
     }
   }
 
@@ -206,8 +254,52 @@ export default function Transactions() {
 
   function resetFilters() {
     setSelectedStore(''); setStatusFilter(''); setCategoryFilter('');
-    setFrom(monthAgoStr()); setTo(todayStr()); setPage(1);
+    setFrom(monthAgoStr()); setTo(todayStr());
+    setSearchInput(''); setSearch(''); setMinAmountInput(''); setMaxAmountInput(''); setMinAmount(''); setMaxAmount('');
+    setIncludeTestData(false); setPage(1);
   }
+
+  // ── Keyboard queue: J/K move a highlighted row, Enter opens its details panel, A approves and R rejects
+  // whichever sale is active (the one open in the panel, or the highlighted one if the panel is closed).
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [panelId, setPanelId] = useState<string | null>(null);
+  useEffect(() => { setFocusedIndex(-1); setPanelId(null); }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, page]);
+  useEffect(() => {
+    // A decided sale leaves the current filtered view once the list refetches: close a panel pointed at it.
+    if (panelId && !transactions.some((t: any) => t.id === panelId)) setPanelId(null);
+  }, [transactions, panelId]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+      if (typing || decision) return; // typing in a box, or a confirm dialog already owns the keyboard
+      const activeTx = panelId ? transactions.find((t: any) => t.id === panelId) : (focusedIndex >= 0 ? transactions[focusedIndex] : null);
+      if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); setFocusedIndex((i) => Math.min(transactions.length - 1, i + 1)); }
+      else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); setFocusedIndex((i) => Math.max(0, i - 1)); }
+      else if (e.key === 'Enter' && !panelId && focusedIndex >= 0 && transactions[focusedIndex]) { e.preventDefault(); setPanelId(transactions[focusedIndex].id); }
+      else if ((e.key === 'a' || e.key === 'A') && activeTx?.status === 'FLAGGED' && activeTx.receiptImageUrl) { e.preventDefault(); setDecision({ kind: 'APPROVE_FLAGGED', tx: activeTx }); }
+      else if ((e.key === 'r' || e.key === 'R') && activeTx?.status === 'FLAGGED') { e.preventDefault(); setDecision({ kind: 'REJECT_FLAGGED', tx: activeTx }); }
+      else if ((e.key === 'r' || e.key === 'R') && activeTx?.status === 'PENDING') { e.preventDefault(); setDecision({ kind: 'REJECT_PENDING', tx: activeTx }); }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [transactions, focusedIndex, decision, panelId]);
+
+  const panelTx = panelId ? transactions.find((t: any) => t.id === panelId) : null;
+  const panelActive = isSuperAdmin && !!panelTx;
+  const { data: panelCustTx } = useQuery({
+    queryKey: ['tx-panel-customer', panelTx?.customer?.id],
+    queryFn: () => pointsApi.getAllTransactions({ customerId: panelTx.customer.id, limit: '5', includeTestData: 'true' }),
+    enabled: panelActive && !!panelTx?.customer?.id,
+  });
+  const { data: panelEmpTx } = useQuery({
+    queryKey: ['tx-panel-employee', panelTx?.grantedBy?.id],
+    queryFn: () => pointsApi.getAllTransactions({ grantedById: panelTx.grantedBy.id, limit: '5', includeTestData: 'true' }),
+    enabled: panelActive && !!panelTx?.grantedBy?.id,
+  });
+  const panelDialogRef = useRef<HTMLDivElement>(null);
+  useDialog(!!panelTx, panelDialogRef, () => setPanelId(null), false);
 
   const [exporting, setExporting] = useState(false);
   async function handleExportCsv() {
@@ -219,6 +311,10 @@ export default function Transactions() {
       if (categoryFilter) params.category = categoryFilter;
       if (from) params.from = from;
       if (to)   params.to   = to;
+      if (search)          params.search  = search;
+      if (minAmount)       params.minAmount = minAmount;
+      if (maxAmount)       params.maxAmount = maxAmount;
+      if (includeTestData) params.includeTestData = 'true';
       const res = await api.get('/points/export', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
@@ -281,6 +377,9 @@ export default function Transactions() {
         confirmLabel={dCopy?.confirmLabel}
         danger={dCopy?.danger}
         busy={busy}
+        withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED'}
+        inputLabel="Reason (optional)"
+        inputPlaceholder="Kept in the activity log; the customer is told it too"
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />
@@ -338,10 +437,43 @@ export default function Transactions() {
             <input aria-label="From date" style={s.dateInput} type="date" value={from} onChange={(e) => changeFrom(e.target.value)} />
             <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
             <input aria-label="To date" style={s.dateInput} type="date" value={to} onChange={(e) => changeTo(e.target.value)} />
-            <button style={s.clearBtn} onClick={resetFilters}>Clear</button>
           </>
         )}
+
+        {isSuperAdmin && (
+          <input
+            aria-label="Search"
+            style={s.searchInput}
+            type="search"
+            placeholder="Search customer, employee, phone or transaction ID"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        )}
+
+        {isSuperAdmin && (
+          <button style={s.clearBtn} onClick={() => setMoreFiltersOpen((v) => !v)} aria-expanded={moreFiltersOpen}>
+            More filters {moreFiltersOpen ? '▴' : '▾'}
+          </button>
+        )}
+        {isSuperAdmin && <button style={s.clearBtn} onClick={resetFilters}>Clear</button>}
       </div>
+
+      {isSuperAdmin && moreFiltersOpen && (
+        <div style={s.moreFiltersBar}>
+          <label style={s.moreFiltersLabel}>
+            Amount
+            <input aria-label="Minimum amount" style={s.amountInput} type="number" min="0" step="0.01" placeholder="Min" value={minAmountInput} onChange={(e) => setMinAmountInput(e.target.value)} />
+          </label>
+          <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
+          <input aria-label="Maximum amount" style={s.amountInput} type="number" min="0" step="0.01" placeholder="Max" value={maxAmountInput} onChange={(e) => setMaxAmountInput(e.target.value)} />
+          {badAmounts && <span style={{ color: '#C1121F', fontSize: 13 }}>The minimum is more than the maximum.</span>}
+          <label style={s.testDataLabel}>
+            <input type="checkbox" checked={includeTestData} onChange={(e) => changeIncludeTestData(e.target.checked)} />
+            Include test data
+          </label>
+        </div>
+      )}
 
       {/* ── Summary bar (SuperAdmin) ── */}
       {isSuperAdmin && summary && !badRange && (
@@ -368,11 +500,19 @@ export default function Transactions() {
         </>
       )}
 
+      {isSuperAdmin && transactions.length > 0 && (
+        <p style={s.keyboardHint}>
+          <kbd style={s.kbd}>J</kbd> <kbd style={s.kbd}>K</kbd> move · <kbd style={s.kbd}>Enter</kbd> details · <kbd style={s.kbd}>A</kbd> approve · <kbd style={s.kbd}>R</kbd> reject a highlighted sale
+        </p>
+      )}
+
       {/* ── Table ── */}
       {!isSuperAdmin && !selectedStore ? (
         <div style={s.empty}>Select a store to view transactions.</div>
       ) : badRange ? (
         <div style={s.empty} role="alert">The start date is after the end date. Choose a start date on or before the end date.</div>
+      ) : badAmounts ? (
+        <div style={s.empty} role="alert">The minimum amount is more than the maximum. Choose a minimum at or below the maximum.</div>
       ) : isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
@@ -406,15 +546,21 @@ export default function Transactions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((tx: any) => {
+              {transactions.map((tx: any, i: number) => {
                 const flags = parseFlags(tx.fraudFlags);
                 const hasReceipt = !!tx.receiptImageUrl;
                 const who = tx.customer?.name || tx.customer?.phone || 'customer';
                 const badgeBg = STATUS_COLORS[tx.status] || '#dee2e6';
                 return (
-                <TableRow key={tx.id} style={{ background: tx.status === 'FLAGGED' ? '#fff5f5' : tx.status === 'REJECTED' ? '#f8f9fa' : undefined }}>
+                <TableRow
+                  key={tx.id}
+                  style={{
+                    background: i === focusedIndex ? '#eef4ff' : tx.status === 'FLAGGED' ? '#fff5f5' : tx.status === 'REJECTED' ? '#f8f9fa' : undefined,
+                    boxShadow: i === focusedIndex ? 'inset 3px 0 0 ' + PRIMARY : undefined,
+                  }}
+                >
                   <TableCell style={s.td}>
-                    <div>{storeDay(tx.createdAt)}</div>
+                    <div>{storeDay(tx.createdAt)}{tx.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
                     <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(tx.createdAt)}</div>
                     <button
                       type="button"
@@ -424,6 +570,14 @@ export default function Transactions() {
                       onClick={() => copyId(tx.id)}
                     >
                       #{tx.id.slice(0, 8)}
+                    </button>
+                    <button
+                      type="button"
+                      style={s.detailsBtn}
+                      aria-label={`Details for ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+                      onClick={() => { setFocusedIndex(i); setPanelId(tx.id); }}
+                    >
+                      Details
                     </button>
                   </TableCell>
                   <TableCell style={s.td}>
@@ -517,6 +671,95 @@ export default function Transactions() {
           />
         </>
       )}
+
+      {panelTx && (
+        <div style={s.panelOverlay} onClick={() => setPanelId(null)}>
+          <div ref={panelDialogRef} role="dialog" aria-modal="true" aria-label="Transaction details" tabIndex={-1} style={s.panel} onClick={(e) => e.stopPropagation()}>
+            <div style={s.panelHeader}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: PRIMARY }}>{panelTx.customer?.name || panelTx.customer?.phone || 'Customer'}</div>
+                <div style={{ fontSize: 13, color: TEXT_MUTED }}>{panelTx.customer?.phone}</div>
+              </div>
+              <button type="button" style={s.panelClose} aria-label="Close details" onClick={() => setPanelId(null)}>✕</button>
+            </div>
+
+            <div style={s.panelBody}>
+              <div style={s.panelSummary}>
+                <span style={{ fontWeight: 700, fontSize: 18 }}>{fmt$(panelTx.purchaseAmount)}</span>
+                <span style={{ ...s.badge, background: STATUS_COLORS[panelTx.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[panelTx.status] || '#dee2e6') }}>
+                  {panelTx.status === 'FLAGGED' ? '🚨 FLAGGED' : panelTx.status}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 4 }}>
+                {panelTx.store?.name || 'the store'} · {panelTx.category?.replace(/_/g, ' ')} · {storeDay(panelTx.createdAt)}, {storeTime(panelTx.createdAt)} (Central)
+              </div>
+              <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>Granted by {panelTx.grantedBy?.name || panelTx.grantedBy?.phone || 'an employee'}</div>
+
+              {parseFlags(panelTx.fraudFlags).length > 0 && (
+                <ul style={s.dialogFlags}>
+                  {parseFlags(panelTx.fraudFlags).map((f: string) => <li key={f}>{FRAUD_FLAG_LABELS[f] || f}</li>)}
+                </ul>
+              )}
+
+              <div style={s.panelSectionTitle}>Receipt</div>
+              {panelTx.receiptImageUrl ? (
+                <a href={panelTx.receiptImageUrl} target="_blank" rel="noopener noreferrer">
+                  <img src={panelTx.receiptImageUrl} alt="Receipt" style={s.panelReceiptImg} />
+                </a>
+              ) : (
+                <div style={s.panelEmptyNote}>{panelTx.status === 'FLAGGED' ? 'Waiting for the cashier to upload a receipt.' : 'No receipt on file.'}</div>
+              )}
+
+              <div style={s.panelSectionTitle}>This customer's last sales</div>
+              {(panelCustTx?.data?.data?.transactions ?? []).length === 0 ? (
+                <div style={s.panelEmptyNote}>Nothing else on file.</div>
+              ) : (
+                (panelCustTx?.data?.data?.transactions ?? []).map((t: any) => (
+                  <div key={t.id} style={{ ...s.panelMiniRow, ...(t.id === panelTx.id ? s.panelMiniRowSelf : {}) }}>
+                    <span>{storeDay(t.createdAt)}</span>
+                    <span>{fmt$(t.purchaseAmount)}</span>
+                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[t.status] || '#dee2e6'), fontSize: 11 }}>{t.status}</span>
+                  </div>
+                ))
+              )}
+
+              <div style={s.panelSectionTitle}>{panelTx.grantedBy?.name || 'This employee'}'s recent grants</div>
+              {(panelEmpTx?.data?.data?.transactions ?? []).length === 0 ? (
+                <div style={s.panelEmptyNote}>Nothing else on file.</div>
+              ) : (
+                (panelEmpTx?.data?.data?.transactions ?? []).map((t: any) => (
+                  <div key={t.id} style={{ ...s.panelMiniRow, ...(t.id === panelTx.id ? s.panelMiniRowSelf : {}) }}>
+                    <span>{storeDay(t.createdAt)}</span>
+                    <span>{fmt$(t.purchaseAmount)}</span>
+                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[t.status] || '#dee2e6'), fontSize: 11 }}>{t.status}</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {panelTx.status === 'FLAGGED' && (
+              <div style={s.panelActions}>
+                <button
+                  style={s.rejectBtn}
+                  aria-label={`Reject ${fmt$(panelTx.purchaseAmount)} sale for ${panelTx.customer?.name || 'customer'}`}
+                  onClick={() => setDecision({ kind: 'REJECT_FLAGGED', tx: panelTx })}
+                >
+                  ✕ Reject
+                </button>
+                <button
+                  style={{ ...s.rejectBtn, ...s.approveBtn, ...(panelTx.receiptImageUrl ? {} : s.approveOff) }}
+                  disabled={!panelTx.receiptImageUrl}
+                  title={panelTx.receiptImageUrl ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+                  aria-label={`Approve ${fmt$(panelTx.purchaseAmount)} sale for ${panelTx.customer?.name || 'customer'}`}
+                  onClick={() => setDecision({ kind: 'APPROVE_FLAGGED', tx: panelTx })}
+                >
+                  ✓ Approve
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -562,4 +805,34 @@ const s: Record<string, React.CSSProperties> = {
   actionNote: { fontSize: 12, color: TEXT_MUTED, maxWidth: 130 },
   dialogFlags: { textAlign: 'left', color: '#9B2335', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
+
+  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, minWidth: 240, flex: '1 1 240px' },
+  moreFiltersBar: {
+    display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
+    marginTop: -8, marginBottom: 16, padding: '12px 16px', background: '#f8f9fa', borderRadius: 12,
+  },
+  moreFiltersLabel: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: TEXT_MUTED, fontWeight: 600 },
+  amountInput: { width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, boxSizing: 'border-box' },
+  testDataLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: TEXT_MUTED, fontWeight: 600, cursor: 'pointer' },
+  testBadge: { marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#92400e', background: '#fef3c7', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 },
+  detailsBtn: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 3, fontSize: 12, color: PRIMARY, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline' },
+
+  keyboardHint: { fontSize: 13, color: TEXT_MUTED, margin: '-6px 0 12px' },
+  kbd: { fontSize: 11, fontWeight: 700, color: TEXT_MUTED, background: '#f4f4f7', border: '1px solid #e5e5ea', borderRadius: 4, padding: '1px 5px' },
+
+  panelOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,20,30,0.4)', zIndex: 1100, display: 'flex', justifyContent: 'flex-end' },
+  panel: {
+    width: '100%', maxWidth: 420, height: '100%', background: '#fff', boxShadow: '-8px 0 32px rgba(0,0,0,0.18)',
+    display: 'flex', flexDirection: 'column', outline: 'none',
+  },
+  panelHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 20px', borderBottom: '1px solid #f0f1f2' },
+  panelClose: { background: 'none', border: 'none', fontSize: 18, color: TEXT_MUTED, cursor: 'pointer', padding: 4, lineHeight: 1 },
+  panelBody: { padding: '16px 20px', overflowY: 'auto', flex: 1 },
+  panelSummary: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 },
+  panelSectionTitle: { fontSize: 12.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, margin: '18px 0 8px' },
+  panelReceiptImg: { width: '100%', borderRadius: 10, border: '1px solid #f0f1f2', display: 'block' },
+  panelEmptyNote: { fontSize: 13.5, color: TEXT_MUTED },
+  panelMiniRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 13.5, borderBottom: '1px solid #f7f7f8' },
+  panelMiniRowSelf: { background: '#eef4ff', borderRadius: 6, padding: '6px 8px', margin: '0 -8px' },
+  panelActions: { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #f0f1f2' },
 };

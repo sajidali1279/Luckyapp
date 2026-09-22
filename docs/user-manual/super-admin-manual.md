@@ -342,12 +342,12 @@ A dispute tapped from a push notification scrolls to and highlights the matching
 
 ### 7.1 All Transactions
 
-Navigate to **Transactions** in the sidebar. This shows all qualifying transactions across all stores with filters for:
-- **Date range.**
-- **Store.**
-- **Status** (Approved, Pending, Flagged, Rejected).
-- **Employee** (who processed the transaction).
-- **Customer.**
+Navigate to **Transactions** in the sidebar. It opens on **Needs review**: every flagged sale, then every sale still waiting for a receipt, the same set the sidebar badge counts. Filters:
+- **Store, Status, Category, date range.**
+- **Search** - a customer's or employee's name or phone, or a transaction's own ID. Useful for "a customer says they got no points" without paging through the list.
+- **More filters** - an amount range, and a checkbox to include test data (left out by default, so the numbers here always match Analytics and billing).
+
+Every filter is kept in the page's address, so a particular view (a store's flagged sales, one customer's history) can be bookmarked or sent to someone else.
 
 ### 7.2 Transaction Statuses
 
@@ -360,22 +360,27 @@ Navigate to **Transactions** in the sidebar. This shows all qualifying transacti
 
 ### 7.3 Reviewing a Transaction
 
-Click on any transaction to view:
-- Full transaction details (amount, category, points, cashback rate, employee).
-- Receipt image.
-- Transaction timestamp.
-- Customer information.
+Click **Details** on any row, or highlight it and press **Enter** (see 7.6), to open a panel with:
+- The full sale (amount, category, points, store, employee, time).
+- The receipt photo, if one has been uploaded.
+- That customer's last sales, and that employee's recent grants - so a decision rarely needs another window.
+
+A flagged sale can be approved or rejected from inside the panel as well as from its row. Approve is disabled, and says why, until a receipt has been uploaded.
 
 ### 7.4 Flagged Transactions
 
-If a transaction is flagged (e.g., unusually high amount, suspicious pattern), it may appear in the Flagged Transactions view. Store managers can review and reject flagged transactions. As Super Admin, you have visibility into all flagged transactions across stores.
+If a transaction is flagged (e.g., unusually high amount, suspicious pattern), it appears in the Needs Review view. Approve and Reject both ask first, in a box naming the customer, the amount and why it was flagged, and stay locked while sending so a double click cannot act twice. Rejecting (flagged or pending) offers an optional reason: it is kept in the Activity Log and told to the customer. As Super Admin, you have visibility into every flagged transaction across every store; approving one over $800 needs a Super Admin specifically.
 
 ### 7.5 Exporting Transactions
 
-The Transactions page provides export functionality. To export:
-1. Apply filters for the desired date range and store(s).
-2. Click **Export to CSV**.
-3. The file will download to your browser.
+To export:
+1. Apply filters for the desired date range, store(s) and any other filter.
+2. Click **Export CSV**.
+3. The file downloads with dates and times on the store's own calendar, plus the transaction ID, gallons for a fuel sale, the fraud flags, a receipt link, and a test-data column.
+
+### 7.6 Keyboard Shortcuts
+
+With the list on screen (and no text box focused): **J** and **K** move a highlight up and down the rows, **Enter** opens the highlighted row's details panel, **A** approves and **R** rejects whichever sale is open in the panel or highlighted. A hint line above the table names these.
 
 ---
 
