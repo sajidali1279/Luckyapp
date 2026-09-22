@@ -11,7 +11,9 @@ import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 import { computeTodayHoursLabel } from '../utils/storeHours';
-import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText } from '../utils/storeTime';
+import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeHour, storeWeekday } from '../utils/storeTime';
+import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
+import { csvText } from '../utils/csv';
 import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { isRealPeriod, isFinishedPeriod, lastFinishedPeriod, periodBounds, periodFirstDay, periodLastDay, periodLabel, periodsSince, storePeriodOf } from '../utils/billingPeriods';
@@ -1870,7 +1872,12 @@ export async function getDevRevenue(req: AuthRequest, res: Response) {
 
 // DevAdmin: date-ranged analytics for charts
 export async function getAnalytics(req: AuthRequest, res: Response) {
-  const { from, to } = req.query as { from?: string; to?: string };
+  const { from, to, range, storeId } = req.query as { from?: string; to?: string; range?: string; storeId?: string };
+
+  if (range !== undefined && !COMPARE_RANGES.includes(range as CompareRange)) {
+    res.status(400).json({ success: false, error: `"range" must be ${COMPARE_RANGES.join(', ')}` });
+    return;
+  }
 
   // Dates are store days written YYYY-MM-DD. Anything else, or a day that does not exist (2026-02-31), is a clear 400
   // (before: text became a 500 and an impossible date quietly rolled into the next month).
@@ -1886,8 +1893,18 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     return;
   }
 
-  const fromDate = from ? startOfStoreDate(from.slice(0, 10)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const toDate   = to   ? endOfStoreDate(to.slice(0, 10))     : new Date();
+  // "range" gives one shared definition of "the last 30 days" (etc.) with the Dashboard, on the store
+  // calendar, and asks for the previous stretch of the same length in the same query so the two can be
+  // compared. It wins over from/to when both are sent.
+  const compareWindow = range ? compareWindows(range as CompareRange) : null;
+  const fromDate = compareWindow ? compareWindow.previous.start : from ? startOfStoreDate(from.slice(0, 10)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate   = compareWindow ? compareWindow.current.end     : to   ? endOfStoreDate(to.slice(0, 10))     : new Date();
+  // What the charts and totals below actually display: the current period only. With a plain from/to this is
+  // the same as fromDate/toDate; with "range" the fetch above also reaches back into the previous period so
+  // compareWindows has real rows to summarize, and everything past this point is filtered back down to just
+  // the current period.
+  const displayFrom = compareWindow ? compareWindow.current.start : fromDate;
+  const displayTo   = compareWindow ? compareWindow.current.end   : toDate;
 
   if (fromDate >= toDate) {
     res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
@@ -1898,10 +1915,10 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     return;
   }
 
-  const [transactions, redemptions] = await Promise.all([
+  const [allTransactions, allRedemptions] = await Promise.all([
     prisma.pointsTransaction.findMany({
       // Seeded test sales never count toward revenue (the leaderboard already left them out)
-      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate } },
+      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
       select: {
         createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
         store: { select: { id: true, name: true } },
@@ -1909,11 +1926,17 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
       orderBy: { createdAt: 'asc' },
     }),
     prisma.creditRedemption.findMany({
-      where: { createdAt: { gte: fromDate, lte: toDate } },
+      where: { createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
       select: { createdAt: true, amount: true, devCut: true, store: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'asc' },
     }),
   ]);
+
+  // Compared against the previous period, before narrowing down to just the current one below.
+  const compare = compareWindow ? summarize(compareWindow, allTransactions) : null;
+
+  const transactions = compareWindow ? allTransactions.filter((t) => t.createdAt >= displayFrom && t.createdAt <= displayTo) : allTransactions;
+  const redemptions  = compareWindow ? allRedemptions.filter((r) => r.createdAt  >= displayFrom && r.createdAt  <= displayTo) : allRedemptions;
 
   // Daily grouping: combine transactions + redemptions by date
   const byDate: Record<string, {
@@ -1937,8 +1960,10 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     byDate[date].devCut = parseFloat((byDate[date].devCut + Number(r.devCut)).toFixed(2));
   }
 
-  // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it.
-  for (let key = storeDateKey(fromDate), last = storeDateKey(toDate), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
+  // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it. Only the
+  // displayed (current) period — in "range" mode fromDate/toDate also cover the earlier comparison period,
+  // which has no chart of its own here.
+  for (let key = storeDateKey(displayFrom), last = storeDateKey(displayTo), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
     if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
   }
 
@@ -1972,6 +1997,26 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     byCategory[cat].pointsAwarded = parseFloat((byCategory[cat].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
   }
 
+  // When busy times are: hour of day and day of week, store-local. Both start at zero for every slot so a
+  // quiet hour or day reads as quiet, not missing.
+  const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, transactions: 0, purchaseVolume: 0 }));
+  const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const byWeekday = WEEKDAY_NAMES.map((label, weekday) => ({ weekday, label, transactions: 0, purchaseVolume: 0 }));
+  for (const tx of transactions) {
+    const h = byHour[storeHour(tx.createdAt)];
+    h.transactions++; h.purchaseVolume = parseFloat((h.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+    const w = byWeekday[storeWeekday(tx.createdAt)];
+    w.transactions++; w.purchaseVolume = parseFloat((w.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+  }
+
+  // A promotion that started inside the visible window, so a spike on the chart can be tied to it. Ended and
+  // chain-wide-vs-one-store offers are both included; only the start date matters here.
+  const promotionMarkers = (await prisma.offer.findMany({
+    where: { startDate: { gte: displayFrom, lte: displayTo }, ...(storeId ? { OR: [{ storeId }, { storeId: null }] } : {}) },
+    select: { id: true, title: true, startDate: true, storeId: true },
+    orderBy: { startDate: 'asc' },
+  })).map((o) => ({ id: o.id, title: o.title, date: storeDateKey(o.startDate), storeId: o.storeId }));
+
   const totals = {
     transactions: transactions.length,
     purchaseVolume: transactions.reduce((s, t) => parseFloat((s + Number(t.purchaseAmount)).toFixed(2)), 0),
@@ -1990,10 +2035,84 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
       daily: Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)),
       byStore: Object.values(byStore).sort((a, b) => b.purchaseVolume - a.purchaseVolume),
       byCategory: Object.values(byCategory).sort((a, b) => b.purchaseVolume - a.purchaseVolume),
+      byHour,
+      byWeekday,
+      promotionMarkers,
       totals,
-      range: { from: fromDate.toISOString(), to: toDate.toISOString() },
+      compare,
+      range: { from: displayFrom.toISOString(), to: displayTo.toISOString() },
     },
   });
+}
+
+// DevAdmin: the same filters as getAnalytics, as a CSV (daily rows; a store/category summary underneath)
+export async function exportAnalyticsCsv(req: AuthRequest, res: Response) {
+  const { from, to, range, storeId } = req.query as { from?: string; to?: string; range?: string; storeId?: string };
+
+  if (range !== undefined && !COMPARE_RANGES.includes(range as CompareRange)) {
+    res.status(400).json({ success: false, error: `"range" must be ${COMPARE_RANGES.join(', ')}` });
+    return;
+  }
+  const realDay = (k: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k);
+    if (!m) return false;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+  };
+  if ((from && !realDay(from.slice(0, 10))) || (to && !realDay(to.slice(0, 10)))) {
+    res.status(400).json({ success: false, error: '"from" and "to" must be real dates written YYYY-MM-DD' });
+    return;
+  }
+
+  const w = range ? compareWindows(range as CompareRange) : null;
+  const fromDate = w ? w.current.start : from ? startOfStoreDate(from.slice(0, 10)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate   = w ? w.current.end   : to   ? endOfStoreDate(to.slice(0, 10))     : new Date();
+  if (fromDate >= toDate) {
+    res.status(400).json({ success: false, error: '"from" date must be before "to" date' });
+    return;
+  }
+
+  const transactions = await prisma.pointsTransaction.findMany({
+    where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, category: true, devCut: true, store: { select: { name: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const byDate: Record<string, { date: string; transactions: number; purchaseVolume: number; pointsAwarded: number; devCut: number }> = {};
+  for (const t of transactions) {
+    const d = storeDateKey(t.createdAt);
+    if (!byDate[d]) byDate[d] = { date: d, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, devCut: 0 };
+    byDate[d].transactions++;
+    byDate[d].purchaseVolume = parseFloat((byDate[d].purchaseVolume + Number(t.purchaseAmount)).toFixed(2));
+    byDate[d].pointsAwarded  = parseFloat((byDate[d].pointsAwarded  + Number(t.pointsAwarded)).toFixed(2));
+    byDate[d].devCut         = parseFloat((byDate[d].devCut         + Number(t.devCut)).toFixed(2));
+  }
+  for (let key = storeDateKey(fromDate), last = storeDateKey(toDate), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
+    if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, devCut: 0 };
+  }
+
+  const header = 'Date (Central),Transactions,Purchase Volume,Cashback Awarded,Platform Fee\n';
+  const lines = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).map((d) =>
+    [d.date, d.transactions, d.purchaseVolume.toFixed(2), d.pointsAwarded.toFixed(2), d.devCut.toFixed(2)].join(',')
+  ).join('\n');
+
+  const byStore: Record<string, { name: string; transactions: number; purchaseVolume: number; pointsAwarded: number }> = {};
+  for (const t of transactions) {
+    const name = t.store.name;
+    if (!byStore[name]) byStore[name] = { name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0 };
+    byStore[name].transactions++;
+    byStore[name].purchaseVolume = parseFloat((byStore[name].purchaseVolume + Number(t.purchaseAmount)).toFixed(2));
+    byStore[name].pointsAwarded  = parseFloat((byStore[name].pointsAwarded  + Number(t.pointsAwarded)).toFixed(2));
+  }
+  const storeHeader = '\nStore,Transactions,Purchase Volume,Cashback Awarded\n';
+  const storeLines = Object.values(byStore).sort((a, b) => b.purchaseVolume - a.purchaseVolume)
+    .map((s) => [csvText(s.name), s.transactions, s.purchaseVolume.toFixed(2), s.pointsAwarded.toFixed(2)].join(',')).join('\n');
+
+  const filename = `analytics-${storeDateKey(fromDate)}-to-${storeDateKey(toDate)}.csv`;
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(header + lines + storeHeader + storeLines);
 }
 
 // ─── Gas Prices ───────────────────────────────────────────────────────────────

@@ -10,8 +10,8 @@ import {
   storeMonthStart, storePrevMonthStart,
 } from './storeTime';
 
-export type CompareRange = 'today' | '7d' | '30d' | 'month';
-export const COMPARE_RANGES: CompareRange[] = ['today', '7d', '30d', 'month'];
+export type CompareRange = 'today' | '7d' | '30d' | '90d' | 'month';
+export const COMPARE_RANGES: CompareRange[] = ['today', '7d', '30d', '90d', 'month'];
 
 export interface Row { createdAt: Date; purchaseAmount: number; pointsAwarded: number }
 export interface Totals { transactions: number; purchaseVolume: number; cashbackIssued: number; avgTicket: number }
@@ -45,8 +45,8 @@ export function compareWindows(range: CompareRange, now: Date = new Date()): Com
     };
   }
 
-  if (range === '7d' || range === '30d') {
-    const n = range === '7d' ? 7 : 30;
+  if (range === '7d' || range === '30d' || range === '90d') {
+    const n = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const csKey = addStoreDays(todayKey, -(n - 1));
     const psKey = addStoreDays(csKey, -n);
     const cs = startOfStoreDate(csKey);

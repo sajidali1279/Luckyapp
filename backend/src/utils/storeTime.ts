@@ -82,6 +82,12 @@ export function storeHour(at: Date): number {
   return partsAt(at).h;
 }
 
+/** Store-local day of the week (0 = Sunday .. 6 = Saturday) of the instant, on the store's own calendar date. */
+export function storeWeekday(at: Date): number {
+  const p = partsAt(at);
+  return new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay();
+}
+
 /** Store-local day of the month (1-31) of the instant. */
 export function storeDayOfMonth(at: Date): number {
   return partsAt(at).d;
