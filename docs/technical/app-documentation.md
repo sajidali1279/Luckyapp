@@ -1314,10 +1314,9 @@ Rules kept by every billing route: a bill or extra charge is never deleted or ov
 
 ### 17.4 Revenue Analytics
 
-`GET /billing/revenue` returns aggregate revenue metrics for the developer:
-- Total dev cut this month/quarter/year.
-- Per-store revenue breakdown.
-- Transaction volume trends.
+`GET /billing/revenue?period=all|month|last-month` (Dev Admin) returns, for approved non-test sales in that range: `totalTransactions`, `totalPurchaseVolume`, `totalPointsAwarded`, `totalDevCut` (the `PointsTransaction.devCut` accrued at grant time — an accrual, independent of whether it has been billed or paid), `totalRedemptions`/`totalRedeemedAmount` (credit redemptions), and `totalSubscriptionRevenue`.
+
+`totalSubscriptionRevenue` is the `subscriptionFee` component read out of each **paid, non-`CUSTOM`** `BillingRecord.notes` in range (a `findMany` + reduce, not a column sum) — B2 fix. It used to be `billingRecord.aggregate({ _sum: { amount: true }, where: { isPaid: true } })`, which summed every paid record regardless of type, so a one-off `CUSTOM` charge (unrelated to any subscription) inflated the figure the same as real recurring subscription income.
 
 ### 17.5 Manual Charges and Chain-Wide Billing
 

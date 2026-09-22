@@ -52,7 +52,7 @@ export default function SuperAdminBilling() {
       <div style={s.cards}>
         <div style={{ ...s.card, borderTop: '3px solid #E63946' }}>
           <div style={s.cardLabel}>Outstanding Balance</div>
-          <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#E63946' : '#2DC653' }}>{fmt$(totalOutstanding)}</div>
+          <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#b91c1c' : '#0f5132' }}>{fmt$(totalOutstanding)}</div>
           <div style={s.cardSub}>{invoices.filter((i) => !i.isPaid).length} unpaid invoice{invoices.filter((i) => !i.isPaid).length !== 1 ? 's' : ''}</div>
         </div>
         <div style={{ ...s.card, borderTop: '3px solid #1D3557' }}>
@@ -106,10 +106,19 @@ export default function SuperAdminBilling() {
                     <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
                     <TableCell style={s.td}>{fmt$(inv.totalCashback)}</TableCell>
                     <TableCell style={s.td}>
-                      <strong style={{ color: '#E63946', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
-                      {inv.totalCashback > 0 && (
-                        <div style={s.sub}>{fmtPct(inv.totalDevCut / inv.totalCashback)} of cashback</div>
-                      )}
+                      <strong style={{ color: '#b91c1c', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
+                      {(() => {
+                        // Only the real platform-fee rows are the numerator: an extra (CUSTOM) charge has no relationship to
+                        // cashback at all, so it used to inflate this to "60.0% of cashback" instead of HQ's actual ~10% deal.
+                        const extraRows = inv.stores.filter((r: any) => r.billingType === 'CUSTOM');
+                        const usageDevCut = inv.totalDevCut - extraRows.reduce((s: number, r: any) => s + r.amount, 0);
+                        return (
+                          <>
+                            {inv.totalCashback > 0 && <div style={s.sub}>{fmtPct(usageDevCut / inv.totalCashback)} of cashback</div>}
+                            {extraRows.length > 0 && <div style={s.sub}>+ {fmt$(extraRows.reduce((s: number, r: any) => s + r.amount, 0))} ({extraRows.length} extra charge{extraRows.length === 1 ? '' : 's'})</div>}
+                          </>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell style={s.td}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
@@ -142,7 +151,7 @@ export default function SuperAdminBilling() {
                           <Table style={{ ...s.table, margin: 0 }}>
                             <TableHeader>
                               <TableRow>
-                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Dev Cut', 'Status'].map((h) => (
+                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Amount', 'Status'].map((h) => (
                                   <TableHead key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</TableHead>
                                 ))}
                               </TableRow>
@@ -157,7 +166,10 @@ export default function SuperAdminBilling() {
                                     <TableCell style={s.td}>{row.description || ' - '}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
-                                    <TableCell style={{ ...s.td, color: '#E63946', fontWeight: 700 }}>{fmt$(row.amount)}</TableCell>
+                                    <TableCell style={{ ...s.td, color: row.billingType === 'CUSTOM' ? '#7c3aed' : '#b91c1c', fontWeight: 700 }}>
+                                      {fmt$(row.amount)}
+                                      {row.billingType === 'CUSTOM' && <div style={s.sub}>extra charge</div>}
+                                    </TableCell>
                                     <TableCell style={s.td}>
                                       <span style={row.isPaid ? s.badgePaid : s.badgeUnpaid}>{row.isPaid ? '✓ Paid' : 'Unpaid'}</span>
                                       {row.isPaid && row.paidAt && <div style={s.sub}>{new Date(row.paidAt).toLocaleDateString()}</div>}
@@ -180,8 +192,8 @@ export default function SuperAdminBilling() {
         {invoices.length > 0 && (
           <div style={s.footer}>
             {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
-            Outstanding: <strong style={{ color: '#E63946' }}>{fmt$(totalOutstanding)}</strong> &nbsp;·&nbsp;
-            All-time paid: <strong style={{ color: '#2DC653' }}>{fmt$(totalPaid)}</strong>
+            Outstanding: <strong style={{ color: '#b91c1c' }}>{fmt$(totalOutstanding)}</strong> &nbsp;·&nbsp;
+            All-time paid: <strong style={{ color: '#0f5132' }}>{fmt$(totalPaid)}</strong>
           </div>
         )}
       </div>

@@ -74,7 +74,9 @@ export default function Billing() {
 
   // ── Monthly billing state ────────────────────────────────────────────────────
   const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('unpaid');
+  // Opens showing the WHOLE month (every record, paid and unpaid) with a badge per row, not a filtered slice that silently
+  // undercounted a month's real total (a month with $40 paid, $60 unpaid and a $500 charge used to read "$560.00" here).
+  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   const { data: billingPendingData } = useQuery({
     queryKey: ['billing-pending-count'],
@@ -88,7 +90,7 @@ export default function Billing() {
     queryFn: () => billingApi.getAllStores(),
   });
 
-  const { data: revenueData } = useQuery({
+  const { data: revenueData, isError: revenueError, refetch: refetchRevenue } = useQuery({
     queryKey: ['revenue'],
     queryFn: () => billingApi.getRevenue(),
   });
@@ -268,14 +270,21 @@ export default function Billing() {
   const devCutRate = devCutData?.data?.data?.rate ?? 0.02;
   const monthlyRecords: any[] = monthlyData?.data?.data?.records || [];
 
-  // Consolidate per-store records into one invoice per period
+  // Consolidate per-store records into one invoice per period. Extra (CUSTOM) charges are kept apart from the real platform fee:
+  // an extra charge's "amount" is whatever was typed in, unrelated to cashback, and used to be summed straight into totalDevCut —
+  // a $500 charge next to a real $60 fee read as "93.3% of cashback" instead of the actual ~10% rate.
   const consolidatedInvoices = Object.values(
     monthlyRecords.reduce((acc: Record<string, any>, r: any) => {
       if (!acc[r.period]) {
-        acc[r.period] = { period: r.period, totalDevCut: 0, totalCashback: 0, totalTxns: 0, totalVolume: 0, stores: [], isPaid: true, paidAt: null };
+        // totalDevCut: the regular bill amount (subscription fee + platform fee, whatever a non-CUSTOM record's own amount is).
+        // totalDevCutOnly: just the platform-fee component of that, for the honest "X% of cashback" caption underneath.
+        // totalExtraCharges: CUSTOM records, kept apart because they carry no relationship to cashback at all.
+        acc[r.period] = { period: r.period, totalDevCut: 0, totalDevCutOnly: 0, totalExtraCharges: 0, totalCashback: 0, totalTxns: 0, totalVolume: 0, stores: [], isPaid: true, paidAt: null };
       }
-      const n: BillNotes | null = r.notes;
-      acc[r.period].totalDevCut    += r.amount;
+      const isExtra = r.billingType === 'CUSTOM';
+      const n: BillNotes | null = isExtra ? null : r.notes;
+      if (isExtra) acc[r.period].totalExtraCharges += r.amount;
+      else { acc[r.period].totalDevCut += r.amount; acc[r.period].totalDevCutOnly += (n?.devCutEarned ?? 0); }
       acc[r.period].totalCashback  += n?.cashbackIssued ?? 0;
       acc[r.period].totalTxns      += n?.txCount ?? 0;
       acc[r.period].totalVolume    += n?.purchaseVolume ?? 0;
@@ -432,9 +441,13 @@ export default function Billing() {
       <h1 style={s.title}>💳 Billing</h1>
 
       {/* ── Revenue summary ─────────────────────────────────────────────────── */}
-      {revenue && (
+      {revenueError ? (
         <div style={s.revenueBox}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, color: PRIMARY }}>Platform Revenue Summary</h3>
+          <ErrorState message="Could not load the revenue summary." onRetry={refetchRevenue} />
+        </div>
+      ) : revenue && (
+        <div style={s.revenueBox}>
+          <h2 style={{ margin: '0 0 16px', fontSize: 16, color: PRIMARY }}>Platform Revenue Summary</h2>
           <div style={s.revenueGrid}>
             <RevenueCard label="Dev Cut Earned" value={fmt$(revenue.totalDevCut ?? 0)} highlight />
             <RevenueCard label="Subscription Revenue" value={fmt$(revenue.totalSubscriptionRevenue ?? 0)} highlight />
@@ -494,7 +507,7 @@ export default function Billing() {
                       </TableCell>
                       <TableCell style={s.td}>
                         {isEditing ? (
-                          <select value={billingForm.billingType} onChange={(e) => setBillingForm((f) => ({ ...f, billingType: e.target.value }))} style={s.select}>
+                          <select aria-label={`Billing plan for ${store.name}`} value={billingForm.billingType} onChange={(e) => setBillingForm((f) => ({ ...f, billingType: e.target.value }))} style={s.select}>
                             {BILLING_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
                           </select>
                         ) : <span style={s.badge}>{store.billingType.replace(/_/g, ' ')}</span>}
@@ -567,15 +580,15 @@ export default function Billing() {
           <div style={s.monthlyToolbar}>
             <div style={s.monthlyFilters}>
               <div>
-                <label style={s.filterLabel}>Period</label>
+                <label style={s.filterLabel} htmlFor="billing-period-filter">Period</label>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="month" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} style={s.input} />
+                  <input id="billing-period-filter" type="month" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} style={s.input} />
                   {selectedPeriod && <button style={s.cancelBtn} onClick={() => setSelectedPeriod('')} title="Show all periods">✕ All</button>}
                 </div>
               </div>
               <div>
-                <label style={s.filterLabel}>Status</label>
-                <select value={filterPaid} onChange={(e) => setFilterPaid(e.target.value as any)} style={s.select}>
+                <label style={s.filterLabel} htmlFor="billing-status-filter">Status</label>
+                <select id="billing-status-filter" value={filterPaid} onChange={(e) => setFilterPaid(e.target.value as any)} style={s.select}>
                   <option value="all">All</option>
                   <option value="unpaid">Unpaid</option>
                   <option value="paid">Paid</option>
@@ -628,7 +641,7 @@ export default function Billing() {
                   <TableHead style={s.th}>Stores</TableHead>
                   <TableHead style={s.th}>Transactions</TableHead>
                   <TableHead style={s.th}>Purchase Volume</TableHead>
-                  <TableHead style={s.th}>Dev Cut</TableHead>
+                  <TableHead style={s.th}>Amount Billed</TableHead>
                   <TableHead style={s.th}>Status</TableHead>
                   <TableHead style={s.th}>Action</TableHead>
                 </TableRow>
@@ -649,10 +662,14 @@ export default function Billing() {
                         <TableCell style={s.td}>{inv.totalTxns}</TableCell>
                         <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
                         <TableCell style={s.td}>
-                          <strong style={{ color: '#E63946', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
+                          <strong style={{ color: '#b91c1c', fontSize: 16 }}>{fmt$(inv.totalDevCut + inv.totalExtraCharges)}</strong>
                           {inv.totalCashback > 0 && (
-                            <div style={s.cityLabel}>{fmtPct(devCutRate)} of {fmt$(inv.totalCashback)} cashback</div>
+                            <div style={s.cityLabel}>platform fee {fmtPct(inv.totalDevCutOnly / inv.totalCashback)} of {fmt$(inv.totalCashback)} cashback</div>
                           )}
+                          {inv.totalExtraCharges > 0 && (() => {
+                            const n = inv.stores.filter((r: any) => r.billingType === 'CUSTOM').length;
+                            return <div style={s.cityLabel}>+ {fmt$(inv.totalExtraCharges)} ({n} extra charge{n === 1 ? '' : 's'})</div>;
+                          })()}
                         </TableCell>
                         <TableCell style={s.td}>
                           <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>
@@ -684,7 +701,7 @@ export default function Billing() {
                               <Table style={{ width: '100%', fontSize: 15 }}>
                                 <TableHeader>
                                   <TableRow>
-                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Dev Cut', 'Status', 'Actions'].map((h) => (
+                                    {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Amount', 'Status', 'Actions'].map((h) => (
                                       <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: TEXT_MUTED, fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
                                     ))}
                                   </TableRow>
@@ -714,7 +731,10 @@ export default function Billing() {
                                           <TableCell style={s.catTd}>{n?.txCount ?? 0}</TableCell>
                                           <TableCell style={s.catTd}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
                                           <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : ' - '}</TableCell>
-                                          <TableCell style={{ ...s.catTd, color: '#2DC653', fontWeight: 700 }}>{fmt$(r.amount)}</TableCell>
+                                          <TableCell style={{ ...s.catTd, color: isManual ? '#7c3aed' : '#0f5132', fontWeight: 700 }}>
+                                            {fmt$(r.amount)}
+                                            {isManual && <div style={s.cityLabel}>extra charge</div>}
+                                          </TableCell>
                                           <TableCell style={s.catTd}>
                                             <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
                                             {r.isPaid && (
@@ -750,7 +770,7 @@ export default function Billing() {
                                     <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{inv.totalTxns}</TableCell>
                                     <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
-                                    <TableCell style={{ ...s.catTd, color: '#E63946', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
+                                    <TableCell style={{ ...s.catTd, color: '#b91c1c', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                   </TableRow>
@@ -773,8 +793,8 @@ export default function Billing() {
               <span>
                 <strong>{consolidatedInvoices.length}</strong> invoices ·{' '}
                 Total Dev Cut: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
-                Collected: <strong style={{ color: '#2DC653' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
-                Outstanding: <strong style={{ color: '#E63946' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
+                Collected: <strong style={{ color: '#0f5132' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
+                Outstanding: <strong style={{ color: '#b91c1c' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
               </span>
             </div>
           )}
@@ -845,8 +865,8 @@ export default function Billing() {
 
               <div style={ec.formGrid}>
                 <div style={ec.formField}>
-                  <label style={s.fieldLabel}>Store *</label>
-                  <select style={s.input} value={manualForm.storeId}
+                  <label style={s.fieldLabel} htmlFor="manual-charge-store">Store *</label>
+                  <select id="manual-charge-store" style={{ ...s.input, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const }} value={manualForm.storeId}
                     onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}>
                     <option value="">- Select a store -</option>
                     <option value="chain">🔗 All Stores (Chain-wide) - one charge to SuperAdmin</option>
@@ -854,21 +874,21 @@ export default function Billing() {
                   </select>
                 </div>
                 <div style={ec.formField}>
-                  <label style={s.fieldLabel}>Billing Period *</label>
-                  <input style={s.input} type="month" value={manualForm.period}
+                  <label style={s.fieldLabel} htmlFor="manual-charge-period">Billing Period *</label>
+                  <input id="manual-charge-period" style={s.input} type="month" value={manualForm.period}
                     onChange={e => { setManualForm(f => ({ ...f, period: e.target.value })); setManualDone(null); }} />
                 </div>
               </div>
 
-              <label style={s.fieldLabel}>Service Description *</label>
-              <input style={s.input} placeholder="e.g. Custom feature development, Printer setup fee…"
+              <label style={s.fieldLabel} htmlFor="manual-charge-description">Service Description *</label>
+              <input id="manual-charge-description" style={s.input} placeholder="e.g. Custom feature development, Printer setup fee…"
                 value={manualForm.description}
                 onChange={e => { setManualForm(f => ({ ...f, description: e.target.value })); setManualDone(null); }} />
 
-              <label style={s.fieldLabel}>Amount (USD) *</label>
+              <label style={s.fieldLabel} htmlFor="manual-charge-amount">Amount (USD) *</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: TEXT_MUTED, fontWeight: 700 }}>$</span>
-                <input style={{ ...s.input, paddingLeft: 26 }} placeholder="0.00" type="number" min="0.01" step="0.01"
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: TEXT_MUTED, fontWeight: 700 }} aria-hidden="true">$</span>
+                <input id="manual-charge-amount" style={{ ...s.input, paddingLeft: 26 }} placeholder="0.00" type="number" min="0.01" step="0.01"
                   value={manualForm.amount}
                   onChange={e => { setManualForm(f => ({ ...f, amount: e.target.value })); setManualDone(null); }} />
               </div>
@@ -901,15 +921,15 @@ export default function Billing() {
 
               {/* Filters */}
               <div style={ec.filterRow}>
-                <select style={ec.filterSelect} value={ecStoreFilter} onChange={e => setEcStoreFilter(e.target.value)}>
+                <select style={ec.filterSelect} aria-label="Filter extra charges by store" value={ecStoreFilter} onChange={e => setEcStoreFilter(e.target.value)}>
                   <option value="">All Stores</option>
                   {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
                 </select>
-                <input style={ec.filterSelect} type="month" value={ecPeriodFilter}
+                <input style={ec.filterSelect} type="month" aria-label="Filter extra charges by billing period" value={ecPeriodFilter}
                   onChange={e => setEcPeriodFilter(e.target.value)}
                   title="Filter by billing period" />
                 {ecPeriodFilter && <button style={s.cancelBtn} onClick={() => setEcPeriodFilter('')}>✕ Period</button>}
-                <select style={ec.filterSelect} value={ecPaidFilter} onChange={e => setEcPaidFilter(e.target.value as any)}>
+                <select style={ec.filterSelect} aria-label="Filter extra charges by status" value={ecPaidFilter} onChange={e => setEcPaidFilter(e.target.value as any)}>
                   <option value="">All Status</option>
                   <option value="unpaid">Unpaid</option>
                   <option value="paid">Paid</option>
@@ -964,7 +984,7 @@ export default function Billing() {
                                   value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                               </div>
                             ) : (
-                              <strong style={{ color: '#E63946', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
+                              <strong style={{ color: '#b91c1c', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
                             )}
                           </TableCell>
                           <TableCell style={s.td}>{charge.period}</TableCell>
@@ -996,7 +1016,7 @@ export default function Billing() {
                                       Mark Paid
                                     </button>
                                     <button
-                                      style={{ ...s.cancelBtn, borderColor: '#fca5a5', color: '#dc2626' }}
+                                      style={{ ...s.cancelBtn, borderColor: '#fca5a5', color: '#b91c1c' }}
                                       disabled={deleteCharge.isPending}
                                       onClick={() => setConfirmDeleteChargeId(charge.id)}>
                                       Delete
@@ -1015,15 +1035,15 @@ export default function Billing() {
                       <TableCell colSpan={2} style={{ ...s.catTd, fontWeight: 800 }}>
                         Total ({extraCharges.length} charge{extraCharges.length !== 1 ? 's' : ''})
                       </TableCell>
-                      <TableCell style={{ ...s.catTd, fontWeight: 800, color: '#E63946' }}>
+                      <TableCell style={{ ...s.catTd, fontWeight: 800, color: '#b91c1c' }}>
                         {fmt$(extraCharges.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))}
                       </TableCell>
                       <TableCell colSpan={3} style={s.catTd}>
-                        <span style={{ color: '#2DC653', fontWeight: 700 }}>
+                        <span style={{ color: '#0f5132', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} collected
                         </span>
                         {' · '}
-                        <span style={{ color: '#f59e0b', fontWeight: 700 }}>
+                        <span style={{ color: '#92400e', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => !c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} outstanding
                         </span>
                       </TableCell>
@@ -1114,7 +1134,7 @@ function RevenueCard({ label, value, highlight }: { label: string; value: any; h
   return (
     <div style={s.revCard}>
       <div style={s.revLabel}>{label}</div>
-      <div style={{ ...s.revValue, color: highlight ? '#2DC653' : PRIMARY }}>{value}</div>
+      <div style={{ ...s.revValue, color: highlight ? '#0f5132' : PRIMARY }}>{value}</div>
     </div>
   );
 }
@@ -1123,7 +1143,7 @@ function StatItem({ label, value, highlight }: { label: string; value: any; high
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#2DC653' : PRIMARY }}>{value}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#0f5132' : PRIMARY }}>{value}</div>
     </div>
   );
 }
@@ -1152,7 +1172,7 @@ const s: Record<string, React.CSSProperties> = {
   revValue: { fontSize: 22, fontWeight: 800, margin: '4px 0 0' },
 
   // Tabs
-  tabs: { display: 'flex', gap: 6, marginBottom: 20 },
+  tabs: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 },
   tab: { padding: '9px 18px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
   tabActive: { padding: '9px 18px', background: PRIMARY, border: '1px solid #1D3557', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff' },
   tabBadge: {
@@ -1173,8 +1193,8 @@ const s: Record<string, React.CSSProperties> = {
 
   expandBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: PRIMARY, padding: 0 },
   cityLabel: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
-  badge: { background: '#E63946', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
-  paidBadge: { background: '#2DC653', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  badge: { background: '#b91c1c', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
+  paidBadge: { background: '#0f5132', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   unpaidBadge: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   na: { color: TEXT_MUTED, fontSize: 15 },
   input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 14 },
@@ -1182,7 +1202,7 @@ const s: Record<string, React.CSSProperties> = {
   volValue: { fontWeight: 700, color: PRIMARY },
   volSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
   editBtn: { padding: '6px 14px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
-  saveBtn: { padding: '6px 14px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
+  saveBtn: { padding: '6px 14px', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
   cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
   suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#495057', lineHeight: 1.5 },
 
@@ -1190,11 +1210,11 @@ const s: Record<string, React.CSSProperties> = {
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
   filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginBottom: 4 },
-  generateBtn: { padding: '10px 20px', background: '#E63946', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  generateBtn: { padding: '10px 20px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   rowBtn: { padding: '4px 10px', background: '#fff', color: PRIMARY, border: '1px solid #cbd5e1', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
-  exportBtn: { padding: '10px 20px', background: '#2DC653', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  sendBtn: { padding: '10px 20px', background: '#F4A261', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  exportBtn: { padding: '10px 20px', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  sendBtn: { padding: '10px 20px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   monthlyHint: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
@@ -1209,16 +1229,16 @@ const s: Record<string, React.CSSProperties> = {
   catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 15, color: '#495057' },
 
   // Settings
-  settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 20 },
+  settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))', gap: 20 },
   settingsCard: { background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   settingsCardTitle: { fontSize: 18, fontWeight: 800, color: PRIMARY, margin: '0 0 8px' },
   settingsCardDesc: { fontSize: 14, color: TEXT_MUTED, margin: '0 0 20px', lineHeight: 1.6 },
 
   rateExampleBox: { background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', marginBottom: 20 },
   rateExampleTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  rateExampleRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', marginBottom: 6 },
+  rateExampleRow: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4, fontSize: 15, color: '#495057', marginBottom: 6 },
 
-  rateDisplayRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  rateDisplayRow: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' },
   rateValue: { fontSize: 36, fontWeight: 800, color: PRIMARY },
   rateSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
@@ -1242,11 +1262,11 @@ const ec: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
 
-  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 },
+  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 4 },
   formField: {},
 
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '10px 12px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb' },
-  filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff' },
+  filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff', width: '100%', maxWidth: 220, boxSizing: 'border-box' as const },
 
   successBox: { marginTop: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#166534' },
   emptyBox: { padding: '32px 0', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },

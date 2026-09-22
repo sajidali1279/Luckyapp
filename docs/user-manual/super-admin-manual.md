@@ -602,6 +602,9 @@ Navigate to **Billing** in the sidebar (Super Admin view, labeled "My Billing").
 - Monthly invoice summaries, expandable to a per-charge Store Breakdown table.
 - Payment status for each period, and for each individual charge within it. A period with some charges paid and others still outstanding shows a partial "N/M Paid" badge rather than a flat Unpaid label, and the Outstanding Balance / Total Paid totals reflect each charge's own status.
 - The reason typed in for any manual/custom charge, shown in a Reason column. A manual charge billed to the chain as a whole (not tied to one store) appears as "All Stores (Chain-wide)".
+- The percent shown under the **Platform Fee** total ("10.0% of cashback") is now the real rate on the real platform fee only. A month that also carries an extra (one-off) charge shows that charge on its own line ("+ $500.00 (1 extra charge)") instead of folding it into the fee and the percent (a $500 charge next to a real $60 fee used to read "93.3% of cashback").
+- An **invoice's lines now add up to its total**: each category or transaction line shows only the platform fee for that slice, never the fee plus the customer's cashback (the store never pays Lucky Stop the cashback; it pays the customer, through the app). The combined (all-stores) invoice keeps Platform Fee, Extra Charges and Cashback Covered as three separate cards and columns, for the same reason.
+- The **billing period and issue date print on the store calendar** (Central time), wherever you open the admin, and the issue date is fixed to the day the bill was made, not "today."
 
 ### 15.2 What Super Admins Can See
 

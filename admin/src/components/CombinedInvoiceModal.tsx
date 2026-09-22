@@ -1,21 +1,33 @@
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from './ui/table';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { BillNotes, fmt$ } from '../utils/billingFormat';
+import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 
 export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void }) {
   const invNum = `INV-${inv.period.replace('-', '')}-ALL`;
   const stores: any[] = [...inv.stores].sort((a: any, b: any) => (a.store?.name ?? '').localeCompare(b.store?.name ?? ''));
+  const isExtra = (r: any) => r.billingType === 'CUSTOM';
 
-  // Aggregate totals from BillNotes
+  // Aggregate totals from BillNotes. Dev Cut and Extra Charges are kept apart: a manual charge has no BillNotes (its "amount" is
+  // whatever was typed in, unrelated to cashback), and used to be added straight into "Dev Cut" here, inflating it by the charge.
   const totalSubscription = stores.reduce((sum: number, r: any) => sum + ((r.notes as BillNotes | null)?.subscriptionFee ?? 0), 0);
-  const totalDevCut = stores.reduce((sum: number, r: any) => sum + ((r.notes as BillNotes | null)?.devCutEarned ?? r.amount), 0);
+  const totalDevCut = stores.filter((r) => !isExtra(r)).reduce((sum: number, r: any) => sum + ((r.notes as BillNotes | null)?.devCutEarned ?? 0), 0);
+  const totalExtraCharges = stores.filter(isExtra).reduce((sum: number, r: any) => sum + r.amount, 0);
   const totalCashback = stores.reduce((sum: number, r: any) => sum + ((r.notes as BillNotes | null)?.customerCashback ?? 0), 0);
   const grandTotal = stores.reduce((sum: number, r: any) => sum + ((r.notes as BillNotes | null)?.totalAmountOwed ?? r.amount), 0);
 
-  const issueDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  // The issue date is fixed to when the EARLIEST bill in this period was made (each store's own record.createdAt never changes),
+  // not "now" — a combined invoice printed twice on different days should not print two different issue dates. Period days are
+  // read on the store calendar (Central time), not the browser's own zone, so this always says "Sep 1 – Sep 30" for September
+  // regardless of where the admin is opened.
+  const CHICAGO = 'America/Chicago';
+  const earliestCreated = stores.reduce((min: number, r: any) => {
+    const t = new Date(r.createdAt ?? Date.now()).getTime();
+    return isNaN(t) ? min : Math.min(min, t);
+  }, Date.now());
+  const issueDate = new Date(earliestCreated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: CHICAGO });
   const [year, month] = inv.period.split('-');
-  const periodStart = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const periodEnd = new Date(Number(year), Number(month), 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const periodStart = new Date(Date.UTC(Number(year), Number(month) - 1, 1, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  const periodEnd = new Date(Date.UTC(Number(year), Number(month), 0, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
   function handlePrint() {
     const el = document.getElementById('combined-invoice-print-area');
@@ -106,8 +118,19 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Total Transactions</div><div style={inv2.summaryValue}>{inv.totalTxns}</div></div>
             <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Purchase Volume</div><div style={inv2.summaryValue}>{fmt$(inv.totalVolume)}</div></div>
             <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Subscription Fees</div><div style={inv2.summaryValue}>{fmt$(totalSubscription)}</div></div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Dev Cut</div><div style={{ ...inv2.summaryValue, color: '#E63946' }}>{fmt$(totalDevCut)}</div></div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback Covered</div><div style={{ ...inv2.summaryValue, color: '#F4A261' }}>{fmt$(totalCashback)}</div></div>
+            <div style={inv2.summaryCard}>
+              <div style={inv2.summaryLabel}>Platform Fee</div>
+              <div style={{ ...inv2.summaryValue, color: '#b91c1c' }}>{fmt$(totalDevCut)}</div>
+              {totalCashback > 0 && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>{fmtPct(totalDevCut / totalCashback)} of cashback</div>}
+            </div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback Covered</div><div style={{ ...inv2.summaryValue, color: '#c2410c' }}>{fmt$(totalCashback)}</div></div>
+            {totalExtraCharges > 0 && (
+              <div style={inv2.summaryCard}>
+                <div style={inv2.summaryLabel}>Extra Charges</div>
+                <div style={{ ...inv2.summaryValue, color: '#7c3aed' }}>{fmt$(totalExtraCharges)}</div>
+                <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>not part of the platform fee</div>
+              </div>
+            )}
           </div>
 
           {/* Per-store line items */}
@@ -118,7 +141,8 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Txns</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Volume</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Subscription</TableHead>
-                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Dev Cut</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Platform Fee</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Extra Charge</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Cashback</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Total Owed</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'center' as const }}>Status</TableHead>
@@ -139,8 +163,9 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#E63946', fontWeight: 600 }}>{fmt$(n?.devCutEarned ?? r.amount)}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#F4A261' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#b91c1c', fontWeight: 600 }}>{isManual ? <span style={{ color: TEXT_MUTED }}> - </span> : fmt$(n?.devCutEarned ?? 0)}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#7c3aed', fontWeight: 600 }}>{isManual ? fmt$(r.amount) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#c2410c' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'center' }}>
                       <span style={r.isPaid ? inv2.paidTag : inv2.unpaidTag}>{r.isPaid ? '✓' : '⏳'}</span>
@@ -155,13 +180,14 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{inv.totalTxns}</TableCell>
                 <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
                 <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(totalSubscription)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#E63946' }}>{fmt$(totalDevCut)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#F4A261' }}>{fmt$(totalCashback)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#b91c1c' }}>{fmt$(totalDevCut)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#7c3aed' }}>{fmt$(totalExtraCharges)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#c2410c' }}>{fmt$(totalCashback)}</TableCell>
                 <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(grandTotal)}</TableCell>
                 <TableCell style={inv2.tableTd}></TableCell>
               </TableRow>
               <TableRow style={{ background: PRIMARY }}>
-                <TableCell colSpan={6} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
+                <TableCell colSpan={7} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
                   Grand Total - All Stores
                 </TableCell>
                 <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 900, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>

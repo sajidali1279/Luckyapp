@@ -2,6 +2,17 @@ import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableC
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 
+// periodStart/periodEnd are plain 'YYYY-MM-DD' calendar dates (the server's periodFirstDay/periodLastDay) — the date already IS the
+// store's day, with no time or zone attached, so it must be read literally (noon-UTC anchor, shown in UTC — the same technique
+// admin/src/lib/storeDates.ts uses for a bare day key). Building it with `new Date(str)` and then asking for it back in Central time
+// double-converts a date that was never a timestamp, landing a day early ("Aug 31" for what is really September's first day) for
+// anyone not already on the UTC-minus-0 line. The issue date (record.createdAt) IS a real timestamp, so it alone reads on the
+// STORE's calendar (Central time) — never the browser's own zone, wherever the admin is opened.
+const CHICAGO = 'America/Chicago';
+const dayKeyShort = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
+const dayKeyShortYear = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); };
+const longDayYear = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: CHICAGO });
+
 export default function InvoiceModal({ record, period, onClose }: { record: any; period: string; onClose: () => void }) {
   // Manual/CUSTOM charges store `{ description }` in notes, not the full
   // compound BillNotes breakdown — keep both shapes straight so we don't
@@ -14,12 +25,12 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
   const invNum = `INV-${period.replace('-', '')}-${record.id.slice(-6).toUpperCase()}`;
 
   const periodLabel = n?.periodStart && n?.periodEnd
-    ? `${new Date(n.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(n.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    ? `${dayKeyShort(n.periodStart)} – ${dayKeyShortYear(n.periodEnd)}`
     : period;
 
-  const issueDate = n?.periodEnd
-    ? new Date(n.periodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  // Fixed the moment the bill was made (record.createdAt never changes), not derived from "now" or from periodEnd — so re-opening
+  // the same invoice next month always shows the same issue date.
+  const issueDate = longDayYear(new Date(record.createdAt ?? n?.periodEnd ?? Date.now()));
 
   function handlePrint() {
     const el = document.getElementById('invoice-print-area');
@@ -133,31 +144,34 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(record.amount)}</TableCell>
                 </TableRow>
               )}
+              {/* The Amount column is only ever what the store owes (the platform fee): the customer's cashback is real money too, but the
+                  store pays it out to the customer directly through the app, not to Lucky Stop, so it is shown for context (why the fee
+                  is what it is) and never added into a line's own Amount — the lines have to add to the total below them. */}
               {n && n.categories && n.categories.length > 0
                 ? n.categories.map((cat) => (
                     <TableRow key={cat.category}>
                       <TableCell style={inv.tableTd}>
-                        <div style={{ fontWeight: 600 }}>Transaction Fee - {cat.category}</div>
+                        <div style={{ fontWeight: 600 }}>Platform Fee - {cat.category}</div>
                         <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
-                          Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)})
+                          {fmtPct(n.effectiveDevCutRate)} of the {fmt$(cat.cashbackIssued)} cashback this category issued
                         </div>
                       </TableCell>
                       <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{cat.txCount}</TableCell>
                       <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(cat.purchaseVolume)}</TableCell>
-                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(cat.devCutEarned + cat.cashbackIssued)}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(cat.devCutEarned)}</TableCell>
                     </TableRow>
                   ))
                 : n && (
                     <TableRow>
                       <TableCell style={inv.tableTd}>
-                        <div style={{ fontWeight: 600 }}>Transaction Processing Fee</div>
+                        <div style={{ fontWeight: 600 }}>Platform Fee</div>
                         <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
-                          Dev cut ({fmtPct(n.effectiveDevCutRate)}) + customer cashback ({fmtPct(n.effectiveCashbackRate)}) × {n.txCount} transactions
+                          {fmtPct(n.effectiveDevCutRate)} of the {fmt$(n.cashbackIssued)} cashback issued, across {n.txCount} transactions
                         </div>
                       </TableCell>
                       <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{n.txCount}</TableCell>
                       <TableCell style={{ ...inv.tableTd, textAlign: 'right' }}>{fmt$(n.purchaseVolume)}</TableCell>
-                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(n.transactionFee + n.cashbackFee)}</TableCell>
+                      <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 600 }}>{fmt$(n.devCutEarned)}</TableCell>
                     </TableRow>
                   )
               }
@@ -187,8 +201,8 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
               <div style={inv.noteRow}><span>Purchase Volume</span><strong>{fmt$(n.purchaseVolume)}</strong></div>
               <div style={inv.noteRow}><span>Total Transactions Processed</span><strong>{n.txCount}</strong></div>
               {n.subscriptionFee > 0 && <div style={inv.noteRow}><span>Subscription Fee</span><strong>{fmt$(n.subscriptionFee)}</strong></div>}
-              <div style={inv.noteRow}><span>Dev Cut ({fmtPct(n.effectiveDevCutRate)} of volume)</span><strong style={{ color: '#E63946' }}>{fmt$(n.devCutEarned)}</strong></div>
-              <div style={inv.noteRow}><span>Customer Cashback Covered ({fmtPct(n.effectiveCashbackRate)} of volume)</span><strong style={{ color: '#F4A261' }}>{fmt$(n.customerCashback)}</strong></div>
+              <div style={inv.noteRow}><span>Platform Fee ({fmtPct(n.effectiveDevCutRate)} of the cashback issued, not of the purchase volume)</span><strong style={{ color: '#b91c1c' }}>{fmt$(n.devCutEarned)}</strong></div>
+              <div style={inv.noteRow}><span>Customer Cashback Covered ({fmtPct(n.effectiveCashbackRate)} of volume)</span><strong style={{ color: '#c2410c' }}>{fmt$(n.customerCashback)}</strong></div>
               <div style={{ ...inv.noteRow, fontWeight: 800, fontSize: 14, borderBottom: 'none', paddingTop: 8 }}>
                 <span>Total Amount Owed</span><strong style={{ color: PRIMARY }}>{fmt$(n.totalAmountOwed)}</strong>
               </div>
