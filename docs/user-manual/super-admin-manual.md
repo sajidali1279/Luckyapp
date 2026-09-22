@@ -514,7 +514,7 @@ The **Sent recently** list under the form shows the last sends: when, who, the a
 
 **Gas price changes.** When a store's gas or diesel price really changes, the store's staff are told to update the pumps, and the **customers of that store** (an approved purchase there in the last 6 months) get one line in the app's inbox. A new price replaces the unread old line for that store, so nothing piles up. Saving a price that is already saved sends nothing.
 
-**The alert list** (the Notifications page) now includes **sales held for review**, one card each (red for $500 or more), and its cards keep their identity from day to day: the rejected-sales card only comes back as new when its number changes. The invoice alert counts stores, not bills.
+**The alert list** (the Notifications page) now includes **sales held for review**, one card each (red for $500 or more), and its cards keep their identity from day to day: the rejected-sales card only comes back as new when its number changes. The invoice alert counts stores, not bills. Disputes (missing-points reports) and Requests (store alerts, product and stock requests) each have their own tab now, instead of only showing inside **All**.
 
 **Email to HQ.** So that nothing waits for someone to open the admin, an email goes to every active Super Admin and Dev Admin who has an email address on their account (and to the address in the server's ADMIN_EMAIL setting) when:
 - a sale of **$500 or more** is held for review,

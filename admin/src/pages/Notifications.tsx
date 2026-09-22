@@ -53,7 +53,7 @@ const SCHEDULE_ICON: Record<string, string> = {
   FILL_IN:  '🔄',
 };
 
-type TabKey = 'all' | 'billing' | 'transactions' | 'scheduling' | 'customers' | 'send';
+type TabKey = 'all' | 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests' | 'send';
 
 // Fallback category derivation for old API responses without the category field
 function deriveCategory(n: any): Notification['category'] {
@@ -193,11 +193,14 @@ export default function Notifications() {
     downloadInvoicePdf(invoice);
   }
 
-  // ── Tab definitions ──
+  // ── Tab definitions ── "Disputes" (missing-points reports) and "Requests" (store alerts, product and stock requests) used to share
+  // the "All" tab only, with no way to look at just one; both feeds exist for Dev Admin and Super Admin alike.
   const SUPER_TABS: { key: TabKey; label: string }[] = [
     { key: 'all',          label: 'All' },
     { key: 'billing',      label: '💳 Billing' },
     { key: 'transactions', label: '🧾 Transactions' },
+    { key: 'disputes',     label: '⚠️ Disputes' },
+    { key: 'requests',     label: '📋 Requests' },
     { key: 'scheduling',   label: '📅 Scheduling' },
     { key: 'send',         label: '📢 Send Push' },
   ];
@@ -206,6 +209,8 @@ export default function Notifications() {
     { key: 'billing',      label: '💰 Revenue' },
     { key: 'transactions', label: '📊 Transactions' },
     { key: 'customers',    label: '🏪 Customers' },
+    { key: 'disputes',     label: '⚠️ Disputes' },
+    { key: 'requests',     label: '📋 Requests' },
     { key: 'scheduling',   label: '📅 Scheduling' },
     { key: 'send',         label: '📢 Send Push' },
   ];
@@ -217,6 +222,8 @@ export default function Notifications() {
     transactions: { icon: '🧾', title: 'No transaction alerts',   text: 'No rejected transactions to review - everything looks good.' },
     scheduling:   { icon: '📅', title: 'No pending requests',     text: 'No pending time-off or fill-in requests from employees.' },
     customers:    { icon: '🏪', title: 'No customer alerts',      text: 'Customer activity updates will appear here.' },
+    disputes:     { icon: '⚠️', title: 'No missing-points reports', text: 'Customer disputes will appear here when someone reports missing points.' },
+    requests:     { icon: '📋', title: 'No open requests',        text: 'Store alerts, product requests and stock requests will appear here.' },
     send:         { icon: '',   title: '',                         text: '' },
   };
 
@@ -280,7 +287,7 @@ export default function Notifications() {
                 style={{
                   ...s.filterPill,
                   ...(severityFilter === sv ? s.filterPillActive : {}),
-                  ...(sv === 'error'   ? { borderColor: '#ef4444', ...(severityFilter === sv ? { background: '#ef4444', color: '#fff' } : { color: '#ef4444' }) } : {}),
+                  ...(sv === 'error'   ? { borderColor: '#ef4444', ...(severityFilter === sv ? { background: '#b91c1c', color: '#fff' } : { color: '#b91c1c' }) } : {}),
                   ...(sv === 'warning' ? { borderColor: '#f59e0b', ...(severityFilter === sv ? { background: '#f59e0b', color: '#fff' } : { color: '#b45309' }) } : {}),
                   ...(sv === 'info'    ? { borderColor: '#3b82f6', ...(severityFilter === sv ? { background: '#3b82f6', color: '#fff' } : { color: '#1d4ed8' }) } : {}),
                   ...(sv === 'success' ? { borderColor: '#10b981', ...(severityFilter === sv ? { background: '#10b981', color: '#fff' } : { color: '#065f46' }) } : {}),
@@ -420,7 +427,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+    display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
     marginBottom: 24,
   },
   title: {
@@ -429,7 +436,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
   badge: {
-    background: '#ef4444', color: '#fff',
+    background: '#b91c1c', color: '#fff',
     borderRadius: 12, padding: '2px 9px', fontSize: 14, fontWeight: 700,
   },
   headerActions: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
@@ -444,7 +451,7 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   tabRow: {
-    display: 'flex', gap: 4, alignItems: 'flex-end',
+    display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'flex-end',
     marginBottom: 24, borderBottom: '2px solid #e5e7eb', paddingBottom: 0,
   },
   tab: {
@@ -458,7 +465,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#e5e7eb', color: TEXT_MUTED,
     borderRadius: 10, padding: '1px 7px', fontSize: 12, fontWeight: 700,
   },
-  tabBadgeActive: { background: '#ef4444', color: '#fff' },
+  tabBadgeActive: { background: '#b91c1c', color: '#fff' },
 
   list: { display: 'flex', flexDirection: 'column', gap: 12 },
 
