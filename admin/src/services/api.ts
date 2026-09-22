@@ -121,7 +121,8 @@ export const labelsApi = {
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
-  print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
+  // printedPrice is the price on the paper: a label counts as printed only if it is still the store's price
+  print: (items: { storeLabelId: string; quantity: number; printedPrice?: string }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
   // What a price change or a delete would touch: how many stores hold the item and in what state
   impact: (labelId: string) => api.get(`/labels/${labelId}/impact`),
@@ -131,6 +132,8 @@ export const labelsApi = {
     api.post('/store-labels', { labelId, storeId, priceText, expiresAt }),
   updateStoreLabel: (storeLabelId: string, priceText: string | null, expiresAt?: string | null) =>
     api.patch(`/store-labels/${storeLabelId}`, { priceText, expiresAt }),
+  // Takes a label that was never printed there out of one store
+  removeStoreLabel: (storeLabelId: string) => api.delete(`/store-labels/${storeLabelId}`),
   getCoverage: () => api.get('/labels/coverage'),
   getHealthSummary: () => api.get('/labels/health-summary'),
   pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),

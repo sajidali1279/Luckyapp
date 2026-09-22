@@ -452,26 +452,40 @@ model OrderListItem {
 }
 ```
 
-#### Label
+#### Label and StoreLabel
 
 ```prisma
 model Label {
   id               String        @id @default(uuid())
   productName      String
-  priceText        String          // regular unit price, e.g. "3.99"
-  dealText         String?         // optional freeform deal text, e.g. "2 for $5"
-  barcode          String?
-  category         String?         // freeform, same approval pipeline as Order List's OrderCategory
+  priceText        String?       // base/chain-wide price; null = known product, no price set yet (e.g. created by a scan)
+  dealText         String?       // chain-wide only, not store-overridable
+  barcode          String?       // one item per barcode is enforced in the controller, not a DB constraint
+  category         String?       // freeform, same approval pipeline as Order List's OrderCategory
   template         LabelTemplate @default(CLASSIC_RED_BLACK)
-  createdByStoreId String?         // null for admin-web-created labels
+  createdByStoreId String?       // history only, does not drive print-queue membership
   createdById      String?
-  printedAt        DateTime?       // null = ready to print; reset to null on any edit
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  storeLabels      StoreLabel[]
+}
+
+// One store's own copy of a catalog Label: an optional price override (with an optional end date) and its own print status.
+model StoreLabel {
+  id                String    @id @default(uuid())
+  labelId           String
+  storeId           String
+  priceText         String?   // null = inherit the Label's base price
+  overrideExpiresAt DateTime? // a "sale price" end. Meaningless without priceText; cleared whenever priceText is cleared
+  printedAt         DateTime? // null = still in this store's print queue
+  everPrinted       Boolean   @default(false) // never resets; the only way to tell "new" (never printed) apart from "needs reprint"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  @@unique([labelId, storeId])
 }
 ```
 
-**Key point:** the catalog is chain-wide, not scoped to `createdByStoreId` at the query level; that field only drives the "Ready to Print" filter (labels from the current store with `printedAt: null`) and the cross-store print confirmation warning. A print event calls `POST /labels/print`, which sets `printedAt` on the printed labels and writes a `PRINT_LABEL` entry to the Audit Log (Section 19).
+**Key points:** the catalog (`Label`) is chain-wide; a store's price, print status and sale end date live on its own `StoreLabel` row, so printing at one store never touches another store's queue. The effective shelf price is `StoreLabel.priceText ?? Label.priceText` (`utils/labelPricing.ts`), except a `StoreLabel` whose `overrideExpiresAt` has passed reads as gone (`utils/labelSale.ts` `endedSaleView`, applied by every read: the catalog list, By Store, Price Check, Coverage and Health) even before the 15-minute job that makes it durable in the database (`utils/label-price-expiry-cron.ts`). `POST /labels/print` only stamps `printedAt` on the specific `StoreLabel` rows sent, and only when each one's live price still matches the `printedPrice` the caller says is on the paper (an optional field; omitted, the old behavior of trusting the caller applies) — a price changed mid-print is reported back in `notMarked` and stays queued, not silently marked. Every price-changing save on a `StoreLabel` is decided once with a compare-and-set (`storeLabel.updateMany` matched on the row's previous price and end), so a fast double click or two people saving at once record one change. A change to the chain-wide `Label` (price, name, barcode, category, deal, template) still writes a `PRINT_LABEL`/`UPDATE_LABEL`/`STORE_LABEL_PRICE`/`LABEL_SALE_ENDED` Audit Log entry as appropriate (Section 19), each with a plain-sentence `details.summary`.
 
 ### Full Enum Reference
 
@@ -586,6 +600,8 @@ After each credited sale the backend recalculates the customer's tier from `peri
 The rewards year is two half-years, `tierPeriod` = `YYYY-H1` (January to June) or `YYYY-H2` (July to December), counted on the store calendar (Central time), so a period starts at midnight in Texas. A new customer is created in the current period.
 
 At each new period every customer falls back ONE tier (Platinum to Diamond ... Silver to Bronze; Bronze stays) and `periodPoints` starts again from 0. `utils/tier-reset-cron.ts` does it: it runs at :07 past every hour (UTC) and 90 seconds after the server starts, and each run only touches customers whose `tierPeriod` is not the current one, so it is safe to repeat and catches up after a sleep (a customer who missed several half-years falls one tier for each). Customers are notified one by one, only when their own tier fell. A run that moves anyone writes a `TIER_PERIOD_RESET` Activity Log entry.
+
+**Sale-price expiry job** (`utils/label-price-expiry-cron.ts`, every 15 minutes and once ~100 seconds after start-up, self-healing): finds every `StoreLabel` whose `overrideExpiresAt` has passed, puts it back on the base price with no end date, and — only where the shelf still shows the old sale price because the label was printed at it — flags it to reprint and, once per store, pushes and emails that store's managers ("N sale price(s) ended. Reprint this/these label(s)."), then writes one `LABEL_SALE_ENDED` Audit Log entry for the whole run. A sale whose price happens to equal the base price is tidied up quietly (no reprint flag, no message). Claimed with a compare-and-set on `overrideExpiresAt`, so two overlapping runs act on each row once.
 
 **Other background jobs (all in-process `node-cron`, all safe to repeat, so a sleeping server catches up when it wakes):**
 - `utils/offerAnnounce.ts` (:12 past every hour UTC, and 2 minutes after start-up): announces every active promotion that has started in the last two weeks and has not been announced. A promotion posted with a start in the past or now is announced at posting. Audience: `utils/audience.ts` (`ALL_CUSTOMERS`, or `STORE_CUSTOMERS` for a single-store promotion); the message link carries `offerId=<id>`, and a promotion is skipped when a message with that id exists (or an old-style one with the promotion's title sent after it was created).
@@ -786,7 +802,15 @@ A closed store (`isActive: false`) refuses `POST /points/grant`, `POST /points/r
 | PATCH | /labels/:labelId | JWT | EMPLOYEE+ | Update a label. Only a real change counts (the phone sends every field on every edit): a change to the chain-wide price needs SUPER_ADMIN, a change to name, barcode, category, deal or template needs STORE_MANAGER, otherwise 403 with a sentence and a `LABEL_CHANGE_REFUSED` Activity Log entry. Runs in one transaction, resets `printedAt` at the affected stores, answers `{ changed, reprint: { stores, keptOwnPrice } }`; the Activity Log keeps before and after |
 | DELETE | /labels/:labelId | JWT | SUPER_ADMIN (checked in the handler, so an employee gets a sentence) | Delete a label from every store; the Activity Log keeps its price, barcode and how many store copies, print records, store prices and sale prices went with it; 404 when it is already gone |
 | GET | /labels/:labelId/impact | JWT | SUPER_ADMIN | How many stores hold the item and in what state (`storeCopies`, `inheritingBase`, `ownPrice`, `salePrice`, `printed`): what a price change or a delete would touch |
-| POST | /labels/print | JWT | EMPLOYEE+ | Mark labels printed; logs a `PRINT_LABEL` audit event |
+| GET | /labels/lookup?storeId=&barcode= | JWT | EMPLOYEE+ | Price Check: resolves one scanned barcode to that store's live price and status (a sale that has ended reads as already back on the base price) |
+| GET | /labels/coverage | JWT | SUPER_ADMIN | Every catalog item x every active store in one shot, for the cross-store Coverage view |
+| GET | /labels/health-summary | JWT | SUPER_ADMIN | Chain-wide count of labels that can really be printed right now (open stores, priced items only) plus `noPriceItems`, for the Dashboard stat card |
+| POST | /labels/:labelId/push-to-all | JWT | SUPER_ADMIN | Adds this label, at the base price, to every active store that does not already have it (`skipDuplicates`, safe to call twice at once); the answer and the Activity Log name the stores added |
+| GET | /store-labels?storeId=&unprinted= | JWT | EMPLOYEE+ | One store's copy of the whole catalog, with its effective price, override state and print status (`?unprinted=true` filters to the queue only) |
+| POST | /store-labels | JWT | EMPLOYEE+ | Add a store's own copy of a catalog item, at the base price or an explicit store price (with an optional sale end date). Adding what the store already has with no price sent changes nothing |
+| PATCH | /store-labels/:storeLabelId | JWT | EMPLOYEE+ | Set or clear (`priceText: null`) one store's own price. Omitting `expiresAt` keeps the sale's current end date; `null` clears it; a `YYYY-MM-DD` day means the end of that day on the store calendar (`America/Chicago`), refused if it has already passed. Only a real change to the price or the end counts; the shelf price actually changing is what flags the label to reprint |
+| DELETE | /store-labels/:storeLabelId | JWT | SUPER_ADMIN | Takes a label out of one store's list. Refused (409) if that store copy has ever been printed (`everPrinted`), so only a never-printed row can be removed |
+| POST | /labels/print | JWT | EMPLOYEE+ | Marks specific `StoreLabel` rows printed, each judged on its own; optional `items[].printedPrice` is checked against that row's live price and a mismatch (or a since-removed row, or one with no price) is reported in the response's `notMarked` instead of being marked. Logs one `PRINT_LABEL` audit event with a plain-sentence summary |
 
 ### Employee Item Requests
 

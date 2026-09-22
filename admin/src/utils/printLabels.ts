@@ -1,3 +1,5 @@
+import { code128ToSvg } from './code128';
+
 /**
  * Generates and opens a printable batch of shelf/price labels in a new window.
  * The browser's print dialog opens automatically once the page loads.
@@ -54,6 +56,14 @@ const TEMPLATE_ICONS: Record<string, string> = {
   HALLOWEEN: '🎃 ',
 };
 
+// The bars are drawn here as plain markup: no script runs on the printed page and nothing is fetched, so the barcode is on the paper
+// even when the store's network blocks outside websites. The box is 26 units tall at one unit per module, the same proportions the
+// sheet has always had.
+function barcodeSvg(barcode: string): string {
+  const { rects, modules } = code128ToSvg(barcode, 26);
+  return `<svg class="label-barcode" viewBox="0 0 ${modules} 26" role="img" aria-label="Barcode ${esc(barcode)}" shape-rendering="crispEdges">${rects}</svg>`;
+}
+
 function renderLabel(label: PrintableLabel): string {
   const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
   const icon = TEMPLATE_ICONS[label.template] || '';
@@ -81,7 +91,7 @@ function renderLabel(label: PrintableLabel): string {
         <div class="label-qr-caption">Scan to Join</div>
         ${barcode ? `
         <div class="label-barcode-wrap">
-          <svg class="label-barcode" data-barcode="${esc(barcode)}"></svg>
+          ${barcodeSvg(barcode)}
           <div class="label-barcode-val">${esc(barcode)}</div>
         </div>` : ''}
       </div>
@@ -91,28 +101,6 @@ function renderLabel(label: PrintableLabel): string {
 
 export function printLabels(entries: PrintableLabelEntry[]): boolean {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
-  const hasAnyBarcode = entries.some(e => e.label.barcode?.trim());
-  const barcodeScript = hasAnyBarcode
-    ? `<script>
-    function renderBarcodes() {
-      document.querySelectorAll('svg[data-barcode]').forEach(function(el) {
-        try {
-          JsBarcode(el, el.getAttribute('data-barcode'), {
-            format: 'CODE128', width: 1.3, height: 34,
-            displayValue: false, margin: 0, lineColor: '#000'
-          });
-          var w = parseFloat(el.getAttribute('width') || '0');
-          var h = parseFloat(el.getAttribute('height') || '0');
-          if (w && h) el.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-          el.removeAttribute('width');
-          el.removeAttribute('height');
-        } catch (e) { el.style.display = 'none'; }
-      });
-    }
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js" onload="renderBarcodes()"></script>`
-    : '';
-
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -333,7 +321,6 @@ export function printLabels(entries: PrintableLabelEntry[]): boolean {
   <div class="grid">
     ${labels.map(renderLabel).join('')}
   </div>
-  ${barcodeScript}
 </body>
 </html>`;
 

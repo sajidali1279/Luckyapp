@@ -828,7 +828,11 @@ Navigate to **Labels** in the sidebar. This is a chain-wide catalog of printable
 - **One barcode belongs to one item.** Adding or editing an item with a barcode another item already has is refused, naming that item. **Duplicate** starts with the barcode empty.
 - **Removing an item** asks first and says how many stores hold it and what goes with it (print records, store prices, sale prices). It cannot be undone, and the Activity Log keeps what it was.
 - **Search and select-all** to work through a batch quickly.
-- **Print** generates a formatted PDF sized to a real 1in x 2-5/8in address-label sheet (Avery 5160), across 7 available templates including seasonal designs. Every print logs a PRINT_LABEL event to the Activity Log, recording who printed, which store, and how many labels.
+- **Printing, on the By Store tab, asks "Did the labels print?"** after the print window opens. The label stays in that store's queue until you say yes; a cancelled print, a jam or a closed window leaves it queued instead of quietly disappearing. If the price changed at the moment of printing, that label is not marked and the box says which one and why.
+- **A store's own price ("sale price")** is set from By Store: **Set Price** for one item, or type it right in the print tray for a one-off (the tray price only changes what is on the paper; it does not become the store's price unless you press **Save as this store's price**). An **end date** is optional — the price goes back to the base price by itself at the end of that day (Texas time), and correcting the price (say $1.99 to $1.79) keeps that end date rather than clearing it. A sale that has ended is treated as over the moment you look at it, not just after the next cleanup run.
+- **Coverage's "Push to All"** asks first, names every store it will add to and what each gets, and warns when the item has no price yet. A label added this way and never printed at a store can be taken back out with **Remove** (on that store's row in By Store, or on its chip in Coverage) — this only works before the label has ever printed there; once printed, it stays on record.
+- **Barcodes on the printed sheet are drawn by the admin itself**, not fetched from an outside website, so a store's network cannot block them.
+- Every print logs a `PRINT_LABEL` event to the Activity Log, recording who printed, which store, and how many labels.
 
 ---
 

@@ -768,8 +768,8 @@ const s: Record<string, CSSProperties> = {
     padding: '10px 16px', borderRadius: 10, background: PRIMARY, border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
-  catalogLayout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
-  catalogMain: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
+  catalogLayout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
+  catalogMain: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   viewToggleRow: { display: 'flex', gap: 8 },
   viewToggleChip: {

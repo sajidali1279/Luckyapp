@@ -9,6 +9,7 @@ import TableSkeleton from './TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { canonicalPrice, priceProblem } from '../lib/labelPrice';
+import { storeToday, storeDay } from '../lib/storeDates';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import PrintTray from './PrintTray';
 import Modal from './Modal';
@@ -32,6 +33,27 @@ interface StoreLabel {
   updatedAt: string;
 }
 
+// What the server says about one label it did not mark as printed
+interface NotMarked {
+  storeLabelId: string;
+  productName: string | null;
+  reason: 'gone' | 'no_price' | 'price_changed';
+  printedPrice?: string;
+  currentPrice?: string | null;
+}
+
+// A print that was sent to the printer and is waiting for the person to say whether the paper came out
+interface PrintCheck {
+  items: { storeLabelId: string; productName: string; quantity: number; printedPrice: string; storePrice: string | null }[];
+}
+
+function notMarkedText(n: NotMarked): string {
+  const name = n.productName ?? 'A label';
+  if (n.reason === 'gone') return `${name} is no longer in this store, so there was nothing to mark.`;
+  if (n.reason === 'no_price') return `${name} has no price now, so it cannot be marked as printed.`;
+  return `${name} was printed at $${n.printedPrice} but this store's price is ${n.currentPrice == null ? 'not set' : `$${n.currentPrice}`}, so it stays in the queue.`;
+}
+
 // Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
 const UNCATEGORIZED = '__uncategorized__';
 
@@ -47,6 +69,11 @@ export default function StoreLabelsPanel() {
   const [priceDraft, setPriceDraft] = useState('');
   const [expiryDraft, setExpiryDraft] = useState('');
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
+  // A price typed in the tray only changes the print. It becomes the store's price only when "Save as this store's price" is pressed.
+  const [printPrices, setPrintPrices] = useState<Record<string, string>>({});
+  const [printCheck, setPrintCheck] = useState<PrintCheck | null>(null);
+  const [printResult, setPrintResult] = useState<{ printed: number; copies: number; notMarked: NotMarked[] } | null>(null);
+  const [removing, setRemoving] = useState<StoreLabel | null>(null);
 
   const { data: storesData } = useQuery({
     queryKey: ['accessible-stores'],
@@ -81,6 +108,10 @@ export default function StoreLabelsPanel() {
   ).sort();
   const hasUncategorized = items.some((i) => !i.category);
 
+  const refreshLabelViews = () => {
+    ['store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  };
+
   const addMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.addToStore(labelId, storeId),
     onSuccess: () => {
@@ -92,16 +123,18 @@ export default function StoreLabelsPanel() {
 
   const priceMutation = useMutation({
     mutationFn: () => {
-      // A date picked as "ends Sep 8" means the sale runs through the end of
-      // that day, not that it lapses at midnight going into it.
-      const expiresAtIso = expiryDraft ? new Date(`${expiryDraft}T23:59:59`).toISOString() : null;
+      // A date picked as "ends Sep 8" means the sale runs through the end of that store day (Central time). The server does the
+      // calendar, so the date travels as picked and never depends on the time zone of the browser.
+      const price = canonicalPrice(priceDraft) ?? priceDraft.trim();
+      const ends = expiryDraft || null;
       return editingPrice!.storeLabelId
-        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, canonicalPrice(priceDraft) ?? priceDraft.trim(), expiresAtIso)
-        : labelsApi.addToStore(editingPrice!.id, storeId, canonicalPrice(priceDraft) ?? priceDraft.trim(), expiresAtIso);
+        ? labelsApi.updateStoreLabel(editingPrice!.storeLabelId, price, ends)
+        : labelsApi.addToStore(editingPrice!.id, storeId, price, ends);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
-      toast.success('Price updated for this store');
+    onSuccess: (res) => {
+      refreshLabelViews();
+      if (res.data?.changed === false) toast('That price and end date were already saved. Nothing changed.', { icon: 'ℹ️' });
+      else toast.success(res.data?.needsReprint ? 'Price updated. The label is now in the print queue.' : 'Price updated for this store');
       setEditingPrice(null);
       setExpiryDraft('');
     },
@@ -110,26 +143,55 @@ export default function StoreLabelsPanel() {
 
   const revertMutation = useMutation({
     mutationFn: (storeLabelId: string) => labelsApi.updateStoreLabel(storeLabelId, null),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
-      toast.success('Reverted to base price');
+    onSuccess: (res) => {
+      refreshLabelViews();
+      if (res.data?.changed === false) toast('Already on the base price.', { icon: 'ℹ️' });
+      else toast.success('Reverted to base price');
     },
     onError: (e: any) => toast.error(failureMessage(e, 'Could not go back to the base price.')),
   });
 
-  // Inline price edits made directly in the print tray — same override
-  // mutation "Set Price" uses, just triggered from the review-before-print
-  // panel instead of its own modal.
+  // "Save as this store's price" on a tray row. Sent without an end date, so a sale keeps the end it has.
   const trayPriceMutation = useMutation({
     mutationFn: ({ item, price }: { item: StoreLabel; price: string }) =>
       item.storeLabelId
         ? labelsApi.updateStoreLabel(item.storeLabelId, price)
         : labelsApi.addToStore(item.id, storeId, price),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
-      toast.success('Price updated for this store');
+    onSuccess: (res, { item }) => {
+      refreshLabelViews();
+      setPrintPrices(prev => { const next = { ...prev }; delete next[item.storeLabelId ?? item.id]; return next; });
+      if (res.data?.changed === false) toast('That is already this store\'s price.', { icon: 'ℹ️' });
+      else toast.success('Saved as this store\'s price');
     },
     onError: (e: any) => toast.error(failureMessage(e, 'Could not update the price.')),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (storeLabelId: string) => labelsApi.removeStoreLabel(storeLabelId),
+    onSuccess: () => {
+      const name = stores.find(st => st.id === storeId)?.name ?? 'this store';
+      refreshLabelViews();
+      toast.success(`Removed from ${name}`);
+      setRemoving(null);
+    },
+    onError: (e: any) => { toast.error(failureMessage(e, 'Could not remove the label from this store.')); setRemoving(null); },
+  });
+
+  // Marks labels printed, only after the person says the paper came out. Each item carries the price that is on the paper.
+  const printMutation = useMutation({
+    mutationFn: (check: PrintCheck) => labelsApi.print(check.items.map(i => ({ storeLabelId: i.storeLabelId, quantity: i.quantity, printedPrice: i.printedPrice }))),
+    onSuccess: (res) => {
+      const data = res.data?.data ?? {};
+      refreshLabelViews();
+      setPrintCheck(null);
+      setSelectedIds(new Set());
+      setQuantities({});
+      setPrintPrices({});
+      const notMarked: NotMarked[] = data.notMarked ?? [];
+      if (notMarked.length > 0) setPrintResult({ printed: data.printedCount ?? 0, copies: data.totalCopies ?? 0, notMarked });
+      else toast.success(`${data.printedCount ?? 0} label${data.printedCount === 1 ? '' : 's'} marked as printed`);
+    },
+    onError: (e: any) => toast.error(failureMessage(e, 'The labels were not marked as printed. They are still in the queue.')),
   });
 
   function toggleSelected(item: StoreLabel) {
@@ -175,6 +237,7 @@ export default function StoreLabelsPanel() {
   }
 
   function removeFromSelection(storeLabelId: string) {
+    setPrintPrices(prev => { const next = { ...prev }; delete next[storeLabelId]; return next; });
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.delete(storeLabelId);
@@ -187,11 +250,21 @@ export default function StoreLabelsPanel() {
     });
   }
 
+  // A price typed in the tray changes the print only. If it is the store's own price again the one-off is forgotten.
   function changeTrayPrice(storeLabelId: string, price: string) {
     const item = items.find(i => i.storeLabelId === storeLabelId);
-    const problem = priceProblem(price);
-    if (problem) { toast.error(problem); return; }
-    if (item) trayPriceMutation.mutate({ item, price: canonicalPrice(price) ?? price });
+    if (!item) return;
+    setPrintPrices(prev => {
+      const next = { ...prev };
+      if (price === item.priceText) delete next[storeLabelId]; else next[storeLabelId] = price;
+      return next;
+    });
+  }
+
+  function saveTrayPrice(storeLabelId: string) {
+    const item = items.find(i => i.storeLabelId === storeLabelId);
+    const price = printPrices[storeLabelId];
+    if (item && price) trayPriceMutation.mutate({ item, price });
   }
 
   function buildPrintEntries(): PrintableLabelEntry[] {
@@ -200,29 +273,29 @@ export default function StoreLabelsPanel() {
         !!i.storeLabelId && selectedIds.has(i.storeLabelId) && i.priceText != null)
       .map(i => ({
         label: {
-          id: i.id, productName: i.productName, priceText: i.priceText,
+          id: i.id, productName: i.productName, priceText: printPrices[i.storeLabelId!] ?? i.priceText,
           dealText: i.dealText, barcode: i.barcode, template: i.template,
         },
         quantity: quantities[i.storeLabelId!] ?? 1,
       }));
   }
 
-  async function runPrint(entries: PrintableLabelEntry[]) {
+  // Opens the print window and asks. Nothing is marked as printed until the person says the labels came out of the printer, so a
+  // cancelled dialog or a jam leaves them in the queue.
+  function runPrint(entries: PrintableLabelEntry[]) {
     const opened = printLabels(entries);
-    if (opened) {
-      const printItems = entries.map(e => {
+    if (!opened) return;
+    setPrintCheck({
+      items: entries.map(e => {
         const source = items.find(i => i.id === e.label.id)!;
-        return { storeLabelId: source.storeLabelId!, quantity: e.quantity };
-      });
-      try {
-        await labelsApi.print(printItems);
-        qc.invalidateQueries({ queryKey: ['store-labels', storeId] });
-      } catch {
-        toast.error('Printed, but failed to update status — refresh to check');
-      }
-      setSelectedIds(new Set());
-      setQuantities({});
-    }
+        return { storeLabelId: source.storeLabelId!, productName: e.label.productName, quantity: e.quantity, printedPrice: e.label.priceText, storePrice: source.priceText };
+      }),
+    });
+  }
+
+  function keepQueued() {
+    setPrintCheck(null);
+    toast('Nothing was marked. The labels are still in the queue.', { icon: 'ℹ️' });
   }
 
   function handlePrintSelected() {
@@ -244,6 +317,60 @@ export default function StoreLabelsPanel() {
         confirmLabel="Print"
         onConfirm={() => { if (pendingBulkPrint) runPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
         onCancel={() => setPendingBulkPrint(null)}
+      />
+
+      {printCheck && (() => {
+        const copies = printCheck.items.reduce((sum, i) => sum + i.quantity, 0);
+        const oneOff = printCheck.items.filter(i => i.printedPrice !== i.storePrice);
+        return (
+          <Modal
+            title="Did the labels print?"
+            subtitle={<>{printCheck.items.length} label{printCheck.items.length === 1 ? '' : 's'} ({copies} cop{copies === 1 ? 'y' : 'ies'}) for {stores.find(st => st.id === storeId)?.name ?? 'this store'}</>}
+            onClose={keepQueued}
+            busy={printMutation.isPending}
+            maxWidth={460}
+          >
+            <p style={m.para}>
+              The print window is open. When the sheet has come out of the printer, answer here. Until you say yes, nothing is marked as printed, so a cancelled
+              print or a paper jam does not clear the queue.
+            </p>
+            {oneOff.length > 0 && (
+              <p style={m.note} role="note">
+                {oneOff.length} of these {oneOff.length === 1 ? 'uses a price that is' : 'use prices that are'} not this store's price
+                ({oneOff.slice(0, 3).map(i => `${i.productName} $${i.printedPrice}`).join(', ')}{oneOff.length > 3 ? ', and more' : ''}).
+                {' '}They stay in the queue even if they printed. To count them as printed, save the price for the store first.
+              </p>
+            )}
+            <div style={m.actions}>
+              <button style={m.cancelBtn} onClick={keepQueued} disabled={printMutation.isPending}>No, keep them in the queue</button>
+              <button style={m.saveBtn} onClick={() => printMutation.mutate(printCheck)} disabled={printMutation.isPending}>
+                {printMutation.isPending ? 'Saving…' : 'Yes, they printed'}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {printResult && (
+        <Modal title="Some labels stayed in the queue" subtitle={<>{printResult.printed} marked as printed ({printResult.copies} cop{printResult.copies === 1 ? 'y' : 'ies'})</>} onClose={() => setPrintResult(null)} maxWidth={480}>
+          <ul style={m.list}>
+            {printResult.notMarked.map(n => <li key={n.storeLabelId}>{notMarkedText(n)}</li>)}
+          </ul>
+          <div style={m.actions}>
+            <button style={m.saveBtn} onClick={() => setPrintResult(null)} autoFocus>OK</button>
+          </div>
+        </Modal>
+      )}
+
+      <ConfirmModal
+        open={!!removing}
+        title="Remove From This Store?"
+        message={removing ? `"${removing.productName}" was never printed at ${stores.find(st => st.id === storeId)?.name ?? 'this store'}. Removing it takes it out of this store's list only. It stays in the catalog and in every other store.` : ''}
+        confirmLabel="Remove"
+        danger
+        busy={removeMutation.isPending}
+        onConfirm={() => { if (removing?.storeLabelId) removeMutation.mutate(removing.storeLabelId); }}
+        onCancel={() => setRemoving(null)}
       />
 
       {editingPrice && (
@@ -269,14 +396,14 @@ export default function StoreLabelsPanel() {
               />
             </div>
             {priceProblem(priceDraft) && <div role="alert" style={{ color: '#b91c1c', fontSize: 13, marginTop: 6 }}>{priceProblem(priceDraft)}</div>}
-            <label style={m.expiryLabel} htmlFor="store-price-ends">Ends on <span style={m.expiryLabelSub}>(optional — reverts to base price automatically, no expiry = stays until changed)</span></label>
+            <label style={m.expiryLabel} htmlFor="store-price-ends">Ends on <span style={m.expiryLabelSub}>(optional. The price goes back to the base price at the end of that day, Central time. No date = stays until changed.)</span></label>
             <input
               id="store-price-ends"
               type="date"
               style={m.expiryInput}
               value={expiryDraft}
               onChange={e => setExpiryDraft(e.target.value)}
-              min={new Date().toISOString().slice(0, 10)}
+              min={storeToday()}
             />
             <div style={m.actions}>
               <button style={m.cancelBtn} onClick={() => { setEditingPrice(null); setExpiryDraft(''); }} disabled={priceMutation.isPending}>Cancel</button>
@@ -377,7 +504,7 @@ export default function StoreLabelsPanel() {
                         {item.hasOverride && <span style={s.overrideBadge}>override</span>}
                         {item.overrideExpiresAt && (
                           <span style={s.expiryBadge}>
-                            ends {new Date(item.overrideExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            ends {storeDay(item.overrideExpiresAt)}
                           </span>
                         )}
                       </>
@@ -402,12 +529,15 @@ export default function StoreLabelsPanel() {
                           {item.basePriceText != null ? `Add at $${item.basePriceText}` : 'Add (no price yet)'}
                         </button>
                       ) : (
-                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? (item.priceText ?? '') : ''); setExpiryDraft(item.overrideExpiresAt ? item.overrideExpiresAt.slice(0, 10) : ''); }}>
+                        <button style={s.editBtn} onClick={() => { setEditingPrice(item); setPriceDraft(item.hasOverride ? (item.priceText ?? '') : ''); setExpiryDraft(item.overrideExpiresAt ? storeToday(new Date(item.overrideExpiresAt)) : ''); }}>
                           Set Price
                         </button>
                       )}
                       {item.hasOverride && item.storeLabelId && (
                         <button style={s.revertBtn} onClick={() => revertMutation.mutate(item.storeLabelId!)}>Use Base</button>
+                      )}
+                      {item.storeLabelId && item.status === 'new' && (
+                        <button style={s.revertBtn} onClick={() => setRemoving(item)} aria-label={`Remove ${item.productName} from this store`}>Remove</button>
                       )}
                     </div>
                   </TableCell>
@@ -426,7 +556,8 @@ export default function StoreLabelsPanel() {
             .map(i => ({
               id: i.storeLabelId!,
               productName: i.productName,
-              priceText: i.priceText,
+              priceText: printPrices[i.storeLabelId!] ?? i.priceText,
+              storePrice: i.priceText,
               dealText: i.dealText,
               quantity: quantities[i.storeLabelId!] ?? 1,
               status: i.status as Exclude<LabelPrintStatus, 'not_added'>,
@@ -436,9 +567,11 @@ export default function StoreLabelsPanel() {
           editablePrice
           onQuantityChange={setQuantity}
           onPriceChange={changeTrayPrice}
+          onSavePrice={saveTrayPrice}
+          savingPriceId={trayPriceMutation.isPending ? (trayPriceMutation.variables?.item.storeLabelId ?? null) : null}
           onRemove={removeFromSelection}
           onPrint={handlePrintSelected}
-          onClear={() => { setSelectedIds(new Set()); setQuantities({}); }}
+          onClear={() => { setSelectedIds(new Set()); setQuantities({}); setPrintPrices({}); }}
           printLabelText="Print"
         />
       )}
@@ -449,7 +582,7 @@ export default function StoreLabelsPanel() {
 
 const s: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
-  pickerRow: { display: 'flex', gap: 10, alignItems: 'center' },
+  pickerRow: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' },
   storeSelect: {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',
     fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer', minWidth: 220,
@@ -462,8 +595,9 @@ const s: Record<string, CSSProperties> = {
     border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
     fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
   },
-  layout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
-  main: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
+  // The tray sits beside the table; on a narrow screen it wraps below it instead of pushing the page sideways
+  layout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
+  main: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   tableWrap: {
     background: '#fff', borderRadius: 14, overflowX: 'auto',
@@ -540,4 +674,10 @@ const m: Record<string, CSSProperties> = {
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
+  para: { margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#333' },
+  note: {
+    margin: 0, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10,
+    fontSize: 13.5, lineHeight: 1.5, color: '#7c5a10',
+  },
+  list: { margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, lineHeight: 1.5, color: '#333' },
 };

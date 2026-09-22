@@ -6,6 +6,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from './TableSkeleton';
 import ErrorState from './ErrorState';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { failureMessage } from '../lib/apiError';
+import ConfirmModal from './ConfirmModal';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../utils/labelStatus';
 import BulkPrintWizard, { BulkPrintStoreGroup } from './BulkPrintWizard';
 
@@ -30,6 +32,8 @@ export default function CoverageView() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPrintQueue, setBulkPrintQueue] = useState<BulkPrintStoreGroup[] | null>(null);
+  const [pushing, setPushing] = useState<CoverageLabel | null>(null);
+  const [removing, setRemoving] = useState<{ label: CoverageLabel; entry: CoverageEntry; storeName: string } | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['labels-coverage'],
@@ -72,18 +76,21 @@ export default function CoverageView() {
   }
 
   function invalidateAll() {
-    qc.invalidateQueries({ queryKey: ['labels-coverage'] });
-    qc.invalidateQueries({ queryKey: ['store-labels'] });
+    ['labels-coverage', 'store-labels', 'labels-health-summary'].forEach(k => qc.invalidateQueries({ queryKey: [k] }));
   }
 
   const pushMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.pushToAllStores(labelId),
     onSuccess: (res) => {
-      const added = res.data?.data?.added ?? 0;
+      const added: number = res.data?.data?.added ?? 0;
+      const names: string[] = res.data?.data?.storeNames ?? [];
       invalidateAll();
-      toast.success(added > 0 ? `Added to ${added} store${added === 1 ? '' : 's'}` : 'Already in every store');
+      setPushing(null);
+      toast.success(added > 0
+        ? `Added to ${added} store${added === 1 ? '' : 's'}${names.length ? `: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}` : ''}`
+        : 'Already in every store');
     },
-    onError: () => toast.error('Failed to push to all stores'),
+    onError: (e: any) => { setPushing(null); toast.error(failureMessage(e, 'Could not add the item to every store.')); },
   });
 
   const addOneMutation = useMutation({
@@ -92,8 +99,21 @@ export default function CoverageView() {
       invalidateAll();
       toast.success('Added at base price');
     },
-    onError: () => toast.error('Failed to add'),
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not add the item to that store.')),
   });
+
+  const removeMutation = useMutation({
+    mutationFn: (storeLabelId: string) => labelsApi.removeStoreLabel(storeLabelId),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success(`Removed from ${removing?.storeName ?? 'the store'}`);
+      setRemoving(null);
+    },
+    onError: (e: any) => { toast.error(failureMessage(e, 'Could not remove the label from that store.')); setRemoving(null); },
+  });
+
+  // The stores that would get the item: every open store that does not have it yet
+  const missingStores = (label: CoverageLabel) => label.coverage.filter(c => c.status === 'not_added').map(c => stores.find(st => st.id === c.storeId)?.name ?? c.storeId);
 
   function toggleExpanded(id: string) {
     setExpanded(prev => {
@@ -146,6 +166,40 @@ export default function CoverageView() {
   return (
     <div style={s.wrap}>
       {bulkPrintQueue && <BulkPrintWizard queue={bulkPrintQueue} onClose={() => { setBulkPrintQueue(null); setSelectedIds(new Set()); }} />}
+
+      <ConfirmModal
+        open={!!pushing}
+        title="Add To Every Store?"
+        message={pushing ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}>
+            <span>
+              This adds <strong>{pushing.productName}</strong> to the {missingStores(pushing).length} store{missingStores(pushing).length === 1 ? '' : 's'} that
+              {missingStores(pushing).length === 1 ? ' does' : ' do'} not have it: {missingStores(pushing).join(', ')}.
+            </span>
+            <span>
+              Each one gets a new "to print" label at the base price ({pushing.basePriceText != null ? `$${pushing.basePriceText}` : 'no price yet'}), so
+              {' '}{missingStores(pushing).length} store queue{missingStores(pushing).length === 1 ? '' : 's'} will show it. While a label has never been printed at a store you can
+              take it out of that store again with Remove.
+            </span>
+            {pushing.basePriceText == null && <span><strong>It has no price yet</strong>, so each store will show "Needs price" until you set one in the Catalog tab.</span>}
+          </div>
+        ) : ''}
+        confirmLabel={pushing ? `Add to ${missingStores(pushing).length} store${missingStores(pushing).length === 1 ? '' : 's'}` : 'Add'}
+        busy={pushMutation.isPending}
+        onConfirm={() => { if (pushing) pushMutation.mutate(pushing.id); }}
+        onCancel={() => setPushing(null)}
+      />
+
+      <ConfirmModal
+        open={!!removing}
+        title="Remove From This Store?"
+        message={removing ? `"${removing.label.productName}" was never printed at ${removing.storeName}. Removing it takes it out of ${removing.storeName}'s list only. It stays in the catalog and in every other store.` : ''}
+        confirmLabel="Remove"
+        danger
+        busy={removeMutation.isPending}
+        onConfirm={() => { if (removing?.entry.storeLabelId) removeMutation.mutate(removing.entry.storeLabelId); }}
+        onCancel={() => setRemoving(null)}
+      />
 
       {labels.length > 0 && (
         <div style={{ ...s.summaryBox, ...(gapLabels.length === 0 ? s.summaryGood : s.summaryWarn) }}>
@@ -247,7 +301,7 @@ export default function CoverageView() {
                         {fullyCovered ? (
                           <span style={{ color: TEXT_MUTED, fontSize: 13 }}>Everywhere</span>
                         ) : (
-                          <button style={s.pushBtn} disabled={isPushingThis} onClick={() => pushMutation.mutate(label.id)}>
+                          <button style={s.pushBtn} disabled={isPushingThis} onClick={() => setPushing(label)} aria-label={`Push to All (+${missing}): ${label.productName}`}>
                             {isPushingThis ? 'Pushing…' : `Push to All (+${missing})`}
                           </button>
                         )}
@@ -264,11 +318,22 @@ export default function CoverageView() {
                                   <span style={s.chipStoreName}>{store?.name || c.storeId}</span>
                                   <span style={{ ...s.chipStatus, color: STATUS_COLOR[c.status] }}>{STATUS_LABEL[c.status]}</span>
                                   {c.status !== 'not_added' ? (
-                                    c.priceText != null ? (
-                                      <span style={s.chipPrice}>${c.priceText}{c.hasOverride ? ' •' : ''}</span>
-                                    ) : (
-                                      <span style={s.chipPrice}>No price set</span>
-                                    )
+                                    <>
+                                      {c.priceText != null ? (
+                                        <span style={s.chipPrice}>${c.priceText}{c.hasOverride ? ' •' : ''}</span>
+                                      ) : (
+                                        <span style={s.chipPrice}>No price set</span>
+                                      )}
+                                      {c.status === 'new' && c.storeLabelId && (
+                                        <button
+                                          style={s.chipRemoveBtn}
+                                          onClick={() => setRemoving({ label, entry: c, storeName: store?.name || 'the store' })}
+                                          aria-label={`Remove ${label.productName} from ${store?.name || 'the store'}`}
+                                        >
+                                          Remove
+                                        </button>
+                                      )}
+                                    </>
                                   ) : (
                                     <button
                                       style={s.chipAddBtn}
@@ -360,6 +425,10 @@ const s: Record<string, CSSProperties> = {
   chipAddBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
+  },
+  chipRemoveBtn: {
+    background: '#fff', color: '#b91c1c', border: '1px solid #b91c1c',
+    borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
   },
 
   emptyBox: {

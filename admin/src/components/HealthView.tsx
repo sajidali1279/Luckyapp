@@ -28,6 +28,7 @@ export default function HealthView() {
   const totalStores: number = data?.data?.data?.totalStores ?? 0;
   const storesWithStale: number = data?.data?.data?.storesWithStale ?? 0;
   const byStore: StoreHealth[] = data?.data?.data?.byStore ?? [];
+  const noPriceItems: number = data?.data?.data?.noPriceItems ?? 0;
 
   if (isError) return <ErrorState message="Failed to load label health." onRetry={refetch} />;
   if (isLoading) return <TableSkeleton columns={4} />;
@@ -38,7 +39,9 @@ export default function HealthView() {
         {totalStale === 0 ? (
           <>
             <span style={s.summaryIcon}>✓</span>
-            <span style={s.summaryText}>Every store is caught up — nothing needs printing.</span>
+            <span style={s.summaryText}>
+              <strong>Nothing is waiting to be printed.</strong> No label is in any store's print queue. This does not check the shelves themselves.
+            </span>
           </>
         ) : (
           <>
@@ -50,6 +53,16 @@ export default function HealthView() {
           </>
         )}
       </div>
+
+      {noPriceItems > 0 && (
+        <div style={{ ...s.summaryBox, ...s.summaryWarn }} role="note">
+          <span style={s.summaryIcon} aria-hidden="true">💲</span>
+          <span style={s.summaryText}>
+            <strong>{noPriceItems}</strong> item{noPriceItems === 1 ? ' has' : 's have'} no price yet, so {noPriceItems === 1 ? 'it cannot' : 'they cannot'} be printed and {noPriceItems === 1 ? 'is' : 'are'} not counted above.
+            Set a price in the Catalog tab.
+          </span>
+        </div>
+      )}
 
       {byStore.length > 0 && (
         <div style={s.tableWrap}>
