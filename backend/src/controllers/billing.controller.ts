@@ -1837,14 +1837,20 @@ export async function getDevRevenue(req: AuthRequest, res: Response) {
       _count: true,
       where: range ? { createdAt: range } : undefined,
     }),
-    prisma.billingRecord.aggregate({
-      _sum: { amount: true },
-      where: { isPaid: true, ...(range ? { paidAt: range } : {}) },
+    // Not an aggregate: "subscription revenue" is the subscriptionFee component inside each paid bill's notes, not a billingType or a
+    // column of its own, and it must NOT include extra (CUSTOM) charges, which used to be summed in here too (a $500 one-off charge
+    // read as "subscription revenue"). CUSTOM records have no subscriptionFee field at all, so they fall out on their own.
+    prisma.billingRecord.findMany({
+      where: { isPaid: true, billingType: { not: 'CUSTOM' }, ...(range ? { paidAt: range } : {}) },
+      select: { notes: true },
     }),
     prisma.appConfig.findUnique({ where: { key: 'DEV_CUT_RATE' } }),
   ]);
 
   const devCutRate = parseFloat(devCutConfig?.value ?? String(DEFAULT_DEV_CUT_RATE));
+  const totalSubscriptionRevenue = parseFloat(
+    subscriptionStats.reduce((sum, r) => sum + (parseNotes(r.notes)?.subscriptionFee ?? 0), 0).toFixed(2)
+  );
 
   res.json({
     success: true,
@@ -1857,7 +1863,7 @@ export async function getDevRevenue(req: AuthRequest, res: Response) {
       totalDevCut: txDevCut._sum.devCut ?? 0,               // 4% of cashback issued (at grant time)
       totalRedemptions: redemptionStats._count,
       totalRedeemedAmount: redemptionStats._sum.amount ?? 0,
-      totalSubscriptionRevenue: subscriptionStats._sum.amount ?? 0,
+      totalSubscriptionRevenue,
     },
   });
 }
