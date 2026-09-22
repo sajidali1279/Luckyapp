@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { billingApi, offersApi, bannersApi, customersApi, staffApi, storesApi, pointsApi, labelsApi } from '../../services/api';
-import { lastNDays } from '../../lib/storeDates';
 
 // The dashboard's data hooks. React Query shares each result by key, so the inbox, the KPI row and the
 // store board can each ask for the same thing without a second request.
@@ -28,12 +27,11 @@ export const useStores = () => useQuery({ queryKey: ['stores'], queryFn: () => s
 export const useLabelHealth = () => useQuery({ queryKey: ['labels-health-summary'], queryFn: () => labelsApi.getHealthSummary() });
 export const useRevenue = (period: string, enabled = true) =>
   useQuery({ queryKey: ['revenue', period], queryFn: () => billingApi.getRevenue(period), enabled });
-// The same "last 30 days" as the Analytics page (30 calendar days ending today, Central time), under the same
-// key, so the two screens agree and share one request.
-export const useAnalytics = (enabled = true) => {
-  const { from, to } = lastNDays(30);
-  return useQuery({ queryKey: ['analytics', from, to], queryFn: () => billingApi.getAnalytics(from, to), enabled });
-};
+// The same "last 30 days" as the Analytics page: both ask the server for range=30d (utils/dashboardWindows.ts,
+// the store calendar, ending now, not midnight), under the same query key, so the two screens agree and can
+// share one request instead of each computing its own version of "30 days".
+export const useAnalytics = (enabled = true) =>
+  useQuery({ queryKey: ['analytics', { range: '30d' }], queryFn: () => billingApi.getAnalytics({ range: '30d' }), enabled });
 export const useCategoryRates = (enabled = true) =>
   useQuery({ queryKey: ['category-rates'], queryFn: () => billingApi.getCategoryRates(), enabled });
 export const useTierRates = (enabled = true) =>

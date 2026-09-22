@@ -843,7 +843,8 @@ A closed store (`isActive: false`) refuses `POST /points/grant`, `POST /points/r
 |---|---|---|---|---|
 | GET | /billing/stores | JWT | DEV_ADMIN | All stores billing |
 | GET | /billing/revenue | JWT | DEV_ADMIN | Dev revenue summary |
-| GET | /billing/analytics | JWT | DEV_ADMIN | Billing analytics |
+| GET | /billing/analytics | JWT | DEV_ADMIN | Billing analytics. `?range=7d\|30d\|90d\|month\|today` adds a previous-period comparison (`compare`), `byHour`, `byWeekday` and `promotionMarkers`; `?storeId=` narrows every aggregate to one store; omitting `range` and passing `from`/`to` instead runs a plain custom range with no comparison. See 17.6. |
+| GET | /billing/analytics/export | JWT | DEV_ADMIN | CSV export of the same filtered data (daily rows plus a per-store summary) |
 | PATCH | /billing/stores/:storeId | JWT | DEV_ADMIN | Update store billing config |
 | POST | /billing/generate-monthly | JWT | DEV_ADMIN | Make usage bills for one FINISHED month (`?period=YYYY-MM`, default the last finished store month; a month still running or not started is refused). Skips any store that already has its usage bill (an extra charge does not count). Never replaces or deletes. |
 | POST | /billing/generate-all | JWT | DEV_ADMIN | Fill in missing bills: every finished month since each store was created. Only creates; never recalculates, replaces or deletes. |
@@ -1373,6 +1374,18 @@ Rules kept by every billing route: a bill or extra charge is never deleted or ov
 A `CUSTOM`-type `BillingRecord`'s `notes` column holds a different JSON shape than every other billing type: `{ description }` instead of the full compound breakdown (`txCount`, `purchaseVolume`, `categories`, etc.). Any code reading `notes` off a `BillingRecord` must branch on `billingType === 'CUSTOM'` before assuming the compound shape is present - the admin frontend's invoice views (`admin/src/pages/Billing.tsx`, `SuperAdminBilling.tsx`) do this by nulling out the parsed notes object for `CUSTOM` records and reading `description` separately.
 
 Paid status is tracked per `BillingRecord`, not per billing period: `getSuperAdminInvoices` groups every record in a period into one consolidated invoice object, but each per-store row it returns carries its own `isPaid`/`paidAt`, and the invoice's own `isPaid` flag is only `true` when every record in that period is paid. Any summary total (Outstanding Balance, Total Paid) must aggregate by each record's own `isPaid`, not by the period-level flag, or a period with a mix of paid and unpaid charges will report its entire total as outstanding.
+
+### 17.6 Analytics: Comparison Windows, Drill-down, CSV Export
+
+`GET /billing/analytics` (`billing.controller.ts`, `getAnalytics`) accepts an optional `range` (`'today'|'7d'|'30d'|'90d'|'month'|'custom'`, validated against `dashboardWindows.ts`'s `COMPARE_RANGES`) and an optional `storeId`. This is the same `CompareRange` type and `compareWindow()`/`summarize()` pair the Dashboard's Activity panel already used (batch A1/Dashboard) - Analytics A2 only added `'90d'` to the union and reused the rest, so the Dashboard's Business tab and the Analytics page compute "current vs previous period, same length, ending at the same point" identically and share one cache key when their params match.
+
+When `range` is given, the controller fetches both windows in a single query (`fromDate = compareWindow.previous.start`, `toDate = compareWindow.current.end`), computes `compare = summarize(compareWindow, allTransactions)` (giving `compare.current`/`compare.previous`, each with `totals` and a per-day `series`), then narrows `transactions`/`redemptions` down to just the current period before the existing `byDate`/`byStore`/`byCategory` aggregation runs unchanged. `range` in the response reflects the display window (current period only), not the wider fetch window used internally for the comparison.
+
+`storeId` filters every aggregate (including `compare`) to one store; `byHour` (24 slots) and `byWeekday` (7 slots, `Sun`..`Sat`, via `storeTime.ts`'s `storeWeekday()`) bucket the current period's transactions by store-local hour/day. `promotionMarkers` lists offers whose `startDate` falls inside the display window, filtered by `storeId` via `OR:[{storeId},{storeId:null}]` so a chain-wide offer still shows under a single-store drill-down.
+
+`GET /billing/analytics/export` (`exportAnalyticsCsv`) takes the same filters and streams a CSV: daily rows followed by a per-store summary section, `Content-Disposition` filename `analytics-<from>-to-<to>.csv`.
+
+Client side (`admin/src/pages/Analytics.tsx`), a percent-change helper (`pctChange`) turns `compare.current.totals` vs `compare.previous.totals` into "+12% vs previous period" / "no change" / "new this period" (never `Infinity%` when the previous period was zero). Clicking a bar in the per-store charts sets `storeId` and hides those two charts while drilled in, matching the server's own single-store aggregation rather than re-deriving it client-side.
 
 ---
 

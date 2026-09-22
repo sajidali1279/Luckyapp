@@ -1,21 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
-  AreaChart, Area, ComposedChart, ReferenceArea,
+  AreaChart, Area, ComposedChart, ReferenceArea, ReferenceLine,
 } from 'recharts';
 import { billingApi, storesApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { storeToday, lastNDays, isRealDate, daysBetween, dayLabel } from '../lib/storeDates';
+import { storeToday, isRealDate, daysBetween, dayLabel } from '../lib/storeDates';
 
 type Range = '7d' | '30d' | '90d' | 'custom';
-const RANGE_DAYS: Record<Exclude<Range, 'custom'>, number> = { '7d': 7, '30d': 30, '90d': 90 };
 const RANGE_LABEL: Record<Range, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', custom: 'Custom' };
+const RANGE_PREV_LABEL: Record<Exclude<Range, 'custom'>, string> = { '7d': 'the previous 7 days', '30d': 'the previous 30 days', '90d': 'the previous 90 days' };
 const MAX_CUSTOM_DAYS = 366;
+
+/** A whole-number percent change, "+12%"/"-8%"/"no change", never a stray "Infinity%" from a $0 base. */
+function pctChange(now: number, prev: number): string | null {
+  if (!prev) return now > 0 ? 'new this period' : null;
+  const pct = Math.round(((now - prev) / prev) * 100);
+  if (pct === 0) return 'no change';
+  return `${pct > 0 ? '+' : ''}${pct}%`;
+}
 
 // The bright green is fine for lines and bars; as text on white it is 2.2:1, so text uses this one (5.4:1).
 const GREEN_TEXT = '#157A3E';
@@ -91,15 +100,23 @@ export default function Analytics() {
   const [range, setRange] = useState<Range>('30d');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  // Drill down to one store: cleared automatically on a range change so a stale filter never silently follows
+  // you to a different question ("was I still looking at just Store 4?").
+  const [storeId, setStoreId] = useState<string | null>(null);
+  useEffect(() => { setStoreId(null); }, [range]);
 
   const today = storeToday();
-  const { from, to } = range === 'custom' ? { from: customFrom, to: customTo } : lastNDays(RANGE_DAYS[range]);
   const custom = range === 'custom' ? checkCustom(customFrom, customTo, today) : {};
   const ready = range !== 'custom' || (!custom.prompt && !custom.problem);
+  // 7d/30d/90d ask the server for its own canonical definition (utils/dashboardWindows.ts) — the same one the
+  // Dashboard's Business tab uses — which also brings a previous-period comparison along for free. Custom
+  // sends plain from/to and gets no comparison, since "the previous period" is not well defined for an
+  // arbitrary range someone typed in.
+  const queryParams = range === 'custom' ? { from: customFrom, to: customTo, storeId: storeId || undefined } : { range, storeId: storeId || undefined };
 
   const { data, isLoading, isError, isFetching, isPlaceholderData, refetch } = useQuery({
-    queryKey: ['analytics', from, to],
-    queryFn: () => billingApi.getAnalytics(from, to),
+    queryKey: ['analytics', queryParams],
+    queryFn: () => billingApi.getAnalytics(queryParams),
     enabled: ready,
     placeholderData: keepPreviousData, // keep the last charts on screen while the next range loads
   });
@@ -109,13 +126,50 @@ export default function Analytics() {
   const daily: any[] = analytics?.daily || [];
   const byStore: any[] = analytics?.byStore || [];
   const byCategory: any[] = analytics?.byCategory || [];
+  const byHour: any[] = analytics?.byHour || [];
+  const byWeekday: any[] = analytics?.byWeekday || [];
+  const promotionMarkers: any[] = analytics?.promotionMarkers || [];
   const totals = analytics?.totals || {};
+  const compare = analytics?.compare;
+  const from = analytics?.range?.from ? analytics.range.from.slice(0, 10) : customFrom;
+  const to = analytics?.range?.to ? analytics.range.to.slice(0, 10) : customTo;
   const allStores: any[] = (storesQ.data?.data?.data || []).filter((st: any) => st.isActive !== false);
   const storeRows = buildStoreRows(byStore, allStores);
+  const selectedStoreName = storeId ? allStores.find((st) => st.id === storeId)?.name : undefined;
+
+  // Cashback as a share of purchase volume, day by day — derived on the client from `daily`, no server change
+  // needed for this one.
+  const cashbackShareDaily = daily.map((d) => ({ date: d.date, cashbackShare: d.purchaseVolume > 0 ? parseFloat(((d.pointsAwarded / d.purchaseVolume) * 100).toFixed(2)) : 0 }));
+
+  // The current period's daily series next to the previous period's, aligned by position (day 1 of this
+  // period next to day 1 of the one before it) so a dashed line can be drawn behind the solid one.
+  const dailyWithPrev = compare?.current?.series
+    ? compare.current.series.map((c: any, i: number) => ({ ...daily.find((d) => d.date === c.key), date: c.key, prevTransactions: compare.previous?.series?.[i]?.transactions ?? 0, prevPurchaseVolume: compare.previous?.series?.[i]?.purchaseVolume ?? 0 }))
+    : daily;
 
   const categoryPieData = byCategory.map((c) => ({ name: catLabel(c.category), value: c.purchaseVolume }));
   const noActivity = !!analytics && !(totals.transactions > 0) && !(totals.redemptions > 0);
   const updating = isFetching && isPlaceholderData;
+
+  const [exporting, setExporting] = useState(false);
+  async function handleExportCsv() {
+    setExporting(true);
+    try {
+      const res = await billingApi.exportAnalyticsCsv(queryParams);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers['content-disposition'] || '';
+      const match = cd.match(/filename="(.+?)"/);
+      a.download = match ? match[1] : 'analytics.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Export failed - try again');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Today is not finished, so its point is low. Shade it so the line does not read as a crash.
   const partialToday = daily.length > 1 && daily[daily.length - 1]?.date === today;
@@ -126,6 +180,12 @@ export default function Analytics() {
     return <ReferenceArea x1={kind === 'line' ? prev : last} x2={last} fill="#e9ecef" fillOpacity={0.9} />;
   };
   const dateTick = (v: string) => dayLabel(v);
+
+  // A promotion that started inside the visible window, drawn as a thin vertical line so a spike can be tied
+  // to it. Only on the daily line/area charts, where a day-by-day reader would actually look for the cause.
+  const promotionLines = promotionMarkers.map((m) => (
+    <ReferenceLine key={m.id} x={m.date} stroke="#6f42c1" strokeDasharray="2 4" label={{ value: m.title, position: 'insideTopRight', fontSize: 10, fill: '#6f42c1' }} />
+  ));
 
   return (
     <div style={s.container}>
@@ -151,8 +211,20 @@ export default function Analytics() {
               {RANGE_LABEL[r]}
             </button>
           ))}
+          {analytics && (
+            <button style={s.exportBtn} onClick={handleExportCsv} disabled={exporting} title="Download what is on screen as CSV">
+              {exporting ? '⏳ Exporting…' : '⬇ Export CSV'}
+            </button>
+          )}
         </div>
       </div>
+
+      {storeId && (
+        <div style={s.storeChip}>
+          Viewing: <strong>{selectedStoreName || 'one store'}</strong> only
+          <button style={s.storeChipClear} onClick={() => setStoreId(null)} aria-label="Clear the store filter and show every store again">✕ Show every store</button>
+        </div>
+      )}
 
       {range === 'custom' && (
         <div style={s.customDateRow}>
@@ -178,14 +250,18 @@ export default function Analytics() {
         <div style={s.loading}>No data available.</div>
       ) : (
         <div aria-busy={updating} style={{ opacity: updating ? 0.55 : 1, transition: 'opacity 0.15s' }}>
-          {/* Summary cards */}
+          {/* Summary cards, each against the same stretch of the previous period when one is available (a
+              preset range, not Custom) */}
           <div style={s.summaryGrid}>
-            <SummaryCard icon="🧾" label="Transactions" value={totals.transactions || 0} />
-            <SummaryCard icon="💵" label="Purchase Volume" value={fmt$(totals.purchaseVolume || 0)} />
+            <SummaryCard icon="🧾" label="Transactions" value={totals.transactions || 0} delta={compare && pctChange(compare.current.totals.transactions, compare.previous.totals.transactions)} />
+            <SummaryCard icon="💵" label="Purchase Volume" value={fmt$(totals.purchaseVolume || 0)} delta={compare && pctChange(compare.current.totals.purchaseVolume, compare.previous.totals.purchaseVolume)} />
             <SummaryCard icon="💰" label="Your Dev Cut" value={fmt$(totals.devCut || 0)} green />
-            <SummaryCard icon="🎁" label="Cashback Awarded" value={fmt$(totals.pointsAwarded || 0)} />
+            <SummaryCard icon="🎁" label="Cashback Awarded" value={fmt$(totals.pointsAwarded || 0)} delta={compare && pctChange(compare.current.totals.cashbackIssued, compare.previous.totals.cashbackIssued)} />
             <SummaryCard icon="🏪" label="Stores Selling" value={byStore.length} sub={allStores.length ? `of ${allStores.length} active` : undefined} />
           </div>
+          {compare && (
+            <p style={s.compareNote}>Percent change is against {RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}, the same length of time, ending at the same point.</p>
+          )}
 
           {noActivity ? (
             <div style={s.chartCard}>
@@ -199,33 +275,50 @@ export default function Analytics() {
                 <p style={s.todayNote}><span style={s.todaySwatch} aria-hidden="true" /> The shaded stretch is today, which is not finished yet.</p>
               )}
 
-              {/* Daily transactions line chart */}
-              <ChartCard title="Daily Transactions" summary={summarize(daily, 'transactions', 'Daily transactions')}>
+              {/* Daily transactions line chart, with the previous period dashed behind it when one is available */}
+              <ChartCard title="Daily Transactions" summary={summarize(daily, 'transactions', 'Daily transactions') + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart accessibilityLayer={false} data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <LineChart accessibilityLayer={false} data={dailyWithPrev} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={dateTick} />
                     <YAxis tick={{ fontSize: 13 }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     {shade('line')}
+                    {promotionLines}
+                    {compare && <Line type="monotone" dataKey="prevTransactions" stroke="#adb5bd" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="Previous period" />}
                     <Line type="monotone" dataKey="transactions" stroke="#E63946" strokeWidth={2} dot={false} name="Transactions" />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              {/* Daily revenue line chart */}
-              <ChartCard title="Daily Revenue (Purchase Volume & Dev Cut)" summary={summarize(daily, 'purchaseVolume', 'Daily purchase volume', true)}>
+              {/* Daily revenue line chart, same previous-period dashed line */}
+              <ChartCard title="Daily Revenue (Purchase Volume & Dev Cut)" summary={summarize(daily, 'purchaseVolume', 'Daily purchase volume', true) + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart accessibilityLayer={false} data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <LineChart accessibilityLayer={false} data={dailyWithPrev} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={dateTick} />
                     <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     {shade('line')}
+                    {promotionLines}
+                    {compare && <Line type="monotone" dataKey="prevPurchaseVolume" stroke="#adb5bd" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="Previous period" />}
                     <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
                     <Line type="monotone" dataKey="devCut" stroke="#2DC653" strokeWidth={2} dot={false} name="Dev Cut" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              {/* Cashback as a share of purchase volume, day by day: explains WHY the trend moves, not just that it does */}
+              <ChartCard title="Cashback Share of Sales" summary={summarize(cashbackShareDaily, 'cashbackShare', 'Cashback as a percent of purchase volume')}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart accessibilityLayer={false} data={cashbackShareDaily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={dateTick} />
+                    <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip formatter={(v: any) => `${v}%`} labelFormatter={(v) => dayLabel(v)} />
+                    <Line type="monotone" dataKey="cashbackShare" stroke="#F4A261" strokeWidth={2} dot={false} name="Cashback share" />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -267,11 +360,12 @@ export default function Analytics() {
                 </ResponsiveContainer>
               </ChartCard>
 
-              {/* Per-store bar chart */}
-              {storeRows.length > 0 && (
+              {/* Per-store bar charts: comparing stores against each other only makes sense while looking at all
+                  of them, so these step aside once drilled down to one. Click a bar to drill in. */}
+              {storeRows.length > 0 && !storeId && (
                 <ChartCard
                   title="Transactions by Store"
-                  summary={`Transactions by store: ${storeRows.map((r) => `${r.storeName} ${r.transactions}`).join(', ')}.`}
+                  summary={`Transactions by store, click a bar to see just that store: ${storeRows.map((r) => `${r.storeName} ${r.transactions}`).join(', ')}.`}
                 >
                   <ResponsiveContainer width="100%" height={Math.max(300, storeRows.length * 36)}>
                     <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
@@ -280,17 +374,17 @@ export default function Analytics() {
                       <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} width={120} />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
-                      <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.transactions > 0 && setStoreId(d.storeId)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
               )}
 
               {/* Per-store purchase volume bar chart */}
-              {storeRows.length > 0 && (
+              {storeRows.length > 0 && !storeId && (
                 <ChartCard
                   title="Purchase Volume by Store ($)"
-                  summary={`Purchase volume by store: ${storeRows.map((r) => `${r.storeName} ${fmt$(r.purchaseVolume)}`).join(', ')}.`}
+                  summary={`Purchase volume by store, click a bar to see just that store: ${storeRows.map((r) => `${r.storeName} ${fmt$(r.purchaseVolume)}`).join(', ')}.`}
                 >
                   <ResponsiveContainer width="100%" height={Math.max(300, storeRows.length * 36)}>
                     <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
@@ -299,8 +393,8 @@ export default function Analytics() {
                       <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} width={120} />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
-                      <Bar dataKey="purchaseVolume" fill="#E63946" name="Purchase Volume" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="devCut" fill="#2DC653" name="Dev Cut" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="purchaseVolume" fill="#E63946" name="Purchase Volume" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
+                      <Bar dataKey="devCut" fill="#2DC653" name="Dev Cut" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -357,6 +451,34 @@ export default function Analytics() {
               {/* Cashback and the developer cut, as a share of sales (this replaces a pie that showed $NaN) */}
               {totals.transactions > 0 && <CutCard totals={totals} />}
 
+              {/* Busiest hours and days: the same idea as the bar charts above, but by time instead of by store */}
+              {byHour.some((h: any) => h.transactions > 0) && (
+                <ChartCard title="Busiest Hours" summary={`Transactions by hour of day, Central time: ${byHour.map((h: any) => `${h.hour}:00 ${h.transactions}`).join(', ')}.`}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart accessibilityLayer={false} data={byHour} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="hour" tick={{ fontSize: 12 }} tickFormatter={(h) => `${h}:00`} interval={1} />
+                      <YAxis tick={{ fontSize: 13 }} allowDecimals={false} />
+                      <Tooltip labelFormatter={(h) => `${h}:00-${h}:59 Central`} />
+                      <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              )}
+              {byWeekday.some((w: any) => w.transactions > 0) && (
+                <ChartCard title="Busiest Days of the Week" summary={`Transactions by day of the week: ${byWeekday.map((w: any) => `${w.label} ${w.transactions}`).join(', ')}.`}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart accessibilityLayer={false} data={byWeekday} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="label" tick={{ fontSize: 13 }} />
+                      <YAxis tick={{ fontSize: 13 }} allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="transactions" fill="#E63946" name="Transactions" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              )}
+
               {/* Store table */}
               {storeRows.length > 0 && (
                 <div style={s.chartCard}>
@@ -372,7 +494,11 @@ export default function Analytics() {
                     <TableBody>
                       {storeRows.map((store, i) => (
                         <TableRow key={store.storeId} style={i % 2 === 0 ? s.trEven : {}}>
-                          <TableCell style={s.td}>{store.storeName}</TableCell>
+                          <TableCell style={s.td}>
+                            {!storeId && store.transactions > 0 ? (
+                              <button style={s.storeLinkBtn} onClick={() => setStoreId(store.storeId)}>{store.storeName}</button>
+                            ) : store.storeName}
+                          </TableCell>
                           <TableCell style={{ ...s.td, ...s.tdNum }}>{store.transactions}</TableCell>
                           <TableCell style={{ ...s.td, ...s.tdNum }}>{fmt$(store.purchaseVolume)}</TableCell>
                           <TableCell style={{ ...s.td, ...s.tdNum, color: GREEN_TEXT, fontWeight: 700 }}>{fmt$(store.devCut)}</TableCell>
@@ -390,7 +516,8 @@ export default function Analytics() {
   );
 }
 
-function SummaryCard({ icon, label, value, green, sub }: { icon: string; label: string; value: any; green?: boolean; sub?: string }) {
+function SummaryCard({ icon, label, value, green, sub, delta }: { icon: string; label: string; value: any; green?: boolean; sub?: string; delta?: string | null }) {
+  const deltaColor = !delta ? TEXT_MUTED : delta.startsWith('+') ? GREEN_TEXT : delta.startsWith('-') ? '#C1121F' : TEXT_MUTED;
   return (
     <div style={s.summaryCard}>
       <div style={s.summaryIcon}>{icon}</div>
@@ -398,6 +525,7 @@ function SummaryCard({ icon, label, value, green, sub }: { icon: string; label: 
         <div style={s.summaryLabel}>{label}</div>
         <div style={{ ...s.summaryValue, ...(green ? { color: GREEN_TEXT } : {}) }}>{value}</div>
         {sub && <div style={s.summarySub}>{sub}</div>}
+        {delta && <div style={{ fontSize: 13, fontWeight: 700, color: deltaColor, marginTop: 2 }}>{delta.startsWith('+') ? '▲' : delta.startsWith('-') ? '▼' : ''} {delta} vs previous period</div>}
       </div>
     </div>
   );
@@ -440,6 +568,12 @@ const s: Record<string, React.CSSProperties> = {
   rangeControls: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   rangeBtn: { background: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 15, fontWeight: 500, color: TEXT_MUTED },
   rangeBtnActive: { background: PRIMARY, color: '#fff', border: '1px solid #1D3557', fontWeight: 700 },
+  exportBtn: { background: PRIMARY, border: '1.5px solid #1D3557', color: '#fff', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' as const },
+  compareNote: { color: TEXT_MUTED, fontSize: 13, margin: '-20px 0 20px' },
+
+  storeChip: { display: 'flex', alignItems: 'center', gap: 10, background: '#eef4ff', border: '1px solid #cfe0ff', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 14, color: PRIMARY, flexWrap: 'wrap' as const },
+  storeChipClear: { background: 'none', border: '1px solid #adb5bd', color: TEXT_MUTED, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 600 },
+  storeLinkBtn: { background: 'none', border: 'none', padding: 0, color: PRIMARY, fontWeight: 600, cursor: 'pointer', fontSize: 14, textDecoration: 'underline', fontFamily: 'inherit' },
 
   customDateRow: { display: 'flex', gap: 16, alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap' },
   dateField: { display: 'flex', flexDirection: 'column', gap: 4 },

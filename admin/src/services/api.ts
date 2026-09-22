@@ -48,8 +48,10 @@ export interface PaymentBody { paidOn?: string; method?: string; note?: string; 
 export const billingApi = {
   getAllStores: () => api.get('/billing/stores'),
   getRevenue: (period?: string) => api.get(`/billing/revenue${period && period !== 'all' ? `?period=${period}` : ''}`),
-  getAnalytics: (from?: string, to?: string) =>
-    api.get(`/billing/analytics${from ? `?from=${from}&to=${to}` : ''}`),
+  getAnalytics: (params: { from?: string; to?: string; range?: string; storeId?: string } = {}) =>
+    api.get('/billing/analytics', { params }),
+  exportAnalyticsCsv: (params: { from?: string; to?: string; range?: string; storeId?: string } = {}) =>
+    api.get('/billing/analytics/export', { params, responseType: 'blob' }),
   getCashbackHealth: () => api.get('/billing/cashback-health'),
   updateStoreBilling: (storeId: string, data: object) => api.patch(`/billing/stores/${storeId}`, data),
   createRecord: (storeId: string, data: object) => api.post(`/billing/stores/${storeId}/records`, data),

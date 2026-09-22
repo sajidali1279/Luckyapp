@@ -139,7 +139,7 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 
 | Section | What It Contains |
 |---|---|
-| **Overview** | Dashboard, Inventory Intelligence |
+| **Overview** | Dashboard, Analytics, Inventory Intelligence |
 | **Transactions** | All transactions, filtering, review |
 | **Customers** | Customer list, search, management, dispute review |
 | **Staff** | Employee and manager accounts |
@@ -166,6 +166,22 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 | **Support** | Support ticket inbox |
 | **Docs** | Legal documents, manuals, technical docs |
 | **Profile** | Your account settings |
+
+### 3.3 Analytics - Trends and Comparisons
+
+Analytics (Dev Admin only) is where you look past today's snapshot and see how the platform is trending: transactions, purchase volume, cashback awarded and your platform fee, over a range of days, with every store or drilled into one.
+
+**Choosing a range:** Last 7 days, Last 30 days, Last 90 days, or Custom (pick your own start and end date). Every preset range compares itself with the period right before it, of the same length, ending at the same point, so "this week" is measured against "the week before it", not an arbitrary month. Custom does not show a comparison, since there is no single obvious period to compare an arbitrary range against.
+
+**Reading a summary card:** each card (Transactions, Purchase Volume, Cashback Awarded) shows the total for the range you picked, and underneath it, in color, how that compares with the previous period: a green up arrow and a percentage means it grew, a red down arrow means it shrank, and "no change" or "new this period" appear when there is nothing meaningful to compare against. The daily charts draw the previous period as a dashed line next to this period's solid one, so you can see exactly where the two pull apart.
+
+**New charts:** Busiest Hours and Busiest Days of the Week show when your customers actually shop, useful for staffing or timing a promotion; Cashback Share of Sales tracks what share of every dollar rung up came back to customers as cashback, over time.
+
+**Promotion markers:** a dashed vertical line on the Daily Transactions and Daily Revenue charts marks the day a promotion started, labeled with its name, so a spike in the chart can be explained by what actually ran that week instead of guessed at.
+
+**Drilling into one store:** click a bar in "Transactions by Store" or "Purchase Volume by Store" to narrow the whole page, including the comparison and the new charts, to that one store. A "Viewing: [store name]" chip appears at the top; click "Show every store" on it to go back to the full chain view. The store name in the Store Breakdown Table is also clickable and does the same thing.
+
+**Exporting:** the Export CSV button downloads the same filtered range (whichever store, whichever dates) as a spreadsheet, with a daily breakdown and a per-store summary.
 
 ---
 
