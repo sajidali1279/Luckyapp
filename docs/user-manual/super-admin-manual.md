@@ -382,6 +382,21 @@ To export:
 
 With the list on screen (and no text box focused): **J** and **K** move a highlight up and down the rows, **Enter** opens the highlighted row's details panel, **A** approves and **R** rejects whichever sale is open in the panel or highlighted. A hint line above the table names these.
 
+### 7.7 Voiding an Approved Sale
+
+Sometimes an already-approved sale turns out to be wrong (the wrong customer was scanned, a mistake was found later). Dev Admin and Super Admin can undo it:
+
+1. Open the sale's **Details** panel.
+2. Click **Void this sale**.
+3. Type a reason. Unlike Reject, a reason is **required** here — it is kept in the Activity Log.
+4. Confirm.
+
+The credited points are taken back from the customer's balance immediately, even if they have already spent some or all of it — their balance can go negative, and the confirmation says so when it does. The customer is notified. This cannot be undone, so it is worth being sure before confirming.
+
+### 7.8 Sales That Expire on Their Own
+
+A sale an employee started but never finished with a receipt (Pending) no longer sits in the queue forever. If no receipt is uploaded within 24 hours, it is automatically marked Rejected, and that store's managers get a single notice naming how many expired. If a flagged sale has been waiting over a day, HQ's daily morning email calls it out specifically, not just as part of the general flagged-sale count.
+
 ---
 
 ## 8. Offers Management

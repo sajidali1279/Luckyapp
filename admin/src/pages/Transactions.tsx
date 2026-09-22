@@ -31,6 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
   FLAGGED:  '#9B2335',
   APPROVED: '#2DC653',
   REJECTED: '#C1121F',
+  VOIDED:   '#7c3aed',
 };
 
 // Text-safe greens and reds: #2DC653 and #E63946 are fine as badge backgrounds but not as small text on white.
@@ -49,6 +50,12 @@ function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function statusLabel(status: string) {
+  if (status === 'FLAGGED') return '🚨 FLAGGED';
+  if (status === 'VOIDED') return '↩️ VOIDED';
+  return status;
+}
+
 // The stores are in Texas: default dates and the times in the table use the store calendar and clock,
 // wherever the admin is opened.
 const todayStr = () => storeToday();
@@ -65,7 +72,7 @@ function parseFlags(raw: unknown): string[] {
   }
 }
 
-type DecisionKind = 'REJECT_PENDING' | 'APPROVE_FLAGGED' | 'REJECT_FLAGGED';
+type DecisionKind = 'REJECT_PENDING' | 'APPROVE_FLAGGED' | 'REJECT_FLAGGED' | 'VOID';
 interface Decision { kind: DecisionKind; tx: any }
 
 export default function Transactions() {
@@ -213,19 +220,35 @@ export default function Transactions() {
     onSettled: refreshLists,
   });
 
+  const voidMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => pointsApi.voidSale(id, reason),
+    onSuccess: (res: any) => {
+      toast.success(
+        res?.data?.data?.customerBalanceWentNegative
+          ? 'Sale voided - the customer had already spent some of it, so their balance is now negative'
+          : 'Sale voided and the points clawed back'
+      );
+    },
+    onError: (e: any) => toast.error(serverMessage(e, 'Failed to void the sale')),
+    onSettled: refreshLists,
+  });
+
   // While a decision is being sent, the dialog stays open with its buttons disabled, so it cannot be sent twice.
-  const busy = rejectMutation.isPending || reviewMutation.isPending;
+  const busy = rejectMutation.isPending || reviewMutation.isPending || voidMutation.isPending;
 
   // The button only disables after React re-renders, and a fast double click can land before that: this lock is immediate.
   const sending = useRef(false);
 
   function confirmDecision(reasonInput?: string) {
     if (!decision || sending.current) return;
-    sending.current = true;
     const reason = reasonInput?.trim() || undefined;
+    if (decision.kind === 'VOID' && !reason) return; // ConfirmModal already requires it; this is a last-resort guard
+    sending.current = true;
     const closeWhenDone = { onSettled: () => { sending.current = false; setDecision(null); setPanelId(null); } };
     if (decision.kind === 'REJECT_PENDING') {
       rejectMutation.mutate({ id: decision.tx.id, reason }, closeWhenDone);
+    } else if (decision.kind === 'VOID') {
+      voidMutation.mutate({ id: decision.tx.id, reason: reason! }, closeWhenDone);
     } else {
       reviewMutation.mutate({ id: decision.tx.id, action: decision.kind === 'APPROVE_FLAGGED' ? 'APPROVE' : 'REJECT', reason }, closeWhenDone);
     }
@@ -354,6 +377,10 @@ export default function Transactions() {
       title: 'Reject this transaction?', confirmLabel: 'Reject', danger: true,
       effect: 'It will be marked as rejected, the customer will not receive points for it, and they will be told it could not be verified.',
     },
+    VOID: {
+      title: 'Void this approved sale?', confirmLabel: 'Void and claw back', danger: true,
+      effect: `${fmt$(dCredit)} (${Math.round(dCredit * 100).toLocaleString()} pts) will be taken back from the customer's balance right now, even if they already spent some of it (their balance can go negative). They will be notified. This cannot be undone.`,
+    },
   }[decision.kind] : null;
 
   return (
@@ -377,9 +404,15 @@ export default function Transactions() {
         confirmLabel={dCopy?.confirmLabel}
         danger={dCopy?.danger}
         busy={busy}
-        withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED'}
-        inputLabel="Reason (optional)"
-        inputPlaceholder="Kept in the activity log; the customer is told it too"
+        // The page's own heading is the h1 above the filter bar, with no h2 anywhere on the page: ConfirmModal's
+        // default h3 skipped straight from h1, an axe heading-order finding present since before this batch
+        // (confirmed via git stash — not something T2 introduced) and now fixed while this dialog is already
+        // being extended for Void, the same headingLevel prop LB3 used to fix the identical pattern elsewhere.
+        headingLevel="h2"
+        withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED' || decision?.kind === 'VOID'}
+        inputRequired={decision?.kind === 'VOID'}
+        inputLabel={decision?.kind === 'VOID' ? 'Reason (required)' : 'Reason (optional)'}
+        inputPlaceholder={decision?.kind === 'VOID' ? 'Why this sale is being undone' : 'Kept in the activity log; the customer is told it too'}
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />
@@ -421,6 +454,7 @@ export default function Transactions() {
           <option value="FLAGGED">🚨 Flagged</option>
           <option value="APPROVED">✓ Approved</option>
           <option value="REJECTED">✕ Rejected</option>
+          <option value="VOIDED">↩️ Voided</option>
         </select>
 
         {isSuperAdmin && (
@@ -590,11 +624,11 @@ export default function Transactions() {
                       style={{
                         color: tx.status === 'APPROVED' ? APPROVED_TEXT : TEXT_MUTED,
                         fontWeight: 700,
-                        textDecoration: tx.status === 'REJECTED' ? 'line-through' : undefined,
+                        textDecoration: tx.status === 'REJECTED' || tx.status === 'VOIDED' ? 'line-through' : undefined,
                       }}
-                      title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : 'Not credited yet'}
+                      title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : tx.status === 'VOIDED' ? 'Was credited; voided and clawed back' : 'Not credited yet'}
                     >
-                      {fmt$(tx.pointsAwarded)}
+                      {fmt$(Number(tx.pointsAwarded || 0) + Number(tx.gasBonusPoints || 0))}
                     </span>
                   </TableCell>
                   {isSuperAdmin && (
@@ -607,7 +641,7 @@ export default function Transactions() {
                   <TableCell style={s.td}>
                     <div>
                       <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
-                        {tx.status === 'FLAGGED' ? '🚨 FLAGGED' : tx.status}
+                        {statusLabel(tx.status)}
                       </span>
                     </div>
                     {flags.length > 0 && (
@@ -687,7 +721,7 @@ export default function Transactions() {
               <div style={s.panelSummary}>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{fmt$(panelTx.purchaseAmount)}</span>
                 <span style={{ ...s.badge, background: STATUS_COLORS[panelTx.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[panelTx.status] || '#dee2e6') }}>
-                  {panelTx.status === 'FLAGGED' ? '🚨 FLAGGED' : panelTx.status}
+                  {statusLabel(panelTx.status)}
                 </span>
               </div>
               <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 4 }}>
@@ -757,6 +791,17 @@ export default function Transactions() {
                 </button>
               </div>
             )}
+            {panelTx.status === 'APPROVED' && isSuperAdmin && (
+              <div style={s.panelActions}>
+                <button
+                  style={s.voidBtn}
+                  aria-label={`Void ${fmt$(panelTx.purchaseAmount)} sale for ${panelTx.customer?.name || 'customer'}`}
+                  onClick={() => setDecision({ kind: 'VOID', tx: panelTx })}
+                >
+                  ↩️ Void this sale
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -801,6 +846,7 @@ const s: Record<string, React.CSSProperties> = {
   copyId: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 2, fontSize: 12, color: TEXT_MUTED, cursor: 'pointer', fontFamily: 'inherit' },
   rejectBtn: { background: 'none', border: `1px solid ${DANGER}`, color: DANGER, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 },
   approveBtn: { background: APPROVED_TEXT, border: `1px solid ${APPROVED_TEXT}`, color: '#fff' },
+  voidBtn: { flex: 1, background: 'none', border: '1px solid #7c3aed', color: '#7c3aed', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   approveOff: { background: '#e9ecef', border: '1px solid #ced4da', color: '#6c757d', cursor: 'not-allowed' },
   actionNote: { fontSize: 12, color: TEXT_MUTED, maxWidth: 130 },
   dialogFlags: { textAlign: 'left', color: '#9B2335', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },

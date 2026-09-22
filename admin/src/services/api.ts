@@ -156,6 +156,8 @@ export const pointsApi = {
   reject: (transactionId: string, reason?: string) => api.patch(`/points/${transactionId}/reject`, reason ? { reason } : {}),
   reviewFlagged: (transactionId: string, action: 'APPROVE' | 'REJECT', reason?: string) =>
     api.patch(`/points/${transactionId}/review`, reason ? { action, reason } : { action }),
+  /** Undoes an APPROVED sale and claws the points back. A reason is required (unlike a reject's optional one). */
+  voidSale: (transactionId: string, reason: string) => api.patch(`/points/${transactionId}/void`, { reason }),
   getPlatformSummary: () => api.get('/points/platform-summary'),
   getPlatformTrend: (days = 30) => api.get(`/points/platform-trend?days=${days}`),
   getPlatformCompare: (range: string) => api.get(`/points/platform-compare?range=${range}`),
