@@ -167,6 +167,7 @@ import {
   getAllStoresBilling,
   getStoreById,
   getStores,
+  createStore,
   getAccessibleStores,
   updateStore,
   updateGasPrices,
@@ -302,6 +303,7 @@ router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
 router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
+router.post('/stores', authenticate, requireRole(Role.DEV_ADMIN), createStore);                          // Add a new store (a system-wide, billing-relevant entity)
 router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)

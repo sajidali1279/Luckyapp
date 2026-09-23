@@ -42,6 +42,10 @@ export async function getStoreById(req: AuthRequest, res: Response) {
 // filtered to isActive:true, this is the store *management* view, so a
 // deactivated store needs to stay visible (with its status shown) rather
 // than silently vanishing with no UI path back to reactivating it.
+// A price is old more than READINESS_FRESH_DAYS after it was last saved - the same "how stale" question
+// the price-reminder cron (utils/price-reminder-cron.ts) asks, so the card and the reminder always agree.
+const READINESS_FRESH_DAYS = 3;
+
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     select: {
@@ -55,10 +59,38 @@ export async function getStores(_req: AuthRequest, res: Response) {
     },
     orderBy: { name: 'asc' },
   });
-  const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => ({
-    ...store,
-    todayHours: computeTodayHoursLabel(storeHours, storeHolidays),
-  }));
+
+  // Two facts that live outside the Store row itself: whether anyone active is assigned to work there,
+  // and whether it has ever recorded an approved sale - both grouped once for every store instead of a
+  // query per card.
+  const [staffCounts, soldStores] = await Promise.all([
+    prisma.userStoreRole.groupBy({ by: ['storeId'], where: { user: { isActive: true } }, _count: { userId: true } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { status: 'APPROVED' }, _count: { id: true } }),
+  ]);
+  const staffMap = new Map(staffCounts.map((r) => [r.storeId, r._count.userId]));
+  const soldSet = new Set(soldStores.map((r) => r.storeId));
+
+  const now = Date.now();
+  const fresh = (at: Date | null) => !!at && now - at.getTime() < READINESS_FRESH_DAYS * 24 * 60 * 60 * 1000;
+
+  const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => {
+    const readiness = {
+      hoursSet: storeHours.length > 0,
+      phoneSet: !!store.phone,
+      locationSet: store.latitude != null && store.longitude != null,
+      gasFresh: fresh(store.gasPriceUpdatedAt),
+      dieselSet: store.dieselPricePerGallon != null,
+      dieselFresh: fresh(store.dieselPriceUpdatedAt),
+      staffAssigned: (staffMap.get(store.id) ?? 0) > 0,
+      hasFirstSale: soldSet.has(store.id),
+    };
+    return {
+      ...store,
+      todayHours: computeTodayHoursLabel(storeHours, storeHolidays),
+      readiness,
+      isReady: Object.values(readiness).every(Boolean),
+    };
+  });
   res.json({ success: true, data: withTodayHours });
 }
 
@@ -118,6 +150,57 @@ const STORE_SELECT = {
   latitude: true, longitude: true, shiftsPerDay: true, enabledCategories: true, hotFoodEnabled: true,
   minimumAge: true, isActive: true,
 } as const;
+
+const createStoreSchema = z.object({
+  name: storeText('store name', 60),
+  address: storeText('address', 120),
+  city: storeText('city', 60),
+  state: z.string({ message: 'The state is its two-letter code, such as TX.' }).trim().regex(/^[A-Za-z]{2}$/, 'The state is its two-letter code, such as TX.').transform((v) => v.toUpperCase()),
+  zipCode: z.string({ message: 'The ZIP code is five digits, such as 75090.' }).trim().regex(/^\d{5}(-\d{4})?$/, 'The ZIP code is five digits, such as 75090.'),
+  phone: z.string({ message: 'The phone number must be text.' }).trim().max(30).optional(),
+  latitude: z.number({ message: 'The latitude must be a number.' }).min(-90, 'The latitude must be between -90 and 90.').max(90, 'The latitude must be between -90 and 90.').optional(),
+  longitude: z.number({ message: 'The longitude must be a number.' }).min(-180, 'The longitude must be between -180 and 180.').max(180, 'The longitude must be between -180 and 180.').optional(),
+  transactionFeeRate: z.number({ message: 'The fee must be a number.' }).min(0, 'The fee cannot be negative.').max(MAX_STORE_FEE_RATE, `The fee can be at most ${Math.round(MAX_STORE_FEE_RATE * 100)}% of the cashback.`).optional(),
+});
+
+// DEV_ADMIN only - a new store is a system-wide, billing-relevant entity, the same bar as closing one or
+// changing a store's fee, both already Dev-Admin-only elsewhere on this page.
+export async function createStore(req: AuthRequest, res: Response) {
+  const parsed = createStoreSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { name, address, city, state, zipCode, phone: rawPhone, latitude, longitude, transactionFeeRate } = parsed.data;
+
+  const same = await prisma.store.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { name: true } });
+  if (same) { res.status(409).json({ success: false, error: `Another store is already called "${same.name}".` }); return; }
+
+  let phone: string | null = null;
+  if (rawPhone !== undefined && rawPhone.trim() !== '') {
+    phone = storePhone(rawPhone);
+    if (!phone) { res.status(400).json({ success: false, error: 'Enter a full ten-digit phone number, or leave it empty.' }); return; }
+  }
+
+  // Coordinates go together, and they must be in the United States - the same rule Edit Store already enforces.
+  if ((latitude === undefined) !== (longitude === undefined)) { res.status(400).json({ success: false, error: COORDINATE_PAIR_MESSAGE }); return; }
+  if (latitude !== undefined && longitude !== undefined && !inUnitedStates(latitude, longitude)) { res.status(400).json({ success: false, error: COORDINATES_MESSAGE }); return; }
+
+  const store = await prisma.store.create({
+    data: {
+      name, address, city, state, zipCode, phone,
+      latitude: latitude ?? null, longitude: longitude ?? null,
+      transactionFeeRate: transactionFeeRate ?? DEFAULT_DEV_CUT_RATE,
+    },
+    select: { ...STORE_SELECT, transactionFeeRate: true },
+  });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CREATE_STORE', entity: 'store', entityId: store.id,
+    details: { summary: `${store.name} added (${city}, ${state}), fee ${(store.transactionFeeRate * 100).toFixed(0)}%`, name: store.name, city, state, transactionFeeRate: store.transactionFeeRate },
+    storeId: store.id, storeName: store.name,
+  });
+
+  res.status(201).json({ success: true, data: store });
+}
 
 export async function updateStore(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
