@@ -81,6 +81,8 @@ export const billingApi = {
   generateAllMissingBills: () => api.post('/billing/generate-all'),
   seedTestData: () => api.post('/billing/seed-test-data'),
   sendReport: (period?: string) => api.post(`/billing/send-report${period ? `?period=${period}` : ''}`),
+  getHeartbeat: () => api.get('/billing/heartbeat'),
+  getStorePlanHistory: (storeId: string) => api.get(`/billing/stores/${storeId}/plan-history`),
   getMonthlyRecords: (period?: string, storeId?: string, isPaid?: boolean) => {
     const params = new URLSearchParams();
     if (period)  params.set('period', period);

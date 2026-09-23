@@ -5,6 +5,7 @@ import { billingApi, type PaymentBody } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { storeToday, storeDayLong } from '../lib/storeDates';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
@@ -108,6 +109,27 @@ export default function Billing() {
       filterPaid === 'all' ? undefined : filterPaid === 'paid',
     ),
     enabled: tab === 'monthly',
+  });
+
+  // A heartbeat for the monthly job: is it actually running, and how many of today's active stores have
+  // a bill for the last finished month. Refetches on its own every couple of minutes so it stays current
+  // without anyone needing to reload the page.
+  const { data: heartbeatData, isError: heartbeatError, refetch: refetchHeartbeat } = useQuery({
+    queryKey: ['billing-heartbeat'],
+    queryFn: () => billingApi.getHeartbeat(),
+    enabled: tab === 'monthly',
+    refetchInterval: 120_000,
+  });
+  const heartbeat = heartbeatData?.data?.data as {
+    periodLabel: string; lastRanAt: string | null; minutesSinceRan: number | null; staleHeartbeat: boolean;
+    totalActiveStores: number; billedStores: number; missingStores: { id: string; name: string }[];
+  } | undefined;
+
+  const [historyStoreId, setHistoryStoreId] = useState<string | null>(null);
+  const historyQuery = useQuery({
+    queryKey: ['store-plan-history', historyStoreId],
+    queryFn: () => billingApi.getStorePlanHistory(historyStoreId!),
+    enabled: !!historyStoreId,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
@@ -541,7 +563,12 @@ export default function Billing() {
                             <button style={s.saveBtn} onClick={() => saveEdit(store)} disabled={updateBilling.isPending}>{updateBilling.isPending ? '…' : 'Save'}</button>
                             <button style={s.cancelBtn} onClick={() => setEditingStore(null)}>Cancel</button>
                           </>
-                        ) : <button style={s.editBtn} onClick={() => startEdit(store)}>Edit</button>}
+                        ) : (
+                          <>
+                            <button style={s.editBtn} onClick={() => startEdit(store)}>Edit</button>{' '}
+                            <button style={s.cancelBtn} onClick={() => setHistoryStoreId(store.id)}>History</button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
 
@@ -576,6 +603,20 @@ export default function Billing() {
       {/* ══════════════════ MONTHLY BILLS TAB ══════════════════ */}
       {tab === 'monthly' && (
         <div>
+          {/* ── Billing job heartbeat ── */}
+          {heartbeatError ? (
+            <div style={s.heartbeatBox}>
+              Could not check whether the monthly billing job is running. <button type="button" style={s.linkBtnInline} onClick={() => refetchHeartbeat()}>Try again</button>
+            </div>
+          ) : heartbeat && Array.isArray(heartbeat.missingStores) && (
+            <div style={{ ...s.heartbeatBox, ...(heartbeat.staleHeartbeat ? s.heartbeatBoxWarn : s.heartbeatBoxOk) }}>
+              {heartbeat.staleHeartbeat ? '⚠️' : '✅'} Billing job {heartbeat.lastRanAt ? `last ran ${heartbeat.minutesSinceRan}m ago` : 'has never run on this server'}
+              {heartbeat.staleHeartbeat && ' — that is longer than expected (it should tick every hour); check the server is awake'}.
+              {' '}{heartbeat.billedStores} of {heartbeat.totalActiveStores} active stores have a {heartbeat.periodLabel} bill.
+              {heartbeat.missingStores.length > 0 && ` Missing: ${heartbeat.missingStores.map((s) => s.name).join(', ')}.`}
+            </div>
+          )}
+
           {/* ── Toolbar ── */}
           <div style={s.monthlyToolbar}>
             <div style={s.monthlyFilters}>
@@ -1124,6 +1165,33 @@ export default function Billing() {
           </div>
         </div>
       )}
+
+      {/* ── Plan history ── */}
+      {historyStoreId && (
+        <Modal title="Billing Plan History" subtitle={historyQuery.data?.data?.data?.store?.name} onClose={() => setHistoryStoreId(null)} maxWidth={520}>
+          {historyQuery.isLoading ? (
+            <div role="status">Loading…</div>
+          ) : historyQuery.isError ? (
+            <div role="alert" style={s.heartbeatBoxWarn}>
+              Could not load the history. <button type="button" style={s.linkBtnInline} onClick={() => historyQuery.refetch()}>Try again</button>
+            </div>
+          ) : (historyQuery.data?.data?.data?.history ?? []).length === 0 ? (
+            <div style={{ color: TEXT_MUTED, fontSize: 14 }}>No plan changes recorded for this store yet - it is still on what it was set up with.</div>
+          ) : (
+            <div>
+              {(historyQuery.data!.data.data.history as any[]).map((h, i) => (
+                <div key={i} style={s.historyRow}>
+                  <div>
+                    <div>{h.before.billingType !== h.after.billingType ? `${h.before.billingType.replace(/_/g, ' ')} to ${h.after.billingType.replace(/_/g, ' ')}` : h.after.billingType.replace(/_/g, ' ')}</div>
+                    <div>Fee: {fmtPct(h.before.transactionFeeRate)} to {fmtPct(h.after.transactionFeeRate)}{h.before.subscriptionPrice !== h.after.subscriptionPrice ? `, price: ${fmt$(h.before.subscriptionPrice)} to ${fmt$(h.after.subscriptionPrice)}` : ''}</div>
+                    <div style={s.historyWho}>{storeDayLong(h.at)} · {h.by}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1205,6 +1273,16 @@ const s: Record<string, React.CSSProperties> = {
   saveBtn: { padding: '6px 14px', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
   cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
   suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#495057', lineHeight: 1.5 },
+
+  // Billing job heartbeat
+  heartbeatBox: { fontSize: 14, lineHeight: 1.6, borderRadius: 10, padding: '10px 14px', marginBottom: 14 },
+  heartbeatBoxOk: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' },
+  heartbeatBoxWarn: { background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' },
+  linkBtnInline: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
+
+  // Plan history modal
+  historyRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '8px 0', borderBottom: '1px solid #f0f1f2', flexWrap: 'wrap' as const },
+  historyWho: { fontSize: 13, color: TEXT_MUTED },
 
   // Monthly bills
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },

@@ -699,6 +699,16 @@ Super Admins can view their own billing history and invoice records. They cannot
 
 For billing questions or disputes, contact the Developer (DevAdmin) via the Support ticket system described in Section 19.
 
+### 15.4 Monitoring the Monthly Billing Job (Dev Admin only)
+
+At the top of **Monthly Bills**, a line shows whether the automatic monthly billing job is actually running: "✅ Billing job last ran Xm ago" in green when it is healthy, or "⚠️ ... that is longer than expected" in amber if it has gone quiet longer than its hourly check should allow (the server may be asleep or down). It also says how many of today's active stores already have a bill for the last finished month, and names any that do not - a store with no sales that month legitimately has nothing to bill, so this is informational, not necessarily a problem.
+
+The moment the job makes a store's bill, that store's own Super Admin is emailed the invoice automatically. This does not replace the **Notify Super Admin** button on this tab, which resends every record for a chosen period (including already-paid ones) on demand.
+
+### 15.5 A Store's Plan History (Dev Admin only)
+
+On the **Stores** tab, click **History** next to a store's **Edit** button to see every past change to its billing plan, fee or subscription price, with who made the change and when.
+
 ---
 
 ## 16. Cashback Rates
