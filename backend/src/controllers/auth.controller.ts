@@ -237,6 +237,9 @@ export async function login(req: Request, res: Response) {
     return;
   }
 
+  // Best effort: a write here must never hold up or fail an otherwise-good sign-in.
+  prisma.user.update({ where: { id: user.id }, data: { lastSignInAt: new Date() } }).catch(() => {});
+
   if (pushToken && platform) {
     await prisma.pushToken.upsert({
       where: { token: pushToken },
@@ -690,7 +693,7 @@ export async function listStaff(req: AuthRequest, res: Response) {
   const staff = await prisma.user.findMany({
     where: { role: hideDevAdmins ? { notIn: [Role.CUSTOMER, Role.DEV_ADMIN] } : { not: Role.CUSTOMER } },
     select: {
-      id: true, phone: true, name: true, role: true, isActive: true, createdAt: true, allStoresAccess: true,
+      id: true, phone: true, name: true, role: true, isActive: true, createdAt: true, allStoresAccess: true, lastSignInAt: true,
       storeRoles: { select: { store: { select: { id: true, name: true, isActive: true } }, role: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -1144,6 +1147,75 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
     success: true,
     data: { id: staff.id, phone: staff.phone, name: staff.name, role: staff.role, store: { id: store.id, name: store.name } },
   });
+}
+
+// ─── Edit a staff account (SuperAdmin+) ───────────────────────────────────────
+// Before this, the only way to fix a name/phone typo or promote an Employee to Store Manager was
+// Delete and recreate, which erases every sale the person granted (see the Delete refusal above).
+// A role change is deliberately narrow: only between EMPLOYEE and STORE_MANAGER, and only when the
+// actor could manage BOTH the account's current role and the role being moved to - promoting or
+// demoting anyone to/from Dev Admin or Super Admin stays out of this route entirely.
+
+const editStaffSchema = z.object({
+  name: z.string({ message: 'The name must be text.' }).trim().min(1, 'The name cannot be empty.').max(100, 'The name is too long (100 characters at most).').optional(),
+  phone: z.string({ message: 'The phone must be text.' }).optional(),
+  role: z.enum([Role.EMPLOYEE, Role.STORE_MANAGER], { message: 'A role here must be Employee or Store Manager.' }).optional(),
+  allStoresAccess: z.boolean({ message: 'allStoresAccess must be true or false.' }).optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: 'Nothing to change.' });
+
+export async function editStaffAccount(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const parsed = editStaffSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { name, phone: rawPhone, role, allStoresAccess } = parsed.data;
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) { res.status(404).json({ success: false, error: 'That account no longer exists.' }); return; }
+  if (target.role === Role.CUSTOMER) { res.status(400).json({ success: false, error: 'Customers are edited from the Customers page, not here.' }); return; }
+  if (refuseUnlessManageable(req, res, target)) return;
+
+  if (role !== undefined) {
+    if (target.role !== Role.EMPLOYEE && target.role !== Role.STORE_MANAGER) {
+      res.status(400).json({ success: false, error: `A ${ROLE_WORDS[target.role] ?? target.role}'s role cannot be changed here.` });
+      return;
+    }
+    if (!canManageAccount(req.user!.role, role)) { res.status(403).json({ success: false, error: CANNOT_MANAGE_MESSAGE }); return; }
+  }
+
+  // Only a REAL change goes in `data` (matching Restrict/Deactivate's "asking for what's already true
+  // changes nothing" convention elsewhere) - the phone's own already-the-same-number branch below follows
+  // the identical rule.
+  const data: Prisma.UserUpdateInput = {};
+  if (name !== undefined && name !== target.name) data.name = name;
+  if (role !== undefined && role !== target.role) data.role = role;
+  const wantsAllStoresAccess = role === Role.EMPLOYEE ? false : allStoresAccess;
+  if (wantsAllStoresAccess !== undefined && wantsAllStoresAccess !== target.allStoresAccess) data.allStoresAccess = wantsAllStoresAccess;
+
+  if (rawPhone !== undefined) {
+    const newPhone = staffPhone(rawPhone);
+    if (!newPhone) { res.status(400).json({ success: false, error: 'Enter a full ten-digit phone number.' }); return; }
+    if (newPhone !== target.phone) {
+      const existing = await prisma.user.findUnique({ where: { phone: newPhone }, select: { name: true, role: true, isActive: true } });
+      if (existing) { res.status(409).json({ success: false, ...phoneTakenAnswer(req.user!.role, existing) }); return; }
+      data.phone = newPhone;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    res.json({ success: true, data: { id: target.id, changed: false } });
+    return;
+  }
+
+  const before = { name: target.name, phone: target.phone, role: target.role, allStoresAccess: target.allStoresAccess };
+  const updated = await prisma.user.update({ where: { id: userId }, data, select: { id: true, name: true, phone: true, role: true, allStoresAccess: true } });
+
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'EDIT_STAFF', entity: 'user', entityId: userId,
+    details: { before, after: { name: updated.name, phone: updated.phone, role: updated.role, allStoresAccess: updated.allStoresAccess } },
+  });
+
+  res.json({ success: true, data: { ...updated, changed: true } });
 }
 
 // ─── Confirm 21+ Age (customer self-declares for age-restricted stores) ────────

@@ -207,6 +207,8 @@ model User {
   lockoutLevel        Int       @default(0)
   // Session tokens issued before this moment are refused. Set when a PIN is reset, so a lost phone's session ends.
   sessionsValidAfter  DateTime?
+  // Set on every successful sign-in (best effort, never blocks the sign-in itself). Null means never signed in.
+  lastSignInAt        DateTime?
 
   // Customer-specific
   qrCode          String?  @unique
