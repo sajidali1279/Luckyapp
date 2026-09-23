@@ -170,16 +170,42 @@ export const pointsApi = {
   getPendingCount: () => api.get('/points/pending-count'),
 };
 
+export interface CustomerFilters {
+  status?: 'active' | 'restricted';
+  hasBalance?: boolean;
+  hasNote?: boolean;
+  joinedWithin?: 'week';
+  hideTest?: boolean;
+  sort?: 'joined_desc' | 'joined_asc' | 'spend_desc' | 'balance_desc';
+}
+
 export const customersApi = {
-  list: (search = '', page = 1) => api.get(`/users/customers?search=${encodeURIComponent(search)}&page=${page}`),
+  list: (search = '', page = 1, filters: CustomerFilters = {}) => {
+    const params: Record<string, string> = { search, page: String(page) };
+    if (filters.status) params.status = filters.status;
+    if (filters.hasBalance) params.hasBalance = 'true';
+    if (filters.hasNote) params.hasNote = 'true';
+    if (filters.joinedWithin) params.joinedWithin = filters.joinedWithin;
+    if (filters.hideTest) params.hideTest = 'true';
+    if (filters.sort) params.sort = filters.sort;
+    return api.get('/users/customers', { params });
+  },
+  detail: (userId: string) => api.get(`/users/customers/${userId}/detail`),
+  goodwillCredit: (userId: string, amount: number, reason: string) =>
+    api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on
   setActive: (userId: string, isActive: boolean, fraudNote?: string) =>
     api.patch(`/users/${userId}/toggle-active`, { isActive, ...(fraudNote ? { fraudNote } : {}) }),
   delete: (userId: string) => api.delete(`/users/${userId}`),
-  exportCsv: (search = '', isActive?: boolean) => {
+  exportCsv: (search = '', isActive?: boolean, filters: CustomerFilters = {}) => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (isActive !== undefined) params.set('isActive', String(isActive));
+    if (filters.status) params.set('status', filters.status);
+    if (filters.hasBalance) params.set('hasBalance', 'true');
+    if (filters.hasNote) params.set('hasNote', 'true');
+    if (filters.joinedWithin) params.set('joinedWithin', filters.joinedWithin);
+    if (filters.hideTest) params.set('hideTest', 'true');
     const qs = params.toString();
     return api.get(`/users/customers/export${qs ? `?${qs}` : ''}`, { responseType: 'blob' });
   },

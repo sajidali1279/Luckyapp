@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { customersApi, disputesApi, storesApi, staffApi } from '../services/api';
+import { customersApi, disputesApi, storesApi, staffApi, CustomerFilters } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -66,11 +66,18 @@ export default function Customers() {
   const [creditAmt, setCreditAmt] = useState('');
   const [resolveError, setResolveError] = useState('');
   const [exportingCustomers, setExportingCustomers] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [filters, setFilters] = useState<CustomerFilters>({ sort: 'joined_desc' });
+  const [detailTarget, setDetailTarget] = useState<{ id: string; name: string } | null>(null);
+  const [goodwillAmt, setGoodwillAmt] = useState('');
+  const [goodwillReason, setGoodwillReason] = useState('');
+  const [goodwillError, setGoodwillError] = useState('');
+  const activeFilterCount = [filters.status, filters.hasBalance, filters.hasNote, filters.joinedWithin, filters.hideTest].filter(Boolean).length;
 
   async function handleExportCustomers() {
     setExportingCustomers(true);
     try {
-      const res = await customersApi.exportCsv(search);
+      const res = await customersApi.exportCsv(search, undefined, filters);
       const url = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
       const a = document.createElement('a');
       a.href = url;
@@ -85,9 +92,41 @@ export default function Customers() {
   }
 
   const { data, isLoading, isError, refetch, error } = useQuery({
-    queryKey: ['customers', search, page],
-    queryFn: () => customersApi.list(search, page),
+    queryKey: ['customers', search, page, filters],
+    queryFn: () => customersApi.list(search, page, filters),
   });
+
+  const detailQuery = useQuery({
+    queryKey: ['customer-detail', detailTarget?.id],
+    queryFn: () => customersApi.detail(detailTarget!.id),
+    enabled: !!detailTarget,
+  });
+  const detail = detailQuery.data?.data?.data as
+    | { customer: any; totals: { txCount: number; totalSpent: number }; sales: any[]; redemptions: any[]; disputes: any[] }
+    | undefined;
+
+  const goodwillIssue = (() => {
+    const t = goodwillAmt.trim();
+    if (t === '') return null;
+    if (!/^(\d{1,2}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return 'Enter dollars and cents, from $0.01 to $25.';
+    if (Number(t) > 25) return 'A goodwill credit can be at most $25. For more, use a missing-points report instead.';
+    return null;
+  })();
+  const goodwillOk = goodwillAmt.trim() !== '' && goodwillIssue === null && goodwillReason.trim() !== '';
+
+  const goodwillMutation = useMutation({
+    mutationFn: ({ id, amount, reason }: { id: string; amount: number; reason: string }) => customersApi.goodwillCredit(id, amount, reason),
+    onSuccess: () => {
+      toast.success(`$${Number(goodwillAmt).toFixed(2)} credited to ${detailTarget?.name}.`);
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer-detail', detailTarget?.id] });
+      setGoodwillAmt(''); setGoodwillReason(''); setGoodwillError('');
+    },
+    onError: (e: any) => setGoodwillError(failureMessage(e, 'Could not add the credit. Nothing was changed.')),
+  });
+  const runGoodwill = useSingleFlight(goodwillMutation);
+
+  function closeDetail() { setDetailTarget(null); setGoodwillAmt(''); setGoodwillReason(''); setGoodwillError(''); }
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
@@ -176,6 +215,11 @@ export default function Customers() {
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setSearch(searchInput.trim());
+    setPage(1);
+  }
+
+  function updateFilters(patch: Partial<CustomerFilters>) {
+    setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
   }
 
@@ -316,7 +360,55 @@ export default function Customers() {
             ✕ Clear
           </button>
         )}
+        <select style={s.filterSelect} aria-label="Sort customers by" value={filters.sort} onChange={(e) => updateFilters({ sort: e.target.value as CustomerFilters['sort'] })}>
+          <option value="joined_desc">Newest first</option>
+          <option value="joined_asc">Oldest first</option>
+          <option value="spend_desc">Highest spend</option>
+          <option value="balance_desc">Highest balance</option>
+        </select>
+        <button type="button" style={{ ...s.moreFiltersBtn, ...(activeFilterCount > 0 ? s.moreFiltersBtnActive : {}) }} aria-expanded={showMoreFilters} onClick={() => setShowMoreFilters((v) => !v)}>
+          {showMoreFilters ? '▲' : '▼'} Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </button>
       </form>
+
+      {showMoreFilters && (
+        <div style={s.filterPanel}>
+          <div>
+            <div style={s.filterGroupLabel}>Status</div>
+            <div style={s.filterChoices}>
+              {(['', 'active', 'restricted'] as const).map((v) => (
+                <label key={v || 'all'} style={s.radioLabel}>
+                  <input type="radio" name="cust-status" checked={(filters.status ?? '') === v} onChange={() => updateFilters({ status: v || undefined })} />
+                  {v === '' ? 'All' : v === 'active' ? 'Active' : 'Restricted'}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={s.filterChoices}>
+            <label style={s.checkLabel}>
+              <input type="checkbox" checked={!!filters.hasBalance} onChange={(e) => updateFilters({ hasBalance: e.target.checked || undefined })} />
+              Has a balance
+            </label>
+            <label style={s.checkLabel}>
+              <input type="checkbox" checked={!!filters.hasNote} onChange={(e) => updateFilters({ hasNote: e.target.checked || undefined })} />
+              Has a fraud note
+            </label>
+            <label style={s.checkLabel}>
+              <input type="checkbox" checked={filters.joinedWithin === 'week'} onChange={(e) => updateFilters({ joinedWithin: e.target.checked ? 'week' : undefined })} />
+              Joined this week
+            </label>
+            <label style={s.checkLabel}>
+              <input type="checkbox" checked={!!filters.hideTest} onChange={(e) => updateFilters({ hideTest: e.target.checked || undefined })} />
+              Hide test accounts
+            </label>
+          </div>
+          {activeFilterCount > 0 && (
+            <button type="button" style={s.linkBtn} onClick={() => updateFilters({ status: undefined, hasBalance: undefined, hasNote: undefined, joinedWithin: undefined, hideTest: undefined })}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Content ── */}
       {badSearch ? (
@@ -346,7 +438,7 @@ export default function Customers() {
                     <div style={{ ...s.avatar, background: color }} aria-hidden="true">{initial}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={s.customerName}>{c.name || <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>No name</span>}</div>
-                      <div style={s.customerPhone}>{showPhone(c.phone)}</div>
+                      <div style={s.customerPhone}>{showPhone(c.phone)}{c.isTest && <span style={s.testBadge}>TEST</span>}</div>
                       {!c.isActive && (
                         <div style={s.fraudBadge}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>
                       )}
@@ -383,6 +475,13 @@ export default function Customers() {
                   <div style={s.cardDivider} />
 
                   {/* Action */}
+                  <button
+                    style={{ ...s.actionBtn, ...s.actionBtnView }}
+                    aria-label={`View ${displayName}'s sales, redemptions and reports`}
+                    onClick={() => setDetailTarget({ id: c.id, name: displayName })}
+                  >
+                    🔍 View Details
+                  </button>
                   <button
                     style={{ ...s.actionBtn, ...(c.isActive ? s.actionBtnRestrict : s.actionBtnRestore) }}
                     aria-label={`${c.isActive ? 'Restrict' : 'Restore'} ${displayName}'s account`}
@@ -562,8 +661,104 @@ export default function Customers() {
           </form>
         </Modal>
       )}
+
+      {/* ── Customer detail panel: their sales, redemptions and reports, plus a goodwill credit ── */}
+      {detailTarget && (
+        <Modal title={`${detailTarget.name} — Details`} onClose={closeDetail} maxWidth={640}>
+          {detailQuery.isLoading ? (
+            <div style={s.modalText} role="status">Loading…</div>
+          ) : detailQuery.isError ? (
+            <div role="alert" style={s.errorBox}>
+              Could not load this customer. <button type="button" style={s.linkBtn} onClick={() => detailQuery.refetch()}>Try again</button>
+            </div>
+          ) : detail ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={s.detailSummaryRow}>
+                <div style={s.detailStat}><div style={s.detailStatNum}>{fmt$(detail.customer.pointsBalance || 0)}</div><div style={s.detailStatLbl}>Balance</div></div>
+                <div style={s.detailStat}><div style={s.detailStatNum}>{detail.totals.txCount}</div><div style={s.detailStatLbl}>Sales</div></div>
+                <div style={s.detailStat}><div style={s.detailStatNum}>{fmt$(detail.totals.totalSpent)}</div><div style={s.detailStatLbl}>Total Spent</div></div>
+                <div style={s.detailStat}><div style={s.detailStatNum}>{storeDayLong(detail.customer.createdAt)}</div><div style={s.detailStatLbl}>Joined</div></div>
+              </div>
+              {detail.customer.isTest && <div style={s.testNote}>This looks like a test account (a 111-555 area code).</div>}
+              {!detail.customer.isActive && <div style={s.fraudBadge}>Restricted{detail.customer.fraudNote ? `: ${detail.customer.fraudNote}` : ''}</div>}
+
+              <div>
+                <div style={s.detailSectionTitle}>Recent Sales {detail.sales.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                {detail.sales.map((t: any) => (
+                  <div key={t.id} style={s.detailRow}>
+                    <span>{storeDayTime(t.createdAt)} · {t.store?.name || 'Unknown store'}</span>
+                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }}>📷</a>}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div style={s.detailSectionTitle}>Recent Redemptions {detail.redemptions.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                {detail.redemptions.map((r: any) => (
+                  <div key={r.id} style={s.detailRow}>
+                    <span>{storeDayTime(r.createdAt)} · {r.store?.name || 'Unknown store'}</span>
+                    <span>{fmt$(r.amount)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div style={s.detailSectionTitle}>Missing-Points Reports {detail.disputes.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                {detail.disputes.map((d: any) => (
+                  <div key={d.id} style={s.detailRow}>
+                    <span>{storeDayLong(d.createdAt)} · {d.description}</span>
+                    <span>{d.status}{d.creditedAmt ? ` · ${fmt$(d.creditedAmt)}` : ''}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={s.goodwillBox}>
+                <div style={s.detailSectionTitle}>Goodwill Credit</div>
+                <div style={{ fontSize: 14, color: TEXT_MUTED, marginBottom: 10 }}>For a case that is not a missing-points report — an apology, a one-off gesture. Up to $25, with a reason.</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                  <div style={{ flex: '0 0 120px' }}>
+                    <input
+                      style={s.fieldInput}
+                      inputMode="decimal"
+                      value={goodwillAmt}
+                      maxLength={5}
+                      aria-label="Goodwill credit amount in dollars"
+                      placeholder="$0.00"
+                      onChange={(e) => { setGoodwillAmt(e.target.value.replace(/[^0-9.]/g, '')); setGoodwillError(''); }}
+                    />
+                  </div>
+                  <div style={{ flex: '1 1 180px' }}>
+                    <input
+                      style={s.fieldInput}
+                      value={goodwillReason}
+                      maxLength={300}
+                      aria-label="Reason for the goodwill credit"
+                      placeholder="Reason (required)"
+                      onChange={(e) => { setGoodwillReason(e.target.value); setGoodwillError(''); }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    style={{ ...s.confirmBtn, flex: '0 0 auto', background: GREEN_TEXT, ...(!goodwillOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                    disabled={!goodwillOk || goodwillMutation.isPending}
+                    onClick={() => goodwillOk && runGoodwill({ id: detailTarget.id, amount: Number(goodwillAmt), reason: goodwillReason.trim() })}
+                  >
+                    {goodwillMutation.isPending ? 'Adding…' : 'Add Credit'}
+                  </button>
+                </div>
+                {goodwillIssue && goodwillAmt.trim() !== '' && <div role="alert" style={s.errorText}>{goodwillIssue}</div>}
+                {goodwillError && <div role="alert" style={{ ...s.errorBox, marginTop: 8 }}>{goodwillError}</div>}
+              </div>
+            </div>
+          ) : null}
+        </Modal>
+      )}
     </div>
   );
+}
+
+function statusWord(status: string): string {
+  return status === 'APPROVED' ? 'Approved' : status === 'PENDING' ? 'Pending' : status === 'FLAGGED' ? 'Flagged' : status === 'VOIDED' ? 'Voided' : 'Rejected';
 }
 
 const s: Record<string, React.CSSProperties> = {
@@ -631,9 +826,33 @@ const s: Record<string, React.CSSProperties> = {
   cardDivider: { height: 1, background: '#e5e7eb', marginBottom: 14 },
 
   actionBtn: { width: '100%', padding: '9px 0', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  actionBtnView: { background: '#eff6ff', color: '#1d4ed8', marginBottom: 8 },
   actionBtnRestrict: { background: '#fff1f2', color: RED_TEXT },
   actionBtnRestore: { background: '#f0fdf4', color: GREEN_TEXT },
   actionBtnDelete: { background: '#7f1d1d', color: '#fff', marginTop: 8 },
+
+  // Test-account tag, next to a customer's phone
+  testBadge: { marginLeft: 8, padding: '1px 7px', background: '#f3f4f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 800, borderRadius: 6, letterSpacing: 0.5, verticalAlign: 'middle' },
+  testNote: { fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic' },
+
+  // Filters
+  moreFiltersBtn: { padding: '10px 16px', background: '#fff', color: '#374151', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
+  moreFiltersBtnActive: { borderColor: PRIMARY, color: PRIMARY },
+  filterPanel: { display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 24 },
+  filterGroupLabel: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  filterChoices: { display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' },
+  radioLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#374151', cursor: 'pointer' },
+  checkLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#374151', cursor: 'pointer' },
+
+  // Customer detail panel
+  detailSummaryRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
+  detailStat: { flex: '1 1 100px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', textAlign: 'center' },
+  detailStatNum: { fontSize: 15, fontWeight: 800, color: '#111827' },
+  detailStatLbl: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
+  detailSectionTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  detailEmpty: { fontStyle: 'italic', fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0 },
+  detailRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '6px 0', borderBottom: '1px solid #f0f1f2', flexWrap: 'wrap' },
+  goodwillBox: { background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '14px 16px' },
 
   emptyState: { textAlign: 'center', padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#374151' },

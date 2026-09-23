@@ -306,12 +306,20 @@ A customer is never erased: Delete removes their name, phone number and personal
 
 ### 6.1 Viewing All Customers
 
-Navigate to **Customers** in the sidebar. The header counts every customer (not only the page you are on): **Total**, **Active**, **Restricted** and the **Credits Out** (unspent credit). Each customer is a card, 50 to a page, showing:
-- Name and phone number, written as (940) 290-2772.
+Navigate to **Customers** in the sidebar. The header counts every customer (not only the page you are on): **Total**, **Active**, **Restricted** and the **Credits Out** (unspent credit) - these four numbers are always for the whole customer base, even while a filter narrows what the cards below show. Each customer is a card, 50 to a page, showing:
+- Name and phone number, written as (940) 290-2772, with a small **TEST** tag next to the phone if it looks like one of the team's test numbers (a 111 to 555 area code).
 - The **credit balance**, the number of approved **transactions**, the **total spent** and the **joined** date (a store date in Central time, with the year).
 - **Restricted** in words for a restricted account, followed by the reason you gave.
 
-The search box finds a customer by part of a name (any case, spaces around it do not matter) or by phone number written any way: with brackets, dashes, spaces, "+1" or a leading 1. A search that finds nobody says so. **Export CSV** downloads the customers that match the search.
+The search box finds a customer by part of a name (any case, spaces around it do not matter) or by phone number written any way: with brackets, dashes, spaces, "+1" or a leading 1. A search that finds nobody says so. The **Sort** box next to it reorders the list: Newest first, Oldest first, Highest spend or Highest balance.
+
+**Filters** narrows the list further. Click **Filters** to open a panel of checkboxes: **Status** (All, Active or Restricted), **Has a balance**, **Has a fraud note**, **Joined this week**, and **Hide test accounts**. The Filters button itself shows how many are on ("Filters (2)"), and **Clear filters** turns them all off at once. **Export CSV** downloads exactly what the filters and search currently show, so the file always matches the screen.
+
+### 6.1a A Customer's Own Page
+
+Click **View Details** on any card to open that customer's own page: their credit balance, sale count and total spent, their most recent sales (with a link to each receipt photo), their most recent redemptions, and their missing-points reports, all in one place - the starting point for "a customer says they got no points."
+
+The same page has a **Goodwill Credit** tool, for a case that is not a missing-points report: an apology, a promise made on the phone, a one-off gesture. Type an amount (up to $25) and a reason (required), then **Add Credit**. It is added to their balance right away, the customer is told why, and it is recorded in the Activity Log. For a larger amount tied to a specific purchase, use a missing-points report instead (see 6.6), which can credit up to $50.
 
 ### 6.2 Restricting a Customer Account
 
