@@ -200,6 +200,8 @@ import {
   sendBillingReport,
   getSuperAdminInvoices,
   getBillingPendingCount,
+  getBillingHeartbeat,
+  getStorePlanHistory,
   getSuperAdminNotifications,
   getDevAdminNotifications,
 } from '../controllers/billing.controller';
@@ -356,6 +358,8 @@ router.post('/billing/generate-all', authenticate, requireRole(Role.DEV_ADMIN), 
 router.get('/billing/monthly-records', authenticate, requireRole(Role.DEV_ADMIN), getMonthlyRecords);
 router.post('/billing/seed-test-data', authenticate, requireRole(Role.DEV_ADMIN), seedTestTransactions);
 router.post('/billing/send-report', authenticate, requireRole(Role.DEV_ADMIN), sendBillingReport);
+router.get('/billing/heartbeat', authenticate, requireRole(Role.DEV_ADMIN), getBillingHeartbeat);           // Is the monthly job actually alive
+router.get('/billing/stores/:storeId/plan-history', authenticate, requireRole(Role.DEV_ADMIN), getStorePlanHistory); // Billing-plan changes over time
 router.get('/billing/notifications', authenticate, requireRole(Role.DEV_ADMIN), getDevAdminNotifications);
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);

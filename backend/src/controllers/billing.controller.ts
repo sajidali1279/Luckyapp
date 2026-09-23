@@ -46,6 +46,11 @@ export async function getStoreById(req: AuthRequest, res: Response) {
 // the price-reminder cron (utils/price-reminder-cron.ts) asks, so the card and the reminder always agree.
 const READINESS_FRESH_DAYS = 3;
 
+// The AppConfig key billing-cron.ts writes on every tick (a heartbeat) and getBillingHeartbeat reads back.
+// A plain key/value row, not a new column - billing-cron.ts imports this from here (not the other way
+// round) since it already imports buildBillForPeriod from here too.
+export const BILLING_HEARTBEAT_KEY = 'billingCronLastRunAt';
+
 export async function getStores(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     select: {
@@ -1372,6 +1377,66 @@ export async function getBillingPendingCount(_req: AuthRequest, res: Response) {
     distinct: ['period'],
   });
   res.json({ success: true, data: { count: unpaidPeriods.length } });
+}
+
+// DevAdmin — a heartbeat for the monthly billing job: when it last actually ran (from AppConfig, written
+// on every tick whether or not it made a bill), and how many of today's active stores have a usage bill
+// for the last finished period. A store with nothing owed for a quiet month is not a failure, so this
+// reports the count plainly rather than flagging it - only staleUpdate (the cron itself going quiet for
+// an unreasonable stretch) is treated as something worth a red flag.
+export async function getBillingHeartbeat(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const period = lastFinishedPeriod(now);
+
+  const [heartbeat, activeStores, billed] = await Promise.all([
+    prisma.appConfig.findUnique({ where: { key: BILLING_HEARTBEAT_KEY } }),
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    (prisma.billingRecord as any).findMany({ where: { period, billingType: { not: 'CUSTOM' } }, select: { storeId: true } }),
+  ]);
+
+  const lastRanAt = heartbeat ? new Date(heartbeat.value) : null;
+  const minutesSinceRan = lastRanAt ? Math.round((now.getTime() - lastRanAt.getTime()) / 60000) : null;
+  // The job ticks hourly - anything past about 3 hours of silence means the server itself has likely been
+  // down or stuck, not just "no bills needed yet."
+  const staleHeartbeat = minutesSinceRan === null || minutesSinceRan > 180;
+
+  const billedIds = new Set(billed.map((b: any) => b.storeId));
+  const missingStores = activeStores.filter((s) => !billedIds.has(s.id));
+
+  res.json({
+    success: true,
+    data: {
+      period, periodLabel: periodLabel(period),
+      lastRanAt: lastRanAt ? lastRanAt.toISOString() : null,
+      minutesSinceRan, staleHeartbeat,
+      totalActiveStores: activeStores.length,
+      billedStores: activeStores.length - missingStores.length,
+      missingStores: missingStores.map((s) => ({ id: s.id, name: s.name })),
+    },
+  });
+}
+
+// DevAdmin+ — one store's billing plan history, read from the Activity Log (STORE_BILLING_UPDATE entries
+// updateStoreBilling already writes) rather than a new table: no schema change, and the log is already the
+// one place a change's who/when/before/after lives.
+export async function getStorePlanHistory(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true, billingType: true, subscriptionPrice: true, transactionFeeRate: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+
+  const entries = await prisma.auditLog.findMany({
+    where: { action: 'STORE_BILLING_UPDATE', entityId: storeId },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true, actorName: true, details: true },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      store,
+      history: entries.map((e) => ({ at: e.createdAt, by: e.actorName, ...(JSON.parse(e.details as string)) })),
+    },
+  });
 }
 
 // SuperAdmin — derived notification feed (no DB table needed)
