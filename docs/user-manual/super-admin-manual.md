@@ -192,9 +192,17 @@ Analytics (Dev Admin only) is where you look past today's snapshot and see how t
 Navigate to **Stores** in the sidebar. Each store is a card showing:
 - Name, city and state, and whether it is inactive.
 - Address, phone number (written as (580) 924-9898), today's opening hours ("Hours not set" in red until you set them) and its coordinates ("Located" or "No coords").
+- A **launch-readiness line**: "✅ Ready for customers" once everything below is in place, or "⚠️ Needs: ..." naming exactly what is missing (hours, phone, location, a gas or diesel price that is set and fresh, staff assigned, or a first sale).
 - The product categories it offers.
-- Its **gas and diesel prices**, each with how old it is: "Updated today", "Updated 3 days ago", or "Never set". A price more than two days old is red.
+- Its **gas and diesel prices**, each with how old it is: "Updated today", "Updated 3 days ago", or "Never set". A price more than two days old is red, and its manager gets a daily push reminder once a price they set has gone stale (a price never set at all is a readiness gap, not a reminder).
 - A **21+ Required** badge for an age-restricted store, and a count of pending customer disputes.
+
+### 4.1a Adding a New Store (Dev Admin only)
+
+1. Click **+ Add Store** at the top of the page.
+2. Fill in the **Store Name**, **Street Address**, **City**, **State** (two letters) and **ZIP Code**. Phone, coordinates and the platform fee are optional and can be filled in later; the fee defaults to the standard rate if left blank.
+3. Click **Add Store**. The name cannot already belong to another store.
+4. The new store's card appears with its readiness line naming what to do next: set its hours and prices from the card, and assign staff from the **Staff** page.
 
 ### 4.2 Gas and Diesel Prices
 

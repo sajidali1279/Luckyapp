@@ -714,7 +714,8 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
-| GET | /stores | JWT | SUPER_ADMIN | All stores (with `dieselPriceUpdatedAt` for price age) |
+| GET | /stores | JWT | SUPER_ADMIN | All stores (with `dieselPriceUpdatedAt` for price age, and `readiness`/`isReady` - see 6a below) |
+| POST | /stores | JWT | DEV_ADMIN | Add a store: `name`, `address`, `city`, `state`, `zipCode` required; `phone`, `latitude`+`longitude` (as a pair, inside the United States) and `transactionFeeRate` (defaults to `DEFAULT_DEV_CUT_RATE`, not the schema column's own 2% default) all optional. Same name/phone/coordinate rules as `PATCH /stores/:storeId`; a system-wide, billing-relevant entity, so Dev-Admin-only like closing a store or changing its fee. `CREATE_STORE` Activity Log entry |
 | GET | /stores/accessible | JWT | STORE_MANAGER+ | Accessible stores for user |
 | GET | /stores/:storeId | JWT | STORE_MANAGER+ | Store detail |
 | PATCH | /stores/:storeId | JWT | SUPER_ADMIN | Update store. Two-letter state, five-digit ZIP, phone stored as `+1` and ten digits (an empty phone clears it), coordinates as a pair inside the United States (`utils/storeRules.ts`), no duplicate names (409), sentences for every refusal; a request that changes nothing answers `changed: false` and records nothing; every change is an `UPDATE_STORE` Activity Log entry. Changing `isActive` needs DEV_ADMIN (403 otherwise) |
@@ -725,6 +726,10 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | POST | /stores/:storeId/keyword-mappings | JWT | SUPER_ADMIN | A POS receipt keyword, 3 to 40 characters; `ADD_KEYWORD_MAPPING` / `DELETE_KEYWORD_MAPPING` |
 
 A closed store (`isActive: false`) refuses `POST /points/grant`, `POST /points/redeem`, `POST /points/tier-benefit` and `POST /points/catalog-redeem` with a 409 sentence naming the store (`utils/storeRules.ts` `refuseIfStoreClosed`).
+
+**Launch readiness (`getStores`):** each store's `readiness` object has 8 booleans (`hoursSet`, `phoneSet`, `locationSet`, `gasFresh`, `dieselSet`, `dieselFresh`, `staffAssigned`, `hasFirstSale`), and `isReady` is true only when all 8 are. `hoursSet` checks the raw `StoreHours` rows, not `todayHours` (a store could have hours configured but read "Closed today"). `gasFresh`/`dieselFresh` use the same `READINESS_FRESH_DAYS = 3` window as the price-reminder cron's own staleness check, so the card and the reminder never disagree about what counts as fresh. `staffAssigned`/`hasFirstSale` come from two `groupBy` queries (`userStoreRole` filtered to active users, `pointsTransaction` filtered to `APPROVED`) run once for every store rather than per-card.
+
+**Price reminders (`utils/price-reminder-cron.ts`):** once a day at 9am Central, any active store whose gas or diesel price WAS set and has gone more than `STALE_AFTER_MS` (2 days) without an update pushes that store's own active Store Managers - a price that was never set at all is a readiness gap (above), not a staleness nag, so a store that has simply never entered a diesel price is not reminded forever. No idempotency guard, matching `daily-report-reminder-cron.ts`'s own accepted tradeoff: a server restart resending one day's reminder is low-stakes.
 
 ### Offers and Banners
 

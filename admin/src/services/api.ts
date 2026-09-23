@@ -231,6 +231,7 @@ export const storesApi = {
   // Store Manager, so the same query works for both without branching.
   getAccessible: () => api.get('/stores/accessible'),
   getOne: (storeId: string) => api.get(`/stores/${storeId}`),
+  create: (data: object) => api.post('/stores', data),
   update: (storeId: string, data: object) => api.patch(`/stores/${storeId}`, data),
   updateGasPrices: (storeId: string, data: object) => api.patch(`/stores/${storeId}/gas-prices`, data),
   getApiKey: (storeId: string) => api.get(`/billing/stores/${storeId}/api-key`),

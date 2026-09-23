@@ -43,6 +43,24 @@ interface Store {
   todayHours: string | null;
   minimumAge: number | null;
   isActive: boolean;
+  readiness: {
+    hoursSet: boolean; phoneSet: boolean; locationSet: boolean;
+    gasFresh: boolean; dieselSet: boolean; dieselFresh: boolean;
+    staffAssigned: boolean; hasFirstSale: boolean;
+  };
+  isReady: boolean;
+}
+
+const READINESS_LABELS: [keyof Store['readiness'], string][] = [
+  ['hoursSet', 'hours'], ['phoneSet', 'phone'], ['locationSet', 'location'],
+  ['gasFresh', 'gas price (set or fresh)'], ['dieselSet', 'diesel price'], ['dieselFresh', 'diesel price freshness'],
+  ['staffAssigned', 'staff assigned'], ['hasFirstSale', 'a first sale'],
+];
+function readinessGaps(store: Store): string[] {
+  if (!store.readiness) return []; // an older/partial API response should never crash the card
+  // dieselSet and dieselFresh would otherwise both nag about the exact same missing price
+  const skip = new Set<string>(store.readiness.dieselSet ? [] : ['dieselFresh']);
+  return READINESS_LABELS.filter(([key]) => !store.readiness[key] && !skip.has(key)).map(([, label]) => label);
 }
 
 interface FormState {
@@ -156,6 +174,13 @@ export default function Stores() {
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', requiresAgeGate: false });
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
 
+  // Add Store (Dev Admin only) — its own small form, separate from Edit Store's (categories, age gate
+  // and coordinate-note logic there don't apply to a brand-new store yet)
+  const BLANK_ADD_FORM = { name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', feePercent: '' };
+  const [showAddStore, setShowAddStore] = useState(false);
+  const [addForm, setAddForm] = useState(BLANK_ADD_FORM);
+  const [addError, setAddError] = useState('');
+
   // Store Hours modal, its own modal (not part of the general Edit Store
   // one) since it's backed by 2 dedicated endpoints, not the generic
   // updateStore payload.
@@ -222,6 +247,19 @@ export default function Stores() {
     onError: (e: any) => setEditError(failureMessage(e, 'Could not save the store. Nothing was changed.')),
   });
   const runSave = useSingleFlight(mutation);
+
+  const addMutation = useMutation({
+    mutationFn: (payload: object) => storesApi.create(payload),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['stores'] });
+      toast.success(`${res.data?.data?.name ?? 'The store'} was added. Set its hours and prices next.`);
+      setShowAddStore(false);
+      setAddForm(BLANK_ADD_FORM);
+      setAddError('');
+    },
+    onError: (e: any) => setAddError(failureMessage(e, 'Could not add the store. Nothing was saved.')),
+  });
+  const runAdd = useSingleFlight(addMutation);
 
   const activeMutation = useMutation({
     mutationFn: ({ storeId, isActive }: { storeId: string; isActive: boolean }) =>
@@ -569,6 +607,44 @@ export default function Stores() {
   };
   const storeNameOf = (id: string | null) => stores.find((st) => st.id === id)?.name ?? '';
 
+  function addProblem(): string | null {
+    if (!addForm.name.trim()) return 'Enter the store name.';
+    if (!addForm.address.trim()) return 'Enter the street address.';
+    if (!addForm.city.trim()) return 'Enter the city.';
+    if (!/^[A-Za-z]{2}$/.test(addForm.state.trim())) return 'The state is its two-letter code, such as TX.';
+    if (!/^\d{5}(-\d{4})?$/.test(addForm.zipCode.trim())) return 'The ZIP code is five digits, such as 75090.';
+    if (addForm.phone.trim() && phoneDigits(addForm.phone).length !== 10) return 'Enter a full ten-digit phone number, or leave it empty.';
+    const latText = addForm.latitude.trim();
+    const lngText = addForm.longitude.trim();
+    if ((latText === '') !== (lngText === '')) return 'Give both the latitude and the longitude, or leave both empty.';
+    if (latText !== '') {
+      const lat = Number(latText);
+      const lng = Number(lngText);
+      if (isNaN(lat) || isNaN(lng)) return 'The latitude and longitude must be numbers such as 33.7124 and -96.6482.';
+      if (lat < 24 || lat > 50 || lng < -125 || lng > -66) return 'Those coordinates are not in the United States. Check that the latitude and longitude are not swapped and that the longitude has its minus sign.';
+    }
+    if (addForm.feePercent.trim()) {
+      const fee = Number(addForm.feePercent);
+      if (isNaN(fee) || fee < 0 || fee > 25) return 'The fee is a percent from 0 to 25 (the default is 10).';
+    }
+    return null;
+  }
+
+  function handleAddStore() {
+    if (addMutation.isPending) return;
+    const problem = addProblem();
+    if (problem) { setAddError(problem); return; }
+    const payload: Record<string, unknown> = {
+      name: addForm.name.trim(), address: addForm.address.trim(), city: addForm.city.trim(),
+      state: addForm.state.trim().toUpperCase(), zipCode: addForm.zipCode.trim(),
+    };
+    if (addForm.phone.trim()) payload.phone = addForm.phone.trim();
+    if (addForm.latitude.trim()) { payload.latitude = Number(addForm.latitude); payload.longitude = Number(addForm.longitude); }
+    if (addForm.feePercent.trim()) payload.transactionFeeRate = Number(addForm.feePercent) / 100;
+    setAddError('');
+    runAdd(payload);
+  }
+
   return (
     <div style={s.page}>
       <ConfirmModal
@@ -610,7 +686,14 @@ export default function Stores() {
           <h1 style={s.title}>Stores</h1>
           <p style={s.subtitle}>Manage store details and location coordinates</p>
         </div>
-        <div style={s.countPill}>{stores.length} stores</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={s.countPill}>{stores.length} stores</div>
+          {isDevAdmin && (
+            <button style={s.addStoreBtn} onClick={() => { setAddForm(BLANK_ADD_FORM); setAddError(''); setShowAddStore(true); }}>
+              + Add Store
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -673,6 +756,15 @@ export default function Stores() {
                     <span style={s.detailLabel}>Coordinates</span>
                     <span style={s.coordText}>{store.latitude!.toFixed(5)}, {store.longitude!.toFixed(5)}</span>
                   </div>
+                )}
+
+                {/* ── Launch readiness ── */}
+                {store.isActive && store.readiness && (
+                  store.isReady ? (
+                    <div style={s.readyLine}>✅ Ready for customers</div>
+                  ) : (
+                    <div style={s.notReadyLine}>⚠️ Needs: {readinessGaps(store).join(', ')}</div>
+                  )
                 )}
 
                 {/* ── Category pills ── */}
@@ -1127,6 +1219,87 @@ export default function Stores() {
           </form>
         </Modal>
       )}
+
+      {/* ── Add Store (Dev Admin only) ── */}
+      {showAddStore && (
+        <Modal title="Add Store" subtitle="Store 13 (and beyond)" onClose={() => setShowAddStore(false)} busy={addMutation.isPending} maxWidth={640}>
+          <form onSubmit={(e) => { e.preventDefault(); handleAddStore(); }} noValidate style={s.editForm}>
+            <div>
+              <div style={s.sectionLabelFirst}>Store Details</div>
+              <div style={s.fieldRow}>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-name">Store Name</label>
+                  <input id="add-name" style={s.input} value={addForm.name} onChange={(e) => { setAddForm((f) => ({ ...f, name: e.target.value })); setAddError(''); }} placeholder="Lucky Stop #13" maxLength={60} autoFocus />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-phone">Phone (optional)</label>
+                  <input id="add-phone" style={s.input} value={addForm.phone} onChange={(e) => { setAddForm((f) => ({ ...f, phone: e.target.value })); setAddError(''); }} placeholder="(580) 555-0100" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style={s.sectionLabelFirst}>Address</div>
+              <div style={s.field}>
+                <label style={s.label} htmlFor="add-address">Street Address</label>
+                <input id="add-address" style={s.input} value={addForm.address} onChange={(e) => { setAddForm((f) => ({ ...f, address: e.target.value })); setAddError(''); }} placeholder="123 Main St" maxLength={120} />
+              </div>
+              <div style={s.fieldRow}>
+                <div style={{ ...s.field, flex: 2 }}>
+                  <label style={s.label} htmlFor="add-city">City</label>
+                  <input id="add-city" style={s.input} value={addForm.city} onChange={(e) => { setAddForm((f) => ({ ...f, city: e.target.value })); setAddError(''); }} placeholder="Sherman" maxLength={60} />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-state">State</label>
+                  <input id="add-state" style={s.input} value={addForm.state} onChange={(e) => { setAddForm((f) => ({ ...f, state: e.target.value })); setAddError(''); }} placeholder="TX" maxLength={2} />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-zip">ZIP Code</label>
+                  <input id="add-zip" style={s.input} value={addForm.zipCode} onChange={(e) => { setAddForm((f) => ({ ...f, zipCode: e.target.value })); setAddError(''); }} placeholder="75090" maxLength={10} />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style={s.sectionLabelFirst}>Location Coordinates (optional)</div>
+              <div style={s.geocodeHint}>
+                Leave both empty for now and fill them in later from Edit Store - or enter them here. The app finds the nearest store from these.
+              </div>
+              <div style={s.fieldRow}>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-lat">Latitude</label>
+                  <input id="add-lat" style={s.input} value={addForm.latitude} onChange={(e) => { setAddForm((f) => ({ ...f, latitude: e.target.value })); setAddError(''); }} placeholder="33.7124" inputMode="decimal" />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label} htmlFor="add-lng">Longitude</label>
+                  <input id="add-lng" style={s.input} value={addForm.longitude} onChange={(e) => { setAddForm((f) => ({ ...f, longitude: e.target.value })); setAddError(''); }} placeholder="-96.6482" inputMode="decimal" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style={s.sectionLabelFirst}>Platform Fee (optional)</div>
+              <div style={s.geocodeHint}>Percent of cashback billed to this store. Leave empty for the default (10%).</div>
+              <div style={s.field}>
+                <label style={s.label} htmlFor="add-fee">Fee %</label>
+                <input id="add-fee" style={s.input} value={addForm.feePercent} onChange={(e) => { setAddForm((f) => ({ ...f, feePercent: e.target.value })); setAddError(''); }} placeholder="10" inputMode="decimal" />
+              </div>
+            </div>
+
+            <div style={s.noteBox}>
+              After adding the store, set its weekly hours and gas/diesel prices from its card, and assign staff from the Staff page - the readiness line on the card shows what is still missing.
+            </div>
+
+            {addError && <div role="alert" style={s.errorBox}>{addError}</div>}
+            <div style={s.modalActions}>
+              <button type="button" style={s.cancelBtn} onClick={() => setShowAddStore(false)} disabled={addMutation.isPending}>Cancel</button>
+              <button type="submit" style={s.saveBtn} disabled={addMutation.isPending}>
+                {addMutation.isPending ? 'Adding…' : 'Add Store'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1138,6 +1311,7 @@ const s: Record<string, React.CSSProperties> = {
   title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
   countPill: { background: PRIMARY, color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
+  addStoreBtn: { padding: '9px 18px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 18 },
   card: { background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
@@ -1157,6 +1331,8 @@ const s: Record<string, React.CSSProperties> = {
   detailLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
   detailVal: { fontSize: 15, color: '#444' },
   coordText: { fontFamily: 'monospace', fontSize: 14, color: PRIMARY, background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
+  readyLine: { fontSize: 13, fontWeight: 700, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
+  notReadyLine: { fontSize: 13, fontWeight: 700, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
 
   gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
