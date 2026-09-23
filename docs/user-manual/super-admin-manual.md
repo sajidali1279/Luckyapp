@@ -574,7 +574,7 @@ The **Sent recently** list under the form shows the last sends: when, who, the a
 - a sale of **$500 or more** is held for review,
 - a customer sends a **missing-points report**,
 - a store raises a **high-priority alert**.
-Each email says what happened and has a button into the right page. A **morning summary** email (one a day, after 8 am Central) lists what is waiting: sales held, missing-points reports, store alerts, requests and unpaid bills. It is not sent when nothing is waiting, and a server that slept through 8 am sends it on its first run after.
+Each email says what happened and has a button into the right page. A **morning summary** email (one a day, after 8 am Central) lists what is waiting: sales held, missing-points reports, store alerts, requests and unpaid bills. It is not sent when nothing is waiting, and a server that slept through 8 am sends it on its first run after. A **weekly summary** email (once a week, Monday morning after 8 am Central) sums up the past 7 days against the 7 days before: transactions, purchase volume, cashback awarded, platform fee and the week's busiest store, with a button into Analytics.
 
 ### 11.3 Notification Best Practices
 

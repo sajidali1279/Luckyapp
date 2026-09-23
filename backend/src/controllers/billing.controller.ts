@@ -20,6 +20,7 @@ import { isRealPeriod, isFinishedPeriod, lastFinishedPeriod, periodBounds, perio
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_MESSAGE, COORDINATE_PAIR_MESSAGE } from '../utils/storeRules';
 import { resolveAudience } from '../utils/audience';
+import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -1915,123 +1916,134 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     return;
   }
 
-  const [allTransactions, allRedemptions] = await Promise.all([
-    prisma.pointsTransaction.findMany({
-      // Seeded test sales never count toward revenue (the leaderboard already left them out)
-      where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
-      select: {
-        createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
-        store: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.creditRedemption.findMany({
-      where: { createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
-      select: { createdAt: true, amount: true, devCut: true, store: { select: { id: true, name: true } } },
-      orderBy: { createdAt: 'asc' },
-    }),
-  ]);
+  // A short cache (see utils/analyticsCache.ts) keyed on the exact resolved window - not the raw
+  // "range=30d" query string, since what that means depends on the moment the request landed - so a
+  // repeat view of the same window within the cache's TTL reuses the last computed result instead of
+  // re-scanning every approved sale again.
+  const cacheKey = JSON.stringify({
+    f: bucketTime(fromDate), t: bucketTime(toDate), s: storeId || null,
+    cw: compareWindow ? {
+      cs: bucketTime(compareWindow.current.start), ce: bucketTime(compareWindow.current.end),
+      ps: bucketTime(compareWindow.previous.start), pe: bucketTime(compareWindow.previous.end),
+    } : null,
+  });
 
-  // Compared against the previous period, before narrowing down to just the current one below.
-  const compare = compareWindow ? summarize(compareWindow, allTransactions) : null;
+  const data = await cachedAnalytics(cacheKey, async () => {
+    const [allTransactions, allRedemptions] = await Promise.all([
+      prisma.pointsTransaction.findMany({
+        // Seeded test sales never count toward revenue (the leaderboard already left them out)
+        where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
+        select: {
+          createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
+          store: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.creditRedemption.findMany({
+        where: { createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
+        select: { createdAt: true, amount: true, devCut: true, store: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
 
-  const transactions = compareWindow ? allTransactions.filter((t) => t.createdAt >= displayFrom && t.createdAt <= displayTo) : allTransactions;
-  const redemptions  = compareWindow ? allRedemptions.filter((r) => r.createdAt  >= displayFrom && r.createdAt  <= displayTo) : allRedemptions;
+    // Compared against the previous period, before narrowing down to just the current one below.
+    const compare = compareWindow ? summarize(compareWindow, allTransactions) : null;
 
-  // Daily grouping: combine transactions + redemptions by date
-  const byDate: Record<string, {
-    date: string; transactions: number; purchaseVolume: number;
-    pointsAwarded: number; redemptions: number; redeemedAmount: number; devCut: number;
-  }> = {};
+    const transactions = compareWindow ? allTransactions.filter((t) => t.createdAt >= displayFrom && t.createdAt <= displayTo) : allTransactions;
+    const redemptions  = compareWindow ? allRedemptions.filter((r) => r.createdAt  >= displayFrom && r.createdAt  <= displayTo) : allRedemptions;
 
-  for (const tx of transactions) {
-    const date = storeDateKey(tx.createdAt);
-    if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
-    byDate[date].transactions++;
-    byDate[date].purchaseVolume = parseFloat((byDate[date].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
-    byDate[date].pointsAwarded = parseFloat((byDate[date].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
-    byDate[date].devCut = parseFloat((byDate[date].devCut + Number(tx.devCut)).toFixed(2));
-  }
-  for (const r of redemptions) {
-    const date = storeDateKey(r.createdAt);
-    if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
-    byDate[date].redemptions++;
-    byDate[date].redeemedAmount = parseFloat((byDate[date].redeemedAmount + Number(r.amount)).toFixed(2));
-    byDate[date].devCut = parseFloat((byDate[date].devCut + Number(r.devCut)).toFixed(2));
-  }
+    // Daily grouping: combine transactions + redemptions by date
+    const byDate: Record<string, {
+      date: string; transactions: number; purchaseVolume: number;
+      pointsAwarded: number; redemptions: number; redeemedAmount: number; devCut: number;
+    }> = {};
 
-  // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it. Only the
-  // displayed (current) period — in "range" mode fromDate/toDate also cover the earlier comparison period,
-  // which has no chart of its own here.
-  for (let key = storeDateKey(displayFrom), last = storeDateKey(displayTo), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
-    if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
-  }
+    for (const tx of transactions) {
+      const date = storeDateKey(tx.createdAt);
+      if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
+      byDate[date].transactions++;
+      byDate[date].purchaseVolume = parseFloat((byDate[date].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+      byDate[date].pointsAwarded = parseFloat((byDate[date].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
+      byDate[date].devCut = parseFloat((byDate[date].devCut + Number(tx.devCut)).toFixed(2));
+    }
+    for (const r of redemptions) {
+      const date = storeDateKey(r.createdAt);
+      if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
+      byDate[date].redemptions++;
+      byDate[date].redeemedAmount = parseFloat((byDate[date].redeemedAmount + Number(r.amount)).toFixed(2));
+      byDate[date].devCut = parseFloat((byDate[date].devCut + Number(r.devCut)).toFixed(2));
+    }
 
-  // Per-store grouping
-  const byStore: Record<string, {
-    storeId: string; storeName: string; transactions: number;
-    purchaseVolume: number; pointsAwarded: number; redemptions: number; devCut: number;
-  }> = {};
-  for (const tx of transactions) {
-    const id = tx.store.id;
-    if (!byStore[id]) byStore[id] = { storeId: id, storeName: tx.store.name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, devCut: 0 };
-    byStore[id].transactions++;
-    byStore[id].purchaseVolume = parseFloat((byStore[id].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
-    byStore[id].pointsAwarded = parseFloat((byStore[id].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
-    byStore[id].devCut = parseFloat((byStore[id].devCut + Number(tx.devCut)).toFixed(2));
-  }
-  for (const r of redemptions) {
-    const id = r.store.id;
-    if (!byStore[id]) byStore[id] = { storeId: id, storeName: r.store.name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, devCut: 0 };
-    byStore[id].redemptions++;
-    byStore[id].devCut = parseFloat((byStore[id].devCut + Number(r.devCut)).toFixed(2));
-  }
+    // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it. Only the
+    // displayed (current) period — in "range" mode fromDate/toDate also cover the earlier comparison period,
+    // which has no chart of its own here.
+    for (let key = storeDateKey(displayFrom), last = storeDateKey(displayTo), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
+      if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
+    }
 
-  // Per-category breakdown
-  const byCategory: Record<string, { category: string; transactions: number; purchaseVolume: number; pointsAwarded: number }> = {};
-  for (const tx of transactions) {
-    const cat = tx.category as string;
-    if (!byCategory[cat]) byCategory[cat] = { category: cat, transactions: 0, purchaseVolume: 0, pointsAwarded: 0 };
-    byCategory[cat].transactions++;
-    byCategory[cat].purchaseVolume = parseFloat((byCategory[cat].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
-    byCategory[cat].pointsAwarded = parseFloat((byCategory[cat].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
-  }
+    // Per-store grouping
+    const byStore: Record<string, {
+      storeId: string; storeName: string; transactions: number;
+      purchaseVolume: number; pointsAwarded: number; redemptions: number; devCut: number;
+    }> = {};
+    for (const tx of transactions) {
+      const id = tx.store.id;
+      if (!byStore[id]) byStore[id] = { storeId: id, storeName: tx.store.name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, devCut: 0 };
+      byStore[id].transactions++;
+      byStore[id].purchaseVolume = parseFloat((byStore[id].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+      byStore[id].pointsAwarded = parseFloat((byStore[id].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
+      byStore[id].devCut = parseFloat((byStore[id].devCut + Number(tx.devCut)).toFixed(2));
+    }
+    for (const r of redemptions) {
+      const id = r.store.id;
+      if (!byStore[id]) byStore[id] = { storeId: id, storeName: r.store.name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, devCut: 0 };
+      byStore[id].redemptions++;
+      byStore[id].devCut = parseFloat((byStore[id].devCut + Number(r.devCut)).toFixed(2));
+    }
 
-  // When busy times are: hour of day and day of week, store-local. Both start at zero for every slot so a
-  // quiet hour or day reads as quiet, not missing.
-  const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, transactions: 0, purchaseVolume: 0 }));
-  const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const byWeekday = WEEKDAY_NAMES.map((label, weekday) => ({ weekday, label, transactions: 0, purchaseVolume: 0 }));
-  for (const tx of transactions) {
-    const h = byHour[storeHour(tx.createdAt)];
-    h.transactions++; h.purchaseVolume = parseFloat((h.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
-    const w = byWeekday[storeWeekday(tx.createdAt)];
-    w.transactions++; w.purchaseVolume = parseFloat((w.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
-  }
+    // Per-category breakdown
+    const byCategory: Record<string, { category: string; transactions: number; purchaseVolume: number; pointsAwarded: number }> = {};
+    for (const tx of transactions) {
+      const cat = tx.category as string;
+      if (!byCategory[cat]) byCategory[cat] = { category: cat, transactions: 0, purchaseVolume: 0, pointsAwarded: 0 };
+      byCategory[cat].transactions++;
+      byCategory[cat].purchaseVolume = parseFloat((byCategory[cat].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+      byCategory[cat].pointsAwarded = parseFloat((byCategory[cat].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
+    }
 
-  // A promotion that started inside the visible window, so a spike on the chart can be tied to it. Ended and
-  // chain-wide-vs-one-store offers are both included; only the start date matters here.
-  const promotionMarkers = (await prisma.offer.findMany({
-    where: { startDate: { gte: displayFrom, lte: displayTo }, ...(storeId ? { OR: [{ storeId }, { storeId: null }] } : {}) },
-    select: { id: true, title: true, startDate: true, storeId: true },
-    orderBy: { startDate: 'asc' },
-  })).map((o) => ({ id: o.id, title: o.title, date: storeDateKey(o.startDate), storeId: o.storeId }));
+    // When busy times are: hour of day and day of week, store-local. Both start at zero for every slot so a
+    // quiet hour or day reads as quiet, not missing.
+    const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, transactions: 0, purchaseVolume: 0 }));
+    const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const byWeekday = WEEKDAY_NAMES.map((label, weekday) => ({ weekday, label, transactions: 0, purchaseVolume: 0 }));
+    for (const tx of transactions) {
+      const h = byHour[storeHour(tx.createdAt)];
+      h.transactions++; h.purchaseVolume = parseFloat((h.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+      const w = byWeekday[storeWeekday(tx.createdAt)];
+      w.transactions++; w.purchaseVolume = parseFloat((w.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
+    }
 
-  const totals = {
-    transactions: transactions.length,
-    purchaseVolume: transactions.reduce((s, t) => parseFloat((s + Number(t.purchaseAmount)).toFixed(2)), 0),
-    pointsAwarded: transactions.reduce((s, t) => parseFloat((s + Number(t.pointsAwarded)).toFixed(2)), 0),
-    redemptions: redemptions.length,
-    redeemedAmount: redemptions.reduce((s, r) => parseFloat((s + Number(r.amount)).toFixed(2)), 0),
-    devCut: parseFloat((
-      transactions.reduce((s, t) => s + Number(t.devCut), 0) +
-      redemptions.reduce((s, r) => s + Number(r.devCut), 0)
-    ).toFixed(2)),
-  };
+    // A promotion that started inside the visible window, so a spike on the chart can be tied to it. Ended and
+    // chain-wide-vs-one-store offers are both included; only the start date matters here.
+    const promotionMarkers = (await prisma.offer.findMany({
+      where: { startDate: { gte: displayFrom, lte: displayTo }, ...(storeId ? { OR: [{ storeId }, { storeId: null }] } : {}) },
+      select: { id: true, title: true, startDate: true, storeId: true },
+      orderBy: { startDate: 'asc' },
+    })).map((o) => ({ id: o.id, title: o.title, date: storeDateKey(o.startDate), storeId: o.storeId }));
 
-  res.json({
-    success: true,
-    data: {
+    const totals = {
+      transactions: transactions.length,
+      purchaseVolume: transactions.reduce((s, t) => parseFloat((s + Number(t.purchaseAmount)).toFixed(2)), 0),
+      pointsAwarded: transactions.reduce((s, t) => parseFloat((s + Number(t.pointsAwarded)).toFixed(2)), 0),
+      redemptions: redemptions.length,
+      redeemedAmount: redemptions.reduce((s, r) => parseFloat((s + Number(r.amount)).toFixed(2)), 0),
+      devCut: parseFloat((
+        transactions.reduce((s, t) => s + Number(t.devCut), 0) +
+        redemptions.reduce((s, r) => s + Number(r.devCut), 0)
+      ).toFixed(2)),
+    };
+
+    return {
       daily: Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)),
       byStore: Object.values(byStore).sort((a, b) => b.purchaseVolume - a.purchaseVolume),
       byCategory: Object.values(byCategory).sort((a, b) => b.purchaseVolume - a.purchaseVolume),
@@ -2041,8 +2053,10 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
       totals,
       compare,
       range: { from: displayFrom.toISOString(), to: displayTo.toISOString() },
-    },
+    };
   });
+
+  res.json({ success: true, data });
 }
 
 // DevAdmin: the same filters as getAnalytics, as a CSV (daily rows; a store/category summary underneath)
