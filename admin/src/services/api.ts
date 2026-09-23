@@ -261,6 +261,10 @@ export const staffApi = {
   // What Delete would do (work on record), Dev Admin only
   footprint: (userId: string) => api.get(`/users/${userId}/footprint`),
   deleteUser: (userId: string) => api.delete(`/users/${userId}`),
+  // Fix a name/phone typo, promote/demote Employee<->Store Manager, set chain-wide access. Only the
+  // fields present in `patch` are changed.
+  edit: (userId: string, patch: { name?: string; phone?: string; role?: 'EMPLOYEE' | 'STORE_MANAGER'; allStoresAccess?: boolean }) =>
+    api.patch(`/users/${userId}/edit`, patch),
 };
 
 export const superAdminApi = {

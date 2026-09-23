@@ -240,6 +240,7 @@ Navigate to **Staff** in the sidebar. The accounts are grouped by role (Dev Admi
 - Name and phone number, written the way you read it: (940) 555-1212.
 - Role, and **Deactivated** in words when the account is switched off.
 - Assigned stores. A store that has closed says "(closed)". A Super Admin or a manager with chain-wide access shows "All stores"; an employee or manager with no store shows **No store assigned**, which needs fixing.
+- When they **last signed in**, or "Never signed in" if they have not yet.
 
 The search box finds a person by name, phone number (typed any way: with brackets, dashes or the country code 1), store name or role.
 
@@ -265,6 +266,17 @@ A store manager or employee can work at several stores.
 1. On the person's card click **Stores**.
 2. Tick every store they work at. **Select All** skips closed stores; a closed store they already have can stay or be un-ticked, but nobody can be newly given one.
 3. The box says what will change ("Adds Lucky Stop #5. Removes Lucky Stop #4.") and **Save Changes** sends the whole list as one save: it either all happens or none of it does. At least one store must stay.
+
+### 5.3a Editing an Account, Promoting or Demoting
+
+To fix a name or phone typo, or move someone between Employee and Store Manager, without the old Delete-and-recreate detour (which used to erase every sale the person had granted):
+
+1. On the person's card click **Edit**.
+2. Change the **Full Name** or **Phone Number** as needed.
+3. For an Employee or Store Manager, a role switch is offered too: choose **Employee** or **Store Manager**. Promoting or demoting is explained before you save. A Store Manager also has a **Chain-wide access** checkbox (works at every store, not only the ones assigned in Stores); demoting to Employee clears it, since it only means anything for a manager.
+4. Click **Save Changes**.
+
+A Dev Admin or Super Admin's role is never changed here, whatever account you are viewing it from. Only a real change is saved: clicking Save with nothing edited does nothing.
 
 ### 5.4 Resetting a Staff Member's PIN
 

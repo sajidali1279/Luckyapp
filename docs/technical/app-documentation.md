@@ -241,6 +241,8 @@ The `User.allStoresAccess` boolean allows `SUPER_ADMIN` and `DEV_ADMIN` users to
 4. Server generates a JWT.
 5. JWT is returned and stored in `expo-secure-store`.
 
+A successful login also writes `User.lastSignInAt = new Date()`, fire-and-forget (`.catch(() => {})`, never awaited) - a write here must never hold up or fail an otherwise-good sign-in. It is skipped entirely on a wrong PIN or a deactivated account, so it only ever reflects a real, successful sign-in. The Staff page's "Last signed in" line (ST3) reads this field; `register` (a customer's very first session) deliberately does not set it, since the field only has an admin-facing use today.
+
 **Subsequent requests:**
 All authenticated requests include the JWT in the `Authorization: Bearer <token>` header. The `authenticate` middleware:
 1. Extracts the JWT from the header.
@@ -313,6 +315,7 @@ model User {
   allStoresAccess     Boolean   @default(false)
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  lastSignInAt        DateTime? // set on every successful login (fire-and-forget); null means never signed in
   qrCode              String    @unique
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -639,7 +642,8 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | POST | /auth/reset-pin | JWT | Any | Reset PIN with reset token (single use: the token carries a fingerprint of the current PIN; ends that account's other sessions and clears its lockout) |
 | POST | /auth/super-admin | JWT | DEV_ADMIN | Create Super Admin account (a number already in use gets a 409 with a sentence saying whose it is) |
 | POST | /auth/staff | JWT | SUPER_ADMIN | Create employee/manager account (the account and its store link are one transaction; a closed or missing store is refused; a number that is already a customer or staff account gets a 409 with a sentence and a `code`) |
-| GET | /staff | JWT | SUPER_ADMIN | List all staff (with `allStoresAccess` and whether each store is open) |
+| GET | /staff | JWT | SUPER_ADMIN | List all staff (with `allStoresAccess`, `lastSignInAt` and whether each store is open) |
+| PATCH | /users/:userId/edit | JWT | SUPER_ADMIN | Fix a name/phone typo, promote/demote Employee<->Store Manager, set `allStoresAccess` (same role rule as toggle-active/reset-pin). Body `{ name?, phone?, role?, allStoresAccess? }`, at least one field. `role` is refused for anyone whose CURRENT role isn't Employee or Store Manager (a Dev Admin/Super Admin's role is never changed by this route) and is separately checked against `canManageAccount` for the role being moved TO. Demoting to `EMPLOYEE` clears `allStoresAccess` regardless of what was sent, since the flag only means anything for a manager. Only fields that are a REAL change are written (`changed: false` otherwise); a phone collision answers the same `phoneTakenAnswer` shape `createStaffAccount` uses |
 | GET | /users/customers | JWT | SUPER_ADMIN | List customers. `search` is part of a name or a phone written any way (brackets, dashes, +1; `%` and `_` are ordinary characters); `page` (1 or more) and `limit` (1 to 100, default 50) are validated with 400 sentences. Optional filters: `status` (`active`\|`restricted`), `hasBalance=true`, `hasNote=true`, `joinedWithin=week`, `hideTest=true`; `sort` (`joined_desc` default, `joined_asc`, `spend_desc`, `balance_desc`) - `spend_desc` sorts by total approved purchase amount, which lives on `PointsTransaction` not `User`, so it runs as two queries (every matching id's spend via `groupBy`, sorted in JS, then only the page's ids are fetched in full) rather than a single `ORDER BY`. Answers `customers` (with each restricted customer's `fraudNote` and an `isTest` flag from `utils/testAccounts.ts`, the same 111-555 rule the Launch Tracker uses), `total`, `page`, `pageSize`, `totalPages`, `activeTotal` and `restrictedTotal` (always chain-wide, unaffected by filters) and `totalCreditsOutstanding`. `GET /users/customers/export` takes the same `search`/filters plus `isActive`, and gains a Test Account CSV column |
 | GET | /users/customers/:userId/detail | JWT | SUPER_ADMIN | A customer's own page: their record plus `totals` (approved sale count and spend), and their 15 most recent `sales`, `redemptions` and `disputes` |
 | POST | /users/customers/:userId/goodwill-credit | JWT | SUPER_ADMIN | A small credit outside the dispute flow. Body `{ amount, reason }`: amount $0.01-$25 (lower than a dispute's $50 cap, since nothing here is backed by a claimed purchase amount), reason required (300 characters at most). Credits the balance immediately, audits `GOODWILL_CREDIT`, pushes the customer a notice |

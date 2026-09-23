@@ -11,6 +11,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { phoneDigits, typedPhone, showPhone } from '../lib/phoneText';
+import { storeDayLong } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 
 type Tab = 'list' | 'create';
@@ -92,6 +93,14 @@ export default function Staff() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; role: string; isActive: boolean } | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
+  // Edit account (name, phone, and for an Employee/Store Manager: role and chain-wide access)
+  const [editTarget, setEditTarget] = useState<{ id: string; displayName: string; name: string; phone: string; role: string; allStoresAccess: boolean } | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState<'EMPLOYEE' | 'STORE_MANAGER'>('EMPLOYEE');
+  const [editAllStores, setEditAllStores] = useState(false);
+  const [editError, setEditError] = useState('');
+
   const { data: storesData } = useQuery({ queryKey: ['stores'], queryFn: () => storesApi.getAll(), enabled: isSuperAdmin });
   const { data: staffData, isLoading, isError, refetch } = useQuery({ queryKey: ['staff'], queryFn: () => staffApi.list(), enabled: isSuperAdmin });
 
@@ -171,6 +180,17 @@ export default function Staff() {
     onError: (err: any) => { setDeleteError(failureMessage(err, 'Could not delete the account. Nothing was changed.')); footprint.refetch(); },
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: any }) => staffApi.edit(id, patch),
+    onSuccess: (res) => {
+      const changed = res.data?.data?.changed !== false;
+      toast.success(changed ? `${editTarget?.displayName}'s account was updated.` : `Nothing to change - it already looked like that.`);
+      qc.invalidateQueries({ queryKey: ['staff'] });
+      closeEdit();
+    },
+    onError: (err: any) => setEditError(failureMessage(err, 'Could not save the changes. Nothing was changed.')),
+  });
+
   const setStoresMutation = useMutation({
     mutationFn: ({ userId, storeIds }: { userId: string; storeIds: string[] }) => staffApi.setStores(userId, storeIds),
     onSuccess: (res) => {
@@ -188,10 +208,38 @@ export default function Staff() {
   const runReset = useSingleFlight(resetPinMutation);
   const runDelete = useSingleFlight(deleteMutation);
   const runSetStores = useSingleFlight(setStoresMutation);
+  const runEdit = useSingleFlight(editMutation);
 
   function closeReset() { setResetTarget(null); setNewPin(''); setNewPin2(''); setResetError(''); setShowResetPin(false); }
   function closeStores() { setStoresMgmtTarget(null); setStoresError(''); }
   function closeDelete() { setDeleteTarget(null); setDeleteError(''); }
+  function closeEdit() { setEditTarget(null); setEditError(''); }
+
+  function openEdit(member: any) {
+    setEditTarget({ id: member.id, displayName: member.name || showPhone(member.phone), name: member.name || '', phone: member.phone, role: member.role, allStoresAccess: !!member.allStoresAccess });
+    setEditName(member.name || '');
+    setEditPhone(typedPhone(member.phone));
+    setEditRole(member.role === 'STORE_MANAGER' ? 'STORE_MANAGER' : 'EMPLOYEE');
+    setEditAllStores(!!member.allStoresAccess);
+    setEditError('');
+  }
+
+  function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget || editMutation.isPending) return;
+    if (!editName.trim()) { setEditError('The name cannot be empty.'); return; }
+    const digits = phoneDigits(editPhone);
+    if (digits.length !== 10) { setEditError('Enter a full ten-digit phone number.'); return; }
+    const canChangeRole = editTarget.role === 'EMPLOYEE' || editTarget.role === 'STORE_MANAGER';
+    const patch: any = {};
+    if (editName.trim() !== (editTarget.name || '')) patch.name = editName.trim();
+    if (digits !== editTarget.phone) patch.phone = digits;
+    if (canChangeRole && editRole !== editTarget.role) patch.role = editRole;
+    if (canChangeRole && editRole !== 'EMPLOYEE' && editAllStores !== editTarget.allStoresAccess) patch.allStoresAccess = editAllStores;
+    if (Object.keys(patch).length === 0) { closeEdit(); return; }
+    setEditError('');
+    runEdit({ id: editTarget.id, patch });
+  }
 
   function openManageStores(member: any) {
     const assignedIds = member.storeRoles.map((sr: any) => sr.store.id);
@@ -373,8 +421,18 @@ export default function Staff() {
 
                           <div style={s.cardDivider} />
 
+                          {/* Last sign-in */}
+                          <div style={s.lastSignInLine}>
+                            {member.lastSignInAt ? `Last signed in ${storeDayLong(member.lastSignInAt)}` : 'Never signed in'}
+                          </div>
+
                           {/* Actions */}
                           <div style={s.cardActions}>
+                            {manageable && !isMe && (
+                              <button style={s.actionBtn} onClick={() => openEdit(member)}>
+                                ✏️ Edit
+                              </button>
+                            )}
                             {manageable && !isMe && (
                               <button style={s.actionBtn} onClick={() => { setResetTarget({ id: member.id, name: displayName }); setNewPin(''); setNewPin2(''); setResetError(''); }}>
                                 🔒 Reset PIN
@@ -700,6 +758,62 @@ export default function Staff() {
         </Modal>
       )}
 
+      {/* ── Edit account: fix a name/phone typo, promote or demote, chain-wide access ── */}
+      {editTarget && (
+        <Modal title={`Edit ${editTarget.displayName}`} onClose={closeEdit} busy={editMutation.isPending}>
+          <form onSubmit={handleSaveEdit} style={s.modalForm} noValidate>
+            <div style={s.formGroup}>
+              <label style={s.formLabel} htmlFor="edit-name">Full Name</label>
+              <input id="edit-name" style={s.input} value={editName} onChange={(e) => { setEditName(e.target.value); setEditError(''); }} autoComplete="off" />
+            </div>
+            <div style={s.formGroup}>
+              <label style={s.formLabel} htmlFor="edit-phone">Phone Number</label>
+              <input id="edit-phone" style={s.input} type="tel" value={editPhone} onChange={(e) => { setEditPhone(typedPhone(e.target.value)); setEditError(''); }} placeholder="(555) 000-0000" autoComplete="off" />
+            </div>
+            {(editTarget.role === 'EMPLOYEE' || editTarget.role === 'STORE_MANAGER') && (
+              <>
+                <div style={s.formGroup} role="group" aria-labelledby="edit-role-label">
+                  <div style={s.formLabel} id="edit-role-label">Role</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['EMPLOYEE', 'STORE_MANAGER'] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        aria-pressed={editRole === r}
+                        style={{ ...s.tab, ...(editRole === r ? s.tabActive : {}) }}
+                        onClick={() => { setEditRole(r); setEditError(''); }}
+                      >
+                        {ROLE_LABELS[r]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {editRole === 'STORE_MANAGER' && (
+                  <label style={s.showPinRow}>
+                    <input type="checkbox" checked={editAllStores} onChange={(e) => { setEditAllStores(e.target.checked); setEditError(''); }} style={s.nativeCheck} />
+                    Chain-wide access (works at every store, not only the ones assigned below)
+                  </label>
+                )}
+                {editRole !== editTarget.role && (
+                  <div style={s.formHint}>
+                    {editRole === 'STORE_MANAGER'
+                      ? `${editTarget.displayName} will be promoted to Store Manager.`
+                      : `${editTarget.displayName} will be moved back to Employee, and loses chain-wide access if they had it.`}
+                  </div>
+                )}
+              </>
+            )}
+            {editError && <div role="alert" style={s.errorBox}>{editError}</div>}
+            <div style={s.modalActions}>
+              <button type="button" style={s.cancelBtn} onClick={closeEdit} disabled={editMutation.isPending}>Cancel</button>
+              <button style={s.confirmBtn} type="submit" disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {/* ── Reset PIN ── */}
       {resetTarget && (
         <Modal title="Reset PIN" subtitle={<>New PIN for <strong>{resetTarget.name}</strong>. They are signed out everywhere.</>} onClose={closeReset} busy={resetPinMutation.isPending}>
@@ -861,6 +975,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   allStoresTag: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' },
   noStoreTag: { fontSize: 14, color: '#92400e', fontWeight: 700 },
+
+  lastSignInLine: { fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic' },
 
   cardDivider: { height: 1, background: '#e5e7eb', margin: '0 -4px' },
 
