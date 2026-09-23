@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { storeDateKey, addStoreDays, startOfStoreDate, storeDaysBetween } from '../utils/storeTime';
+import { isTestPhone } from '../utils/testAccounts';
 
 // ─── Launch tracker ───────────────────────────────────────────────────────────
 // How the launch is going: who signed up, who claimed the welcome reward, who has actually
@@ -13,16 +14,6 @@ export const LAUNCH_DATE = process.env.LAUNCH_DATE || '2026-09-21';
 
 const CHART_DAYS = 30;         // most days the daily chart shows
 const STALLED_AFTER_DAYS = 2;  // signed up this many days ago and still no purchase
-
-// 111 to 555 are not real area codes. Those numbers are the team's test accounts, so a test
-// customer created during launch week does not inflate the numbers.
-const TEST_PREFIXES = new Set(['111', '222', '333', '444', '555']);
-
-export function isTestPhone(phone: string): boolean {
-  let d = phone.replace(/\D/g, '');
-  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
-  return TEST_PREFIXES.has(d.slice(0, 3));
-}
 
 export async function getLaunchStats(_req: AuthRequest, res: Response) {
   const now = new Date();

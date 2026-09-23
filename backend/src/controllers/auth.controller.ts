@@ -17,8 +17,10 @@ import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
 import { refuse } from '../utils/refusal';
 import { canonicalPhone, staffPhone } from '../utils/phone';
-import { customerSearchWhere, customerListQuery, customerExportQuery } from '../utils/customerSearch';
+import { customerSearchWhere, customerListQuery, customerExportQuery, customerFilterClauses } from '../utils/customerSearch';
 import { staffFootprint, footprintTotal, cannotDeleteMessage } from '../utils/accountRecords';
+import { isTestPhone } from '../utils/testAccounts';
+import { sendPushToUser } from '../utils/push';
 
 const SALT_ROUNDS = 12;
 
@@ -446,28 +448,55 @@ export async function createSuperAdmin(req: AuthRequest, res: Response) {
 
 // ─── List Customers (SuperAdmin+) ────────────────────────────────────────────
 
+const CUSTOMER_SELECT = { id: true, phone: true, name: true, pointsBalance: true, isActive: true, fraudNote: true, createdAt: true } as const;
+
 export async function listCustomers(req: AuthRequest, res: Response) {
   const parsed = customerListQuery.safeParse(req.query);
   if (!parsed.success) { refuse(res, parsed.error); return; }
-  const { search = '', page, limit } = parsed.data;
+  const { search = '', page, limit, sort, ...filters } = parsed.data;
 
   const everyone = { role: Role.CUSTOMER, ...excludeDeletedCustomers };
-  const where = { ...everyone, ...customerSearchWhere(search) };
+  const where: Prisma.UserWhereInput = { AND: [everyone, customerSearchWhere(search), ...customerFilterClauses(filters)] };
 
-  const [customers, total, activeTotal, restrictedTotal] = await prisma.$transaction([
-    prisma.user.findMany({
-      where,
-      select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, fraudNote: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.user.count({ where }),
+  type CustomerRow = { id: string; phone: string; name: string | null; pointsBalance: number; isActive: boolean; fraudNote: string | null; createdAt: Date };
+  let customers: CustomerRow[];
+  let total: number;
+
+  if (sort === 'spend_desc') {
+    // Total spent lives on PointsTransaction, not a column on User, so it cannot be an ORDER BY on the
+    // paginated query directly: find every matching id, total each one's approved purchases, sort by
+    // that, then fetch only the page's worth of full rows and put them back in the same order.
+    const matchingIds = (await prisma.user.findMany({ where, select: { id: true } })).map((u) => u.id);
+    const spendStats = await prisma.pointsTransaction.groupBy({
+      by: ['customerId'], where: { customerId: { in: matchingIds }, status: 'APPROVED' }, _sum: { purchaseAmount: true },
+    });
+    const spendMap = new Map(spendStats.map((r) => [r.customerId, r._sum.purchaseAmount ?? 0]));
+    const sortedIds = [...matchingIds].sort((a, b) => (spendMap.get(b) ?? 0) - (spendMap.get(a) ?? 0));
+    const pageIds = sortedIds.slice((page - 1) * limit, (page - 1) * limit + limit);
+    const rows = await prisma.user.findMany({ where: { id: { in: pageIds } }, select: CUSTOMER_SELECT });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    customers = pageIds.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => !!r);
+    total = matchingIds.length;
+  } else {
+    const orderBy = sort === 'joined_asc' ? { createdAt: 'asc' as const }
+      : sort === 'balance_desc' ? { pointsBalance: 'desc' as const }
+      : { createdAt: 'desc' as const };
+    [customers, total] = await prisma.$transaction([
+      prisma.user.findMany({ where, select: CUSTOMER_SELECT, orderBy, skip: (page - 1) * limit, take: limit }),
+      prisma.user.count({ where }),
+    ]);
+  }
+
+  // The header numbers (Total, Active, Restricted, Credits Out) are always chain-wide, unaffected by the
+  // current search or filters - they describe the whole customer base, not the filtered view.
+  const [activeTotal, restrictedTotal, creditsAgg] = await prisma.$transaction([
     prisma.user.count({ where: { ...everyone, isActive: true } }),
     prisma.user.count({ where: { ...everyone, isActive: false } }),
+    prisma.user.aggregate({ where: everyone, _sum: { pointsBalance: true } }),
   ]);
 
-  // Enrich with transaction stats
+  // Enrich with transaction stats (spend_desc already has these from the groupBy above, but a fresh
+  // lookup for exactly this page's ids is simplest and cheap at today's volume)
   const customerIds = customers.map((c) => c.id);
   const txStats = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
@@ -480,13 +509,8 @@ export async function listCustomers(req: AuthRequest, res: Response) {
     ...c,
     txCount: txMap[c.id]?._count.id ?? 0,
     totalSpent: parseFloat((txMap[c.id]?._sum.purchaseAmount ?? 0).toFixed(2)),
+    isTest: isTestPhone(c.phone),
   }));
-
-  // Total credits outstanding across all customers (not just this page)
-  const creditsAgg = await prisma.user.aggregate({
-    where: everyone,
-    _sum: { pointsBalance: true },
-  });
 
   res.json({
     success: true,
@@ -509,13 +533,15 @@ export async function listCustomers(req: AuthRequest, res: Response) {
 export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   const parsed = customerExportQuery.safeParse(req.query);
   if (!parsed.success) { refuse(res, parsed.error); return; }
-  const { search = '', isActive } = parsed.data;
+  const { search = '', isActive, ...filters } = parsed.data;
 
-  const where = {
-    role: Role.CUSTOMER,
-    ...excludeDeletedCustomers,
-    ...customerSearchWhere(search),
-    ...(isActive !== undefined ? { isActive: isActive === 'true' } : {}),
+  const where: Prisma.UserWhereInput = {
+    AND: [
+      { role: Role.CUSTOMER, ...excludeDeletedCustomers },
+      customerSearchWhere(search),
+      ...(isActive !== undefined ? [{ isActive: isActive === 'true' }] : []),
+      ...customerFilterClauses(filters),
+    ],
   };
 
   const customers = await prisma.user.findMany({
@@ -534,7 +560,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   });
   const txMap = Object.fromEntries(txStats.map((r) => [r.customerId, r]));
 
-  const header = 'Name,Phone,Credits Balance,Transactions,Total Spent,Status,Fraud Note,Joined';
+  const header = 'Name,Phone,Credits Balance,Transactions,Total Spent,Status,Fraud Note,Test Account,Joined';
   const rows = customers.map((c) => {
     const stats = txMap[c.id];
     return [
@@ -545,6 +571,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
       (stats?._sum.purchaseAmount ?? 0).toFixed(2),
       c.isActive ? 'Active' : 'Restricted',
       csvText(c.fraudNote),
+      isTestPhone(c.phone) ? 'Yes' : 'No',
       storeDateText(new Date(c.createdAt)),
     ].join(',');
   });
@@ -554,6 +581,104 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="customers-${date}.csv"`);
   res.send(csv);
+}
+
+// ─── Customer detail panel (SuperAdmin+) ──────────────────────────────────────
+// "A customer says they got no points" used to have no starting point in the admin beyond the three
+// counts on their card. This is the one place that answers it: their recent sales (with receipts),
+// redemptions and missing-points reports, in one request.
+
+export async function getCustomerDetail(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const customer = await prisma.user.findFirst({
+    where: { id: userId, role: Role.CUSTOMER, ...excludeDeletedCustomers },
+    select: { id: true, phone: true, name: true, pointsBalance: true, isActive: true, fraudNote: true, createdAt: true },
+  });
+  if (!customer) { res.status(404).json({ success: false, error: 'That customer no longer exists.' }); return; }
+
+  const [sales, redemptions, disputes, txStats] = await Promise.all([
+    prisma.pointsTransaction.findMany({
+      where: { customerId: userId },
+      select: {
+        id: true, createdAt: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, status: true,
+        receiptImageUrl: true, store: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+    }),
+    prisma.creditRedemption.findMany({
+      where: { customerId: userId },
+      select: { id: true, createdAt: true, amount: true, store: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+    }),
+    prisma.pointsDispute.findMany({
+      where: { customerId: userId },
+      select: { id: true, createdAt: true, status: true, description: true, creditedAmt: true, estimatedAmt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+    }),
+    prisma.pointsTransaction.aggregate({
+      where: { customerId: userId, status: 'APPROVED' },
+      _count: { id: true },
+      _sum: { purchaseAmount: true },
+    }),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      customer: { ...customer, isTest: isTestPhone(customer.phone) },
+      totals: { txCount: txStats._count.id, totalSpent: parseFloat((txStats._sum.purchaseAmount ?? 0).toFixed(2)) },
+      sales, redemptions, disputes,
+    },
+  });
+}
+
+// ─── Goodwill credit (SuperAdmin+) ────────────────────────────────────────────
+// For a case that is not a missing-points report (an apology, a promise made on the phone, a one-off
+// gesture): a small credit with a reason, capped lower than a dispute's since nothing here is backed by
+// a claimed purchase amount. Every credit is audited and the customer is told why.
+
+const GOODWILL_CREDIT_CAP = 25;
+
+const goodwillSchema = z.object({
+  amount: z.number({ message: 'The credit must be a number.' })
+    .positive('The credit must be more than $0.')
+    .max(GOODWILL_CREDIT_CAP, `A goodwill credit can be at most $${GOODWILL_CREDIT_CAP}. For a larger amount tied to a specific purchase, use a missing-points report instead.`)
+    .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'The credit is dollars and cents, at most two decimals.'),
+  reason: z.string({ message: 'A reason is required.' }).trim().min(1, 'A reason is required.').max(300, 'The reason is too long (300 characters at most).'),
+});
+
+export async function grantGoodwillCredit(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const parsed = goodwillSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { amount, reason } = parsed.data;
+
+  const customer = await prisma.user.findFirst({
+    where: { id: userId, role: Role.CUSTOMER, ...excludeDeletedCustomers },
+    select: { id: true, name: true, phone: true },
+  });
+  if (!customer) { res.status(404).json({ success: false, error: 'That customer no longer exists.' }); return; }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { pointsBalance: { increment: amount } },
+    select: { pointsBalance: true },
+  });
+
+  const actor = req.user!;
+  const who = customer.name || customer.phone;
+  audit({
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    action: 'GOODWILL_CREDIT', entity: 'user', entityId: userId,
+    details: { summary: `$${amount.toFixed(2)} goodwill credit to ${who}. Reason: ${reason}`, amount, reason },
+  });
+
+  sendPushToUser(userId, 'A credit was added to your account', `$${amount.toFixed(2)} in credits was added to your account. ${reason}`, 'GOODWILL_CREDIT').catch(() => {});
+
+  res.json({ success: true, data: { pointsBalance: updated.pointsBalance } });
 }
 
 // ─── List Staff (SuperAdmin+) ─────────────────────────────────────────────────
