@@ -1,5 +1,25 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { authApi } from '../services/api';
+import { EXPO_PROJECT_ID } from '../constants';
+
+// Best effort, never allowed to block or fail the actual sign-out: re-derives this device's own Expo push
+// token (the same call _layout.tsx's registration makes - Expo returns the same token for this install
+// unless permissions changed) and tells the server to forget it, so a phone that just signed out stops
+// getting that account's pushes instead of keeping them until the token is naturally replaced.
+async function removeThisDevicesPushToken(): Promise<void> {
+  try {
+    if (!Device.isDevice) return;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: EXPO_PROJECT_ID });
+    await authApi.removePushToken(tokenData.data);
+  } catch {
+    // Sign-out proceeds regardless
+  }
+}
 
 export type UserRole = 'DEV_ADMIN' | 'SUPER_ADMIN' | 'STORE_MANAGER' | 'EMPLOYEE' | 'CUSTOMER';
 
@@ -56,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    await removeThisDevicesPushToken();
     await SecureStore.deleteItemAsync('jwt_token');
     await SecureStore.deleteItemAsync('user_data');
     await SecureStore.deleteItemAsync('biometric_pin');

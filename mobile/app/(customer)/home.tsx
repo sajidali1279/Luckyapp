@@ -19,7 +19,8 @@ import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import ErrorState from '../../components/ErrorState';
 import PromoFlipCard from '../../components/PromoFlipCard';
-import { COLORS, TIER_CONFIG } from '../../constants';
+import { COLORS } from '../../constants';
+import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
   FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon,
@@ -574,6 +575,7 @@ export default function CustomerHome() {
   const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
   const qc = useQueryClient();
   const { user, token, setAuth } = useAuthStore();
+  const { tierConfig: TIER_CONFIG } = useLiveTierConfig();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sheetMaxHeight = windowHeight - insets.top - 24;

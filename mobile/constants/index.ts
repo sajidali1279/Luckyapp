@@ -1,5 +1,9 @@
 export const API_URL = 'https://api.luckystop.cliffindus.com/api';
 
+// Was duplicated inline in _layout.tsx's push registration; also needed at sign-out (authStore.ts) to
+// re-derive the same device token so it can be unregistered.
+export const EXPO_PROJECT_ID = 'c13d7114-4241-4e51-ad30-d69096d570ee';
+
 export const COLORS = {
   primary: '#CC2936',      // Lucky Stop sign red (matches physical store logo)
   secondary: '#1D3557',    // Deep navy
@@ -66,3 +70,55 @@ export const TIER_CONFIG: Record<string, {
   DIAMOND:  { color: '#7dd8f8', label: 'Diamond',  icon: '💎', emoji: '💎', next: 'PLATINUM', nextLabel: 'Platinum', thresholdPts: 30000, nextThresholdPts: 45000, benefits: ['4% cashback on all purchases', '1 free fountain refill daily (bring your own cup)', '+7¢ bonus per gallon on gas', 'Diamond-exclusive limited drops', 'Early access to new rewards'] },
   PLATINUM: { color: '#E5E4E2', label: 'Platinum', icon: '👑', emoji: '👑', next: undefined,  nextLabel: null,       thresholdPts: 45000, nextThresholdPts: null,  benefits: ['5% cashback - maximum rate', '1 free fountain refill daily (bring your own cup)', '+10¢ bonus per gallon on gas', 'Platinum vault - top-tier rewards only', 'Highest loyalty status'] },
 };
+
+const TIER_ORDER = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'];
+
+export interface LiveTierRate {
+  tier: string;
+  cashbackRate: number;            // fraction, e.g. 0.02 for 2%
+  gasCentsPerGallon: number | null;
+  pointsThreshold: number;         // points, not dollars (0 for Bronze)
+  gasBonusCentsPerGallon: number;
+}
+
+/** 0.02 -> "2%", 0.015 -> "1.5%" (never a long float, never a trailing zero). */
+function pctText(rate: number): string {
+  return `${Number((rate * 100).toFixed(2))}%`;
+}
+
+/**
+ * TIER_CONFIG with live rates (from GET /billing/tier-rates) merged in, keyed by tier. Before this, the
+ * cashback percentages, gas bonus cents and point thresholds shown to a customer were fixed text: changing
+ * a rate on the admin Rates page paid the new number but never told the app, so what a customer was shown
+ * and what they were actually paid could disagree. Only the cashback-percent line, the gas-bonus line (Gold
+ * and up) and the two threshold numbers are rebuilt from live data; every other benefit line (refill
+ * counts, exclusive-catalog perks) is not tied to a rate and is kept as written. Falls back to the static
+ * config untouched when live rates have not loaded yet or the request failed, so the screen never shows a
+ * blank tier because of a slow network.
+ */
+export function mergeLiveTierConfig(liveRates?: Record<string, LiveTierRate>): typeof TIER_CONFIG {
+  if (!liveRates || Object.keys(liveRates).length === 0) return TIER_CONFIG;
+  const merged: typeof TIER_CONFIG = { ...TIER_CONFIG };
+  for (const tier of TIER_ORDER) {
+    const live = liveRates[tier];
+    const base = TIER_CONFIG[tier];
+    if (!live || !base) continue;
+
+    const bronzeRate = liveRates.BRONZE?.cashbackRate || live.cashbackRate;
+    const cashbackLine = tier === 'SILVER'
+      ? `${pctText(live.cashbackRate)} cashback (${Math.round(live.cashbackRate / bronzeRate)}× Bronze rate)`
+      : tier === 'PLATINUM'
+      ? `${pctText(live.cashbackRate)} cashback - maximum rate`
+      : `${pctText(live.cashbackRate)} cashback on all purchases`;
+    const gasBonusLine = live.gasBonusCentsPerGallon > 0 ? [`+${live.gasBonusCentsPerGallon}¢ bonus per gallon on gas`] : [];
+    const staticNonRateLines = base.benefits.filter((line) => !/cashback/i.test(line) && !/¢ bonus per gallon/i.test(line));
+
+    merged[tier] = {
+      ...base,
+      thresholdPts: live.pointsThreshold,
+      nextThresholdPts: base.next ? (liveRates[base.next]?.pointsThreshold ?? base.nextThresholdPts) : null,
+      benefits: [cashbackLine, ...gasBonusLine, ...staticNonRateLines],
+    };
+  }
+  return merged;
+}

@@ -42,6 +42,10 @@ export default function ManagerOffersScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  // A Store Manager can no longer post or change a cashback promotion (percentage, per-tier or cents per
+  // gallon) - only HQ sets those now; a manager can still post and edit Deals for their store. Dev
+  // Admin/Super Admin testing this screen from the app itself are unaffected.
+  const canSetBonus = user?.role !== 'STORE_MANAGER';
 
   // Accessible stores
   const { data: storesData } = useQuery({
@@ -114,7 +118,10 @@ export default function ManagerOffersScreen() {
     return {
       title: f.title.trim(),
       description: f.description.trim() || undefined,
-      bonusRate: f.bonusRate ? parseFloat(f.bonusRate) / 100 : undefined,
+      // A Store Manager never sends a bonus rate at all, changed or not - keeping an unchanged existing
+      // value in the payload risks the server refusing the whole save over a field the manager cannot use,
+      // when only the Deal Text they CAN edit needed to go through.
+      bonusRate: canSetBonus && f.bonusRate ? parseFloat(f.bonusRate) / 100 : undefined,
       dealText: f.dealText.trim() || undefined,
       category: f.category || undefined,
       storeId: sid,
@@ -125,8 +132,8 @@ export default function ManagerOffersScreen() {
 
   function handleCreate() {
     if (!form.title.trim()) { Toast.show({ type: 'error', text1: t('managerOffers.titleRequired') }); return; }
-    if (!form.bonusRate && !form.dealText.trim()) {
-      Toast.show({ type: 'error', text1: t('managerOffers.bonusOrDealRequired') }); return;
+    if (!(canSetBonus && form.bonusRate) && !form.dealText.trim()) {
+      Toast.show({ type: 'error', text1: canSetBonus ? t('managerOffers.bonusOrDealRequired') : t('managerOffers.dealRequiredManager') }); return;
     }
     createMutation.mutate(buildPayload(form, storeId));
   }
@@ -294,6 +301,7 @@ export default function ManagerOffersScreen() {
         onSubmit={handleCreate}
         isPending={createMutation.isPending}
         submitLabel={t('managerOffers.createOffer')}
+        canSetBonus={canSetBonus}
       />
 
       {/* ── Edit Offer Modal ── */}
@@ -306,6 +314,7 @@ export default function ManagerOffersScreen() {
         onSubmit={handleUpdate}
         isPending={updateMutation.isPending}
         submitLabel={t('managerOffers.saveChanges')}
+        canSetBonus={canSetBonus}
       />
     </View>
   );
@@ -322,9 +331,10 @@ interface FormModalProps {
   onSubmit: () => void;
   isPending: boolean;
   submitLabel: string;
+  canSetBonus: boolean;
 }
 
-function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isPending, submitLabel }: FormModalProps) {
+function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isPending, submitLabel, canSetBonus }: FormModalProps) {
   const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -361,11 +371,22 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
           </Field>
 
           <Field label={t('managerOffers.bonusFieldLabel')}>
-            <TextInput
-              style={s.input} value={form.bonusRate} onChangeText={v => setField('bonusRate', v)}
-              placeholder={t('managerOffers.bonusPlaceholder')} placeholderTextColor={COLORS.textMuted}
-              keyboardType="decimal-pad"
-            />
+            {canSetBonus ? (
+              <TextInput
+                style={s.input} value={form.bonusRate} onChangeText={v => setField('bonusRate', v)}
+                placeholder={t('managerOffers.bonusPlaceholder')} placeholderTextColor={COLORS.textMuted}
+                keyboardType="decimal-pad"
+              />
+            ) : (
+              <>
+                <View style={[s.input, s.inputReadOnly]}>
+                  <Text style={s.inputReadOnlyText}>
+                    {form.bonusRate ? `${form.bonusRate}%` : t('managerOffers.bonusNoneSet')}
+                  </Text>
+                </View>
+                <Text style={s.fieldNote}>{t('managerOffers.bonusSetByHq')}</Text>
+              </>
+            )}
           </Field>
 
           <Field label={t('managerOffers.dealTextFieldLabel')}>
@@ -540,6 +561,9 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
     padding: 14, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.white, marginBottom: 0,
   },
+  inputReadOnly: { backgroundColor: COLORS.background, justifyContent: 'center' },
+  inputReadOnlyText: { fontSize: 15, color: COLORS.textMuted },
+  fieldNote: { fontSize: 12, color: COLORS.textMuted, marginTop: 6, lineHeight: 16 },
 
   catChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,

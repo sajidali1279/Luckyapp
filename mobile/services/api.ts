@@ -52,6 +52,9 @@ export const authApi = {
     api.patch('/auth/pin', { currentPin, newPin }),
   registerPushToken: (token: string, platform: string) =>
     api.post('/auth/push-token', { token, platform }),
+  // Sign-out: tell the server this device should stop getting this account's pushes. A best-effort call
+  // (an axios instance-level failure here must never block the local sign-out itself).
+  removePushToken: (token: string) => api.delete('/auth/push-token', { data: { token } }),
   getMe: () => api.get('/auth/me'),
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
   verifyFirebaseReset: (firebaseToken: string) => api.post('/auth/verify-firebase-reset', { firebaseToken }),

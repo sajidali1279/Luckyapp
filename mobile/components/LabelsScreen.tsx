@@ -550,8 +550,13 @@ export default function LabelsScreen() {
         const message = handleKnownBarcode(scanned.barcode);
         Toast.show({ type: 'success', text1: message ?? t('sharedLabels.toastAddedToMyPrints') });
         setTimeout(() => setShowScanner(true), 350);
-      } else {
+      } else if (isManagerPlus) {
         openEditForm(existing);
+      } else {
+        // A cashier scanning a barcode that is already in the chain-wide catalog, with no cart open to add
+        // it to: say so, never open the chain-wide edit form - only a manager or HQ edits the shared item.
+        Toast.show({ type: 'info', text1: t('sharedLabels.toastAlreadyInCatalog', { name: existing.productName }) });
+        setTimeout(() => setShowScanner(true), 350);
       }
       return;
     }
@@ -1511,15 +1516,17 @@ export default function LabelsScreen() {
             )}
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={s.iconBtn}
-          onPress={() => openEditForm(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('sharedLabels.editA11y', { name: item.productName })}
-        >
-          <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
-        </TouchableOpacity>
+        {isManagerPlus && (
+          <TouchableOpacity
+            style={s.iconBtn}
+            onPress={() => openEditForm(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('sharedLabels.editA11y', { name: item.productName })}
+          >
+            <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -1546,15 +1553,17 @@ export default function LabelsScreen() {
             {label.dealText && <Text style={s.cardDeal}>{label.dealText}</Text>}
             {label.barcode && <Text style={s.cardBarcode}>{label.barcode}</Text>}
           </View>
-          <TouchableOpacity
-            style={s.iconBtn}
-            onPress={() => openEditForm(label)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('sharedLabels.editA11y', { name: label.productName })}
-          >
-            <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
-          </TouchableOpacity>
+          {isManagerPlus && (
+            <TouchableOpacity
+              style={s.iconBtn}
+              onPress={() => openEditForm(label)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('sharedLabels.editA11y', { name: label.productName })}
+            >
+              <EditIcon size={16} color={COLORS.textMuted} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={s.iconBtn}
             onPress={() => removeFromCart(label.id)}

@@ -341,10 +341,16 @@ export default function EmployeeScanScreen() {
   const committedTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const customerTier = customerData?.tier ?? 'BRONZE';
   const liveTierRate = tierRates[customerTier];
-  // pts-per-dollar from live rate (fallback to hardcoded until rates load)
+  // pts-per-dollar from live rate (fallback to hardcoded until rates load). NOT rounded here: a fractional
+  // rate (1.5%) used to be rounded to a whole "2 points per dollar" before the per-item math even ran,
+  // which both misquoted the rate to the cashier and quietly overpaid every sale at that rate. The final
+  // points totals below are still rounded (points must be whole), just not this intermediate multiplier.
   const tierMult = liveTierRate
-    ? Math.round(liveTierRate.cashbackRate * 100)
+    ? liveTierRate.cashbackRate * 100
     : (TIER_PTS_MULT_FALLBACK[customerTier] ?? 1);
+  // Rounded only for the on-screen "X points per dollar" label, to one decimal so 1.5 shows as "1.5" and
+  // not a long float, while whole-percent tiers (today's real rates) still show as a clean whole number.
+  const tierMultDisplay = Math.round(tierMult * 10) / 10;
   const gasCentsPerGallon = liveTierRate?.gasCentsPerGallon ?? null;
   // Category bonus on top of tier base (only when live rates loaded)
   const currentCategoryBonusPts = liveTierRate ? (categoryRates[category] ?? 0) * 100 : 0;
@@ -1109,7 +1115,7 @@ export default function EmployeeScanScreen() {
                 <Text style={s.previewRate}>
                   {isGasCat && gasCentsPerGallon != null
                     ? t('employeeScan.rateGas', { cents: gasCentsPerGallon, tier: customerTier })
-                    : t('employeeScan.rateDollar', { mult: tierMult, tier: customerTier })}
+                    : t('employeeScan.rateDollar', { mult: tierMultDisplay, tier: customerTier })}
                 </Text>
               </View>
               <View style={s.previewDivider} />

@@ -13,6 +13,7 @@ import { authApi } from '../services/api';
 import AppLoader from '../components/AppLoader';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { loadSavedLanguage } from '../i18n';
+import { EXPO_PROJECT_ID } from '../constants';
 
 // Hold the splash until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -48,7 +49,7 @@ async function registerPushToken() {
   }
 
   const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: 'c13d7114-4241-4e51-ad30-d69096d570ee',
+    projectId: EXPO_PROJECT_ID,
   });
   await authApi.registerPushToken(tokenData.data, Platform.OS);
 }

@@ -14,26 +14,32 @@ import { StarIcon, TagIcon, ClockIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
+import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 
 
-const TIER_THRESHOLDS: Record<string, number> = {
-  BRONZE: 0, SILVER: 5000, GOLD: 15000, DIAMOND: 30000, PLATINUM: 45000,
-};
 
-const TIER_BENEFITS: Record<string, { key: string; textKey: string; isDaily: boolean }[]> = {
+// Shown only until the live rate loads (see liveGasBonusCents below) - today's real values, kept only as
+// a brief loading-state fallback, never the source of truth.
+const GAS_BONUS_FALLBACK: Record<string, number> = { GOLD: 5, DIAMOND: 7, PLATINUM: 10 };
+
+// The gas-bonus line's cents used to be baked into one translation key per specific value
+// (benefitGasBonus5/7/10) - a rate change on the admin Rates page could never reach it. `needsGasCents`
+// marks the one shared key (customerRewards.benefitGasBonus, "{{cents}}" interpolated) that reads the
+// live gasBonusCentsPerGallon at render time instead.
+const TIER_BENEFITS: Record<string, { key: string; textKey: string; isDaily: boolean; needsGasCents?: boolean }[]> = {
   BRONZE:   [],
   SILVER:   [{ key: 'silverRefills', textKey: 'customerRewards.benefitSilverRefills', isDaily: true }],
   GOLD:     [
     { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
-    { key: 'gasBonus5', textKey: 'customerRewards.benefitGasBonus5', isDaily: false },
+    { key: 'gasBonus', textKey: 'customerRewards.benefitGasBonus', isDaily: false, needsGasCents: true },
   ],
   DIAMOND:  [
     { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
-    { key: 'gasBonus7', textKey: 'customerRewards.benefitGasBonus7', isDaily: false },
+    { key: 'gasBonus', textKey: 'customerRewards.benefitGasBonus', isDaily: false, needsGasCents: true },
   ],
   PLATINUM: [
     { key: 'dailyRefill', textKey: 'customerRewards.benefitDailyRefill', isDaily: true },
-    { key: 'gasBonus10', textKey: 'customerRewards.benefitGasBonus10', isDaily: false },
+    { key: 'gasBonus', textKey: 'customerRewards.benefitGasBonus', isDaily: false, needsGasCents: true },
   ],
 };
 
@@ -75,9 +81,13 @@ function useCountdown(expiresAt: string | null) {
 }
 
 // ─── Tier progress bar ─────────────────────────────────────────────────────────
-function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number }) {
+// Takes the live-merged tier config as a prop (fetched once by the screen, not re-fetched per component) so
+// the "how far to the next tier" math always agrees with the real, current threshold the server will use -
+// this used to read a second, separately hardcoded TIER_THRESHOLDS table that could disagree with a rate
+// change on the admin Rates page just like the fixed benefit text could.
+function TierProgressBar({ tier, periodPts, tierConfig }: { tier: string; periodPts: number; tierConfig: typeof TIER_CONFIG }) {
   const { t } = useTranslation();
-  const cfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
+  const cfg = tierConfig[tier] || tierConfig.BRONZE;
   const nextTier = cfg.next;
   if (!nextTier) {
     return (
@@ -90,9 +100,9 @@ function TierProgressBar({ tier, periodPts }: { tier: string; periodPts: number 
       </View>
     );
   }
-  const nextCfg = TIER_CONFIG[nextTier];
-  const from = TIER_THRESHOLDS[tier];
-  const to = TIER_THRESHOLDS[nextTier];
+  const nextCfg = tierConfig[nextTier];
+  const from = cfg.thresholdPts;
+  const to = cfg.nextThresholdPts ?? nextCfg.thresholdPts;
   const progress = Math.min(1, Math.max(0, (periodPts - from) / (to - from)));
   const remaining = Math.max(0, to - periodPts);
   return (
@@ -331,11 +341,13 @@ export default function RewardsScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
+  const { tierConfig, liveRates } = useLiveTierConfig();
   const pts = Math.round(Number(user?.pointsBalance || 0) * 100);
   const tier = user?.tier || 'BRONZE';
   const periodPts = Math.round(Number(user?.periodPoints || 0) * 100);
-  const tierCfg = TIER_CONFIG[tier] || TIER_CONFIG.BRONZE;
+  const tierCfg = tierConfig[tier] || tierConfig.BRONZE;
   const benefits = TIER_BENEFITS[tier] || [];
+  const liveGasBonusCents = liveRates?.[tier]?.gasBonusCentsPerGallon;
 
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -448,7 +460,7 @@ export default function RewardsScreen() {
                   <Text style={r.tierBadgeLargeLabel}>{tierCfg.label}</Text>
                 </View>
               </View>
-              <TierProgressBar tier={tier} periodPts={periodPts} />
+              <TierProgressBar tier={tier} periodPts={periodPts} tierConfig={tierConfig} />
             </View>
 
             {/* ── Tier benefits ── */}
@@ -471,7 +483,7 @@ export default function RewardsScreen() {
                   return (
                     <View key={b.key} style={r.benefitRow}>
                       <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
-                      <Text style={r.benefitText}>{t(b.textKey)}</Text>
+                      <Text style={r.benefitText}>{b.needsGasCents ? t(b.textKey, { cents: liveGasBonusCents ?? GAS_BONUS_FALLBACK[tier] }) : t(b.textKey)}</Text>
                       {isDaily && benefitStatus && (
                         <View style={[r.benefitStatusPill, { backgroundColor: available ? '#E8F5E9' : '#FFF3E0' }]}>
                           <Text style={[r.benefitStatusText, { color: available ? COLORS.success : '#F4A226' }]}>

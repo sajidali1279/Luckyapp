@@ -638,6 +638,7 @@ Authentication: `Authorization: Bearer <jwt_token>` on all authenticated routes.
 | PATCH | /auth/pin | JWT | Any | Change PIN |
 | PATCH | /auth/email | JWT | Any | Save recovery email |
 | POST | /auth/push-token | JWT | Any | Register push notification token |
+| DELETE | /auth/push-token | JWT | Any | Sign-out: unregister ONE push token. Body `{ token }`; only deletes a token belonging to the caller (`deleteMany({ token, userId })`, never someone else's even if guessed); a token that does not exist, or already belongs to no one, is a harmless 200, not an error |
 | POST | /auth/verify-firebase-reset | JWT | Any | Verify Firebase OTP for PIN reset |
 | POST | /auth/reset-pin | JWT | Any | Reset PIN with reset token (single use: the token carries a fingerprint of the current PIN; ends that account's other sessions and clears its lockout) |
 | POST | /auth/super-admin | JWT | DEV_ADMIN | Create Super Admin account (a number already in use gets a 409 with a sentence saying whose it is) |
@@ -870,8 +871,7 @@ A closed store (`isActive: false`) refuses `POST /points/grant`, `POST /points/r
 | GET | /billing/monthly-records | JWT | DEV_ADMIN | All billing records, grouped by period |
 | GET | /billing/heartbeat | JWT | DEV_ADMIN | Is the monthly job actually alive: `lastRanAt`/`minutesSinceRan` (from `AppConfig` key `billingCronLastRunAt`, written on every tick whether or not it made a bill), `staleHeartbeat` (true past ~3 hours of silence), and for the last finished period, `totalActiveStores`/`billedStores`/`missingStores` (informational - a store with no sales that month is not a failure) |
 | GET | /billing/stores/:storeId/plan-history | JWT | DEV_ADMIN | One store's billing-plan changes over time, read from `AuditLog`'s existing `STORE_BILLING_UPDATE` entries (no new table) |
-| GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates |
-| GET | /billing/tier-rates | JWT | EMPLOYEE+ | Tier cashback rates. Each row: `tier`, `cashbackRate` (fraction), `gasCentsPerGallon` (null = percent), `pointsThreshold` (POINTS, 100 = $1), `gasBonusCentsPerGallon` (the fixed Gold/Diamond/Platinum extra: 5, 7, 10) |
+| GET | /billing/tier-rates | JWT | Any | Tier cashback rates. Each row: `tier`, `cashbackRate` (fraction), `gasCentsPerGallon` (null = percent), `pointsThreshold` (POINTS, 100 = $1), `gasBonusCentsPerGallon` (the fixed Gold/Diamond/Platinum extra: 5, 7, 10). Widened from EMPLOYEE+ to any authenticated role (mobile batch, "R3") so the customer app can read live rates instead of numbers fixed into the app; `GET /billing/category-rates` is unchanged (EMPLOYEE+), the customer app has no use for category bonus data |
 | PUT | /billing/tier-rates | JWT | SUPER_ADMIN | Change several tiers all or nothing. Body `{ changes: [{ tier, cashbackRate?, gasCentsPerGallon?, pointsThreshold? }] }` (thresholds in points). Refused with a sentence by `utils/rateRules.ts`: tier at most 7.5%, gas at most 25 cents, thresholds 100 to 10,000,000 points and strictly rising, a tier plus a category bonus at most 10%. Writes one `RATE_TIER_UPDATE` audit entry (with `summary`, before and after). Returns every tier, `changed`, `lastChange`. |
 | PUT | /billing/tier-rates/:tier | JWT | SUPER_ADMIN | Change one tier (same rules and audit as the bulk route) |
 | GET | /billing/category-rates | JWT | EMPLOYEE+ | Category cashback rates |
