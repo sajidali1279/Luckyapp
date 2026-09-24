@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { clientKey } from '../utils/rateLimitKey';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -224,6 +224,7 @@ router.patch('/auth/profile', authenticate, updateProfile);                     
 router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploadAvatar); // Upload profile picture
 router.delete('/auth/profile/avatar', authenticate, deleteAvatar);                        // Remove profile picture
 router.post('/auth/push-token', authenticate, registerPushToken);
+router.delete('/auth/push-token', authenticate, removePushToken);   // Sign-out: stop this device's pushes for this account
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email
 router.post('/auth/verify-firebase-reset', verifyFirebaseReset);                  // Firebase phone OTP verified → get resetToken
@@ -345,7 +346,7 @@ router.post('/billing/records/:recordId/recalculate', authenticate, requireRole(
 router.patch('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), updateBillingRecord);
 router.delete('/billing/records/:recordId', authenticate, requireRole(Role.DEV_ADMIN), deleteBillingRecord);
 router.patch('/billing/period/:period/paid', authenticate, requireRole(Role.DEV_ADMIN), markPeriodPaid);
-router.get('/billing/tier-rates', authenticate, requireRole(Role.EMPLOYEE), getTierRates);
+router.get('/billing/tier-rates', authenticate, requireRole(Role.CUSTOMER), getTierRates);      // R3: customers read live rates too, not just staff
 router.put('/billing/tier-rates', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRates);
 router.put('/billing/tier-rates/:tier', authenticate, requireRole(Role.SUPER_ADMIN), updateTierRate);
 router.get('/billing/rates/last-change', authenticate, requireRole(Role.SUPER_ADMIN), getRatesLastChange);

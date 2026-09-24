@@ -298,6 +298,22 @@ export async function registerPushToken(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
+// ─── Remove Push Token (sign-out) ──────────────────────────────────────────────
+// Signing out on a phone used to only clear that phone's own local session - the server never learned the
+// phone should stop getting that account's push notifications, so a device could keep receiving pushes for
+// an account it had already signed out of. Deletes only the caller's OWN token (never someone else's,
+// even if the token string were guessed), and a token that no longer exists is a harmless no-op, not an
+// error, since a repeat sign-out or a token the server never saw either way ends at the same place: gone.
+export async function removePushToken(req: AuthRequest, res: Response) {
+  const { token } = req.body as { token?: string };
+  if (!token) {
+    res.status(400).json({ success: false, error: 'token required' });
+    return;
+  }
+  await prisma.pushToken.deleteMany({ where: { token, userId: req.user!.id } });
+  res.json({ success: true });
+}
+
 // ─── Change PIN ───────────────────────────────────────────────────────────────
 
 export async function changePin(req: AuthRequest, res: Response) {
