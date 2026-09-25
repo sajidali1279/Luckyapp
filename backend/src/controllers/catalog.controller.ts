@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
 import { redemptionUrl } from '../utils/notificationRoutes';
 import { audit } from '../utils/audit';
+import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
 
 const HOLD_MINUTES = 30;
 
@@ -96,31 +97,6 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
   if (!item || !item.isActive) { res.status(404).json({ success: false, error: 'Reward not available' }); return; }
 
   const costInDollars = item.pointsCost / 100;
-  if (customer.pointsBalance < costInDollars) {
-    res.status(400).json({
-      success: false,
-      error: `Not enough points. Need ${item.pointsCost} pts, you have ${Math.round(customer.pointsBalance * 100)} pts`,
-    });
-    return;
-  }
-
-  // Check if customer already has a pending redemption for this item
-  const existing = await prisma.catalogRedemption.findFirst({
-    where: { customerId: customer.id, catalogItemId, status: 'PENDING', expiresAt: { gt: new Date() } },
-  });
-  if (existing) {
-    res.status(400).json({ success: false, error: 'You already have an active redemption for this item', data: { redemptionId: existing.id } });
-    return;
-  }
-
-  // Concurrent redemption cap — prevents holding many items in limbo simultaneously
-  const activePendingCount = await prisma.catalogRedemption.count({
-    where: { customerId: customer.id, status: 'PENDING', expiresAt: { gt: new Date() } },
-  });
-  if (activePendingCount >= 5) {
-    res.status(429).json({ success: false, error: 'You have too many active redemptions. Cancel one or wait for them to expire before starting another.' });
-    return;
-  }
 
   const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
   let code = generateCode();
@@ -129,9 +105,29 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
     code = generateCode();
   }
 
-  const [, redemption] = await prisma.$transaction([
-    prisma.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } }),
-    prisma.catalogRedemption.create({
+  // Balance, "already have one for this item" and the cap of 5 are all checked inside one customer lock: a double tap on Redeem used to
+  // pass them twice, take the points twice and hold two codes for the same reward.
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockCustomer(tx, customer.id);
+    const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
+    if (fresh.pointsBalance < costInDollars) {
+      return { ok: false as const, status: 400, body: { success: false, error: `Not enough points. Need ${item.pointsCost} pts, you have ${Math.round(fresh.pointsBalance * 100)} pts` } };
+    }
+    const existing = await tx.catalogRedemption.findFirst({
+      where: { customerId: customer.id, catalogItemId, status: 'PENDING', expiresAt: { gt: new Date() } },
+    });
+    if (existing) {
+      return { ok: false as const, status: 400, body: { success: false, error: 'You already have an active redemption for this item', data: { redemptionId: existing.id } } };
+    }
+    // Concurrent redemption cap — prevents holding many items in limbo simultaneously
+    const activePendingCount = await tx.catalogRedemption.count({
+      where: { customerId: customer.id, status: 'PENDING', expiresAt: { gt: new Date() } },
+    });
+    if (activePendingCount >= 5) {
+      return { ok: false as const, status: 429, body: { success: false, error: 'You have too many active redemptions. Cancel one or wait for them to expire before starting another.' } };
+    }
+    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } });
+    const created = await tx.catalogRedemption.create({
       data: {
         customerId: customer.id,
         catalogItemId,
@@ -141,8 +137,14 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
         expiresAt,
       },
       include: { catalogItem: true },
-    }),
-  ]);
+    });
+    return { ok: true as const, redemption: created, balance: fresh.pointsBalance - costInDollars };
+  });
+  if (!outcome.ok) {
+    res.status(outcome.status).json(outcome.body);
+    return;
+  }
+  const redemption = outcome.redemption;
 
   res.status(201).json({
     success: true,
@@ -152,7 +154,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       item: { title: item.title, emoji: item.emoji, pointsCost: item.pointsCost },
       expiresAt: expiresAt.toISOString(),
       expiresInMinutes: HOLD_MINUTES,
-      remainingPts: Math.round((customer.pointsBalance - costInDollars) * 100),
+      remainingPts: Math.round(outcome.balance * 100),
     },
   });
 }
@@ -188,11 +190,12 @@ export async function cancelRedemption(req: AuthRequest, res: Response) {
   if (redemption.status !== 'PENDING') {
     res.status(400).json({ success: false, error: 'Only pending redemptions can be cancelled' }); return;
   }
-  const costInDollars = redemption.pointsSpent / 100;
-  await prisma.$transaction([
-    prisma.catalogRedemption.update({ where: { id }, data: { status: 'CANCELLED' } }),
-    prisma.user.update({ where: { id: req.user!.id }, data: { pointsBalance: { increment: costInDollars } } }),
-  ]);
+  // Only if it is still pending: a double tap refunded twice, and a cancel racing the cashier's confirm refunded a reward already handed over
+  const cancelled = await prisma.$transaction((tx) => settlePendingRedemption(tx, redemption, 'CANCELLED', { refund: true }));
+  if (!cancelled) {
+    res.status(409).json({ success: false, error: 'This redemption was already used, cancelled or expired.' });
+    return;
+  }
   res.json({ success: true, message: 'Redemption cancelled, points refunded' });
 }
 
@@ -231,19 +234,17 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: `Redemption is ${redemption.status}` }); return;
   }
   if (redemption.expiresAt && redemption.expiresAt < new Date()) {
-    // Expired — refund if not already done
-    const costInDollars = redemption.pointsSpent / 100;
-    await prisma.$transaction([
-      prisma.catalogRedemption.update({ where: { id }, data: { status: 'EXPIRED' } }),
-      prisma.user.update({ where: { id: redemption.customerId }, data: { pointsBalance: { increment: costInDollars } } }),
-    ]);
+    // Expired — refund if not already done (the expiry job or a second tap may have got there first: only one of them refunds)
+    await prisma.$transaction((tx) => settlePendingRedemption(tx, redemption, 'EXPIRED', { refund: true }));
     res.status(400).json({ success: false, error: 'Redemption has expired — points have been refunded' }); return;
   }
 
-  await prisma.catalogRedemption.update({
-    where: { id },
-    data: { status: 'COMPLETED', processedById: req.user!.id, storeId: storeId || null },
-  });
+  const completed = await prisma.$transaction((tx) =>
+    settlePendingRedemption(tx, redemption, 'COMPLETED', { data: { processedById: req.user!.id, storeId: storeId || null } }));
+  if (!completed) {
+    res.status(409).json({ success: false, error: 'This redemption was just confirmed, cancelled or expired. Scan the customer again.' });
+    return;
+  }
 
   sendPushToUser(redemption.customerId, '✅ Reward Confirmed!',
     `Your "${redemption.catalogItem.title}" has been redeemed. Enjoy!`, 'REDEMPTION', redemptionUrl(redemption.id));

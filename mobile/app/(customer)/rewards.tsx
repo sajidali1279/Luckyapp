@@ -377,6 +377,8 @@ export default function RewardsScreen() {
     refetchInterval: 15000,
   });
 
+  // Set on the first tap: redeemMutation.isPending only disables the button on the next render, so a quick double tap sent two redemptions
+  const redeemingRef = useRef(false);
   const redeemMutation = useMutation({
     mutationFn: (catalogItemId: string) => catalogApi.initiateRedemption(catalogItemId),
     onSuccess: (res) => {
@@ -585,7 +587,11 @@ export default function RewardsScreen() {
         <RedeemModal
           item={selectedItem} pts={pts}
           loading={redeemMutation.isPending}
-          onConfirm={() => redeemMutation.mutate(selectedItem.id)}
+          onConfirm={() => {
+            if (redeemingRef.current) return;
+            redeemingRef.current = true;
+            redeemMutation.mutate(selectedItem.id, { onSettled: () => { redeemingRef.current = false; } });
+          }}
           onClose={() => setSelectedItem(null)}
         />
       )}

@@ -183,10 +183,13 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     if (!claim) return res.status(404).json({ success: false, error: 'Claim code not found' });
     if (claim.confirmedAt) return res.status(400).json({ success: false, error: 'Already confirmed' });
 
-    const confirmed = await prisma.welcomeBonusClaim.update({
-      where: { claimCode },
+    // Only if still unconfirmed, so a double tap cannot confirm (and log) the same free item twice
+    const { count } = await prisma.welcomeBonusClaim.updateMany({
+      where: { claimCode, confirmedAt: null },
       data: { confirmedAt: new Date(), confirmedById: req.user!.id, storeId: storeId ?? null },
     });
+    if (count === 0) return res.status(400).json({ success: false, error: 'Already confirmed' });
+    const confirmed = await prisma.welcomeBonusClaim.findUniqueOrThrow({ where: { claimCode } });
 
     const reward = REWARD_LABELS[confirmed.rewardType];
     return res.json({

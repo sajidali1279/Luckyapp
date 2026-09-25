@@ -21,6 +21,7 @@ import { emailHQ, URGENT_SALE_AMOUNT } from '../utils/adminEmail';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 import { transactionSearchWhere } from '../utils/transactionSearch';
+import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -311,10 +312,19 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
 
   // Duplicate receipt detection — hash file bytes to prevent reusing the same photo
   const receiptHash = createHash('sha256').update(req.file!.buffer).digest('hex');
-  const duplicateReceipt = await prisma.pointsTransaction.findFirst({
-    where: { receiptImageHash: receiptHash },
-    select: { id: true },
+  // A multi-item sale (gas + groceries on one receipt) is one transaction per item, and the phone sends the same photo to each. Those
+  // siblings (same customer, cashier and store, made within two minutes of each other) may share it; any other sale may not. Before,
+  // the siblings only got through when their uploads happened to overlap: if one finished first, the next was refused as a reused
+  // receipt and the cashier could not complete the sale.
+  const SALE_WINDOW_MS = 2 * 60 * 1000;
+  const sameHash = await prisma.pointsTransaction.findMany({
+    where: { receiptImageHash: receiptHash, id: { not: transactionId } },
+    select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true },
   });
+  const duplicateReceipt = sameHash.find((t) => !(
+    t.customerId === transaction.customerId && t.grantedById === transaction.grantedById && t.storeId === transaction.storeId
+    && Math.abs(t.createdAt.getTime() - transaction.createdAt.getTime()) <= SALE_WINDOW_MS
+  ));
   if (duplicateReceipt) {
     res.status(409).json({ success: false, error: 'This receipt image has already been used for another transaction. Upload the original receipt photo.' });
     return;
@@ -418,26 +428,37 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Customer QR code not found' });
     return;
   }
-  if (customer.pointsBalance < amount) {
-    res.status(400).json({
-      success: false,
-      error: `Insufficient balance. Customer has $${customer.pointsBalance.toFixed(2)}.`,
+  // Dev cut is taken at grant time — no cut applied on redemption.
+  // One customer at a time, the balance read inside the lock, and the same redemption a moment ago refused: a double tap used to pass
+  // the balance check twice and deduct twice, even below zero.
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockCustomer(tx, customer.id);
+    const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
+    if (fresh.pointsBalance < amount) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    const repeat = await tx.creditRedemption.findFirst({
+      where: { customerId: customer.id, storeId, amount, processedBy: employee.id, createdAt: { gte: new Date(Date.now() - REPEAT_WINDOW_MS) } },
+      select: { id: true },
     });
-    return;
-  }
-
-  // Dev cut is taken at grant time — no cut applied on redemption
-  // Atomically: deduct balance + record redemption
-  const [updated] = await prisma.$transaction([
-    prisma.user.update({
+    if (repeat) return { kind: 'repeat' as const };
+    const updatedCustomer = await tx.user.update({
       where: { id: customer.id },
       data: { pointsBalance: { decrement: amount } },
       select: { id: true, name: true, phone: true, pointsBalance: true },
-    }),
-    prisma.creditRedemption.create({
+    });
+    await tx.creditRedemption.create({
       data: { customerId: customer.id, storeId, amount, devCut: 0, processedBy: employee.id },
-    }),
-  ]);
+    });
+    return { kind: 'done' as const, updated: updatedCustomer };
+  });
+  if (outcome.kind === 'short') {
+    res.status(400).json({ success: false, error: `Insufficient balance. Customer has $${outcome.balance.toFixed(2)}.` });
+    return;
+  }
+  if (outcome.kind === 'repeat') {
+    res.status(409).json({ success: false, code: 'REPEATED', error: 'This redemption was just recorded. Check the customer balance before redeeming again.' });
+    return;
+  }
+  const updated = outcome.updated;
 
   sendPushToUser(
     customer.id,
@@ -1105,30 +1126,26 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     return;
   }
 
-  let benefitType: string;
-  if (tier === 'SILVER') {
-    const used = await prisma.tierBenefitClaim.count({
-      where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
-    });
-    if (used >= 7) {
-      res.status(400).json({ success: false, error: 'Silver benefit limit reached (7 refills this period)' });
-      return;
+  // Count and claim inside one customer lock: a double tap used to pass the count twice and give two refills (or an eighth Silver one)
+  const benefitType = tier === 'SILVER' ? 'SILVER_FOUNTAIN' : 'DAILY_REFILL';
+  const refusal = await prisma.$transaction(async (tx) => {
+    await lockCustomer(tx, customer.id);
+    if (benefitType === 'SILVER_FOUNTAIN') {
+      const used = await tx.tierBenefitClaim.count({ where: { userId: customer.id, period, benefitType } });
+      if (used >= 7) return 'Silver benefit limit reached (7 refills this period)';
+    } else {
+      const usedToday = await tx.tierBenefitClaim.count({
+        where: { userId: customer.id, period, benefitType, claimedAt: { gte: storeDayStart(), lte: storeDayEnd() } },
+      });
+      if (usedToday > 0) return 'Daily refill already claimed today';
     }
-    benefitType = 'SILVER_FOUNTAIN';
-  } else {
-    const todayStart = storeDayStart();
-    const todayEnd   = storeDayEnd();
-    const usedToday = await prisma.tierBenefitClaim.count({
-      where: { userId: customer.id, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
-    });
-    if (usedToday > 0) {
-      res.status(400).json({ success: false, error: 'Daily refill already claimed today' });
-      return;
-    }
-    benefitType = 'DAILY_REFILL';
+    await tx.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });
+    return null;
+  });
+  if (refusal) {
+    res.status(400).json({ success: false, error: refusal });
+    return;
   }
-
-  await prisma.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
@@ -1158,17 +1175,31 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
 
   // pointsCost is in points; convert to dollars for balance deduction
   const costInDollars = item.pointsCost / 100;
-  if (customer.pointsBalance < costInDollars) {
-    res.status(400).json({ success: false, error: `Insufficient points. Need ${item.pointsCost} pts, have ${Math.round(customer.pointsBalance * 100)} pts` });
+
+  // Same guard as redeemCredits: one customer at a time, balance read inside the lock, a repeated tap refused
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockCustomer(tx, customer.id);
+    const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
+    if (fresh.pointsBalance < costInDollars) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    const repeat = await tx.catalogRedemption.findFirst({
+      where: { customerId: customer.id, catalogItemId, storeId, processedById: req.user!.id, createdAt: { gte: new Date(Date.now() - REPEAT_WINDOW_MS) } },
+      select: { id: true },
+    });
+    if (repeat) return { kind: 'repeat' as const, balance: fresh.pointsBalance };
+    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } });
+    await tx.catalogRedemption.create({
+      data: { customerId: customer.id, catalogItemId, pointsSpent: item.pointsCost, storeId, processedById: req.user!.id },
+    });
+    return { kind: 'done' as const, balance: fresh.pointsBalance - costInDollars };
+  });
+  if (outcome.kind === 'short') {
+    res.status(400).json({ success: false, error: `Insufficient points. Need ${item.pointsCost} pts, have ${Math.round(outcome.balance * 100)} pts` });
     return;
   }
-
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } }),
-    prisma.catalogRedemption.create({
-      data: { customerId: customer.id, catalogItemId, pointsSpent: item.pointsCost, storeId, processedById: req.user!.id },
-    }),
-  ]);
+  if (outcome.kind === 'repeat') {
+    res.status(409).json({ success: false, code: 'REPEATED', error: 'This reward was just redeemed for this customer.' });
+    return;
+  }
 
   sendPushToUser(customer.id, '🎁 Reward Redeemed!', `You redeemed "${item.title}" for ${item.pointsCost} pts.`, 'REDEMPTION', redemptionUrl());
 
@@ -1179,7 +1210,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
     storeId,
   });
 
-  res.json({ success: true, message: `${item.title} redeemed`, data: { remainingPts: Math.round((customer.pointsBalance - costInDollars) * 100) } });
+  res.json({ success: true, message: `${item.title} redeemed`, data: { remainingPts: Math.round(outcome.balance * 100) } });
 }
 
 // status=NEEDS_REVIEW is the admin's default view: flagged sales first, then sales still waiting for a receipt.

@@ -238,6 +238,10 @@ export default function EmployeeScanScreen() {
   const [redeemAmount, setRedeemAmount] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [transactionIds, setTransactionIds] = useState<string[]>([]);
+  // Set the moment an action starts: setLoading(true) only disables the buttons on the next render, so two quick taps both ran.
+  const busyRef = useRef(false);
+  // Items of a multi-item sale whose receipt is already uploaded, so a retry only sends the ones that failed
+  const uploadedIdsRef = useRef<Set<string>>(new Set());
   const [pointsAwarded, setPointsAwarded] = useState(0);
   const [gasBonusAwarded, setGasBonusAwarded] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -444,6 +448,8 @@ export default function EmployeeScanScreen() {
     }
     setScanned(true);
     setCustomerQr(data);
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       const [infoRes, catalogRes, pendingRes, wbRes] = await Promise.all([
@@ -473,6 +479,7 @@ export default function EmployeeScanScreen() {
       setScanned(false);
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
@@ -496,6 +503,8 @@ export default function EmployeeScanScreen() {
       { id: 'current', category, amount: purchaseAmount, gasGallons, gasPricePerGallon },
     ];
 
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       const results = await Promise.all(
@@ -518,6 +527,7 @@ export default function EmployeeScanScreen() {
         })
       );
 
+      uploadedIdsRef.current = new Set();
       setTransactionIds(results.map(r => r.data.data.transactionId));
       setCustomerInfo(results[0].data.data.customer);
       setPointsAwarded(results.reduce((sum, r) => sum + r.data.data.pointsAwarded, 0));
@@ -531,6 +541,7 @@ export default function EmployeeScanScreen() {
       setScanned(false);
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
@@ -539,16 +550,22 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: t('employeeScan.receiptPhotoRequired') });
       return;
     }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
-      // Upload the same receipt photo to every transaction created
-      await Promise.all(
-        transactionIds.map(id => {
+      // Upload the same receipt photo to every transaction created. A retry after a partial failure only sends the items that did not
+      // go through: re-sending one that was already approved was refused ("already processed") and the cashier could never finish.
+      const todo = transactionIds.filter(id => !uploadedIdsRef.current.has(id));
+      const outcomes = await Promise.allSettled(
+        todo.map(id => {
           const formData = new FormData();
           formData.append('receipt', { uri: receiptImage, name: 'receipt.jpg', type: 'image/jpeg' } as any);
-          return pointsApi.uploadReceipt(id, formData);
+          return pointsApi.uploadReceipt(id, formData).then(() => { uploadedIdsRef.current.add(id); });
         })
       );
+      const failed = outcomes.find((o): o is PromiseRejectedResult => o.status === 'rejected');
+      if (failed) throw failed.reason;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep('grant-done');
     } catch (err: any) {
@@ -559,6 +576,7 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: t('employeeScan.uploadFailedRetry'), text2: err.response?.data?.error });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
@@ -581,6 +599,8 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       const { data } = await pointsApi.redeemCredits({ customerQrCode: customerQr, storeId, amount });
@@ -591,6 +611,7 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.redemptionFailed') });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
@@ -599,6 +620,8 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       await pointsApi.claimTierBenefit(customerQr, storeId);
@@ -607,11 +630,14 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.claimFailed') });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
   async function handleCatalogRedeem() {
     if (!selectedCatalogItem || !storeId) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       await pointsApi.processCatalogRedemption(customerQr, selectedCatalogItem.id, storeId);
@@ -620,6 +646,7 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.redemptionFailed') });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
@@ -628,6 +655,8 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: t('employeeScan.noStoreAssigned') });
       return;
     }
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       await catalogApi.confirmRedemption(redemption.id, storeId);
@@ -637,11 +666,14 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.confirmationFailed') });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
   async function handleConfirmWelcomeBonus() {
     if (!welcomeBonus) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     try {
       const res = await welcomeBonusApi.confirm(welcomeBonus.claimCode, storeId);
@@ -651,6 +683,7 @@ export default function EmployeeScanScreen() {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.confirmationFailed') });
     } finally {
       setLoading(false);
+      busyRef.current = false;
     }
   }
 
