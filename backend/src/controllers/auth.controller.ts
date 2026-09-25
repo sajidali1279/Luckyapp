@@ -264,7 +264,9 @@ export async function login(req: Request, res: Response) {
     success: true,
     data: {
       token,
-      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), tier: user.tier, tierPeriod: user.tierPeriod, storeIds },
+      // The same fields GET /auth/me gives: without avatarUrl and the 21+ answers a staff member's photo was missing after every sign-in
+      // (only the customer home re-reads /auth/me), and 21+ offers looked locked until something refreshed the account
+      user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), tier: user.tier, tierPeriod: user.tierPeriod, avatarUrl: user.avatarUrl, age21Confirmed: user.age21Confirmed, age21Declined: user.age21Declined, storeIds },
     },
   });
 }
