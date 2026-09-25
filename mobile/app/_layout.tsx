@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import type { Href } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
-import { authApi } from '../services/api';
+import { registerPushToken } from '../utils/pushRegistration';
 import AppLoader from '../components/AppLoader';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { loadSavedLanguage } from '../i18n';
-import { EXPO_PROJECT_ID } from '../constants';
 
 // Hold the splash until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -29,30 +26,6 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
-async function registerPushToken() {
-  if (!Device.isDevice) return;
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  if (finalStatus !== 'granted') return;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
-
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: EXPO_PROJECT_ID,
-  });
-  await authApi.registerPushToken(tokenData.data, Platform.OS);
-}
 
 export default function RootLayout() {
   const { loadFromStorage, user, isLoading } = useAuthStore();

@@ -19,11 +19,12 @@ import {
   EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
   CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon, CameraIcon,
-  GlobeIcon,
+  GlobeIcon, BellIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
 import PromoteBusinessModal from './PromoteBusinessModal';
 import FadeSlideIn from './FadeSlideIn';
+import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 
 type Panel = null | 'name' | 'pin' | 'email';
@@ -37,6 +38,7 @@ interface Props {
 
 export default function ProfileScreen({ isCustomer = false }: Props) {
   const { t } = useTranslation();
+  const notif = useNotificationPermission();
   const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled, setAge21Confirmed } = useAuthStore();
   const [confirmingAge21, setConfirmingAge21] = useState(false);
 
@@ -394,6 +396,31 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
         {/* ── Preferences ── */}
         <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('profile.preferences')}</Text>
+
+        {/* Notifications: shows whether this phone lets the app notify, and turns them back on (asks again, or opens the phone's settings) */}
+        {notif.supported && notif.status !== 'unknown' && (
+          <TouchableOpacity
+            style={s.settingRow}
+            onPress={notif.isOff ? notif.turnOn : undefined}
+            disabled={!notif.isOff}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={notif.isOff ? t('notifPermission.turnOnA11y') : t('notifPermission.onA11y')}
+          >
+            <View style={[s.settingIconBg, { backgroundColor: notif.isOff ? '#fee2e2' : '#dcfce7' }]}>
+              <BellIcon size={20} color={notif.isOff ? '#b91c1c' : '#15803d'} strokeWidth={1.75} />
+            </View>
+            <View style={s.settingBody}>
+              <Text style={s.settingTitle}>{t('notifPermission.title')}</Text>
+              <Text style={[s.settingValue, notif.isOff && { color: '#b91c1c' }]}>
+                {notif.isOff ? t('notifPermission.offSub') : t('notifPermission.onSub')}
+              </Text>
+            </View>
+            {notif.isOff
+              ? <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13 }}>{t('notifPermission.turnOn')}</Text>
+              : <CheckCircleIcon size={18} color="#15803d" strokeWidth={1.75} />}
+          </TouchableOpacity>
+        )}
 
         {/* Language */}
         <TouchableOpacity

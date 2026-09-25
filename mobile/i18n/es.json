@@ -2278,5 +2278,16 @@
     "catTobaccoVapes": "Tabaco/Vapes",
     "catAlcohol": "Alcohol",
     "catOther": "Otros"
+  },
+  "notifPermission": {
+    "title": "Notificaciones",
+    "onSub": "Activadas. Recibirás alertas de ofertas y recompensas",
+    "offSub": "Desactivadas. Te perderás las nuevas ofertas",
+    "turnOn": "Activar",
+    "turnOnA11y": "Activar notificaciones",
+    "onA11y": "Las notificaciones están activadas",
+    "bannerTitle": "Las notificaciones están desactivadas",
+    "bannerBody": "No te enterarás de nuevas ofertas, recompensas ni mensajes. Actívalas para no perderte ninguna oferta.",
+    "dismissA11y": "Ocultar este aviso por una semana"
   }
 }

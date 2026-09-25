@@ -2278,5 +2278,16 @@
     "catTobaccoVapes": "Tobacco/Vapes",
     "catAlcohol": "Alcohol",
     "catOther": "Other"
+  },
+  "notifPermission": {
+    "title": "Notifications",
+    "onSub": "On. You will get offer and reward alerts",
+    "offSub": "Off. You will miss new offers",
+    "turnOn": "Turn on",
+    "turnOnA11y": "Turn on notifications",
+    "onA11y": "Notifications are on",
+    "bannerTitle": "Notifications are off",
+    "bannerBody": "You won't hear about new offers, rewards or messages. Turn them on so you never miss a deal.",
+    "dismissA11y": "Hide this reminder for a week"
   }
 }

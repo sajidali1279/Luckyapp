@@ -13,6 +13,7 @@ import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
 import FadeSlideIn from './FadeSlideIn';
+import NotificationsOffBanner from './NotificationsOffBanner';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
@@ -227,6 +228,8 @@ export default function NotificationsScreen() {
           )}
         </View>
       </SafeAreaView>
+
+      <NotificationsOffBanner />
 
       {isLoading ? (
         <View style={s.center}>

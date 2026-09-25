@@ -17,6 +17,7 @@ import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
+import NotificationsOffBanner from '../../components/NotificationsOffBanner';
 import ErrorState from '../../components/ErrorState';
 import PromoFlipCard from '../../components/PromoFlipCard';
 import { COLORS } from '../../constants';
@@ -1043,6 +1044,7 @@ export default function CustomerHome() {
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+        <NotificationsOffBanner dismissible />
         <WelcomeBonusCard />
       </Animated.View>
 
