@@ -278,7 +278,7 @@ export default function StoreRequests() {
     onSuccess: () => {
       toast.success('Response sent');
       qc.invalidateQueries({ queryKey: ['product-requests'] });
-      qc.invalidateQueries({ queryKey: ['product-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       setRespondTarget(null);
       setRespondNote('');
     },
@@ -291,8 +291,8 @@ export default function StoreRequests() {
     onSuccess: () => {
       toast.success('Request acknowledged');
       qc.invalidateQueries({ queryKey: ['store-requests'] });
-      qc.invalidateQueries({ queryKey: ['store-requests-count'] });
-      qc.invalidateQueries({ queryKey: ['store-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       setAckTarget(null);
       setAckNote('');
     },
@@ -306,7 +306,7 @@ export default function StoreRequests() {
       toast.success('Request reviewed - accepted items added to the order list');
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
-      qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       // Order List's detail view has its own mini review panel for the same
       // underlying requests — keep it in sync instead of waiting on its 30s poll.
       qc.invalidateQueries({ queryKey: ['pending-reqs-panel'] });

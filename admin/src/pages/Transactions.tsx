@@ -200,7 +200,7 @@ export default function Transactions() {
   function refreshLists() {
     qc.invalidateQueries({ queryKey: ['all-transactions'] });
     qc.invalidateQueries({ queryKey: ['transactions'] });
-    qc.invalidateQueries({ queryKey: ['transactions-pending-count'] });
+    qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
   }
 
   const rejectMutation = useMutation({

@@ -140,7 +140,7 @@ export default function Careers() {
       careersApi.update(id, updates),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['careers-applications'] });
-      qc.invalidateQueries({ queryKey: ['careers-new-count'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       setSelectedApp(res.data.data);
       toast.success('Application updated');
     },
@@ -151,7 +151,7 @@ export default function Careers() {
     mutationFn: (id: string) => careersApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['careers-applications'] });
-      qc.invalidateQueries({ queryKey: ['careers-new-count'] });
+      qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       setSelectedApp(null);
       toast.success('Application deleted');
     },
