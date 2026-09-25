@@ -213,7 +213,11 @@
     "body": "This will permanently delete your account, points balance, transaction history, and all personal data.\n\nThis action cannot be undone.",
     "confirm": "Yes, delete my account",
     "deleting": "Deleting…",
-    "cancel": "Keep my account"
+    "cancel": "Keep my account",
+    "pinLabel": "Enter your PIN to confirm",
+    "pinRequired": "Enter your 4-digit PIN",
+    "wrongPin": "That PIN is not right. Try again.",
+    "forgotPin": "Forgot PIN?"
   },
   "avatarModal": {
     "chooseFromLibrary": "Choose from Library",

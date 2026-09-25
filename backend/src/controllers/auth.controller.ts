@@ -344,7 +344,9 @@ export async function changePin(req: AuthRequest, res: Response) {
   const valid = await bcrypt.compare(currentPin, user.pinHash);
   if (!valid) {
     await recordFailure(user.phone);
-    res.status(401).json({ success: false, error: 'Current PIN is incorrect' });
+    // 403, not 401: the app and the admin site treat any 401 as "session expired" and sign the person out, so a mistyped
+    // current PIN used to end the session (the admin site even showed "session expired"). The session is fine; the PIN was wrong.
+    res.status(403).json({ success: false, error: 'Current PIN is incorrect', code: 'WRONG_PIN' });
     return;
   }
   await clearFailures(user.phone);
@@ -1264,6 +1266,31 @@ export async function deleteOwnAccount(req: AuthRequest, res: Response) {
   if (req.user!.role !== 'CUSTOMER') {
     res.status(403).json({ success: false, error: 'Staff accounts must be removed by an admin' });
     return;
+  }
+
+  // The PIN, so that anyone holding an unlocked, signed-in phone cannot wipe the account and its balance. Wrong PINs count
+  // against the same lockout as sign-in, so this cannot be used to guess a PIN. Apps from before this change send no PIN; they
+  // are still let through until the new build is widely installed (deleting the account from inside the app must keep working
+  // for Apple and Google). To require it, set REQUIRE_PIN_TO_DELETE_ACCOUNT=true on the server; no code change needed.
+  const pin = (req.body as { pin?: unknown } | undefined)?.pin;
+  if (pin !== undefined || process.env.REQUIRE_PIN_TO_DELETE_ACCOUNT === 'true') {
+    if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
+      res.status(400).json({ success: false, error: 'Enter your 4-digit PIN', code: 'PIN_REQUIRED' });
+      return;
+    }
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, pinHash: true } });
+    if (!me) { res.status(404).json({ success: false }); return; }
+    const lockMsg = await checkLockout(me.phone);
+    if (lockMsg) {
+      res.status(429).json({ success: false, error: lockMsg, code: 'LOCKED' });
+      return;
+    }
+    if (!me.pinHash || !(await bcrypt.compare(pin, me.pinHash))) {
+      await recordFailure(me.phone);
+      // 403, not 401: a 401 makes the app sign the person out
+      res.status(403).json({ success: false, error: 'Incorrect PIN', code: 'WRONG_PIN' });
+      return;
+    }
   }
 
   try {

@@ -99,18 +99,31 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletePin, setDeletePin] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+
+  function closeDeleteModal() {
+    setShowDeleteModal(false);
+    setDeletePin('');
+    setDeleteError('');
+  }
 
   async function handleDeleteAccount() {
+    if (!/^\d{4}$/.test(deletePin)) { setDeleteError(t('deleteModal.pinRequired')); return; }
     setDeletingAccount(true);
+    setDeleteError('');
     try {
-      await authApi.deleteAccount();
+      await authApi.deleteAccount(deletePin);
+      closeDeleteModal();
       await logout();
       router.replace('/(auth)/welcome');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.deleteAccountFailedToast') });
+      const code = err.response?.data?.code;
+      if (code === 'WRONG_PIN') { setDeleteError(t('deleteModal.wrongPin')); setDeletePin(''); }
+      else if (code === 'LOCKED' || code === 'PIN_REQUIRED') setDeleteError(err.response?.data?.error || t('deleteModal.pinRequired'));
+      else { closeDeleteModal(); Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.deleteAccountFailedToast') }); }
     } finally {
       setDeletingAccount(false);
-      setShowDeleteModal(false);
     }
   }
 
@@ -760,18 +773,37 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
       {/* ── Delete Account confirmation modal ── */}
       {showDeleteModal && (
-        <Modal transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
-          <View style={s.deleteOverlay}>
+        <Modal transparent animationType="fade" onRequestClose={closeDeleteModal}>
+          <KeyboardAvoidingView style={s.deleteOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={s.deleteCard}>
               <View style={s.deleteIconWrap}>
                 <Trash2Icon size={28} color="#fff" strokeWidth={2} />
               </View>
               <Text style={s.deleteTitle}>{t('deleteModal.title')}</Text>
               <Text style={s.deleteBody}>{t('deleteModal.body')}</Text>
+              <Text style={s.deletePinLabel}>{t('deleteModal.pinLabel')}</Text>
+              <TextInput
+                style={[s.panelInput, s.pinInput, s.deletePinInput, !!deleteError && { borderColor: '#dc2626' }]}
+                value={deletePin}
+                onChangeText={(v) => { setDeletePin(v.replace(/\D/g, '').slice(0, 4)); if (deleteError) setDeleteError(''); }}
+                secureTextEntry keyboardType="number-pad" maxLength={4}
+                placeholder="••••" placeholderTextColor={COLORS.textMuted}
+                accessibilityLabel={t('deleteModal.pinLabel')}
+                editable={!deletingAccount}
+              />
+              {!!deleteError && <Text style={s.deletePinError} accessibilityRole="alert">{deleteError}</Text>}
               <TouchableOpacity
-                style={[s.deleteConfirmBtn, deletingAccount && { opacity: 0.6 }]}
+                onPress={() => { closeDeleteModal(); router.push('/(auth)/forgot-pin'); }}
+                accessibilityRole="link"
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                style={{ alignSelf: 'center', marginBottom: 18 }}
+              >
+                <Text style={s.deleteForgot}>{t('deleteModal.forgotPin')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.deleteConfirmBtn, (deletingAccount || deletePin.length !== 4) && { opacity: 0.6 }]}
                 onPress={handleDeleteAccount}
-                disabled={deletingAccount}
+                disabled={deletingAccount || deletePin.length !== 4}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.confirmDeleteA11y')}
@@ -780,7 +812,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.deleteCancelBtn}
-                onPress={() => setShowDeleteModal(false)}
+                onPress={closeDeleteModal}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.cancelDeleteA11y')}
@@ -789,7 +821,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <Text style={s.deleteCancelText}>{t('deleteModal.cancel')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -1070,6 +1102,10 @@ const s = StyleSheet.create({
     width: 60, height: 60, borderRadius: 30,
     backgroundColor: COLORS.error, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
+  deletePinLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, alignSelf: 'stretch', marginBottom: 6 },
+  deletePinInput: { alignSelf: 'stretch', marginBottom: 6 },
+  deletePinError: { color: '#dc2626', fontSize: 13, fontWeight: '600', alignSelf: 'stretch', textAlign: 'center', marginBottom: 6 },
+  deleteForgot: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
   deleteTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text, marginBottom: 12 },
   deleteBody: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
   deleteConfirmBtn: {

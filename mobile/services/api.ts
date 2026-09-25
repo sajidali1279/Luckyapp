@@ -61,7 +61,8 @@ export const authApi = {
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),
   confirm21: () => api.patch('/auth/confirm-21'),
   decline21: () => api.patch('/auth/decline-21'),
-  deleteAccount: () => api.delete('/auth/account'),
+  // The PIN is checked by the server; a wrong one answers 403 with code WRONG_PIN (not 401, which would sign the person out)
+  deleteAccount: (pin: string) => api.delete('/auth/account', { data: { pin } }),
 };
 
 export const pointsApi = {

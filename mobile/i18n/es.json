@@ -213,7 +213,11 @@
     "body": "Esto eliminará permanentemente tu cuenta, saldo de puntos, historial de transacciones y todos tus datos personales.\n\nEsta acción no se puede deshacer.",
     "confirm": "Sí, eliminar mi cuenta",
     "deleting": "Eliminando…",
-    "cancel": "Mantener mi cuenta"
+    "cancel": "Mantener mi cuenta",
+    "pinLabel": "Ingresa tu PIN para confirmar",
+    "pinRequired": "Ingresa tu PIN de 4 dígitos",
+    "wrongPin": "Ese PIN no es correcto. Inténtalo de nuevo.",
+    "forgotPin": "¿Olvidaste tu PIN?"
   },
   "avatarModal": {
     "chooseFromLibrary": "Elegir de la Galería",
