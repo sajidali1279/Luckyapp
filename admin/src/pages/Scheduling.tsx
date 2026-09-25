@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
+import ConfirmModal from '../components/ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -50,6 +51,7 @@ export default function Scheduling() {
   const [addModal, setAddModal] = useState<{ day: string; shiftType: string } | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [activeTab, setActiveTab] = useState<'schedule' | 'requests'>('schedule');
+  const [confirmTwoShifts, setConfirmTwoShifts] = useState(false);
 
   // ── Queries ──
   // getAccessible() returns every store for SuperAdmin+, and just the
@@ -161,16 +163,22 @@ export default function Scheduling() {
   const selectedStoreVacancies = vacancyStores.find((v: any) => v.storeId === selectedStoreId);
 
   const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
-  const SHIFTS = selectedStore?.shiftsPerDay === 2
-    ? ALL_SHIFTS.filter((sh) => sh.key !== 'MIDDLE')
+  const isTwoShift = selectedStore?.shiftsPerDay === 2;
+  // People still on the Middle shift of a store that now runs 2 shifts. They stay scheduled (and see the shift in the app), so their row
+  // stays on the grid, marked as not in use, instead of disappearing with them still on it.
+  const middleAssignments = Object.values(grouped).flat().filter((t: any) => t.shiftType === 'MIDDLE');
+  const SHIFTS: (typeof ALL_SHIFTS[number] & { retired?: boolean })[] = isTwoShift
+    ? ALL_SHIFTS.filter((sh) => sh.key !== 'MIDDLE' || middleAssignments.length > 0).map((sh) => (sh.key === 'MIDDLE' ? { ...sh, retired: true } : sh))
     : ALL_SHIFTS;
 
   // ── Shift count toggle ──
   const shiftToggleMutation = useMutation({
     mutationFn: (n: 2 | 3) => storesApi.update(selectedStoreId!, { shiftsPerDay: n }),
     onSuccess: (_data, n) => {
-      // Immediately update the cache so the grid reacts without waiting for a refetch
-      qc.setQueryData(['stores'], (old: any) => {
+      // Update the store list this page actually reads (it used to update a 'stores' cache this page never uses, so the grid and the
+      // highlighted button stayed on the old mode until a reload), then refetch it to be sure
+      setConfirmTwoShifts(false);
+      qc.setQueryData(['accessible-stores'], (old: any) => {
         if (!old?.data?.data) return old;
         return {
           ...old,
@@ -183,10 +191,18 @@ export default function Scheduling() {
         };
       });
       toast.success(`Switched to ${n}-shift mode`);
+      qc.invalidateQueries({ queryKey: ['accessible-stores'] });
+      qc.invalidateQueries({ queryKey: ['stores'] });
       qc.invalidateQueries({ queryKey: ['schedule-vacancies'] });
     },
-    onError: () => toast.error('Failed to update shift mode'),
+    onError: (err: any) => { setConfirmTwoShifts(false); toast.error(err?.response?.data?.error || 'Failed to update shift mode'); },
   });
+
+  function chooseShiftMode(n: 2 | 3) {
+    if (!selectedStore || selectedStore.shiftsPerDay === n) return;
+    if (n === 2 && middleAssignments.length > 0) { setConfirmTwoShifts(true); return; }
+    shiftToggleMutation.mutate(n);
+  }
 
   function handleAddShift() {
     if (!addModal || !selectedEmployeeId || !selectedStoreId) return;
@@ -283,14 +299,16 @@ export default function Scheduling() {
               {!isStoreManager && (
                 <div style={s.shiftToggle}>
                   <button
-                    style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay !== 2 ? s.shiftToggleBtnActive : {}) }}
-                    onClick={() => shiftToggleMutation.mutate(3)}
+                    style={{ ...s.shiftToggleBtn, ...(!isTwoShift ? s.shiftToggleBtnActive : {}) }}
+                    onClick={() => chooseShiftMode(3)}
                     disabled={shiftToggleMutation.isPending}
+                    aria-pressed={!isTwoShift}
                   >3 shifts</button>
                   <button
-                    style={{ ...s.shiftToggleBtn, ...(selectedStore?.shiftsPerDay === 2 ? s.shiftToggleBtnActive : {}) }}
-                    onClick={() => shiftToggleMutation.mutate(2)}
+                    style={{ ...s.shiftToggleBtn, ...(isTwoShift ? s.shiftToggleBtnActive : {}) }}
+                    onClick={() => chooseShiftMode(2)}
                     disabled={shiftToggleMutation.isPending}
+                    aria-pressed={isTwoShift}
                   >2 shifts</button>
                 </div>
               )}
@@ -328,7 +346,7 @@ export default function Scheduling() {
                   ) : (
                     <div style={s.rosterGrid}>
                       {roster.map((r: any, i: number) => {
-                        const shift = SHIFTS.find((sh) => sh.key === r.shiftType);
+                        const shift = ALL_SHIFTS.find((sh) => sh.key === r.shiftType);
                         const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                         const name = r.employee.name || r.employee.phone || '?';
                         return (
@@ -375,9 +393,9 @@ export default function Scheduling() {
                           {SHIFTS.map((shift) => (
                             <TableRow key={shift.key}>
                               <TableCell style={s.shiftLabelCell}>
-                                <div style={{ ...s.shiftLabel, borderLeftColor: shift.color }}>
-                                  <div style={s.shiftLabelName}>{shift.label}</div>
-                                  <div style={s.shiftLabelTime}>{shift.time}</div>
+                                <div style={{ ...s.shiftLabel, borderLeftColor: shift.retired ? '#adb5bd' : shift.color }}>
+                                  <div style={s.shiftLabelName}>{shift.label}{shift.retired ? ' (not in use)' : ''}</div>
+                                  <div style={s.shiftLabelTime}>{shift.retired ? 'This store runs 2 shifts. Move or remove these people.' : shift.time}</div>
                                 </div>
                               </TableCell>
                               {DAYS.map((day) => {
@@ -401,7 +419,7 @@ export default function Scheduling() {
                                           </button>
                                         </div>
                                       ))}
-                                      <button
+                                      {!shift.retired && <button
                                         style={{
                                           ...s.addChipBtn,
                                           ...(available.length === 0 ? { opacity: 0.35, cursor: 'not-allowed' } : {}),
@@ -414,7 +432,7 @@ export default function Scheduling() {
                                         title={noEmployees ? 'No staff assigned to this store yet - add staff first' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
                                       >
                                         +
-                                      </button>
+                                      </button>}
                                     </div>
                                   </TableCell>
                                 );
@@ -475,13 +493,31 @@ export default function Scheduling() {
 
       {/* ── Add Shift Modal ── */}
 
+      <ConfirmModal
+        open={confirmTwoShifts}
+        title="Switch to 2 shifts?"
+        message={
+          <>
+            <p style={{ margin: '0 0 8px' }}>{selectedStore?.name} will run Opening and Closing only.</p>
+            <p style={{ margin: 0 }}>
+              {middleAssignments.length} {middleAssignments.length === 1 ? 'person is' : 'people are'} still on the Middle shift. They stay
+              scheduled and keep seeing that shift in the app until you move or remove them. Their row stays on this grid, marked "not in use".
+            </p>
+          </>
+        }
+        confirmLabel="Switch to 2 shifts"
+        busy={shiftToggleMutation.isPending}
+        onConfirm={() => shiftToggleMutation.mutate(2)}
+        onCancel={() => setConfirmTwoShifts(false)}
+      />
+
       {addModal && (
         <div style={s.modalOverlay} onClick={() => setAddModal(null)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <h3 style={s.modalTitle}>
               Assign Employee - {DAYS.find((d) => d.key === addModal.day)?.label},{' '}
-              {SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label}{' '}
-              ({SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
+              {ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label}{' '}
+              ({ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
             </h3>
             {allEmployees.length === 0 ? (
               <div style={{ padding: '12px 16px', background: '#fff3cd', borderRadius: 8, fontSize: 15, color: '#856404' }}>

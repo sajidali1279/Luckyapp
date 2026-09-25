@@ -104,8 +104,9 @@ export async function getStores(_req: AuthRequest, res: Response) {
 export async function getAccessibleStores(req: AuthRequest, res: Response) {
   const user = req.user!;
   const storeSelect = {
-    id: true, name: true, address: true, city: true, isActive: true, orderInstructions: true,
+    id: true, name: true, address: true, city: true, state: true, isActive: true, orderInstructions: true,
     gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true,
+    shiftsPerDay: true,   // the admin Scheduling page reads it; without it every store looked like a 3-shift store
   } as const;
 
   if (hasMinRole(user.role, Role.SUPER_ADMIN)) {

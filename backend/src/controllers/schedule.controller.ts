@@ -101,6 +101,10 @@ export async function getTodayRoster(req: AuthRequest, res: Response) {
 
 // ─── POST /schedule/shifts ────────────────────────────────────────────────────
 
+// A store set to 2 shifts a day (Admin, Scheduling) runs Opening and Closing only. The Middle shift used to be accepted anyway (the mobile
+// schedule screens always offer it), which put people on a shift the admin grid no longer showed.
+const TWO_SHIFT_MESSAGE = (storeName: string) => `${storeName} runs 2 shifts a day (Opening and Closing). The Middle shift is not used there.`;
+
 const assignShiftSchema = z.object({
   employeeId: z.string().uuid(),
   storeId: z.string().uuid(),
@@ -116,6 +120,12 @@ export async function assignShift(req: AuthRequest, res: Response) {
   }
 
   const { employeeId, storeId, dayOfWeek, shiftType } = parsed.data;
+
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, shiftsPerDay: true } });
+  if (shiftType === ShiftType.MIDDLE && store?.shiftsPerDay === 2) {
+    res.status(400).json({ success: false, error: TWO_SHIFT_MESSAGE(store.name) });
+    return;
+  }
 
   // Verify employee belongs to this store
   const storeRole = await prisma.userStoreRole.findUnique({
@@ -140,8 +150,6 @@ export async function assignShift(req: AuthRequest, res: Response) {
   }
 
   const { startTime, endTime } = SHIFT_TIMES[shiftType];
-
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
 
   const template = await prisma.shiftTemplate.upsert({
     where: { employeeId_storeId_dayOfWeek: { employeeId, storeId, dayOfWeek } },
@@ -260,6 +268,14 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
     });
     if (!template || !template.isActive) {
       res.status(400).json({ success: false, error: 'You are not scheduled for that day at this store' });
+      return;
+    }
+  }
+
+  if (requestType === ShiftRequestType.FILL_IN && shiftType === ShiftType.MIDDLE) {
+    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, shiftsPerDay: true } });
+    if (store?.shiftsPerDay === 2) {
+      res.status(400).json({ success: false, error: TWO_SHIFT_MESSAGE(store.name) });
       return;
     }
   }
