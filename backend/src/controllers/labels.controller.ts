@@ -150,12 +150,19 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
   res.json({ success: true, data });
 }
 
+// A label made automatically by a scan (ensureLabelForBarcode) and never touched since: no price, no deal, and no store has
+// priced or printed it. Creating a label for its barcode fills it in instead of being refused.
+function isUnclaimedPlaceholder(l: { priceText: string | null; dealText: string | null; storeLabels: { everPrinted: boolean; priceText: string | null }[] }): boolean {
+  return l.priceText == null && l.dealText == null && l.storeLabels.every((sl) => !sl.everPrinted && sl.priceText == null);
+}
+
 // POST /labels — creates a brand-new catalog entry AND the creating user's
 // own StoreLabel in one step, so the person who just made this immediately
 // has it in their own print queue. Only called when the barcode has no
 // existing catalog match (client-side dedupe, same as before this feature).
 // One barcode belongs to one item: a second item with the same barcode is
-// refused, naming the first.
+// refused, naming the first, except when the first is still an unclaimed scan
+// placeholder (see isUnclaimedPlaceholder), which is filled in instead.
 export async function createLabel(req: AuthRequest, res: Response) {
   const parsed = createLabelSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
@@ -167,27 +174,68 @@ export async function createLabel(req: AuthRequest, res: Response) {
     return;
   }
 
-  if (labelData.barcode) {
-    const taken = await prisma.label.findFirst({ where: { barcode: labelData.barcode }, select: { id: true, productName: true } });
-    if (taken) {
-      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
-      return;
-    }
+  const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
+  let adoptedPlaceholder = false;
+  let label: Awaited<ReturnType<typeof prisma.label.create>> & { storeLabels: unknown[] };
+
+  const taken = labelData.barcode
+    ? await prisma.label.findFirst({
+        where: { barcode: labelData.barcode },
+        select: { id: true, productName: true, priceText: true, dealText: true, storeLabels: { select: { everPrinted: true, priceText: true } } },
+      })
+    : null;
+
+  if (taken && !isUnclaimedPlaceholder(taken)) {
+    res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode!, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+    return;
   }
 
-  const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
-
-  const label = await prisma.label.create({
-    data: {
-      ...labelData,
-      createdByStoreId: creatorStoreId,
-      createdById: req.user!.id,
-      ...(creatorStoreId
-        ? { storeLabels: { create: { storeId: creatorStoreId, priceText: null } } }
-        : {}),
-    },
-    include: { storeLabels: true },
-  });
+  if (taken) {
+    // Scanning a new product saves it to the Store Catalog, and that save makes a priceless label for the barcode
+    // (ensureLabelForBarcode). The scanner then opens the New Label form, and saving it used to be refused with "The barcode
+    // already belongs to <the same item>". A label nobody has priced, given a deal or printed is a placeholder: filling it in is
+    // what creating it would have done, so it is filled in here. The update only matches while it is still unpriced, so if
+    // two people save at once the second is refused like any taken barcode.
+    const claimed = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.label.updateMany({
+        where: { id: taken.id, priceText: null, dealText: null },
+        data: {
+          productName: labelData.productName,
+          priceText: labelData.priceText ?? null,
+          dealText: labelData.dealText ?? null,
+          template: labelData.template,
+          ...(labelData.category ? { category: labelData.category } : {}),   // a blank category keeps the one the scan found
+        },
+      });
+      if (count === 0) return null;
+      if (creatorStoreId) {
+        await tx.storeLabel.upsert({
+          where: { labelId_storeId: { labelId: taken.id, storeId: creatorStoreId } },
+          create: { labelId: taken.id, storeId: creatorStoreId, priceText: null },
+          update: {},
+        });
+      }
+      return tx.label.findUnique({ where: { id: taken.id }, include: { storeLabels: true } });
+    });
+    if (!claimed) {
+      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode!, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+      return;
+    }
+    label = claimed;
+    adoptedPlaceholder = true;
+  } else {
+    label = await prisma.label.create({
+      data: {
+        ...labelData,
+        createdByStoreId: creatorStoreId,
+        createdById: req.user!.id,
+        ...(creatorStoreId
+          ? { storeLabels: { create: { storeId: creatorStoreId, priceText: null } } }
+          : {}),
+      },
+      include: { storeLabels: true },
+    });
+  }
 
   // Keep the shared scan-lookup cache (ScannedProduct) in sync — a Label
   // created directly here (with a barcode) should be findable the next
@@ -208,7 +256,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
-    details: { productName: label.productName, priceText: label.priceText, category: label.category, barcode: label.barcode },
+    details: { productName: label.productName, priceText: label.priceText, category: label.category, barcode: label.barcode, ...(adoptedPlaceholder ? { filledInScanPlaceholder: true } : {}) },
     storeId: creatorStoreId,
   });
 

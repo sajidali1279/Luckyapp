@@ -1952,7 +1952,8 @@
     "productsNoMatches": "No products match.",
     "productsLoadError": "Failed to load your product list.",
     "productsCapNote": "Showing the 200 most scanned. Search to find others.",
-    "alsoInProducts": "Also in your product list, no label yet"
+    "alsoInProducts": "Also in your product list, no label yet",
+    "toastExistingAddedToMyPrints": "Already a label: \"{{name}}\". Added to My Prints"
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",

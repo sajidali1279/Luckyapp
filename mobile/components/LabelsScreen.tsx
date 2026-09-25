@@ -658,7 +658,19 @@ export default function LabelsScreen() {
       // scanner's X to stop.
       if (wasCreate && createdViaRef.current === 'scan') setShowScanner(true);
     } catch (err: any) {
-      const e = err.response?.data?.error;
+      const body = err.response?.data;
+      // A new label whose barcode is already a real item this phone had not loaded yet (someone else made it a moment ago):
+      // that item is what the person wants, so it goes into My Prints instead of ending on an error.
+      const existingId: string | undefined = body?.data?.existingId;
+      if (wasCreate && body?.code === 'BARCODE_TAKEN' && existingId && cartId) {
+        await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+        useLabelCart.getState().add(cartId, [existingId]);
+        Toast.show({ type: 'info', text1: t('sharedLabels.toastExistingAddedToMyPrints', { name: body.data.existingName ?? productName }) });
+        closeForm();
+        if (createdViaRef.current === 'scan') setShowScanner(true);
+        return;
+      }
+      const e = body?.error;
       Toast.show({ type: 'error', text1: typeof e === 'string' ? e : t('sharedLabels.toastSaveFailed') });
     } finally {
       setSaving(false);

@@ -1952,7 +1952,8 @@
     "productsNoMatches": "Ningún producto coincide.",
     "productsLoadError": "No se pudo cargar tu lista de productos.",
     "productsCapNote": "Mostrando los 200 más escaneados. Busca para encontrar otros.",
-    "alsoInProducts": "También en tu lista de productos, sin etiqueta"
+    "alsoInProducts": "También en tu lista de productos, sin etiqueta",
+    "toastExistingAddedToMyPrints": "Ya existe una etiqueta: \"{{name}}\". Agregada a Para imprimir"
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",
