@@ -24,6 +24,9 @@ mobile/google-services.json
 GoogleService-Info.plist
 gservices-b64.txt
 
+# Printer agent — holds a real store API key once configured, NEVER commit
+printer-agent/config.json
+
 # Android signing keystore — NEVER commit
 *.jks
 *.keystore
@@ -39,3 +42,6 @@ mobile/google-play-service-account.json
 
 # Confidential internal-only reference docs — NEVER commit
 docs/confidential/
+
+# Google Drive for Desktop upload staging (S: is synced by Drive), not project files
+.tmp.driveupload/
