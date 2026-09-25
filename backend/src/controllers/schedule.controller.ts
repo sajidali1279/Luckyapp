@@ -170,7 +170,7 @@ export async function assignShift(req: AuthRequest, res: Response) {
     'Shift Assigned 📅',
     `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`,
     'SCHEDULE',
-    scheduleUrl()
+    scheduleUrl(storeRole.role)
   );
 
   audit({
@@ -577,7 +577,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
           isActive: true,
           employeeId: { not: shiftRequest.employeeId },
         },
-        select: { employeeId: true },
+        select: { employeeId: true, employee: { select: { role: true } } },
       });
 
       const dayStart = storeDayStart(requestDate);
@@ -594,17 +594,15 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
       });
 
       const alreadyOffIds = new Set(alreadyOff.map((r) => r.employeeId));
-      const coworkerIds   = scheduledEmployees
-        .map((t) => t.employeeId)
-        .filter((id) => !alreadyOffIds.has(id));
+      const coworkers = scheduledEmployees.filter((t) => !alreadyOffIds.has(t.employeeId));
 
-      for (const empId of coworkerIds) {
+      for (const { employeeId: empId, employee } of coworkers) {
         sendPushToUser(
           empId,
           'Shift Available 📅',
           `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`,
           'SCHEDULE',
-          scheduleUrl()
+          scheduleUrl(employee.role)
         );
       }
     }

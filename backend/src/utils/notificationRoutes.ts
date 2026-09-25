@@ -44,8 +44,9 @@ export function shiftRequestUrlEmployee(date?: string): string {
 export function storeRequestUrlEmployee(requestId: string): string {
   return withHighlight('/(employee)/requests', requestId);
 }
-export function scheduleUrl(): string {
-  return '/(employee)/schedule';
+// Managers can be on the schedule too; their app has its own schedule screen, and the employee one is a different part of the app
+export function scheduleUrl(recipientRole?: string): string {
+  return recipientRole === 'STORE_MANAGER' ? '/(manager)/schedule' : '/(employee)/schedule';
 }
 export function stockRequestUrlEmployee(requestId: string): string {
   return `/(employee)/stock-request?tab=mine&highlightId=${requestId}`;
