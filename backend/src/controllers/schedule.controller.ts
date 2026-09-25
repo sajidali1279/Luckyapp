@@ -681,7 +681,11 @@ export async function getDayRoster(req: AuthRequest, res: Response) {
     }
   }
 
-  res.json({ success: true, data: { dayOfWeek, date: date.toISOString(), shifts } });
+  // A 2-shift store has no Middle shift to fill in: leave it out (unless someone is still on it), so the phone only offers real shifts
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { shiftsPerDay: true } });
+  if (store?.shiftsPerDay === 2 && shifts.MIDDLE.employees.length === 0) delete shifts.MIDDLE;
+
+  res.json({ success: true, data: { dayOfWeek, date: date.toISOString(), shiftsPerDay: store?.shiftsPerDay ?? 3, shifts } });
 }
 
 // ─── GET /schedule/vacancies ──────────────────────────────────────────────────

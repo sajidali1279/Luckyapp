@@ -483,7 +483,7 @@ export default function ScheduleScreen() {
                                 <TouchableOpacity
                                   key={store.id}
                                   style={[s.chip, isActive && s.chipActive]}
-                                  onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name })}
+                                  onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name, shiftType: 'OPENING' })}
                                   activeOpacity={0.8}
                                   accessibilityRole="button"
                                   accessibilityLabel={`Select ${store.name}${store.city ? `, ${store.city}` : ''} as store`}
@@ -505,7 +505,8 @@ export default function ScheduleScreen() {
                       {dayRosterLoading ? (
                         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
                       ) : (
-                        (['OPENING', 'MIDDLE', 'CLOSING'] as const).map((st) => {
+                        // Only the shifts this store runs: the server leaves Middle out for a 2-shift store
+                        (['OPENING', 'MIDDLE', 'CLOSING'] as const).filter((st) => !dayRosterData?.data?.data?.shifts || dayRosterData.data.data.shifts[st]).map((st) => {
                           const slot = dayRosterData?.data?.data?.shifts?.[st];
                           const staff: any[] = slot?.employees || [];
                           const isEmpty = staff.length === 0;
