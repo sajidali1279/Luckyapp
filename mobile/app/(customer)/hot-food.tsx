@@ -16,6 +16,7 @@ import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../compone
 import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,6 +295,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardSafe style={{ flex: 1 }}>
       <View style={cs.overlay}>
         <TouchableOpacity
           style={cs.backdrop}
@@ -310,7 +312,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
             <ModalCloseButton onPress={onClose} label={t('customerHotFood.closeOrderSheetA11y')} size={20} color={COLORS.textMuted} />
           </View>
 
-          <ScrollView style={cs.body} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={cs.body} showsVerticalScrollIndicator={false}>
             {cart.map(item => (
               <View key={item.id} style={cs.lineRow}>
                 <Text style={cs.lineQty}>{item.qty}×</Text>
@@ -362,6 +364,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
           </View>
         </View>
       </View>
+      </KeyboardSafe>
     </Modal>
   );
 }

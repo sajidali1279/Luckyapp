@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, RefreshControl,
+  ActivityIndicator, Platform, Modal, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import { HeadphonesIcon, PlusIcon, XIcon, SendIcon, ChevronDownIcon, CheckCircle
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
           </TouchableOpacity>
         </View>
 
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardSafe style={{ flex: 1 }}>
           <ScrollView style={{ padding: 16 }} contentContainerStyle={{ gap: 14 }} keyboardShouldPersistTaps="handled">
 
             <View>
@@ -215,7 +216,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
               }
             </TouchableOpacity>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardSafe>
       </SafeAreaView>
     </Modal>
   );
@@ -320,7 +321,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
 
         {/* Reply bar */}
         {thread.status !== 'RESOLVED' && (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <KeyboardSafe>
             <View style={s.replyBar}>
               <TextInput
                 style={s.replyInput}
@@ -345,7 +346,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
                 }
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
         )}
       </SafeAreaView>
     </Modal>

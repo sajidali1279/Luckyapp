@@ -18,6 +18,7 @@ import {
 } from './Icons';
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
+import KeyboardSafe from './KeyboardSafe';
 
 export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -734,6 +735,7 @@ export default function ManagerRequestsScreen() {
 
       {/* ── Acknowledge Sheet (Store Alerts) ── */}
       <Modal visible={!!ackTarget} animationType="slide" transparent onRequestClose={() => setAckTarget(null)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
@@ -782,6 +784,7 @@ export default function ManagerRequestsScreen() {
             </View>
           </View>
         </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* ── Review Sheet (Stock Requests) ── */}
@@ -925,6 +928,7 @@ export default function ManagerRequestsScreen() {
 
       {/* ── Respond Sheet (Product Requests) ── */}
       <Modal visible={!!respondTarget} animationType="slide" transparent onRequestClose={() => setRespondTarget(null)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
@@ -1001,6 +1005,7 @@ export default function ManagerRequestsScreen() {
             </View>
           </View>
         </View>
+        </KeyboardSafe>
       </Modal>
     </View>
   );

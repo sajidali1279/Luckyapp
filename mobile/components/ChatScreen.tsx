@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
+  StyleSheet, Platform, ActivityIndicator,
   Animated, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import EmptyState from './EmptyState';
 import ModalCloseButton from './ModalCloseButton';
 import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
 import NoticeBanner, { usePinnedNotice } from './NoticeBanner';
+import KeyboardSafe from './KeyboardSafe';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -274,10 +275,8 @@ export default function ChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardSafe iosOffset={90}
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={s.root}>
         {/* ── Header ── */}
@@ -405,7 +404,7 @@ export default function ChatScreen() {
           </Animated.View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   );
 }
 

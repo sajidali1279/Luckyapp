@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { router } from 'expo-router';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, KeyboardAvoidingView, Platform, Alert,
+  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, Platform, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ import PromoteBusinessModal from './PromoteBusinessModal';
 import FadeSlideIn from './FadeSlideIn';
 import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
+import KeyboardSafe from './KeyboardSafe';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -308,7 +309,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </View>
       </SafeAreaView>
 
-      <ScrollView style={s.fill} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={s.fill} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
         <FadeSlideIn>
         {/* ── Account Settings ── */}
         <Text style={s.sectionLabel}>{t('profile.accountSettings')}</Text>
@@ -774,7 +775,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       {/* ── Delete Account confirmation modal ── */}
       {showDeleteModal && (
         <Modal transparent animationType="fade" onRequestClose={closeDeleteModal}>
-          <KeyboardAvoidingView style={s.deleteOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardSafe style={s.deleteOverlay}>
             <View style={s.deleteCard}>
               <View style={s.deleteIconWrap}>
                 <Trash2Icon size={28} color="#fff" strokeWidth={2} />
@@ -821,7 +822,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <Text style={s.deleteCancelText}>{t('deleteModal.cancel')}</Text>
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
         </Modal>
       )}
 

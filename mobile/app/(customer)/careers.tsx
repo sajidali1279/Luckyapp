@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  StatusBar, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert, RefreshControl,
+  StatusBar, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -14,6 +14,7 @@ import { StarIcon, DollarSignIcon, CalendarIcon, AwardIcon, TagIcon, CheckCircle
 import ErrorState from '../../components/ErrorState';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 const POSITION_META: Record<string, { emoji: string; descKey: string }> = {
   CASHIER:           { emoji: '🧾', descKey: 'customerCareers.positionDescCashier' },
@@ -256,7 +257,7 @@ export default function CareersScreen() {
 
       {/* Application Form Modal */}
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <KeyboardSafe style={{ flex: 1 }}>
           <SafeAreaView style={st.modalSafe}>
             <View style={st.modalHeader}>
               <TouchableOpacity
@@ -359,7 +360,7 @@ export default function CareersScreen() {
               <View style={{ height: 40 }} />
             </ScrollView>
           </SafeAreaView>
-        </KeyboardAvoidingView>
+        </KeyboardSafe>
       </Modal>
     </SafeAreaView>
   );

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform, TextInput,
+  TouchableOpacity, Modal, Platform, TextInput,
 } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { disputeApi } from '../services/api';
 import { COLORS } from '../constants';
 import ModalCloseButton from './ModalCloseButton';
+import KeyboardSafe from './KeyboardSafe';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -64,7 +65,7 @@ export default function DisputeTransactionModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafe style={{ flex: 1 }}>
         <View style={m.root}>
           <View style={m.header}>
             <Text style={m.title}>Dispute This Transaction</Text>
@@ -108,7 +109,7 @@ export default function DisputeTransactionModal({
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }

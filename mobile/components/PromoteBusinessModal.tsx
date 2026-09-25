@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, Modal, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import { RefreshIcon, Trash2Icon, ImageIcon } from './Icons';
 import ModalCloseButton from './ModalCloseButton';
+import KeyboardSafe from './KeyboardSafe';
 
 export default function PromoteBusinessModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -67,14 +68,14 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafe style={{ flex: 1 }}>
         <View style={s.root}>
           <View style={s.header}>
             <Text style={s.title}>{t('promoModal.title')}</Text>
             <ModalCloseButton onPress={onClose} label="Close promote your business form" color="#fff" style={s.closeBtn} />
           </View>
           <Text style={s.subtitle}>{t('promoModal.subtitle')}</Text>
-          <ScrollView style={s.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={s.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
             <Text style={s.label}>{t('promoModal.yourName')}</Text>
             <TextInput style={s.input} value={promoName} onChangeText={setPromoName} placeholder={t('promoModal.fullNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
             <Text style={s.label}>{t('promoModal.contactPhone')}</Text>
@@ -159,7 +160,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
             <View style={{ height: 16 }} />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }

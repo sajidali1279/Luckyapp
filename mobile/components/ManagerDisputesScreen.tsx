@@ -15,6 +15,7 @@ import ManagerHeader from './ManagerHeader';
 import { AlertTriangleIcon, BuildingIcon, CheckCircleIcon, XIcon, InboxIcon } from './Icons';
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
+import KeyboardSafe from './KeyboardSafe';
 
 interface Dispute {
   id: string;
@@ -272,6 +273,7 @@ export default function ManagerDisputesScreen() {
 
       {/* ── Resolve Sheet ── */}
       <Modal visible={!!resolveTarget} animationType="slide" transparent onRequestClose={() => setResolveTarget(null)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <View style={s.overlay}>
           <View style={s.sheet}>
             <View style={s.sheetDrag} />
@@ -365,6 +367,7 @@ export default function ManagerDisputesScreen() {
             </View>
           </View>
         </View>
+        </KeyboardSafe>
       </Modal>
     </View>
   );

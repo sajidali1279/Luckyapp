@@ -1,7 +1,7 @@
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, StatusBar, Modal,
-  TextInput, RefreshControl, Alert, KeyboardAvoidingView, Platform,
+  TextInput, RefreshControl, Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
@@ -19,6 +19,7 @@ import {
   SHIFT_COLORS as SHIFT_COLORS_TYPED, SHIFT_LABELS as SHIFT_LABELS_TYPED,
   getTodayDayKey, getCurrentWeekDates, fmtDateISO, fmtMonthDay, fmtDateFull, formatShiftTime,
 } from '../../utils/schedule';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
 // strings from API responses, so all three are re-typed loosely here rather
@@ -459,7 +460,7 @@ export default function ScheduleScreen() {
 
       {/* ── Request Modal ── */}
       <Modal visible={!!requestModal} transparent animationType="slide" onRequestClose={() => setRequestModal(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
+        <KeyboardSafe style={s.modalOverlay}>
           <View style={s.modal}>
             <View style={s.modalDrag} />
             <Text style={s.modalTitle}>
@@ -592,7 +593,7 @@ export default function ScheduleScreen() {
               )}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafe>
       </Modal>
     </View>
   );

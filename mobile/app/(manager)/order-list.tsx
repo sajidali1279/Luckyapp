@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  RefreshControl, Modal, Alert, KeyboardAvoidingView,
-  Platform, ActivityIndicator,
+  RefreshControl, Modal, Alert, Platform, ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +22,7 @@ import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -147,7 +147,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={s.overlay}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
@@ -237,7 +237,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
             )}
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }
@@ -774,7 +774,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={s.overlay}>
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <View style={s.sheetHeader}>
@@ -960,7 +960,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }
@@ -1905,7 +1905,7 @@ export default function ManagerOrderListScreen() {
           )}
 
           {/* Rows + pinned Add Row */}
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <KeyboardSafe style={{ flex: 1 }}>
             {items.length === 0 ? (
               <View style={[s.center, { flex: 1 }]}>
                 <ClipboardIcon size={48} color={COLORS.border} strokeWidth={1.25} />
@@ -1963,7 +1963,7 @@ export default function ManagerOrderListScreen() {
             ) : (
               <QuickAddBar listId={activeList.id} storeId={selectedStoreId!} categories={categories} />
             )}
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
         </>
       )}
 

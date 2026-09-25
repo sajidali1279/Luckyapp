@@ -18,6 +18,7 @@ import { useCurrentStoreId } from '../../utils/geo';
 import {
   CameraIcon, XIcon, ReceiptIcon, CreditCardIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 type Step =
   | 'scan' | 'mode'
@@ -956,6 +957,7 @@ export default function EmployeeScanScreen() {
 
       {/* ──────────────────────── GRANT: AMOUNT ────────────────────────── */}
       {step === 'grant-amount' && (
+        <KeyboardSafe style={s.fill}>
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
           {/* Customer summary - Grant Points is the fast-path default from scan, so this
@@ -1162,6 +1164,7 @@ export default function EmployeeScanScreen() {
             <Text style={s.ghostBtnText}>{t('employeeScan.back')}</Text>
           </TouchableOpacity>
         </ScrollView>
+        </KeyboardSafe>
       )}
 
       {/* ──────────────────────── GRANT: RECEIPT ────────────────────────── */}
@@ -1289,6 +1292,7 @@ export default function EmployeeScanScreen() {
 
       {/* ──────────────────────── REDEEM: AMOUNT ────────────────────────── */}
       {step === 'redeem-amount' && (
+        <KeyboardSafe style={s.fill}>
         <ScrollView style={s.fill} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           <View style={[s.successBadge, { backgroundColor: COLORS.accent + '15' }]}>
             <Text style={s.successBadgeIcon}>💳</Text>
@@ -1348,6 +1352,7 @@ export default function EmployeeScanScreen() {
             <Text style={s.ghostBtnText}>{t('employeeScan.back')}</Text>
           </TouchableOpacity>
         </ScrollView>
+        </KeyboardSafe>
       )}
 
       {/* ──────────────────────── REDEEM: DONE ────────────────────────── */}

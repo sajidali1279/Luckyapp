@@ -1,7 +1,7 @@
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, ActivityIndicator, Modal,
-  TextInput, ScrollView, KeyboardAvoidingView, Platform,
+  TextInput, ScrollView, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ import {
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -225,7 +226,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={sh.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={sh.overlay}>
         <View style={sh.sheet}>
           <View style={sh.handle} />
 
@@ -375,7 +376,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }

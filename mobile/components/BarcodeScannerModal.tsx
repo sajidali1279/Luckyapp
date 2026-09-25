@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  StatusBar, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert,
+  StatusBar, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { COLORS } from '../constants';
 import { XIcon, CheckCircleIcon, PackageIcon } from './Icons';
 import { scannedProductApi, orderCategoriesApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import KeyboardSafe from './KeyboardSafe';
 
 export interface BarcodeResult {
   name:     string;
@@ -375,8 +376,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
             </View>
 
             {showManualEntry && (
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              <KeyboardSafe
                 style={st.manualEntryOverlay}
               >
                 <View style={st.manualEntryCard}>
@@ -414,13 +414,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                     </TouchableOpacity>
                   </View>
                 </View>
-              </KeyboardAvoidingView>
+              </KeyboardSafe>
             )}
           </View>
 
         /* ── Found — show details + qty input ────────────────────────────── */
         ) : phase === 'found' ? (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <KeyboardSafe style={{ flex: 1 }}>
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
@@ -491,11 +491,11 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 <Text style={st.scanAgainText}>{t('sharedScanner.notThisProduct')}</Text>
               </TouchableOpacity>
             </ScrollView>
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
 
         /* ── Naming — product not found anywhere ─────────────────────────── */
         ) : phase === 'naming' ? (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <KeyboardSafe style={{ flex: 1 }}>
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
@@ -581,7 +581,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
                 <Text style={st.scanAgainText}>{t('sharedScanner.scanDifferentBarcode')}</Text>
               </TouchableOpacity>
             </ScrollView>
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
         ) : null}
 
       </SafeAreaView>

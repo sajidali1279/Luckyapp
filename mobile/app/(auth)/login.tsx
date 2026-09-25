@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Animated, Keyboard,
+  ActivityIndicator, Platform, ScrollView, StatusBar, Animated, Keyboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
@@ -14,6 +14,7 @@ import { ShieldIcon, UserIcon } from '../../components/Icons';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
@@ -299,7 +300,7 @@ export default function LoginScreen() {
       ? `(${quickLoginPhone.slice(0, 3)}) ${quickLoginPhone.slice(3, 6)}-${quickLoginPhone.slice(6)}`
       : '';
     return (
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
@@ -370,7 +371,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     );
   }
 
@@ -380,7 +381,7 @@ export default function LoginScreen() {
       ? `(${rawPhone().slice(0, 3)}) ${rawPhone().slice(3, 6)}-${rawPhone().slice(6)}`
       : phone;
     return (
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -440,13 +441,13 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     );
   }
 
   // ── Full login / register ──
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSafe style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -582,7 +583,7 @@ export default function LoginScreen() {
           )}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   );
 }
 

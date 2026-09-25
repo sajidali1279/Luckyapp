@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, Platform,
   ScrollView, ActivityIndicator, StatusBar, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import Toast from 'react-native-toast-message';
 import { authApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, CheckCircleIcon } from '../../components/Icons';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
@@ -160,7 +161,7 @@ export default function ForgotPinScreen() {
         <View style={{ width: 44 }} />
       </SafeAreaView>
 
-      <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={s.fill}>
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
           {/* Step indicator - 3 steps */}
@@ -327,7 +328,7 @@ export default function ForgotPinScreen() {
           )}
 
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </View>
   );
 }

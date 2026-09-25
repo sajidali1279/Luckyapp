@@ -14,6 +14,7 @@ import { XIcon, EditIcon, PlusIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 interface Store { id: string; name: string }
 
@@ -338,6 +339,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
   const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardSafe style={{ flex: 1 }}>
       <View style={s.modal}>
         <View style={s.modalHeader}>
           <Text style={s.modalTitle}>{title}</Text>
@@ -353,7 +355,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
           <Field label={t('managerOffers.titleFieldLabel')}>
             <TextInput
               style={s.input} value={form.title} onChangeText={v => setField('title', v)}
@@ -464,6 +466,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
           <View style={{ height: 32 }} />
         </ScrollView>
       </View>
+      </KeyboardSafe>
     </Modal>
   );
 }

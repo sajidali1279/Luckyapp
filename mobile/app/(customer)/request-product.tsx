@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  Modal, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, RefreshControl,
+  Modal, ActivityIndicator, Alert, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 const STATUS_CONFIG = {
   PENDING:  { labelKey: 'customerRequestProduct.statusPending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -116,7 +117,7 @@ export default function RequestProductScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafe style={{ flex: 1 }}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTextWrap}>
@@ -336,7 +337,7 @@ export default function RequestProductScreen() {
             </ScrollView>
           </SafeAreaView>
         </Modal>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </SafeAreaView>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  StatusBar, TextInput, KeyboardAvoidingView, Platform, ScrollView,
+  StatusBar, TextInput, Platform, ScrollView,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { useLabelCart } from '../store/labelCartStore';
 import { cartKey } from '../utils/labelCart';
+import KeyboardSafe from './KeyboardSafe';
 
 type Phase = 'scanning' | 'loading' | 'result' | 'naming';
 type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
@@ -245,7 +246,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
             </View>
 
             {showManualEntry && (
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={st.manualEntryOverlay}>
+              <KeyboardSafe style={st.manualEntryOverlay}>
                 <View style={st.manualEntryCard}>
                   <Text style={st.manualEntryTitle}>{t('sharedPriceCheck.manualTitle')}</Text>
                   <TextInput
@@ -270,7 +271,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                     </TouchableOpacity>
                   </View>
                 </View>
-              </KeyboardAvoidingView>
+              </KeyboardSafe>
             )}
           </View>
 
@@ -338,7 +339,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
           </ScrollView>
 
         ) : phase === 'naming' ? (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <KeyboardSafe style={{ flex: 1 }}>
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
@@ -431,7 +432,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                 <Text style={st.scanAgainText}>{t('sharedPriceCheck.checkAnother')}</Text>
               </TouchableOpacity>
             </ScrollView>
-          </KeyboardAvoidingView>
+          </KeyboardSafe>
         ) : null}
 
       </SafeAreaView>

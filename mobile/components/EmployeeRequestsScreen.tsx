@@ -14,6 +14,7 @@ import { TypeIcon } from './ManagerRequestsScreen';
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import { usePullRefresh } from '../hooks/usePullRefresh';
 import ErrorState from './ErrorState';
+import KeyboardSafe from './KeyboardSafe';
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
@@ -239,6 +240,7 @@ export default function EmployeeRequestsScreen() {
 
       {/* ── New Request Modal ── */}
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowForm(false)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
           {/* Modal header */}
           <View style={s.modalHeaderBar}>
@@ -260,7 +262,7 @@ export default function EmployeeRequestsScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={s.formBody} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.formBody} showsVerticalScrollIndicator={false}>
 
             {/* No store warning */}
             {noStoreAssigned && (
@@ -382,6 +384,7 @@ export default function EmployeeRequestsScreen() {
 
           </ScrollView>
         </SafeAreaView>
+        </KeyboardSafe>
       </Modal>
     </View>
   );

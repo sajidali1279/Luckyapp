@@ -16,6 +16,7 @@ import { ImageIcon, CameraIcon, XIcon, PlusIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 interface Store { id: string; name: string }
 
@@ -222,6 +223,7 @@ export default function ManagerBannersScreen() {
 
       {/* ── Upload Banner Modal ── */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <View style={s.modal}>
           <View style={s.modalHeader}>
             <Text style={s.modalTitle}>{t('managerBanners.uploadBanner')}</Text>
@@ -237,7 +239,7 @@ export default function ManagerBannersScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalBody} showsVerticalScrollIndicator={false}>
             {/* Image picker */}
             <TouchableOpacity
               style={s.imagePicker}
@@ -291,6 +293,7 @@ export default function ManagerBannersScreen() {
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
+        </KeyboardSafe>
       </Modal>
     </View>
   );

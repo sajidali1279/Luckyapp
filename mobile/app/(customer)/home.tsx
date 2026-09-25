@@ -29,6 +29,7 @@ import {
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -1415,6 +1416,7 @@ export default function CustomerHome() {
 
       {/* ── Hot Food Order Modal ── */}
       <Modal visible={!!selectedFoodItem} transparent animationType="slide" onRequestClose={() => setSelectedFoodItem(null)}>
+        <KeyboardSafe style={{ flex: 1 }}>
         <View style={hf.overlay}>
           <View style={hf.sheet}>
             <View style={hf.handle} />
@@ -1495,6 +1497,7 @@ export default function CustomerHome() {
             )}
           </View>
         </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* ── Rating prompt ── */}

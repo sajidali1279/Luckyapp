@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Modal, TextInput, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert,
+  Platform, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import {
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import { useCurrentStoreId } from '../../utils/geo';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -289,7 +290,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={fs.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardSafe style={fs.overlay}>
         <View style={fs.sheet}>
           <View style={fs.handle} />
 
@@ -505,7 +506,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }

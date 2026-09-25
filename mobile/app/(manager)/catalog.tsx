@@ -18,6 +18,7 @@ import {
 import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -238,7 +239,7 @@ function ScanTab() {
   }
 
   return (
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSafe style={s.flex}>
       {/* Live camera */}
       <View style={s.cameraWrap}>
         <CameraView
@@ -363,7 +364,7 @@ function ScanTab() {
         )}
 
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   );
 }
 
@@ -424,7 +425,7 @@ function ManualTab() {
   }
 
   return (
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSafe style={s.flex}>
       <ScrollView
         style={s.flex}
         contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
@@ -528,7 +529,7 @@ function ManualTab() {
         )}
         </FadeSlideIn>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   );
 }
 

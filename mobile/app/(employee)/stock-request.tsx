@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  RefreshControl, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
+  RefreshControl, StatusBar, ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import type { BarcodeResult } from '../../components/BarcodeScannerModal';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,7 +171,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
   const canSubmit = cart.length > 0 && !submitMut.isPending;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <KeyboardSafe style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
@@ -383,7 +384,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
         onClose={() => setShowScanner(false)}
         onResult={handleScanResult}
       />
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
   );
 }
 

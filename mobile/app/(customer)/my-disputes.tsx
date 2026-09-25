@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform, TextInput, RefreshControl,
+  TouchableOpacity, Modal, Platform, TextInput, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
+import KeyboardSafe from '../../components/KeyboardSafe';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -75,14 +76,14 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafe style={{ flex: 1 }}>
         <View style={m.root}>
           <View style={m.header}>
             <Text style={m.title}>{t('disputeModal.title')}</Text>
             <ModalCloseButton onPress={onClose} label={t('customerMyDisputes.closeReportFormA11y')} color="#fff" style={m.closeBtn} />
           </View>
           <Text style={m.subtitle}>{t('disputeModal.subtitle')}</Text>
-          <ScrollView style={m.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={m.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
             <Text style={m.label}>{t('disputeModal.store')}</Text>
             <View style={m.pickerWrap}>
               {stores.length === 0 ? (
@@ -148,7 +149,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
             <View style={{ height: 16 }} />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }
