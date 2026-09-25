@@ -22,6 +22,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import { useCurrentStoreId } from '../../utils/geo';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -507,6 +508,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
           </ScrollView>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

@@ -17,6 +17,7 @@ import ErrorState from '../../components/ErrorState';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -365,6 +366,7 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
         </View>
       </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -395,6 +397,7 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
           </TouchableOpacity>
         </View>
       </View>
+      <ModalToastHost />
     </Modal>
   );
 }

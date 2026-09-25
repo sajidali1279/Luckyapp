@@ -15,6 +15,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
           </ScrollView>
         </KeyboardSafe>
       </SafeAreaView>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -349,6 +351,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
           </KeyboardSafe>
         )}
       </SafeAreaView>
+      <ModalToastHost />
     </Modal>
   );
 }

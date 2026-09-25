@@ -14,6 +14,7 @@ import { COLORS } from '../constants';
 import { RefreshIcon, Trash2Icon, ImageIcon } from './Icons';
 import ModalCloseButton from './ModalCloseButton';
 import KeyboardSafe from './KeyboardSafe';
+import ModalToastHost from './ModalToastHost';
 
 export default function PromoteBusinessModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -161,6 +162,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
           </ScrollView>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

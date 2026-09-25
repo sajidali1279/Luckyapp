@@ -23,6 +23,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -238,6 +239,7 @@ function CategoryPicker({ visible, categories, selected, onSelect, onSubmitNew, 
           </View>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -961,6 +963,7 @@ function EditItemSheet({ visible, listId, item, categories, onClose, onSaved }: 
           </ScrollView>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -1171,6 +1174,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
           </ScrollView>
         )}
       </SafeAreaView>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -1317,6 +1321,7 @@ function HistoryModal({ visible, storeId, storeName, activeListId, onClose, onRe
           </ScrollView>
         )}
       </SafeAreaView>
+      <ModalToastHost />
     </Modal>
   );
 }

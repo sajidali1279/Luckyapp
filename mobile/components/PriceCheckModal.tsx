@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import { useLabelCart } from '../store/labelCartStore';
 import { cartKey } from '../utils/labelCart';
 import KeyboardSafe from './KeyboardSafe';
+import ModalToastHost from './ModalToastHost';
 
 type Phase = 'scanning' | 'loading' | 'result' | 'naming';
 type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
@@ -436,6 +437,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
         ) : null}
 
       </SafeAreaView>
+      <ModalToastHost />
     </Modal>
   );
 }

@@ -27,6 +27,7 @@ import FadeSlideIn from './FadeSlideIn';
 import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 import KeyboardSafe from './KeyboardSafe';
+import ModalToastHost from './ModalToastHost';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -823,6 +824,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
               </TouchableOpacity>
             </View>
           </KeyboardSafe>
+          <ModalToastHost />
         </Modal>
       )}
 
@@ -904,6 +906,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+        <ModalToastHost />
       </Modal>
 
       {/* ── Language picker modal ── */}
@@ -948,6 +951,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+        <ModalToastHost />
       </Modal>
 
       {/* Legal doc modal */}

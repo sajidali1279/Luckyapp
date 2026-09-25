@@ -25,6 +25,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -377,6 +378,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
           </ScrollView>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

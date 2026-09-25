@@ -15,6 +15,7 @@ import ErrorState from '../../components/ErrorState';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
+import ModalToastHost from '../../components/ModalToastHost';
 
 
 
@@ -261,6 +262,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
           </TouchableOpacity>
         </View>
       </View>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -297,6 +299,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
             </TouchableOpacity>
           </View>
         </View>
+        <ModalToastHost />
       </Modal>
     );
   }
@@ -331,6 +334,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
           </TouchableOpacity>
         </View>
       </View>
+      <ModalToastHost />
     </Modal>
   );
 }
@@ -636,6 +640,7 @@ export default function RewardsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        <ModalToastHost />
       </Modal>
     </View>
   );

@@ -17,6 +17,7 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -150,6 +151,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
           </ScrollView>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

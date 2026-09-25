@@ -16,6 +16,7 @@ import ModalCloseButton from './ModalCloseButton';
 import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
 import NoticeBanner, { usePinnedNotice } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
+import ModalToastHost from './ModalToastHost';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -345,6 +346,7 @@ export default function ChatScreen() {
               </ScrollView>
             </View>
           </View>
+          <ModalToastHost />
         </Modal>
 
         {/* ── Pinned Notice ── */}

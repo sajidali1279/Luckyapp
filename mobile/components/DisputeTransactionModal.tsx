@@ -10,6 +10,7 @@ import { disputeApi } from '../services/api';
 import { COLORS } from '../constants';
 import ModalCloseButton from './ModalCloseButton';
 import KeyboardSafe from './KeyboardSafe';
+import ModalToastHost from './ModalToastHost';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -110,6 +111,7 @@ export default function DisputeTransactionModal({
           </View>
         </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

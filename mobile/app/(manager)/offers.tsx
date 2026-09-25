@@ -15,6 +15,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 interface Store { id: string; name: string }
 
@@ -467,6 +468,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
         </ScrollView>
       </View>
       </KeyboardSafe>
+      <ModalToastHost />
     </Modal>
   );
 }

@@ -30,6 +30,7 @@ import {
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ModalToastHost from '../../components/ModalToastHost';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -1498,6 +1499,7 @@ export default function CustomerHome() {
           </View>
         </View>
         </KeyboardSafe>
+        <ModalToastHost />
       </Modal>
 
       {/* ── Rating prompt ── */}
@@ -1543,6 +1545,7 @@ export default function CustomerHome() {
               </TouchableOpacity>
             </View>
           </View>
+          <ModalToastHost />
         </Modal>
       )}
 
@@ -1600,6 +1603,7 @@ export default function CustomerHome() {
               </TouchableOpacity>
             </View>
           </View>
+          <ModalToastHost />
         </Modal>
       )}
 
@@ -1639,6 +1643,7 @@ export default function CustomerHome() {
               </ScrollView>
             </View>
           </View>
+          <ModalToastHost />
         </Modal>
       )}
 
@@ -1702,6 +1707,7 @@ export default function CustomerHome() {
                 </TouchableOpacity>
               </TouchableOpacity>
             </TouchableOpacity>
+            <ModalToastHost />
           </Modal>
         );
       })()}
@@ -1906,6 +1912,7 @@ export default function CustomerHome() {
             </TouchableOpacity>
           </View>
         </View>
+        <ModalToastHost />
       </Modal>
 
     </View>
