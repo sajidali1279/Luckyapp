@@ -21,6 +21,7 @@ import { useCurrentStoreId } from '../utils/geo';
 import { LabelPrintStatus, STATUS_COLOR, STATUS_BG, formatEndsOn } from '../utils/labelStatus';
 import { Cart, CartRow, cartKey, printPriceFor, resolveCartRows, summarizeCart, runPool } from '../utils/labelCart';
 import ErrorState from './ErrorState';
+import ModalToastHost from './ModalToastHost';
 
 interface Label {
   id: string;
@@ -203,9 +204,12 @@ export default function LabelsScreen() {
 
   const [viewMode, setViewMode] = useState<'catalog' | 'cart'>('catalog');
 
+  // The store list every signed-in person may read (names, cities, locations). This used storesApi.getAll() (GET /stores), which is
+  // Super Admin only, so for every employee and manager it came back refused and empty: GPS never picked the store you are in, an
+  // employee assigned to two stores could not switch, and the header had no store name.
   const { data: storesListData } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storesApi.getAll(),
+    queryKey: ['gas-prices'],
+    queryFn: () => storesApi.getGasPrices(),
   });
   const allStores: any[] = storesListData?.data?.data || [];
 
@@ -941,6 +945,7 @@ export default function LabelsScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
+        <ModalToastHost />
       </Modal>
 
       <Modal visible={!!priceSheetItem} animationType="fade" transparent onRequestClose={() => setPriceSheetItem(null)}>
@@ -1020,6 +1025,7 @@ export default function LabelsScreen() {
             </ScrollView>
           </View>
         </View>
+        <ModalToastHost />
       </Modal>
 
       <Modal visible={showStorePicker} animationType="slide" transparent onRequestClose={() => setShowStorePicker(false)}>
@@ -1066,6 +1072,7 @@ export default function LabelsScreen() {
             </ScrollView>
           </View>
         </View>
+        <ModalToastHost />
       </Modal>
 
       <View style={[s.header, s.headerRow]}>
