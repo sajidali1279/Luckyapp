@@ -5,7 +5,8 @@ import {
   KeyboardAvoidingView, Platform, Modal, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+import { useCameraAccess } from '../../hooks/useCameraAccess';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -82,7 +83,7 @@ export default function CatalogScreen() {
 
 function ScanTab() {
   const { t } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, ask: requestPermission } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [phase,      setPhase]          = useState<ScanPhase>('ready');
   const [resultName, setResultName]     = useState('');
   const [curBarcode, setCurBarcode]     = useState('');

@@ -3,7 +3,8 @@ import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
   StatusBar, TextInput, Platform, ScrollView,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+import { useCameraAccess } from '../hooks/useCameraAccess';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
@@ -57,7 +58,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const statusText = (status: PrintStatus) => t(`sharedPriceCheck.status_${status}`);
   const { user } = useAuthStore();
   const cartId = cartKey(user?.id, storeId);
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, ask: requestPermission } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [phase, setPhase] = useState<Phase>('scanning');
   const [lastCode, setLastCode] = useState('');
   const [barcode, setBarcode] = useState('');

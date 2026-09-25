@@ -3,7 +3,8 @@ import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
   StatusBar, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+import { useCameraAccess } from '../hooks/useCameraAccess';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants';
 import { XIcon, CheckCircleIcon, PackageIcon } from './Icons';
@@ -53,7 +54,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   const { t } = useTranslation();
   // Callers that don't pass their own button text get the translated default.
   const confirmText = confirmLabel ?? t('sharedScanner.addToList');
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, ask: requestPermission } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [phase,        setPhase]        = useState<Phase>('scanning');
   const [lastCode,     setLastCode]     = useState('');
   const [barcode,      setBarcode]      = useState('');

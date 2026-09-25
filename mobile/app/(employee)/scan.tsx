@@ -7,7 +7,8 @@ import {
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+import { useCameraAccess } from '../../hooks/useCameraAccess';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
@@ -228,7 +229,7 @@ function CelebrationDone({
 export default function EmployeeScanScreen() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, ask: requestPermission } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [step, setStep] = useState<Step>('scan');
   const [scanned, setScanned] = useState(false);
   const [customerQr, setCustomerQr] = useState('');

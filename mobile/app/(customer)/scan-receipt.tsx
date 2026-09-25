@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView } from 'expo-camera';
+import { useCameraAccess } from '../../hooks/useCameraAccess';
 import Toast from 'react-native-toast-message';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +26,7 @@ const CATEGORY_LABEL_KEYS: Record<string, string> = {
 export default function ScanReceiptScreen() {
   const { t } = useTranslation();
   const { updateBalance, user } = useAuthStore();
-  const [permission, requestPermission] = useCameraPermissions();
+  const { permission, ask: requestPermission, needsSettings } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [step, setStep] = useState<Step>('scan');
   const [scanned, setScanned] = useState(false);
   const [tokenData, setTokenData] = useState<any>(null);
@@ -35,7 +36,7 @@ export default function ScanReceiptScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!permission?.granted) requestPermission();
+    if (permission && !permission.granted && !needsSettings) requestPermission();   // never jump to settings unasked
   }, []);
 
   useEffect(() => {
