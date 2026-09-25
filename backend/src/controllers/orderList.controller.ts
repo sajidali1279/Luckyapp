@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
+import { STORE_TIMEZONE, storeDayStart } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { Role, OrderListItemStatus, OrderItemPriority, OrderItemSource } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
@@ -21,8 +22,9 @@ export async function generateListName(storeId: string): Promise<string> {
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
   const storeName = store?.name ?? 'Store';
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+  // The store's date: on the UTC server a list opened after 7 pm Central was named for tomorrow and the #2 count restarted early
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: STORE_TIMEZONE });
+  const startOfDay = storeDayStart(now);
   const todayCount = await prisma.orderList.count({ where: { storeId, openedAt: { gte: startOfDay } } });
   const suffix = todayCount > 0 ? ` #${todayCount + 1}` : '';
   return `${storeName} — ${dateStr}${suffix}`;

@@ -192,7 +192,7 @@ export async function getMyRatingSummary(req: AuthRequest, res: Response) {
       where: {
         employeeId,
         storeId: { in: storeIds },
-        createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        createdAt: { gte: storeMonthStart() },   // the store's month (a UTC month began at 7 pm Central on the last day)
       },
       _avg: { rating: true },
       _count: { rating: true },

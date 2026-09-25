@@ -6,13 +6,15 @@ import { DayOfWeek, ShiftType, ShiftRequestType, RequestStatus, Role } from '@pr
 import { sendPushToUser } from '../utils/push';
 import { audit } from '../utils/audit';
 import { scheduleUrl, shiftRequestUrlEmployee } from '../utils/notificationRoutes';
+import { STORE_TIMEZONE, storeWeekday, storeDayStart, storeDayEnd } from '../utils/storeTime';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const JS_DAY_TO_ENUM: DayOfWeek[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 function getTodayDayOfWeek(): DayOfWeek {
-  return JS_DAY_TO_ENUM[new Date().getDay()];
+  // The store's day, not the server's: Render runs in UTC, so new Date().getDay() turned to tomorrow at 7 pm Central
+  return JS_DAY_TO_ENUM[storeWeekday(new Date())];
 }
 
 const SHIFT_LABELS: Record<ShiftType, string> = {
@@ -28,7 +30,7 @@ const SHIFT_TIMES: Record<ShiftType, { startTime: string; endTime: string }> = {
 };
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: STORE_TIMEZONE });
 }
 
 // ─── GET /schedule/store/:storeId ─────────────────────────────────────────────
@@ -59,11 +61,9 @@ export async function getTodayRoster(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const todayDay = getTodayDayOfWeek();
 
-  // Start/end of today (UTC midnight boundaries)
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  // Start and end of the store's today (these were UTC midnights, so after 7 pm Central "today" was already tomorrow)
+  const todayStart = storeDayStart();
+  const todayEnd = storeDayEnd();
 
   // All active templates for today
   const templates = await prisma.shiftTemplate.findMany({
@@ -258,8 +258,8 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
   const employeeId = req.user!.id;
   const requestDate = new Date(date);
 
-  // Map request date to DayOfWeek
-  const dayOfWeek = JS_DAY_TO_ENUM[requestDate.getDay()];
+  // Map request date to the store's DayOfWeek
+  const dayOfWeek = JS_DAY_TO_ENUM[storeWeekday(requestDate)];
 
   if (requestType === ShiftRequestType.TIME_OFF) {
     // Employee must have a template for that day at that store
@@ -299,10 +299,8 @@ export async function createShiftRequest(req: AuthRequest, res: Response) {
   }
 
   // Prevent duplicate pending request
-  const dayStart = new Date(requestDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(requestDate);
-  dayEnd.setHours(23, 59, 59, 999);
+  const dayStart = storeDayStart(requestDate);
+  const dayEnd = storeDayEnd(requestDate);
 
   const existing = await prisma.shiftRequest.findFirst({
     where: {
@@ -458,7 +456,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
   });
 
   const requestDate = new Date(shiftRequest.date);
-  const dayOfWeek   = JS_DAY_TO_ENUM[requestDate.getDay()];
+  const dayOfWeek   = JS_DAY_TO_ENUM[storeWeekday(requestDate)];
   const dateStr     = fmtDate(requestDate);
   const employeeName = shiftRequest.employee.name || 'Employee';
   const storeName    = shiftRequest.store.name;
@@ -582,8 +580,8 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         select: { employeeId: true },
       });
 
-      const dayStart = new Date(requestDate); dayStart.setHours(0, 0, 0, 0);
-      const dayEnd   = new Date(requestDate); dayEnd.setHours(23, 59, 59, 999);
+      const dayStart = storeDayStart(requestDate);
+      const dayEnd   = storeDayEnd(requestDate);
 
       const alreadyOff = await prisma.shiftRequest.findMany({
         where: {
@@ -645,10 +643,10 @@ export async function getDayRoster(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const dateStr = req.query.date as string | undefined;
   const date = dateStr ? new Date(dateStr) : new Date();
-  const dayOfWeek = JS_DAY_TO_ENUM[date.getDay()];
+  const dayOfWeek = JS_DAY_TO_ENUM[storeWeekday(date)];
 
-  const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
-  const dayEnd   = new Date(date); dayEnd.setHours(23, 59, 59, 999);
+  const dayStart = storeDayStart(date);
+  const dayEnd   = storeDayEnd(date);
 
   // All active templates for this day
   const templates = await prisma.shiftTemplate.findMany({

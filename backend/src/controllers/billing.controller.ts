@@ -11,7 +11,7 @@ import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
 import { sendBillingInvoiceEmail } from '../utils/email';
 import { computeTodayHoursLabel } from '../utils/storeHours';
-import { storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeHour, storeWeekday } from '../utils/storeTime';
+import { STORE_TIMEZONE, storeMonthStart, storePrevMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeHour, storeWeekday } from '../utils/storeTime';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { csvText } from '../utils/csv';
 import { audit } from '../utils/audit';
@@ -1615,7 +1615,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   // Schedule notifications — pending shift requests
   const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
   for (const req of pendingShiftRequests) {
-    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: STORE_TIMEZONE });
     const shiftLabel = SHIFT_TYPE_LABELS[req.shiftType] ?? req.shiftType;
     const isTimeOff = req.requestType === 'TIME_OFF';
     notifications.push({
@@ -1874,7 +1874,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   // Schedule requests — same as SuperAdmin sees
   const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
   for (const req of pendingShiftRequests) {
-    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: STORE_TIMEZONE });
     const shiftLabel = SHIFT_TYPE_LABELS[req.shiftType] ?? req.shiftType;
     const isTimeOff = req.requestType === 'TIME_OFF';
     notifications.push({
