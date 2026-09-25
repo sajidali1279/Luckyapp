@@ -20,6 +20,7 @@ import {
   getTodayDayKey, getCurrentWeekDates, fmtDateISO, fmtMonthDay, fmtDateFull, formatShiftTime,
 } from '../../utils/schedule';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ErrorState from '../../components/ErrorState';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
 // strings from API responses, so all three are re-typed loosely here rather
@@ -94,7 +95,7 @@ export default function ScheduleScreen() {
   } | null>(null);
   const [notes, setNotes] = useState('');
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['my-schedule'],
     queryFn: () => schedulingApi.getMySchedule(),
   });
@@ -211,7 +212,7 @@ export default function ScheduleScreen() {
         </View>
 
         {/* ── Week Calendar Strip ── */}
-        {!isLoading && (
+        {!isLoading && !isError && (
           <View style={s.calendarStrip}>
             {weekDates.map(({ key, date }) => {
               const isSelected = key === selectedDayKey;
@@ -272,6 +273,9 @@ export default function ScheduleScreen() {
             <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={s.loadingText}>{t('employeeSchedule.loadingSchedule')}</Text>
           </View>
+        ) : isError ? (
+          // A failed load used to draw an empty week, so every day read "Day off": someone could skip a real shift
+          <ErrorState message={t('employeeSchedule.loadError')} onRetry={() => refetch()} />
         ) : (
           <FadeSlideIn>
             {/* ── Selected Day Detail ── */}

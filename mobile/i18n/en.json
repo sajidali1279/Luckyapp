@@ -856,7 +856,8 @@
     "notesLabel": "Notes",
     "optionalTag": "(optional)",
     "fillInNotesPlaceholder": "Any notes for your manager…",
-    "timeOffNotesPlaceholder": "Reason for time off…"
+    "timeOffNotesPlaceholder": "Reason for time off…",
+    "loadError": "Couldn't load your schedule. Your shifts are not shown, so check again before assuming a day off."
   },
   "employeeStockRequest": {
     "submitFailed": "Failed to submit",

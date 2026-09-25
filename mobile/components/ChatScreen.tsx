@@ -16,6 +16,7 @@ import ModalCloseButton from './ModalCloseButton';
 import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
 import NoticeBanner, { usePinnedNotice } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
+import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 
 const ROLE_COLORS: Record<string, string> = {
@@ -109,7 +110,7 @@ export default function ChatScreen() {
     if (s.length > 0 && !selectedStoreId) setSelectedStoreId(s[0].id);
   }, [storesData]);
 
-  const { data: initialData, isLoading: msgsLoading } = useQuery({
+  const { data: initialData, isLoading: msgsLoading, isError: msgsError, refetch: refetchMsgs } = useQuery({
     queryKey: ['chat-messages-init', selectedStoreId],
     queryFn: () => chatApi.getMessages(selectedStoreId!),
     enabled: !!selectedStoreId,
@@ -367,10 +368,13 @@ export default function ChatScreen() {
             renderItem={renderMessage}
             contentContainerStyle={s.messageList}
             ListEmptyComponent={
-              <View style={s.noMsgs}>
-                <MessageCircleIcon size={40} color="#d1d5db" strokeWidth={1.5} />
-                <Text style={s.noMsgsText}>{t('sharedChat.noMessagesYet')}</Text>
-              </View>
+              // A failed load used to look like an empty conversation
+              msgsError ? <ErrorState onRetry={() => refetchMsgs()} /> : (
+                <View style={s.noMsgs}>
+                  <MessageCircleIcon size={40} color="#d1d5db" strokeWidth={1.5} />
+                  <Text style={s.noMsgsText}>{t('sharedChat.noMessagesYet')}</Text>
+                </View>
+              )
             }
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             showsVerticalScrollIndicator={false}

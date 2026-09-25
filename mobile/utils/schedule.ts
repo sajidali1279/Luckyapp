@@ -69,7 +69,8 @@ export function fmtDateFull(d: string): string {
 }
 
 export function fmtDateISO(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // The phone's own calendar date. toISOString() is UTC, which after 7 pm Central is already tomorrow: "tomorrow" became the day after
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function fmtMonthDay(d: Date): string {

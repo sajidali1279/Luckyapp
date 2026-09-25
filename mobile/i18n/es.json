@@ -856,7 +856,8 @@
     "modalStoreLabel": "Tienda",
     "emptyShiftBadge": "Vacío ⚠️",
     "submitRequestBtn": "Enviar Solicitud →",
-    "cancelBtn": "Cancelar"
+    "cancelBtn": "Cancelar",
+    "loadError": "No se pudo cargar tu horario. Tus turnos no se muestran, así que vuelve a intentarlo antes de suponer que tienes el día libre."
   },
   "employeeStockRequest": {
     "alreadyInList": "\"{{name}}\" ya está en la lista",

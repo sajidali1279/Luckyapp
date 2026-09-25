@@ -20,6 +20,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import ErrorState from '../../components/ErrorState';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,7 +399,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
     if (highlightId) setExpandedId(highlightId);
   }, [highlightId]);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['my-item-requests'],
     queryFn: employeeRequestApi.mine,
     refetchInterval: 60_000,
@@ -406,6 +407,8 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
   const requests: MyRequest[] = data?.data?.data || [];
 
   if (isLoading) return <View style={s.center}><ActivityIndicator color={COLORS.secondary} size="large" /></View>;
+  // A failed load used to say "No requests yet"
+  if (isError && requests.length === 0) return <ErrorState onRetry={() => refetch()} />;
 
   if (requests.length === 0) {
     return (

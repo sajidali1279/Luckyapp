@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { offersApi, hotFoodApi, notificationsApi, schedulingApi, dailyReportApi, dailyTaskApi, storesApi } from '../../services/api';
+import { fmtDateISO } from '../../utils/schedule';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
@@ -91,13 +92,14 @@ export default function EmployeeHomeScreen() {
   const tomorrowDate = new Date();
   tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrowKey = JS_DAY_TO_ENUM[tomorrowDate.getDay()];
-  const tomorrowISO = tomorrowDate.toISOString().slice(0, 10);
+  const tomorrowISO = fmtDateISO(tomorrowDate);
   const tomorrowTemplate = templateByDay[tomorrowKey];
   const approvedOffTomorrow = scheduleRequests.some(
     (r: any) => r.requestType === 'TIME_OFF' && r.status === 'APPROVED' &&
-      new Date(r.date).toISOString().slice(0, 10) === tomorrowISO
+      fmtDateISO(new Date(r.date)) === tomorrowISO
   );
-  const isOffTomorrow = !tomorrowTemplate || approvedOffTomorrow;
+  // Only once the schedule has loaded: a failed load has no shifts, which read as "off tomorrow" for everyone
+  const isOffTomorrow = !!scheduleData && (!tomorrowTemplate || approvedOffTomorrow);
 
   const todayISO = todayStr();
   const { data: reportData, refetch: refetchTodayReport } = useQuery({
