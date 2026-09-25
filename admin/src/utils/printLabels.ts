@@ -1,4 +1,5 @@
 import { code128ToSvg } from './code128';
+import { printWhenLoaded } from './printWindow';
 
 /**
  * Generates and opens a printable batch of shelf/price labels in a new window.
@@ -345,7 +346,6 @@ function openPrintWindow(bodyHtml: string): boolean {
   <meta charset="UTF-8">
   <title>Print Labels</title>
   <style>${PAGE_STYLE}</style>
-  <script>window.onload = () => window.print();</script>
 </head>
 <body>
   ${bodyHtml}
@@ -356,6 +356,7 @@ function openPrintWindow(bodyHtml: string): boolean {
   if (!win) { alert('Please allow pop-ups to print labels.'); return false; }
   win.document.write(html);
   win.document.close();
+  printWhenLoaded(win);
   return true;
 }
 

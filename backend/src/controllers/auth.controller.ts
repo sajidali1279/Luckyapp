@@ -25,6 +25,11 @@ import { sendPushToUser } from '../utils/push';
 const SALT_ROUNDS = 12;
 
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
+// Dev Admins and Super Admins can change rates, billing, staff and every store, and they use the admin website, which keeps
+// its token where page scripts can read it. A stolen admin token is worth much more than a customer's, so it lasts 12 hours:
+// admins sign in once a day. Everyone else keeps 7 days.
+const ADMIN_JWT_EXPIRES_IN_SECONDS = 60 * 60 * 12;
+export const jwtLifetimeSeconds = (role: Role) => (role === Role.DEV_ADMIN || role === Role.SUPER_ADMIN ? ADMIN_JWT_EXPIRES_IN_SECONDS : JWT_EXPIRES_IN_SECONDS);
 
 // ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
 const MAX_FAILURES = 5;
@@ -80,7 +85,7 @@ function issueJwt(user: { id: string; phone: string; name?: string | null; role:
   return jwt.sign(
     { id: user.id, phone: user.phone, name: user.name || null, role: user.role, tier: user.tier ?? 'BRONZE', storeIds },
     process.env.JWT_SECRET!,
-    { expiresIn: JWT_EXPIRES_IN_SECONDS }
+    { expiresIn: jwtLifetimeSeconds(user.role) }
   );
 }
 

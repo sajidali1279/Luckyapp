@@ -1,3 +1,4 @@
+import { printWhenLoaded } from './printWindow';
 /**
  * Generates and opens a printable invoice in a new window.
  * The user can then Save as PDF from the browser's print dialog.
@@ -181,7 +182,6 @@ export function downloadInvoicePdf(invoice: {
     Lucky Stop Platform · Invoice ${invoiceNumber} · Generated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
   </div>
 
-  <script>window.onload = () => window.print();</script>
 </body>
 </html>`;
 
@@ -189,4 +189,5 @@ export function downloadInvoicePdf(invoice: {
   if (!win) { alert('Please allow pop-ups to download the invoice PDF.'); return; }
   win.document.write(html);
   win.document.close();
+  printWhenLoaded(win);
 }
