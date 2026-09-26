@@ -19,7 +19,8 @@ import Modal from '../components/Modal';
 import { failureMessage } from '../lib/apiError';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERCENT } from '../lib/labelPrice';
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Trash2, RotateCcw } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 
 const CATALOG_PAGE_SIZE = 50;
 
@@ -237,6 +238,10 @@ export default function Labels() {
   function handlePrintSelected() {
     const entries = buildCatalogPrintEntries();
     if (entries.length === 0) return;
+    if (labels.some(l => selectedIds.has(l.id) && changesOf(l, pendingRef.current).length > 0)) {
+      toast.error('Save your changes first, so the labels print with them.');
+      return;
+    }
     if (entries.length > 5) {
       setPendingBulkPrint(entries);
       return;
@@ -260,86 +265,172 @@ export default function Labels() {
     ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   }
 
-  // A price typed straight into the row (no Edit box): the row shows it at once, and the cursor moves to the next item on this page
-  // that still has no price, so a list can be priced by typing a price and pressing Enter each time.
-  function onQuickPriceSaved(labelId: string, price: string) {
+  // ── Editing straight in the table, saved together ─────────────────────────────
+  // Typing in a cell does not save it. Each change waits (the cell turns blue) until Save changes, which sends one update per item with
+  // all of its fields and asks once, only when stores would reprint or a price moves a lot. The waiting changes are kept outside this
+  // page, so going to another page and back keeps them; closing or reloading the tab warns first.
+  const userId = useAuthStore(st => st.user?.id ?? '');
+  const [pending, setPendingState] = useState<PendingEdits>(() => (unsavedEdits.userId === userId ? unsavedEdits.edits : {}));
+  const pendingRef = useRef(pending);
+  function setPending(next: PendingEdits) {
+    pendingRef.current = next;   // read straight away by Save, which can run in the same moment a cell adds its change
+    unsavedEdits.userId = userId;
+    unsavedEdits.edits = next;
+    setPendingState(next);
+  }
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
+  const [review, setReview] = useState<ReviewItem[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const cellValue = (label: Label, field: InlineField) => valueWithEdits(label, field, pending);
+  const isChanged = (label: Label, field: InlineField) => changesOf(label, pending).some(c => c.field === field);
+  const withEdits = (label: Label): Label => ({ ...label, ...Object.fromEntries(changesOf(label, pending).map(c => [c.field, c.to])) });
+  const pendingItems = labels.map(label => ({ label, changes: changesOf(label, pending) })).filter(it => it.changes.length > 0);
+  const changeCount = pendingItems.reduce((n, it) => n + it.changes.length, 0);
+
+  // One cell's new value joins the waiting changes, or leaves them when it is back to what is saved. A barcode already on another
+  // item, saved or waiting, is refused here.
+  function stage(label: Label, field: InlineField, next: string | null): boolean {
+    if (field === 'barcode' && next) {
+      const clash = labels.find(l => l.id !== label.id && valueWithEdits(l, 'barcode', pendingRef.current) === next);
+      if (clash) { toast.error(`The barcode ${next} already belongs to "${clash.productName}". One barcode belongs to one item.`); return false; }
+    }
+    const row: Draft = { ...(pendingRef.current[label.id] ?? {}) };
+    if ((label[field] ?? '') === (next ?? '')) delete row[field]; else row[field] = next;
+    const all = { ...pendingRef.current };
+    if (Object.keys(row).length) all[label.id] = row; else delete all[label.id];
+    setPending(all);
+    if (saveErrors[label.id]) setSaveErrors(({ [label.id]: _gone, ...rest }) => rest);
+    return true;
+  }
+
+  function revert(label: Label, field: InlineField) {
+    const row: Draft = { ...(pendingRef.current[label.id] ?? {}) };
+    delete row[field];
+    const all = { ...pendingRef.current };
+    if (Object.keys(row).length) all[label.id] = row; else delete all[label.id];
+    setPending(all);
+  }
+
+  function discardAll() {
+    setPending({});
+    setSaveErrors({});
+    setConfirmDiscard(false);
+  }
+
+  // Pricing down a list: Enter in a "No price" box moves the cursor to the next item on this page that still has no price
+  function focusNextUnpriced(labelId: string) {
     const unpriced = pagedLabels.filter(l => l.priceText == null).map(l => l.id);
     const nextId = unpriced[unpriced.indexOf(labelId) + 1];
-    qc.setQueryData(['labels'], (old: any) => old?.data?.data
-      ? { ...old, data: { ...old.data, data: old.data.data.map((l: Label) => (l.id === labelId ? { ...l, priceText: price } : l)) } }
-      : old);
-    refreshLabels();
     if (nextId) setTimeout(() => quickPriceRefs.current.get(nextId)?.focus(), 0);
   }
 
-  // ── Editing straight in the table ─────────────────────────────────────────────
-  // Each cell saves on its own (Enter, or leaving the box). A change that makes stores reprint, or a big price change, asks first with
-  // the same store count the Edit box showed; anything else (a label no store has yet, a category) saves at once.
-  const [inlineConfirm, setInlineConfirm] = useState<null | {
-    label: Label; field: InlineField; next: string | null; impact: LabelImpact | null; checkFailed: boolean; resolve: (ok: boolean) => void;
-  }>(null);
-  const [inlineSaving, setInlineSaving] = useState(false);
+  async function startSave() {
+    if (checking || savingAll || review) return;
+    // A cell still being typed in joins first (leaving it adds it); one with a mistake has to be fixed or put back
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    const bad = tableRef.current?.querySelector<HTMLInputElement>('input[aria-invalid="true"]');
+    if (bad) { bad.focus(); toast.error('Fix the box marked in red first, or press Escape to put it back.'); return; }
+    const items = labels.map(label => ({ label, changes: changesOf(label, pendingRef.current) })).filter(it => it.changes.length > 0);
+    if (items.length === 0) return;
+    setChecking(true);
+    const checked = await mapLimit(items, 4, async (it): Promise<ReviewItem> => {
+      if (it.changes.every(c => c.field === 'category')) return { ...it, impact: null, checkFailed: false };   // never printed: nothing to check
+      try {
+        const r = await labelsApi.impact(it.label.id);
+        const impact = (r?.data?.data as LabelImpact) ?? null;
+        return { ...it, impact, checkFailed: !impact };
+      } catch {
+        return { ...it, impact: null, checkFailed: true };
+      }
+    });
+    setChecking(false);
+    // One look before saving, only when it matters: a store would reprint, a price moves a lot, or the store check failed
+    if (checked.some(it => it.checkFailed || reprintsFor(it) > 0 || bigPriceIn(it))) { setReview(checked); return; }
+    await saveAll(checked);
+  }
+  const startSaveRef = useRef(startSave);
+  startSaveRef.current = startSave;
 
-  async function saveInline(label: Label, field: InlineField, next: string | null): Promise<boolean> {
-    try {
-      const res = await labelsApi.update(label.id, { [field]: next } as Parameters<typeof labelsApi.update>[1]);
-      qc.setQueryData(['labels'], (old: any) => old?.data?.data
-        ? { ...old, data: { ...old.data, data: old.data.data.map((l: Label) => (l.id === label.id ? { ...l, [field]: next } : l)) } }
-        : old);
-      refreshLabels();
-      const stores = res.data?.reprint?.stores ?? 0;
-      toast.success(`${FIELD_NAMES[field]} saved${stores ? `; ${plural(stores, 'store is', 'stores are')} told to reprint` : ''}.`, { duration: stores ? 5000 : 1800 });
-      return true;
-    } catch (e: any) {
-      toast.error(failureMessage(e, 'Could not save. Nothing was changed.'));
-      return false;
+  async function saveAll(items: ReviewItem[]) {
+    setSavingAll(true);
+    const saved = new Map<string, Draft>();
+    const errors: Record<string, string> = {};
+    let reprinted = 0;
+    await mapLimit(items, 4, async (it) => {
+      const body: Draft = Object.fromEntries(it.changes.map(c => [c.field, c.to]));
+      try {
+        const res = await labelsApi.update(it.label.id, body as Parameters<typeof labelsApi.update>[1]);
+        reprinted += res.data?.reprint?.stores ?? 0;
+        saved.set(it.label.id, body);
+      } catch (e: any) {
+        errors[it.label.id] = failureMessage(e, 'Could not save this item. Nothing on it was changed.');
+      }
+    });
+    // The saved values go into the table and out of the waiting changes together, so no cell flashes back to its old value
+    qc.setQueryData(['labels'], (old: any) => old?.data?.data
+      ? { ...old, data: { ...old.data, data: old.data.data.map((l: Label) => (saved.has(l.id) ? { ...l, ...saved.get(l.id) } : l)) } }
+      : old);
+    const left = { ...pendingRef.current };
+    saved.forEach((_body, id) => { delete left[id]; });
+    setPending(left);
+    setSaveErrors(errors);
+    setSavingAll(false);
+    setReview(null);
+    if (saved.size) refreshLabels();
+    const failed = Object.keys(errors).length;
+    const savedText = saved.size ? `Saved ${plural(saved.size, 'item', 'items')}.` : '';
+    if (!failed) {
+      toast.success(`${savedText}${reprinted ? ` Stores were told to reprint ${plural(reprinted, 'label', 'labels')}.` : ''}`, { duration: reprinted ? 5000 : 2500 });
+    } else {
+      toast.error(`${savedText ? `${savedText} ` : ''}${plural(failed, 'item', 'items')} could not be saved and ${failed === 1 ? 'is' : 'are'} still marked. The reason is on the row.`, { duration: 7000 });
     }
   }
 
-  async function requestInlineChange(label: Label, field: InlineField, next: string | null): Promise<boolean> {
-    if ((label[field] ?? '') === (next ?? '')) return true;
-    if (field === 'barcode' && next) {
-      const clash = labels.find(l => l.barcode === next && l.id !== label.id);
-      if (clash) { toast.error(`The barcode ${next} already belongs to "${clash.productName}". One barcode belongs to one item.`); return false; }
-    }
-    if (field === 'category') return saveInline(label, field, next);   // never printed: no store reprints, nothing to confirm
-    let impact: LabelImpact | null = null;
-    let checkFailed = false;
-    try {
-      const r = await qc.fetchQuery({ queryKey: ['label-impact', label.id], queryFn: () => labelsApi.impact(label.id), staleTime: 0 });
-      impact = (r?.data?.data as LabelImpact) ?? null;
-    } catch { checkFailed = true; }
-    const pct = field === 'priceText' ? priceChangePercent(label.priceText, next) : null;
-    const big = pct !== null && Math.abs(pct) > BIG_PRICE_CHANGE_PERCENT;
-    const affected = impact ? (field === 'priceText' ? impact.inheritingBase : impact.storeCopies) : 0;
-    if (!checkFailed && !big && affected === 0) return saveInline(label, field, next);
-    return new Promise<boolean>(resolve => setInlineConfirm({ label, field, next, impact, checkFailed, resolve }));
+  function undoFromReview(label: Label, field: InlineField) {
+    revert(label, field);
+    setReview(r => {
+      const next = (r ?? []).map(it => (it.label.id === label.id ? { ...it, changes: it.changes.filter(c => c.field !== field) } : it)).filter(it => it.changes.length > 0);
+      return next.length ? next : null;
+    });
   }
 
-  const inlinePct = inlineConfirm?.field === 'priceText' ? priceChangePercent(inlineConfirm.label.priceText, inlineConfirm.next) : null;
-  const inlineBig = inlinePct !== null && Math.abs(inlinePct) > BIG_PRICE_CHANGE_PERCENT;
+  // Closing or reloading the tab with changes waiting asks first; Ctrl+S (Cmd+S) saves from anywhere in the catalog
+  useEffect(() => {
+    if (changeCount === 0) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [changeCount]);
+  useEffect(() => {
+    if (viewMode !== 'catalog') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      if (!document.querySelector('[role="dialog"]')) startSaveRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewMode]);
+
   const showCell = (field: InlineField, v: string | null) => (v == null || v === '' ? 'none' : field === 'priceText' ? `$${v}` : field === 'template' ? (TEMPLATE_LABELS[v] || v) : v);
-  const inlineMessage = inlineConfirm ? (
-    <div style={{ textAlign: 'left' }}>
-      <ul style={m.changeList}>
-        <li>
-          <strong>{FIELD_NAMES[inlineConfirm.field]}:</strong> {showCell(inlineConfirm.field, inlineConfirm.label[inlineConfirm.field])} → {showCell(inlineConfirm.field, inlineConfirm.next)}
-          {inlinePct !== null ? ` (${inlinePct > 0 ? '+' : ''}${inlinePct}%)` : ''}
-        </li>
-      </ul>
-      {inlineBig && <p style={m.warn}>That is a change of more than {BIG_PRICE_CHANGE_PERCENT}%. Check that the new price is right.</p>}
-      {inlineConfirm.checkFailed || !inlineConfirm.impact ? (
-        <p style={m.warn}>Could not check which stores this affects. You can still save.</p>
-      ) : inlineConfirm.field === 'priceText' ? (
-        <p style={m.note}>
-          {plural(inlineConfirm.impact.inheritingBase, 'store uses', 'stores use')} this price and will be told to reprint
-          {inlineConfirm.impact.ownPrice > 0 ? `; ${plural(inlineConfirm.impact.ownPrice, 'store keeps', 'stores keep')} its own price` : ''}.
-        </p>
-      ) : (
-        <p style={m.note}>All {plural(inlineConfirm.impact.storeCopies, 'store', 'stores')} will be told to reprint this label.</p>
-      )}
-    </div>
-  ) : null;
+  const reviewCount = review ? review.reduce((n, it) => n + it.changes.length, 0) : 0;
+  const reviewReprints = review ? review.reduce((n, it) => n + reprintsFor(it), 0) : 0;
+  const reviewBig = review ? review.filter(bigPriceIn).length : 0;
+  const reviewUnchecked = review ? review.filter(it => it.checkFailed).length : 0;
+  function storesLine(it: ReviewItem): string {
+    const printed = it.changes.filter(c => c.field !== 'category');
+    if (printed.length === 0) return 'Category only: nothing to reprint';
+    if (it.checkFailed || !it.impact) return 'Could not check the stores';
+    if (it.impact.storeCopies === 0) return 'Not in any store yet';
+    if (printed.every(c => c.field === 'priceText')) {
+      return `${plural(it.impact.inheritingBase, 'store reprints', 'stores reprint')}${it.impact.ownPrice > 0 ? `; ${plural(it.impact.ownPrice, 'store keeps', 'stores keep')} its own price` : ''}`;
+    }
+    return plural(it.impact.storeCopies, 'store reprints', 'stores reprint');
+  }
 
   // What the edit box would change, field by field, against the item as it is now
   const priceOk = canonicalPrice(formPriceText) !== null;
@@ -393,6 +484,10 @@ export default function Labels() {
     onSuccess: () => {
       refreshLabels();
       toast.success(`"${confirmDelete?.productName}" was removed from every store.`);
+      if (confirmDelete && pendingRef.current[confirmDelete.id]) {
+        const { [confirmDelete.id]: _gone, ...rest } = pendingRef.current;
+        setPending(rest);
+      }
       setConfirmDelete(null);
     },
     onError: (e: any) => {
@@ -512,23 +607,63 @@ export default function Labels() {
       />
 
       <ConfirmModal
-        open={!!inlineConfirm}
-        title={inlineConfirm ? `Change the ${FIELD_NAMES[inlineConfirm.field].toLowerCase()} of ${inlineConfirm.label.productName}?` : ''}
-        message={inlineMessage}
-        confirmLabel={inlineConfirm?.field === 'priceText' ? 'Change price' : 'Save change'}
-        danger={inlineBig}
-        busy={inlineSaving}
-        onConfirm={async () => {
-          const c = inlineConfirm;
-          if (!c) return;
-          setInlineSaving(true);
-          const ok = await saveInline(c.label, c.field, c.next);
-          setInlineSaving(false);
-          setInlineConfirm(null);
-          c.resolve(ok);
-        }}
-        onCancel={() => { inlineConfirm?.resolve(false); setInlineConfirm(null); }}
+        open={confirmDiscard}
+        title={`Discard ${plural(changeCount, 'unsaved change', 'unsaved changes')}?`}
+        message="Every box goes back to what is saved. Nothing is sent."
+        confirmLabel="Discard"
+        danger
+        onConfirm={discardAll}
+        onCancel={() => setConfirmDiscard(false)}
       />
+
+      {review && (
+        <Modal
+          title={`Save ${plural(reviewCount, 'change', 'changes')} to ${plural(review.length, 'item', 'items')}?`}
+          subtitle={reviewReprints > 0 ? `Stores will be told to reprint ${plural(reviewReprints, 'label', 'labels')}.` : 'No store has to reprint anything.'}
+          onClose={() => setReview(null)}
+          busy={savingAll}
+          maxWidth={600}
+        >
+          {reviewBig > 0 && (
+            <p style={m.warn}>{reviewBig === 1 ? 'One price changes' : `${reviewBig} prices change`} by more than {BIG_PRICE_CHANGE_PERCENT}%. Check {reviewBig === 1 ? 'it' : 'them'} below.</p>
+          )}
+          {reviewUnchecked > 0 && <p style={m.warn}>Could not check which stores {plural(reviewUnchecked, 'item affects', 'items affect')}. You can still save.</p>}
+          <div style={m.reviewList}>
+            {review.map(it => {
+              const pct = pricePctOf(it);
+              return (
+                <div key={it.label.id} style={m.reviewItem}>
+                  <div style={m.reviewHead}>
+                    <strong style={{ color: '#111827' }}>{it.label.productName}</strong>
+                    <span style={it.checkFailed ? m.reviewStoresWarn : m.reviewStores}>{storesLine(it)}</span>
+                  </div>
+                  <ul style={m.reviewChanges}>
+                    {it.changes.map(c => (
+                      <li key={c.field} style={m.reviewChange}>
+                        <span>
+                          <strong>{FIELD_NAMES[c.field]}:</strong> {showCell(c.field, c.from)} → {showCell(c.field, c.to)}
+                          {c.field === 'priceText' && pct !== null && (
+                            <span style={Math.abs(pct) > BIG_PRICE_CHANGE_PERCENT ? m.pctBig : m.pct}> ({pct > 0 ? '+' : ''}{pct}%)</span>
+                          )}
+                        </span>
+                        <button type="button" style={m.linkBtn} disabled={savingAll} onClick={() => undoFromReview(it.label, c.field)} aria-label={`Undo the ${FIELD_NAMES[c.field].toLowerCase()} change on ${it.label.productName}`}>
+                          Undo
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+          <div style={m.actions}>
+            <button type="button" style={m.cancelBtn} onClick={() => setReview(null)} disabled={savingAll}>Keep editing</button>
+            <button type="button" style={{ ...m.saveBtn, ...(reviewBig > 0 ? { background: '#dc2626' } : {}), ...(savingAll ? m.saveBtnDim : {}) }} onClick={() => saveAll(review)} disabled={savingAll}>
+              {savingAll ? 'Saving…' : 'Save all changes'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       <ConfirmModal
         open={!!pendingBulkPrint}
@@ -769,7 +904,7 @@ export default function Labels() {
                 <div style={s.emptySub}>Try clearing the search or category filter</div>
               </div>
             ) : (
-              <div style={s.tableWrap}>
+              <div style={s.tableWrap} ref={tableRef}>
                 <Table style={s.table}>
                   <TableHeader>
                     <TableRow>
@@ -785,9 +920,18 @@ export default function Labels() {
                   <TableBody>
                     {pagedLabels.map((label, i) => {
                       const checked = selectedIds.has(label.id);
+                      const rowChanged = changesOf(label, pending).length > 0;
+                      const cell = (field: InlineField) => ({
+                        value: cellValue(label, field),
+                        changed: isChanged(label, field),
+                        savedText: showCell(field, label[field]),
+                        disabled: savingAll,
+                        onCommit: (next: string | null) => stage(label, field, next),
+                        onRevert: () => revert(label, field),
+                      });
                       return (
                         <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
-                          <TableCell style={s.td}>
+                          <TableCell style={{ ...s.td, ...(rowChanged ? s.rowChangedMark : {}) }}>
                             {label.priceText != null ? (
                               <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
                             ) : (
@@ -796,59 +940,68 @@ export default function Labels() {
                           </TableCell>
                           <TableCell style={{ ...s.td, minWidth: 190 }}>
                             <InlineText
-                              value={label.productName} bold ariaLabel={`Name of ${label.productName}`} placeholder="Product name" maxLength={40}
+                              {...cell('productName')} bold ariaLabel={`Name of ${label.productName}`} placeholder="Product name" maxLength={40}
                               normalize={v => (v.trim() ? { value: v.trim() } : { error: 'Enter the product name.' })}
-                              onCommit={next => requestInlineChange(label, 'productName', next)}
                             />
                             <InlineText
-                              value={label.barcode} mono small ariaLabel={`Barcode of ${label.productName}`} placeholder="Add barcode" maxLength={40}
+                              {...cell('barcode')} mono small ariaLabel={`Barcode of ${label.productName}`} placeholder="Add barcode" maxLength={40}
                               normalize={v => ({ value: v.trim() || null })}
-                              onCommit={next => requestInlineChange(label, 'barcode', next)}
                             />
+                            {saveErrors[label.id] && <span style={s.cellError} role="alert">Not saved: {saveErrors[label.id]}</span>}
                           </TableCell>
                           <TableCell style={{ ...s.td, minWidth: 130 }}>
                             <InlineText
-                              value={label.category} ariaLabel={`Category of ${label.productName}`} placeholder="Add category" maxLength={100} list="label-category-options"
+                              {...cell('category')} ariaLabel={`Category of ${label.productName}`} placeholder="Add category" maxLength={100} list="label-category-options"
                               normalize={v => ({ value: v.trim() || null })}
-                              onCommit={next => requestInlineChange(label, 'category', next)}
                             />
                           </TableCell>
                           <TableCell style={{ ...s.td, minWidth: 120 }}>
                             {label.priceText != null ? (
                               <InlineText
-                                value={label.priceText} prefix="$" ariaLabel={`Price of ${label.productName}`} placeholder="0.00" maxLength={8} inputMode="decimal"
+                                {...cell('priceText')} prefix="$" ariaLabel={`Price of ${label.productName}`} placeholder="0.00" maxLength={8} inputMode="decimal"
                                 normalize={v => { const c = canonicalPrice(v); return c ? { value: c } : { error: v.trim() ? (priceProblem(v) || 'Enter a price like 2.99') : 'A label needs a price to print.' }; }}
-                                onCommit={next => requestInlineChange(label, 'priceText', next)}
                               />
                             ) : (
                               <QuickPrice
                                 label={label}
-                                onSaved={onQuickPriceSaved}
+                                staged={cellValue(label, 'priceText')}
+                                disabled={savingAll}
+                                onStage={price => stage(label, 'priceText', price)}
+                                onNext={() => focusNextUnpriced(label.id)}
                                 inputRef={(el) => { if (el) quickPriceRefs.current.set(label.id, el); else quickPriceRefs.current.delete(label.id); }}
                               />
                             )}
                           </TableCell>
                           <TableCell style={{ ...s.td, minWidth: 120 }}>
                             <InlineText
-                              value={label.dealText} ariaLabel={`Deal for ${label.productName}`} placeholder="Add deal" maxLength={20}
+                              {...cell('dealText')} ariaLabel={`Deal for ${label.productName}`} placeholder="Add deal" maxLength={20}
                               normalize={v => ({ value: v.trim() || null })}
-                              onCommit={next => requestInlineChange(label, 'dealText', next)}
                             />
                           </TableCell>
                           <TableCell style={s.td}>
-                            <select
-                              style={s.cellSelect}
-                              value={label.template}
-                              onChange={e => { requestInlineChange(label, 'template', e.target.value); }}
-                              aria-label={`Design for ${label.productName}`}
-                            >
-                              {TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <select
+                                style={{ ...s.cellSelect, ...(isChanged(label, 'template') ? s.cellChanged : {}) }}
+                                value={cellValue(label, 'template') ?? label.template}
+                                disabled={savingAll}
+                                onChange={e => { stage(label, 'template', e.target.value); }}
+                                aria-label={`Design for ${label.productName}`}
+                                title={isChanged(label, 'template') ? `Not saved yet. Saved: ${showCell('template', label.template)}` : undefined}
+                              >
+                                {TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                              </select>
+                              {isChanged(label, 'template') && (
+                                <button type="button" style={{ ...s.undoBtn, position: 'static', transform: 'none' }} onClick={() => revert(label, 'template')} disabled={savingAll}
+                                  title={`Put back: ${showCell('template', label.template)}`} aria-label={`Undo: Design for ${label.productName}`}>
+                                  <RotateCcw size={12} strokeWidth={2.5} />
+                                </button>
+                              )}
+                            </span>
                           </TableCell>
                           <TableCell style={{ ...s.td, color: TEXT_MUTED, fontSize: 13, whiteSpace: 'nowrap' }}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                           <TableCell style={s.td}>
                             <div style={{ display: 'flex', gap: 4 }}>
-                              <button type="button" style={s.iconBtn} onClick={() => duplicateLabel(label)} title="Duplicate" aria-label={`Duplicate ${label.productName}`}>
+                              <button type="button" style={s.iconBtn} onClick={() => duplicateLabel(withEdits(label))} title="Duplicate" aria-label={`Duplicate ${label.productName}`}>
                                 <Copy size={16} strokeWidth={2} />
                               </button>
                               <button type="button" style={{ ...s.iconBtn, color: '#dc2626' }} onClick={() => setConfirmDelete(label)} title="Delete" aria-label={`Delete ${label.productName}`}>
@@ -895,6 +1048,21 @@ export default function Labels() {
               printLabelText="Print"
             />
           )}
+          </div>
+        )}
+
+        {changeCount > 0 && (
+          <div style={s.saveBar} role="region" aria-label="Unsaved changes">
+            <span style={s.saveBarDot} aria-hidden />
+            <span style={s.saveBarText}>
+              <strong>{plural(changeCount, 'unsaved change', 'unsaved changes')}</strong> on {plural(pendingItems.length, 'item', 'items')}
+              {viewMode !== 'catalog' ? ' in the Catalog' : ''}
+              <span style={s.saveBarHint}> · Ctrl+S saves</span>
+            </span>
+            <button type="button" style={s.saveBarDiscard} onClick={() => setConfirmDiscard(true)} disabled={checking || savingAll}>Discard</button>
+            <button type="button" style={{ ...s.saveBarSave, ...(checking || savingAll ? { opacity: 0.7, cursor: 'wait' } : {}) }} onClick={() => startSave()} disabled={checking || savingAll}>
+              {checking ? 'Checking stores…' : savingAll ? 'Saving…' : `Save ${plural(changeCount, 'change', 'changes')}`}
+            </button>
           </div>
         )}
       </div>
@@ -961,6 +1129,24 @@ const s: Record<string, CSSProperties> = {
     border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', padding: '6px 8px', fontSize: 13, color: '#111827', cursor: 'pointer', maxWidth: 170,
   },
   cellError: { display: 'block', fontSize: 11.5, color: '#b91c1c', fontWeight: 600, marginTop: 3 },
+  // A change not saved yet: blue, so it stands apart from the amber "No price" boxes and red mistakes
+  cellChanged: { background: '#eef4ff', borderColor: '#93c5fd' },
+  rowChangedMark: { boxShadow: 'inset 3px 0 0 #3b82f6' },
+  undoBtn: {
+    position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: 20, height: 20, borderRadius: 5, border: 'none', background: '#dbeafe', color: '#1d4ed8', cursor: 'pointer', padding: 0,
+  },
+  saveBar: {
+    position: 'sticky', bottom: 16, zIndex: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+    background: '#0f172a', color: '#fff', borderRadius: 14, padding: '12px 16px', boxShadow: '0 10px 30px rgba(15,23,42,0.28)',
+  },
+  saveBarDot: { width: 9, height: 9, borderRadius: 5, background: '#60a5fa', flexShrink: 0 },
+  saveBarText: { flex: '1 1 220px', fontSize: 14 },
+  saveBarHint: { color: '#94a3b8', fontSize: 13 },
+  saveBarDiscard: {
+    background: 'transparent', border: '1px solid #475569', color: '#e2e8f0', borderRadius: 10, padding: '9px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+  },
+  saveBarSave: { background: '#2563eb', border: 'none', color: '#fff', borderRadius: 10, padding: '9px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   iconBtn: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8,
     border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer',
@@ -989,6 +1175,15 @@ const m: Record<string, CSSProperties> = {
   note: { fontSize: 14, color: '#374151', margin: '8px 0 0', lineHeight: 1.5 },
   changeList: { margin: '0 0 4px', paddingLeft: 18, fontSize: 15, color: '#111827', lineHeight: 1.6 },
   linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
+  reviewList: { maxHeight: '52vh', overflowY: 'auto', margin: '12px 0 4px', display: 'flex', flexDirection: 'column', gap: 10 },
+  reviewItem: { border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px' },
+  reviewHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', fontSize: 15 },
+  reviewStores: { fontSize: 13, color: TEXT_MUTED },
+  reviewStoresWarn: { fontSize: 13, color: '#b91c1c', fontWeight: 700 },
+  reviewChanges: { listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 },
+  reviewChange: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 14, color: '#374151' },
+  pct: { color: TEXT_MUTED },
+  pctBig: { color: '#b91c1c', fontWeight: 700 },
   label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   input: {
@@ -1034,59 +1229,69 @@ const m: Record<string, CSSProperties> = {
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
 };
 
-// "No price set" as a box to type into: Enter (or Tab away with a price) saves just the price, Escape clears it. The same price
-// rules as the Edit box; only the price is sent, and the server records it in the Activity Log like any other price change.
-function QuickPrice({ label, onSaved, inputRef }: {
+// "No price set" as a box to type into. A price typed here waits with the other changes (the box turns blue) and Enter moves on to
+// the next item without a price, so a list is priced by typing a price and pressing Enter each time, then saving once. The same price
+// rules as the Add box. Emptying the box (or Escape on a price not saved yet) takes the price back out.
+function QuickPrice({ label, staged, disabled, onStage, onNext, inputRef }: {
   label: Label;
-  onSaved: (labelId: string, price: string) => void;
+  staged: string | null;
+  disabled: boolean;
+  onStage: (price: string | null) => void;
+  onNext: () => void;
   inputRef: (el: HTMLInputElement | null) => void;
 }) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(staged ?? '');
+  const [focused, setFocused] = useState(false);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const busy = useRef(false);
+  const skipBlur = useRef(false);
 
-  async function save() {
-    if (busy.current || value.trim() === '') return;
+  useEffect(() => { if (!focused) setValue(staged ?? ''); }, [staged, focused]);
+
+  // False when the text is not a price; the reason shows beside the box
+  function take(): boolean {
+    if (value.trim() === '') { setError(''); onStage(null); return true; }
     const price = canonicalPrice(value);
-    if (!price) { setError(priceProblem(value) || 'Enter a price like 2.99'); return; }
-    busy.current = true;
-    setSaving(true);
+    if (!price) { setError(priceProblem(value) || 'Enter a price like 2.99'); return false; }
     setError('');
-    try {
-      await labelsApi.update(label.id, { priceText: price });
-      toast.success(`${label.productName}: $${price}`, { duration: 1500 });
-      onSaved(label.id, price);
-    } catch (e: any) {
-      setError(failureMessage(e, 'Could not save the price. Nothing was changed.'));
-    } finally {
-      busy.current = false;
-      setSaving(false);
-    }
+    onStage(price);
+    return true;
   }
 
+  const waiting = staged != null;
   return (
     <span style={s.quickPriceWrap}>
-      <span style={{ ...s.quickPriceBox, ...(error ? { borderColor: '#f87171' } : {}) }}>
-        <span style={s.quickPriceDollar} aria-hidden>$</span>
+      <span style={{ ...s.quickPriceBox, ...(waiting ? s.cellChanged : {}), ...(error ? { borderColor: '#f87171' } : {}) }}>
+        <span style={{ ...s.quickPriceDollar, ...(waiting ? { color: '#1d4ed8' } : {}) }} aria-hidden>$</span>
         <input
           ref={inputRef}
           style={s.quickPriceInput}
           value={value}
+          onFocus={() => setFocused(true)}
           onChange={e => { setValue(e.target.value); if (error) setError(''); }}
           onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); save(); }
-            if (e.key === 'Escape') { setValue(''); setError(''); }
+            if (e.key === 'Enter') { e.preventDefault(); if (take()) onNext(); }
+            if (e.key === 'Escape') {
+              skipBlur.current = true;
+              if (value === (staged ?? '') && waiting) onStage(null);
+              setValue(staged ?? '');
+              setError('');
+              e.currentTarget.blur();
+            }
           }}
-          onBlur={() => { if (value.trim() !== '' && !error) save(); }}
+          onBlur={() => {
+            setFocused(false);
+            if (skipBlur.current) { skipBlur.current = false; return; }
+            take();
+          }}
           placeholder="No price"
           inputMode="decimal"
-          disabled={saving}
+          disabled={disabled}
+          title={waiting ? 'Not saved yet' : undefined}
           aria-label={`Price for ${label.productName}`}
           aria-invalid={!!error}
         />
       </span>
-      {saving ? <span style={s.quickPriceHint}>Saving…</span> : error ? <span style={s.quickPriceError} role="alert">{error}</span> : null}
+      {error ? <span style={s.quickPriceError} role="alert">{error}</span> : null}
     </span>
   );
 }
@@ -1095,11 +1300,69 @@ type InlineField = 'productName' | 'priceText' | 'dealText' | 'barcode' | 'categ
 const FIELD_NAMES: Record<InlineField, string> = {
   productName: 'Name', priceText: 'Price', dealText: 'Deal', barcode: 'Barcode', category: 'Category', template: 'Design',
 };
+const FIELD_ORDER: InlineField[] = ['productName', 'barcode', 'category', 'priceText', 'dealText', 'template'];
 
-// A table cell you type into. Enter (or leaving the box) saves just this field, Escape puts back what is saved. A bad value says why
-// under the box and is not sent; a refused or cancelled save goes back to the saved value.
-function InlineText({ value, placeholder, ariaLabel, maxLength, prefix, mono, bold, small, list, inputMode, normalize, onCommit }: {
+type Draft = Partial<Record<InlineField, string | null>>;
+type PendingEdits = Record<string, Draft>;
+interface Change { field: InlineField; from: string | null; to: string | null }
+interface ReviewItem { label: Label; changes: Change[]; impact: LabelImpact | null; checkFailed: boolean }
+
+// Changes not saved yet live here, not in the page, so they are still there after going to another page and coming back
+const unsavedEdits: { userId: string; edits: PendingEdits } = { userId: '', edits: {} };
+
+function valueWithEdits(label: Label, field: InlineField, edits: PendingEdits): string | null {
+  const row = edits[label.id];
+  return row && field in row ? (row[field] ?? null) : label[field];
+}
+
+// What is waiting for this item, field by field, against what is saved now (a change that matches the saved value is not a change)
+function changesOf(label: Label, edits: PendingEdits): Change[] {
+  const row = edits[label.id];
+  if (!row) return [];
+  return FIELD_ORDER
+    .filter(f => f in row && (row[f] ?? '') !== (label[f] ?? ''))
+    .map(f => ({ field: f, from: label[f], to: row[f] ?? null }));
+}
+
+// How many store copies a save tells to reprint, as the server does it: the category is never printed, a price alone reprints only
+// where the base price is used, anything else on the label reprints everywhere
+function reprintsFor(it: ReviewItem): number {
+  const printed = it.changes.filter(c => c.field !== 'category');
+  if (printed.length === 0 || !it.impact) return 0;
+  return printed.every(c => c.field === 'priceText') ? it.impact.inheritingBase : it.impact.storeCopies;
+}
+
+function pricePctOf(it: ReviewItem): number | null {
+  const c = it.changes.find(x => x.field === 'priceText');
+  return c ? priceChangePercent(c.from, c.to) : null;
+}
+
+function bigPriceIn(it: ReviewItem): boolean {
+  const pct = pricePctOf(it);
+  return pct !== null && Math.abs(pct) > BIG_PRICE_CHANGE_PERCENT;
+}
+
+// Runs fn over items, a few at a time, keeping the order of the results
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  }));
+  return out;
+}
+
+// A table cell you type into. Enter (or leaving the box) adds the change to the ones waiting to be saved and the box turns blue;
+// Escape drops what was just typed, and Escape again (or the small undo button) puts back the saved value. A bad value says why under
+// the box and is not added; a refused one (a barcode on another item) goes back.
+function InlineText({ value, changed, savedText, disabled, placeholder, ariaLabel, maxLength, prefix, mono, bold, small, list, inputMode, normalize, onCommit, onRevert }: {
   value: string | null;
+  changed: boolean;
+  savedText: string;
+  disabled: boolean;
   placeholder: string;
   ariaLabel: string;
   maxLength: number;
@@ -1110,66 +1373,78 @@ function InlineText({ value, placeholder, ariaLabel, maxLength, prefix, mono, bo
   list?: string;
   inputMode?: 'decimal' | 'text';
   normalize: (draft: string) => { value: string | null } | { error: string };
-  onCommit: (next: string | null) => Promise<boolean>;
+  onCommit: (next: string | null) => boolean;
+  onRevert: () => void;
 }) {
   const [draft, setDraft] = useState(value ?? '');
   const [focused, setFocused] = useState(false);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const busy = useRef(false);
   const skipBlur = useRef(false);
 
-  useEffect(() => { if (!focused && !busy.current) setDraft(value ?? ''); }, [value, focused]);
+  useEffect(() => { if (!focused) setDraft(value ?? ''); }, [value, focused]);
 
-  async function commit() {
-    if (busy.current) return;
+  function commit() {
     const r = normalize(draft);
     if ('error' in r) { setError(r.error); return; }
-    if ((r.value ?? '') === (value ?? '')) { setDraft(value ?? ''); setError(''); return; }
-    busy.current = true;
-    setSaving(true);
     setError('');
-    const ok = await onCommit(r.value);
-    busy.current = false;
-    setSaving(false);
-    if (!ok) setDraft(value ?? '');
+    if ((r.value ?? '') === (value ?? '')) { setDraft(value ?? ''); return; }
+    if (!onCommit(r.value)) setDraft(value ?? '');
   }
 
   const inputStyle: CSSProperties = {
     ...s.cellInput,
+    ...(changed ? s.cellChanged : {}),
     ...(focused ? s.cellInputFocus : {}),
     ...(error ? { borderColor: '#f87171' } : {}),
     ...(bold ? { fontWeight: 700, color: PRIMARY } : {}),
     ...(mono ? { fontFamily: 'monospace' } : {}),
     ...(small ? { fontSize: 12, padding: '3px 8px', marginTop: 4, color: TEXT_MUTED } : {}),
     ...(prefix ? { paddingLeft: 20 } : {}),
-    ...(saving ? { opacity: 0.6 } : {}),
+    ...(changed && !focused ? { paddingRight: 28 } : {}),
+    ...(disabled ? { opacity: 0.6 } : {}),
   };
   return (
     <span style={{ display: 'block', position: 'relative' }}>
-      {prefix && <span style={{ position: 'absolute', left: 8, top: small ? 8 : 7, fontSize: 14, color: TEXT_MUTED, pointerEvents: 'none' }}>{prefix}</span>}
-      <input
-        style={inputStyle}
-        value={draft}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        list={list}
-        inputMode={inputMode}
-        disabled={saving}
-        aria-label={ariaLabel}
-        aria-invalid={!!error}
-        onFocus={() => setFocused(true)}
-        onChange={e => { setDraft(e.target.value); if (error) setError(''); }}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-          if (e.key === 'Escape') { skipBlur.current = true; setDraft(value ?? ''); setError(''); e.currentTarget.blur(); }
-        }}
-        onBlur={() => {
-          setFocused(false);
-          if (skipBlur.current) { skipBlur.current = false; return; }
-          commit();
-        }}
-      />
+      <span style={{ display: 'block', position: 'relative' }}>
+        {prefix && <span style={{ position: 'absolute', left: 8, top: small ? 8 : 7, fontSize: 14, color: TEXT_MUTED, pointerEvents: 'none' }}>{prefix}</span>}
+        <input
+          style={inputStyle}
+          value={draft}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          list={list}
+          inputMode={inputMode}
+          disabled={disabled}
+          title={changed ? `Not saved yet. Saved: ${savedText}` : undefined}
+          aria-label={ariaLabel}
+          aria-invalid={!!error}
+          onFocus={() => setFocused(true)}
+          onChange={e => { setDraft(e.target.value); if (error) setError(''); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === 'Escape') {
+              skipBlur.current = true;
+              if (draft === (value ?? '') && changed) onRevert();
+              setDraft(value ?? '');
+              setError('');
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={() => {
+            setFocused(false);
+            if (skipBlur.current) { skipBlur.current = false; return; }
+            commit();
+          }}
+        />
+        {changed && !focused && (
+          <button
+            type="button" tabIndex={-1} style={s.undoBtn} onClick={onRevert} disabled={disabled}
+            title={`Put back: ${savedText}`} aria-label={`Undo: ${ariaLabel}`}
+          >
+            <RotateCcw size={12} strokeWidth={2.5} />
+          </button>
+        )}
+      </span>
       {error && <span style={s.cellError} role="alert">{error}</span>}
     </span>
   );

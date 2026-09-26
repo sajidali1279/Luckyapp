@@ -340,10 +340,11 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     }
   }
 
-  const priceOnly = Object.keys(changes).every((k) => k === 'priceText');
   // The category is never printed on a label (admin and phone print layouts), so a category-only change leaves every printed copy
-  // correct. It used to tell every store to reprint.
+  // correct. It used to tell every store to reprint. It also does not turn a price change into a content change: the admin table saves
+  // several edits to one item together, and a new price plus a new category still only reprints where the base price is used.
   const printedUnchanged = Object.keys(changes).every((k) => k === 'category');
+  const priceOnly = Object.keys(changes).every((k) => k === 'priceText' || k === 'category');
   let flagged = 0;
   let keptOwnPrice = 0;
   let label;
