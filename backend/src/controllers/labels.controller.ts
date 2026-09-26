@@ -341,13 +341,18 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   }
 
   const priceOnly = Object.keys(changes).every((k) => k === 'priceText');
+  // The category is never printed on a label (admin and phone print layouts), so a category-only change leaves every printed copy
+  // correct. It used to tell every store to reprint.
+  const printedUnchanged = Object.keys(changes).every((k) => k === 'category');
   let flagged = 0;
   let keptOwnPrice = 0;
   let label;
   try {
     label = await prisma.$transaction(async (tx) => {
       const updated = await tx.label.update({ where: { id: labelId }, data: parsed.data });
-      if (priceOnly) {
+      if (printedUnchanged) {
+        // Nothing on the paper changed: no store needs to reprint
+      } else if (priceOnly) {
         // Only the base price changed — only stores inheriting it are affected.
         flagged = (await tx.storeLabel.updateMany({ where: { labelId, priceText: null }, data: { printedAt: null } })).count;
         keptOwnPrice = await tx.storeLabel.count({ where: { labelId, priceText: { not: null } } });
