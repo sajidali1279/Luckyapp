@@ -1,4 +1,4 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect, useRef, CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -86,6 +86,9 @@ export default function Labels() {
   const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  // Only items that still need a price, for typing prices down the list
+  const [onlyNoPrice, setOnlyNoPrice] = useState(false);
+  const quickPriceRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const [catalogPage, setCatalogPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -135,6 +138,7 @@ export default function Labels() {
       const matchesBarcode = !!l.barcode && l.barcode.toLowerCase().includes(q);
       if (!matchesName && !matchesBarcode) return false;
     }
+    if (onlyNoPrice && l.priceText != null) return false;
     if (categoryFilter === UNCATEGORIZED) {
       if (l.category) return false;
     } else if (categoryFilter && l.category !== categoryFilter) {
@@ -147,13 +151,14 @@ export default function Labels() {
     new Set(labels.map(l => l.category).filter((c): c is string => !!c))
   ).sort();
   const hasUncategorized = labels.some(l => !l.category);
+  const noPriceCount = labels.filter(l => l.priceText == null).length;
 
   const catalogTotalPages = Math.max(1, Math.ceil(filteredLabels.length / CATALOG_PAGE_SIZE));
   const pagedLabels = filteredLabels.slice((catalogPage - 1) * CATALOG_PAGE_SIZE, catalogPage * CATALOG_PAGE_SIZE);
 
   useEffect(() => {
     setCatalogPage(1);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, onlyNoPrice]);
 
   const selectableFilteredLabels = filteredLabels.filter(l => l.priceText != null);
   const allFilteredSelected = selectableFilteredLabels.length > 0 && selectableFilteredLabels.every(l => selectedIds.has(l.id));
@@ -252,6 +257,18 @@ export default function Labels() {
 
   function refreshLabels() {
     ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  }
+
+  // A price typed straight into the row (no Edit box): the row shows it at once, and the cursor moves to the next item on this page
+  // that still has no price, so a list can be priced by typing a price and pressing Enter each time.
+  function onQuickPriceSaved(labelId: string, price: string) {
+    const unpriced = pagedLabels.filter(l => l.priceText == null).map(l => l.id);
+    const nextId = unpriced[unpriced.indexOf(labelId) + 1];
+    qc.setQueryData(['labels'], (old: any) => old?.data?.data
+      ? { ...old, data: { ...old.data, data: old.data.data.map((l: Label) => (l.id === labelId ? { ...l, priceText: price } : l)) } }
+      : old);
+    refreshLabels();
+    if (nextId) setTimeout(() => quickPriceRefs.current.get(nextId)?.focus(), 0);
   }
 
   // What the edit box would change, field by field, against the item as it is now
@@ -635,6 +652,17 @@ export default function Labels() {
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by product name or barcode…"
                 />
+                {(noPriceCount > 0 || onlyNoPrice) && (
+                  <button
+                    type="button"
+                    style={{ ...s.noPriceChip, ...(onlyNoPrice ? s.noPriceChipActive : {}) }}
+                    onClick={() => setOnlyNoPrice(v => !v)}
+                    aria-pressed={onlyNoPrice}
+                    title="Show only items that still need a price"
+                  >
+                    No price ({noPriceCount})
+                  </button>
+                )}
                 {(availableCategories.length > 0 || hasUncategorized) && (
                   <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                     <option value="">All Categories</option>
@@ -703,7 +731,11 @@ export default function Labels() {
                                 {label.dealText && <span style={s.dealBadge}>{label.dealText}</span>}
                               </>
                             ) : (
-                              <span style={s.noPriceBadge} title="No price set yet. A manager can add one when labeling.">No price set</span>
+                              <QuickPrice
+                                label={label}
+                                onSaved={onQuickPriceSaved}
+                                inputRef={(el) => { if (el) quickPriceRefs.current.set(label.id, el); else quickPriceRefs.current.delete(label.id); }}
+                              />
                             )}
                           </TableCell>
                           <TableCell style={s.td}>{TEMPLATE_LABELS[label.template] || label.template}</TableCell>
@@ -803,10 +835,6 @@ const s: Record<string, CSSProperties> = {
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   barcodeBadge: { display: 'block', fontSize: 11, color: TEXT_MUTED, fontFamily: 'monospace', marginTop: 2 },
   dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#92620a', marginTop: 2 },
-  noPriceBadge: {
-    fontSize: 12.5, fontWeight: 700, color: '#92620a',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '2px 8px',
-  },
   editBtn: {
     background: '#eff6ff', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
@@ -827,6 +855,21 @@ const s: Record<string, CSSProperties> = {
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
+  noPriceChip: {
+    border: '1.5px solid #fcd34d', background: '#fffbeb', color: '#92400e', borderRadius: 999,
+    padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+  },
+  noPriceChipActive: { background: '#f59e0b', borderColor: '#f59e0b', color: '#fff' },
+  quickPriceWrap: { display: 'inline-flex', alignItems: 'center', gap: 6 },
+  quickPriceBox: {
+    display: 'inline-flex', alignItems: 'center', border: '1.5px solid #fcd34d', background: '#fffbeb', borderRadius: 8, padding: '0 8px',
+  },
+  quickPriceDollar: { color: '#92400e', fontWeight: 700, fontSize: 14 },
+  quickPriceInput: {
+    width: 72, border: 'none', outline: 'none', background: 'transparent', padding: '6px 4px', fontSize: 14, fontWeight: 600, color: '#111827',
+  },
+  quickPriceHint: { fontSize: 11, color: TEXT_MUTED },
+  quickPriceError: { fontSize: 12, color: '#b91c1c', fontWeight: 600 },
 };
 
 const m: Record<string, CSSProperties> = {
@@ -880,3 +923,60 @@ const m: Record<string, CSSProperties> = {
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
 };
+
+// "No price set" as a box to type into: Enter (or Tab away with a price) saves just the price, Escape clears it. The same price
+// rules as the Edit box; only the price is sent, and the server records it in the Activity Log like any other price change.
+function QuickPrice({ label, onSaved, inputRef }: {
+  label: Label;
+  onSaved: (labelId: string, price: string) => void;
+  inputRef: (el: HTMLInputElement | null) => void;
+}) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const busy = useRef(false);
+
+  async function save() {
+    if (busy.current || value.trim() === '') return;
+    const price = canonicalPrice(value);
+    if (!price) { setError(priceProblem(value) || 'Enter a price like 2.99'); return; }
+    busy.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await labelsApi.update(label.id, { priceText: price });
+      toast.success(`${label.productName}: $${price}`, { duration: 1500 });
+      onSaved(label.id, price);
+    } catch (e: any) {
+      setError(failureMessage(e, 'Could not save the price. Nothing was changed.'));
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  }
+
+  return (
+    <span style={s.quickPriceWrap}>
+      <span style={{ ...s.quickPriceBox, ...(error ? { borderColor: '#f87171' } : {}) }}>
+        <span style={s.quickPriceDollar} aria-hidden>$</span>
+        <input
+          ref={inputRef}
+          style={s.quickPriceInput}
+          value={value}
+          onChange={e => { setValue(e.target.value); if (error) setError(''); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            if (e.key === 'Escape') { setValue(''); setError(''); }
+          }}
+          onBlur={() => { if (value.trim() !== '' && !error) save(); }}
+          placeholder="No price"
+          inputMode="decimal"
+          disabled={saving}
+          aria-label={`Price for ${label.productName}`}
+          aria-invalid={!!error}
+        />
+      </span>
+      {saving ? <span style={s.quickPriceHint}>Saving…</span> : error ? <span style={s.quickPriceError} role="alert">{error}</span> : null}
+    </span>
+  );
+}
