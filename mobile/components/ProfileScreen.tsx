@@ -310,6 +310,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </View>
       </SafeAreaView>
 
+      {/* The whole page follows the keyboard: name, Change PIN and email are further down and were covered on Android */}
+      <KeyboardSafe style={s.fill}>
       <ScrollView keyboardShouldPersistTaps="handled" style={s.fill} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
         <FadeSlideIn>
         {/* ── Account Settings ── */}
@@ -772,6 +774,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
         </View>
         </FadeSlideIn>
       </ScrollView>
+      </KeyboardSafe>
 
       {/* ── Delete Account confirmation modal ── */}
       {showDeleteModal && (

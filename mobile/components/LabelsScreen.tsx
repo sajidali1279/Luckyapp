@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   FlatList, ActivityIndicator, Modal, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, Keyboard, useWindowDimensions,
+  Platform, Keyboard, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
@@ -22,6 +22,7 @@ import { LabelPrintStatus, STATUS_COLOR, STATUS_BG, formatEndsOn } from '../util
 import { Cart, CartRow, cartKey, printPriceFor, resolveCartRows, summarizeCart, runPool } from '../utils/labelCart';
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
+import KeyboardSafe from './KeyboardSafe';
 
 interface Label {
   id: string;
@@ -169,16 +170,13 @@ export default function LabelsScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets();
+  // These sheets sit at the bottom of a Modal. Capping their height (the old fix) left them pinned behind the keyboard on the
+  // edge-to-edge Android build (the whole New Label form was covered, only its title showed); the overlay is now a KeyboardSafe,
+  // which lifts the sheet by the keyboard's height, and the cap also leaves room for the status and navigation bars.
   const { height: screenHeight } = useWindowDimensions();
 
-  // KeyboardAvoidingView's automatic height adjustment is unreliable inside
-  // a React Native Modal on Android — this sheet is pinned to the bottom via
-  // formOverlay's justifyContent, and KeyboardAvoidingView's 'height'
-  // behavior doesn't consistently shrink it enough to clear the keyboard
-  // when it's hosted in a Modal's separate native window. Tracking real
-  // keyboard height directly and capping formSheet's maxHeight with it is a
-  // safety net that works regardless of whether KeyboardAvoidingView's own
-  // logic succeeds.
+  // The keyboard's height, for the sheets' height cap (the lift itself is KeyboardSafe's)
   useEffect(() => {
     const showEvent = Platform.OS === 'android' ? 'keyboardDidShow' : 'keyboardWillShow';
     const hideEvent = Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide';
@@ -798,11 +796,8 @@ export default function LabelsScreen() {
       )}
 
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={closeForm}>
-        <View style={s.formOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={[s.formSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 24 }]}
-          >
+        <KeyboardSafe style={s.formOverlay}>
+          <View style={[s.formSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - insets.top - insets.bottom - 24 }]}>
             <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
               <View style={s.formHeader}>
                 <Text style={s.formTitle}>{editingLabel ? t('sharedLabels.formEditTitle') : t('sharedLabels.formNewTitle')}</Text>
@@ -943,17 +938,17 @@ export default function LabelsScreen() {
                 </TouchableOpacity>
               )}
             </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardSafe>
         <ModalToastHost />
       </Modal>
 
       <Modal visible={!!priceSheetItem} animationType="fade" transparent onRequestClose={() => setPriceSheetItem(null)}>
-        <View style={s.addSheetOverlay}>
+        <KeyboardSafe style={s.addSheetOverlay}>
           {/* Same keyboardHeight safety net as the main form sheet above —
               this card has no maxHeight cap of its own, and on a small phone
               the keyboard would otherwise cover the Confirm button. */}
-          <View style={[s.addSheetCard, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 48 }]}>
+          <View style={[s.addSheetCard, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - insets.top - insets.bottom - 48 }]}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={s.formTitle}>{priceSheetItem?.productName}</Text>
               <Text style={s.addSheetSub}>
@@ -1024,7 +1019,7 @@ export default function LabelsScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardSafe>
         <ModalToastHost />
       </Modal>
 

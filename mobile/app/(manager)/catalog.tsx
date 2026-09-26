@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, RefreshControl,
-  KeyboardAvoidingView, Platform, Modal, Keyboard, useWindowDimensions,
+  Platform, Modal, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { CameraView } from 'expo-camera';
@@ -20,6 +20,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -746,6 +747,10 @@ function EditProductSheet({ product, categories, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [showSugg, setShowSugg] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets();
+  // These sheets sit at the bottom of a Modal. Capping their height (the old fix) left them pinned behind the keyboard on the
+  // edge-to-edge Android build (the whole New Label form was covered, only its title showed); the overlay is now a KeyboardSafe,
+  // which lifts the sheet by the keyboard's height, and the cap also leaves room for the status and navigation bars.
   const { height: screenHeight } = useWindowDimensions();
 
   // KeyboardAvoidingView is unreliable inside a Modal on Android, so track the
@@ -796,11 +801,8 @@ function EditProductSheet({ product, categories, onClose, onSaved }: {
 
   return (
     <Modal visible={!!product} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.editOverlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={[s.editSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - 24 }]}
-        >
+      <KeyboardSafe style={s.editOverlay}>
+        <View style={[s.editSheet, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - insets.top - insets.bottom - 24 }]}>
           <ScrollView contentContainerStyle={s.editScroll} keyboardShouldPersistTaps="handled">
             <View style={s.editHeader}>
               <Text style={s.editTitle}>{t('managerCatalog.editTitle')}</Text>
@@ -865,8 +867,8 @@ function EditProductSheet({ product, categories, onClose, onSaved }: {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.editSaveText}>{t('managerCatalog.saveChanges')}</Text>}
             </TouchableOpacity>
           </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+        </View>
+      </KeyboardSafe>
     </Modal>
   );
 }

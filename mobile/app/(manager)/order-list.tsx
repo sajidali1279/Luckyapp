@@ -1049,6 +1049,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <KeyboardSafe style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={s.modalFullHeader}>
           <TouchableOpacity onPress={onClose} style={{ padding: 10 }} accessibilityLabel={t('managerOrderList.close')} accessibilityRole="button">
@@ -1174,6 +1175,7 @@ function ReviewModal({ visible, storeId, onClose, onReviewed }: ReviewModalProps
           </ScrollView>
         )}
       </SafeAreaView>
+      </KeyboardSafe>
       <ModalToastHost />
     </Modal>
   );

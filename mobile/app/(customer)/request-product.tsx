@@ -184,6 +184,7 @@ export default function RequestProductScreen() {
 
         {/* Submit Form Modal */}
         <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowForm(false)}>
+          <KeyboardSafe style={{ flex: 1 }}>
           <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('customerRequestProduct.newRequestModalTitle')}</Text>
@@ -301,6 +302,7 @@ export default function RequestProductScreen() {
               </ScrollView>
             )}
           </SafeAreaView>
+          </KeyboardSafe>
         </Modal>
 
         {/* Store Picker Modal */}
