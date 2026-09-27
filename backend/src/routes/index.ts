@@ -142,6 +142,10 @@ import {
   getStorePendingCount,
   getMyStoresPendingCount,
   getAdminPendingCount as getHotFoodAdminPendingCount,
+  getHotFoodHours,
+  updateHotFoodHours,
+  clearHotFoodHours,
+  getHotFoodStoresStatus,
   getCatalog as getHotFoodCatalog,
   createCatalogItem as createHotFoodCatalogItem,
   updateCatalogItem as updateHotFoodCatalogItem,
@@ -325,6 +329,10 @@ router.get('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGE
 router.put('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateStoreHours);
 router.post('/stores/:storeId/holidays', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, addStoreHoliday);
 router.delete('/stores/:storeId/holidays/:holidayId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, deleteStoreHoliday);
+// Hot food hours: when hot food can be ordered (none set = the store's own hours)
+router.get('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getHotFoodHours);
+router.put('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateHotFoodHours);
+router.delete('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, clearHotFoodHours);
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
 router.get('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), getMappings);
@@ -566,6 +574,7 @@ router.patch('/hot-food/menu/:id',      authenticate, requireRole(Role.EMPLOYEE)
 router.delete('/hot-food/menu/:id',     authenticate, requireRole(Role.EMPLOYEE),      deleteHotFoodItem);
 // Orders — admin board (specific routes before :id param)
 router.get('/hot-food/orders/admin/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodAdminPendingCount); // Badge count, all stores
+router.get('/hot-food/stores-status', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodStoresStatus); // On/off and open-now for every store
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);

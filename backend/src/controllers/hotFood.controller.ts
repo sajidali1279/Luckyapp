@@ -6,6 +6,10 @@ import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
 import { hotFoodOrderUrl } from '../utils/notificationRoutes';
+import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../utils/hotFoodHours';
+import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
+import { refuse } from '../utils/refusal';
+import { audit } from '../utils/audit';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,6 +35,16 @@ export const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
 const STATUS_WORD: Record<OrderStatus, string> = {
   PENDING: 'waiting', ACCEPTED: 'being made', READY: 'ready', COMPLETED: 'picked up', CANCELLED: 'cancelled',
 };
+
+// A store's hot food hours, its own opening hours and its holidays around now (enough to say when it next opens)
+async function schedulesFor(storeId: string): Promise<HotFoodSchedules> {
+  const [hotFood, storeWeekly, storeHolidays] = await Promise.all([
+    prisma.hotFoodHours.findMany({ where: { storeId } }),
+    prisma.storeHours.findMany({ where: { storeId } }),
+    prisma.storeHoliday.findMany({ where: { storeId, date: { gte: new Date(Date.now() - 2 * 86_400_000), lte: new Date(Date.now() + 10 * 86_400_000) } } }),
+  ]);
+  return { hotFood, storeWeekly, storeHolidays };
+}
 
 // What one order may hold
 export const MAX_QTY_PER_ITEM = 20;
@@ -312,6 +326,8 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     res.json({ success: true, data: [], hotFoodEnabled: false });
     return;
   }
+  // Outside the hours the menu can still be looked at; placing an order is refused (placeOrder)
+  const hours = hotFoodState(await schedulesFor(storeId));
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
@@ -334,7 +350,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
   const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
-  res.json({ success: true, data: all });
+  res.json({ success: true, data: all, hours });
 }
 
 // GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
@@ -441,9 +457,15 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     }
   }
 
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true } });
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, name: true } });
   if (!store?.hotFoodEnabled) {
     res.status(403).json({ success: false, error: 'Hot food ordering is not available at this location' });
+    return;
+  }
+  const hours = hotFoodState(await schedulesFor(storeId));
+  if (!hours.open) {
+    const why = hours.holiday ? ` today (${hours.holiday})` : ' right now';
+    res.status(403).json({ success: false, code: 'HOT_FOOD_CLOSED', error: `Hot food at ${store.name} is closed${why}.${opensSentence(hours)}`, hours });
     return;
   }
 
@@ -720,4 +742,94 @@ export async function removeCatalogItemFromStore(req: AuthRequest, res: Response
     where: { catalogItemId: id, storeId },
   });
   res.json({ success: true });
+}
+
+// ─── Hot food hours ───────────────────────────────────────────────────────────
+
+// GET /stores/:storeId/hot-food-hours — the week as set (empty = follows the store's hours) and whether ordering is open now
+export async function getHotFoodHours(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const schedules = await schedulesFor(storeId);
+  res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: schedules.hotFood.length === 0, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) } });
+}
+
+// PUT /stores/:storeId/hot-food-hours — the whole week at once, checked like store hours
+export async function updateHotFoodHours(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const parsed = updateHoursSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  if (new Set(parsed.data.days.map((d) => d.dayOfWeek)).size !== 7) {
+    res.status(400).json({ success: false, error: 'Each day of the week must appear exactly once.' });
+    return;
+  }
+  for (const day of parsed.data.days) {
+    const problem = dayProblem(day);
+    if (problem) { res.status(400).json({ success: false, error: problem }); return; }
+  }
+  const [store, existing] = await Promise.all([
+    prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }),
+    prisma.hotFoodHours.findMany({ where: { storeId } }),
+  ]);
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  const was = new Map(existing.map((e) => [e.dayOfWeek as string, e]));
+  const diffs = parsed.data.days
+    .filter((d) => dayWords(was.get(d.dayOfWeek)) !== dayWords(d))
+    .map((d) => `${DAY_NAMES[d.dayOfWeek] ?? d.dayOfWeek}: ${dayWords(was.get(d.dayOfWeek))} to ${dayWords(d)}`);
+
+  await prisma.$transaction(parsed.data.days.map((day) => prisma.hotFoodHours.upsert({
+    where: { storeId_dayOfWeek: { storeId, dayOfWeek: day.dayOfWeek } },
+    create: { storeId, ...day },
+    update: { isClosed: day.isClosed, isOpen24Hours: day.isOpen24Hours, openTime: day.openTime, closeTime: day.closeTime },
+  })));
+  if (diffs.length > 0) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'UPDATE_HOT_FOOD_HOURS', entity: 'store', entityId: storeId,
+      details: { summary: `${store.name} hot food hours: ${diffs.join('; ')}`, changedDays: diffs.length },
+      storeId, storeName: store.name,
+    });
+  }
+  const schedules = await schedulesFor(storeId);
+  res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: false, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) }, changed: diffs.length > 0 });
+}
+
+// DELETE /stores/:storeId/hot-food-hours — back to following the store's own hours
+export async function clearHotFoodHours(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  const removed = await prisma.hotFoodHours.deleteMany({ where: { storeId } });
+  if (removed.count > 0) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'UPDATE_HOT_FOOD_HOURS', entity: 'store', entityId: storeId,
+      details: { summary: `${store.name} hot food hours: now the same as the store's hours` },
+      storeId, storeName: store.name,
+    });
+  }
+  const schedules = await schedulesFor(storeId);
+  res.json({ success: true, data: { weekly: [], followsStore: true, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) } });
+}
+
+// GET /hot-food/stores-status — every store: hot food on or off, and whether ordering is open right now (HQ's Availability view)
+export async function getHotFoodStoresStatus(_req: AuthRequest, res: Response) {
+  const soon = new Date(Date.now() + 10 * 86_400_000);
+  const recent = new Date(Date.now() - 2 * 86_400_000);
+  const stores = await prisma.store.findMany({
+    select: {
+      id: true, hotFoodEnabled: true,
+      hotFoodHours: true, storeHours: true,
+      storeHolidays: { where: { date: { gte: recent, lte: soon } } },
+    },
+  });
+  const now = new Date();
+  const data: Record<string, { hotFoodEnabled: boolean; hasOwnHours: boolean; now: HotFoodState }> = {};
+  for (const st of stores) {
+    data[st.id] = {
+      hotFoodEnabled: st.hotFoodEnabled,
+      hasOwnHours: st.hotFoodHours.length > 0,
+      now: hotFoodState({ hotFood: st.hotFoodHours, storeWeekly: st.storeHours, storeHolidays: st.storeHolidays }, now),
+    };
+  }
+  res.json({ success: true, data });
 }

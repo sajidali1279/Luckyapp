@@ -18,15 +18,15 @@ const daySchema = z.object({
   closeTime: timeStringSchema.nullable(),
 });
 
-const updateHoursSchema = z.object({
+export const updateHoursSchema = z.object({
   days: z.array(daySchema, { message: 'Send the seven days of the week.' }).length(7, 'Send all seven days of the week.'),
 });
 
-const DAY_NAMES: Record<string, string> = { MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday' };
+export const DAY_NAMES: Record<string, string> = { MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday', SAT: 'Saturday', SUN: 'Sunday' };
 
 type DayLike = { isClosed: boolean; isOpen24Hours: boolean; openTime: string | null; closeTime: string | null };
 /** "closed", "open 24 hours" or "6:00 AM to 10:00 PM" (a day with no hours set at all reads "not set") */
-function dayWords(d: DayLike | undefined): string {
+export function dayWords(d: DayLike | undefined): string {
   if (!d) return 'not set';
   if (d.isClosed) return 'closed';
   if (d.isOpen24Hours) return 'open 24 hours';
@@ -34,7 +34,7 @@ function dayWords(d: DayLike | undefined): string {
 }
 
 /** The sentence that refuses a day that is open but has no usable hours, or null when the day is fine. */
-function dayProblem(day: { dayOfWeek: string } & DayLike): string | null {
+export function dayProblem(day: { dayOfWeek: string } & DayLike): string | null {
   if (day.isClosed || day.isOpen24Hours) return null;
   const name = DAY_NAMES[day.dayOfWeek] ?? day.dayOfWeek;
   if (!day.openTime || !day.closeTime) return `${name} is open but has no opening or closing time. Set both times, mark it closed, or choose open 24 hours.`;

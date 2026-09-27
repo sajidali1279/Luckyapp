@@ -352,6 +352,7 @@ model Store {
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
   storeHolidays         StoreHoliday[]
+  hotFoodHours          HotFoodHours[]
 
   @@map("stores")
 }
@@ -372,6 +373,23 @@ model StoreHours {
 
   @@unique([storeId, dayOfWeek])
   @@map("store_hours")
+}
+
+// When hot food can be ordered at a store, one row per day of the week (the same shape as StoreHours). A store with no rows
+// follows its own opening hours. Ordering is also closed whenever the store itself is closed (holidays included).
+model HotFoodHours {
+  id            String    @id @default(uuid())
+  storeId       String
+  dayOfWeek     DayOfWeek
+  isClosed      Boolean   @default(false)
+  isOpen24Hours Boolean   @default(false)
+  openTime      String?   // "HH:mm", 24-hour clock; a closing time earlier than the opening time runs past midnight
+  closeTime     String?
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, dayOfWeek])
+  @@map("hot_food_hours")
 }
 
 // Date-specific override of the regular weekly schedule: holidays, one-off

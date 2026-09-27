@@ -247,6 +247,10 @@ export const storesApi = {
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
   getHours: (storeId: string) => api.get(`/stores/${storeId}/hours`),
   updateHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hours`, { days }),
+  // When hot food can be ordered (none set = the store's own hours)
+  getHotFoodHours: (storeId: string) => api.get(`/stores/${storeId}/hot-food-hours`),
+  updateHotFoodHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hot-food-hours`, { days }),
+  clearHotFoodHours: (storeId: string) => api.delete(`/stores/${storeId}/hot-food-hours`),
   addHoliday: (storeId: string, data: object) => api.post(`/stores/${storeId}/holidays`, data),
   deleteHoliday: (storeId: string, holidayId: string) =>
     api.delete(`/stores/${storeId}/holidays/${holidayId}`),
@@ -474,6 +478,7 @@ export const hotFoodApi = {
   updateStatus:  (orderId: string, status: string, estimatedMinutes?: number) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
   getAdminPendingCount: () => api.get('/hot-food/orders/admin/pending-count'),
+  getStoresStatus: () => api.get('/hot-food/stores-status'),
 };
 
 export const hotFoodCatalogApi = {

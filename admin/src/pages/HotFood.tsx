@@ -8,6 +8,7 @@ import {
   Plus, Pencil, Trash2, Building2, Search, ImageIcon,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -462,11 +463,21 @@ export default function HotFood() {
   // ── Availability ───────────────────────────────────────────────────────────
 
   const [togglingHotFood, setTogglingHotFood] = useState<string | null>(null);
+  const [hoursStore, setHoursStore] = useState<Store | null>(null);
+  // Whether each store is taking orders right now (its hours, the store's hours and holidays), refreshed every minute
+  const { data: statusData } = useQuery({
+    queryKey: ['hot-food-stores-status'],
+    queryFn: hotFoodApi.getStoresStatus,
+    enabled: view === 'availability',
+    refetchInterval: 60_000,
+  });
+  const storeStatus: Record<string, { hotFoodEnabled: boolean; hasOwnHours: boolean; now: HotFoodNow }> = statusData?.data?.data ?? {};
   async function toggleHotFood(store: Store) {
     setTogglingHotFood(store.id);
     try {
       await storesApi.update(store.id, { hotFoodEnabled: !store.hotFoodEnabled });
       qc.invalidateQueries({ queryKey: ['stores'] });
+      qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] });
       toast.success(store.hotFoodEnabled ? `🔥 Hot food disabled at ${store.name}` : `🔥 Hot food enabled at ${store.name}`);
     } catch {
       toast.error('Failed to update hot food setting');
@@ -717,8 +728,9 @@ export default function HotFood() {
       {view === 'availability' && (
         <>
           <p style={pg.availabilityHint}>
-            Turn a store off before advertising or launching pickup there - customers won't see hot food ordering
-            at that location, and any attempt to place an order will be rejected server-side.
+            Turn a store off before advertising or launching pickup there: customers won't see hot food ordering at that
+            location. Set <b>Hours</b> for when hot food can be ordered; outside them, and whenever the store itself is closed
+            (holidays included), ordering switches off by itself.
           </p>
           {stores.length === 0 ? (
             <div style={pg.empty}>
@@ -736,8 +748,21 @@ export default function HotFood() {
                       <div style={pg.availSub}>
                         {store.hotFoodEnabled ? 'Customers can order from the kitchen' : 'Hidden for customers at this location'}
                       </div>
+                      {store.hotFoodEnabled && storeStatus[store.id] && (() => {
+                        const st = storeStatus[store.id];
+                        const now = hotFoodNowText(st.now);
+                        return (
+                          <div style={pg.availHours}>
+                            <span style={{ ...pg.availNow, ...(now.tone === 'open' ? pg.availNowOpen : now.tone === 'closed' ? pg.availNowClosed : {}) }}>{now.text}</span>
+                            {st.now.todayText && <span style={pg.availToday}>Today {st.now.todayText}{st.hasOwnHours ? '' : " (store's hours)"}</span>}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
+                  <button type="button" style={pg.availHoursBtn} onClick={() => setHoursStore(store)} aria-label={`Hot food hours for ${store.name}`}>
+                    🕐 Hours
+                  </button>
                   <button
                     style={{ ...pg.availToggle, ...(store.hotFoodEnabled ? pg.availToggleOn : pg.availToggleOff) }}
                     onClick={() => toggleHotFood(store)}
@@ -753,6 +778,13 @@ export default function HotFood() {
       )}
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}
+      {hoursStore && (
+        <HotFoodHoursModal
+          store={hoursStore}
+          onClose={() => setHoursStore(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] })}
+        />
+      )}
       {showAddEdit && (
         <AddEditModal
           item={editItem === 'new' ? null : editItem}
@@ -779,6 +811,12 @@ export default function HotFood() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const pg: Record<string, React.CSSProperties> = {
+  availHours: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6 },
+  availNow: { fontSize: 12.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#F1F5F9', color: '#334155' },
+  availNowOpen: { background: '#F0FDF4', color: '#166534' },
+  availNowClosed: { background: '#FFF7ED', color: '#9A3412' },
+  availToday: { fontSize: 12.5, color: TEXT_MUTED },
+  availHoursBtn: { border: '1.5px solid #E5E7EB', background: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 8 },
   container:    { padding: '24px 28px', minHeight: '100%' },
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
   iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

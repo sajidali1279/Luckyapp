@@ -82,6 +82,12 @@ export function storeHour(at: Date): number {
   return partsAt(at).h;
 }
 
+/** Store-local minutes since midnight (0-1439) of the instant. */
+export function storeMinutes(at: Date): number {
+  const p = partsAt(at);
+  return p.h * 60 + p.mi;
+}
+
 /** Store-local day of the week (0 = Sunday .. 6 = Saturday) of the instant, on the store's own calendar date. */
 export function storeWeekday(at: Date): number {
   const p = partsAt(at);
