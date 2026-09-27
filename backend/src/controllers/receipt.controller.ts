@@ -255,6 +255,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
 
       let cashbackRate: number;
       let cashbackIssued: number;
+      let offerAdded = 0;   // what the promotion added to this line, recorded on the sale for its results
       if (usePerGallon) {
         const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
         // Only apply promo in per-gallon mode if it's also a cpg offer; ignore % offers to avoid mode mixing
@@ -263,9 +264,11 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           : 0;
         cashbackIssued = parseFloat((baseCashback + promoCashback).toFixed(4));
         cashbackRate = item.amount > 0 ? parseFloat((cashbackIssued / item.amount).toFixed(4)) : 0;
+        offerAdded = promoCashback;
       } else {
         cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
         cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
+        offerAdded = parseFloat((item.amount * promoBonus).toFixed(4));
       }
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
@@ -294,6 +297,8 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           isGas: isGasItem,
           gasGallons: isGasItem ? estimatedGallons : null,
           gasBonusPoints,
+          offerId: offer && offerAdded > 0 ? offer.id : null,
+          offerCashback: offer && offerAdded > 0 ? offerAdded : null,
           status: 'APPROVED',    // Auto-approved — QR token is the receipt proof
           receiptImageUrl: null, // No photo needed; QR token IS the proof
           notes: `Self-grant via receipt QR (txRef: ${token.txRef})`,

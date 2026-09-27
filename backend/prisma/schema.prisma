@@ -467,10 +467,15 @@ model PointsTransaction {
   voidedAt          DateTime?         // when an APPROVED sale was voided (undone after the fact)
   voidedById        String?           // the admin who voided it (not a relation: a rare admin action, looked up by id when shown)
   voidReason        String?           // required when voiding; shown nowhere the customer can see it
+  // The promotion that raised this sale's cashback (only one applies to a sale) and how much of the cashback it added, after the
+  // 10% ceiling. Recorded from 2026-09-28; older sales have neither.
+  offerId           String?
+  offerCashback     Float?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   customer    User  @relation("PointsEarner", fields: [customerId], references: [id])
+  offer       Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
   rating      EmployeeRating?
@@ -481,6 +486,7 @@ model PointsTransaction {
   @@index([status])
   @@index([createdAt])
   @@index([storeId, status, createdAt])
+  @@index([offerId])
   @@map("points_transactions")
 }
 
@@ -548,6 +554,7 @@ model Offer {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  sales PointsTransaction[]   // the sales it raised (recorded from 2026-09-28)
   store Store? @relation(fields: [storeId], references: [id])
 
   @@index([isActive, startDate, endDate])

@@ -113,6 +113,7 @@ export const offersApi = {
   /** Live promotions plus the ones switched on that start later (HQ only), so a scheduled promotion is not invisible. */
   getLiveAndScheduled: () => api.get('/offers?includeScheduled=1'),
   getHistory: () => api.get('/offers/history'),
+  getResults: (offerId: string) => api.get(`/offers/${offerId}/results`),   // what a promotion did (HQ)
 };
 
 export const bannersApi = {

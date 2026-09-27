@@ -140,6 +140,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   // live promotion (its size is limited when it is posted), the ceiling still applies but the sale is not held:
   // otherwise every sale a +7% or +10% promotion touches would wait for a manager and bury the real alerts.
   const rateCappedFlags: string[] = [];
+  const precapCashback = cashbackIssued;
   const standingRate = purchaseAmount > 0 ? (cashbackIssued - promotionCashback) / purchaseAmount : 0;
   const promoExplainsRate = promotionCashback > 0 && standingRate <= CASHBACK_RATE_WARN;
   if (effectiveCashbackRate > CASHBACK_RATE_CAP) {
@@ -149,6 +150,12 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   } else if (effectiveCashbackRate > CASHBACK_RATE_WARN) {
     if (!promoExplainsRate) rateCappedFlags.push('HIGH_CASHBACK_RATE');
   }
+
+  // What the promotion really added to this sale: the ceiling takes back from the promotion first, so its share is what is left
+  // above the tier and category cashback (0 when the ceiling took all of it). Recorded on the sale for the promotion's results.
+  const offerCashback = promotionApplied
+    ? parseFloat(Math.max(0, Math.min(promotionCashback, cashbackIssued - (precapCashback - promotionCashback))).toFixed(4))
+    : null;
 
   // Gas tier bonus (Gold+ extra per-gallon bonus — stacks on top regardless of mode). Computed BEFORE the
   // platform fee, not after: this money is credited to the customer exactly like the rest of their cashback,
@@ -223,6 +230,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       gasGallons: effectiveGallons ?? null,
       gasPricePerGallon: gasPricePerGallon ?? null,
       gasBonusPoints,
+      offerId: promotionApplied ? activeOffer!.id : null,
+      offerCashback,
     },
   });
 

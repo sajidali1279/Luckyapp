@@ -8,6 +8,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { serverMessage } from '../lib/apiError';
+import OfferResultsModal from '../components/OfferResultsModal';
 import { storeToday, addDays, monthEnd, dayLabel, startOfStoreDay, endOfStoreDay, storeDayLong, storeDayTime } from '../lib/storeDates';
 import { CASHBACK_CAP, MAX_CENTS_PER_GALLON, findClashes, tiersAtCeiling, pctText, type Clash, type DraftPromo, type PostedOffer } from '../lib/offerRules';
 import { useTierRates, useCategoryRates } from './dashboard/queries';
@@ -165,6 +166,7 @@ export default function Offers() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [resultsFor, setResultsFor] = useState<{ id: string; title: string } | null>(null);
   // The post waiting for "Post now", and a lock so a fast double click can never send it twice
   const [pending, setPending] = useState<Pending | null>(null);
   const sending = useRef(false);
@@ -465,6 +467,7 @@ export default function Offers() {
 
   return (
     <div style={s.container}>
+      {resultsFor && <OfferResultsModal offer={resultsFor} onClose={() => setResultsFor(null)} />}
       <ConfirmModal
         open={!!confirmDeleteId}
         title="Remove this offer?"
@@ -905,7 +908,7 @@ export default function Offers() {
                   <h2 style={s.sectionHead}>Live Now ({livePromotions.length})</h2>
                   <div style={s.grid}>
                     {livePromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} />
+                      <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
                     ))}
                   </div>
                 </>
@@ -938,7 +941,7 @@ export default function Offers() {
                   </p>
                   <div style={s.grid}>
                     {pastPromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} />
+                      <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
                     ))}
                   </div>
                 </>
@@ -1076,8 +1079,8 @@ export default function Offers() {
 
 // ─── Offer Card ───────────────────────────────────────────────────────────────
 
-function OfferCard({ offer, onDelete, onReuse, isPast, isScheduled }: {
-  offer: any; onDelete?: () => void; onReuse: () => void; isPast?: boolean; isScheduled?: boolean;
+function OfferCard({ offer, onDelete, onReuse, onResults, isPast, isScheduled }: {
+  offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; isPast?: boolean; isScheduled?: boolean;
 }) {
   return (
     <div style={{ ...s.card, ...(isPast ? s.cardPast : {}) }}>
@@ -1111,6 +1114,7 @@ function OfferCard({ offer, onDelete, onReuse, isPast, isScheduled }: {
         </div>
         <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          {onResults && !isScheduled && <button type="button" style={s.resultsBtn} onClick={onResults} aria-label={`Results of ${offer.title}`}>📊 Results</button>}
           <button style={s.reuseBtn} onClick={onReuse}>♻️ Reuse</button>
           {!isPast && onDelete && <button style={s.deleteBtn} onClick={onDelete}>Delete</button>}
         </div>
@@ -1230,6 +1234,7 @@ const s: Record<string, React.CSSProperties> = {
   tagAll: { background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  resultsBtn: { background: '#fff7e6', color: '#92400e', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   tagScheduled: { background: '#e8f0fb', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   confirmNote: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#fff8e6', color: '#5c4400', fontSize: 14, lineHeight: 1.45 },
   tagPast: { background: '#f8fafc', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },

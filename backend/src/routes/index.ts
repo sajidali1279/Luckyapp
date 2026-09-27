@@ -30,7 +30,7 @@ import {
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
-  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory,
+  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults,
   createBanner, getActiveBanners, deleteBanner,
 } from '../controllers/offers.controller';
 import {
@@ -299,6 +299,7 @@ router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), expo
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
+router.get('/offers/:offerId/results', authenticate, requireRole(Role.SUPER_ADMIN), getOfferResults); // What a promotion did (HQ)
 router.post('/offers', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createOffer);
 router.patch('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), updateOffer);
 router.delete('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), deleteOffer);

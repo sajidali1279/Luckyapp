@@ -9,6 +9,7 @@ import { announceOffer } from '../utils/offerAnnounce';
 import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
+import { startOfStoreDate } from '../utils/storeTime';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -432,4 +433,94 @@ export async function deleteBanner(req: AuthRequest, res: Response) {
     storeId: deletedBanner.storeId,
   });
   res.json({ success: true, message: 'Banner removed' });
+}
+
+// ─── Results ──────────────────────────────────────────────────────────────────
+
+// Sales began carrying the promotion that raised them (offerId, offerCashback) on this store day; a promotion that started earlier
+// has results from here on only.
+export const OFFER_RECORDING_START = startOfStoreDate('2026-09-28');
+
+const money = (n: number) => Math.round(n * 100) / 100;
+
+// GET /offers/:offerId/results (HQ) — what a promotion did: the sales it raised, the customers, the extra cashback it paid, and the
+// category's sales while it ran against the same length of time just before it. A deal changes no cashback, so it has no results.
+export async function getOfferResults(req: AuthRequest, res: Response) {
+  const { offerId } = req.params;
+  const offer = await prisma.offer.findUnique({
+    where: { id: offerId },
+    select: {
+      id: true, title: true, category: true, type: true, storeId: true, startDate: true, endDate: true, isActive: true, updatedAt: true,
+      bonusRate: true, gasBonusCentsPerGallon: true, store: { select: { name: true } },
+    },
+  });
+  if (!offer) { res.status(404).json({ success: false, error: 'That promotion does not exist.' }); return; }
+  if (offer.bonusRate == null && offer.gasBonusCentsPerGallon == null) {
+    res.status(400).json({ success: false, error: 'A deal changes no cashback, so there are no sale results to show for it.' });
+    return;
+  }
+
+  const now = new Date();
+  if (offer.startDate > now) {
+    res.json({ success: true, data: { scheduled: true, startDate: offer.startDate } });
+    return;
+  }
+  // Until it ended, was removed, or now
+  let end = offer.endDate < now ? offer.endDate : now;
+  const removedEarly = !offer.isActive && offer.updatedAt < end;
+  if (removedEarly) end = offer.updatedAt;
+  const start = offer.startDate;
+
+  const sales = await prisma.pointsTransaction.findMany({
+    where: { offerId },
+    select: { status: true, purchaseAmount: true, pointsAwarded: true, offerCashback: true, customerId: true, storeId: true, store: { select: { name: true } } },
+  });
+  const approved = sales.filter((s) => s.status === 'APPROVED');
+  const waiting = sales.filter((s) => s.status === 'PENDING' || s.status === 'FLAGGED').length;
+  const byStore = new Map<string, { name: string; sales: number; extraCashback: number }>();
+  for (const s of approved) {
+    const row = byStore.get(s.storeId) ?? { name: s.store.name, sales: 0, extraCashback: 0 };
+    row.sales += 1;
+    row.extraCashback += s.offerCashback ?? 0;
+    byStore.set(s.storeId, row);
+  }
+
+  // The category (every category for an all-category promotion) at the promotion's stores: while it ran, and just before
+  const lengthMs = Math.max(0, end.getTime() - start.getTime());
+  const categoryWhere = {
+    status: 'APPROVED' as const,
+    isTestData: false,
+    ...(offer.storeId ? { storeId: offer.storeId } : {}),
+    ...(offer.category ? { category: offer.category } : {}),
+  };
+  const [during, before] = await Promise.all([
+    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: { gte: start, lt: end } }, _count: true, _sum: { purchaseAmount: true } }),
+    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: { gte: new Date(start.getTime() - lengthMs), lt: start } }, _count: true, _sum: { purchaseAmount: true } }),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      scheduled: false,
+      title: offer.title,
+      category: offer.category,
+      where: offer.storeId ? offer.store?.name ?? 'One store' : 'All stores',
+      from: start,
+      until: end,
+      running: offer.isActive && offer.endDate > now,
+      removedEarly,
+      recordedFrom: start < OFFER_RECORDING_START ? OFFER_RECORDING_START : null,
+      sales: approved.length,
+      customers: new Set(approved.map((s) => s.customerId)).size,
+      salesAmount: money(approved.reduce((n, s) => n + s.purchaseAmount, 0)),
+      cashbackOnThoseSales: money(approved.reduce((n, s) => n + s.pointsAwarded, 0)),
+      extraCashback: money(approved.reduce((n, s) => n + (s.offerCashback ?? 0), 0)),
+      waitingForApproval: waiting,
+      byStore: [...byStore.values()].sort((a, b) => b.sales - a.sales).map((r) => ({ ...r, extraCashback: money(r.extraCashback) })),
+      categorySales: {
+        during: { sales: during._count, amount: money(during._sum.purchaseAmount ?? 0) },
+        before: { sales: before._count, amount: money(before._sum.purchaseAmount ?? 0) },
+      },
+    },
+  });
 }
