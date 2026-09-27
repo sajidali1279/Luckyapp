@@ -84,10 +84,25 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Whether this store is taking hot food orders right now (the server works it out from its hot food hours, the store's hours and
+// holidays; outside them it refuses orders from everyone)
+interface HotFoodHours {
+  open: boolean; limited: boolean;
+  closesAt: string | null; opensAt: string | null; opensDay: string | null; holiday: string | null;
+}
+
+function hoursLine(t: (k: string, o?: any) => string, h: HotFoodHours): string {
+  if (h.open) return h.closesAt ? t('customerHotFood.openUntil', { time: h.closesAt }) : t('customerHotFood.openNow');
+  const head = h.holiday ? t('customerHotFood.closedHoliday', { holiday: h.holiday }) : t('customerHotFood.closedNow');
+  if (!h.opensAt || !h.opensDay) return head;
+  const when = h.opensDay === 'today' ? t('customerHotFood.whenToday') : h.opensDay === 'tomorrow' ? t('customerHotFood.whenTomorrow') : t(`customerHotFood.when${h.opensDay}`);
+  return t('customerHotFood.closedOpens', { head, when, time: h.opensAt });
+}
+
 // ─── Menu Item Card ───────────────────────────────────────────────────────────
 
-function MenuCard({ item, qty, onAdd, onRemove }: {
-  item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void;
+function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
+  item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void; closed?: boolean;
 }) {
   const { t } = useTranslation();
   const [imgErr, setImgErr] = useState(false);
@@ -137,8 +152,9 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
             </TouchableOpacity>
             <Text style={mc.stepQty}>{qty}</Text>
             <TouchableOpacity
-              style={[mc.stepBtn, mc.stepBtnAdd]}
+              style={[mc.stepBtn, mc.stepBtnAdd, closed && mc.btnClosed]}
               onPress={onAdd}
+              disabled={closed}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={t('customerHotFood.addOneMoreA11y', { name: item.name })}
@@ -149,14 +165,16 @@ function MenuCard({ item, qty, onAdd, onRemove }: {
           </View>
         ) : (
           <TouchableOpacity
-            style={mc.addBtn}
+            style={[mc.addBtn, closed && mc.btnClosed]}
             onPress={onAdd}
+            disabled={closed}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={t('customerHotFood.addToCartA11y', { name: item.name })}
+            accessibilityState={{ disabled: closed }}
+            accessibilityLabel={closed ? t('customerHotFood.closedAddA11y', { name: item.name }) : t('customerHotFood.addToCartA11y', { name: item.name })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={mc.addBtnText}>{t('customerHotFood.addBtn')}</Text>
+            <Text style={[mc.addBtnText, closed && mc.btnClosedText]}>{closed ? t('customerHotFood.closedBtn') : t('customerHotFood.addBtn')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -268,9 +286,10 @@ function OrderCard({ order }: { order: FoodOrder }) {
 
 // ─── Cart Sheet ───────────────────────────────────────────────────────────────
 
-function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
+function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
   cart: CartItem[];
   storeId: string;
+  closedText: string | null;
   onClose: () => void;
   onOrderPlaced: () => void;
 }) {
@@ -290,7 +309,14 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
       onOrderPlaced();
     },
     onError: (e: any) => {
-      Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerHotFood.placeOrderError') });
+      const d = e.response?.data;
+      if (d?.code === 'HOT_FOOD_CLOSED') {
+        // It closed while the order was being made: say so in the app's language and show the new state
+        Toast.show({ type: 'error', text1: t('customerHotFood.closedToast'), text2: d.hours ? hoursLine(t, d.hours) : undefined });
+        qc.invalidateQueries({ queryKey: ['customer-hot-food-menu'] });
+        return;
+      }
+      Toast.show({ type: 'error', text1: d?.error || t('customerHotFood.placeOrderError') });
     },
   });
 
@@ -350,17 +376,19 @@ function CartSheet({ cart, storeId, onClose, onOrderPlaced }: {
           </ScrollView>
 
           <View style={cs.footer}>
+            {closedText ? <Text style={cs.closedNote} accessibilityRole="alert">{closedText}</Text> : null}
             <TouchableOpacity
-              style={[cs.placeBtn, placeMutation.isPending && { opacity: 0.65 }]}
+              style={[cs.placeBtn, (placeMutation.isPending || !!closedText) && { opacity: 0.5 }]}
               onPress={() => placeMutation.mutate()}
-              disabled={placeMutation.isPending}
+              disabled={placeMutation.isPending || !!closedText}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderA11y', { total: fmtPrice(total) })}
+              accessibilityState={{ disabled: placeMutation.isPending || !!closedText }}
+              accessibilityLabel={closedText ? t('customerHotFood.orderingClosedBtn') : placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderA11y', { total: fmtPrice(total) })}
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText}>{t('customerHotFood.placeOrderBtn', { total: fmtPrice(total) })}</Text>}
+                : <Text style={cs.placeBtnText}>{closedText ? t('customerHotFood.orderingClosedBtn') : t('customerHotFood.placeOrderBtn', { total: fmtPrice(total) })}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -461,8 +489,11 @@ export default function CustomerHotFoodScreen() {
     queryFn: () => hotFoodApi.getCustomerMenu(effectiveStore),
     enabled: !!effectiveStore,
     staleTime: 60_000,
+    refetchInterval: 60_000,   // the open / closed line follows the clock
   });
   const menuItems: MenuItem[] = menuData?.data?.data || [];
+  const hours: HotFoodHours | undefined = menuData?.data?.hours;
+  const closed = !!hours && !hours.open;
 
   // My orders
   const { data: ordersData, isLoading: ordersLoading, isError: ordersIsError, refetch: refetchOrders, isRefetching: ordersRefetching } = useQuery({
@@ -577,6 +608,13 @@ export default function CustomerHotFoodScreen() {
             </Text>
           </View>
 
+          {locationStatus === 'found' && nearestStore?.hotFoodEnabled && hours?.limited && (
+            <View style={[s.hoursBanner, closed ? s.hoursBannerClosed : s.hoursBannerOpen]} accessibilityRole="text">
+              <ClockIcon size={14} color={closed ? '#9A3412' : '#166534'} />
+              <Text style={[s.hoursText, { color: closed ? '#9A3412' : '#166534' }]}>{hoursLine(t, hours)}</Text>
+            </View>
+          )}
+
           {locationStatus === 'detecting' ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
@@ -622,6 +660,7 @@ export default function CustomerHotFoodScreen() {
                     qty={getQty(item.id)}
                     onAdd={() => addToCart(item)}
                     onRemove={() => removeFromCart(item)}
+                    closed={closed}
                   />
                 )}
                 ListFooterComponent={<View style={{ height: cartCount > 0 ? 110 : 32 }} />}
@@ -704,6 +743,7 @@ export default function CustomerHotFoodScreen() {
       {showCart && cart.length > 0 && (
         <CartSheet
           cart={cart}
+          closedText={closed && hours ? hoursLine(t, hours) : null}
           storeId={effectiveStore}
           onClose={() => setShowCart(false)}
           onOrderPlaced={handleOrderPlaced}
@@ -756,6 +796,10 @@ const s = StyleSheet.create({
   tabTextActive: { color: COLORS.primary },
 
   // Location banner
+  hoursBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1 },
+  hoursBannerOpen: { backgroundColor: '#F0FDF4', borderBottomColor: '#DCFCE7' },
+  hoursBannerClosed: { backgroundColor: '#FFF7ED', borderBottomColor: '#FFEDD5' },
+  hoursText: { fontSize: 13, fontWeight: '700', flex: 1 },
   locationBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F0F1F2',
@@ -837,6 +881,8 @@ const mc = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
   },
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  btnClosed: { backgroundColor: '#E5E7EB' },
+  btnClosedText: { color: '#6B7280' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   stepBtn: {
     width: 30, height: 30, borderRadius: 9, borderWidth: 1.5,
@@ -886,6 +932,7 @@ const oc = StyleSheet.create({
 
 // ─── Cart sheet styles ────────────────────────────────────────────────────────
 const cs = StyleSheet.create({
+  closedNote: { fontSize: 13, fontWeight: '700', color: '#9A3412', textAlign: 'center', marginBottom: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   backdrop: { flex: 1 },
   sheet: {
