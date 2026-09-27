@@ -1,11 +1,41 @@
 import { Response } from 'express';
+import { Role } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
 import { hotFoodOrderUrl } from '../utils/notificationRoutes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// HQ can act on every store; a manager with allStoresAccess too; anyone else only on a store they are assigned to. Same rule as
+// requireStoreAccess, for routes where the store comes from the order rather than the address.
+async function canActOnStore(userId: string, role: Role, storeId: string): Promise<boolean> {
+  if (hasMinRole(role, Role.SUPER_ADMIN)) return true;
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { allStoresAccess: true } });
+  if (dbUser?.allStoresAccess) return true;
+  return !!(await prisma.userStoreRole.findUnique({ where: { userId_storeId: { userId, storeId } } }));
+}
+
+type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
+
+// Where an order may go from each step. Completed and cancelled are final. A ready order can still be cancelled (never picked up).
+export const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ['ACCEPTED', 'CANCELLED'],
+  ACCEPTED: ['READY', 'CANCELLED'],
+  READY: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+const STATUS_WORD: Record<OrderStatus, string> = {
+  PENDING: 'waiting', ACCEPTED: 'being made', READY: 'ready', COMPLETED: 'picked up', CANCELLED: 'cancelled',
+};
+
+// What one order may hold
+export const MAX_QTY_PER_ITEM = 20;
+export const MAX_ORDER_LINES = 30;
+export const MAX_NOTE_LENGTH = 300;
 
 function generateOrderNumber(): string {
   const ts = Date.now().toString(36).toUpperCase().slice(-5);
@@ -200,16 +230,18 @@ export async function getAllOrders(req: AuthRequest, res: Response) {
   res.json({ success: true, data: orders });
 }
 
-// PATCH /hot-food/orders/:id — update status
+// PATCH /hot-food/orders/:id — move an order to its next step. Only staff of the order's own store (or HQ) may, and only along
+// NEXT_STATUS. Asking for the step it is already at does nothing (a double tap), so the customer is never told twice. Two people
+// pressing at once: the first wins and the second is told what happened.
 export async function updateOrderStatus(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const { status, estimatedMinutes } = req.body;
 
-  const validStatuses = ['PENDING', 'ACCEPTED', 'READY', 'COMPLETED', 'CANCELLED'];
-  if (!validStatuses.includes(status)) {
+  if (!Object.prototype.hasOwnProperty.call(NEXT_STATUS, status)) {
     res.status(400).json({ success: false, error: 'Invalid status' });
     return;
   }
+  const next = status as OrderStatus;
 
   const order = await prisma.hotFoodOrder.findUnique({
     where: { id },
@@ -219,34 +251,54 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Order not found' });
     return;
   }
-
-  const updateData: any = { status };
-  if (status === 'ACCEPTED' && estimatedMinutes != null) {
-    const mins = parseInt(estimatedMinutes);
-    if (!isNaN(mins) && mins > 0) updateData.estimatedMinutes = mins;
+  if (!(await canActOnStore(req.user!.id, req.user!.role, order.storeId))) {
+    res.status(403).json({ success: false, error: "You can only update orders at your own store." });
+    return;
   }
 
-  const updated = await prisma.hotFoodOrder.update({
-    where: { id },
-    data: updateData,
-    include: {
-      store: { select: { id: true, name: true } },
-      customer: { select: { id: true, name: true, phone: true } },
-      items: true,
-    },
-  });
+  const include = {
+    store: { select: { id: true, name: true } },
+    customer: { select: { id: true, name: true, phone: true } },
+    items: true,
+  };
+  const current = order.status as OrderStatus;
+  if (current === next) {
+    const same = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
+    res.json({ success: true, data: same, changed: false });
+    return;
+  }
+  if (!NEXT_STATUS[current].includes(next)) {
+    res.status(409).json({ success: false, error: `This order is already ${STATUS_WORD[current]}, so it cannot be marked ${STATUS_WORD[next]}.` });
+    return;
+  }
+
+  const updateData: { status: OrderStatus; estimatedMinutes?: number } = { status: next };
+  if (next === 'ACCEPTED' && estimatedMinutes != null) {
+    const mins = parseInt(estimatedMinutes);
+    if (!isNaN(mins) && mins > 0 && mins <= 240) updateData.estimatedMinutes = mins;
+  }
+
+  // Only moves the order if nobody else moved it first
+  const moved = await prisma.hotFoodOrder.updateMany({ where: { id, status: current }, data: updateData });
+  if (moved.count === 0) {
+    const fresh = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { status: true } });
+    const now = (fresh?.status ?? current) as OrderStatus;
+    res.status(409).json({ success: false, error: `Someone else just changed this order. It is ${STATUS_WORD[now]} now.` });
+    return;
+  }
+  const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
   // Push to customer when their order is ready for pickup
-  if (status === 'READY') {
+  if (next === 'READY') {
     sendPushToUser(
       order.customerId,
       '✅ Your food is ready!',
-      `Order #${order.orderNumber} is ready — head to the counter at ${order.store.name}`,
+      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}.`,
       'HOT_FOOD_ORDER',
     );
   }
 
-  res.json({ success: true, data: updated });
+  res.json({ success: true, data: updated, changed: true });
 }
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
@@ -361,6 +413,33 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'storeId and items[] are required' });
     return;
   }
+  if (items.length > MAX_ORDER_LINES) {
+    res.status(400).json({ success: false, error: `An order can have at most ${MAX_ORDER_LINES} different items.` });
+    return;
+  }
+  if (note != null && (typeof note !== 'string' || note.trim().length > MAX_NOTE_LENGTH)) {
+    res.status(400).json({ success: false, error: `Keep the note under ${MAX_NOTE_LENGTH} characters.` });
+    return;
+  }
+  // Each line: an item id and a whole number from 1 to MAX_QTY_PER_ITEM (the same item on two lines counts together)
+  const qtyById = new Map<string, number>();
+  for (const line of items) {
+    const itemId = line?.menuItemId;
+    const qty = Number(line?.quantity ?? 1);
+    if (typeof itemId !== 'string' || !itemId) {
+      res.status(400).json({ success: false, error: 'Each item needs its menu id.' });
+      return;
+    }
+    if (!Number.isInteger(qty) || qty < 1) {
+      res.status(400).json({ success: false, error: 'Each item needs a quantity of at least 1.' });
+      return;
+    }
+    qtyById.set(itemId, (qtyById.get(itemId) ?? 0) + qty);
+    if (qtyById.get(itemId)! > MAX_QTY_PER_ITEM) {
+      res.status(400).json({ success: false, error: `You can order up to ${MAX_QTY_PER_ITEM} of one item at a time.` });
+      return;
+    }
+  }
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true } });
   if (!store?.hotFoodEnabled) {
@@ -369,7 +448,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
 
   // Validate + price each item — check legacy menu table then catalog table
-  const itemIds: string[] = items.map((i: any) => i.menuItemId);
+  const itemIds: string[] = [...qtyById.keys()];
 
   const menuItemRows = await prisma.hotFoodMenuItem.findMany({
     where: { id: { in: itemIds }, isAvailable: true, OR: [{ storeId }, { storeId: null }] },
@@ -381,22 +460,21 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const catalogMap = new Map<string, any>();
   if (unmatchedIds.length > 0) {
     const catalogRows = await prisma.hotFoodCatalogStore.findMany({
-      where: { storeId, catalogItemId: { in: unmatchedIds } },
+      where: { storeId, catalogItemId: { in: unmatchedIds }, isAvailable: true },   // not one the store has switched off
       include: { catalogItem: true },
     });
     for (const row of catalogRows) catalogMap.set(row.catalogItemId, row.catalogItem);
   }
 
   const orderLines: { menuItemId?: string; catalogItemId?: string; name: string; price: number; quantity: number }[] = [];
-  for (const line of items) {
-    const menuItem   = menuMap.get(line.menuItemId);
-    const catalogItem = catalogMap.get(line.menuItemId);
+  for (const [itemId, qty] of qtyById) {
+    const menuItem   = menuMap.get(itemId);
+    const catalogItem = catalogMap.get(itemId);
     const resolved   = menuItem || catalogItem;
     if (!resolved) {
-      res.status(400).json({ success: false, error: `Item not available: ${line.menuItemId}` });
+      res.status(400).json({ success: false, error: 'One of the items is not available right now. Refresh the menu and try again.' });
       return;
     }
-    const qty = parseInt(line.quantity) || 1;
     orderLines.push({
       ...(menuItem ? { menuItemId: menuItem.id } : { catalogItemId: catalogItem.id }),
       name: resolved.name,

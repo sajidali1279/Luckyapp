@@ -570,9 +570,9 @@ router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGE
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
 // Orders — employee per-store board
-router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), getStorePendingCount);
+router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStorePendingCount);
 router.get('/hot-food/orders/my-stores/pending-count',       authenticate, requireRole(Role.EMPLOYEE), getMyStoresPendingCount);
-router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE), getStoreOrders);
+router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreOrders);  // names and phone numbers: own store only
 // Employee availability management (all items + catalog availability toggle)
 router.get('/hot-food/store/:storeId/all-items',                                  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreAllItems);
 router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',      authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, updateCatalogStoreAvailability);
