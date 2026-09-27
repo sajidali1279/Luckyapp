@@ -11,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../services/api';
 import { COLORS } from '../constants';
-import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, DollarSignIcon, ShoppingBagIcon, Trash2Icon, AlertTriangleIcon, PlusIcon, MapPinIcon, ChevronDownIcon, ChevronRightIcon } from './Icons';
+import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, DollarSignIcon, ShoppingBagIcon, Trash2Icon, AlertTriangleIcon, PlusIcon, MapPinIcon, ChevronDownIcon, ChevronRightIcon, PrinterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
@@ -23,6 +23,8 @@ import { Cart, CartRow, cartKey, printPriceFor, resolveCartRows, summarizeCart, 
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
+import LabelPaperModal, { paperSummary } from './LabelPaperModal';
+import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue } from '../utils/labelSheet';
 
 interface Label {
   id: string;
@@ -157,6 +159,14 @@ export default function LabelsScreen() {
   const createdViaRef = useRef<'scan' | 'search'>('scan');
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
+  // Which label paper prints come out on (US Letter 30, or A4 18 tall labels), kept on this phone
+  const [sheet, setSheet] = useState<SheetSettings>(DEFAULT_SHEET);
+  const [showPaper, setShowPaper] = useState(false);
+  useEffect(() => { loadSheet().then(setSheet); }, []);
+  function changeSheet(next: SheetSettings) {
+    setSheet(next);
+    saveSheet(next);
+  }
   const [statusFilter, setStatusFilter] = useState<LabelPrintStatus | null>(null);
   const [showStorePicker, setShowStorePicker] = useState(false);
   // Browsing Store Catalog products that have no label yet (managers).
@@ -732,6 +742,12 @@ export default function LabelsScreen() {
   // the system print dialog leaves both the list and the server untouched.
   async function handlePrint(shareAsPdf: boolean) {
     if (!cartId || !storeId || printing || cartRows.length === 0 || unpricedCount > 0) return;
+    // A4 sizes that run off the page would print across the seams: fix them first
+    if (sheet.format === 'a4x18' && fitIssue(sheet.a4)) {
+      Toast.show({ type: 'error', text1: t('labelPaper.fixSizesFirst') });
+      setShowPaper(true);
+      return;
+    }
     setPrinting(true);
     try {
       const rows = cartRows;
@@ -743,7 +759,7 @@ export default function LabelsScreen() {
         },
         quantity: r.entry.quantity,
       }));
-      await printLabels({ entries, shareAsPdf });
+      await printLabels({ entries, shareAsPdf, sheet });
 
       const outcomes = await runPool(rows, STORE_ROW_CONCURRENCY, ensureStoreRow);
       const stamp: { storeLabelId: string; quantity: number }[] = [];
@@ -1424,6 +1440,19 @@ export default function LabelsScreen() {
       ) : (
         <FlatList
           data={cartRows}
+          ListHeaderComponent={
+            <TouchableOpacity
+              style={s.paperRow}
+              onPress={() => setShowPaper(true)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t('labelPaper.rowA11y', { paper: paperSummary(t, sheet) })}
+            >
+              <PrinterIcon size={17} color={accentColor} strokeWidth={2.2} />
+              <Text style={s.paperRowText} numberOfLines={1}>{t('labelPaper.row', { paper: paperSummary(t, sheet) })}</Text>
+              <Text style={[s.paperRowChange, { color: accentColor }]}>{t('labelPaper.change')}</Text>
+            </TouchableOpacity>
+          }
           keyExtractor={r => r.entry.labelId}
           contentContainerStyle={s.list}
           refreshing={catalogRefetching}
@@ -1432,6 +1461,8 @@ export default function LabelsScreen() {
           renderItem={({ item }) => renderCartCard(item)}
         />
       )}
+
+      <LabelPaperModal visible={showPaper} sheet={sheet} accentColor={accentColor} onChange={changeSheet} onClose={() => setShowPaper(false)} />
 
       <View style={s.footer}>
         <TouchableOpacity
@@ -1794,6 +1825,12 @@ const s = StyleSheet.create({
     width: 52, height: 32, fontSize: 15, fontWeight: '700', color: COLORS.text, textAlign: 'center',
     borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 0, paddingHorizontal: 4,
   },
+  paperRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10,
+  },
+  paperRowText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
+  paperRowChange: { fontSize: 14, fontWeight: '700' },
   footer: {
     flexDirection: 'row', gap: 8, padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border, backgroundColor: '#fff',

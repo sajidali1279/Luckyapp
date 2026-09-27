@@ -6,6 +6,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { code128ToSvg } from './code128';
+import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale } from './labelSheet';
 
 export interface PrintableLabel {
   id: string;
@@ -101,15 +102,8 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
-function buildHtml(entries: PrintableLabelEntry[]): string {
-  const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
+const LETTER_LAYOUT = `
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Print Labels</title>
-  <style>
     /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
        (Avery 5160-compatible - e.g. the Walmart "3000 Mailing Address
        Labels" box), 30 labels/sheet, 3 columns x 10 rows, on US Letter.
@@ -117,8 +111,6 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
        for density - printing outside these exact numbers means labels
        land on the sticker seams instead of centered on each sticker. */
     @page { size: letter; margin: 0.5in 0.1875in; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 2.625in);
@@ -126,6 +118,11 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       column-gap: 0.125in;
       row-gap: 0;
     }
+`;
+
+const LABEL_STYLE = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     /* Every label is the exact same fixed physical size — matching the
        sheet's actual die-cut label size (1in x 2.625in) — regardless of
        whether it carries a barcode. Content is organized to fit inside,
@@ -315,33 +312,148 @@ function buildHtml(entries: PrintableLabelEntry[]): string {
       margin-top: 0.2mm;
       word-break: break-all;
     }
-  </style>
+`;
+
+// The same label read standing up, for tall labels (A4, 18 a sheet): name on top, the price big near the middle, the deal under it, then
+// the QR code and the barcode at the bottom. Sizes come from tallCss, so they follow the label width.
+function renderUpright(label: PrintableLabel): string {
+  const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
+  const icon = TEMPLATE_ICONS[label.template] || '';
+  const barcode = label.barcode?.trim();
+  const deal = label.dealText?.trim();
+  return `
+    <div class="label up ${cssClass}${barcode ? '' : ' no-barcode'}">
+      <div class="watermark">LUCKY STOP</div>
+      <div class="label-name up-name${label.productName.length > 24 ? ' long' : ''}">${icon}${esc(label.productName)}</div>
+      <div class="up-fill top"></div>
+      <div class="price-regular up-price${label.priceText.length >= 6 ? ' long' : ''}"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
+      ${deal ? `<div class="price-deal">${esc(deal)}</div>` : ''}
+      <div class="up-fill"></div>
+      <div class="up-qr">
+        <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
+        <div class="label-qr-caption">Scan to Join</div>
+      </div>
+      ${barcode ? `
+      <div class="label-barcode-wrap">
+        ${renderBarcodeSvg(barcode)}
+        <div class="label-barcode-val">${esc(barcode)}</div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+// One tall label: the usual design turned 90 degrees to run along the long side, or the upright design
+function tallCell(label: PrintableLabel, s: SheetSettings): string {
+  return s.design === 'upright'
+    ? `<div class="cell">${renderUpright(label)}</div>`
+    : `<div class="cell"><div class="rot">${renderLabel(label)}</div></div>`;
+}
+
+const n = (x: number) => Number(x.toFixed(3));
+
+// A4, 18 tall labels: each sheet is its own page with the labels at the measured positions (the page margin is 0, so the millimetres
+// count from the paper's edge). Same as admin's tallCss.
+function tallCss(s: SheetSettings): string {
+  const a = s.a4;
+  const k = tallScale(a);
+  const rotK = a.labelW / 25.4;       // the usual design is 1 in tall: stretched to the label's width
+  const rotW = a.labelH / rotK;       // and made as long as the label, before that stretch
+  return `
+    @page { size: A4; margin: 0; }
+    .sheet {
+      width: 210mm; height: 296mm; padding: ${a.top}mm 0 0 ${a.left}mm; overflow: hidden;
+      display: grid; grid-template-columns: repeat(${A4_COLS}, ${a.labelW}mm); grid-template-rows: repeat(${A4_ROWS}, ${a.labelH}mm);
+      column-gap: ${a.gapX}mm; row-gap: ${a.gapY}mm; align-content: start;
+      break-after: page; page-break-after: always;
+    }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .cell { position: relative; width: ${a.labelW}mm; height: ${a.labelH}mm; overflow: hidden; }
+    .rot { position: absolute; top: 0; left: 0; width: ${n(rotW)}mm; height: 1in; transform-origin: 0 0; transform: translateX(${a.labelW}mm) rotate(90deg) scale(${n(rotK)}); }
+    .rot .label { width: 100%; height: 100%; }
+
+    .label.up { width: 100%; height: 100%; flex-direction: column; align-items: stretch; padding: ${n(2 * k)}mm ${n(1.6 * k)}mm; gap: ${n(1.4 * k)}mm; }
+    .up .up-name { font-size: ${n(9 * k)}pt; line-height: 1.12; text-align: center; -webkit-line-clamp: 4; }
+    .up .up-name.long { font-size: ${n(7.5 * k)}pt; -webkit-line-clamp: 5; }
+    .up .up-price { font-size: ${n(24 * k)}pt; text-align: center; white-space: nowrap; }
+    .up .up-price.long { font-size: ${n(19 * k)}pt; }
+    .up .up-price .price-dollar { font-size: ${n(11 * k)}pt; }
+    .up .price-deal { align-self: center; font-size: ${n(10 * k)}pt; text-align: center; white-space: normal; }
+    .up .up-fill { flex: 1; }
+    .up .up-fill.top { flex: 0.6; }
+    .up .up-qr { display: flex; flex-direction: column; align-items: center; gap: ${n(0.5 * k)}mm; }
+    .up .label-qr { width: ${n(12 * k)}mm; height: ${n(12 * k)}mm; }
+    .up.no-barcode .label-qr { width: ${n(17 * k)}mm; height: ${n(17 * k)}mm; }
+    .up .label-qr-caption { font-size: ${n(5.5 * k)}pt; }
+    .up .label-barcode { height: ${n(9 * k)}mm; }
+    .up .label-barcode-val { font-size: ${n(6 * k)}pt; text-align: center; margin-top: ${n(0.4 * k)}mm; }
+    .up .watermark { writing-mode: vertical-rl; font-size: ${n(16 * k)}pt; letter-spacing: 2px; }
+
+    .outline { border: 0.3mm dashed #333; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; color: #333; }
+    .outline b { font-size: 16pt; }
+    .outline small { font-size: 7pt; writing-mode: vertical-rl; }
+  `;
+}
+
+function page(css: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Print Labels</title>
+  <style>${css}</style>
 </head>
 <body>
-  <div class="grid">
-    ${labels.map(renderLabel).join('')}
-  </div>
+  ${body}
 </body>
 </html>`;
 }
 
-export async function printLabels({
-  entries,
-  shareAsPdf = false,
-}: {
-  entries: PrintableLabelEntry[];
-  shareAsPdf?: boolean;
-}): Promise<void> {
-  const html = buildHtml(entries);
+export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings = DEFAULT_SHEET): string {
+  const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
+  if (sheet.format === 'letter30') {
+    return page(LETTER_LAYOUT + LABEL_STYLE, `<div class="grid">
+    ${labels.map(renderLabel).join('')}
+  </div>`);
+  }
+  const sheets: string[] = [];
+  for (let i = 0; i < labels.length; i += A4_PER_SHEET) {
+    sheets.push(`<div class="sheet">${labels.slice(i, i + A4_PER_SHEET).map(l => tallCell(l, sheet)).join('')}</div>`);
+  }
+  return page(LABEL_STYLE + tallCss(sheet), sheets.join(''));
+}
 
+// A test page: just the outline of each A4 label, numbered and measured, to print on plain paper and hold against a sheet of labels
+export function buildTestSheetHtml(sheet: SheetSettings): string {
+  const cells = Array.from({ length: A4_PER_SHEET }, (_, i) =>
+    `<div class="cell outline"><b>${i + 1}</b><small>${sheet.a4.labelW} x ${sheet.a4.labelH} mm</small></div>`).join('');
+  return page(LABEL_STYLE + tallCss({ ...sheet, format: 'a4x18' }), `<div class="sheet">${cells}</div>`);
+}
+
+async function output(html: string, pageSize: { width: number; height: number }, shareAsPdf: boolean) {
   if (shareAsPdf) {
-    const { uri } = await Print.printToFileAsync({ html });
+    const { uri } = await Print.printToFileAsync({ html, ...pageSize });
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       dialogTitle: 'Labels.pdf',
       UTI: 'com.adobe.pdf',
     });
   } else {
-    await Print.printAsync({ html });
+    await Print.printAsync({ html, ...pageSize });
   }
+}
+
+export async function printLabels({
+  entries,
+  shareAsPdf = false,
+  sheet = DEFAULT_SHEET,
+}: {
+  entries: PrintableLabelEntry[];
+  shareAsPdf?: boolean;
+  sheet?: SheetSettings;
+}): Promise<void> {
+  await output(buildHtml(entries, sheet), PAGE_POINTS[sheet.format], shareAsPdf);
+}
+
+export async function printTestSheet(sheet: SheetSettings): Promise<void> {
+  await output(buildTestSheetHtml(sheet), PAGE_POINTS.a4x18, false);
 }
