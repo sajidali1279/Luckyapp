@@ -118,6 +118,8 @@ const LETTER_LAYOUT = `
       column-gap: 0.125in;
       row-gap: 0;
     }
+    /* A spot left empty on a sheet that already has labels peeled off */
+    .label-blank { width: 2.625in; height: 1in; }
 `;
 
 const LABEL_STYLE = `
@@ -408,16 +410,18 @@ function page(css: string, body: string): string {
 </html>`;
 }
 
-export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings = DEFAULT_SHEET): string {
+// `skip` leaves that many spots empty at the start of the first sheet (a sheet with some labels already peeled off)
+export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings = DEFAULT_SHEET, skip = 0): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
   if (sheet.format === 'letter30') {
     return page(LETTER_LAYOUT + LABEL_STYLE, `<div class="grid">
-    ${labels.map(renderLabel).join('')}
+    ${'<div class="label-blank"></div>'.repeat(skip)}${labels.map(renderLabel).join('')}
   </div>`);
   }
+  const slots: (PrintableLabel | null)[] = [...Array(skip).fill(null), ...labels];
   const sheets: string[] = [];
-  for (let i = 0; i < labels.length; i += A4_PER_SHEET) {
-    sheets.push(`<div class="sheet">${labels.slice(i, i + A4_PER_SHEET).map(l => tallCell(l, sheet)).join('')}</div>`);
+  for (let i = 0; i < slots.length; i += A4_PER_SHEET) {
+    sheets.push(`<div class="sheet">${slots.slice(i, i + A4_PER_SHEET).map(l => (l ? tallCell(l, sheet) : '<div class="cell blank"></div>')).join('')}</div>`);
   }
   return page(LABEL_STYLE + tallCss(sheet), sheets.join(''));
 }
@@ -446,12 +450,14 @@ export async function printLabels({
   entries,
   shareAsPdf = false,
   sheet = DEFAULT_SHEET,
+  skip = 0,
 }: {
   entries: PrintableLabelEntry[];
   shareAsPdf?: boolean;
   sheet?: SheetSettings;
+  skip?: number;
 }): Promise<void> {
-  await output(buildHtml(entries, sheet), PAGE_POINTS[sheet.format], shareAsPdf);
+  await output(buildHtml(entries, sheet, skip), PAGE_POINTS[sheet.format], shareAsPdf);
 }
 
 export async function printTestSheet(sheet: SheetSettings): Promise<void> {

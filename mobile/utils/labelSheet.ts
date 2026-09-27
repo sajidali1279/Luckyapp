@@ -16,6 +16,8 @@ export const A4_PAGE = { w: 210, h: 297 };
 export const A4_COLS = 6;
 export const A4_ROWS = 3;
 export const A4_PER_SHEET = A4_COLS * A4_ROWS;
+export const LETTER_PER_SHEET = 30;
+export const perSheet = (s: SheetSettings) => (s.format === 'a4x18' ? A4_PER_SHEET : LETTER_PER_SHEET);
 export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 6, gapX: 2, gapY: 2 };
 export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS } };
 

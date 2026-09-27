@@ -2326,6 +2326,17 @@
     "done": "Listo",
     "row": "Papel: {{paper}}",
     "rowA11y": "Papel de etiquetas: {{paper}}. Toque para cambiar.",
-    "change": "Cambiar"
+    "change": "Cambiar",
+    "paper": "Papel",
+    "startAt": "Empezar en la etiqueta",
+    "startHelp": "¿Usa una hoja a la que ya le quitaron algunas etiquetas? Toque el primer espacio libre.",
+    "startNote": "Las etiquetas 1 a {{n}} quedan vacías.",
+    "startFirst": "Empieza con la primera etiqueta.",
+    "startA11y": "Empezar en la etiqueta {{n}}",
+    "earlier": "Empezar una etiqueta antes",
+    "later": "Empezar una etiqueta después",
+    "less": "Menos: {{field}}",
+    "more": "Más: {{field}}",
+    "rowStarts": " · empieza en la {{n}}"
   }
 }

@@ -24,7 +24,7 @@ import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
 import LabelPaperModal, { paperSummary } from './LabelPaperModal';
-import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue } from '../utils/labelSheet';
+import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet } from '../utils/labelSheet';
 
 interface Label {
   id: string;
@@ -162,10 +162,13 @@ export default function LabelsScreen() {
   // Which label paper prints come out on (US Letter 30, or A4 18 tall labels), kept on this phone
   const [sheet, setSheet] = useState<SheetSettings>(DEFAULT_SHEET);
   const [showPaper, setShowPaper] = useState(false);
+  // The first free spot on the sheet going into the printer (some labels already peeled off); for the next print only
+  const [startAt, setStartAt] = useState(1);
   useEffect(() => { loadSheet().then(setSheet); }, []);
   function changeSheet(next: SheetSettings) {
     setSheet(next);
     saveSheet(next);
+    setStartAt(n => Math.min(n, perSheet(next)));
   }
   const [statusFilter, setStatusFilter] = useState<LabelPrintStatus | null>(null);
   const [showStorePicker, setShowStorePicker] = useState(false);
@@ -759,7 +762,8 @@ export default function LabelsScreen() {
         },
         quantity: r.entry.quantity,
       }));
-      await printLabels({ entries, shareAsPdf, sheet });
+      await printLabels({ entries, shareAsPdf, sheet, skip: startAt - 1 });
+      setStartAt(1);
 
       const outcomes = await runPool(rows, STORE_ROW_CONCURRENCY, ensureStoreRow);
       const stamp: { storeLabelId: string; quantity: number }[] = [];
@@ -1446,10 +1450,10 @@ export default function LabelsScreen() {
               onPress={() => setShowPaper(true)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={t('labelPaper.rowA11y', { paper: paperSummary(t, sheet) })}
+              accessibilityLabel={t('labelPaper.rowA11y', { paper: paperSummary(t, sheet, startAt) })}
             >
               <PrinterIcon size={17} color={accentColor} strokeWidth={2.2} />
-              <Text style={s.paperRowText} numberOfLines={1}>{t('labelPaper.row', { paper: paperSummary(t, sheet) })}</Text>
+              <Text style={s.paperRowText} numberOfLines={1}>{t('labelPaper.row', { paper: paperSummary(t, sheet, startAt) })}</Text>
               <Text style={[s.paperRowChange, { color: accentColor }]}>{t('labelPaper.change')}</Text>
             </TouchableOpacity>
           }
@@ -1462,7 +1466,7 @@ export default function LabelsScreen() {
         />
       )}
 
-      <LabelPaperModal visible={showPaper} sheet={sheet} accentColor={accentColor} onChange={changeSheet} onClose={() => setShowPaper(false)} />
+      <LabelPaperModal visible={showPaper} sheet={sheet} startAt={startAt} accentColor={accentColor} onChange={changeSheet} onStartAt={setStartAt} onClose={() => setShowPaper(false)} />
 
       <View style={s.footer}>
         <TouchableOpacity

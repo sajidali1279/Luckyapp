@@ -2326,6 +2326,17 @@
     "done": "Done",
     "row": "Paper: {{paper}}",
     "rowA11y": "Label paper: {{paper}}. Tap to change.",
-    "change": "Change"
+    "change": "Change",
+    "paper": "Paper",
+    "startAt": "Start at label",
+    "startHelp": "Using a sheet with some labels already peeled off? Tap the first free spot.",
+    "startNote": "Labels 1 to {{n}} are left empty.",
+    "startFirst": "Starts with the first label.",
+    "startA11y": "Start at label {{n}}",
+    "earlier": "Start one label earlier",
+    "later": "Start one label later",
+    "less": "Less: {{field}}",
+    "more": "More: {{field}}",
+    "rowStarts": " · starts at {{n}}"
   }
 }
