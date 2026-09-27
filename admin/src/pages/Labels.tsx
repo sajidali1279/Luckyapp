@@ -19,8 +19,9 @@ import Modal from '../components/Modal';
 import { failureMessage } from '../lib/apiError';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERCENT } from '../lib/labelPrice';
-import { Copy, Trash2, RotateCcw } from 'lucide-react';
+import { Copy, Trash2, RotateCcw, Download } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
 
 const CATALOG_PAGE_SIZE = 50;
 
@@ -31,6 +32,7 @@ interface Label {
   dealText: string | null;
   barcode: string | null;
   category: string | null;
+  brand?: string | null;
   template: string;
   createdByStoreId: string | null;
   updatedAt: string;
@@ -260,6 +262,28 @@ export default function Labels() {
     retry: false,
   });
   const impact = impactQuery.data?.data?.data as LabelImpact | undefined;
+
+  // The items shown (search and filters apply) as a spreadsheet, with the saved values. Which stores have each one comes from the
+  // Coverage list; if that cannot be loaded the file still downloads, without the store columns.
+  const [exporting, setExporting] = useState(false);
+  async function exportList() {
+    if (exporting || filteredLabels.length === 0) return;
+    setExporting(true);
+    let coverage: CsvCoverage | null = null;
+    try {
+      const r = await qc.fetchQuery({ queryKey: ['labels-coverage'], queryFn: labelsApi.getCoverage, staleTime: 30_000 });
+      coverage = (r?.data?.data as CsvCoverage) ?? null;
+    } catch { coverage = null; }
+    const filtered = !!search.trim() || !!categoryFilter || onlyNoPrice;
+    downloadCsv(`lucky-stop-labels${filtered ? '-filtered' : ''}-${new Date().toLocaleDateString('en-CA')}.csv`, labelsCsv(filteredLabels, TEMPLATE_LABELS, coverage));
+    setExporting(false);
+    const notes = [
+      !coverage ? 'the store columns are left out (could not load which stores have each item)' : '',
+      changeCount > 0 ? `your ${plural(changeCount, 'unsaved change is', 'unsaved changes are')} not in it` : '',
+    ].filter(Boolean);
+    const msg = `Exported ${plural(filteredLabels.length, 'item', 'items')}${filtered ? ' (the ones shown)' : ''}.${notes.length ? ` Note: ${notes.join('; ')}.` : ''}`;
+    if (!coverage) toast.error(msg, { duration: 7000 }); else toast.success(msg, { duration: notes.length ? 7000 : 3000 });
+  }
 
   function refreshLabels() {
     ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
@@ -811,6 +835,15 @@ export default function Labels() {
           </div>
           {viewMode === 'catalog' && (
             <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                style={{ ...s.exportBtn, ...(exporting || filteredLabels.length === 0 ? { opacity: 0.6, cursor: exporting ? 'wait' : 'not-allowed' } : {}) }}
+                onClick={exportList}
+                disabled={exporting || filteredLabels.length === 0}
+                title="Download the items shown below as a spreadsheet (opens in Excel)"
+              >
+                <Download size={15} strokeWidth={2.2} aria-hidden /> {exporting ? 'Exporting…' : 'Export'}
+              </button>
               <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
             </div>
           )}
@@ -1080,6 +1113,10 @@ const s: Record<string, CSSProperties> = {
   addBtn: {
     padding: '10px 16px', borderRadius: 10, background: PRIMARY, border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  },
+  exportBtn: {
+    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, background: '#fff', border: '1.5px solid #d1d5db',
+    color: '#1f2937', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   catalogLayout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
   catalogMain: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
