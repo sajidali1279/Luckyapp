@@ -33,6 +33,9 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   NOTICE_CREATE:             { label: 'Notice Posted',          color: '#F4A261', bg: '#F4A26118', icon: '📌' },
   NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#6c757d', bg: '#6c757d18', icon: '⏹️' },
   NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#2DC653', bg: '#2DC65318', icon: '📣' },
+  PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#6c757d', bg: '#6c757d18', icon: '🚫' },
+  PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#E63946', bg: '#E6394618', icon: '🗑️' },
   // Accounts, stores and the daily messages
   EDIT_STAFF:                { label: 'Staff Edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
   DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#E63946', bg: '#E6394618', icon: '👋' },
@@ -288,8 +291,8 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
-          <optgroup label="── Rewards & Notices ──">
-            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_DEACTIVATE','NOTICE_DELETE'].map(k => (
+          <optgroup label="── Rewards, Notices & Local Ads ──">
+            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

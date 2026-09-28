@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { storeToday, storeDayLong } from '../lib/storeDates';
 
 interface PromoRequest {
   id: string;
@@ -45,7 +46,7 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return storeDayLong(d);   // the store's calendar day, whatever this browser's time zone
 }
 
 function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => void }) {
@@ -53,7 +54,8 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
   const fileRef = useRef<HTMLInputElement>(null);
   const [adTitle, setAdTitle]         = useState(promo.adTitle || promo.businessName);
   const [adBody, setAdBody]           = useState(promo.adBody || promo.businessDescription);
-  const [adExpiresAt, setAdExpiresAt] = useState(promo.adExpiresAt ? promo.adExpiresAt.slice(0, 10) : '');
+  // The store's day the ad ends on (the saved instant is 11:59 pm Central, which is the next day in UTC)
+  const [adExpiresAt, setAdExpiresAt] = useState(promo.adExpiresAt ? storeToday(new Date(promo.adExpiresAt)) : '');
   const [devAdminNote, setDevAdminNote] = useState(promo.devAdminNote || '');
   const [imageFile, setImageFile]     = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(promo.adImageUrl || null);

@@ -9,16 +9,22 @@ export async function getAuditLogs(req: AuthRequest, res: Response) {
     page = '1', limit = '50',
   } = req.query as Record<string, string>;
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  // A page number, page size or date that is not one falls back to the default instead of failing the whole list with a 500
+  const pageNo = Math.max(1, parseInt(page) || 1);
+  const perPage = Math.min(100, Math.max(1, parseInt(limit) || 50));
+  const skip = (pageNo - 1) * perPage;
+  const asDate = (v?: string) => { const d = v ? new Date(v) : null; return d && !isNaN(d.getTime()) ? d : null; };
 
   const where: Record<string, unknown> = {};
   if (action) where.action = action;
   if (actorRole) where.actorRole = actorRole;
   if (storeId) where.storeId = storeId;
-  if (from || to) {
+  const fromDate = asDate(from);
+  const toDate = asDate(to);
+  if (fromDate || toDate) {
     const dateFilter: Record<string, Date> = {};
-    if (from) dateFilter.gte = new Date(from);
-    if (to) dateFilter.lte = new Date(to);
+    if (fromDate) dateFilter.gte = fromDate;
+    if (toDate) dateFilter.lte = toDate;
     where.createdAt = dateFilter;
   }
 
@@ -27,12 +33,12 @@ export async function getAuditLogs(req: AuthRequest, res: Response) {
       where,
       orderBy: { createdAt: 'desc' },
       skip,
-      take: Math.min(parseInt(limit), 100),
+      take: perPage,
     }),
     prisma.auditLog.count({ where }),
   ]);
 
-  res.json({ success: true, data: { logs, total, page: parseInt(page) } });
+  res.json({ success: true, data: { logs, total, page: pageNo } });
 }
 
 export async function getAuditStats(req: AuthRequest, res: Response) {
