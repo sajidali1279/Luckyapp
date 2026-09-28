@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { canUseStore } from '../utils/storeAccess';
 import { sendPushToUser } from '../utils/push';
 import { productRequestUrlManager, productRequestUrlCustomer } from '../utils/notificationRoutes';
 import { hasMinRole } from '../middleware/auth';
@@ -94,18 +95,13 @@ export async function getStoreProductRequests(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const { status } = req.query as { status?: string };
 
-  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
-    const access = await prisma.userStoreRole.findUnique({
-      where: { userId_storeId: { userId: req.user!.id, storeId } },
-    });
-    if (!access) {
-      res.status(403).json({ success: false, error: 'No access to this store' });
-      return;
-    }
+  if (!(await canUseStore(req.user!.id, req.user!.role, storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' });
+    return;
   }
 
   const where: Record<string, unknown> = { storeId, expiresAt: { gte: new Date() } };
-  if (status) where.status = status;
+  if (status && ['PENDING', 'ACCEPTED', 'DECLINED'].includes(status)) where.status = status;   // anything else is ignored (it was a 500)
 
   const requests = await prisma.productRequest.findMany({
     where,
@@ -147,20 +143,16 @@ export async function respondToProductRequest(req: AuthRequest, res: Response) {
     return;
   }
 
-  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
-    const access = await prisma.userStoreRole.findUnique({
-      where: { userId_storeId: { userId: req.user!.id, storeId: request.storeId } },
-    });
-    if (!access) {
-      res.status(403).json({ success: false, error: 'No access to this store' });
-      return;
-    }
+  if (!(await canUseStore(req.user!.id, req.user!.role, request.storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store' });
+    return;
   }
 
   const finalNote = status === 'DECLINED' ? (responseNote?.trim() || DECLINE_MESSAGE) : responseNote?.trim() || null;
 
-  const updated = await prisma.productRequest.update({
-    where: { id },
+  // Only once: two managers answering at the same moment used to add the item to the order list twice and tell the customer twice
+  const claimed = await prisma.productRequest.updateMany({
+    where: { id, status: 'PENDING' },
     data: {
       status,
       responseNote: finalNote,
@@ -168,6 +160,11 @@ export async function respondToProductRequest(req: AuthRequest, res: Response) {
       respondedAt: new Date(),
     },
   });
+  if (claimed.count === 0) {
+    res.status(409).json({ success: false, error: 'Request already responded to' });
+    return;
+  }
+  const updated = await prisma.productRequest.findUniqueOrThrow({ where: { id } });
 
   // When accepted, auto-add to the store's active order list
   if (status === 'ACCEPTED') {

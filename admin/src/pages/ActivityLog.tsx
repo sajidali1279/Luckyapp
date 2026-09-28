@@ -36,6 +36,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#2DC653', bg: '#2DC65318', icon: '📣' },
   PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#6c757d', bg: '#6c757d18', icon: '🚫' },
   PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  CLEAR_CHAT:                { label: 'Store Chat Cleared',     color: '#E63946', bg: '#E6394618', icon: '🧹' },
   // Accounts, stores and the daily messages
   EDIT_STAFF:                { label: 'Staff Edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
   DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#E63946', bg: '#E6394618', icon: '👋' },
@@ -287,7 +288,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Stores ──">
-            {['CREATE_STORE','UPDATE_STORE','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','UPDATE_HOT_FOOD_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
+            {['CREATE_STORE','UPDATE_STORE','CLEAR_CHAT','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','UPDATE_HOT_FOOD_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>

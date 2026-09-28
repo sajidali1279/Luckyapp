@@ -1,35 +1,24 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { canUseStore as canAccessStore, usableStoreIds } from '../utils/storeAccess';
+import { audit } from '../utils/audit';
 
-const PLATFORM_ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN'];
-
-async function canAccessStore(userId: string, role: string, storeId: string): Promise<boolean> {
-  if (PLATFORM_ADMIN_ROLES.includes(role)) return true;
-  const access = await prisma.userStoreRole.findUnique({
-    where: { userId_storeId: { userId, storeId } },
-  });
-  return !!access;
-}
+const MAX_MESSAGE = 2000;
+const asDate = (v?: string) => { const d = v ? new Date(v) : null; return d && !isNaN(d.getTime()) ? d : null; };
 
 // ─── GET /chat/my-stores ──────────────────────────────────────────────────────
 
 export async function getMyChatStores(req: AuthRequest, res: Response) {
   const user = req.user!;
-  if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
-    const stores = await prisma.store.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, city: true },
-      orderBy: { name: 'asc' },
-    });
-    res.json({ success: true, data: stores });
-  } else {
-    const storeRoles = await prisma.userStoreRole.findMany({
-      where: { userId: user.id },
-      include: { store: { select: { id: true, name: true, city: true } } },
-    });
-    res.json({ success: true, data: storeRoles.map((sr) => sr.store) });
-  }
+  // HQ and the all-stores manager get every open store; anyone else their own
+  const ids = await usableStoreIds(user.id, user.role);
+  const stores = await prisma.store.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, city: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ success: true, data: stores });
 }
 
 // ─── GET /chat/:storeId/messages ─────────────────────────────────────────────
@@ -44,10 +33,12 @@ export async function getMessages(req: AuthRequest, res: Response) {
     return;
   }
 
-  if (after) {
+  const afterDate = asDate(after);
+  const beforeDate = asDate(before);
+  if (afterDate) {
     // Polling mode: only messages newer than `after` timestamp
     const messages = await prisma.chatMessage.findMany({
-      where: { storeId, createdAt: { gt: new Date(after) } },
+      where: { storeId, createdAt: { gt: afterDate } },
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
@@ -59,7 +50,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
       prisma.chatMessage.findMany({
         where: {
           storeId,
-          ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+          ...(beforeDate ? { createdAt: { lt: beforeDate } } : {}),
         },
         orderBy: { createdAt: 'desc' },
         take: 50,
@@ -79,9 +70,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
 export async function getUnreadCount(req: AuthRequest, res: Response) {
   const user = req.user!;
 
-  const storeIds = PLATFORM_ADMIN_ROLES.includes(user.role)
-    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
-    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+  const storeIds = await usableStoreIds(user.id, user.role);
 
   if (storeIds.length === 0) {
     res.json({ success: true, data: { count: 0 } });
@@ -116,9 +105,7 @@ export async function getUnreadCount(req: AuthRequest, res: Response) {
 export async function getUnreadCountByStore(req: AuthRequest, res: Response) {
   const user = req.user!;
 
-  const storeIds = PLATFORM_ADMIN_ROLES.includes(user.role)
-    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
-    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+  const storeIds = await usableStoreIds(user.id, user.role);
 
   if (storeIds.length === 0) {
     res.json({ success: true, data: {} });
@@ -148,8 +135,12 @@ export async function sendMessage(req: AuthRequest, res: Response) {
   const { text } = req.body as { text: string };
   const user = req.user!;
 
-  if (!text || !text.trim()) {
+  if (typeof text !== 'string' || !text.trim()) {
     res.status(400).json({ success: false, error: 'Message text is required' });
+    return;
+  }
+  if (text.trim().length > MAX_MESSAGE) {
+    res.status(400).json({ success: false, error: `Keep a message under ${MAX_MESSAGE.toLocaleString('en-US')} characters.` });
     return;
   }
 
@@ -180,6 +171,15 @@ export async function sendMessage(req: AuthRequest, res: Response) {
 
 export async function clearChat(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
   const result = await prisma.chatMessage.deleteMany({ where: { storeId } });
+  // Nothing else remembers that a whole conversation was wiped, or by whom
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CLEAR_CHAT', entity: 'store', entityId: storeId,
+    details: { summary: `${store.name} chat cleared: ${result.count.toLocaleString('en-US')} message${result.count === 1 ? '' : 's'} deleted`, deletedCount: result.count },
+    storeId, storeName: store.name,
+  });
   res.json({ success: true, data: { deletedCount: result.count } });
 }
