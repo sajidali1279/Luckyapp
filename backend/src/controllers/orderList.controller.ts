@@ -27,7 +27,7 @@ export async function generateListName(storeId: string): Promise<string> {
   const startOfDay = storeDayStart(now);
   const todayCount = await prisma.orderList.count({ where: { storeId, openedAt: { gte: startOfDay } } });
   const suffix = todayCount > 0 ? ` #${todayCount + 1}` : '';
-  return `${storeName} — ${dateStr}${suffix}`;
+  return `${storeName} · ${dateStr}${suffix}`;
 }
 
 async function trackCategoryUsage(name: string): Promise<void> {
@@ -172,20 +172,20 @@ export async function getListById(req: AuthRequest, res: Response) {
 
 // ─── POST /order-lists/store/:storeId/open ───────────────────────────────────
 
-async function createListForStore(storeId: string, openedById: string) {
-  const name = await generateListName(storeId);
-  return prisma.orderList.create({
-    data: { storeId, name, openedById },
-    include: { openedBy: { select: { id: true, name: true } } },
-  });
-}
-
+// Opening and closing a store's list happen one at a time per store (the store's row is locked): two taps, or a manager on the phone
+// and HQ on the admin at the same moment, used to both get through and leave the store with two open lists.
 export async function openList(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const existing = await prisma.orderList.findFirst({ where: { storeId, status: 'OPEN' } });
-  if (existing) { res.status(409).json({ success: false, error: 'A list is already open for this store', data: existing }); return; }
-  const list = await createListForStore(storeId, req.user!.id);
-  res.status(201).json({ success: true, data: list });
+  const name = await generateListName(storeId);
+  const outcome = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "stores" WHERE id = ${storeId} FOR UPDATE`;
+    const existing = await tx.orderList.findFirst({ where: { storeId, status: 'OPEN' } });
+    if (existing) return { existing };
+    const list = await tx.orderList.create({ data: { storeId, name, openedById: req.user!.id }, include: { openedBy: { select: { id: true, name: true } } } });
+    return { list };
+  });
+  if ('existing' in outcome) { res.status(409).json({ success: false, error: 'A list is already open for this store', data: outcome.existing }); return; }
+  res.status(201).json({ success: true, data: outcome.list });
 }
 
 // ─── POST /order-lists/:listId/close ─────────────────────────────────────────
@@ -201,17 +201,20 @@ export async function closeList(req: AuthRequest, res: Response) {
     res.status(403).json({ success: false, error: 'No access to this store' }); return;
   }
   const newListName = await generateListName(list.storeId);
-  const [closed, reopened] = await prisma.$transaction([
-    prisma.orderList.update({
-      where: { id: listId },
-      data: { status: 'CLOSED', closedById: user.id, closedAt: new Date() },
-    }),
-    prisma.orderList.create({
+  const outcome = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "stores" WHERE id = ${list.storeId} FOR UPDATE`;
+    const moved = await tx.orderList.updateMany({ where: { id: listId, status: 'OPEN' }, data: { status: 'CLOSED', closedById: user.id, closedAt: new Date() } });
+    if (moved.count === 0) return null;   // someone else closed it a moment ago
+    const closed = await tx.orderList.findUniqueOrThrow({ where: { id: listId } });
+    const stillOpen = await tx.orderList.findFirst({ where: { storeId: list.storeId, status: 'OPEN' }, include: { openedBy: { select: { id: true, name: true } } } });
+    const reopened = stillOpen ?? await tx.orderList.create({
       data: { storeId: list.storeId, name: newListName, openedById: user.id },
       include: { openedBy: { select: { id: true, name: true } } },
-    }),
-  ]);
-  res.json({ success: true, data: { closed, reopened } });
+    });
+    return { closed, reopened };
+  });
+  if (!outcome) { res.status(409).json({ success: false, error: 'Someone else just closed this list. Refresh to see the new one.' }); return; }
+  res.json({ success: true, data: outcome });
 }
 
 // ─── POST /order-lists/:listId/items ─────────────────────────────────────────
