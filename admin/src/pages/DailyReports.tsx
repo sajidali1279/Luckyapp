@@ -5,6 +5,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { TEXT_MUTED } from '../lib/theme';
+import { storeToday } from '../lib/storeDates';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,9 +30,9 @@ interface DailyReport {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Today at the store (Central), whatever this browser's time zone
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return storeToday();
 }
 
 function fmtTime(iso: string) {

@@ -5,6 +5,21 @@ import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreManagers } from '../utils/push';
+import { storeDateKey, addStoreDays, isRealDateKey } from '../utils/storeTime';
+
+// A number from the report form: empty means not filled in; text, a negative or an impossible value is refused with the field's
+// name (text used to be saved as NaN, which the pages then showed)
+// A phone set to Spanish types a comma: in a price it is the decimal point ("3,19"), in gallons and counts it groups thousands
+// ("1,250"). The old code read "3,19" as 3.
+function reportNumber(v: unknown, name: string, max: number, whole = false, commaIsDecimal = false): number | null {
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const raw = String(v).trim().replace(/\s/g, '');
+  const n = Number(commaIsDecimal && !raw.includes('.') ? raw.replace(',', '.') : raw.replace(/,/g, ''));
+  if (!Number.isFinite(n) || n < 0 || n > max || (whole && !Number.isInteger(n))) {
+    throw new Error(`${name} must be ${whole ? 'a whole number' : 'a number'} from 0 to ${max.toLocaleString('en-US')}.`);
+  }
+  return n;
+}
 
 async function uploadImage(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -36,8 +51,32 @@ export async function createReport(req: AuthRequest, res: Response) {
 
   const { reportDate, gasPrice, dieselPrice, regGasGal, midGradeGasGal, premiumGasGal, cigsCount, notes } = req.body;
 
-  if (!reportDate) {
-    res.status(400).json({ success: false, error: 'reportDate is required' });
+  // The store day it is for: a real date, from a month back (a late report) to today at the store
+  const today = storeDateKey();
+  if (typeof reportDate !== 'string' || !isRealDateKey(reportDate)) {
+    res.status(400).json({ success: false, error: 'Pick the day this report is for.' });
+    return;
+  }
+  if (reportDate > today || reportDate < addStoreDays(today, -31)) {
+    res.status(400).json({ success: false, error: 'A report can be for today or a day in the last month.' });
+    return;
+  }
+  let nums;
+  try {
+    nums = {
+      gasPrice: reportNumber(gasPrice, 'The gas price', 20, false, true),
+      dieselPrice: reportNumber(dieselPrice, 'The diesel price', 20, false, true),
+      regGasGal: reportNumber(regGasGal, 'Regular gallons', 100_000),
+      midGradeGasGal: reportNumber(midGradeGasGal, 'Mid-grade gallons', 100_000),
+      premiumGasGal: reportNumber(premiumGasGal, 'Premium gallons', 100_000),
+      cigsCount: reportNumber(cigsCount, 'The cigarette count', 100_000, true),
+    };
+  } catch (e: any) {
+    res.status(400).json({ success: false, error: e.message });
+    return;
+  }
+  if (typeof notes === 'string' && notes.trim().length > 1000) {
+    res.status(400).json({ success: false, error: 'Keep the notes under 1,000 characters.' });
     return;
   }
 
@@ -51,13 +90,8 @@ export async function createReport(req: AuthRequest, res: Response) {
       storeId,
       submittedById: userId,
       reportDate,
-      gasPrice:      gasPrice      ? parseFloat(gasPrice)      : null,
-      dieselPrice:   dieselPrice   ? parseFloat(dieselPrice)   : null,
-      regGasGal:     regGasGal     ? parseFloat(regGasGal)     : null,
-      midGradeGasGal: midGradeGasGal ? parseFloat(midGradeGasGal) : null,
-      premiumGasGal: premiumGasGal ? parseFloat(premiumGasGal) : null,
-      cigsCount:     cigsCount     ? parseInt(cigsCount)       : null,
-      notes:         notes?.trim() || null,
+      ...nums,
+      notes:         typeof notes === 'string' ? notes.trim() || null : null,
       imageUrl,
     },
     include: {
@@ -85,7 +119,9 @@ export async function getTodayReports(req: AuthRequest, res: Response) {
   const storeId = hasMinRole(user.role, Role.SUPER_ADMIN)
     ? requestedStoreId
     : (requestedStoreId && userStoreIds.includes(requestedStoreId) ? requestedStoreId : userStoreIds[0]);
-  const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+  // Today at the store (Central): the server runs in UTC, where after 7 pm it is already tomorrow and today's reports went missing
+  const asked = req.query.date as string | undefined;
+  const date = asked && isRealDateKey(asked) ? asked : storeDateKey();
 
   if (!storeId) {
     res.status(400).json({ success: false, error: 'storeId required' });
