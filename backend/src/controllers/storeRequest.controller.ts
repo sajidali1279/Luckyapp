@@ -9,8 +9,12 @@ import { alertUrlManager, storeRequestUrlEmployee } from '../utils/notificationR
 
 const PLATFORM_ADMIN_ROLES = ['DEV_ADMIN', 'SUPER_ADMIN'];
 
+// HQ, a manager over all stores (allStoresAccess), or someone assigned to this store. The all-stores manager used to be
+// refused at every store they were not assigned to one by one.
 async function canAccessStore(userId: string, role: string, storeId: string): Promise<boolean> {
   if (PLATFORM_ADMIN_ROLES.includes(role)) return true;
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { allStoresAccess: true } });
+  if (me?.allStoresAccess) return true;
   const access = await prisma.userStoreRole.findUnique({
     where: { userId_storeId: { userId, storeId } },
   });
@@ -40,6 +44,10 @@ export async function submitRequest(req: AuthRequest, res: Response) {
 
   if (!Object.values(StoreRequestPriority).includes(priority as StoreRequestPriority)) {
     res.status(400).json({ success: false, error: 'Invalid priority' });
+    return;
+  }
+  if (notes != null && (typeof notes !== 'string' || notes.trim().length > 1000)) {
+    res.status(400).json({ success: false, error: 'Keep the note under 1,000 characters.' });
     return;
   }
 
@@ -118,10 +126,12 @@ export async function getStoreRequestsList(req: AuthRequest, res: Response) {
     return;
   }
 
+  // A status that is not one is ignored (it was a 500)
+  const known = status && ['PENDING', 'ACKNOWLEDGED'].includes(status) ? status : undefined;
   const requests = await prisma.storeRequest.findMany({
     where: {
       storeId,
-      ...(status ? { status: status as any } : {}),
+      ...(known ? { status: known as any } : {}),
     },
     orderBy: [{ status: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
     take: 200,
@@ -137,7 +147,7 @@ export async function getPendingCount(req: AuthRequest, res: Response) {
   const user = req.user!;
 
   let storeIds: string[];
-  if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
+  if (PLATFORM_ADMIN_ROLES.includes(user.role) || (await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } }))?.allStoresAccess) {
     const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
     storeIds = stores.map((s) => s.id);
   } else {
@@ -162,7 +172,7 @@ export async function getPendingCountByStore(req: AuthRequest, res: Response) {
   const user = req.user!;
 
   let storeIds: string[];
-  if (PLATFORM_ADMIN_ROLES.includes(user.role)) {
+  if (PLATFORM_ADMIN_ROLES.includes(user.role) || (await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } }))?.allStoresAccess) {
     const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true } });
     storeIds = stores.map((s) => s.id);
   } else {
@@ -204,9 +214,14 @@ export async function acknowledgeRequest(req: AuthRequest, res: Response) {
     res.status(403).json({ success: false, error: 'No access to this store' });
     return;
   }
+  if (note != null && (typeof note !== 'string' || note.trim().length > 1000)) {
+    res.status(400).json({ success: false, error: 'Keep the note under 1,000 characters.' });
+    return;
+  }
 
-  const updated = await prisma.storeRequest.update({
-    where: { id: requestId },
+  // Only once: a second tap (or two managers at once) used to handle it again, push the employee again and log it again
+  const claimed = await prisma.storeRequest.updateMany({
+    where: { id: requestId, status: 'PENDING' },
     data: {
       status: 'ACKNOWLEDGED',
       acknowledgedById: user.id,
@@ -214,8 +229,12 @@ export async function acknowledgeRequest(req: AuthRequest, res: Response) {
       acknowledgerNote: note?.trim() || null,
       acknowledgedAt: new Date(),
     },
-    include: { store: { select: { name: true } } },
   });
+  const updated = await prisma.storeRequest.findUniqueOrThrow({ where: { id: requestId }, include: { store: { select: { name: true } } } });
+  if (claimed.count === 0) {
+    res.json({ success: true, data: updated, changed: false, message: `${updated.acknowledgerName ?? 'Someone'} already handled this alert.` });
+    return;
+  }
 
   audit({
     actorId: user.id, actorName: user.name, actorRole: user.role,
@@ -224,7 +243,7 @@ export async function acknowledgeRequest(req: AuthRequest, res: Response) {
     storeId: existing.storeId, storeName: updated.store.name,
   });
 
-  sendPushToUser(updated.submittedById, '✅ Alert Reviewed', 'Your store alert has been handled by your manager.', 'STORE_REQUEST', storeRequestUrlEmployee(requestId));
+  sendPushToUser(updated.submittedById, '✅ Alert Reviewed', `Your store alert has been handled by ${PLATFORM_ADMIN_ROLES.includes(user.role) ? 'HQ' : 'your manager'}.`, 'STORE_REQUEST', storeRequestUrlEmployee(requestId));
 
-  res.json({ success: true, data: updated });
+  res.json({ success: true, data: updated, changed: true });
 }
