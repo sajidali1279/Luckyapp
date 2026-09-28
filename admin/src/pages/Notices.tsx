@@ -7,10 +7,13 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { storeToday, addDays, endOfStoreDay, storeDayLong } from '../lib/storeDates';
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
-function oneWeekOutStr() { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); }
-function fmtDate(d: string) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+// Dates are store days (Central time): "today" does not turn into tomorrow after 7 pm, and a notice ends at 11:59 pm at the store
+// whatever time zone this browser is in
+function todayStr() { return storeToday(); }
+function oneWeekOutStr() { return addDays(storeToday(), 7); }
+function fmtDate(d: string) { return storeDayLong(d); }
 
 function noticeStatus(notice: any): { label: string; color: string; bg: string } {
   if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#f1f3f5' };
@@ -53,13 +56,13 @@ export default function Notices() {
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => noticesApi.deactivate(id),
     onSuccess: () => { toast.success('Notice deactivated'); qc.invalidateQueries({ queryKey: ['admin-notices'] }); },
-    onError: () => toast.error('Failed to deactivate notice'),
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to deactivate notice'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => noticesApi.delete(id),
     onSuccess: () => { toast.success('Notice deleted'); qc.invalidateQueries({ queryKey: ['admin-notices'] }); },
-    onError: () => toast.error('Failed to delete notice'),
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to delete notice'),
   });
 
   function resetForm() {
@@ -78,7 +81,7 @@ export default function Notices() {
     createMutation.mutate({
       title: title.trim(),
       body: body.trim(),
-      endDate: new Date(endDate + 'T23:59:59').toISOString(),
+      endDate: endOfStoreDay(endDate).toISOString(),
       ...(isStoreManager
         ? (ownStoreIds.length > 1 && storeId ? { storeId } : {})
         : (storeTarget === 'SPECIFIC_STORE' && storeId ? { storeId } : {})),
