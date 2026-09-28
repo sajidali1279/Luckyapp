@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import routes from './routes';
+import { errorResponse } from './utils/errorResponse';
 import prisma from './config/prisma';
 import { startBillingCron } from './utils/billing-cron';
 import { startExpiryCron } from './utils/expiry-cron';
@@ -104,8 +105,10 @@ app.use((_, res) => {
 
 // Global error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Internal server error' });
+  const answer = errorResponse(err);
+  if (answer.status >= 500) console.error(err.stack);
+  else console.warn(`[${answer.status}] ${String(err.message ?? '').split(String.fromCharCode(10))[0]}`);
+  res.status(answer.status).json({ success: false, error: answer.error });
 });
 
 process.on('unhandledRejection', (reason) => {
