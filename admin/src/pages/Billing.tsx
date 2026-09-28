@@ -40,7 +40,7 @@ function downloadBillsCSV(invoices: any[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `luckystop-bills-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `luckystop-bills-${storeToday()}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -5,6 +5,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import DataTablePagination from '../components/DataTablePagination';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { storeToday, addDays, startOfStoreDay, endOfStoreDay } from '../lib/storeDates';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -17,6 +18,28 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   BROADCAST:                 { label: 'Push Sent',              color: '#457b9d', bg: '#457b9d18', icon: '📢' },
   DISPUTE_APPROVED:          { label: 'Dispute Approved',       color: '#2DC653', bg: '#2DC65318', icon: '✅' },
   DISPUTE_REJECTED:          { label: 'Dispute Rejected',       color: '#E63946', bg: '#E6394618', icon: '❌' },
+  APPROVE:                   { label: 'Sale Approved',          color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  APPROVE_FLAGGED:           { label: 'Held Sale Approved',     color: '#2DC653', bg: '#2DC65318', icon: '🟢' },
+  REJECT_FLAGGED:            { label: 'Held Sale Rejected',     color: '#E63946', bg: '#E6394618', icon: '🔴' },
+  VOID_TRANSACTION:          { label: 'Sale Voided',            color: '#E63946', bg: '#E6394618', icon: '↩️' },
+  AUTO_EXPIRE_PENDING:       { label: 'Unfinished Sales Expired', color: '#6c757d', bg: '#6c757d18', icon: '⌛' },
+  GOODWILL_CREDIT:           { label: 'Goodwill Credit',        color: '#2DC653', bg: '#2DC65318', icon: '🤝' },
+  CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#b8860b', bg: '#b8860b18', icon: '⭐' },
+  CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
+  CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#457b9d', bg: '#457b9d18', icon: '✅' },
+  // Rewards and notices
+  CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
+  CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  NOTICE_CREATE:             { label: 'Notice Posted',          color: '#F4A261', bg: '#F4A26118', icon: '📌' },
+  NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#6c757d', bg: '#6c757d18', icon: '⏹️' },
+  NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  // Accounts, stores and the daily messages
+  EDIT_STAFF:                { label: 'Staff Edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#E63946', bg: '#E6394618', icon: '👋' },
+  CREATE_STORE:              { label: 'Store Added',            color: '#0369a1', bg: '#0369a118', icon: '🏪' },
+  UPDATE_HOT_FOOD_HOURS:     { label: 'Hot Food Hours Changed', color: '#ea580c', bg: '#ea580c18', icon: '🔥' },
+  MORNING_SUMMARY:           { label: 'Morning Summary Sent',   color: '#6c757d', bg: '#6c757d18', icon: '🌅' },
+  WEEKLY_SUMMARY:            { label: 'Weekly Summary Sent',    color: '#6c757d', bg: '#6c757d18', icon: '📊' },
   // Offers & Banners
   CREATE_OFFER:              { label: 'Create Offer',           color: '#F4A261', bg: '#F4A26118', icon: '📢' },
   UPDATE_OFFER:              { label: 'Update Offer',           color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
@@ -146,12 +169,9 @@ function fmtDetails(details: string | null): string {
   }
 }
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
-function monthAgoStr() {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
-}
+// Store days (Central): the range starts at midnight and ends at 11:59 pm at the store, whatever this browser's time zone
+function todayStr() { return storeToday(); }
+function monthAgoStr() { return addDays(storeToday(), -30); }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -167,8 +187,8 @@ export default function ActivityLog() {
   if (action)    params.action    = action;
   if (actorRole) params.actorRole = actorRole;
   if (storeId)   params.storeId   = storeId;
-  if (from)      params.from      = new Date(from).toISOString();
-  if (to)        params.to        = new Date(to + 'T23:59:59').toISOString();
+  if (from)      params.from      = startOfStoreDay(from).toISOString();
+  if (to)        params.to        = endOfStoreDay(to).toISOString();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['audit-logs', params],
@@ -239,7 +259,7 @@ export default function ActivityLog() {
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
-            {['GRANT_POINTS','REDEEM_CREDITS','REJECT_TRANSACTION','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
+            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
@@ -259,12 +279,22 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Staff & Access ──">
-            {['CREATE_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION'].map(k => (
+            {['CREATE_STAFF','EDIT_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION','DELETE_OWN_ACCOUNT'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
           <optgroup label="── Stores ──">
-            {['UPDATE_STORE','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
+            {['CREATE_STORE','UPDATE_STORE','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','UPDATE_HOT_FOOD_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Rewards & Notices ──">
+            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_DEACTIVATE','NOTICE_DELETE'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Daily messages ──">
+            {['MORNING_SUMMARY','WEEKLY_SUMMARY'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].icon} {ACTION_META[k].label}</option>
             ))}
           </optgroup>
@@ -287,6 +317,7 @@ export default function ActivityLog() {
 
         <select style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>
           <option value="">All Roles</option>
+          <option value="DEV_ADMIN">Dev Admin</option>
           <option value="SUPER_ADMIN">Super Admin</option>
           <option value="STORE_MANAGER">Store Manager</option>
           <option value="EMPLOYEE">Employee</option>
