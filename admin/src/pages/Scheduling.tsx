@@ -58,7 +58,7 @@ export default function Scheduling() {
   // caller's own store(s) for a Store Manager — including a Store Manager
   // with more than one assigned store, which getOne(storeIds[0]) (the old
   // approach here) could never see past.
-  const { data: storesData, isLoading: storesLoading } = useQuery({
+  const { data: storesData, isLoading: storesLoading, isError: storesError, refetch: refetchStores } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: () => storesApi.getAccessible(),
   });
@@ -79,13 +79,13 @@ export default function Scheduling() {
     enabled: !!selectedStoreId,
   });
 
-  const { data: rosterData } = useQuery({
+  const { data: rosterData, isError: rosterError, refetch: refetchRoster } = useQuery({
     queryKey: ['roster', selectedStoreId],
     queryFn: () => schedulingApi.getTodayRoster(selectedStoreId!),
     enabled: !!selectedStoreId,
   });
 
-  const { data: requestsData } = useQuery({
+  const { data: requestsData, isError: requestsError, refetch: refetchRequests } = useQuery({
     queryKey: ['schedule-requests', selectedStoreId],
     queryFn: () => schedulingApi.getStoreRequests(selectedStoreId!),
     enabled: !!selectedStoreId,
@@ -136,7 +136,7 @@ export default function Scheduling() {
       qc.invalidateQueries({ queryKey: ['schedule', selectedStoreId] });
       qc.invalidateQueries({ queryKey: ['roster', selectedStoreId] });
     },
-    onError: () => toast.error('Failed to remove shift'),
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to remove shift'),
   });
 
   const updateRequestMutation = useMutation({
@@ -147,7 +147,7 @@ export default function Scheduling() {
       qc.invalidateQueries({ queryKey: ['schedule-requests', selectedStoreId] });
       qc.invalidateQueries({ queryKey: ['roster', selectedStoreId] });
     },
-    onError: () => toast.error('Failed to update request'),
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to update request'),
   });
 
   // ── Data ──
@@ -246,6 +246,8 @@ export default function Scheduling() {
         <div style={s.storeList}>
           {storesLoading ? (
             <div style={s.loadingText}>Loading...</div>
+          ) : storesError ? (
+            <ErrorState compact message="Could not load the stores." onRetry={() => refetchStores()} />
           ) : (
             stores.map((store: any, i: number) => {
               const active = selectedStoreId === store.id;
@@ -341,7 +343,9 @@ export default function Scheduling() {
                 {/* Today's Roster */}
                 <div style={s.section}>
                   <h2 style={s.sectionTitle}>Today's Roster {todayDay ? `(${todayDay})` : ''}</h2>
-                  {roster.length === 0 ? (
+                  {rosterError ? (
+                    <ErrorState message="Could not load who is working today." onRetry={() => refetchRoster()} />
+                  ) : roster.length === 0 ? (
                     <div style={s.emptyCard}>No staff scheduled for today.</div>
                   ) : (
                     <div style={s.rosterGrid}>
@@ -453,7 +457,10 @@ export default function Scheduling() {
 
                 {/* Pending */}
                 <h3 style={s.subTitle}>Pending ({pendingRequests.length})</h3>
-                {pendingRequests.length === 0 ? (
+                {requestsError ? (
+                  // A failed load is not the same as none: a manager reading "No pending requests" would not look again
+                  <ErrorState message="Could not load the shift requests." onRetry={() => refetchRequests()} />
+                ) : pendingRequests.length === 0 ? (
                   <div style={s.emptyCard}>No pending requests.</div>
                 ) : (
                   <div style={s.requestList}>
