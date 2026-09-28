@@ -4,6 +4,20 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 
+// A task's fields, checked, so a mistake gets a sentence instead of "Failed to create task" (a 500)
+const SHIFTS: ShiftType[] = ['OPENING', 'MIDDLE', 'CLOSING'];
+function taskProblem(b: Record<string, unknown>, creating: boolean): string | null {
+  if ((creating || b.shift !== undefined) && !SHIFTS.includes(b.shift as ShiftType)) return 'Pick the shift: Opening, Middle or Closing.';
+  if (creating || b.title !== undefined) {
+    if (typeof b.title !== 'string' || !b.title.trim()) return 'Enter the task.';
+    if (b.title.trim().length > 80) return 'Keep the task under 80 characters.';
+  }
+  if (b.description !== undefined && b.description !== null && (typeof b.description !== 'string' || b.description.trim().length > 500)) return 'Keep the details under 500 characters.';
+  if (b.sortOrder !== undefined && (!Number.isInteger(b.sortOrder) || (b.sortOrder as number) < 0 || (b.sortOrder as number) > 999)) return 'The order must be a whole number from 0 to 999.';
+  if (b.isActive !== undefined && typeof b.isActive !== 'boolean') return 'On or off must be true or false.';
+  return null;
+}
+
 const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sortOrder: number }[] = [
   // ── Opening (Morning Shift) ──
   { shift: 'OPENING', title: 'Open Store', description: 'Unlock doors, turn on lights, check signage, verify lottery machines are on, and turn on POS systems.', sortOrder: 1 },
@@ -97,7 +111,8 @@ export async function createTask(req: AuthRequest, res: Response) {
   try {
     const user = req.user!;
     const { shift, title, description, sortOrder } = req.body;
-    if (!shift || !title) return res.status(400).json({ error: 'shift and title are required' });
+    const problem = taskProblem(req.body, true);
+    if (problem) return res.status(400).json({ success: false, error: problem });
 
     // A Store Manager can only ever create a task scoped to one of their own
     // stores — never chain-wide, and never a store they're not assigned to.
@@ -110,6 +125,8 @@ export async function createTask(req: AuthRequest, res: Response) {
       const ownStoreId = requested && ownStoreIds.includes(requested) ? requested : ownStoreIds[0];
       if (!ownStoreId) return res.status(400).json({ error: 'No store assigned to your account' });
       storeId = ownStoreId;
+    } else if (storeId && !(await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }))) {
+      return res.status(400).json({ success: false, error: 'That store does not exist.' });
     }
 
     const task = await prisma.dailyTask.create({
@@ -128,10 +145,15 @@ export async function updateTask(req: AuthRequest, res: Response) {
     const user = req.user!;
     const { id } = req.params;
     const isAdmin = hasMinRole(user.role, Role.SUPER_ADMIN);
+    const problem = taskProblem(req.body, false);
+    if (problem) return res.status(400).json({ success: false, error: problem });
 
+    const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
+    if (!existing) return res.status(404).json({ success: false, error: 'That task does not exist.' });
+    if (isAdmin && req.body.storeId && !(await prisma.store.findUnique({ where: { id: req.body.storeId }, select: { id: true } }))) {
+      return res.status(400).json({ success: false, error: 'That store does not exist.' });
+    }
     if (!isAdmin) {
-      const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
-      if (!existing) return res.status(404).json({ error: 'Task not found' });
       const ownStoreIds: string[] = (user as any).storeIds || [];
       if (existing.storeId === null || !ownStoreIds.includes(existing.storeId)) {
         return res.status(403).json({ error: 'You can only edit your own store\'s tasks' });
@@ -164,9 +186,9 @@ export async function deleteTask(req: AuthRequest, res: Response) {
     const user = req.user!;
     const { id } = req.params;
 
+    const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
+    if (!existing) return res.status(404).json({ success: false, error: 'That task does not exist.' });
     if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
-      const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
-      if (!existing) return res.status(404).json({ error: 'Task not found' });
       const ownStoreIds: string[] = (user as any).storeIds || [];
       if (existing.storeId === null || !ownStoreIds.includes(existing.storeId)) {
         return res.status(403).json({ error: 'You can only delete your own store\'s tasks' });

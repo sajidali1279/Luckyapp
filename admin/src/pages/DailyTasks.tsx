@@ -71,20 +71,20 @@ export default function DailyTasks() {
   const createMutation = useMutation({
     mutationFn: (d: typeof form) => dailyTaskApi.create({ ...d, storeId: d.storeId || undefined }),
     onSuccess: () => { toast.success('Task added'); qc.invalidateQueries({ queryKey: ['daily-tasks-admin'] }); closeModal(); },
-    onError: () => toast.error('Failed to add task'),
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to add task'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, d }: { id: string; d: typeof form }) =>
       dailyTaskApi.update(id, { ...d, storeId: d.storeId || null, description: d.description || null }),
     onSuccess: () => { toast.success('Task updated'); qc.invalidateQueries({ queryKey: ['daily-tasks-admin'] }); closeModal(); },
-    onError: () => toast.error('Failed to update task'),
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to update task'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => dailyTaskApi.delete(id),
     onSuccess: () => { toast.success('Task deleted'); qc.invalidateQueries({ queryKey: ['daily-tasks-admin'] }); setDeleteId(null); },
-    onError: () => toast.error('Failed to delete task'),
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to delete task'),
   });
 
   const seedMutation = useMutation({
