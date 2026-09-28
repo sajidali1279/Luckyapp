@@ -1,5 +1,9 @@
 import crypto from 'crypto';
 import { Response } from 'express';
+import { z } from 'zod';
+import { Role } from '@prisma/client';
+import { hasMinRole } from '../middleware/auth';
+import { refuse } from '../utils/refusal';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
@@ -30,51 +34,83 @@ export async function getAllCatalog(req: AuthRequest, res: Response) {
   res.json({ success: true, data: items });
 }
 
-// POST /catalog — create item (SuperAdmin+)
+// A reward's fields, checked: a reward priced at 0 points was a free reward, and text for the price or order crashed the save
+const rewardFields = {
+  title: z.string({ message: 'Enter the reward name.' }).trim().min(1, 'Enter the reward name.').max(60, 'The name is too long (60 characters at most).'),
+  description: z.string().trim().max(200, 'The description is too long (200 characters at most).'),
+  emoji: z.string().trim().max(8, 'Use one emoji.'),
+  pointsCost: z.coerce.number({ message: 'The points cost must be a number.' }).int('The points cost must be a whole number.').min(1, 'A reward costs at least 1 point.').max(100_000, 'That is more than 100,000 points ($1,000). Check the number.'),
+  sortOrder: z.coerce.number({ message: 'The order must be a number.' }).int('The order must be a whole number.').min(0).max(9999),
+  isActive: z.boolean({ message: 'Active must be true or false.' }),
+  chain: z.string().trim().min(1, 'Enter the company name.').max(40, 'The company name is too long (40 characters at most).'),
+  category: z.enum(['IN_STORE', 'GAS', 'HOT_FOODS'], { message: 'Pick In-Store, Gas or Hot Foods.' }),
+};
+const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional() });
+const updateRewardSchema = createRewardSchema.partial();
+
+const rewardWords = (r: { title: string; pointsCost: number; isActive: boolean }) => `${r.title} (${r.pointsCost.toLocaleString('en-US')} pts${r.isActive ? '' : ', off'})`;
+
+// POST /catalog — create item
 export async function createCatalogItem(req: AuthRequest, res: Response) {
-  const { title, description, emoji, pointsCost, sortOrder, chain, category } = req.body;
-  if (!title || !pointsCost || pointsCost < 1) {
-    res.status(400).json({ success: false, error: 'title and pointsCost (min 1) are required' });
-    return;
-  }
+  const parsed = createRewardSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const d = parsed.data;
   const item = await prisma.redemptionCatalogItem.create({
     data: {
-      title,
-      description: description || '',
-      emoji: emoji || '🎁',
-      pointsCost: parseInt(pointsCost),
-      sortOrder: sortOrder || 0,
-      chain: chain || 'Lucky Stop',
-      category: category || 'IN_STORE',
+      title: d.title,
+      description: d.description ?? '',
+      emoji: d.emoji || '🎁',
+      pointsCost: d.pointsCost,
+      sortOrder: d.sortOrder ?? 0,
+      isActive: d.isActive ?? true,
+      chain: d.chain || 'Lucky Stop',
+      category: d.category ?? 'IN_STORE',
     },
+  });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'CATALOG_ITEM_CREATE', entity: 'catalog_item', entityId: item.id,
+    details: { summary: `Reward added: ${rewardWords(item)}` }, storeId: null,
   });
   res.status(201).json({ success: true, data: item });
 }
 
-// PATCH /catalog/:id (SuperAdmin+)
+// PATCH /catalog/:id
 export async function updateCatalogItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { title, description, emoji, pointsCost, isActive, sortOrder, chain, category } = req.body;
-  const item = await prisma.redemptionCatalogItem.update({
-    where: { id },
-    data: {
-      ...(title !== undefined && { title }),
-      ...(description !== undefined && { description }),
-      ...(emoji !== undefined && { emoji }),
-      ...(pointsCost !== undefined && { pointsCost: parseInt(pointsCost) }),
-      ...(isActive !== undefined && { isActive }),
-      ...(sortOrder !== undefined && { sortOrder }),
-      ...(chain !== undefined && { chain }),
-      ...(category !== undefined && { category }),
-    },
-  });
+  const parsed = updateRewardSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const before = await prisma.redemptionCatalogItem.findUnique({ where: { id } });
+  if (!before) { res.status(404).json({ success: false, error: 'That reward does not exist.' }); return; }
+  const item = await prisma.redemptionCatalogItem.update({ where: { id }, data: parsed.data });
+  const changes: string[] = [];
+  if (before.title !== item.title) changes.push(`name "${before.title}" to "${item.title}"`);
+  if (before.pointsCost !== item.pointsCost) changes.push(`${before.pointsCost.toLocaleString('en-US')} to ${item.pointsCost.toLocaleString('en-US')} pts`);
+  if (before.isActive !== item.isActive) changes.push(item.isActive ? 'turned on' : 'turned off');
+  if (before.category !== item.category) changes.push(`category ${before.category} to ${item.category}`);
+  if (changes.length) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'CATALOG_ITEM_UPDATE', entity: 'catalog_item', entityId: id,
+      details: { summary: `Reward ${before.title}: ${changes.join(', ')}` }, storeId: null,
+    });
+  }
   res.json({ success: true, data: item });
 }
 
-// DELETE /catalog/:id — soft delete (SuperAdmin+)
+// DELETE /catalog/:id — switched off, kept for history (codes already handed out can still be used)
 export async function deleteCatalogItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
+  const before = await prisma.redemptionCatalogItem.findUnique({ where: { id } });
+  if (!before) { res.status(404).json({ success: false, error: 'That reward does not exist.' }); return; }
   await prisma.redemptionCatalogItem.update({ where: { id }, data: { isActive: false } });
+  if (before.isActive) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'CATALOG_ITEM_UPDATE', entity: 'catalog_item', entityId: id,
+      details: { summary: `Reward ${before.title}: turned off` }, storeId: null,
+    });
+  }
   res.json({ success: true });
 }
 
@@ -224,6 +260,11 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   // work gets attributed to wherever they're actually standing, not always
   // their first assigned store — prefer that over storeIds[0].
   const storeId = req.body.storeId || req.user!.storeIds?.[0];
+  // The reward is counted at a store the cashier works at (HQ may name any store)
+  if (req.body.storeId && !hasMinRole(req.user!.role, Role.SUPER_ADMIN) && !(req.user!.storeIds ?? []).includes(req.body.storeId)) {
+    const all = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { allStoresAccess: true } });
+    if (!all?.allStoresAccess) { res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' }); return; }
+  }
 
   const redemption = await prisma.catalogRedemption.findUnique({
     where: { id },
