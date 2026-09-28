@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import { employeeRequestApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
@@ -125,7 +126,7 @@ function NewRequestTab() {
       setNote('');
       setSearch('');
     },
-    onError: () => toast.error('Failed to submit request'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to submit request')),
   });
 
   function addFromSugg(sg: { name: string; category: string | null }) {

@@ -5,6 +5,7 @@ import { Package } from 'lucide-react';
 import { storeRequestApi, productRequestApi, employeeRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -282,7 +283,7 @@ export default function StoreRequests() {
       setRespondTarget(null);
       setRespondNote('');
     },
-    onError: () => toast.error('Failed to respond'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to respond')),
   });
 
   const acknowledgeMutation = useMutation({
@@ -296,7 +297,7 @@ export default function StoreRequests() {
       setAckTarget(null);
       setAckNote('');
     },
-    onError: () => toast.error('Failed to acknowledge'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to acknowledge')),
   });
 
   const reviewMutation = useMutation({
@@ -313,7 +314,7 @@ export default function StoreRequests() {
       setLineState({});
       setReviewTarget(null);
     },
-    onError: () => toast.error('Failed to submit review'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to submit review')),
   });
 
   const setLine = (lineId: string, field: 'action' | 'reason' | 'note', value: string) =>

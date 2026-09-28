@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { pointsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -41,7 +42,7 @@ export default function StoreManagerDashboard() {
       qc.invalidateQueries({ queryKey: ['store-pending', storeId] });
       qc.invalidateQueries({ queryKey: ['store-summary', storeId] });
     },
-    onError: () => toast.error('Failed to reject transaction'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to reject transaction')),
   });
 
   const summary = data?.data?.data;

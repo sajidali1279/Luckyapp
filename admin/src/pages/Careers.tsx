@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
@@ -144,7 +145,7 @@ export default function Careers() {
       setSelectedApp(res.data.data);
       toast.success('Application updated');
     },
-    onError: () => toast.error('Failed to update'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to update')),
   });
 
   const deleteMut = useMutation({
@@ -155,25 +156,25 @@ export default function Careers() {
       setSelectedApp(null);
       toast.success('Application deleted');
     },
-    onError: () => toast.error('Failed to delete'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to delete')),
   });
 
   const createOpeningMut = useMutation({
     mutationFn: (data: object) => jobOpeningsApi.create(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); setShowOpeningForm(false); setOpeningForm(emptyForm); toast.success('Opening posted'); },
-    onError: () => toast.error('Failed to post opening'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to post opening')),
   });
 
   const updateOpeningMut = useMutation({
     mutationFn: ({ id, data }: { id: string; data: object }) => jobOpeningsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); setEditingOpening(null); setShowOpeningForm(false); toast.success('Opening updated'); },
-    onError: () => toast.error('Failed to update opening'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to update opening')),
   });
 
   const deleteOpeningMut = useMutation({
     mutationFn: (id: string) => jobOpeningsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-openings-admin'] }); toast.success('Opening deleted'); },
-    onError: () => toast.error('Failed to delete opening'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to delete opening')),
   });
 
   function startEditOpening(op: JobOpening) {

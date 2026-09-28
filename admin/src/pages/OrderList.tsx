@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import { orderListApi, orderCategoriesApi, storesApi, employeeRequestApi, inventoryAnalyticsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
@@ -195,7 +196,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       toast.success('Item added');
       onItemAdded();
     },
-    onError: () => toast.error('Failed to add item'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to add item')),
   });
 
   const reviewMut = useMutation({
@@ -211,7 +212,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       onRequestReviewed();
     },
-    onError: () => toast.error('Failed to submit review'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to submit review')),
   });
 
   function doAdd() {
@@ -525,7 +526,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       setEditingInstructions(false);
     },
-    onError: () => toast.error('Failed to save instructions'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to save instructions')),
   });
 
   const { data: reqData, refetch: refetchReqs } = useQuery({
@@ -543,7 +544,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       onListChanged();
       onBack();
     },
-    onError: () => toast.error('Failed to close list'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to close list')),
   });
 
   const statusMutation = useMutation({
@@ -552,7 +553,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       onListChanged();
     },
-    onError: () => toast.error('Failed to update status'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to update status')),
   });
 
   const updateQtyMutation = useMutation({
@@ -562,7 +563,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       setEditingQtyId(null);
     },
-    onError: () => toast.error('Failed to update quantity'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to update quantity')),
   });
 
   const removeMutation = useMutation({
@@ -572,7 +573,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       qc.invalidateQueries({ queryKey: ['admin-order-list-detail', list.id] });
       onListChanged();
     },
-    onError: () => toast.error('Failed to remove'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to remove')),
   });
 
   const visibleItems = list.items?.filter(i => i.status !== 'REMOVED') || [];
@@ -1003,13 +1004,13 @@ function CategoriesTab() {
       setEditingId(null);
       setApprovingId(null);
     },
-    onError: () => toast.error('Failed to update'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to update')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => orderCategoriesApi.adminDelete(id),
     onSuccess: () => { toast.success('Category deleted'); qc.invalidateQueries({ queryKey: ['order-categories-admin'] }); },
-    onError: () => toast.error('Failed to delete'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to delete')),
   });
 
   const pendingCount = categories.filter(c => c.status === 'PENDING').length;

@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { failureMessage } from '../lib/apiError';
 import ErrorState from '../components/ErrorState';
 import ConfirmModal from '../components/ConfirmModal';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
@@ -95,7 +96,7 @@ export default function Chat() {
       qc.invalidateQueries({ queryKey: ['chat-unread-by-store'] });
       setShowClearConfirm(false);
     },
-    onError: () => toast.error('Failed to clear chat'),
+    onError: (err: any) => toast.error(failureMessage(err, 'Failed to clear chat')),
   });
 
   const { data: storesData, isError: storesError, refetch: refetchStores } = useQuery({
