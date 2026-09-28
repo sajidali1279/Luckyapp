@@ -177,15 +177,16 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     const { claimCode, storeId } = req.body as { claimCode?: string; storeId?: string };
     if (!claimCode) return res.status(400).json({ success: false, error: 'claimCode required' });
 
-    const claim = await prisma.welcomeBonusClaim.findUnique({ where: { claimCode }, include: { customer: { select: { createdAt: true } } } });
+    const claim = await prisma.welcomeBonusClaim.findUnique({ where: { claimCode } });
     if (!claim) return res.status(404).json({ success: false, error: 'Claim code not found' });
     if (claim.confirmedAt) return res.status(400).json({ success: false, error: 'Already confirmed' });
     // One free item a day: a code is good on its own day only, so unused days cannot be saved up and taken in one visit
-    if (claim.day !== getDayNumber(claim.customer.createdAt)) {
+    const owner = await prisma.user.findUnique({ where: { id: claim.customerId }, select: { createdAt: true } });
+    if (!owner || claim.day !== getDayNumber(owner.createdAt)) {
       return res.status(400).json({ success: false, error: `That code was for day ${claim.day} of the welcome bonus and has expired. Today's reward needs today's code.` });
     }
     // Counted at a store the cashier works at
-    if (storeId && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
+    if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
 
