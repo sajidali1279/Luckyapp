@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest as Request } from '../types';
+import { storeDateKey, storeDaysBetween } from '../utils/storeTime';
+import { canUseStore } from '../utils/storeAccess';
 
 const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
 
@@ -15,15 +17,11 @@ function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function toDateOnly(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
-
-function getDayNumber(createdAt: Date): number {
-  const creation = toDateOnly(createdAt);
-  const today = toDateOnly(new Date());
-  const diffMs = today.getTime() - creation.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+// Which day of the week-long bonus it is, in store days (Central): day 1 is the day the customer signed up at the store's clock.
+// It used to count UTC days, which turn over at 7 pm in Texas: a customer could take one free item at 6:59 pm and the next at
+// 7:00 pm, and someone signing up in the evening got a "day 1" a few hours long.
+export function getDayNumber(createdAt: Date, now: Date = new Date()): number {
+  return storeDaysBetween(storeDateKey(createdAt), storeDateKey(now)) + 1;
 }
 
 // GET /welcome-bonus — customer views their current bonus status
@@ -179,9 +177,17 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     const { claimCode, storeId } = req.body as { claimCode?: string; storeId?: string };
     if (!claimCode) return res.status(400).json({ success: false, error: 'claimCode required' });
 
-    const claim = await prisma.welcomeBonusClaim.findUnique({ where: { claimCode } });
+    const claim = await prisma.welcomeBonusClaim.findUnique({ where: { claimCode }, include: { customer: { select: { createdAt: true } } } });
     if (!claim) return res.status(404).json({ success: false, error: 'Claim code not found' });
     if (claim.confirmedAt) return res.status(400).json({ success: false, error: 'Already confirmed' });
+    // One free item a day: a code is good on its own day only, so unused days cannot be saved up and taken in one visit
+    if (claim.day !== getDayNumber(claim.customer.createdAt)) {
+      return res.status(400).json({ success: false, error: `That code was for day ${claim.day} of the welcome bonus and has expired. Today's reward needs today's code.` });
+    }
+    // Counted at a store the cashier works at
+    if (storeId && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
+      return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
+    }
 
     // Only if still unconfirmed, so a double tap cannot confirm (and log) the same free item twice
     const { count } = await prisma.welcomeBonusClaim.updateMany({

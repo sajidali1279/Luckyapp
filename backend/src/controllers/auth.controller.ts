@@ -12,7 +12,7 @@ import admin from '../config/firebase';
 import cloudinary from '../config/cloudinary';
 import { anonymizeCustomerAccount, excludeDeletedCustomers, DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
 import { csvText } from '../utils/csv';
-import { storeDateText } from '../utils/storeTime';
+import { storeDateText, storeDateKey } from '../utils/storeTime';
 import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
 import { refuse } from '../utils/refusal';
@@ -605,7 +605,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   });
 
   const csv = [header, ...rows].join('\n');
-  const date = new Date().toISOString().slice(0, 10);
+  const date = storeDateKey();   // the store's date, not UTC's (tomorrow after 7 pm)
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="customers-${date}.csv"`);
   res.send(csv);

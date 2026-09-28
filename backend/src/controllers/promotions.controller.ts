@@ -3,7 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
-import { endOfStoreDate, isRealDateKey } from '../utils/storeTime';
+import { endOfStoreDate, isRealDateKey, storeDateKey } from '../utils/storeTime';
 
 // ─── Checks ───────────────────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'PROMOTION_PUBLISH', entity: 'business_promotion', entityId: id,
-    details: { summary: `Local business ad published: ${current.businessName}, "${ad.adTitle}"${ad.adExpiresAt ? `, until ${ad.adExpiresAt.toISOString().slice(0, 10)}` : ''}` }, storeId: null,
+    details: { summary: `Local business ad published: ${current.businessName}, "${ad.adTitle}"${ad.adExpiresAt ? `, until ${storeDateKey(ad.adExpiresAt)}` : ''}` }, storeId: null,
   });
   res.json({ success: true, data: promo });
 }
