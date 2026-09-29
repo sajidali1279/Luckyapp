@@ -51,7 +51,7 @@
 :root {
     /* Calm and professional (2026-09-29): white cards on a cool light gray, navy for actions,
        brand red only for the logo and for delete. Mirrored in lib/theme.ts for the inline-style pages. */
-    --background: #f6f7f9;
+    --background: #eef1f5;
     --foreground: #111827;
     --card: #ffffff;
     --card-foreground: #111827;
@@ -76,15 +76,15 @@
     --chart-5: #b7791f;
     --radius: 0.5rem;
 
-    /* Sidebar: light, separated by a hairline, the active page in a navy tint */
-    --sidebar: #ffffff;
-    --sidebar-foreground: #4b5563;
-    --sidebar-primary: #1D3557;
+    /* Sidebar: deep navy, the current page marked with a red bar (the brand's two colours) */
+    --sidebar: #0f1d31;
+    --sidebar-foreground: #c3cddb;
+    --sidebar-primary: #D62839;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #f1f3f6;
-    --sidebar-accent-foreground: #111827;
-    --sidebar-border: #e4e7ec;
-    --sidebar-ring: rgb(29 53 87 / 0.35);
+    --sidebar-accent: #1a2c47;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #1f3350;
+    --sidebar-ring: rgb(214 40 57 / 0.45);
 }
 
 .dark {
@@ -276,9 +276,9 @@
   left: 12px;
 }
 
-/* Sidebar group headings: 4.8:1 on white (4.5:1 needed). Unlayered, so it wins over the utility class. */
+/* Sidebar group headings: 6.4:1 on the navy (4.5:1 needed). Unlayered, so it wins over the utility class. */
 [data-sidebar="group-label"] {
-  color: #6b7280;
+  color: #8fa0b8;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -315,7 +315,7 @@
   font: inherit; font-size: 14px; font-weight: 500; color: #5a6472; transition: color 120ms ease, border-color 120ms ease;
 }
 .ui-tab:hover { color: #111827; }
-.ui-tab[aria-selected="true"] { color: #1D3557; font-weight: 600; border-bottom-color: #1D3557; }
+.ui-tab[aria-selected="true"] { color: #1D3557; font-weight: 600; border-bottom-color: #D62839; }
 .ui-tab:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-tab-count { font-size: 12px; font-weight: 600; color: #5a6472; background: #f1f3f6; border-radius: 999px; padding: 1px 7px; }
 .ui-tab[aria-selected="true"] .ui-tab-count { color: #1D3557; background: #eef2f7; }
@@ -333,3 +333,20 @@
 .ui-card-link:hover { border-color: #c4cad3; box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08); }
 
 .ui-input:focus, .ui-input:focus-visible { border-color: #1D3557; box-shadow: 0 0 0 3px rgb(29 53 87 / 0.12); }
+
+/* Inside the navy page header band: the main action in brand red, the rest light on navy */
+.ui-band .ui-btn-primary { background: #D62839; box-shadow: 0 2px 8px rgba(214, 40, 57, 0.35); }
+.ui-band .ui-btn-primary:hover:not(:disabled) { background: #b81f2f; }
+.ui-band .ui-btn-secondary { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.24); box-shadow: none; }
+.ui-band .ui-btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.36); }
+.ui-band .ui-btn-secondary[aria-pressed="true"] { background: #fff; color: #1D3557; border-color: #fff; }
+.ui-band .ui-btn-ghost { color: #dbe3ee; }
+.ui-band .ui-btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.ui-band .ui-btn-danger { background: transparent; color: #ffb3ba; border-color: rgba(255, 179, 186, 0.4); }
+.ui-band .ui-btn:focus-visible, .ui-band .ui-chip:focus-visible { outline-color: #fff; }
+.ui-band .ui-chip { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.24); }
+.ui-band .ui-chip:hover { background: rgba(255, 255, 255, 0.16); }
+.ui-band .ui-chip[aria-pressed="true"] { background: #fff; color: #1D3557; border-color: #fff; }
+.ui-band .ui-input, .ui-band select, .ui-band input[type="text"], .ui-band input[type="search"], .ui-band input[type="date"] {
+  background: rgba(255, 255, 255, 0.96); color: #111827; border-color: transparent;
+}

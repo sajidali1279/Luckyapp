@@ -92,9 +92,10 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
         isActive={isActive}
         tooltip={label}
         style={isActive ? {
-          backgroundColor: '#eef2f7',
-          color: '#1D3557',
+          backgroundColor: '#1a2f4d',
+          color: '#ffffff',
           fontWeight: 600,
+          boxShadow: 'inset 3px 0 0 #E63946',
         } : undefined}
       >
         <NavLink to={to} end={isEnd}>
@@ -105,8 +106,8 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
       {badge != null && badge > 0 && (
         <SidebarMenuBadge
           style={{
-            backgroundColor: isActive ? '#dbe3ee' : '#f1f3f6',
-            color: isActive ? '#1D3557' : '#374151',
+            backgroundColor: '#D62839',
+            color: '#ffffff',
             fontWeight: 600,
             fontSize: 10,
             minWidth: 18,
@@ -135,10 +136,10 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
             position: 'absolute', right: badge != null && badge > 0 ? 30 : 6, top: '50%', transform: 'translateY(-50%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 20, height: 20, padding: 0, border: 'none', borderRadius: 5,
-            background: 'transparent', color: '#6b7280', cursor: 'pointer',
+            background: 'transparent', color: '#8fa0b8', cursor: 'pointer',
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e4e7ec'; (e.currentTarget as HTMLButtonElement).style.color = '#111827'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#1f3350'; (e.currentTarget as HTMLButtonElement).style.color = '#ffffff'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#8fa0b8'; }}
         >
           <PinOff size={12} aria-hidden="true" />
         </button>
@@ -212,13 +213,13 @@ export function AppSidebar() {
                   <span style={{
                     fontWeight: 700,
                     fontSize: 14,
-                    color: '#111827',
+                    color: '#ffffff',
                   }}>
                     Lucky Stop
                   </span>
                   <span style={{
                     fontSize: 12,
-                    color: '#5a6472',
+                    color: '#8fa0b8',
                     marginTop: 3,
                     fontWeight: 500,
                   }}>
@@ -234,7 +235,7 @@ export function AppSidebar() {
       <SidebarContent role="navigation" aria-label="Main menu" style={{
         padding: '2px 0',
         scrollbarWidth: 'thin',
-        scrollbarColor: '#d5dae1 transparent',
+        scrollbarColor: '#2a4062 transparent',
       }}>
         {/* Pinned, if any: a page saved from the command palette (Shift+Enter there) */}
         {pinnedItems.length > 0 && (
@@ -426,7 +427,7 @@ export function AppSidebar() {
         {/* Divider */}
         <div style={{
           height: 1,
-          background: '#e4e7ec',
+          background: '#1f3350',
           marginBottom: 8,
         }} />
 
@@ -444,10 +445,10 @@ export function AppSidebar() {
               borderRadius: 8,
               cursor: 'pointer',
               transition: 'background 150ms ease',
-              background: isActive ? '#eef2f7' : 'transparent',
+              background: isActive ? '#1a2f4d' : 'transparent',
             }}
               onMouseEnter={e => {
-                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = '#f1f3f6';
+                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = '#16273f';
               }}
               onMouseLeave={e => {
                 if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent';
@@ -458,7 +459,7 @@ export function AppSidebar() {
                 width: 30,
                 height: 30,
                 borderRadius: '50%',
-                background: '#1D3557',
+                background: '#D62839',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -476,7 +477,7 @@ export function AppSidebar() {
                 <div style={{
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: isActive ? '#1D3557' : '#111827',
+                  color: '#ffffff',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -485,7 +486,7 @@ export function AppSidebar() {
                 </div>
                 <div style={{
                   fontSize: 10.5,
-                  color: '#5a6472',
+                  color: '#8fa0b8',
                   marginTop: 1,
                 }}>
                   {roleLabel}
@@ -493,7 +494,7 @@ export function AppSidebar() {
               </div>
 
               <ChevronRight size={12} style={{
-                color: '#9aa3ae',
+                color: '#5d7090',
                 flexShrink: 0,
               }} />
             </div>
@@ -514,19 +515,19 @@ export function AppSidebar() {
             border: 'none',
             background: 'transparent',
             cursor: 'pointer',
-            color: '#5a6472',
+            color: '#8fa0b8',
             fontSize: 12.5,
             fontWeight: 500,
             transition: 'color 150ms ease, background 150ms ease',
             fontFamily: 'inherit',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = '#fdf2f2';
-            (e.currentTarget as HTMLButtonElement).style.color = '#c42130';
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(214, 40, 57, 0.18)';
+            (e.currentTarget as HTMLButtonElement).style.color = '#ff9aa4';
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = '#5a6472';
+            (e.currentTarget as HTMLButtonElement).style.color = '#8fa0b8';
           }}
         >
           <LogOut size={13} />

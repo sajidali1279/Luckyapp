@@ -2,6 +2,9 @@
 // their own header, tab, button, card and badge styles, so every page looks like the same product.
 // Colours and sizes come from lib/theme.ts; hover and focus come from the .ui-* classes in index.css.
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
+import { NAV_ITEMS } from '../lib/navItems';
 import { C, FONT, RADIUS, SHADOW } from '../lib/theme';
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -10,15 +13,36 @@ export function Page({ children, style }: { children: ReactNode; style?: CSSProp
   return <div style={{ padding: 'clamp(16px, 3vw, 28px) clamp(16px, 3.5vw, 32px) 40px', ...style }}>{children}</div>;
 }
 
-/** The one page header: a title, one line of what the page is for, and the page's actions on the right. */
-export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+/** The one page header: a navy band with the page's icon (taken from the menu), its title, one line of what the page is for,
+ * and the page's actions on the right. Inside the band the main button turns brand red and the others turn light (index.css). */
+export function PageHeader({ title, description, actions, icon, children }: {
+  title: ReactNode; description?: ReactNode; actions?: ReactNode; icon?: LucideIcon | null; children?: ReactNode;
+}) {
+  const { pathname } = useLocation();
+  const fromMenu = [...NAV_ITEMS].sort((a, b) => b.to.length - a.to.length)
+    .find((i) => (i.to === '/' ? pathname === '/' : pathname === i.to || pathname.startsWith(i.to + '/')))?.icon;
+  const Icon = icon === null ? null : (icon ?? fromMenu ?? null);
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
-      <div style={{ minWidth: 0 }}>
-        <h1 style={{ margin: 0, fontSize: FONT.page, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</h1>
-        {description && <p style={{ margin: '4px 0 0', fontSize: FONT.body, color: C.muted, lineHeight: 1.5 }}>{description}</p>}
+    <div className="ui-band" style={{
+      background: 'linear-gradient(135deg, #1D3557 0%, #152a47 100%)', borderRadius: RADIUS.lg + 2, padding: '20px 24px',
+      marginBottom: 20, color: '#fff', boxShadow: '0 6px 20px rgba(15, 29, 49, 0.16)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          {Icon && (
+            <span aria-hidden="true" style={{
+              width: 44, height: 44, borderRadius: 11, background: C.brand, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(214, 40, 57, 0.35)',
+            }}><Icon size={22} color="#fff" /></span>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: FONT.page, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>{title}</h1>
+            {description && <p style={{ margin: '3px 0 0', fontSize: FONT.body, color: 'rgba(255, 255, 255, 0.74)', lineHeight: 1.5 }}>{description}</p>}
+          </div>
+        </div>
+        {actions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>{actions}</div>}
       </div>
-      {actions && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>{actions}</div>}
+      {children && <div style={{ marginTop: 16 }}>{children}</div>}
     </div>
   );
 }
