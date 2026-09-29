@@ -347,6 +347,7 @@
 .ui-band .ui-chip { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.24); }
 .ui-band .ui-chip:hover { background: rgba(255, 255, 255, 0.16); }
 .ui-band .ui-chip[aria-pressed="true"] { background: #fff; color: #1D3557; border-color: #fff; }
-.ui-band .ui-input, .ui-band select, .ui-band input[type="text"], .ui-band input[type="search"], .ui-band input[type="date"] {
+.ui-band .ui-input, .ui-band select, .ui-band input:not([type]), .ui-band input[type="text"], .ui-band input[type="search"], .ui-band input[type="date"] {
   background: rgba(255, 255, 255, 0.96); color: #111827; border-color: transparent;
 }
+.ui-band input::placeholder { color: #6b7280; }

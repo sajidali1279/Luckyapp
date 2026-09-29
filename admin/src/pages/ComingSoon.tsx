@@ -22,6 +22,6 @@ const s: Record<string, CSSProperties> = {
     textAlign: 'center', padding: 24,
   },
   icon: { fontSize: 40, opacity: 0.4 },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#111827' },
+  title: { margin: 0, fontSize: 20, fontWeight: 700, color: '#111827' },
   sub: { fontSize: 14, color: TEXT_MUTED, maxWidth: 380 },
 };

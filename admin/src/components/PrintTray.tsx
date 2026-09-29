@@ -167,15 +167,15 @@ export default function PrintTray({
 const s: Record<string, CSSProperties> = {
   tray: {
     width: 300, maxWidth: '100%', flexShrink: 0, position: 'sticky' as const, top: 20, alignSelf: 'flex-start',
-    background: '#fff', borderRadius: 14, border: '1px solid #eee', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 60px)',
   },
   header: {
     display: 'flex', flexDirection: 'column', gap: 10,
-    padding: '14px 16px', borderBottom: '1px solid #f0f0f5',
+    padding: '14px 16px', borderBottom: '1px solid #f1f3f6',
   },
   headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 15, fontWeight: 800, color: PRIMARY },
+  title: { fontSize: 15, fontWeight: 700, color: PRIMARY },
   clearBtn: { background: 'none', border: 'none', color: TEXT_MUTED, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   headerPrintRow: { display: 'flex', flexDirection: 'column', gap: 8 },
   totalInline: { fontSize: 12.5, color: TEXT_MUTED },
@@ -191,18 +191,18 @@ const s: Record<string, CSSProperties> = {
 
   rowBottom: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 },
   priceWrap: { display: 'flex', alignItems: 'center', gap: 2 },
-  dollar: { fontSize: 13, fontWeight: 700, color: '#667' },
+  dollar: { fontSize: 13, fontWeight: 700, color: '#5a6472' },
   priceStatic: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   priceInput: {
-    width: 64, border: '1.5px solid #ddd', borderRadius: 8, padding: '4px 6px',
+    width: 64, border: '1.5px solid #d5dae1', borderRadius: 8, padding: '4px 6px',
     fontSize: 13.5, fontWeight: 700, outline: 'none',
   },
 
-  priceInputBad: { border: '1.5px solid #b91c1c', background: '#fff5f5' },
-  priceProblem: { fontSize: 12, color: '#b91c1c', fontWeight: 600 },
+  priceInputBad: { border: '1.5px solid #a51b28', background: '#fdf2f2' },
+  priceProblem: { fontSize: 12, color: '#a51b28', fontWeight: 600 },
   oneOff: {
     display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, padding: '8px 10px',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12, color: '#7c5a10', lineHeight: 1.4,
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 8, fontSize: 12, color: '#8a5300', lineHeight: 1.4,
   },
   saveBtn: {
     alignSelf: 'flex-start', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 7,
@@ -211,25 +211,25 @@ const s: Record<string, CSSProperties> = {
 
   qtyWrap: { display: 'flex', alignItems: 'center', gap: 4 },
   qtyBtn: {
-    width: 22, height: 22, borderRadius: 6, border: '1.5px solid #ddd', background: '#fafafa',
-    cursor: 'pointer', fontSize: 13, fontWeight: 700, lineHeight: 1, color: '#444',
+    width: 22, height: 22, borderRadius: 6, border: '1.5px solid #d5dae1', background: '#f7f8fa',
+    cursor: 'pointer', fontSize: 13, fontWeight: 700, lineHeight: 1, color: '#374151',
   },
   qtyInput: {
-    width: 38, padding: '3px 4px', borderRadius: 6, border: '1.5px solid #ddd',
+    width: 38, padding: '3px 4px', borderRadius: 6, border: '1.5px solid #d5dae1',
     fontSize: 13, textAlign: 'center' as const,
   },
 
   badgeRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginTop: 6 },
   overrideBadge: {
-    fontSize: 10.5, fontWeight: 700, color: '#92620a',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
+    fontSize: 10.5, fontWeight: 700, color: '#8a5300',
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 6, padding: '2px 6px',
   },
   statusBadge: { fontSize: 10.5, fontWeight: 700, borderRadius: 6, padding: '2px 6px' },
-  dealBadge: { fontSize: 11.5, fontWeight: 600, color: '#92620a' },
+  dealBadge: { fontSize: 11.5, fontWeight: 600, color: '#8a5300' },
 
-  totalCount: { fontWeight: 800, color: PRIMARY, fontSize: 13.5 },
+  totalCount: { fontWeight: 700, color: PRIMARY, fontSize: 13.5 },
   printBtn: {
-    width: '100%', padding: '11px 16px', borderRadius: 10, background: '#0f5132', border: 'none',
+    width: '100%', padding: '11px 16px', borderRadius: 10, background: '#17663a', border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
   },
   printBtnDim: { opacity: 0.5, cursor: 'not-allowed' },

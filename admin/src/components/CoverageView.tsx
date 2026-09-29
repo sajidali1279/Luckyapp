@@ -278,7 +278,7 @@ export default function CoverageView() {
                 const isPushingThis = pushMutation.isPending && pushMutation.variables === label.id;
                 return (
                   <Fragment key={label.id}>
-                    <TableRow style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                    <TableRow style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                       <TableCell style={s.td}>
                         <input type="checkbox" checked={selectedIds.has(label.id)} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
                       </TableCell>
@@ -368,39 +368,39 @@ const s: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
   summaryBox: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
-    borderRadius: 14, border: '1px solid',
+    borderRadius: 12, border: '1px solid',
   },
-  summaryGood: { background: '#f0fdf4', borderColor: '#bbf7d0' },
-  summaryWarn: { background: '#fffbeb', borderColor: '#fde68a' },
+  summaryGood: { background: '#edf7f0', borderColor: '#c8e6d2' },
+  summaryWarn: { background: '#fdf6e8', borderColor: '#f1dcaf' },
   summaryIcon: { fontSize: 22 },
   summaryText: { fontSize: 15, color: PRIMARY },
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' },
   searchInput: {
-    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
+    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '9px 14px', fontSize: 14, outline: 'none',
   },
   filterSelect: {
-    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
-    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+    border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 12px',
+    fontSize: 14, background: '#fff', color: '#111827', cursor: 'pointer',
   },
   bulkPrintBtn: {
-    background: '#0f5132', color: '#fff', border: 'none',
+    background: '#17663a', color: '#fff', border: 'none',
     borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
   },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, overflowX: 'auto',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
-  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#92620a', marginTop: 2 },
+  dealBadge: { display: 'block', fontSize: 12, fontWeight: 600, color: '#8a5300', marginTop: 2 },
 
   expandBtn: {
     background: 'none', border: 'none', cursor: 'pointer', color: TEXT_MUTED,
@@ -408,15 +408,15 @@ const s: Record<string, CSSProperties> = {
   },
 
   coverageBadge: { fontSize: 12.5, fontWeight: 700, borderRadius: 8, padding: '4px 10px' },
-  coverageFull: { color: '#0f5132', background: '#f0fdf4' },
-  coveragePartial: { color: '#92620a', background: '#fffbeb' },
+  coverageFull: { color: '#17663a', background: '#edf7f0' },
+  coveragePartial: { color: '#8a5300', background: '#fdf6e8' },
 
   pushBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
   },
 
-  expandedCell: { padding: '12px 14px 16px 40px', background: '#fafbfc', borderBottom: '1px solid #f0f0f5' },
+  expandedCell: { padding: '12px 14px 16px 40px', background: '#f7f8fa', borderBottom: '1px solid #f1f3f6' },
   chipRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 8 },
   chip: {
     display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid',
@@ -430,12 +430,12 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 6, padding: '3px 9px', cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
   },
   chipRemoveBtn: {
-    background: '#fff', color: '#b91c1c', border: '1px solid #b91c1c',
+    background: '#fff', color: '#a51b28', border: '1px solid #a51b28',
     borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
   },
 
   emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
+    background: '#fff', borderRadius: 12, padding: 60,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },

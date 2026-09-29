@@ -36,33 +36,33 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invNum}</title><style>
       *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
-      body{padding:48px;color:#1a1a1a;background:#fff;font-size:13px}
+      body{padding:48px;color:#111827;background:#fff;font-size:13px}
       .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:2px solid #1D3557;margin-bottom:26px}
-      .brand{font-size:22px;font-weight:900;color:#1D3557}.brand-sub{font-size:11px;color:#6c757d;margin-top:4px}
-      h1{font-size:30px;font-weight:900;color:#1D3557;letter-spacing:2px}.inv-num{font-size:12px;color:#6c757d;font-family:monospace;margin-top:4px}
+      .brand{font-size:22px;font-weight:900;color:#1D3557}.brand-sub{font-size:11px;color:#5a6472;margin-top:4px}
+      h1{font-size:30px;font-weight:900;color:#1D3557;letter-spacing:2px}.inv-num{font-size:12px;color:#5a6472;font-family:monospace;margin-top:4px}
       .meta-row{display:flex;gap:20px;margin-bottom:26px}
-      .meta-box{flex:1;background:#f8f9fa;border-radius:8px;padding:14px 16px}
-      .meta-label{font-size:10px;font-weight:700;color:#6c757d;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
-      .meta-value{font-size:15px;font-weight:800;color:#1D3557}.meta-sub{font-size:11px;color:#6c757d;margin-top:2px}
-      .meta-detail{display:flex;justify-content:space-between;font-size:12px;color:#495057;padding:2px 0}
+      .meta-box{flex:1;background:#f7f8fa;border-radius:8px;padding:14px 16px}
+      .meta-label{font-size:10px;font-weight:700;color:#5a6472;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+      .meta-value{font-size:15px;font-weight:800;color:#1D3557}.meta-sub{font-size:11px;color:#5a6472;margin-top:2px}
+      .meta-detail{display:flex;justify-content:space-between;font-size:12px;color:#374151;padding:2px 0}
       table{width:100%;border-collapse:collapse;margin-bottom:20px}
       thead tr{background:#1D3557;color:#fff}
       th{text-align:left;padding:9px 12px;font-size:11px;font-weight:700}
       th.text-right,td.text-right{text-align:right}
-      td{padding:9px 12px;font-size:12px;border-bottom:1px solid #eee;color:#1D3557;vertical-align:top}
-      tr.store-alt{background:#fafafa}
+      td{padding:9px 12px;font-size:12px;border-bottom:1px solid #e4e7ec;color:#1D3557;vertical-align:top}
+      tr.store-alt{background:#f7f8fa}
       tr.subtotal td{background:#f0f4f8;font-weight:700;font-size:13px}
       tr.grand-total td{background:#1D3557;color:#fff;font-weight:800;font-size:14px}
-      .store-name{font-weight:700}.store-city{font-size:11px;color:#6c757d}
-      .paid-tag{background:#d1fae5;color:#065f46;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;display:inline-block}
-      .unpaid-tag{background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;display:inline-block}
-      .summary-box{background:#f8f9fa;border-radius:8px;padding:14px 16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap}
-      .summary-item{flex:1 1 120px;text-align:center;padding:10px;background:#fff;border-radius:6px;border:1px solid #e9ecef}
-      .summary-label{font-size:10px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:4px}
+      .store-name{font-weight:700}.store-city{font-size:11px;color:#5a6472}
+      .paid-tag{background:#edf7f0;color:#17663a;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;display:inline-block}
+      .unpaid-tag{background:#fdf6e8;color:#8a5300;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;display:inline-block}
+      .summary-box{background:#f7f8fa;border-radius:8px;padding:14px 16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap}
+      .summary-item{flex:1 1 120px;text-align:center;padding:10px;background:#fff;border-radius:6px;border:1px solid #e4e7ec}
+      .summary-label{font-size:10px;font-weight:700;color:#5a6472;text-transform:uppercase;margin-bottom:4px}
       .summary-value{font-size:16px;font-weight:800;color:#1D3557}
-      .paid-banner{background:#d1fae5;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
-      .unpaid-banner{background:#fef3c7;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
-      .footer{margin-top:28px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#6c757d;text-align:center}
+      .paid-banner{background:#edf7f0;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+      .unpaid-banner{background:#fdf6e8;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
+      .footer{margin-top:28px;padding-top:14px;border-top:1px solid #e4e7ec;font-size:11px;color:#5a6472;text-align:center}
     </style></head><body>${el.innerHTML}</body></html>`);
     win.document.close();
     win.focus();
@@ -120,14 +120,14 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Subscription Fees</div><div style={inv2.summaryValue}>{fmt$(totalSubscription)}</div></div>
             <div style={inv2.summaryCard}>
               <div style={inv2.summaryLabel}>Platform Fee</div>
-              <div style={{ ...inv2.summaryValue, color: '#b91c1c' }}>{fmt$(totalDevCut)}</div>
+              <div style={{ ...inv2.summaryValue, color: '#a51b28' }}>{fmt$(totalDevCut)}</div>
               {totalCashback > 0 && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>{fmtPct(totalDevCut / totalCashback)} of cashback</div>}
             </div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback Covered</div><div style={{ ...inv2.summaryValue, color: '#c2410c' }}>{fmt$(totalCashback)}</div></div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback Covered</div><div style={{ ...inv2.summaryValue, color: '#8a5300' }}>{fmt$(totalCashback)}</div></div>
             {totalExtraCharges > 0 && (
               <div style={inv2.summaryCard}>
                 <div style={inv2.summaryLabel}>Extra Charges</div>
-                <div style={{ ...inv2.summaryValue, color: '#7c3aed' }}>{fmt$(totalExtraCharges)}</div>
+                <div style={{ ...inv2.summaryValue, color: '#4f6d8f' }}>{fmt$(totalExtraCharges)}</div>
                 <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>not part of the platform fee</div>
               </div>
             )}
@@ -154,7 +154,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 const n: BillNotes | null = isManual ? null : r.notes;
                 const manualDescription: string = isManual ? (r.notes?.description ?? '') : '';
                 return (
-                  <TableRow key={r.id} style={i % 2 === 1 ? { background: '#fafafa' } : undefined}>
+                  <TableRow key={r.id} style={i % 2 === 1 ? { background: '#f7f8fa' } : undefined}>
                     <TableCell style={inv2.tableTd}>
                       <div style={{ fontWeight: 700 }}>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</div>
                       {r.store?.city && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{r.store.city}</div>}
@@ -163,9 +163,9 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#b91c1c', fontWeight: 600 }}>{isManual ? <span style={{ color: TEXT_MUTED }}> - </span> : fmt$(n?.devCutEarned ?? 0)}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#7c3aed', fontWeight: 600 }}>{isManual ? fmt$(r.amount) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#c2410c' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#a51b28', fontWeight: 600 }}>{isManual ? <span style={{ color: TEXT_MUTED }}> - </span> : fmt$(n?.devCutEarned ?? 0)}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#4f6d8f', fontWeight: 600 }}>{isManual ? fmt$(r.amount) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#8a5300' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'center' }}>
                       <span style={r.isPaid ? inv2.paidTag : inv2.unpaidTag}>{r.isPaid ? '✓' : '⏳'}</span>
@@ -176,21 +176,21 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             </TableBody>
             <TableFooter>
               <TableRow style={{ background: '#f0f4f8' }}>
-                <TableCell style={{ ...inv2.tableTd, fontWeight: 800 }}>Subtotal ({stores.length} stores)</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{inv.totalTxns}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(totalSubscription)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#b91c1c' }}>{fmt$(totalDevCut)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#7c3aed' }}>{fmt$(totalExtraCharges)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800, color: '#c2410c' }}>{fmt$(totalCashback)}</TableCell>
-                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 800 }}>{fmt$(grandTotal)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, fontWeight: 700 }}>Subtotal ({stores.length} stores)</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{inv.totalTxns}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(inv.totalVolume)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(totalSubscription)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700, color: '#a51b28' }}>{fmt$(totalDevCut)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700, color: '#4f6d8f' }}>{fmt$(totalExtraCharges)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700, color: '#8a5300' }}>{fmt$(totalCashback)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(grandTotal)}</TableCell>
                 <TableCell style={inv2.tableTd}></TableCell>
               </TableRow>
               <TableRow style={{ background: PRIMARY }}>
-                <TableCell colSpan={7} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 800, fontSize: 15, textAlign: 'right' }}>
+                <TableCell colSpan={7} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 700, fontSize: 15, textAlign: 'right' }}>
                   Grand Total - All Stores
                 </TableCell>
-                <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 900, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>
+                <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 700, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>
                 <TableCell style={inv2.tableTd}></TableCell>
               </TableRow>
             </TableFooter>
@@ -198,26 +198,26 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
 
           {/* Payment status banner */}
           {inv.isPaid ? (
-            <div style={{ background: '#d1fae5', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ background: '#edf7f0', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
-                <div style={{ fontWeight: 800, color: '#065f46', fontSize: 15 }}>All Stores - Payment Confirmed</div>
+                <div style={{ fontWeight: 700, color: '#17663a', fontSize: 15 }}>All Stores - Payment Confirmed</div>
                 {inv.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>Paid on {new Date(inv.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>}
               </div>
             </div>
           ) : (
-            <div style={{ background: '#fef3c7', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ background: '#fdf6e8', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>⏳</span>
               <div>
-                <div style={{ fontWeight: 800, color: '#92400e', fontSize: 15 }}>Payment Outstanding</div>
-                <div style={{ fontSize: 15, color: '#b45309', marginTop: 2 }}>
+                <div style={{ fontWeight: 700, color: '#8a5300', fontSize: 15 }}>Payment Outstanding</div>
+                <div style={{ fontSize: 15, color: '#8a5300', marginTop: 2 }}>
                   {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid - use "Mark Paid" to confirm receipt
                 </div>
               </div>
             </div>
           )}
 
-          <div style={{ fontSize: 14, color: TEXT_MUTED, textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: 14, color: TEXT_MUTED, textAlign: 'center', padding: '14px 0 4px', borderTop: '1px solid #e4e7ec' }}>
             Lucky Stop Loyalty Platform · Invoice {invNum} · Generated {issueDate} · For questions contact your account manager
           </div>
         </div>
@@ -239,7 +239,7 @@ const inv2: Record<string, React.CSSProperties> = {
     justifyContent: 'center', padding: '32px 20px', overflowY: 'auto',
   },
   paper: {
-    background: '#fff', borderRadius: 16, width: '100%',
+    background: '#fff', borderRadius: 12, width: '100%',
     boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: '40px',
     position: 'relative', flexShrink: 0,
   },
@@ -247,30 +247,30 @@ const inv2: Record<string, React.CSSProperties> = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
-  headerBrand: { fontSize: 22, fontWeight: 900, color: PRIMARY },
+  headerBrand: { fontSize: 22, fontWeight: 700, color: PRIMARY },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
-  invTitle: { fontSize: 32, fontWeight: 900, color: PRIMARY, letterSpacing: 2 },
+  invTitle: { fontSize: 32, fontWeight: 700, color: PRIMARY, letterSpacing: 2 },
   invNum: { fontSize: 15, color: TEXT_MUTED, marginTop: 4, fontFamily: 'monospace' },
 
   metaRow: { display: 'flex', gap: 20, marginBottom: 24 },
-  metaBox: { flex: 1, background: '#f8f9fa', borderRadius: 10, padding: '16px 20px' },
+  metaBox: { flex: 1, background: '#f7f8fa', borderRadius: 10, padding: '16px 20px' },
   metaLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
-  metaValue: { fontSize: 17, fontWeight: 800, color: PRIMARY },
+  metaValue: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   metaSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
-  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
-  paidTag: { background: '#d1fae5', color: '#065f46', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
-  unpaidTag: { background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
+  metaDetail: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#374151', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.04)' },
+  paidTag: { background: '#edf7f0', color: '#17663a', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
+  unpaidTag: { background: '#fdf6e8', color: '#8a5300', borderRadius: 4, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
 
   summaryRow: { display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' as const },
-  summaryCard: { flex: '1 1 120px', background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', textAlign: 'center' as const, border: '1px solid #e9ecef' },
+  summaryCard: { flex: '1 1 120px', background: '#f7f8fa', borderRadius: 10, padding: '12px 14px', textAlign: 'center' as const, border: '1px solid #e4e7ec' },
   summaryLabel: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
-  summaryValue: { fontSize: 16, fontWeight: 800, color: PRIMARY },
+  summaryValue: { fontSize: 16, fontWeight: 700, color: PRIMARY },
 
   table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: 20, borderRadius: 10, overflow: 'hidden' },
   tableTh: { background: PRIMARY, color: '#fff', padding: '10px 12px', fontSize: 13, fontWeight: 700, textAlign: 'left' as const },
-  tableTd: { padding: '9px 12px', fontSize: 15, borderBottom: '1px solid #f0f1f2', color: PRIMARY, verticalAlign: 'middle' as const },
+  tableTd: { padding: '9px 12px', fontSize: 15, borderBottom: '1px solid #e4e7ec', color: PRIMARY, verticalAlign: 'middle' as const },
 
-  actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e9ecef' },
+  actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e4e7ec' },
   printBtn: { padding: '10px 22px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  closeBtn: { padding: '10px 22px', background: '#e9ecef', color: '#495057', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
+  closeBtn: { padding: '10px 22px', background: '#e4e7ec', color: '#374151', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
 };

@@ -28,15 +28,15 @@ interface PromoRequest {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:  '#f59e0b',
-  APPROVED: '#16a34a',
-  REJECTED: '#dc2626',
+  PENDING:  '#b7791f',
+  APPROVED: '#1f8a4c',
+  REJECTED: '#c42130',
 };
 
 const STATUS_BG: Record<string, string> = {
-  PENDING:  '#fef3c7',
+  PENDING:  '#fdf6e8',
   APPROVED: '#dcfce7',
-  REJECTED: '#fee2e2',
+  REJECTED: '#fdf2f2',
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -129,7 +129,7 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
                     🔄 Change
                   </button>
                   <button
-                    style={{ ...m.changeImgBtn, color: '#dc2626', borderColor: '#fca5a5' }}
+                    style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
                     type="button"
                     onClick={() => { setRemoveImage(true); setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
@@ -285,7 +285,7 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
                     🔄 Change
                   </button>
                   <button
-                    style={{ ...m.changeImgBtn, color: '#dc2626', borderColor: '#fca5a5' }}
+                    style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
                     type="button"
                     onClick={() => { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
@@ -577,39 +577,39 @@ const s: Record<string, React.CSSProperties> = {
     padding: '10px 18px', borderRadius: 10, border: 'none', flexShrink: 0,
     background: PRIMARY, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
-  subtitle: { margin: '4px 0 0', color: '#64748b', fontSize: 14 },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
+  subtitle: { margin: '4px 0 0', color: '#5a6472', fontSize: 14 },
 
   statsRow: { display: 'flex', gap: 12, marginBottom: 20 },
   statCard: {
     flex: 1, background: '#fff', borderRadius: 12, padding: '16px 20px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', alignItems: 'center', gap: 14,
   },
   statIconWrap: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   statIcon: { fontSize: 20 },
-  statNum: { fontSize: 28, fontWeight: 900, lineHeight: 1, marginTop: 2 },
+  statNum: { fontSize: 28, fontWeight: 700, lineHeight: 1, marginTop: 2 },
   statLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 20 },
   filterBtn: {
-    padding: '7px 16px', borderRadius: 20, border: '1.5px solid #e2e8f0',
+    padding: '7px 16px', borderRadius: 20, border: '1.5px solid #e4e7ec',
     background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600,
-    color: '#64748b', display: 'flex', alignItems: 'center', gap: 4,
+    color: '#5a6472', display: 'flex', alignItems: 'center', gap: 4,
   },
   filterBtnActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
 
   center: { textAlign: 'center', padding: 40, color: TEXT_MUTED },
   empty: { textAlign: 'center', padding: '48px 24px' },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 6 },
+  emptyTitle: { fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 6 },
   emptySub: { fontSize: 14, color: TEXT_MUTED },
 
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
 
   card: {
-    background: '#fff', borderRadius: 14,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.07)', overflow: 'hidden',
+    background: '#fff', borderRadius: 12,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', overflow: 'hidden',
   },
   cardTop: {
     display: 'flex', alignItems: 'center', gap: 12,
@@ -617,7 +617,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   bizInfo: { flex: 1 },
   bizNameRow: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 },
-  bizName: { fontSize: 16, fontWeight: 800, color: '#1e293b' },
+  bizName: { fontSize: 16, fontWeight: 700, color: '#111827' },
   statusBadge: {
     fontSize: 13, fontWeight: 700, padding: '2px 8px',
     borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5,
@@ -629,15 +629,15 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   cardBody: {
-    borderTop: '1px solid #f1f5f9',
+    borderTop: '1px solid #f1f3f6',
     padding: '16px 18px',
     display: 'flex', flexDirection: 'column', gap: 16,
   },
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
   infoBlock: {},
   infoLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  infoValue: { fontSize: 14, color: '#334155', lineHeight: 1.5 },
-  link: { fontSize: 14, color: '#3b82f6' },
+  infoValue: { fontSize: 14, color: '#374151', lineHeight: 1.5 },
+  link: { fontSize: 14, color: '#457B9D' },
 
   actionRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   publishActionBtn: {
@@ -646,13 +646,13 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },
   rejectBtn: {
-    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #fca5a5',
-    background: '#fff', color: '#dc2626',
+    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #f3cdd1',
+    background: '#fff', color: '#c42130',
     fontSize: 15, fontWeight: 700, cursor: 'pointer',
   },
   deleteBtn: {
-    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #e2e8f0',
-    background: '#fff', color: '#64748b',
+    padding: '8px 16px', borderRadius: 8, border: '1.5px solid #e4e7ec',
+    background: '#fff', color: '#5a6472',
     fontSize: 15, fontWeight: 600, cursor: 'pointer',
   },
 };
@@ -663,55 +663,55 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
   },
   modal: {
-    background: '#fff', borderRadius: 16, width: '100%',
+    background: '#fff', borderRadius: 12, width: '100%',
     maxHeight: '90vh', display: 'flex', flexDirection: 'column',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
   },
   modalHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9',
+    padding: '20px 24px 16px', borderBottom: '1px solid #f1f3f6',
   },
-  modalTitle: { fontSize: 18, fontWeight: 800, color: PRIMARY },
+  modalTitle: { fontSize: 18, fontWeight: 700, color: PRIMARY },
   modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 2 },
   closeBtn: {
-    background: '#f1f5f9', border: 'none', borderRadius: 8,
+    background: '#f1f3f6', border: 'none', borderRadius: 8,
     width: 30, height: 30, cursor: 'pointer', fontSize: 14,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   modalBody: { padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 },
-  label: { fontSize: 14, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 },
+  label: { fontSize: 14, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     width: '100%', padding: '10px 12px', borderRadius: 8,
-    border: '1.5px solid #e2e8f0', fontSize: 14, color: '#1e293b',
+    border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827',
     outline: 'none', boxSizing: 'border-box',
   },
   modalFooter: {
     display: 'flex', justifyContent: 'flex-end', gap: 10,
-    padding: '16px 24px', borderTop: '1px solid #f1f5f9',
+    padding: '16px 24px', borderTop: '1px solid #f1f3f6',
   },
   cancelBtn: {
-    padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e2e8f0',
-    background: '#fff', color: '#64748b', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+    padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e4e7ec',
+    background: '#fff', color: '#5a6472', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
   publishBtn: {
     padding: '9px 20px', borderRadius: 8, border: 'none',
-    background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+    background: '#1f8a4c', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
   },
 
   imageArea: { marginBottom: 4 },
   uploadBtn: {
     width: '100%', padding: '20px 16px', borderRadius: 10,
-    border: '2px dashed #cbd5e1', background: '#f8fafc',
+    border: '2px dashed #d5dae1', background: '#f7f8fa',
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
     cursor: 'pointer',
   },
-  uploadBtnText: { fontSize: 14, fontWeight: 600, color: '#475569' },
+  uploadBtnText: { fontSize: 14, fontWeight: 600, color: '#374151' },
   uploadBtnSub: { fontSize: 13, color: TEXT_MUTED },
   previewWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
-  previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e2e8f0' },
+  previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e4e7ec' },
   previewActions: { display: 'flex', gap: 8 },
   changeImgBtn: {
-    padding: '6px 14px', borderRadius: 7, border: '1.5px solid #cbd5e1',
-    background: '#fff', fontSize: 14, fontWeight: 600, color: '#475569', cursor: 'pointer',
+    padding: '6px 14px', borderRadius: 7, border: '1.5px solid #d5dae1',
+    background: '#fff', fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
   },
 };

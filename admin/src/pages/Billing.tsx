@@ -373,14 +373,14 @@ export default function Billing() {
         title={payTarget?.single ? 'Record this payment' : `Record payment for ${payTarget?.period ?? ''}`}
         message={payTarget && (
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, color: '#111827', marginBottom: 6 }}>{payTarget.title}</div>
+            <div style={{ fontWeight: 700, color: '#111827', marginBottom: 6 }}>{payTarget.title}</div>
             {payTarget.records.map((r: any) => (
               <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
                 <span>{r.store?.name ?? 'All stores (chain-wide)'}{r.billingType === 'CUSTOM' ? ` (${r.notes?.description || 'extra charge'})` : ''}</span>
                 <strong>{fmt$(r.amount)}</strong>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontWeight: 800, borderTop: '1px solid #e5e7eb', marginTop: 6, paddingTop: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontWeight: 700, borderTop: '1px solid #e4e7ec', marginTop: 6, paddingTop: 6 }}>
               <span>Total</span><span>{fmt$(round2(payTarget.records.reduce((sum: number, r: any) => sum + r.amount, 0)))}</span>
             </div>
             <label style={{ ...s.fieldLabel, display: 'block', marginTop: 12 }} htmlFor="pay-date">Payment date</label>
@@ -703,7 +703,7 @@ export default function Billing() {
                         <TableCell style={s.td}>{inv.totalTxns}</TableCell>
                         <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
                         <TableCell style={s.td}>
-                          <strong style={{ color: '#b91c1c', fontSize: 16 }}>{fmt$(inv.totalDevCut + inv.totalExtraCharges)}</strong>
+                          <strong style={{ color: '#a51b28', fontSize: 16 }}>{fmt$(inv.totalDevCut + inv.totalExtraCharges)}</strong>
                           {inv.totalCashback > 0 && (
                             <div style={s.cityLabel}>platform fee {fmtPct(inv.totalDevCutOnly / inv.totalCashback)} of {fmt$(inv.totalCashback)} cashback</div>
                           )}
@@ -743,7 +743,7 @@ export default function Billing() {
                                 <TableHeader>
                                   <TableRow>
                                     {['Store', 'Txns', 'Purchase Volume', 'Cashback Issued', 'Amount', 'Status', 'Actions'].map((h) => (
-                                      <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: TEXT_MUTED, fontWeight: 700, borderBottom: '1px solid #e9ecef' }}>{h}</TableHead>
+                                      <TableHead key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 13, color: TEXT_MUTED, fontWeight: 700, borderBottom: '1px solid #e4e7ec' }}>{h}</TableHead>
                                     ))}
                                   </TableRow>
                                 </TableHeader>
@@ -760,10 +760,10 @@ export default function Billing() {
                                             <strong>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong>
                                             <div style={s.cityLabel}>{r.store?.city}</div>
                                             {n?.generatedBy === 'cron' && (
-                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2ff', color: '#4338ca', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>🤖 Auto</span>
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2f7', color: '#1D3557', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>🤖 Auto</span>
                                             )}
                                             {n?.generatedBy === 'manual' && (
-                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#f0fdf4', color: '#166534', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#edf7f0', color: '#17663a', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
                                             )}
                                             {isManual && (
                                               <div style={s.cityLabel}>{manualDescription || 'Manual charge'}</div>
@@ -772,7 +772,7 @@ export default function Billing() {
                                           <TableCell style={s.catTd}>{n?.txCount ?? 0}</TableCell>
                                           <TableCell style={s.catTd}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
                                           <TableCell style={s.catTd}>{n ? <>{fmt$(n.cashbackIssued)}<div style={s.cityLabel}>{fmtPct(n.effectiveCashbackRate)} of volume</div></> : ' - '}</TableCell>
-                                          <TableCell style={{ ...s.catTd, color: isManual ? '#7c3aed' : '#0f5132', fontWeight: 700 }}>
+                                          <TableCell style={{ ...s.catTd, color: isManual ? '#4f6d8f' : '#17663a', fontWeight: 700 }}>
                                             {fmt$(r.amount)}
                                             {isManual && <div style={s.cityLabel}>extra charge</div>}
                                           </TableCell>
@@ -797,7 +797,7 @@ export default function Billing() {
                                                 <button style={s.rowBtn} onClick={() => previewRecalc.mutate(r)} disabled={previewRecalc.isPending}>Recalculate</button>
                                               )}
                                               {r.isPaid && (
-                                                <button style={{ ...s.rowBtn, color: '#b91c1c', borderColor: '#fca5a5' }} onClick={() => setUndoTarget(r)}>Undo payment</button>
+                                                <button style={{ ...s.rowBtn, color: '#a51b28', borderColor: '#f3cdd1' }} onClick={() => setUndoTarget(r)}>Undo payment</button>
                                               )}
                                             </div>
                                           </TableCell>
@@ -807,11 +807,11 @@ export default function Billing() {
                                 </TableBody>
                                 <TableFooter>
                                   <TableRow>
-                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>Total</TableCell>
-                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{inv.totalTxns}</TableCell>
-                                    <TableCell style={{ ...s.catTd, fontWeight: 800 }}>{fmt$(inv.totalVolume)}</TableCell>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 700 }}>Total</TableCell>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 700 }}>{inv.totalTxns}</TableCell>
+                                    <TableCell style={{ ...s.catTd, fontWeight: 700 }}>{fmt$(inv.totalVolume)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
-                                    <TableCell style={{ ...s.catTd, color: '#b91c1c', fontWeight: 800, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
+                                    <TableCell style={{ ...s.catTd, color: '#a51b28', fontWeight: 700, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                   </TableRow>
@@ -834,8 +834,8 @@ export default function Billing() {
               <span>
                 <strong>{consolidatedInvoices.length}</strong> invoices ·{' '}
                 Total Dev Cut: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
-                Collected: <strong style={{ color: '#0f5132' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
-                Outstanding: <strong style={{ color: '#b91c1c' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
+                Collected: <strong style={{ color: '#17663a' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
+                Outstanding: <strong style={{ color: '#a51b28' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
               </span>
             </div>
           )}
@@ -1025,7 +1025,7 @@ export default function Billing() {
                                   value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
                               </div>
                             ) : (
-                              <strong style={{ color: '#b91c1c', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
+                              <strong style={{ color: '#a51b28', fontSize: 15 }}>{fmt$(parseFloat(charge.amount))}</strong>
                             )}
                           </TableCell>
                           <TableCell style={s.td}>{charge.period}</TableCell>
@@ -1057,7 +1057,7 @@ export default function Billing() {
                                       Mark Paid
                                     </button>
                                     <button
-                                      style={{ ...s.cancelBtn, borderColor: '#fca5a5', color: '#b91c1c' }}
+                                      style={{ ...s.cancelBtn, borderColor: '#f3cdd1', color: '#a51b28' }}
                                       disabled={deleteCharge.isPending}
                                       onClick={() => setConfirmDeleteChargeId(charge.id)}>
                                       Delete
@@ -1073,18 +1073,18 @@ export default function Billing() {
                   </TableBody>
                   <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={2} style={{ ...s.catTd, fontWeight: 800 }}>
+                      <TableCell colSpan={2} style={{ ...s.catTd, fontWeight: 700 }}>
                         Total ({extraCharges.length} charge{extraCharges.length !== 1 ? 's' : ''})
                       </TableCell>
-                      <TableCell style={{ ...s.catTd, fontWeight: 800, color: '#b91c1c' }}>
+                      <TableCell style={{ ...s.catTd, fontWeight: 700, color: '#a51b28' }}>
                         {fmt$(extraCharges.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))}
                       </TableCell>
                       <TableCell colSpan={3} style={s.catTd}>
-                        <span style={{ color: '#0f5132', fontWeight: 700 }}>
+                        <span style={{ color: '#17663a', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} collected
                         </span>
                         {' · '}
-                        <span style={{ color: '#92400e', fontWeight: 700 }}>
+                        <span style={{ color: '#8a5300', fontWeight: 700 }}>
                           {fmt$(extraCharges.filter((c: any) => !c.isPaid).reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0))} outstanding
                         </span>
                       </TableCell>
@@ -1124,13 +1124,13 @@ export default function Billing() {
               <div style={s.rateExampleTitle}>How it works on a $20 purchase (Bronze tier, 1% cashback)</div>
               <div style={s.rateExampleRow}>
                 <span>Customer (Bronze tier, 1%) gets</span>
-                <span style={{ color: '#157A3E' }}>= <strong>$0.20</strong> cashback credits</span>
+                <span style={{ color: '#17663a' }}>= <strong>$0.20</strong> cashback credits</span>
               </div>
               <div style={s.rateExampleRow}>
                 <span>Platform fee ({fmtPct(rateLoading ? 0.1 : devCutRate)} of the $0.20 cashback)</span>
                 <span style={{ color: '#D62839' }}>= <strong>{fmt$(0.20 * (rateLoading ? 0.1 : devCutRate))}</strong></span>
               </div>
-              <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #dee2e6' }}>
+              <div style={{ ...s.rateExampleRow, marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e4e7ec' }}>
                 <span style={{ color: TEXT_MUTED, fontSize: 14 }}>The store is billed monthly: the sum of the platform fee recorded on each sale</span>
                 <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Cashback is the store's loyalty cost (redeemed as free products)</span>
               </div>
@@ -1202,7 +1202,7 @@ function RevenueCard({ label, value, highlight }: { label: string; value: any; h
   return (
     <div style={s.revCard}>
       <div style={s.revLabel}>{label}</div>
-      <div style={{ ...s.revValue, color: highlight ? '#0f5132' : PRIMARY }}>{value}</div>
+      <div style={{ ...s.revValue, color: highlight ? '#17663a' : PRIMARY }}>{value}</div>
     </div>
   );
 }
@@ -1211,7 +1211,7 @@ function StatItem({ label, value, highlight }: { label: string; value: any; high
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#0f5132' : PRIMARY }}>{value}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? '#17663a' : PRIMARY }}>{value}</div>
     </div>
   );
 }
@@ -1220,7 +1220,7 @@ function InfoItem({ icon, text }: { icon: string; text: string }) {
   return (
     <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
       <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: 14, color: '#495057', lineHeight: 1.5 }}>{text}</span>
+      <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.5 }}>{text}</span>
     </div>
   );
 }
@@ -1229,95 +1229,95 @@ function InfoItem({ icon, text }: { icon: string; text: string }) {
 
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: '0 0 20px' },
+  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: '0 0 20px' },
   loading: { padding: 32, textAlign: 'center', color: TEXT_MUTED },
 
   // Revenue summary
-  revenueBox: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+  revenueBox: { background: '#fff', borderRadius: 12, padding: 24, marginBottom: 24, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   revenueGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 },
   revCard: { padding: '12px 0' },
   revLabel: { color: TEXT_MUTED, fontSize: 14, margin: 0, fontWeight: 600 },
-  revValue: { fontSize: 22, fontWeight: 800, margin: '4px 0 0' },
+  revValue: { fontSize: 22, fontWeight: 700, margin: '4px 0 0' },
 
   // Tabs
   tabs: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 },
-  tab: { padding: '9px 18px', background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
+  tab: { padding: '9px 18px', background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
   tabActive: { padding: '9px 18px', background: PRIMARY, border: '1px solid #1D3557', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
-    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+    background: '#c42130', color: '#fff', fontSize: 12, fontWeight: 700,
   },
 
   // Table
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' },
-  th: { background: '#f8f9fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
-  td: { padding: '12px 16px', borderBottom: '1px solid #f0f1f2', fontSize: 14, verticalAlign: 'middle' },
-  rowExpanded: { background: '#f8faff' },
-  expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e9ecef' },
+  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  th: { background: '#f7f8fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
+  td: { padding: '12px 16px', borderBottom: '1px solid #e4e7ec', fontSize: 14, verticalAlign: 'middle' },
+  rowExpanded: { background: '#eef2f7' },
+  expandedCell: { padding: 0, background: '#eef2f7', borderBottom: '2px solid #e4e7ec' },
   statsRow: { display: 'flex', gap: 12, padding: '16px 20px', flexWrap: 'wrap' },
-  statBox: { flex: '1 1 180px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
+  statBox: { flex: '1 1 180px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e4e7ec' },
   statBoxLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
 
   expandBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: PRIMARY, padding: 0 },
   cityLabel: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
-  badge: { background: '#b91c1c', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
-  paidBadge: { background: '#0f5132', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  unpaidBadge: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  badge: { background: '#a51b28', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' },
+  paidBadge: { background: '#17663a', color: '#fff', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  unpaidBadge: { background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   na: { color: TEXT_MUTED, fontSize: 15 },
-  input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 14 },
-  select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: 15 },
+  input: { padding: '6px 10px', borderRadius: 6, border: '1px solid #e4e7ec', fontSize: 14 },
+  select: { padding: '6px 10px', borderRadius: 6, border: '1px solid #e4e7ec', fontSize: 15 },
   volValue: { fontWeight: 700, color: PRIMARY },
   volSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
   editBtn: { padding: '6px 14px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
-  saveBtn: { padding: '6px 14px', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
-  cancelBtn: { padding: '6px 14px', background: '#dee2e6', color: '#212529', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
-  suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#495057', lineHeight: 1.5 },
+  saveBtn: { padding: '6px 14px', background: '#17663a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
+  cancelBtn: { padding: '6px 14px', background: '#e4e7ec', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
+  suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#374151', lineHeight: 1.5 },
 
   // Billing job heartbeat
   heartbeatBox: { fontSize: 14, lineHeight: 1.6, borderRadius: 10, padding: '10px 14px', marginBottom: 14 },
-  heartbeatBoxOk: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' },
-  heartbeatBoxWarn: { background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' },
-  linkBtnInline: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
+  heartbeatBoxOk: { background: '#edf7f0', border: '1px solid #c8e6d2', color: '#17663a' },
+  heartbeatBoxWarn: { background: '#fdf6e8', border: '1px solid #f1dcaf', color: '#8a5300' },
+  linkBtnInline: { background: 'none', border: 'none', padding: 0, color: '#1D3557', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
 
   // Plan history modal
-  historyRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '8px 0', borderBottom: '1px solid #f0f1f2', flexWrap: 'wrap' as const },
+  historyRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '8px 0', borderBottom: '1px solid #e4e7ec', flexWrap: 'wrap' as const },
   historyWho: { fontSize: 13, color: TEXT_MUTED },
 
   // Monthly bills
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
   filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginBottom: 4 },
-  generateBtn: { padding: '10px 20px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  generateBtn: { padding: '10px 20px', background: '#a51b28', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  rowBtn: { padding: '4px 10px', background: '#fff', color: PRIMARY, border: '1px solid #cbd5e1', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
-  exportBtn: { padding: '10px 20px', background: '#0f5132', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  sendBtn: { padding: '10px 20px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  clearBtn: { padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  monthlyHint: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 16px', padding: '10px 14px', background: '#f8f9fa', borderRadius: 8 },
-  emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #dee2e6' },
-  monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#495057' },
+  rowBtn: { padding: '4px 10px', background: '#fff', color: PRIMARY, border: '1px solid #d5dae1', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
+  exportBtn: { padding: '10px 20px', background: '#17663a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  sendBtn: { padding: '10px 20px', background: '#8a5300', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  clearBtn: { padding: '10px 20px', background: '#5a6472', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  monthlyHint: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 16px', padding: '10px 14px', background: '#f7f8fa', borderRadius: 8 },
+  emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #e4e7ec' },
+  monthlyTotals: { background: '#fff', borderRadius: 8, padding: '12px 16px', marginTop: 12, fontSize: 14, color: '#374151' },
 
   // Compound bill detail
   billDetail: { display: 'flex', flexWrap: 'wrap', gap: 16, padding: '16px 20px' },
-  billSection: { flex: '1 1 260px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e9ecef' },
+  billSection: { flex: '1 1 260px', background: '#fff', borderRadius: 10, padding: '14px 16px', border: '1px solid #e4e7ec' },
   billSectionTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 12 },
   feeGrid: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#495057', padding: '4px 0' },
-  catTd: { padding: '5px 8px', borderBottom: '1px solid #f0f1f2', fontSize: 15, color: '#495057' },
+  feeRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#374151', padding: '4px 0' },
+  catTd: { padding: '5px 8px', borderBottom: '1px solid #e4e7ec', fontSize: 15, color: '#374151' },
 
   // Settings
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))', gap: 20 },
-  settingsCard: { background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  settingsCardTitle: { fontSize: 18, fontWeight: 800, color: PRIMARY, margin: '0 0 8px' },
+  settingsCard: { background: '#fff', borderRadius: 12, padding: 28, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  settingsCardTitle: { fontSize: 18, fontWeight: 700, color: PRIMARY, margin: '0 0 8px' },
   settingsCardDesc: { fontSize: 14, color: TEXT_MUTED, margin: '0 0 20px', lineHeight: 1.6 },
 
-  rateExampleBox: { background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', marginBottom: 20 },
+  rateExampleBox: { background: '#f7f8fa', borderRadius: 10, padding: '14px 16px', marginBottom: 20 },
   rateExampleTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  rateExampleRow: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4, fontSize: 15, color: '#495057', marginBottom: 6 },
+  rateExampleRow: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4, fontSize: 15, color: '#374151', marginBottom: 6 },
 
   rateDisplayRow: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' },
-  rateValue: { fontSize: 36, fontWeight: 800, color: PRIMARY },
+  rateValue: { fontSize: 36, fontWeight: 700, color: PRIMARY },
   rateSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   rateEditRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 
@@ -1328,14 +1328,14 @@ const s: Record<string, React.CSSProperties> = {
 
 // ─── Extra charges tab styles ─────────────────────────────────────────────────
 const ec: Record<string, React.CSSProperties> = {
-  card: { background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', border: '1px solid #e5e7eb' },
-  cardTitle: { fontSize: 18, fontWeight: 800, color: PRIMARY, margin: '0 0 6px' },
+  card: { background: '#fff', borderRadius: 12, padding: 28, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec' },
+  cardTitle: { fontSize: 18, fontWeight: 700, color: PRIMARY, margin: '0 0 6px' },
   cardSub: { fontSize: 14, color: TEXT_MUTED, margin: '0 0 20px' },
 
-  templateRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center', padding: '12px 14px', background: '#f8faff', borderRadius: 10, border: '1px solid #e0e7ff' },
-  templateLabel: { fontSize: 13, fontWeight: 700, color: '#4f46e5', marginRight: 4, flexShrink: 0 },
+  templateRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center', padding: '12px 14px', background: '#eef2f7', borderRadius: 10, border: '1px solid #eef2f7' },
+  templateLabel: { fontSize: 13, fontWeight: 700, color: '#1D3557', marginRight: 4, flexShrink: 0 },
   templateBtn: {
-    background: '#fff', border: '1.5px solid #c7d2fe', color: '#4338ca',
+    background: '#fff', border: '1.5px solid #d3dcea', color: '#1D3557',
     borderRadius: 20, padding: '4px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
     whiteSpace: 'nowrap',
   },
@@ -1343,9 +1343,9 @@ const ec: Record<string, React.CSSProperties> = {
   formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 4 },
   formField: {},
 
-  filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '10px 12px', background: '#f9fafb', borderRadius: 10, border: '1px solid #e5e7eb' },
-  filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff', width: '100%', maxWidth: 220, boxSizing: 'border-box' as const },
+  filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '10px 12px', background: '#f7f8fa', borderRadius: 10, border: '1px solid #e4e7ec' },
+  filterSelect: { padding: '7px 11px', borderRadius: 8, border: '1.5px solid #d5dae1', fontSize: 14, color: '#374151', background: '#fff', width: '100%', maxWidth: 220, boxSizing: 'border-box' as const },
 
-  successBox: { marginTop: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#166534' },
+  successBox: { marginTop: 16, background: '#edf7f0', border: '1px solid #c8e6d2', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#17663a' },
   emptyBox: { padding: '32px 0', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
 };

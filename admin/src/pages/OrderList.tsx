@@ -62,22 +62,22 @@ interface QuickItem { name: string; category: string | null; count: number }
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const PRIORITY_CFG = {
-  URGENT: { label: 'Urgent', bg: '#FEE2E2', text: '#DC2626' },
-  NORMAL: { label: 'Normal', bg: '#F1F5F9', text: '#64748B' },
-  LOW:    { label: 'Low',    bg: '#F0FDF4', text: '#16A34A' },
+  URGENT: { label: 'Urgent', bg: '#fdf2f2', text: '#c42130' },
+  NORMAL: { label: 'Normal', bg: '#f1f3f6', text: '#5a6472' },
+  LOW:    { label: 'Low',    bg: '#edf7f0', text: '#1f8a4c' },
 };
 
 const ITEM_STATUS_CFG = {
-  PENDING:  { label: 'Needed',   bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' },
-  ORDERED:  { label: 'Ordered',  bg: '#D1FAE5', text: '#059669', border: '#6EE7B7' },
-  RECEIVED: { label: 'Received', bg: '#EDE9FE', text: '#7C3AED', border: '#C4B5FD' },
-  REMOVED:  { label: 'Removed',  bg: '#F3F4F6', text: '#5a6472', border: '#E5E7EB' },
+  PENDING:  { label: 'Needed',   bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
+  ORDERED:  { label: 'Ordered',  bg: '#edf7f0', text: '#1f8a4c', border: '#c8e6d2' },
+  RECEIVED: { label: 'Received', bg: '#eef2f7', text: '#4f6d8f', border: '#C4B5FD' },
+  REMOVED:  { label: 'Removed',  bg: '#f1f3f6', text: '#5a6472', border: '#e4e7ec' },
 };
 
 const CAT_STATUS_CFG = {
-  PENDING:  { label: 'Pending',  bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' },
-  APPROVED: { label: 'Approved', bg: '#D1FAE5', text: '#059669', border: '#6EE7B7' },
-  REJECTED: { label: 'Rejected', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA' },
+  PENDING:  { label: 'Pending',  bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
+  APPROVED: { label: 'Approved', bg: '#edf7f0', text: '#1f8a4c', border: '#c8e6d2' },
+  REJECTED: { label: 'Rejected', bg: '#fdf2f2', text: '#c42130', border: '#f3cdd1' },
 };
 
 // ─── Print helper ─────────────────────────────────────────────────────────────
@@ -95,12 +95,12 @@ function printList(list: OrderList) {
   const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
 
   const rows = Array.from(grouped.entries()).map(([cat, items]) => `
-    <tr style="background:#F8FAFC"><td colspan="4" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#64748B;border-bottom:1px solid #E2E8F0">${cat}</td></tr>
+    <tr style="background:#f7f8fa"><td colspan="4" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#5a6472;border-bottom:1px solid #e4e7ec">${cat}</td></tr>
     ${items.map(item => `
       <tr>
-        <td style="padding:10px 12px;font-weight:600;color:#1E293B">${item.name}</td>
-        <td style="padding:10px 12px;color:#64748B">${item.quantity || ' - '}</td>
-        <td style="padding:10px 12px;color:#64748B">${item.notes || ' - '}</td>
+        <td style="padding:10px 12px;font-weight:600;color:#111827">${item.name}</td>
+        <td style="padding:10px 12px;color:#5a6472">${item.quantity || ' - '}</td>
+        <td style="padding:10px 12px;color:#5a6472">${item.notes || ' - '}</td>
         <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
       </tr>
     `).join('')}
@@ -108,28 +108,28 @@ function printList(list: OrderList) {
 
   const html = `<!DOCTYPE html><html><head><title>${list.name}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1E293B; padding: 32px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; padding: 32px; }
     h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
-    .meta { font-size: 14px; color: #64748B; margin-bottom: 8px; }
+    .meta { font-size: 14px; color: #5a6472; margin-bottom: 8px; }
     .stats { display: flex; gap: 20px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
     table { width: 100%; border-collapse: collapse; }
-    th { padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #E2E8F0; }
-    td { border-bottom: 1px solid #F1F5F9; font-size: 14px; vertical-align: middle; }
+    th { padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 700; color: #5a6472; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #e4e7ec; }
+    td { border-bottom: 1px solid #f1f3f6; font-size: 14px; vertical-align: middle; }
     @media print { body { padding: 16px; } }
   </style></head><body>
   <h1>${list.name}</h1>
   <div class="meta">${list.store.name} &nbsp;·&nbsp; ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · by ${list.openedBy.name}</div>
   <div class="stats">
-    <span style="color:#D97706">${pending} needed</span>
-    ${ordered  > 0 ? `<span style="color:#059669">${ordered} ordered</span>` : ''}
-    ${received > 0 ? `<span style="color:#7C3AED">${received} received</span>` : ''}
-    <span style="color:#94A3B8">${visibleItems.length} total</span>
+    <span style="color:#8a5300">${pending} needed</span>
+    ${ordered  > 0 ? `<span style="color:#1f8a4c">${ordered} ordered</span>` : ''}
+    ${received > 0 ? `<span style="color:#4f6d8f">${received} received</span>` : ''}
+    <span style="color:#5a6472">${visibleItems.length} total</span>
   </div>
   <table>
     <thead><tr><th>Item</th><th>Quantity</th><th>Notes</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div style="margin-top:32px;font-size:12px;color:#CBD5E1">Printed ${new Date().toLocaleString()}</div>
+  <div style="margin-top:32px;font-size:12px;color:#d5dae1">Printed ${new Date().toLocaleString()}</div>
   </body></html>`;
 
   const win = window.open('', '_blank');
@@ -371,9 +371,9 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                       const act = lineActions[line.id] ?? null;
                       return (
                         <div key={line.id} style={p.reqLine}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: '#1E293B' }}>{line.name}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{line.name}</div>
                           {(line.quantity || line.category) && (
-                            <div style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                            <div style={{ fontSize: 13, color: '#5a6472', marginTop: 2 }}>
                               {line.quantity && <span>Qty: {line.quantity} </span>}
                               {line.category && <span>{line.category}</span>}
                             </div>
@@ -467,7 +467,7 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: '#5a6472', marginBottom: 10, lineHeight: 1.5 }}>
               Select items that weren't delivered to add them to this store's currently open list.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -483,8 +483,8 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
                     style={{ marginRight: 8 }}
                   />
                   <span style={{ flex: 1, fontSize: 13 }}>
-                    <span style={{ fontWeight: 600, color: '#1E293B' }}>{item.name}</span>
-                    {item.quantity && <span style={{ color: '#64748B' }}> · {item.quantity}</span>}
+                    <span style={{ fontWeight: 600, color: '#111827' }}>{item.name}</span>
+                    {item.quantity && <span style={{ color: '#5a6472' }}> · {item.quantity}</span>}
                   </span>
                 </label>
               ))}
@@ -643,9 +643,9 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
             {list.status === 'CLOSED' && list.closedAt && ` · Closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
           </div>
           <div style={s.listDetailStats}>
-            <span style={{ color: '#D97706', fontWeight: 600 }}>{pending} needed</span>
-            {ordered  > 0 && <span style={{ color: '#059669', fontWeight: 600 }}>{ordered} ordered</span>}
-            {received > 0 && <span style={{ color: '#7C3AED', fontWeight: 600 }}>{received} received</span>}
+            <span style={{ color: '#8a5300', fontWeight: 600 }}>{pending} needed</span>
+            {ordered  > 0 && <span style={{ color: '#1f8a4c', fontWeight: 600 }}>{ordered} ordered</span>}
+            {received > 0 && <span style={{ color: '#4f6d8f', fontWeight: 600 }}>{received} received</span>}
             <span style={{ color: TEXT_MUTED }}>{visibleItems.length} total</span>
           </div>
         </div>
@@ -778,7 +778,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                               style={{
                                 ...s.qtyChip,
                                 cursor: canEdit && isOpen ? 'pointer' : 'default',
-                                color: item.quantity ? '#1E293B' : '#CBD5E1',
+                                color: item.quantity ? '#111827' : '#d5dae1',
                               }}
                               onClick={canEdit && isOpen ? () => { setEditingQtyId(item.id); setEditingQty(item.quantity || ''); } : undefined}
                               title={canEdit && isOpen ? 'Click to edit quantity' : undefined}
@@ -949,13 +949,13 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
             const pending   = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
             const received  = list.items?.filter(i => i.status === 'RECEIVED').length ?? 0;
             return (
-              <div key={list.id} style={{ ...s.listCard, background: isOpen ? '#fff' : '#FAFAFA' }}
+              <div key={list.id} style={{ ...s.listCard, background: isOpen ? '#fff' : '#f7f8fa' }}
                 onClick={() => setSelectedList(list)}
                 role="button" tabIndex={0}
                 aria-label={`Open list ${list.name} for ${list.store?.name}`}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedList(list)}>
                 <div style={s.listCardTop}>
-                  <span style={{ ...s.statusPill, background: isOpen ? '#D1FAE5' : '#F3F4F6', color: isOpen ? '#059669' : '#5a6472' }}>
+                  <span style={{ ...s.statusPill, background: isOpen ? '#edf7f0' : '#f1f3f6', color: isOpen ? '#1f8a4c' : '#5a6472' }}>
                     {isOpen ? '● Open' : '✓ Closed'}
                   </span>
                   <span style={s.listCardDate}>
@@ -966,8 +966,8 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                 <div style={s.listCardStore}>{list.store?.name}</div>
                 <div style={s.listCardStats}>
                   <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-                  {pending   > 0 && <span style={{ color: '#D97706' }}>{pending} needed</span>}
-                  {received  > 0 && <span style={{ color: '#7C3AED' }}>{received} received</span>}
+                  {pending   > 0 && <span style={{ color: '#8a5300' }}>{pending} needed</span>}
+                  {received  > 0 && <span style={{ color: '#4f6d8f' }}>{received} received</span>}
                 </div>
               </div>
             );
@@ -1075,10 +1075,10 @@ function CategoriesTab() {
             const isApproving = approvingId === cat.id;
             const isEditing   = editingId === cat.id;
             return (
-              <div key={cat.id} style={{ ...s.catTableRow, ...(cat.status === 'PENDING' ? { background: '#FFFBEB' } : {}) }}>
+              <div key={cat.id} style={{ ...s.catTableRow, ...(cat.status === 'PENDING' ? { background: '#fdf6e8' } : {}) }}>
                 {isApproving ? (
                   <div style={s.editRow}>
-                    <input style={{ ...s.input, flex: 1, borderColor: '#10B981' }}
+                    <input style={{ ...s.input, flex: 1, borderColor: '#1f8a4c' }}
                       value={approveEdit} onChange={e => setApproveEdit(e.target.value)} maxLength={80} autoFocus />
                   </div>
                 ) : isEditing ? (
@@ -1199,39 +1199,39 @@ export default function OrderListPage() {
 const s: Record<string, React.CSSProperties> = {
   page:       { padding: '24px 20px' },
   pageHeader: { marginBottom: 24 },
-  pageTitle:  { fontSize: 26, fontWeight: 800, color: '#1E293B', margin: 0 },
-  pageSubtitle: { fontSize: 14, color: '#64748B', marginTop: 4 },
+  pageTitle:  { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
+  pageSubtitle: { fontSize: 14, color: '#5a6472', marginTop: 4 },
 
-  tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '2px solid #E2E8F0', marginBottom: 24 },
-  tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
+  tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '2px solid #e4e7ec', marginBottom: 24 },
+  tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#5a6472', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
   tabActive: { color: PRIMARY, borderBottomColor: PRIMARY },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
-    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+    background: '#c42130', color: '#fff', fontSize: 12, fontWeight: 700,
   },
   tabContent: {},
 
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },
-  filterSelect: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer' },
-  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#64748B', background: '#fff', cursor: 'pointer' },
-  pendingBadge: { padding: '4px 12px', borderRadius: 20, background: '#FEF3C7', color: '#D97706', fontSize: 14, fontWeight: 700 },
-  approveHint:  { background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 10, padding: '10px 16px', fontSize: 14, color: '#065F46', marginBottom: 16, lineHeight: 1.5 },
+  filterSelect: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer' },
+  refreshBtn:   { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#5a6472', background: '#fff', cursor: 'pointer' },
+  pendingBadge: { padding: '4px 12px', borderRadius: 20, background: '#fdf6e8', color: '#8a5300', fontSize: 14, fontWeight: 700 },
+  approveHint:  { background: '#ECFDF5', border: '1px solid #c8e6d2', borderRadius: 10, padding: '10px 16px', fontSize: 14, color: '#17663a', marginBottom: 16, lineHeight: 1.5 },
 
-  missingBanner:      { background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
-  missingBannerLabel: { fontSize: 14, fontWeight: 700, color: '#B45309', marginBottom: 10 },
+  missingBanner:      { background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
+  missingBannerLabel: { fontSize: 14, fontWeight: 700, color: '#8a5300', marginBottom: 10 },
   missingChips:       { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #F59E0B', color: '#B45309', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #b7791f', color: '#8a5300', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
 
   loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
   empty:   { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
 
   // Lists grid
   listsGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
-  listCard:     { background: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'box-shadow 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #E2E8F0' },
+  listCard:     { background: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'box-shadow 0.2s', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec' },
   listCardTop:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  listCardName: { fontSize: 15, fontWeight: 700, color: '#1E293B', marginBottom: 4 },
-  listCardStore:{ fontSize: 14, color: '#64748B', marginBottom: 8 },
+  listCardName: { fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 },
+  listCardStore:{ fontSize: 14, color: '#5a6472', marginBottom: 8 },
   listCardDate: { fontSize: 13, color: TEXT_MUTED },
   listCardStats:{ display: 'flex', gap: 12, fontSize: 14, flexWrap: 'wrap' },
   statusPill:   { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600 },
@@ -1239,23 +1239,23 @@ const s: Record<string, React.CSSProperties> = {
   // Detail view
   breadcrumb:    { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 },
   breadcrumbBtn: { background: 'none', border: 'none', color: PRIMARY, fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
-  breadcrumbSep: { color: '#CBD5E1' },
-  breadcrumbCur: { fontSize: 14, color: '#64748B' },
+  breadcrumbSep: { color: '#d5dae1' },
+  breadcrumbCur: { fontSize: 14, color: '#5a6472' },
 
-  listDetailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24, padding: '20px', background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #E2E8F0' },
-  listDetailTitle:  { fontSize: 20, fontWeight: 800, color: '#1E293B', marginBottom: 4 },
-  listDetailMeta:   { fontSize: 14, color: '#64748B', marginBottom: 8 },
+  listDetailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24, padding: '20px', background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec' },
+  listDetailTitle:  { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4 },
+  listDetailMeta:   { fontSize: 14, color: '#5a6472', marginBottom: 8 },
   listDetailStats:  { display: 'flex', gap: 16, fontSize: 14 },
 
-  printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
-  closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#EF4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
-  instructionsBanner:  { background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
+  printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#fff', color: '#5a6472', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
+  closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#c42130', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  instructionsBanner:  { background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
   instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
-  instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
-  instructionsText:    { fontSize: 14, color: '#1E293B', lineHeight: 1.5 },
+  instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
+  instructionsText:    { fontSize: 14, color: '#111827', lineHeight: 1.5 },
   instructionsEmpty:   { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' as const },
-  instructionsTextarea:{ width: '100%', minHeight: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' as const },
-  openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#059669', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  instructionsTextarea:{ width: '100%', minHeight: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' as const },
+  openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#1f8a4c', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
 
   // Two-column detail layout
@@ -1266,82 +1266,82 @@ const s: Record<string, React.CSSProperties> = {
   // Item list
   catHeader: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, paddingLeft: 4 },
   itemList:  { display: 'flex', flexDirection: 'column', gap: 4 },
-  itemRow:   { background: '#fff', borderRadius: 8, padding: '12px 16px', border: '1px solid #E2E8F0' },
+  itemRow:   { background: '#fff', borderRadius: 8, padding: '12px 16px', border: '1px solid #e4e7ec' },
   itemRowMain: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
   itemRowSub:  { display: 'flex', gap: 10, marginTop: 4, paddingLeft: 4, fontSize: 12, color: TEXT_MUTED, flexWrap: 'wrap' as const },
-  itemRowName: { flex: 1, fontSize: 14, fontWeight: 600, color: '#1E293B', minWidth: 80 },
+  itemRowName: { flex: 1, fontSize: 14, fontWeight: 600, color: '#111827', minWidth: 80 },
 
   statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
-  qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#F8FAFC', border: '1px solid #E2E8F0', whiteSpace: 'nowrap' as const, flexShrink: 0 },
-  qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #3B82F6', fontSize: 13, outline: 'none' },
+  qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#f7f8fa', border: '1px solid #e4e7ec', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #457B9D', fontSize: 13, outline: 'none' },
   priorityPill: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, flexShrink: 0 },
-  removeBtn:    { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
-  sourceBadge:  { fontSize: 12, color: '#059669', background: '#D1FAE5', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
+  removeBtn:    { background: 'none', border: 'none', color: '#d5dae1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
+  sourceBadge:  { fontSize: 12, color: '#1f8a4c', background: '#edf7f0', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
 
   // Category table
-  catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
-  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#F8FAFC', fontSize: 13, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E2E8F0' },
-  catTableRow:  { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', borderBottom: '1px solid #F1F5F9', alignItems: 'center' },
-  catName:      { fontSize: 14, fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 8 },
-  catUses:      { fontSize: 14, color: '#64748B' },
+  catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden' },
+  catTableHead: { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', background: '#f7f8fa', fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e4e7ec' },
+  catTableRow:  { display: 'grid', gridTemplateColumns: '1fr 80px 130px 1fr', gap: 0, padding: '12px 16px', borderBottom: '1px solid #f1f3f6', alignItems: 'center' },
+  catName:      { fontSize: 14, fontWeight: 600, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 },
+  catUses:      { fontSize: 14, color: '#5a6472' },
   catActions:   { display: 'flex', gap: 6, flexWrap: 'wrap' },
-  storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#F1F5F9', color: TEXT_MUTED, fontWeight: 500 },
+  storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#f1f3f6', color: TEXT_MUTED, fontWeight: 500 },
 
   editRow:     { display: 'flex', alignItems: 'center', gap: 8 },
-  approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#F9FAFB', color: TEXT_MUTED, border: '1px solid #E5E7EB', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1f8a4c', border: '1px solid #c8e6d2', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#fdf2f2', color: '#c42130', border: '1px solid #f3cdd1', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#eef2f7', color: '#1D3557', border: '1px solid #d3dcea', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#f7f8fa', color: TEXT_MUTED, border: '1px solid #e4e7ec', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   saveBtnSm:   { padding: '5px 12px', borderRadius: 6, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
-  cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#64748B', border: '1px solid #E2E8F0', fontSize: 14, cursor: 'pointer' },
+  cancelBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#fff', color: '#5a6472', border: '1px solid #e4e7ec', fontSize: 14, cursor: 'pointer' },
 
-  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const },
+  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', boxSizing: 'border-box' as const },
 };
 
 // Quick Add Panel styles
 const p: Record<string, React.CSSProperties> = {
-  panel:       { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' },
-  section:     { padding: '16px', borderBottom: '1px solid #F1F5F9' },
-  sectionLabel:{ fontSize: 11, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
+  panel:       { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden' },
+  section:     { padding: '16px', borderBottom: '1px solid #f1f3f6' },
+  sectionLabel:{ fontSize: 11, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
 
-  nameInput:   { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' },
-  qtyInput:    { flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', outline: 'none', minWidth: 0 },
+  nameInput:   { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' },
+  qtyInput:    { flex: 1, padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', outline: 'none', minWidth: 0 },
   addBtn:      { padding: '10px 18px', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, transition: 'opacity 0.15s' },
   addBtnDim:   { opacity: 0.4, cursor: 'not-allowed' },
-  hint:        { fontSize: 11, color: '#CBD5E1', marginTop: 8 },
+  hint:        { fontSize: 11, color: '#d5dae1', marginTop: 8 },
 
-  sugg:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 8px 8px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' },
-  suggRow:     { padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid #F8FAFC', transition: 'background 0.1s' },
+  sugg:        { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #e4e7ec', borderTop: 'none', borderRadius: '0 0 8px 8px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' },
+  suggRow:     { padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid #f7f8fa', transition: 'background 0.1s' },
   suggCat:     { fontSize: 12, color: TEXT_MUTED, marginLeft: 8 },
 
   quickSearchInput: {
-    width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0',
-    fontSize: 13, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10,
+    width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec',
+    fontSize: 13, color: '#111827', boxSizing: 'border-box' as const, outline: 'none', marginBottom: 10,
   },
   quickGridScroll: { maxHeight: 280, overflowY: 'auto' as const, paddingRight: 2 },
   quickGrid:   { display: 'flex', flexDirection: 'column' as const, gap: 6 },
   quickTile:   {
-    padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F8FAFC',
+    padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#f7f8fa',
     cursor: 'pointer', textAlign: 'left' as const, transition: 'all 0.15s',
     display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13,
   },
-  tileName:    { flex: 1, minWidth: 0, fontWeight: 700, color: '#1E293B', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  tileName:    { flex: 1, minWidth: 0, fontWeight: 700, color: '#111827', fontSize: 13, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   tileCat:     { flexShrink: 0, fontSize: 11, color: TEXT_MUTED, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
 
-  badge:       { padding: '2px 8px', borderRadius: 10, background: '#FEF3C7', color: '#D97706', fontSize: 12, fontWeight: 700 },
+  badge:       { padding: '2px 8px', borderRadius: 10, background: '#fdf6e8', color: '#8a5300', fontSize: 12, fontWeight: 700 },
 
-  reqCard:     { borderRadius: 8, border: '1px solid #FDE68A', background: '#FFFBEB', overflow: 'hidden' },
+  reqCard:     { borderRadius: 8, border: '1px solid #f1dcaf', background: '#fdf6e8', overflow: 'hidden' },
   reqHead:     { display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer', gap: 8 },
-  reqName:     { fontSize: 14, fontWeight: 700, color: '#1E293B' },
-  reqMeta:     { fontSize: 12, color: '#64748B', marginTop: 2 },
-  acceptAllBtn:{ padding: '5px 12px', borderRadius: 6, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
-  reqLines:    { padding: '10px 14px', borderTop: '1px solid #FDE68A', display: 'flex', flexDirection: 'column', gap: 8 },
-  reqLine:     { background: '#fff', borderRadius: 6, border: '1px solid #E2E8F0', padding: '10px 12px' },
-  lineBtn:     { flex: 1, padding: '6px 0', borderRadius: 6, border: '1.5px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
-  lineBtnAccept:{ background: '#D1FAE5', borderColor: '#10B981', color: '#059669' },
-  lineBtnReject:{ background: '#FEE2E2', borderColor: '#F87171', color: '#DC2626' },
+  reqName:     { fontSize: 14, fontWeight: 700, color: '#111827' },
+  reqMeta:     { fontSize: 12, color: '#5a6472', marginTop: 2 },
+  acceptAllBtn:{ padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1f8a4c', border: '1px solid #c8e6d2', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  reqLines:    { padding: '10px 14px', borderTop: '1px solid #f1dcaf', display: 'flex', flexDirection: 'column', gap: 8 },
+  reqLine:     { background: '#fff', borderRadius: 6, border: '1px solid #e4e7ec', padding: '10px 12px' },
+  lineBtn:     { flex: 1, padding: '6px 0', borderRadius: 6, border: '1.5px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
+  lineBtnAccept:{ background: '#edf7f0', borderColor: '#1f8a4c', color: '#1f8a4c' },
+  lineBtnReject:{ background: '#fdf2f2', borderColor: '#c42130', color: '#c42130' },
   submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
-  restoreRow:    { display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#F8FAFC', cursor: 'pointer' },
-  restoreRowSel: { background: '#EFF6FF', borderColor: '#93C5FD' },
+  restoreRow:    { display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 6, border: '1px solid #e4e7ec', background: '#f7f8fa', cursor: 'pointer' },
+  restoreRowSel: { background: '#eef2f7', borderColor: '#d3dcea' },
 };

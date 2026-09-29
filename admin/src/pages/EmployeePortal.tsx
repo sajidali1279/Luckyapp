@@ -33,15 +33,15 @@ interface MyRequest {
 // ─── Item status config ───────────────────────────────────────────────────────
 
 const LINE_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:  { label: 'Pending review', color: '#D97706', bg: '#FEF3C7' },
-  ACCEPTED: { label: 'Accepted',       color: '#059669', bg: '#D1FAE5' },
-  REJECTED: { label: 'Rejected',       color: '#DC2626', bg: '#FEE2E2' },
+  PENDING:  { label: 'Pending review', color: '#8a5300', bg: '#fdf6e8' },
+  ACCEPTED: { label: 'Accepted',       color: '#1f8a4c', bg: '#edf7f0' },
+  REJECTED: { label: 'Rejected',       color: '#c42130', bg: '#fdf2f2' },
 };
 
 const ORDER_STATUS: Record<string, { label: string; color: string }> = {
-  PENDING:  { label: 'On order list',  color: '#D97706' },
-  ORDERED:  { label: 'Ordered',        color: '#2563EB' },
-  RECEIVED: { label: 'Received ✓',    color: '#059669' },
+  PENDING:  { label: 'On order list',  color: '#8a5300' },
+  ORDERED:  { label: 'Ordered',        color: '#1D3557' },
+  RECEIVED: { label: 'Received ✓',    color: '#1f8a4c' },
 };
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -224,7 +224,7 @@ function NewRequestTab() {
             <div style={s.sugg}>
               {suggs.map(sg => (
                 <div key={sg.name} style={s.suggRow} onMouseDown={() => addFromSugg(sg)}>
-                  <span style={{ fontWeight: 600, fontSize: 14, color: '#1E293B' }}>{sg.name}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{sg.name}</span>
                   {sg.category && <span style={s.suggCat}>{sg.category}</span>}
                 </div>
               ))}
@@ -355,7 +355,7 @@ function MyRequestsTab() {
                 <div style={{ flex: 1 }}>
                   <div style={s.reqTitle}>
                     {req.requestType === 'CUSTOMER_REQUEST' ? '🙋 Customer Request' : '📉 Low Stock'}
-                    <span style={{ ...s.statusPill, background: isPending ? '#FEF3C7' : '#D1FAE5', color: isPending ? '#D97706' : '#059669' }}>
+                    <span style={{ ...s.statusPill, background: isPending ? '#fdf6e8' : '#edf7f0', color: isPending ? '#8a5300' : '#1f8a4c' }}>
                       {isPending ? 'Pending' : 'Reviewed'}
                     </span>
                   </div>
@@ -372,21 +372,21 @@ function MyRequestsTab() {
               {isOpen && (
                 <div style={s.reqLines}>
                   {req.lines.map(line => {
-                    const lc = LINE_STATUS[line.status] || { label: line.status, color: '#64748B', bg: '#F1F5F9' };
+                    const lc = LINE_STATUS[line.status] || { label: line.status, color: '#5a6472', bg: '#f1f3f6' };
                     const oc = line.listItem ? ORDER_STATUS[line.listItem.status] : null;
                     return (
                       <div key={line.id} style={s.reqLine}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                           <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1E293B' }}>{line.name}</div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{line.name}</div>
                             {(line.quantity || line.category) && (
-                              <div style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                              <div style={{ fontSize: 13, color: '#5a6472', marginTop: 2 }}>
                                 {line.quantity && <span>Qty: {line.quantity}</span>}
                                 {line.quantity && line.category && <span> · </span>}
                                 {line.category && <span>{line.category}</span>}
                               </div>
                             )}
-                            {line.notes && <div style={{ fontSize: 13, color: '#64748B' }}>{line.notes}</div>}
+                            {line.notes && <div style={{ fontSize: 13, color: '#5a6472' }}>{line.notes}</div>}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
                             <span style={{ ...s.statusPill, background: lc.bg, color: lc.color }}>{lc.label}</span>
@@ -420,61 +420,61 @@ function MyRequestsTab() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { minHeight: '100vh', background: '#F8FAFC', paddingBottom: 40 },
+  page:       { minHeight: '100vh', background: '#f7f8fa', paddingBottom: 40 },
 
-  header:     { background: 'linear-gradient(135deg, #1D3557 0%, #2563EB 100%)', padding: '0 0 0 0' },
+  header:     { background: 'linear-gradient(135deg, #1D3557 0%, #1D3557 100%)', padding: '0 0 0 0' },
   headerInner:{ maxWidth: 600, margin: '0 auto', padding: '20px 20px' },
-  headerTitle:{ fontSize: 22, fontWeight: 800, color: '#fff' },
+  headerTitle:{ fontSize: 22, fontWeight: 700, color: '#fff' },
   headerSub:  { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
 
-  tabBar:     { display: 'flex', background: '#fff', borderBottom: '1px solid #E2E8F0' },
-  tab:        { flex: 1, padding: '14px 0', fontSize: 15, fontWeight: 600, color: '#64748B', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s' },
-  tabActive:  { color: PRIMARY, borderBottomColor: PRIMARY, background: '#F8FAFC' },
+  tabBar:     { display: 'flex', background: '#fff', borderBottom: '1px solid #e4e7ec' },
+  tab:        { flex: 1, padding: '14px 0', fontSize: 15, fontWeight: 600, color: '#5a6472', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s' },
+  tabActive:  { color: PRIMARY, borderBottomColor: PRIMARY, background: '#f7f8fa' },
 
   body:       { maxWidth: 600, margin: '0 auto', padding: '20px 16px' },
-  card:       { background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  card:       { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', padding: 20, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   section:    { marginBottom: 20 },
 
   label:      { fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 8 },
   optional:   { fontSize: 12, fontWeight: 500, color: TEXT_MUTED },
 
   typeRow:    { display: 'flex', gap: 10 },
-  typeBtn:    { flex: 1, padding: '12px 10px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 14, fontWeight: 600, color: '#64748B', cursor: 'pointer', transition: 'all 0.15s' },
-  typeBtnActive: { background: '#EFF6FF', borderColor: '#2563EB', color: '#1D4ED8' },
+  typeBtn:    { flex: 1, padding: '12px 10px', borderRadius: 10, border: '1.5px solid #e4e7ec', background: '#f7f8fa', fontSize: 14, fontWeight: 600, color: '#5a6472', cursor: 'pointer', transition: 'all 0.15s' },
+  typeBtnActive: { background: '#eef2f7', borderColor: '#1D3557', color: '#1D3557' },
   typeHint:   { fontSize: 12, color: TEXT_MUTED, marginTop: 8 },
 
-  input:      { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
-  searchInput:{ width: '100%', padding: '12px 80px 12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', fontSize: 15, color: '#1E293B', boxSizing: 'border-box' as const, outline: 'none' },
+  input:      { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', boxSizing: 'border-box' as const, outline: 'none' },
+  searchInput:{ width: '100%', padding: '12px 80px 12px 14px', borderRadius: 10, border: '1.5px solid #e4e7ec', fontSize: 15, color: '#111827', boxSizing: 'border-box' as const, outline: 'none' },
   addInlineBtn:{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', padding: '6px 14px', borderRadius: 6, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   searchHint: { fontSize: 12, color: TEXT_MUTED, marginTop: 6 },
 
-  sugg:       { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E2E8F0', borderTop: 'none', borderRadius: '0 0 10px 10px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 240, overflowY: 'auto' },
-  suggRow:    { padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F8FAFC' },
-  suggCat:    { fontSize: 12, color: TEXT_MUTED, padding: '2px 8px', background: '#F1F5F9', borderRadius: 8 },
+  sugg:       { position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #e4e7ec', borderTop: 'none', borderRadius: '0 0 10px 10px', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 240, overflowY: 'auto' },
+  suggRow:    { padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f7f8fa' },
+  suggCat:    { fontSize: 12, color: TEXT_MUTED, padding: '2px 8px', background: '#f1f3f6', borderRadius: 8 },
 
-  cartItem:   { background: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0', padding: '12px 14px' },
+  cartItem:   { background: '#f7f8fa', borderRadius: 10, border: '1px solid #e4e7ec', padding: '12px 14px' },
   cartItemTop:{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  cartItemName:{ fontSize: 15, fontWeight: 700, color: '#1E293B' },
-  cartItemMeta:{ fontSize: 13, color: '#64748B', marginTop: 6, cursor: 'pointer' },
+  cartItemName:{ fontSize: 15, fontWeight: 700, color: '#111827' },
+  cartItemMeta:{ fontSize: 13, color: '#5a6472', marginTop: 6, cursor: 'pointer' },
   cartItemFields:{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 },
-  fieldInput: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none' },
-  editLink:   { color: '#2563EB', fontWeight: 600 },
+  fieldInput: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none' },
+  editLink:   { color: '#1D3557', fontWeight: 600 },
   doneBtn:    { padding: '8px 16px', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
-  removeBtn:  { background: 'none', border: 'none', color: '#CBD5E1', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 4 },
+  removeBtn:  { background: 'none', border: 'none', color: '#d5dae1', cursor: 'pointer', fontSize: 16, padding: '2px 4px', borderRadius: 4 },
 
-  submitBtn:  { width: '100%', padding: '14px 0', borderRadius: 12, background: 'linear-gradient(135deg, #1D3557 0%, #2563EB 100%)', color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.15s' },
+  submitBtn:  { width: '100%', padding: '14px 0', borderRadius: 12, background: 'linear-gradient(135deg, #1D3557 0%, #1D3557 100%)', color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.15s' },
   emptyHint:  { fontSize: 13, color: TEXT_MUTED, textAlign: 'center', marginTop: 10 },
 
   statusPill: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, marginLeft: 8, display: 'inline-block' },
 
   reqHead:  { display: 'flex', alignItems: 'center', padding: '14px 16px', cursor: 'pointer', gap: 8, background: '#fff' },
-  reqTitle: { fontSize: 15, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
-  reqMeta:  { fontSize: 13, color: '#64748B', marginTop: 4 },
-  reqLines: { padding: '12px 16px', borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: 8, background: '#F8FAFC' },
-  reqLine:  { background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0', padding: '12px 14px' },
-  rejReason:{ fontSize: 12, color: '#DC2626', marginTop: 6, background: '#FEF2F2', padding: '4px 8px', borderRadius: 6 },
+  reqTitle: { fontSize: 15, fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 4 },
+  reqMeta:  { fontSize: 13, color: '#5a6472', marginTop: 4 },
+  reqLines: { padding: '12px 16px', borderTop: '1px solid #f1f3f6', display: 'flex', flexDirection: 'column', gap: 8, background: '#f7f8fa' },
+  reqLine:  { background: '#fff', borderRadius: 8, border: '1px solid #e4e7ec', padding: '12px 14px' },
+  rejReason:{ fontSize: 12, color: '#c42130', marginTop: 6, background: '#fdf2f2', padding: '4px 8px', borderRadius: 6 },
 
-  refreshBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 14, color: '#64748B', background: '#fff', cursor: 'pointer' },
+  refreshBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#5a6472', background: '#fff', cursor: 'pointer' },
   loading:    { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
   empty:      { padding: '32px 0', textAlign: 'center', color: TEXT_MUTED, fontSize: 14, lineHeight: 1.8 },
 };

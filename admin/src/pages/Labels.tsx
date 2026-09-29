@@ -45,13 +45,13 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const UNCATEGORIZED = '__uncategorized__';
 
 const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
-  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#b91c1c' },
-  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#14532d' },
-  { value: 'SUMMER', label: 'Summer', accent: '#ea580c' },
-  { value: 'CLEARANCE', label: 'Clearance', accent: '#dc2626' },
-  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1e3a8a' },
-  { value: 'HALLOWEEN', label: 'Halloween', accent: '#7c3aed' },
-  { value: 'PREMIUM', label: 'Premium / Top Shelf', accent: '#b8860b' },
+  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#a51b28' },
+  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#17663a' },
+  { value: 'SUMMER', label: 'Summer', accent: '#b7791f' },
+  { value: 'CLEARANCE', label: 'Clearance', accent: '#c42130' },
+  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1D3557' },
+  { value: 'HALLOWEEN', label: 'Halloween', accent: '#4f6d8f' },
+  { value: 'PREMIUM', label: 'Premium / Top Shelf', accent: '#8a5300' },
 ];
 
 const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
@@ -682,7 +682,7 @@ export default function Labels() {
           </div>
           <div style={m.actions}>
             <button type="button" style={m.cancelBtn} onClick={() => setReview(null)} disabled={savingAll}>Keep editing</button>
-            <button type="button" style={{ ...m.saveBtn, ...(reviewBig > 0 ? { background: '#dc2626' } : {}), ...(savingAll ? m.saveBtnDim : {}) }} onClick={() => saveAll(review)} disabled={savingAll}>
+            <button type="button" style={{ ...m.saveBtn, ...(reviewBig > 0 ? { background: '#c42130' } : {}), ...(savingAll ? m.saveBtnDim : {}) }} onClick={() => saveAll(review)} disabled={savingAll}>
               {savingAll ? 'Saving…' : 'Save all changes'}
             </button>
           </div>
@@ -963,7 +963,7 @@ export default function Labels() {
                         onRevert: () => revert(label, field),
                       });
                       return (
-                        <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                        <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                           <TableCell style={{ ...s.td, ...(rowChanged ? s.rowChangedMark : {}) }}>
                             {label.priceText != null ? (
                               <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
@@ -1037,7 +1037,7 @@ export default function Labels() {
                               <button type="button" style={s.iconBtn} onClick={() => duplicateLabel(withEdits(label))} title="Duplicate" aria-label={`Duplicate ${label.productName}`}>
                                 <Copy size={16} strokeWidth={2} />
                               </button>
-                              <button type="button" style={{ ...s.iconBtn, color: '#dc2626' }} onClick={() => setConfirmDelete(label)} title="Delete" aria-label={`Delete ${label.productName}`}>
+                              <button type="button" style={{ ...s.iconBtn, color: '#c42130' }} onClick={() => setConfirmDelete(label)} title="Delete" aria-label={`Delete ${label.productName}`}>
                                 <Trash2 size={16} strokeWidth={2} />
                               </button>
                             </div>
@@ -1104,160 +1104,160 @@ export default function Labels() {
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
   addBtn: {
     padding: '10px 16px', borderRadius: 10, background: PRIMARY, border: 'none',
     color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   exportBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, background: '#fff', border: '1.5px solid #d1d5db',
-    color: '#1f2937', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, background: '#fff', border: '1.5px solid #d5dae1',
+    color: '#111827', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   catalogLayout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
   catalogMain: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   viewToggleRow: { display: 'flex', gap: 8 },
   viewToggleChip: {
-    borderWidth: 1.5, borderStyle: 'solid', borderColor: '#ddd', borderRadius: 20, padding: '8px 16px',
-    fontSize: 13, fontWeight: 700, color: '#444', background: '#fff', cursor: 'pointer',
+    borderWidth: 1.5, borderStyle: 'solid', borderColor: '#d5dae1', borderRadius: 20, padding: '8px 16px',
+    fontSize: 13, fontWeight: 700, color: '#374151', background: '#fff', cursor: 'pointer',
   },
-  viewToggleChipActive: { borderColor: PRIMARY, background: '#eff6ff', color: PRIMARY },
+  viewToggleChipActive: { borderColor: PRIMARY, background: '#eef2f7', color: PRIMARY },
 
   filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   searchInput: {
-    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
+    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '9px 14px', fontSize: 14, outline: 'none',
   },
   filterSelect: {
-    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
-    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+    border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 12px',
+    fontSize: 14, background: '#fff', color: '#111827', cursor: 'pointer',
   },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, overflowX: 'auto',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
 
   emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
+    background: '#fff', borderRadius: 12, padding: 60,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptySub: { color: TEXT_MUTED, fontSize: 14 },
   cellInput: {
-    width: '100%', boxSizing: 'border-box', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff',
+    width: '100%', boxSizing: 'border-box', border: '1px solid #e4e7ec', borderRadius: 7, background: '#fff',
     padding: '6px 8px', fontSize: 14, color: '#111827', outline: 'none',
   },
   cellInputFocus: { borderColor: PRIMARY, boxShadow: `0 0 0 3px ${PRIMARY}22` },
   cellSelect: {
-    border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', padding: '6px 8px', fontSize: 13, color: '#111827', cursor: 'pointer', maxWidth: 170,
+    border: '1px solid #e4e7ec', borderRadius: 7, background: '#fff', padding: '6px 8px', fontSize: 13, color: '#111827', cursor: 'pointer', maxWidth: 170,
   },
-  cellError: { display: 'block', fontSize: 11.5, color: '#b91c1c', fontWeight: 600, marginTop: 3 },
+  cellError: { display: 'block', fontSize: 11.5, color: '#a51b28', fontWeight: 600, marginTop: 3 },
   // A change not saved yet: blue, so it stands apart from the amber "No price" boxes and red mistakes
-  cellChanged: { background: '#eef4ff', borderColor: '#93c5fd' },
-  rowChangedMark: { boxShadow: 'inset 3px 0 0 #3b82f6' },
+  cellChanged: { background: '#eef2f7', borderColor: '#d3dcea' },
+  rowChangedMark: { boxShadow: 'inset 3px 0 0 #457B9D' },
   undoBtn: {
     position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    width: 20, height: 20, borderRadius: 5, border: 'none', background: '#dbeafe', color: '#1d4ed8', cursor: 'pointer', padding: 0,
+    width: 20, height: 20, borderRadius: 5, border: 'none', background: '#eef2f7', color: '#1D3557', cursor: 'pointer', padding: 0,
   },
   saveBar: {
     position: 'sticky', bottom: 16, zIndex: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-    background: '#0f172a', color: '#fff', borderRadius: 14, padding: '12px 16px', boxShadow: '0 10px 30px rgba(15,23,42,0.28)',
+    background: '#111827', color: '#fff', borderRadius: 12, padding: '12px 16px', boxShadow: '0 10px 30px rgba(15,23,42,0.28)',
   },
   saveBarDot: { width: 9, height: 9, borderRadius: 5, background: '#60a5fa', flexShrink: 0 },
   saveBarText: { flex: '1 1 220px', fontSize: 14 },
-  saveBarHint: { color: '#94a3b8', fontSize: 13 },
+  saveBarHint: { color: '#5a6472', fontSize: 13 },
   saveBarDiscard: {
-    background: 'transparent', border: '1px solid #475569', color: '#e2e8f0', borderRadius: 10, padding: '9px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+    background: 'transparent', border: '1px solid #374151', color: '#e4e7ec', borderRadius: 10, padding: '9px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
-  saveBarSave: { background: '#2563eb', border: 'none', color: '#fff', borderRadius: 10, padding: '9px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  saveBarSave: { background: '#1D3557', border: 'none', color: '#fff', borderRadius: 10, padding: '9px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   iconBtn: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8,
-    border: '1px solid #e5e7eb', background: '#fff', color: '#374151', cursor: 'pointer',
+    border: '1px solid #e4e7ec', background: '#fff', color: '#374151', cursor: 'pointer',
   },
   noPriceChip: {
-    border: '1.5px solid #fcd34d', background: '#fffbeb', color: '#92400e', borderRadius: 999,
+    border: '1.5px solid #f1dcaf', background: '#fdf6e8', color: '#8a5300', borderRadius: 999,
     padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
-  noPriceChipActive: { background: '#f59e0b', borderColor: '#f59e0b', color: '#fff' },
+  noPriceChipActive: { background: '#b7791f', borderColor: '#b7791f', color: '#fff' },
   quickPriceWrap: { display: 'inline-flex', alignItems: 'center', gap: 6 },
   quickPriceBox: {
-    display: 'inline-flex', alignItems: 'center', border: '1.5px solid #fcd34d', background: '#fffbeb', borderRadius: 8, padding: '0 8px',
+    display: 'inline-flex', alignItems: 'center', border: '1.5px solid #f1dcaf', background: '#fdf6e8', borderRadius: 8, padding: '0 8px',
   },
-  quickPriceDollar: { color: '#92400e', fontWeight: 700, fontSize: 14 },
+  quickPriceDollar: { color: '#8a5300', fontWeight: 700, fontSize: 14 },
   quickPriceInput: {
     width: 72, border: 'none', outline: 'none', background: 'transparent', padding: '6px 4px', fontSize: 14, fontWeight: 600, color: '#111827',
   },
   quickPriceHint: { fontSize: 11, color: TEXT_MUTED },
-  quickPriceError: { fontSize: 12, color: '#b91c1c', fontWeight: 600 },
+  quickPriceError: { fontSize: 12, color: '#a51b28', fontWeight: 600 },
 };
 
 const m: Record<string, CSSProperties> = {
   form: { display: 'flex', flexDirection: 'column', gap: 8 },
-  err: { fontSize: 13, color: '#b91c1c', lineHeight: 1.4 },
-  warn: { fontSize: 14, color: '#b91c1c', fontWeight: 700, margin: '8px 0 0', lineHeight: 1.5 },
+  err: { fontSize: 13, color: '#a51b28', lineHeight: 1.4 },
+  warn: { fontSize: 14, color: '#a51b28', fontWeight: 700, margin: '8px 0 0', lineHeight: 1.5 },
   note: { fontSize: 14, color: '#374151', margin: '8px 0 0', lineHeight: 1.5 },
   changeList: { margin: '0 0 4px', paddingLeft: 18, fontSize: 15, color: '#111827', lineHeight: 1.6 },
-  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
+  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1D3557', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
   reviewList: { maxHeight: '52vh', overflowY: 'auto', margin: '12px 0 4px', display: 'flex', flexDirection: 'column', gap: 10 },
-  reviewItem: { border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px' },
+  reviewItem: { border: '1px solid #e4e7ec', borderRadius: 10, padding: '10px 12px' },
   reviewHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', fontSize: 15 },
   reviewStores: { fontSize: 13, color: TEXT_MUTED },
-  reviewStoresWarn: { fontSize: 13, color: '#b91c1c', fontWeight: 700 },
+  reviewStoresWarn: { fontSize: 13, color: '#a51b28', fontWeight: 700 },
   reviewChanges: { listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 },
   reviewChange: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 14, color: '#374151' },
   pct: { color: TEXT_MUTED },
-  pctBig: { color: '#b91c1c', fontWeight: 700 },
-  label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
+  pctBig: { color: '#a51b28', fontWeight: 700 },
+  label: { fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 6 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   input: {
-    border: '1.5px solid #ddd', borderRadius: 10,
+    border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
   templateRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 8 },
   templateChip: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    border: '1.5px solid #ddd', borderRadius: 20,
-    padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#444',
+    border: '1.5px solid #d5dae1', borderRadius: 20,
+    padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#374151',
     background: '#fff', cursor: 'pointer',
   },
-  templateChipActive: { borderColor: PRIMARY, background: '#eff6ff', color: PRIMARY },
+  templateChipActive: { borderColor: PRIMARY, background: '#eef2f7', color: PRIMARY },
   templateSwatch: { width: 10, height: 10, borderRadius: 5, display: 'inline-block' },
   priceInputWrap: { position: 'relative' as const },
   priceInputDollar: {
     position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)',
-    fontSize: 15, fontWeight: 700, color: '#667', pointerEvents: 'none' as const,
+    fontSize: 15, fontWeight: 700, color: '#5a6472', pointerEvents: 'none' as const,
   },
   priceInput: { paddingLeft: 26 },
   sugg: {
     position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
-    border: '1.5px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 10px 10px',
+    border: '1.5px solid #e4e7ec', borderTop: 'none', borderRadius: '0 0 10px 10px',
     zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto',
   },
   suggRow: {
     padding: '10px 14px', cursor: 'pointer', display: 'flex',
     justifyContent: 'space-between', alignItems: 'center', fontSize: 14,
-    borderBottom: '1px solid #f8fafc', transition: 'background 0.1s',
+    borderBottom: '1px solid #f7f8fa', transition: 'background 0.1s',
   },
   suggPrice: { fontSize: 13, color: TEXT_MUTED, marginLeft: 8, whiteSpace: 'nowrap' as const },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   cancelBtn: {
-    background: '#f4f4f4', border: 'none', borderRadius: 10,
-    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
+    background: '#f1f3f6', border: 'none', borderRadius: 10,
+    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151',
   },
   saveBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
@@ -1297,8 +1297,8 @@ function QuickPrice({ label, staged, disabled, onStage, onNext, inputRef }: {
   const waiting = staged != null;
   return (
     <span style={s.quickPriceWrap}>
-      <span style={{ ...s.quickPriceBox, ...(waiting ? s.cellChanged : {}), ...(error ? { borderColor: '#f87171' } : {}) }}>
-        <span style={{ ...s.quickPriceDollar, ...(waiting ? { color: '#1d4ed8' } : {}) }} aria-hidden>$</span>
+      <span style={{ ...s.quickPriceBox, ...(waiting ? s.cellChanged : {}), ...(error ? { borderColor: '#c42130' } : {}) }}>
+        <span style={{ ...s.quickPriceDollar, ...(waiting ? { color: '#1D3557' } : {}) }} aria-hidden>$</span>
         <input
           ref={inputRef}
           style={s.quickPriceInput}
@@ -1432,7 +1432,7 @@ function InlineText({ value, changed, savedText, disabled, placeholder, ariaLabe
     ...s.cellInput,
     ...(changed ? s.cellChanged : {}),
     ...(focused ? s.cellInputFocus : {}),
-    ...(error ? { borderColor: '#f87171' } : {}),
+    ...(error ? { borderColor: '#c42130' } : {}),
     ...(bold ? { fontWeight: 700, color: PRIMARY } : {}),
     ...(mono ? { fontFamily: 'monospace' } : {}),
     ...(small ? { fontSize: 12, padding: '3px 8px', marginTop: 4, color: TEXT_MUTED } : {}),

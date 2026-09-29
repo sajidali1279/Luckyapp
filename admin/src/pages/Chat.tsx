@@ -11,10 +11,10 @@ import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 const ROLE_COLORS: Record<string, string> = {
-  DEV_ADMIN:     '#2DC653',
+  DEV_ADMIN:     '#1f8a4c',
   SUPER_ADMIN:   PRIMARY,
-  STORE_MANAGER: '#0369a1',
-  EMPLOYEE:      '#f59e0b',
+  STORE_MANAGER: '#1D3557',
+  EMPLOYEE:      '#b7791f',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -26,13 +26,13 @@ const ROLE_LABELS: Record<string, string> = {
 
 const STORE_GRADIENTS = [
   [PRIMARY, '#457B9D'],
-  ['#0369a1', '#0ea5e9'],
-  ['#166534', '#2DC653'],
-  ['#7c3aed', '#a78bfa'],
-  ['#b45309', '#f59e0b'],
-  ['#be123c', '#f43f5e'],
-  ['#0f766e', '#14b8a6'],
-  ['#1e40af', '#3b82f6'],
+  ['#1D3557', '#457B9D'],
+  ['#17663a', '#1f8a4c'],
+  ['#4f6d8f', '#4f6d8f'],
+  ['#8a5300', '#b7791f'],
+  ['#c42130', '#c42130'],
+  ['#457B9D', '#457B9D'],
+  ['#1D3557', '#457B9D'],
 ];
 
 interface Message {
@@ -250,7 +250,7 @@ export default function Chat() {
                     {store.name[0].toUpperCase()}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: isActive ? PRIMARY : '#212529' }}>
+                    <div style={{ ...s.storeBtnName, color: isActive ? PRIMARY : '#111827' }}>
                       {store.name}
                     </div>
                     <div style={s.storeBtnCity}>{store.city}</div>
@@ -325,7 +325,7 @@ export default function Chat() {
                 const showDivider = !prev || !isSameDay(prev.createdAt, msg.createdAt);
                 const isFirstInGroup = !prev || prev.userId !== msg.userId || showDivider;
                 const isLastInGroup = !next || next.userId !== msg.userId || !isSameDay(msg.createdAt, next.createdAt);
-                const roleColor = ROLE_COLORS[msg.userRole] || '#6c757d';
+                const roleColor = ROLE_COLORS[msg.userRole] || '#5a6472';
 
                 return (
                   <div key={msg.id}>
@@ -431,31 +431,31 @@ export default function Chat() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f0f2f5' },
+  container: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f1f3f6' },
 
   // ── Sidebar ──
   sidebar: {
     width: 272, flexShrink: 0, background: '#fff',
-    borderRight: '1px solid #e5e7eb',
+    borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column',
   },
   sidebarTop: {
     padding: '20px 18px 8px',
   },
-  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
   sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
 
   storeSearch: {
     margin: '8px 14px 6px',
     padding: '8px 12px',
-    background: '#f3f4f6',
+    background: '#f1f3f6',
     borderRadius: 10,
     display: 'flex', alignItems: 'center', gap: 8,
   },
   searchIcon: { opacity: 0.5, flexShrink: 0 },
   searchInput: {
     flex: 1, border: 'none', outline: 'none', background: 'transparent',
-    fontSize: 14, color: '#212529', fontFamily: 'inherit',
+    fontSize: 14, color: '#111827', fontFamily: 'inherit',
   },
 
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
@@ -466,23 +466,23 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, textAlign: 'left', position: 'relative',
     transition: 'background 0.15s',
   },
-  storeBtnActive: { background: '#eff6ff' },
+  storeBtnActive: { background: '#eef2f7' },
   storeAvatar: {
     width: 40, height: 40, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 16, fontWeight: 800,
+    color: '#fff', fontSize: 16, fontWeight: 700,
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: {
     width: 8, height: 8, borderRadius: 4,
-    background: '#2DC653', flexShrink: 0,
+    background: '#1f8a4c', flexShrink: 0,
   },
   storeUnreadBadge: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 20, height: 20, borderRadius: 10, padding: '0 6px', flexShrink: 0,
-    background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 800,
+    background: '#c42130', color: '#fff', fontSize: 11, fontWeight: 700,
   },
 
   // ── Chat panel ──
@@ -493,7 +493,7 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   emptyIconWrap: { fontSize: 52, marginBottom: 4 },
-  emptyTitle: { fontSize: 20, fontWeight: 800, color: '#111827' },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827' },
   emptySub: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
 
   chatHeader: {
@@ -502,18 +502,18 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
   },
   chatHeaderAvatar: {
-    width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
     background: 'rgba(255,255,255,0.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 18, fontWeight: 800, color: '#fff',
+    fontSize: 18, fontWeight: 700, color: '#fff',
     border: '2px solid rgba(255,255,255,0.35)',
   },
   chatHeaderInfo: { flex: 1 },
-  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 800, letterSpacing: -0.2 },
+  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 },
   onlineDot: {
     width: 7, height: 7, borderRadius: 4,
-    background: '#4ade80', border: '1.5px solid rgba(255,255,255,0.5)',
+    background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)',
     display: 'inline-block',
   },
   chatHeaderBadge: {
@@ -526,13 +526,13 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 8, padding: '7px 12px', cursor: 'pointer',
     fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 8,
   },
-  noticeWrap: { padding: '12px 20px 0', background: '#f8fafc', flexShrink: 0 },
+  noticeWrap: { padding: '12px 20px 0', background: '#f7f8fa', flexShrink: 0 },
 
   // ── Messages ──
   messageList: {
     flex: 1, overflowY: 'auto', padding: '20px 24px 12px',
     display: 'flex', flexDirection: 'column',
-    background: '#f8fafc',
+    background: '#f7f8fa',
   },
   noMessages: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
   noMessagesText: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
@@ -541,7 +541,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 12,
     margin: '16px 0 12px',
   },
-  dateDividerLine: { flex: 1, height: 1, background: '#e5e7eb' },
+  dateDividerLine: { flex: 1, height: 1, background: '#e4e7ec' },
   dateDividerLabel: {
     fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: 0.6, whiteSpace: 'nowrap',
@@ -551,7 +551,7 @@ const s: Record<string, React.CSSProperties> = {
   avatar: {
     width: 30, height: 30, borderRadius: 10, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 13,
+    color: '#fff', fontWeight: 700, fontSize: 13,
   },
   msgMeta: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 2 },
   msgSenderName: { fontSize: 14, fontWeight: 700, color: '#374151' },
@@ -561,16 +561,16 @@ const s: Record<string, React.CSSProperties> = {
   },
   bubble: {
     padding: '10px 14px', fontSize: 14, lineHeight: '1.5',
-    wordBreak: 'break-word' as const, borderRadius: 18,
-    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+    wordBreak: 'break-word' as const, borderRadius: 12,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   bubbleMe: {
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    background: 'linear-gradient(135deg, #1D3557, #1D3557)',
     color: '#fff',
   },
   bubbleThem: {
     background: '#fff', color: '#111827',
-    border: '1px solid #e5e7eb',
+    border: '1px solid #e4e7ec',
   },
   msgTime: { fontSize: 12, color: TEXT_MUTED, marginBottom: 2, whiteSpace: 'nowrap' as const },
 
@@ -578,13 +578,13 @@ const s: Record<string, React.CSSProperties> = {
   inputBar: {
     padding: '12px 20px 16px',
     background: '#fff',
-    borderTop: '1px solid #e5e7eb',
+    borderTop: '1px solid #e4e7ec',
     flexShrink: 0,
   },
   inputWrap: {
-    background: '#f3f4f6',
-    borderRadius: 16,
-    border: '1.5px solid #e5e7eb',
+    background: '#f1f3f6',
+    borderRadius: 12,
+    border: '1.5px solid #e4e7ec',
     overflow: 'hidden',
     transition: 'border-color 0.15s',
   },
@@ -606,9 +606,9 @@ const s: Record<string, React.CSSProperties> = {
   inputHint: { fontSize: 13, color: TEXT_MUTED },
   sendBtn: {
     width: 34, height: 34, borderRadius: 10,
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    background: 'linear-gradient(135deg, #1D3557, #1D3557)',
     color: '#fff', border: 'none', cursor: 'pointer',
-    fontSize: 16, fontWeight: 800,
+    fontSize: 16, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: 'opacity 0.15s',
   },

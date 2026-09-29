@@ -108,7 +108,7 @@ const s: Record<string, CSSProperties> = {
   body: { padding: '22px 24px 20px' },
   head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
   dangerIcon: {
-    width: 32, height: 32, borderRadius: 16, background: C.dangerTint, color: C.danger, flexShrink: 0,
+    width: 32, height: 32, borderRadius: 12, background: C.dangerTint, color: C.danger, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   title: { fontSize: 17, fontWeight: 600, color: C.text, margin: 0 },

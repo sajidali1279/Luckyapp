@@ -50,9 +50,9 @@ export default function SuperAdminBilling() {
 
       {/* Summary Cards */}
       <div style={s.cards}>
-        <div style={{ ...s.card, borderTop: '3px solid #E63946' }}>
+        <div style={{ ...s.card, borderTop: '3px solid #c42130' }}>
           <div style={s.cardLabel}>Outstanding Balance</div>
-          <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#b91c1c' : '#0f5132' }}>{fmt$(totalOutstanding)}</div>
+          <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#a51b28' : '#17663a' }}>{fmt$(totalOutstanding)}</div>
           <div style={s.cardSub}>{invoices.filter((i) => !i.isPaid).length} unpaid invoice{invoices.filter((i) => !i.isPaid).length !== 1 ? 's' : ''}</div>
         </div>
         <div style={{ ...s.card, borderTop: '3px solid #1D3557' }}>
@@ -89,7 +89,7 @@ export default function SuperAdminBilling() {
                 return (
                 <Fragment key={inv.period}>
                   <TableRow
-                    style={{ ...s.tr, background: expanded === inv.period ? '#f0f4ff' : undefined }}
+                    style={{ ...s.tr, background: expanded === inv.period ? '#eef2f7' : undefined }}
                     onClick={() => setExpanded(expanded === inv.period ? null : inv.period)}
                     aria-label={`${expanded === inv.period ? 'Collapse' : 'Expand'} store breakdown for ${periodLabel(inv.period)}`}
                   >
@@ -106,7 +106,7 @@ export default function SuperAdminBilling() {
                     <TableCell style={s.td}>{fmt$(inv.totalVolume)}</TableCell>
                     <TableCell style={s.td}>{fmt$(inv.totalCashback)}</TableCell>
                     <TableCell style={s.td}>
-                      <strong style={{ color: '#b91c1c', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
+                      <strong style={{ color: '#a51b28', fontSize: 16 }}>{fmt$(inv.totalDevCut)}</strong>
                       {(() => {
                         // Only the real platform-fee rows are the numerator: an extra (CUSTOM) charge has no relationship to
                         // cashback at all, so it used to inflate this to "60.0% of cashback" instead of HQ's actual ~10% deal.
@@ -152,7 +152,7 @@ export default function SuperAdminBilling() {
                             <TableHeader>
                               <TableRow>
                                 {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Amount', 'Status'].map((h) => (
-                                  <TableHead key={h} style={{ ...s.th, background: '#eef2ff', fontSize: 13 }}>{h}</TableHead>
+                                  <TableHead key={h} style={{ ...s.th, background: '#eef2f7', fontSize: 13 }}>{h}</TableHead>
                                 ))}
                               </TableRow>
                             </TableHeader>
@@ -166,7 +166,7 @@ export default function SuperAdminBilling() {
                                     <TableCell style={s.td}>{row.description || ' - '}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
-                                    <TableCell style={{ ...s.td, color: row.billingType === 'CUSTOM' ? '#7c3aed' : '#b91c1c', fontWeight: 700 }}>
+                                    <TableCell style={{ ...s.td, color: row.billingType === 'CUSTOM' ? '#4f6d8f' : '#a51b28', fontWeight: 700 }}>
                                       {fmt$(row.amount)}
                                       {row.billingType === 'CUSTOM' && <div style={s.sub}>extra charge</div>}
                                     </TableCell>
@@ -192,8 +192,8 @@ export default function SuperAdminBilling() {
         {invoices.length > 0 && (
           <div style={s.footer}>
             {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} &nbsp;·&nbsp;
-            Outstanding: <strong style={{ color: '#b91c1c' }}>{fmt$(totalOutstanding)}</strong> &nbsp;·&nbsp;
-            All-time paid: <strong style={{ color: '#0f5132' }}>{fmt$(totalPaid)}</strong>
+            Outstanding: <strong style={{ color: '#a51b28' }}>{fmt$(totalOutstanding)}</strong> &nbsp;·&nbsp;
+            All-time paid: <strong style={{ color: '#17663a' }}>{fmt$(totalPaid)}</strong>
           </div>
         )}
       </div>
@@ -212,40 +212,40 @@ export default function SuperAdminBilling() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
 
   cards: { display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap' },
-  card: { flex: '1 1 200px', background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
+  card: { flex: '1 1 200px', background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   cardLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  cardValue: { fontSize: 28, fontWeight: 800, color: PRIMARY, lineHeight: 1 },
+  cardValue: { fontSize: 28, fontWeight: 700, color: PRIMARY, lineHeight: 1 },
   cardSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6 },
 
-  tableWrap: { background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', overflow: 'hidden', marginBottom: 24 },
-  tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #f0f2f5' },
+  tableWrap: { background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', overflow: 'hidden', marginBottom: 24 },
+  tableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #f1f3f6' },
   tableTitle: { fontWeight: 700, fontSize: 15, color: PRIMARY },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { background: '#f8f9fb', padding: '10px 14px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee' },
-  tr: { borderBottom: '1px solid #f0f2f5' },
-  td: { padding: '14px', fontSize: 15, color: '#333', verticalAlign: 'middle' },
+  th: { background: '#f7f8fa', padding: '10px 14px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e4e7ec' },
+  tr: { borderBottom: '1px solid #f1f3f6' },
+  td: { padding: '14px', fontSize: 15, color: '#111827', verticalAlign: 'middle' },
   sub: { fontSize: 13, color: TEXT_MUTED, marginTop: 3 },
   expandBtn: { fontSize: 12, color: PRIMARY, minWidth: 14 },
 
-  expandedCell: { padding: 0, background: '#f8faff', borderBottom: '2px solid #e0e7ff' },
+  expandedCell: { padding: 0, background: '#eef2f7', borderBottom: '2px solid #eef2f7' },
   storeBreakdown: { padding: '16px 20px' },
   breakdownTitle: { fontWeight: 700, fontSize: 15, color: PRIMARY, marginBottom: 10 },
 
-  badgePaid: { background: '#d4edda', color: '#155724', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
-  badgeUnpaid: { background: '#fff3cd', color: '#856404', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
+  badgePaid: { background: '#edf7f0', color: '#17663a', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
+  badgeUnpaid: { background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 700 },
 
-  footer: { padding: '14px 20px', background: '#f8f9fb', borderTop: '1px solid #eee', fontSize: 15, color: TEXT_MUTED },
+  footer: { padding: '14px 20px', background: '#f7f8fa', borderTop: '1px solid #e4e7ec', fontSize: 15, color: TEXT_MUTED },
 
-  infoBox: { background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: '18px 22px' },
+  infoBox: { background: '#eef2f7', border: '1px solid #d3dcea', borderRadius: 12, padding: '18px 22px' },
   infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 15, marginBottom: 6 },
-  infoText: { fontSize: 15, color: '#4338ca', lineHeight: 1.6 },
+  infoText: { fontSize: 15, color: '#1D3557', lineHeight: 1.6 },
 
   pdfBtn: {
-    background: '#fff', border: '1.5px solid #2DC653', color: '#155724',
+    background: '#fff', border: '1.5px solid #1f8a4c', color: '#17663a',
     borderRadius: 6, padding: '4px 10px', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },

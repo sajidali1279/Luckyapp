@@ -14,7 +14,7 @@ function Stars({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <span style={{ fontSize: size, lineHeight: 1, letterSpacing: 1 }}>
       {[1, 2, 3, 4, 5].map(s => (
-        <span key={s} style={{ color: s <= Math.round(rating) ? '#F59E0B' : '#D1D5DB' }}>★</span>
+        <span key={s} style={{ color: s <= Math.round(rating) ? '#b7791f' : '#d5dae1' }}>★</span>
       ))}
     </span>
   );
@@ -102,7 +102,7 @@ export default function LeaderboardPage() {
                   </TableHeader>
                   <TableBody>
                     {customers.map((c, i) => (
-                      <TableRow key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                      <TableRow key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
                           {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : (
                             <span style={s.rankNum}>#{c.rank}</span>
@@ -184,7 +184,7 @@ export default function LeaderboardPage() {
                   </TableHeader>
                   <TableBody>
                     {employees.map((e: EmployeeEntry, i: number) => (
-                      <TableRow key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                      <TableRow key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
                           {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : (
                             <span style={s.rankNum}>#{e.rank}</span>
@@ -222,44 +222,44 @@ export default function LeaderboardPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
-  pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
+  pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
+  pageSub: { color: '#5a6472', marginTop: 4, fontSize: 14 },
 
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 },
 
   panel: {
-    background: '#fff', borderRadius: 18, overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column',
   },
   panelHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: '20px 20px 16px', borderBottom: '1px solid #eee', gap: 12,
+    padding: '20px 20px 16px', borderBottom: '1px solid #e4e7ec', gap: 12,
   },
-  panelTitle: { fontSize: 17, fontWeight: 800, color: PRIMARY },
+  panelTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   panelSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 3 },
 
   select: {
-    border: '1.5px solid #ddd', borderRadius: 10,
+    border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '8px 12px', fontSize: 15, outline: 'none',
-    color: '#333', background: '#f9f9fc', cursor: 'pointer', flexShrink: 0,
+    color: '#111827', background: '#f7f8fa', cursor: 'pointer', flexShrink: 0,
   },
 
   eomCard: {
     display: 'flex', alignItems: 'center', gap: 14,
     margin: '16px 20px 0',
-    background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
-    border: '1.5px solid #FCD34D',
-    borderRadius: 14, padding: '14px 18px',
+    background: 'linear-gradient(135deg, #fdf6e8 0%, #fdf6e8 100%)',
+    border: '1.5px solid #f1dcaf',
+    borderRadius: 12, padding: '14px 18px',
   },
-  eomLabel: { fontSize: 13, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.5 },
-  eomName: { fontSize: 18, fontWeight: 900, color: '#78350F', marginTop: 2 },
+  eomLabel: { fontSize: 13, fontWeight: 700, color: '#8a5300', textTransform: 'uppercase', letterSpacing: 0.5 },
+  eomName: { fontSize: 18, fontWeight: 700, color: '#8a5300', marginTop: 2 },
   eomStats: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 },
-  eomRating: { fontSize: 15, color: '#92400E', fontWeight: 600 },
+  eomRating: { fontSize: 15, color: '#8a5300', fontWeight: 600 },
 
   loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 15 },
   empty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 48 },
@@ -271,10 +271,10 @@ const s: Record<string, React.CSSProperties> = {
   th: {
     padding: '10px 16px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '12px 16px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
-  rankNum: { fontSize: 15, fontWeight: 700, color: '#aaa' },
+  td: { padding: '12px 16px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle' },
+  rankNum: { fontSize: 15, fontWeight: 700, color: '#5a6472' },
   custName: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   ptsBadge: {
     background: PRIMARY, color: '#fff',
@@ -282,12 +282,12 @@ const s: Record<string, React.CSSProperties> = {
   },
   empName: { fontSize: 14, fontWeight: 700, color: PRIMARY },
   eomChip: {
-    background: '#FEF3C7', color: '#92400E',
+    background: '#fdf6e8', color: '#8a5300',
     borderRadius: 8, padding: '2px 8px', fontSize: 13, fontWeight: 700,
   },
-  ratingNum: { fontSize: 15, fontWeight: 800, color: PRIMARY },
+  ratingNum: { fontSize: 15, fontWeight: 700, color: PRIMARY },
   countBadge: {
-    background: '#f0f4ff', color: PRIMARY,
+    background: '#eef2f7', color: PRIMARY,
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
 };

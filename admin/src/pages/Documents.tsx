@@ -220,11 +220,11 @@ const ALL_DOCS: Doc[] = [
 ];
 
 const CATEGORIES = [
-  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: PRIMARY, bg: '#EFF6FF' },
-  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#157A6E', bg: '#F0FDF9' },
-  { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#7C3AED', bg: '#F5F3FF' },
-  { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#B45309', bg: '#FFFBEB' },
-  { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#0F766E', bg: '#F0FDFA' },
+  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: PRIMARY, bg: '#eef2f7' },
+  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#1f8a4c', bg: '#edf7f0' },
+  { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#4f6d8f', bg: '#eef2f7' },
+  { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#8a5300', bg: '#fdf6e8' },
+  { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#457B9D', bg: '#F0FDFA' },
 ] as const;
 
 // ─── Reader modal ─────────────────────────────────────────────────────────────
@@ -248,28 +248,28 @@ function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-              font-size: 13px; line-height: 1.7; color: #212529;
+              font-size: 13px; line-height: 1.7; color: #111827;
               max-width: 800px; margin: 0 auto; padding: 48px 40px;
             }
-            h1 { font-size: 26px; font-weight: 900; color: #1D3557; margin-bottom: 8px; padding-bottom: 12px; border-bottom: 2px solid #E63946; }
+            h1 { font-size: 26px; font-weight: 900; color: #1D3557; margin-bottom: 8px; padding-bottom: 12px; border-bottom: 2px solid #c42130; }
             h2 { font-size: 18px; font-weight: 800; color: #1D3557; margin: 28px 0 10px; }
             h3 { font-size: 15px; font-weight: 700; color: #1D3557; margin: 20px 0 8px; }
-            h4 { font-size: 13px; font-weight: 700; color: #495057; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+            h4 { font-size: 13px; font-weight: 700; color: #374151; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
             p { margin-bottom: 10px; }
             ul, ol { padding-left: 20px; margin-bottom: 10px; }
             li { margin-bottom: 4px; }
             strong { font-weight: 700; }
             em { font-style: italic; }
-            code { font-family: 'Courier New', monospace; background: #f1f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-            pre { background: #f1f3f5; border-radius: 8px; padding: 14px; margin: 12px 0; overflow-x: auto; }
+            code { font-family: 'Courier New', monospace; background: #e4e7ec; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+            pre { background: #e4e7ec; border-radius: 8px; padding: 14px; margin: 12px 0; overflow-x: auto; }
             pre code { background: none; padding: 0; }
             table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
             th { background: #1D3557; color: #fff; padding: 8px 12px; text-align: left; font-weight: 700; }
-            td { padding: 7px 12px; border-bottom: 1px solid #dee2e6; }
-            tr:nth-child(even) td { background: #f8f9fa; }
-            blockquote { border-left: 4px solid #E63946; padding: 8px 16px; margin: 12px 0; color: #495057; background: #fff5f5; }
-            hr { border: none; border-top: 1px solid #dee2e6; margin: 20px 0; }
-            a { color: #E63946; text-decoration: none; }
+            td { padding: 7px 12px; border-bottom: 1px solid #e4e7ec; }
+            tr:nth-child(even) td { background: #f7f8fa; }
+            blockquote { border-left: 4px solid #c42130; padding: 8px 16px; margin: 12px 0; color: #374151; background: #fdf2f2; }
+            hr { border: none; border-top: 1px solid #e4e7ec; margin: 20px 0; }
+            a { color: #c42130; text-decoration: none; }
             @media print {
               body { padding: 20px; }
               @page { margin: 2cm; }
@@ -408,14 +408,14 @@ const ps: Record<string, React.CSSProperties> = {
     marginBottom: 28, display: 'flex', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 16,
   },
-  heroTitle: { fontSize: 28, fontWeight: 900, color: PRIMARY, marginBottom: 6 },
+  heroTitle: { fontSize: 28, fontWeight: 700, color: PRIMARY, marginBottom: 6 },
   heroSub: { fontSize: 14, color: TEXT_MUTED, margin: 0 },
 
   filterRow: { display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' as const },
   filterBtn: {
-    background: '#f1f5f9', border: '1.5px solid #e2e8f0',
+    background: '#f1f3f6', border: '1.5px solid #e4e7ec',
     borderRadius: 20, padding: '7px 16px',
-    fontSize: 15, fontWeight: 600, color: '#475569',
+    fontSize: 15, fontWeight: 600, color: '#374151',
     cursor: 'pointer', transition: 'all 0.15s ease',
   },
   filterBtnActive: {
@@ -428,11 +428,11 @@ const ps: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   card: {
-    background: '#fff', border: '1.5px solid #e9ecef', borderRadius: 16,
+    background: '#fff', border: '1.5px solid #e4e7ec', borderRadius: 12,
     padding: '20px', cursor: 'pointer', textAlign: 'left' as const,
     display: 'flex', flexDirection: 'column' as const, gap: 12,
     transition: 'box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     position: 'relative' as const,
   },
   cardIconWrap: {
@@ -441,7 +441,7 @@ const ps: Record<string, React.CSSProperties> = {
   },
   cardIcon: { fontSize: 22 },
   cardBody: { flex: 1 },
-  cardTitle: { fontSize: 15, fontWeight: 800, color: PRIMARY, marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: 700, color: PRIMARY, marginBottom: 4 },
   cardDesc: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.5 },
   cardCatBadge: {
     fontSize: 13, fontWeight: 700, borderRadius: 8,
@@ -449,7 +449,7 @@ const ps: Record<string, React.CSSProperties> = {
   },
   cardArrow: {
     position: 'absolute' as const, right: 20, top: 20,
-    fontSize: 16, color: '#cbd5e1', fontWeight: 700,
+    fontSize: 16, color: '#d5dae1', fontWeight: 700,
   },
 };
 
@@ -467,11 +467,11 @@ const rs: Record<string, React.CSSProperties> = {
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 28px', borderBottom: '1px solid #e9ecef',
+    padding: '20px 28px', borderBottom: '1px solid #e4e7ec',
     background: '#fff', flexShrink: 0,
     gap: 16,
   },
-  headerTitle: { fontSize: 17, fontWeight: 900, color: PRIMARY },
+  headerTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   printBtn: {
     background: PRIMARY, color: '#fff',
@@ -480,7 +480,7 @@ const rs: Record<string, React.CSSProperties> = {
     cursor: 'pointer', whiteSpace: 'nowrap' as const,
   },
   closeBtn: {
-    background: '#f1f5f9', color: '#495057',
+    background: '#f1f3f6', color: '#374151',
     border: 'none', borderRadius: 8,
     width: 34, height: 34, fontSize: 14, fontWeight: 700,
     cursor: 'pointer', flexShrink: 0,
@@ -490,7 +490,7 @@ const rs: Record<string, React.CSSProperties> = {
     padding: '32px 40px 48px',
   },
   prose: {
-    fontSize: 14, lineHeight: 1.75, color: '#212529',
+    fontSize: 14, lineHeight: 1.75, color: '#111827',
     maxWidth: 720,
   },
 };

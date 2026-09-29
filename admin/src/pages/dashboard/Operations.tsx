@@ -1,3 +1,4 @@
+import Glyph from '../../components/Glyph';
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -55,12 +56,13 @@ function KPI({ icon, label, value, color, bg, delta, spark, sub }: {
   delta?: React.ReactNode; spark?: number[]; sub?: string;
 }) {
   return (
-    <div className="dash-card" style={{ ...s.kpiCard, borderTop: `3px solid ${color}` }} onMouseMove={handleGlowMove}>
+    <div className="dash-card" style={s.kpiCard} onMouseMove={handleGlowMove}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div style={{ ...s.kpiIconWrap, background: bg }}><span style={{ fontSize: 17 }}>{icon}</span></div>
-        {spark && <Sparkline values={spark} color={color} />}
+        <div style={{ ...s.kpiIconWrap, background: '#eef2f7' }}><Glyph e={icon} size={17} color={PRIMARY} /></div>
+        {spark && <Sparkline values={spark} color={PRIMARY} />}
       </div>
-      <div style={{ fontSize: 25, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      {/* A value is coloured only when it is a warning (red); the rest stay dark */}
+      <div style={{ fontSize: 25, fontWeight: 700, color: color === '#c42130' ? color : '#111827', letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
       {delta}
       {sub && <div style={{ fontSize: 12.5, color: TEXT_MUTED, marginTop: 'auto', paddingTop: 4 }}>{sub}</div>}
@@ -91,23 +93,23 @@ function KpiRow({ range }: { range: Range }) {
 
   return (
     <div style={s.kpiGrid}>
-      <KPI icon="🧾" label="Transactions" value={formatInteger(cur.transactions)} color={PRIMARY} bg="#eff6ff" spark={sparkTx}
+      <KPI icon="🧾" label="Transactions" value={formatInteger(cur.transactions)} color={PRIMARY} bg="#eef2f7" spark={sparkTx}
         delta={<Delta cur={cur.transactions} prev={prev.transactions} label={vs} />} />
-      <KPI icon="💵" label="Purchase Volume" value={fmt$(cur.purchaseVolume)} color="#157A6E" bg="#f0fdf9" spark={sparkVol}
+      <KPI icon="💵" label="Purchase Volume" value={fmt$(cur.purchaseVolume)} color="#1f8a4c" bg="#edf7f0" spark={sparkVol}
         delta={<Delta cur={cur.purchaseVolume} prev={prev.purchaseVolume} label={vs} />} />
-      <KPI icon="⭐" label="Cashback Issued" value={fmt$(cur.cashbackIssued)} color="#7C3AED" bg="#f5f3ff" spark={sparkCash}
+      <KPI icon="⭐" label="Cashback Issued" value={fmt$(cur.cashbackIssued)} color="#4f6d8f" bg="#eef2f7" spark={sparkCash}
         delta={<Delta cur={cur.cashbackIssued} prev={prev.cashbackIssued} label={vs} tone="neutral" />} />
-      <KPI icon="🎟️" label="Average Ticket" value={fmt$(cur.avgTicket)} color="#B45309" bg="#fffbeb" spark={sparkTicket}
+      <KPI icon="🎟️" label="Average Ticket" value={fmt$(cur.avgTicket)} color="#8a5300" bg="#fdf6e8" spark={sparkTicket}
         delta={<Delta cur={cur.avgTicket} prev={prev.avgTicket} label={vs} />} />
       {platformQ.isError ? (
-        <KPI icon="⏳" label="Pending Reviews" value="–" color="#E63946" bg="#fff5f5" sub="Couldn't check" />
+        <KPI icon="⏳" label="Pending Reviews" value="–" color="#c42130" bg="#fdf2f2" sub="Couldn't check" />
       ) : (
         <KPI icon="⏳" label="Pending Reviews" value={platform ? formatInteger(awaiting) : '…'}
-          color={awaiting > 0 ? '#E63946' : '#2DC653'} bg={awaiting > 0 ? '#fff5f5' : '#f0fdf4'}
+          color={awaiting > 0 ? '#c42130' : '#1f8a4c'} bg={awaiting > 0 ? '#fdf2f2' : '#edf7f0'}
           sub={awaiting > 0 ? ((platform?.flagged ?? 0) > 0 ? `${formatInteger(platform.flagged)} flagged` : 'Need action') : 'All clear'} />
       )}
       <KPI icon="💰" label="Credits Outstanding" value={platform ? fmt$(platform.totalCreditsOutstanding) : platformQ.isError ? '–' : '…'}
-        color="#0369a1" bg="#f0f9ff" sub="Unredeemed by customers" />
+        color="#1D3557" bg="#eef2f7" sub="Unredeemed by customers" />
     </div>
   );
 }
@@ -153,7 +155,7 @@ function RangeChart({ range }: { range: Range }) {
                 <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
             <XAxis dataKey="label" tick={{ fontSize: 12 }} minTickGap={hourly ? 14 : 28} />
             <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => (money ? axisMoney(v) : formatInteger(v))} width={money ? 62 : 44} allowDecimals={false} />
             <Tooltip
@@ -161,7 +163,7 @@ function RangeChart({ range }: { range: Range }) {
                 if (!active || !payload?.length) return null;
                 const d = payload[0].payload;
                 return (
-                  <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}>
+                  <div style={{ background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxShadow: '0 4px 14px rgba(0,0,0,0.1)' }}>
                     {d.cur != null && <div style={{ fontWeight: 700, color: PRIMARY }}>{dateOf(d.curKey)}: {fmtVal(d.cur)}</div>}
                     {d.prev != null && <div style={{ color: TEXT_MUTED }}>{previousName}, {dateOf(d.prevKey)}: {fmtVal(d.prev)}</div>}
                   </div>
@@ -192,9 +194,9 @@ function RangeChart({ range }: { range: Range }) {
 // ── Stores: health board and monthly table ───────────────────────────────────
 
 const STATUS_STYLE: Record<string, { border: string; dot: string; label: string }> = {
-  alert: { border: '#F3B1B7', dot: '#E63946', label: 'Needs a look' },
-  watch: { border: '#F6D9A8', dot: '#F4A261', label: 'Keep an eye' },
-  ok:    { border: '#f0f1f2', dot: '#2DC653', label: 'Healthy' },
+  alert: { border: '#f3cdd1', dot: '#c42130', label: 'Needs a look' },
+  watch: { border: '#F6D9A8', dot: '#b7791f', label: 'Keep an eye' },
+  ok:    { border: '#e4e7ec', dot: '#1f8a4c', label: 'Healthy' },
 };
 
 function StoreBoard() {
@@ -224,16 +226,16 @@ function StoreBoard() {
             <div style={s.tileLine}>
               today · {formatInteger(st.todayTransactions)} sales
               {vsLast != null && (
-                <span style={{ color: vsLast >= 0 ? '#157A3E' : '#C62828', fontWeight: 700 }}> · {vsLast >= 0 ? '▲' : '▼'} {Math.abs(vsLast) >= 1000 ? '999%+' : `${Math.abs(vsLast).toFixed(0)}%`} vs last week</span>
+                <span style={{ color: vsLast >= 0 ? '#17663a' : '#c42130', fontWeight: 700 }}> · {vsLast >= 0 ? '▲' : '▼'} {Math.abs(vsLast) >= 1000 ? '999%+' : `${Math.abs(vsLast).toFixed(0)}%`} vs last week</span>
               )}
             </div>
             <div style={s.tileLine}>month {fmt$(st.monthVolume)} · cashback {formatRate(st.cashbackRatio30d)} of sales</div>
             {st.lastSaleAt && <div style={s.tileLine}>{agoLabel(st.lastSaleAt)}</div>}
             {st.reasons.slice(0, 3).map((r: string) => (
-              <div key={r} style={{ ...s.tileReason, color: st.status === 'alert' ? '#C62828' : '#B45309' }}>{r}</div>
+              <div key={r} style={{ ...s.tileReason, color: st.status === 'alert' ? '#c42130' : '#8a5300' }}>{r}</div>
             ))}
             {(st.pending > 0 || st.flagged > 0) && (
-              <button style={{ ...s.reviewBtn, borderColor: '#F3B1B7', color: '#C62828', alignSelf: 'flex-start', marginTop: 2 }} onClick={() => navigate('/transactions')}>
+              <button style={{ ...s.reviewBtn, borderColor: '#f3cdd1', color: '#c42130', alignSelf: 'flex-start', marginTop: 2 }} onClick={() => navigate('/transactions')}>
                 Review {st.flagged + st.pending} →
               </button>
             )}
@@ -250,7 +252,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
   return (
     <div
       className="dash-table-row"
-      style={{ ...s.storeTableRow, cursor: 'pointer', '--row-bg': i % 2 === 0 ? '#fff' : '#fafbfc' } as React.CSSProperties}
+      style={{ ...s.storeTableRow, cursor: 'pointer', '--row-bg': i % 2 === 0 ? '#fff' : '#f7f8fa' } as React.CSSProperties}
       {...activate(() => navigate('/leaderboard'))}
       aria-label={`${store.name}, ${store.transactions} transactions, ${fmt$(store.purchaseVolume)}`}
     >
@@ -259,14 +261,14 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
         <div style={{ ...s.storeAvatar, background: color, color: badgeInk(color) }}>{storeBadge(store.name)}</div>
         <span style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, color: PRIMARY, fontSize: 14 }}>{store.name}</div>
-          <div style={{ fontSize: 13, color: quiet ? '#b45309' : TEXT_MUTED }}>
+          <div style={{ fontSize: 13, color: quiet ? '#8a5300' : TEXT_MUTED }}>
             {quiet ? `${agoLabel(store.lastSaleAt)}, none this month` : store.city}
           </div>
         </span>
       </span>
       <span style={s.storeColNum}>{formatInteger(store.transactions)}</span>
       <span style={{ ...s.storeColNum, fontWeight: 700 }}>{fmt$(store.purchaseVolume)}</span>
-      <span style={{ ...s.storeColNum, color: '#2DC653', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
+      <span style={{ ...s.storeColNum, color: '#1f8a4c', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
       <span style={s.storeColBar}><div style={s.barTrack}><div style={{ ...s.barFill, width: `${barWidth}%` }} /></div></span>
     </div>
   );
@@ -334,7 +336,7 @@ function ReviewFeed() {
 
   const money = (n: number) => formatFullCurrency(n);
   const StatusChip = ({ status }: { status: string }) => {
-    const c = { APPROVED: '#157A3E', PENDING: '#B45309', REJECTED: '#5a6472', FLAGGED: '#D62839' }[status] ?? TEXT_MUTED;
+    const c = { APPROVED: '#17663a', PENDING: '#8a5300', REJECTED: '#5a6472', FLAGGED: '#D62839' }[status] ?? TEXT_MUTED;
     const label = { APPROVED: 'Approved', PENDING: 'Pending', REJECTED: 'Rejected', FLAGGED: 'Flagged' }[status] ?? status;
     return <span style={{ ...s.recentStatus, color: c, borderColor: `${c}55` }}>{label}</span>;
   };
@@ -395,8 +397,8 @@ function ReviewFeed() {
                         {isFlagged && (
                           <button
                             style={tx.receiptImageUrl
-                              ? { ...s.reviewBtn, borderColor: '#157A3E', background: '#157A3E', color: '#fff' }
-                              : { ...s.reviewBtn, borderColor: '#ced4da', background: '#e9ecef', color: '#6c757d', cursor: 'not-allowed' }}
+                              ? { ...s.reviewBtn, borderColor: '#17663a', background: '#17663a', color: '#fff' }
+                              : { ...s.reviewBtn, borderColor: '#ced4da', background: '#e4e7ec', color: '#5a6472', cursor: 'not-allowed' }}
                             disabled={!tx.receiptImageUrl}
                             title={tx.receiptImageUrl ? undefined : 'A receipt must be uploaded before this sale can be approved'}
                             onClick={() => setDecision(dec('APPROVE'))}
@@ -404,7 +406,7 @@ function ReviewFeed() {
                             Approve
                           </button>
                         )}
-                        <button style={{ ...s.reviewBtn, borderColor: '#F3B1B7', color: '#C62828' }} onClick={() => setDecision(dec('REJECT'))}>Reject</button>
+                        <button style={{ ...s.reviewBtn, borderColor: '#f3cdd1', color: '#c42130' }} onClick={() => setDecision(dec('REJECT'))}>Reject</button>
                       </div>
                     </div>
                   </div>
@@ -457,7 +459,7 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
           {liveOffers.slice(0, 4).map((o: any) => {
             const left = daysUntil(o.endDate);
             // Red only when it is actually about to end; a promo with weeks left is not an alarm.
-            const urgency = left <= 2 ? '#D62839' : left <= 7 ? '#B45309' : TEXT_MUTED;
+            const urgency = left <= 2 ? '#D62839' : left <= 7 ? '#8a5300' : TEXT_MUTED;
             return (
               <div key={o.id} style={s.offerChip}>
                 <div style={s.offerChipTop}>
@@ -475,7 +477,7 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
           })}
           {liveBanners.slice(0, 2).map((b: any) => (
             <div key={b.id} style={{ ...s.offerChip, border: '1.5px solid #7c3aed22', background: '#faf5ff' }}>
-              <div style={s.offerChipTop}><span style={{ ...s.offerChipBadge, background: '#7c3aed', color: '#fff' }}>BANNER</span></div>
+              <div style={s.offerChipTop}><span style={{ ...s.offerChipBadge, background: '#4f6d8f', color: '#fff' }}>BANNER</span></div>
               <div style={s.offerChipName}>{b.title}</div>
               {b.storeId && <div style={s.offerChipCat}>Store-specific</div>}
             </div>
@@ -560,7 +562,7 @@ export default function OperationsView() {
           <StatCard icon="📢" label="Active Offers" value={count(offersQ, activeOffersList.length)} to="/offers" />
           <StatCard icon="🖼️" label="Active Banners" value={count(bannersQ, (bannersQ.data?.data?.data || []).length)} to="/banners" />
           <StatCard icon="⚠️" label="Customer Disputes" value={formatInteger(disputesPendingCount)}
-            valueColor={disputesPendingCount > 0 ? '#E63946' : undefined} to="/customers?tab=disputes" />
+            valueColor={disputesPendingCount > 0 ? '#c42130' : undefined} to="/customers?tab=disputes" />
           <StatCard icon="🏷️" label="Labels Needing Print" value={count(labelQ, totalStaleLabels)}
             valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined} to="/labels?tab=health" />
         </div>

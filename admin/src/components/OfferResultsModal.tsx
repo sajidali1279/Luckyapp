@@ -96,7 +96,7 @@ export default function OfferResultsModal({ offer, onClose }: { offer: { id: str
 function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div style={x.tile}>
-      <div style={{ ...x.tileValue, ...(strong ? { color: '#B45309' } : {}) }}>{value}</div>
+      <div style={{ ...x.tileValue, ...(strong ? { color: '#8a5300' } : {}) }}>{value}</div>
       <div style={x.tileLabel}>{label}</div>
     </div>
   );
@@ -111,7 +111,7 @@ function CategoryCompare({ r }: { r: Results }) {
   return (
     <div style={x.compare}>
       <div style={x.head}>{what} at {r.where === 'All stores' ? 'all stores' : r.where}</div>
-      {[['While it ran', during, PRIMARY], ['The same time just before', before, '#94A3B8']].map(([label, v, color]) => {
+      {[['While it ran', during, PRIMARY], ['The same time just before', before, '#5a6472']].map(([label, v, color]) => {
         const val = v as { sales: number; amount: number };
         return (
           <div key={label as string} style={{ marginTop: 8 }}>
@@ -133,18 +133,18 @@ function CategoryCompare({ r }: { r: Results }) {
 const x: Record<string, CSSProperties> = {
   status: { fontSize: 14, fontWeight: 700, color: '#111827' },
   tiles: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 },
-  tile: { border: '1px solid #E5E7EB', borderRadius: 12, padding: '12px 14px', background: '#F9FAFB' },
-  tileValue: { fontSize: 22, fontWeight: 800, color: '#111827' },
+  tile: { border: '1px solid #e4e7ec', borderRadius: 12, padding: '12px 14px', background: '#f7f8fa' },
+  tileValue: { fontSize: 22, fontWeight: 700, color: '#111827' },
   tileLabel: { fontSize: 12.5, color: TEXT_MUTED, marginTop: 2, fontWeight: 600 },
   note: { fontSize: 13.5, color: '#374151', margin: 0, lineHeight: 1.5 },
-  head: { fontSize: 12, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', color: TEXT_MUTED },
-  compare: { border: '1px solid #E5E7EB', borderRadius: 12, padding: '12px 14px' },
+  head: { fontSize: 12, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: TEXT_MUTED },
+  compare: { border: '1px solid #e4e7ec', borderRadius: 12, padding: '12px 14px' },
   barLabel: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', fontWeight: 600, marginBottom: 4 },
-  barTrack: { height: 10, borderRadius: 5, background: '#F1F5F9', overflow: 'hidden' },
+  barTrack: { height: 10, borderRadius: 5, background: '#f1f3f6', overflow: 'hidden' },
   bar: { height: '100%', borderRadius: 5 },
   table: { width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: 13.5 },
-  th: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #E5E7EB', color: TEXT_MUTED, fontWeight: 700, fontSize: 12.5 },
-  td: { padding: '6px 8px', borderBottom: '1px solid #F1F5F9' },
-  error: { background: '#FEF2F2', color: '#B91C1C', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, fontWeight: 600 },
-  link: { background: 'none', border: 'none', color: '#1D4ED8', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0 },
+  th: { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e4e7ec', color: TEXT_MUTED, fontWeight: 700, fontSize: 12.5 },
+  td: { padding: '6px 8px', borderBottom: '1px solid #f1f3f6' },
+  error: { background: '#fdf2f2', color: '#a51b28', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, fontWeight: 600 },
+  link: { background: 'none', border: 'none', color: '#1D3557', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0 },
 };

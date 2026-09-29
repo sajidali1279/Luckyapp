@@ -1,3 +1,4 @@
+import Glyph from '../../components/Glyph';
 import { useState } from 'react';
 import { handleGlowMove } from '../../lib/motion';
 import { formatInteger } from '../../components/formater';
@@ -27,7 +28,7 @@ const REWARD_LABEL: Record<string, { icon: string; label: string }> = {
 };
 
 const SIGNUP_COLOR = '#457B9D';
-const PURCHASE_COLOR = '#2DC653';
+const PURCHASE_COLOR = '#1f8a4c';
 const VIEWS = ['shown', 'hidden'] as const;
 
 const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0);
@@ -56,9 +57,9 @@ function Card({ icon, bg, color, label, value, sub }: {
   icon: string; bg: string; color: string; label: string; value: string; sub?: string;
 }) {
   return (
-    <div className="dash-card" style={{ ...s.kpiCard, borderTop: `3px solid ${color}` }} onMouseMove={handleGlowMove}>
-      <div style={{ ...s.kpiIconWrap, background: bg, marginBottom: 10 }}><span style={{ fontSize: 17 }}>{icon}</span></div>
-      <div style={{ fontSize: 25, fontWeight: 900, color, letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    <div className="dash-card" style={s.kpiCard} onMouseMove={handleGlowMove}>
+      <div style={{ ...s.kpiIconWrap, background: '#eef2f7', marginBottom: 10 }}><Glyph e={icon} size={17} color="#1D3557" /></div>
+      <div style={{ fontSize: 25, fontWeight: 700, color, letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
       {sub && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.35 }}>{sub}</div>}
     </div>
@@ -76,9 +77,9 @@ function Legend({ color, label }: { color: string; label: string }) {
 function Message({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
     <div style={{ ...s.offersPanel, padding: '22px 22px', display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
-      <div style={{ fontSize: 34, lineHeight: 1 }} aria-hidden="true">{icon}</div>
+      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Glyph e={icon} size={24} color="#1D3557" /></div>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: PRIMARY }}>{title}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: PRIMARY }}>{title}</div>
         <div style={{ fontSize: 14.5, color: TEXT_MUTED, marginTop: 3, lineHeight: 1.45 }}>{body}</div>
       </div>
     </div>
@@ -90,8 +91,8 @@ function Message({ icon, title, body }: { icon: string; title: string; body: str
 function Steps({ t }: { t: Totals }) {
   const steps = [
     { label: 'Signed up', n: t.signups, color: SIGNUP_COLOR },
-    { label: 'Claimed a welcome reward', n: t.claimed, color: '#7B2FBE' },
-    { label: 'Reward handed over at a store', n: t.confirmed, color: '#F4A261' },
+    { label: 'Claimed a welcome reward', n: t.claimed, color: '#4f6d8f' },
+    { label: 'Reward handed over at a store', n: t.confirmed, color: '#b7791f' },
     { label: 'Made a first purchase', n: t.purchased, color: PURCHASE_COLOR },
   ];
   return (
@@ -111,7 +112,7 @@ function Steps({ t }: { t: Totals }) {
                   {formatInteger(st.n)} <span style={{ color: TEXT_MUTED, fontWeight: 500 }}>· {p}%</span>
                 </span>
               </div>
-              <div style={{ height: 9, background: '#f1f3f5', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ height: 9, background: '#e4e7ec', borderRadius: 6, overflow: 'hidden' }}>
                 <div style={{ width: `${st.n > 0 ? Math.max(p, 2) : 0}%`, height: '100%', background: st.color, borderRadius: 6 }} />
               </div>
             </div>
@@ -150,7 +151,7 @@ function DailyChart({ daily }: { daily: DailyRow[] }) {
       <div style={{ padding: '10px 14px 12px' }}>
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" style={{ display: 'block' }}
           aria-label={`Last ${days.length} days: ${totalSignups} sign-ups and ${totalFirst} first purchases`}>
-          <line x1={0} x2={W} y1={base} y2={base} stroke="#e5e7eb" />
+          <line x1={0} x2={W} y1={base} y2={base} stroke="#e4e7ec" />
           {days.map((d, i) => {
             const cx = slot * i + slot / 2;
             const h1 = barH(d.signups);
@@ -176,7 +177,7 @@ function DailyChart({ daily }: { daily: DailyRow[] }) {
 
 const storeRow: React.CSSProperties = {
   display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 124px 74px', gap: 12, alignItems: 'center',
-  padding: '9px 18px', borderTop: '1px solid #f3f4f6',
+  padding: '9px 18px', borderTop: '1px solid #f1f3f6',
 };
 
 function StoreTable({ stores }: { stores: StoreRow[] }) {
@@ -199,7 +200,7 @@ function StoreTable({ stores }: { stores: StoreRow[] }) {
           <div key={st.id} style={{ ...storeRow, opacity: quiet ? 0.55 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <span aria-hidden="true" style={{
-                width: 30, height: 30, borderRadius: 9, background: storeColor(i), color: badgeInk(storeColor(i)), fontSize: 12.5, fontWeight: 800,
+                width: 30, height: 30, borderRadius: 9, background: storeColor(i), color: badgeInk(storeColor(i)), fontSize: 12.5, fontWeight: 700,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>{storeBadge(st.name)}</span>
               <div style={{ minWidth: 0 }}>
@@ -208,10 +209,10 @@ function StoreTable({ stores }: { stores: StoreRow[] }) {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ flex: 1, height: 8, background: '#f1f3f5', borderRadius: 5, overflow: 'hidden' }} aria-hidden="true">
+              <div style={{ flex: 1, height: 8, background: '#e4e7ec', borderRadius: 5, overflow: 'hidden' }} aria-hidden="true">
                 <div style={{ width: `${st.firstPurchases > 0 ? Math.max((st.firstPurchases / maxFirst) * 100, 6) : 0}%`, height: '100%', background: PURCHASE_COLOR, borderRadius: 5 }} />
               </div>
-              <span style={{ minWidth: 22, textAlign: 'right' as const, fontSize: 14.5, fontWeight: 800, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>{formatInteger(st.firstPurchases)}</span>
+              <span style={{ minWidth: 22, textAlign: 'right' as const, fontSize: 14.5, fontWeight: 700, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>{formatInteger(st.firstPurchases)}</span>
             </div>
             <span style={{ textAlign: 'right' as const, fontSize: 14.5, fontWeight: 700, color: '#374151', fontVariantNumeric: 'tabular-nums' }}>{formatInteger(st.rewardsConfirmed)}</span>
           </div>
@@ -230,8 +231,8 @@ export default function LaunchTracker() {
 
   if (hidden) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 14px', marginBottom: 18, background: '#fff', border: '1px dashed #dee2e6', borderRadius: 10 }}>
-        <span style={{ fontSize: 13.5, color: TEXT_MUTED, fontWeight: 600 }}>🚀 Launch tracker is hidden</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 14px', marginBottom: 18, background: '#fff', border: '1px dashed #e4e7ec', borderRadius: 10 }}>
+        <span style={{ fontSize: 13.5, color: TEXT_MUTED, fontWeight: 600 }}>Launch tracker is hidden</span>
         <button style={s.sectionLink} onClick={() => setShown(true)}>Show</button>
       </div>
     );
@@ -270,10 +271,10 @@ export default function LaunchTracker() {
     body = (
       <>
         <div style={cardGrid}>
-          <Card icon="🙋" bg="#eff6ff" color={SIGNUP_COLOR} label="Sign-ups" value={formatInteger(t.signups)} sub={`${formatInteger(d.today.signups)} today`} />
-          <Card icon="🎁" bg="#fdf4ff" color="#7B2FBE" label="Claimed a reward" value={formatInteger(t.claimed)} sub={`${pct(t.claimed, t.signups)}% of sign-ups`} />
-          <Card icon="🧾" bg="#f0fdf4" color="#157A3E" label="Made a purchase" value={formatInteger(t.purchased)} sub={`${pct(t.purchased, t.signups)}% of sign-ups, ${formatInteger(d.today.firstPurchases)} today`} />
-          <Card icon="⏳" bg="#fff7ed" color={t.stalled > 0 ? '#b45309' : '#6b7280'} label="No purchase yet" value={formatInteger(t.stalled)} sub="Signed up 2 or more days ago" />
+          <Card icon="🙋" bg="#eef2f7" color={SIGNUP_COLOR} label="Sign-ups" value={formatInteger(t.signups)} sub={`${formatInteger(d.today.signups)} today`} />
+          <Card icon="🎁" bg="#eef2f7" color="#4f6d8f" label="Claimed a reward" value={formatInteger(t.claimed)} sub={`${pct(t.claimed, t.signups)}% of sign-ups`} />
+          <Card icon="🧾" bg="#edf7f0" color="#17663a" label="Made a purchase" value={formatInteger(t.purchased)} sub={`${pct(t.purchased, t.signups)}% of sign-ups, ${formatInteger(d.today.firstPurchases)} today`} />
+          <Card icon="⏳" bg="#fdf6e8" color={t.stalled > 0 ? '#8a5300' : '#5a6472'} label="No purchase yet" value={formatInteger(t.stalled)} sub="Signed up 2 or more days ago" />
         </div>
         <div style={s.twoColRow}>
           <Steps t={t} />
@@ -286,8 +287,8 @@ export default function LaunchTracker() {
             {d.rewards.map((r) => {
               const info = REWARD_LABEL[r.rewardType] ?? { icon: '🎁', label: r.rewardType };
               return (
-                <span key={r.rewardType} style={{ background: '#fff', border: '1px solid #e9ecef', borderRadius: 20, padding: '3px 11px', fontWeight: 600, color: '#374151' }}>
-                  {info.icon} {info.label} · {formatInteger(r.count)}
+                <span key={r.rewardType} style={{ background: '#fff', border: '1px solid #e4e7ec', borderRadius: 20, padding: '3px 11px', fontWeight: 600, color: '#374151' }}>
+                  <Glyph e={info.icon} size={13} style={{ verticalAlign: -2, marginRight: 5 }} />{info.label} · {formatInteger(r.count)}
                 </span>
               );
             })}

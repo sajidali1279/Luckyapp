@@ -25,17 +25,17 @@ function canManage(viewerRole: string | undefined, targetRole: string): boolean 
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  DEV_ADMIN:    '#7c3aed',
+  DEV_ADMIN:    '#4f6d8f',
   SUPER_ADMIN:  PRIMARY,
-  STORE_MANAGER:'#0369a1',
+  STORE_MANAGER:'#1D3557',
   EMPLOYEE:     '#374151',
 };
 
 const ROLE_BG: Record<string, string> = {
-  DEV_ADMIN:    '#f5f3ff',
-  SUPER_ADMIN:  '#eff6ff',
+  DEV_ADMIN:    '#eef2f7',
+  SUPER_ADMIN:  '#eef2f7',
   STORE_MANAGER:'#e0f2fe',
-  EMPLOYEE:     '#f3f4f6',
+  EMPLOYEE:     '#f1f3f6',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -45,15 +45,15 @@ const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE:     'Employee',
 };
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2', '#be185d'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D', '#c42130'];
 
 function getAvatarColor(name: string, i: number) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || i) % AVATAR_PALETTE.length];
 }
 
 // Text colours dark enough to read on their tinted backgrounds (the brighter green and red were about 3.5 to 1)
-const GREEN_TEXT = '#166534';
-const RED_TEXT = '#b91c1c';
+const GREEN_TEXT = '#17663a';
+const RED_TEXT = '#a51b28';
 
 export default function Staff() {
   const { user } = useAuthStore();
@@ -285,7 +285,7 @@ export default function Staff() {
 
   const ROLE_OPTIONS = [
     ...(isDevAdmin ? [{ value: 'SUPER_ADMIN', label: 'Super Admin', desc: 'Manages all stores (HQ)', icon: '🏢', color: PRIMARY }] : []),
-    { value: 'STORE_MANAGER', label: 'Store Manager', desc: 'Manages one store', icon: '🏪', color: '#0369a1' },
+    { value: 'STORE_MANAGER', label: 'Store Manager', desc: 'Manages one store', icon: '🏪', color: '#1D3557' },
     { value: 'EMPLOYEE', label: 'Employee / Cashier', desc: 'Scans QR codes, grants points', icon: '👤', color: '#374151' },
   ];
 
@@ -301,11 +301,11 @@ export default function Staff() {
             <span style={s.statChip}>
               <span style={s.statChipNum}>{staffList.length}</span> total
             </span>
-            <span style={{ ...s.statChip, background: '#f0fdf4', color: GREEN_TEXT, border: '1px solid #bbf7d0' }}>
+            <span style={{ ...s.statChip, background: '#edf7f0', color: GREEN_TEXT, border: '1px solid #c8e6d2' }}>
               <span style={s.statChipNum}>{activeCount}</span> active
             </span>
             {inactiveCount > 0 && (
-              <span style={{ ...s.statChip, background: '#fff1f2', color: RED_TEXT, border: '1px solid #fecaca' }}>
+              <span style={{ ...s.statChip, background: '#fdf2f2', color: RED_TEXT, border: '1px solid #f3cdd1' }}>
                 <span style={s.statChipNum}>{inactiveCount}</span> deactivated
               </span>
             )}
@@ -358,7 +358,7 @@ export default function Staff() {
               const group = filtered.filter((m: any) => m.role === role);
               if (group.length === 0) return null;
               const rColor = ROLE_COLORS[role] || '#374151';
-              const rBg = ROLE_BG[role] || '#f3f4f6';
+              const rBg = ROLE_BG[role] || '#f1f3f6';
               const groupIcons: Record<string, string> = {
                 DEV_ADMIN: '⚙️', SUPER_ADMIN: '🏢', STORE_MANAGER: '🏪', EMPLOYEE: '👤',
               };
@@ -393,7 +393,7 @@ export default function Staff() {
                               <div style={s.memberName}>{member.name || ' - '}</div>
                               <div style={s.memberPhone}>{showPhone(member.phone)}</div>
                             </div>
-                            <div style={{ ...s.activeDot, background: member.isActive ? '#2DC653' : '#E63946' }} aria-hidden="true" />
+                            <div style={{ ...s.activeDot, background: member.isActive ? '#1f8a4c' : '#c42130' }} aria-hidden="true" />
                           </div>
 
                           {/* Role badge */}
@@ -524,7 +524,7 @@ export default function Staff() {
                         style={{ ...s.roleCard, ...(active ? { ...s.roleCardActive, borderColor: opt.color, outlineColor: opt.color } : {}) }}
                         onClick={() => { setCreateRole(opt.value as any); setCreateError(''); }}
                       >
-                        <div style={{ ...s.roleCardIcon, background: active ? opt.color + '18' : '#f3f4f6' }} aria-hidden="true">
+                        <div style={{ ...s.roleCardIcon, background: active ? opt.color + '18' : '#f1f3f6' }} aria-hidden="true">
                           <span style={{ fontSize: 20 }}>{opt.icon}</span>
                         </div>
                         <div style={s.roleCardLabel}>{opt.label}</div>
@@ -669,7 +669,7 @@ export default function Staff() {
                     key={store.id}
                     style={{ ...s.storeCheckRow, ...(checked ? { ...s.storeCheckRowActive, borderColor: accentColor + '60', background: accentColor + '08' } : {}), ...(blocked ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
                   >
-                    <div style={{ ...s.storeCheckAvatar, background: checked ? accentColor : '#e5e7eb', color: checked ? '#fff' : '#374151' }} aria-hidden="true">
+                    <div style={{ ...s.storeCheckAvatar, background: checked ? accentColor : '#e4e7ec', color: checked ? '#fff' : '#374151' }} aria-hidden="true">
                       {(store.name || '?')[0].toUpperCase()}
                     </div>
                     <div style={{ flex: 1 }}>
@@ -726,7 +726,7 @@ export default function Staff() {
       {deleteTarget && (
         <Modal title={`Delete ${deleteTarget.name}?`} onClose={closeDelete} busy={deleteMutation.isPending} maxWidth={460}>
           <div style={s.deletePreview}>
-            <span style={{ ...s.roleBadge, background: ROLE_BG[deleteTarget.role] || '#f3f4f6', color: ROLE_COLORS[deleteTarget.role] || '#374151', border: `1px solid ${ROLE_COLORS[deleteTarget.role] || '#374151'}30` }}>
+            <span style={{ ...s.roleBadge, background: ROLE_BG[deleteTarget.role] || '#f1f3f6', color: ROLE_COLORS[deleteTarget.role] || '#374151', border: `1px solid ${ROLE_COLORS[deleteTarget.role] || '#374151'}30` }}>
               {ROLE_LABELS[deleteTarget.role] || deleteTarget.role}
             </span>
             <span style={s.deletePreviewName}>{deleteTarget.name}</span>
@@ -866,7 +866,7 @@ export default function Staff() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: '#f8fafc' },
+  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: '#f7f8fa' },
 
   // Page header
   pageHeader: {
@@ -874,14 +874,14 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 28, gap: 20, flexWrap: 'wrap',
   },
   pageHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 10 },
-  pageTitle: { fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   pageSubRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   statChip: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
-    background: '#f3f4f6', color: TEXT_MUTED, border: '1px solid #e5e7eb',
+    background: '#f1f3f6', color: TEXT_MUTED, border: '1px solid #e4e7ec',
     borderRadius: 10, padding: '4px 12px', fontSize: 15, fontWeight: 600,
   },
-  statChipNum: { fontWeight: 800, color: 'inherit' },
+  statChipNum: { fontWeight: 700, color: 'inherit' },
   headerRight: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
 
   // Search
@@ -891,7 +891,7 @@ const s: Record<string, React.CSSProperties> = {
   searchIcon: { position: 'absolute', left: 12, fontSize: 14, pointerEvents: 'none' },
   searchInput: {
     paddingLeft: 36, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
-    borderRadius: 10, border: '1.5px solid #e5e7eb',
+    borderRadius: 10, border: '1.5px solid #e4e7ec',
     fontSize: 15, background: '#fff', color: '#111827',
     width: 260, maxWidth: '100%', outline: 'none',
     boxSizing: 'border-box' as const,
@@ -901,7 +901,7 @@ const s: Record<string, React.CSSProperties> = {
   tabRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   tab: {
     padding: '9px 18px', borderRadius: 10,
-    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec',
     background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: TEXT_MUTED,
   },
   tabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
@@ -921,7 +921,7 @@ const s: Record<string, React.CSSProperties> = {
     paddingLeft: 14, marginBottom: 16,
   },
   roleSectionIcon: { fontSize: 18 },
-  roleSectionTitle: { fontSize: 16, fontWeight: 800, flex: 1, margin: 0 },
+  roleSectionTitle: { fontSize: 16, fontWeight: 700, flex: 1, margin: 0 },
   roleSectionCount: {
     fontSize: 14, fontWeight: 700, padding: '2px 10px',
     borderRadius: 20, border: '1px solid',
@@ -933,19 +933,19 @@ const s: Record<string, React.CSSProperties> = {
     gap: 16,
   },
   staffCard: {
-    background: '#fff', borderRadius: 16, padding: 20,
-    border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    background: '#fff', borderRadius: 12, padding: 20,
+    border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', gap: 12,
     transition: 'box-shadow 0.15s',
   },
-  staffCardInactive: { background: '#f3f4f6', border: '1px dashed #d1d5db' },
+  staffCardInactive: { background: '#f1f3f6', border: '1px dashed #d5dae1' },
 
   cardHeader: { display: 'flex', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+    width: 46, height: 46, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 18,
+    color: '#fff', fontWeight: 700, fontSize: 18,
   },
   memberName: { fontWeight: 700, fontSize: 15, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   memberPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
@@ -954,70 +954,70 @@ const s: Record<string, React.CSSProperties> = {
   cardMeta: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   roleBadge: {
     display: 'inline-block', borderRadius: 8, padding: '4px 10px',
-    fontSize: 13, fontWeight: 800,
+    fontSize: 13, fontWeight: 700,
   },
   youBadge: {
-    display: 'inline-block', background: '#fefce8', color: '#92400e',
-    border: '1px solid #fde68a', borderRadius: 8,
+    display: 'inline-block', background: '#fdf6e8', color: '#8a5300',
+    border: '1px solid #f1dcaf', borderRadius: 8,
     padding: '3px 9px', fontSize: 13, fontWeight: 700,
   },
   offBadge: {
-    display: 'inline-block', background: '#fff1f2', color: RED_TEXT,
-    border: '1px solid #fecaca', borderRadius: 8,
+    display: 'inline-block', background: '#fdf2f2', color: RED_TEXT,
+    border: '1px solid #f3cdd1', borderRadius: 8,
     padding: '3px 9px', fontSize: 13, fontWeight: 700,
   },
 
   storeList: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
   storeChip: {
-    background: '#f8fafc', border: '1px solid #e5e7eb',
+    background: '#f7f8fa', border: '1px solid #e4e7ec',
     borderRadius: 8, padding: '3px 9px',
     fontSize: 13, fontWeight: 600, color: '#374151',
   },
   allStoresTag: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' },
-  noStoreTag: { fontSize: 14, color: '#92400e', fontWeight: 700 },
+  noStoreTag: { fontSize: 14, color: '#8a5300', fontWeight: 700 },
 
   lastSignInLine: { fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic' },
 
-  cardDivider: { height: 1, background: '#e5e7eb', margin: '0 -4px' },
+  cardDivider: { height: 1, background: '#e4e7ec', margin: '0 -4px' },
 
   cardActions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   lockedNote: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' },
   actionBtn: {
-    padding: '6px 12px', background: '#f8fafc',
-    border: '1.5px solid #e5e7eb', borderRadius: 8,
+    padding: '6px 12px', background: '#f7f8fa',
+    border: '1.5px solid #e4e7ec', borderRadius: 8,
     cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#374151',
     transition: 'all 0.12s',
   },
-  actionBtnDanger: { color: RED_TEXT, borderColor: '#fecaca', background: '#fff1f2' },
-  actionBtnSuccess: { color: GREEN_TEXT, borderColor: '#bbf7d0', background: '#f0fdf4' },
-  actionBtnDelete: { color: '#7f1d1d', borderColor: '#fca5a5', background: '#fef2f2' },
+  actionBtnDanger: { color: RED_TEXT, borderColor: '#f3cdd1', background: '#fdf2f2' },
+  actionBtnSuccess: { color: GREEN_TEXT, borderColor: '#c8e6d2', background: '#edf7f0' },
+  actionBtnDelete: { color: '#a51b28', borderColor: '#f3cdd1', background: '#fdf2f2' },
 
   deleteSub: { fontSize: 15, color: '#374151', lineHeight: 1.6 },
-  deletePreview: { display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', borderRadius: 10, padding: '10px 14px' },
+  deletePreview: { display: 'flex', alignItems: 'center', gap: 10, background: '#f7f8fa', borderRadius: 10, padding: '10px 14px' },
   deletePreviewName: { fontSize: 14, fontWeight: 600, color: '#111827' },
-  deleteConfirmBtn: { padding: '10px 20px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  deleteConfirmBtn: { padding: '10px 20px', background: '#a51b28', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   // Create form
   formWrap: { display: 'flex', justifyContent: 'center', paddingTop: 8 },
   formCard: {
     background: '#fff', borderRadius: 20, padding: 32,
     width: '100%', boxSizing: 'border-box',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
-    border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+    border: '1px solid #e4e7ec',
   },
-  formCardHeader: { marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid #f0f1f2' },
-  formCardTitle: { fontSize: 20, fontWeight: 800, color: '#111827', margin: 0 },
+  formCardHeader: { marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid #e4e7ec' },
+  formCardTitle: { fontSize: 20, fontWeight: 700, color: '#111827', margin: 0 },
   formCardSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 4 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 22 },
   modalForm: { display: 'flex', flexDirection: 'column', gap: 16 },
   formRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 16 },
   formGroup: { display: 'flex', flexDirection: 'column', gap: 8 },
-  formLabel: { fontSize: 13, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.7px' },
+  formLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.7px' },
   input: {
     padding: '11px 14px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb', fontSize: 14,
-    background: '#f9fafb', color: '#111827',
+    border: '1.5px solid #e4e7ec', fontSize: 14,
+    background: '#f7f8fa', color: '#111827',
     width: '100%', boxSizing: 'border-box' as const,
     outline: 'none',
   },
@@ -1025,32 +1025,32 @@ const s: Record<string, React.CSSProperties> = {
   // Role cards
   roleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: 10 },
   roleCard: {
-    background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 14,
+    background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', borderRadius: 12,
     padding: 16, cursor: 'pointer', textAlign: 'left',
     display: 'flex', flexDirection: 'column', gap: 6,
     position: 'relative', transition: 'border-color 0.15s',
   },
-  roleCardActive: { background: '#f8fafc', boxShadow: '0 0 0 3px rgba(29,53,87,0.08)' },
+  roleCardActive: { background: '#f7f8fa', boxShadow: '0 0 0 3px rgba(29,53,87,0.08)' },
   roleCardIcon: {
     width: 42, height: 42, borderRadius: 12,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     marginBottom: 2,
   },
-  roleCardLabel: { fontSize: 15, fontWeight: 800, color: '#111827' },
+  roleCardLabel: { fontSize: 15, fontWeight: 700, color: '#111827' },
   roleCardDesc: { fontSize: 13, color: TEXT_MUTED, lineHeight: 1.5 },
   roleCardCheck: {
     position: 'absolute', top: 10, right: 10,
     width: 20, height: 20, borderRadius: 10,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 13, fontWeight: 900,
+    color: '#fff', fontSize: 13, fontWeight: 700,
   },
 
   // PIN input
   pinInput: {
     padding: '11px 20px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb', fontSize: 22,
+    border: '1.5px solid #e4e7ec', fontSize: 22,
     letterSpacing: 12, textAlign: 'center',
-    background: '#f9fafb', color: '#111827',
+    background: '#f7f8fa', color: '#111827',
     width: 140, maxWidth: '100%', boxSizing: 'border-box' as const,
   },
   showPinRow: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, color: '#374151', cursor: 'pointer', width: 'fit-content' },
@@ -1058,27 +1058,27 @@ const s: Record<string, React.CSSProperties> = {
 
   formHint: {
     fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6,
-    background: '#f8fafc', borderRadius: 10, padding: '12px 14px',
-    border: '1px solid #f0f1f2',
+    background: '#f7f8fa', borderRadius: 10, padding: '12px 14px',
+    border: '1px solid #e4e7ec',
   },
   errorBox: {
-    fontSize: 15, color: '#7f1d1d', lineHeight: 1.5, background: '#fef2f2',
-    border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px',
+    fontSize: 15, color: '#a51b28', lineHeight: 1.5, background: '#fdf2f2',
+    border: '1px solid #f3cdd1', borderRadius: 10, padding: '10px 14px',
   },
-  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 15 },
+  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1D3557', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 15 },
   submitBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 12, padding: '14px 24px',
-    fontWeight: 800, cursor: 'pointer', fontSize: 15,
+    fontWeight: 700, cursor: 'pointer', fontSize: 15,
     boxShadow: '0 4px 14px rgba(29,53,87,0.3)',
     alignSelf: 'flex-start',
   },
 
   // After creating
   summary: { display: 'flex', flexDirection: 'column', gap: 10, margin: '0 0 20px' },
-  summaryRow: { display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '10px 14px', background: '#f8fafc', borderRadius: 10 },
-  summaryTerm: { width: 130, fontSize: 13, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.7px', margin: 0, alignSelf: 'center' },
-  summaryValue: { fontSize: 17, fontWeight: 800, color: '#111827', margin: 0 },
+  summaryRow: { display: 'flex', flexWrap: 'wrap', gap: '4px 16px', padding: '10px 14px', background: '#f7f8fa', borderRadius: 10 },
+  summaryTerm: { width: 130, fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.7px', margin: 0, alignSelf: 'center' },
+  summaryValue: { fontSize: 17, fontWeight: 700, color: '#111827', margin: 0 },
 
   // Store checklist
   selectRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' },
@@ -1086,14 +1086,14 @@ const s: Record<string, React.CSSProperties> = {
   storeCheckRow: {
     display: 'flex', alignItems: 'center', gap: 12,
     padding: '10px 14px', borderRadius: 12,
-    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', cursor: 'pointer',
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', cursor: 'pointer',
     transition: 'all 0.12s',
   },
-  storeCheckRowActive: { background: '#f8fafc' },
+  storeCheckRowActive: { background: '#f7f8fa' },
   storeCheckAvatar: {
     width: 32, height: 32, borderRadius: 9, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: 800, fontSize: 15,
+    fontWeight: 700, fontSize: 15,
     transition: 'background 0.15s',
   },
   storeCheckName: { fontWeight: 700, fontSize: 15 },
@@ -1103,18 +1103,18 @@ const s: Record<string, React.CSSProperties> = {
   modalActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' },
   quickBtn: {
     padding: '5px 12px', borderRadius: 8,
-    border: '1px solid #e5e7eb', background: '#f8fafc',
+    border: '1px solid #e4e7ec', background: '#f7f8fa',
     cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#374151',
   },
   cancelBtn: {
     padding: '10px 20px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb', background: '#fff',
+    border: '1.5px solid #e4e7ec', background: '#fff',
     cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#374151',
   },
   confirmBtn: {
     padding: '10px 22px', borderRadius: 10,
     border: 'none', background: PRIMARY,
-    cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#fff',
+    cursor: 'pointer', fontSize: 15, fontWeight: 700, color: '#fff',
     boxShadow: '0 4px 12px rgba(29,53,87,0.3)',
   },
 };

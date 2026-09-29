@@ -68,22 +68,22 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
         </div>
         <div style={s.pillRow}>
           {report.gasPrice != null && (
-            <span style={{ ...s.pill, background: '#FFF7ED', color: '#C2410C' }}>
+            <span style={{ ...s.pill, background: '#fdf6e8', color: '#8a5300' }}>
               <Fuel size={11} /> Gas ${report.gasPrice.toFixed(2)}
             </span>
           )}
           {report.dieselPrice != null && (
-            <span style={{ ...s.pill, background: '#EFF6FF', color: '#1D4ED8' }}>
+            <span style={{ ...s.pill, background: '#eef2f7', color: '#1D3557' }}>
               <Droplets size={11} /> Dsl ${report.dieselPrice.toFixed(2)}
             </span>
           )}
           {report.cigsCount != null && (
-            <span style={{ ...s.pill, background: '#F0FDF4', color: '#15803D' }}>
+            <span style={{ ...s.pill, background: '#edf7f0', color: '#1f8a4c' }}>
               <Package size={11} /> Cigs {report.cigsCount}
             </span>
           )}
           {report.imageUrl && (
-            <span style={{ ...s.pill, background: '#F5F3FF', color: '#6D28D9' }}>
+            <span style={{ ...s.pill, background: '#eef2f7', color: '#6D28D9' }}>
               <ImageIcon size={11} /> Photo
             </span>
           )}
@@ -219,7 +219,7 @@ export default function DailyReports() {
         <CardSkeleton count={3} />
       ) : reports.length === 0 ? (
         <div style={s.emptyState}>
-          <ClipboardCheck size={36} color="#D1D5DB" />
+          <ClipboardCheck size={36} color="#d5dae1" />
           <p style={s.emptyTitle}>No reports for this date</p>
           <p style={s.emptySubtitle}>Reports submitted by employees will appear here.</p>
         </div>
@@ -256,7 +256,7 @@ const s: Record<string, CSSProperties> = {
     width: 42,
     height: 42,
     borderRadius: 11,
-    background: '#C0392B',
+    background: '#c42130',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -284,7 +284,7 @@ const s: Record<string, CSSProperties> = {
   select: {
     padding: '8px 12px',
     borderRadius: 8,
-    border: '1.5px solid #E5E7EB',
+    border: '1.5px solid #e4e7ec',
     fontSize: 13.5,
     color: '#374151',
     background: '#fff',
@@ -295,7 +295,7 @@ const s: Record<string, CSSProperties> = {
   dateInput: {
     padding: '8px 12px',
     borderRadius: 8,
-    border: '1.5px solid #E5E7EB',
+    border: '1.5px solid #e4e7ec',
     fontSize: 13.5,
     color: '#374151',
     background: '#fff',
@@ -328,7 +328,7 @@ const s: Record<string, CSSProperties> = {
   card: {
     background: '#fff',
     borderRadius: 12,
-    border: '1.5px solid #E5E7EB',
+    border: '1.5px solid #e4e7ec',
     overflow: 'hidden',
   },
   cardHeader: {
@@ -351,7 +351,7 @@ const s: Record<string, CSSProperties> = {
     width: 34,
     height: 34,
     borderRadius: '50%',
-    background: '#C0392B',
+    background: '#c42130',
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
@@ -378,7 +378,7 @@ const s: Record<string, CSSProperties> = {
   storeBadge: {
     display: 'inline-block',
     background: '#FDECEA',
-    color: '#C0392B',
+    color: '#c42130',
     fontSize: 11,
     fontWeight: 700,
     padding: '1px 7px',
@@ -400,7 +400,7 @@ const s: Record<string, CSSProperties> = {
     fontWeight: 600,
   },
   cardBody: {
-    borderTop: '1.5px solid #F3F4F6',
+    borderTop: '1.5px solid #f1f3f6',
     padding: '14px 16px',
     display: 'flex',
     flexDirection: 'column',
@@ -421,7 +421,7 @@ const s: Record<string, CSSProperties> = {
     gap: 8,
   },
   dataCell: {
-    background: '#F9FAFB',
+    background: '#f7f8fa',
     borderRadius: 8,
     padding: '8px 10px',
   },
@@ -439,8 +439,8 @@ const s: Record<string, CSSProperties> = {
   notes: {
     fontSize: 13.5,
     color: '#374151',
-    background: '#FFFBEB',
-    border: '1px solid #FDE68A',
+    background: '#fdf6e8',
+    border: '1px solid #f1dcaf',
     borderRadius: 8,
     padding: '10px 12px',
     lineHeight: 1.5,

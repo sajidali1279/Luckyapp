@@ -95,8 +95,8 @@ export default function StoreManagerDashboard() {
       <div style={s.statsGrid}>
         <StatCard icon="🧾" label="Transactions" value={isLoading ? '…' : summary?.today.transactions ?? 0} />
         <StatCard icon="💵" label="Purchase Volume" value={isLoading ? '…' : `$${Number(summary?.today.purchaseVolume ?? 0).toFixed(2)}`} />
-        <StatCard icon="⭐" label="Points Awarded" value={isLoading ? '…' : `$${Number(summary?.today.pointsAwarded ?? 0).toFixed(2)}`} valueColor="#F4A261" />
-        <StatCard icon="⏳" label="Pending Review" value={isLoading ? '…' : summary?.pending ?? 0} valueColor={summary?.pending ? '#E63946' : '#2DC653'} />
+        <StatCard icon="⭐" label="Points Awarded" value={isLoading ? '…' : `$${Number(summary?.today.pointsAwarded ?? 0).toFixed(2)}`} valueColor="#b7791f" />
+        <StatCard icon="⏳" label="Pending Review" value={isLoading ? '…' : summary?.pending ?? 0} valueColor={summary?.pending ? '#c42130' : '#1f8a4c'} />
       </div>
 
       {/* All-time Stats */}
@@ -111,12 +111,12 @@ export default function StoreManagerDashboard() {
       <h2 style={s.sectionTitle}>Quick Actions</h2>
       <div style={s.actionGrid}>
         {[
-          { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#F4A261' },
-          { icon: '📢', label: 'Offers', desc: 'Create promotions & deals for your store', to: '/offers', color: '#E63946' },
-          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#2DC653' },
-          { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#7C3AED' },
-          { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#0369a1' },
-          { icon: '🏷️', label: 'Labels', desc: 'Create and print shelf/price labels', to: '/labels', color: '#b45309' },
+          { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#b7791f' },
+          { icon: '📢', label: 'Offers', desc: 'Create promotions & deals for your store', to: '/offers', color: '#c42130' },
+          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#1f8a4c' },
+          { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#4f6d8f' },
+          { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#1D3557' },
+          { icon: '🏷️', label: 'Labels', desc: 'Create and print shelf/price labels', to: '/labels', color: '#8a5300' },
         ].map((a) => (
           <button key={a.to} style={s.actionCard} onClick={() => navigate(a.to)}>
             <div style={{ ...s.actionIcon, background: a.color + '18', color: a.color }}>{a.icon}</div>
@@ -132,7 +132,7 @@ export default function StoreManagerDashboard() {
       {/* Pending Transactions */}
       {pendingList.length > 0 && (
         <>
-          <h2 style={{ ...s.sectionTitle, marginTop: 28, color: '#E63946' }}>
+          <h2 style={{ ...s.sectionTitle, marginTop: 28, color: '#c42130' }}>
             ⏳ Pending Review ({pendingList.length})
           </h2>
           <div style={s.pendingList}>
@@ -171,7 +171,7 @@ export default function StoreManagerDashboard() {
                   </div>
                 </div>
                 <div style={s.pendingRight}>
-                  <div style={{ ...s.pendingPoints, color: tx.status === 'APPROVED' ? '#2DC653' : tx.status === 'REJECTED' ? '#E63946' : '#F4A261' }}>
+                  <div style={{ ...s.pendingPoints, color: tx.status === 'APPROVED' ? '#1f8a4c' : tx.status === 'REJECTED' ? '#c42130' : '#b7791f' }}>
                     {tx.status === 'APPROVED' ? `+$${Number(tx.pointsAwarded).toFixed(2)}` : tx.status}
                   </div>
                 </div>
@@ -201,11 +201,11 @@ const s: Record<string, React.CSSProperties> = {
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #12202f 0%, #1D3557 55%, #2a4a73 100%)',
-    borderRadius: 16, padding: '28px 32px', marginBottom: 36,
+    borderRadius: 12, padding: '28px 32px', marginBottom: 36,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     boxShadow: '0 4px 20px rgba(29,53,87,0.28)',
   },
-  welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 800, margin: 0 },
+  welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 },
   welcomeSub: { color: 'rgba(255,255,255,0.7)', marginTop: 6, fontSize: 14 },
   roleBadge: {
     background: 'rgba(255,255,255,0.15)', color: '#fff',
@@ -216,43 +216,43 @@ const s: Record<string, React.CSSProperties> = {
 
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 36 },
   statCard: {
-    background: '#fff', borderRadius: 14, padding: '18px 20px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    background: '#fff', borderRadius: 12, padding: '18px 20px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', alignItems: 'center', gap: 14,
-    border: '1px solid #f0f1f2',
+    border: '1px solid #e4e7ec',
   },
   statIcon: { fontSize: 28, flexShrink: 0 },
   statLabel: { color: TEXT_MUTED, fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { fontSize: 24, fontWeight: 800, marginTop: 2 },
+  statValue: { fontSize: 24, fontWeight: 700, marginTop: 2 },
 
   actionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginBottom: 24 },
   actionCard: {
-    background: '#fff', borderRadius: 14, padding: '18px 20px',
+    background: '#fff', borderRadius: 12, padding: '18px 20px',
     display: 'flex', alignItems: 'center', gap: 16,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+    border: '1px solid #e4e7ec',
     cursor: 'pointer', textAlign: 'left', width: '100%',
   },
   actionIcon: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 },
   actionTitle: { color: PRIMARY, fontWeight: 700, fontSize: 15 },
   actionDesc: { color: TEXT_MUTED, fontSize: 15, marginTop: 2 },
-  arrow: { color: '#dee2e6', fontSize: 24, marginLeft: 'auto', flexShrink: 0 },
+  arrow: { color: '#e4e7ec', fontSize: 24, marginLeft: 'auto', flexShrink: 0 },
 
   pendingList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 },
   pendingRow: {
     background: '#fff', borderRadius: 12, padding: '16px 20px',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   pendingLeft: { flex: 1 },
   pendingCustomer: { fontWeight: 700, fontSize: 15, color: PRIMARY },
   pendingMeta: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
   pendingRight: { display: 'flex', alignItems: 'center', gap: 12 },
-  pendingPoints: { fontSize: 16, fontWeight: 800, color: '#2DC653' },
+  pendingPoints: { fontSize: 16, fontWeight: 700, color: '#1f8a4c' },
   receiptLink: { fontSize: 15, color: '#457b9d', textDecoration: 'none', fontWeight: 600 },
   rejectBtn: {
-    padding: '6px 16px', borderRadius: 8, border: '1px solid #E63946',
-    background: 'transparent', color: '#E63946', cursor: 'pointer', fontWeight: 600, fontSize: 15,
+    padding: '6px 16px', borderRadius: 8, border: '1px solid #c42130',
+    background: 'transparent', color: '#c42130', cursor: 'pointer', fontWeight: 600, fontSize: 15,
   },
 
   errorCard: { textAlign: 'center', padding: 60 },

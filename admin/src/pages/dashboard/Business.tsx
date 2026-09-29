@@ -1,3 +1,4 @@
+import Glyph from '../../components/Glyph';
 import { useState } from 'react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -20,8 +21,8 @@ import { useRevenue, useAnalytics, useCategoryRates, useTierRates, useOffers, us
 const RATE_CAP = 0.10;   // CASHBACK_RATE_CAP in backend/src/config/constants.ts
 const RATE_WARN = 0.075; // CASHBACK_RATE_WARN
 const TIER_COLS: { tier: string; label: string }[] = [
-  { tier: 'BRONZE', label: '🥉 Bronze' }, { tier: 'SILVER', label: '🥈 Silver' }, { tier: 'GOLD', label: '🥇 Gold' },
-  { tier: 'DIAMOND', label: '💎 Diamond' }, { tier: 'PLATINUM', label: '👑 Platinum' },
+  { tier: 'BRONZE', label: 'Bronze' }, { tier: 'SILVER', label: 'Silver' }, { tier: 'GOLD', label: 'Gold' },
+  { tier: 'DIAMOND', label: 'Diamond' }, { tier: 'PLATINUM', label: 'Platinum' },
 ];
 
 type RateCell = { text: string; title: string; flag: 'none' | 'promo' | 'warn' | 'cap' };
@@ -55,7 +56,7 @@ function rateCell(tier: string, category: string, tierRates: any[], catRates: an
   return { text: formatRate(rate), title: parts.join(' + ') + (flag === 'cap' ? ' (capped at 10%)' : ''), flag };
 }
 
-const FLAG_COLOR: Record<RateCell['flag'], string> = { none: '#111827', promo: '#157A3E', warn: '#b45309', cap: '#D62839' };
+const FLAG_COLOR: Record<RateCell['flag'], string> = { none: '#111827', promo: '#17663a', warn: '#8a5300', cap: '#D62839' };
 
 function LiveRatesMatrix({ tierRates, catRates, offers }: { tierRates: any[]; catRates: any[]; offers: any[] }) {
   const now = new Date();
@@ -76,7 +77,7 @@ function LiveRatesMatrix({ tierRates, catRates, offers }: { tierRates: any[]; ca
             {catRates.map((c: any) => (
               <tr key={c.category}>
                 <td style={{ ...s.ratesTd, textAlign: 'left', fontWeight: 700, color: PRIMARY }}>
-                  <span style={{ marginRight: 8 }}>{CAT_ICONS[c.category] || '🏪'}</span>{c.label}
+                  <Glyph e={CAT_ICONS[c.category] || '🏪'} size={14} style={{ marginRight: 8, verticalAlign: -2 }} />{c.label}
                 </td>
                 {TIER_COLS.map((t) => {
                   const cell = rateCell(t.tier, c.category, tierRates, catRates, chainOffers);
@@ -94,7 +95,7 @@ function LiveRatesMatrix({ tierRates, catRates, offers }: { tierRates: any[]; ca
       <div style={s.ratesLegend}>
         {chainOffers.length > 0
           ? chainOffers.map((o: any) => (
-              <span key={o.id} style={{ color: '#157A3E', fontWeight: 600 }}>
+              <span key={o.id} style={{ color: '#17663a', fontWeight: 600 }}>
                 ● {o.title}: {o.gasBonusCentsPerGallon != null && o.bonusRate == null ? `+${o.gasBonusCentsPerGallon}¢/gal` : `+${formatRate(o.bonusRate ?? 0)}`} on {o.category ? o.category.replace(/_/g, ' ').toLowerCase() : 'all categories'}
               </span>
             ))
@@ -114,9 +115,9 @@ type CashbackStoreHealth = {
 };
 
 const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; color: string; bg: string; border: string }> = {
-  ok:       { label: '✅ OK',       color: '#2DC653', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
-  warn:     { label: '⚠️ Warn',     color: '#F4A261', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
-  critical: { label: '🚨 Critical', color: '#D62839', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
+  ok:       { label: 'OK',       color: '#1f8a4c', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
+  warn:     { label: 'Warn',     color: '#b7791f', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
+  critical: { label: 'Critical', color: '#D62839', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
 };
 
 function CashbackHealthCard() {
@@ -137,7 +138,7 @@ function CashbackHealthCard() {
         // A broken health check must not look like a healthy network.
         <PanelError label="cashback health" onRetry={() => refetch()} />
       ) : problemStores.length === 0 ? (
-        <div style={s.healthOk}>✅ All stores within cashback target</div>
+        <div style={s.healthOk}>All stores within cashback target</div>
       ) : (
         <div style={s.healthList}>
           {problemStores.map((store) => {
@@ -234,8 +235,8 @@ export default function BusinessView() {
             <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
             <StatCard icon="⭐" label="Cashback Issued" value={fmt$(revenue.totalPointsAwarded)} />
             <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
-            <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#2DC653" to="/billing" />
-            <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#2DC653" to="/billing" />
+            <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#1f8a4c" to="/billing" />
+            <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#1f8a4c" to="/billing" />
           </div>
           </>
         )}
@@ -268,7 +269,7 @@ export default function BusinessView() {
                         <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
                     <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                     <Tooltip formatter={(v) => [v, 'Transactions']} labelFormatter={(l) => formatChartTooltipDate(String(l))} />
@@ -282,15 +283,15 @@ export default function BusinessView() {
                   <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: 6 }}>
                     <defs>
                       <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2DC653" stopOpacity={0.14} />
-                        <stop offset="95%" stopColor="#2DC653" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#1f8a4c" stopOpacity={0.14} />
+                        <stop offset="95%" stopColor="#1f8a4c" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={axisMoney} width={58} />
                     <Tooltip formatter={(v: any) => [fmt$(Number(v)), 'Purchase volume']} labelFormatter={(l) => formatChartTooltipDate(String(l))} />
-                    <Area type="monotone" dataKey="purchaseVolume" stroke="#2DC653" strokeWidth={2} fill="url(#devGrad)" dot={false} />
+                    <Area type="monotone" dataKey="purchaseVolume" stroke="#1f8a4c" strokeWidth={2} fill="url(#devGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -302,7 +303,7 @@ export default function BusinessView() {
                 <div style={s.chartBoxFull}>
                   <ResponsiveContainer width="100%" height={Math.max(220, analytics.byCategory.length * 38)}>
                     <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 8, right: 84 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f1f2" horizontal={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={axisMoney} />
                       <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={(v) => String(v).replace(/_/g, ' ')} width={128} />
                       <Tooltip formatter={(v: any) => [fmt$(Number(v)), 'Purchase volume']} labelFormatter={(l) => String(l).replace(/_/g, ' ')} />

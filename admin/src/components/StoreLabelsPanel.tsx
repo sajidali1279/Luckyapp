@@ -397,7 +397,7 @@ export default function StoreLabelsPanel() {
                 aria-label="Price at this store"
               />
             </div>
-            {priceProblem(priceDraft) && <div role="alert" style={{ color: '#b91c1c', fontSize: 13, marginTop: 6 }}>{priceProblem(priceDraft)}</div>}
+            {priceProblem(priceDraft) && <div role="alert" style={{ color: '#a51b28', fontSize: 13, marginTop: 6 }}>{priceProblem(priceDraft)}</div>}
             <label style={m.expiryLabel} htmlFor="store-price-ends">Ends on <span style={m.expiryLabelSub}>(optional. The price goes back to the base price at the end of that day, Central time. No date = stays until changed.)</span></label>
             <input
               id="store-price-ends"
@@ -487,7 +487,7 @@ export default function StoreLabelsPanel() {
             </TableHeader>
             <TableBody>
               {filteredItems.map((item, i) => (
-                <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                   <TableCell style={s.td}>
                     {item.storeLabelId && item.status !== 'needs_price' && (
                       <input
@@ -588,62 +588,62 @@ const s: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
   pickerRow: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' },
   storeSelect: {
-    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',
-    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer', minWidth: 220,
+    border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 14px',
+    fontSize: 14, background: '#fff', color: '#111827', cursor: 'pointer', minWidth: 220,
   },
   searchInput: {
-    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #ddd', borderRadius: 10,
+    flex: '1 1 240px', minWidth: 200, border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '9px 14px', fontSize: 14, outline: 'none',
   },
   filterSelect: {
-    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 12px',
-    fontSize: 14, background: '#fff', color: '#333', cursor: 'pointer',
+    border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 12px',
+    fontSize: 14, background: '#fff', color: '#111827', cursor: 'pointer',
   },
   // The tray sits beside the table; on a narrow screen it wraps below it instead of pushing the page sideways
   layout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
   main: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, overflowX: 'auto',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   overrideBadge: {
-    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#92620a',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 6px',
+    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#8a5300',
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 6, padding: '2px 6px',
   },
   expiryBadge: {
-    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#7c3aed',
-    background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px',
+    marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#4f6d8f',
+    background: '#eef2f7', border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px',
   },
   noPriceBadge: {
-    fontSize: 12, fontWeight: 700, color: '#92620a',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '3px 8px',
+    fontSize: 12, fontWeight: 700, color: '#8a5300',
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 6, padding: '3px 8px',
   },
   statusBadge: { fontSize: 12, fontWeight: 700, borderRadius: 6, padding: '3px 8px' },
   ageText: { marginLeft: 8, fontSize: 12, color: TEXT_MUTED },
   addBtn: {
-    background: '#eff6ff', color: PRIMARY, border: 'none',
+    background: '#eef2f7', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
   },
   editBtn: {
-    background: '#f4f4f4', color: '#444', border: 'none',
+    background: '#f1f3f6', color: '#374151', border: 'none',
     borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
   },
   revertBtn: {
-    background: '#fff0f0', color: '#c53030', border: 'none',
+    background: '#fdf2f2', color: '#c42130', border: 'none',
     borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
   },
 
   emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
+    background: '#fff', borderRadius: 12, padding: 60,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
@@ -655,33 +655,33 @@ const m: Record<string, CSSProperties> = {
   priceInputWrap: { position: 'relative' as const },
   priceInputDollar: {
     position: 'absolute' as const, left: 14, top: '50%', transform: 'translateY(-50%)',
-    fontSize: 15, fontWeight: 700, color: '#667', pointerEvents: 'none' as const,
+    fontSize: 15, fontWeight: 700, color: '#5a6472', pointerEvents: 'none' as const,
   },
   input: {
-    border: '1.5px solid #ddd', borderRadius: 10, paddingLeft: 26,
+    border: '1.5px solid #d5dae1', borderRadius: 10, paddingLeft: 26,
     padding: '10px 14px 10px 26px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
-  expiryLabel: { display: 'block', fontSize: 12.5, fontWeight: 700, color: '#333', marginTop: 14, marginBottom: 6 },
+  expiryLabel: { display: 'block', fontSize: 12.5, fontWeight: 700, color: '#111827', marginTop: 14, marginBottom: 6 },
   expiryLabelSub: { fontWeight: 400, color: TEXT_MUTED },
   expiryInput: {
-    border: '1.5px solid #ddd', borderRadius: 10, padding: '9px 14px',
+    border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 14px',
     fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const,
   },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 },
   cancelBtn: {
-    background: '#f4f4f4', border: 'none', borderRadius: 10,
-    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
+    background: '#f1f3f6', border: 'none', borderRadius: 10,
+    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151',
   },
   saveBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
-  para: { margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#333' },
+  para: { margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#111827' },
   note: {
-    margin: 0, padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10,
-    fontSize: 13.5, lineHeight: 1.5, color: '#7c5a10',
+    margin: 0, padding: '10px 12px', background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 10,
+    fontSize: 13.5, lineHeight: 1.5, color: '#8a5300',
   },
-  list: { margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, lineHeight: 1.5, color: '#333' },
+  list: { margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, lineHeight: 1.5, color: '#111827' },
 };

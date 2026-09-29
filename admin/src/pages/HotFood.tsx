@@ -46,11 +46,11 @@ function toTitleCase(s: string) {
 }
 
 const STATUS_CFG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  PENDING:   { label: 'Pending',   color: '#F97316', bg: '#FFF7ED' },
-  ACCEPTED:  { label: 'Preparing', color: '#3B82F6', bg: '#EFF6FF' },
-  READY:     { label: 'Ready',     color: '#16A34A', bg: '#F0FDF4' },
-  COMPLETED: { label: 'Done',      color: TEXT_MUTED, bg: '#F8FAFC' },
-  CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEF2F2' },
+  PENDING:   { label: 'Pending',   color: '#b7791f', bg: '#fdf6e8' },
+  ACCEPTED:  { label: 'Preparing', color: '#457B9D', bg: '#eef2f7' },
+  READY:     { label: 'Ready',     color: '#1f8a4c', bg: '#edf7f0' },
+  COMPLETED: { label: 'Done',      color: TEXT_MUTED, bg: '#f7f8fa' },
+  CANCELLED: { label: 'Cancelled', color: '#c42130', bg: '#fdf2f2' },
 };
 
 const ORDER_TABS: { key: OrderTab; label: string }[] = [
@@ -60,7 +60,7 @@ const ORDER_TABS: { key: OrderTab; label: string }[] = [
   { key: 'ALL',      label: 'All'       },
 ];
 
-const PLACEHOLDER_COLORS = ['#DBEAFE', '#DCF8C6', '#FEF9C3', '#FFE4E6', '#EDE9FE', '#FFEDD5', '#F0FDF4'];
+const PLACEHOLDER_COLORS = ['#eef2f7', '#DCF8C6', '#FEF9C3', '#FFE4E6', '#eef2f7', '#fdf6e8', '#edf7f0'];
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
@@ -116,34 +116,34 @@ function OrderCard({ order, onUpdate, updatingId }: {
 
       <div style={oc.actions}>
         {order.status === 'PENDING' && (
-          <button style={{ ...oc.btn, background: '#F97316', opacity: busy ? 0.6 : 1 }}
+          <button style={{ ...oc.btn, background: '#b7791f', opacity: busy ? 0.6 : 1 }}
             onClick={() => onUpdate(order.id, 'ACCEPTED')} disabled={busy}>
             {busy ? 'Updating…' : 'Accept Order'}
           </button>
         )}
         {order.status === 'ACCEPTED' && (
-          <button style={{ ...oc.btn, background: '#3B82F6', opacity: busy ? 0.6 : 1 }}
+          <button style={{ ...oc.btn, background: '#457B9D', opacity: busy ? 0.6 : 1 }}
             onClick={() => onUpdate(order.id, 'READY')} disabled={busy}>
             {busy ? 'Updating…' : 'Mark Ready'}
           </button>
         )}
         {order.status === 'READY' && (
           <>
-            <button style={{ ...oc.btn, background: '#16A34A', flex: 1, opacity: busy ? 0.6 : 1 }}
+            <button style={{ ...oc.btn, background: '#1f8a4c', flex: 1, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'COMPLETED')} disabled={busy}>
               <CheckCircle size={13} color="#fff" />
               {busy ? 'Updating…' : 'Complete'}
             </button>
             <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Cancel order">
-              <X size={13} color="#EF4444" />
+              <X size={13} color="#c42130" />
             </button>
           </>
         )}
         {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
           <div style={oc.done}>
-            <CheckCircle size={13} color={order.status === 'COMPLETED' ? '#16A34A' : '#D1D5DB'} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#16A34A' : '#5a6472' }}>
+            <CheckCircle size={13} color={order.status === 'COMPLETED' ? '#1f8a4c' : '#d5dae1'} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#1f8a4c' : '#5a6472' }}>
               {order.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
             </span>
           </div>
@@ -233,7 +233,7 @@ function AddEditModal({ item, onClose, onSaved }: {
               <img src={imgPreview} alt="" style={md.imgPreview} />
             ) : (
               <div style={md.imgPlaceholder}>
-                <ImageIcon size={32} color="#CBD5E1" strokeWidth={1.5} />
+                <ImageIcon size={32} color="#d5dae1" strokeWidth={1.5} />
                 <span style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 6 }}>Click to add photo</span>
               </div>
             )}
@@ -368,7 +368,7 @@ function AssignModal({ item, stores, onClose, onEdit }: {
             <img src={item.imageUrl} alt="" style={am.thumb} />
           ) : (
             <div style={{ ...am.thumb, background: PLACEHOLDER_COLORS[(item.name.charCodeAt(0) || 0) % PLACEHOLDER_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 26, fontWeight: 900, color: 'rgba(0,0,0,0.15)' }}>{item.name.charAt(0).toUpperCase()}</span>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'rgba(0,0,0,0.15)' }}>{item.name.charAt(0).toUpperCase()}</span>
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -382,8 +382,8 @@ function AssignModal({ item, stores, onClose, onEdit }: {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <button style={am.iconBtn} onClick={onEdit} title="Edit item"><Pencil size={14} color="#1D4ED8" /></button>
-            <button style={{ ...am.iconBtn, background: '#FEF2F2' }} onClick={() => setConfirmDelete(true)} title="Delete item"><Trash2 size={14} color="#EF4444" /></button>
+            <button style={am.iconBtn} onClick={onEdit} title="Edit item"><Pencil size={14} color="#1D3557" /></button>
+            <button style={{ ...am.iconBtn, background: '#fdf2f2' }} onClick={() => setConfirmDelete(true)} title="Delete item"><Trash2 size={14} color="#c42130" /></button>
           </div>
         </div>
 
@@ -412,9 +412,9 @@ function AssignModal({ item, stores, onClose, onEdit }: {
                     style={{ display: 'none' }}
                   />
                   <div style={{ ...am.checkbox, ...(checked ? am.checkboxOn : {}) }}>
-                    {checked && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                    {checked && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
                   </div>
-                  <span style={{ ...am.storeName, ...(checked ? { fontWeight: 700, color: '#0F172A' } : {}) }}>{store.name}</span>
+                  <span style={{ ...am.storeName, ...(checked ? { fontWeight: 700, color: '#111827' } : {}) }}>{store.name}</span>
                 </label>
               );
             })}
@@ -638,7 +638,7 @@ export default function HotFood() {
             <CardSkeleton count={4} />
           ) : filteredOrders.length === 0 ? (
             <div style={pg.empty}>
-              <Flame size={36} color="#E5E7EB" />
+              <Flame size={36} color="#e4e7ec" />
               <p style={{ color: TEXT_MUTED, marginTop: 8 }}>
                 No {orderTab === 'ALL' ? '' : orderTab.toLowerCase() + ' '}orders right now
               </p>
@@ -678,7 +678,7 @@ export default function HotFood() {
             <CardSkeleton count={4} />
           ) : filteredCatalog.length === 0 ? (
             <div style={pg.empty}>
-              <Flame size={36} color="#E5E7EB" />
+              <Flame size={36} color="#e4e7ec" />
               <p style={{ color: TEXT_MUTED, marginTop: 8 }}>
                 {search.trim() ? 'No items match your search' : 'No items yet. Add one to get started.'}
               </p>
@@ -701,7 +701,7 @@ export default function HotFood() {
                       <img src={item.imageUrl} alt={item.name} style={pg.tileImg} />
                     ) : (
                       <div style={{ ...pg.tileImg, background: placeholderBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 40, fontWeight: 900, color: 'rgba(0,0,0,0.12)' }}>{initial}</span>
+                        <span style={{ fontSize: 40, fontWeight: 700, color: 'rgba(0,0,0,0.12)' }}>{initial}</span>
                       </div>
                     )}
                     <div style={pg.tileBody}>
@@ -709,8 +709,8 @@ export default function HotFood() {
                       <div style={pg.tileBottom}>
                         <span style={pg.tilePrice}>${Number(item.price).toFixed(2)}</span>
                         <div style={{ ...pg.storeBadge, ...(item.storeCount === 0 ? pg.storeBadgeNone : {}) }}>
-                          <Building2 size={9} color={item.storeCount > 0 ? '#3B82F6' : '#5a6472'} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#3B82F6' : '#5a6472' }}>
+                          <Building2 size={9} color={item.storeCount > 0 ? '#457B9D' : '#5a6472'} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#457B9D' : '#5a6472' }}>
                             {item.storeCount}
                           </span>
                         </div>
@@ -734,7 +734,7 @@ export default function HotFood() {
           </p>
           {stores.length === 0 ? (
             <div style={pg.empty}>
-              <Flame size={36} color="#E5E7EB" />
+              <Flame size={36} color="#e4e7ec" />
               <p style={{ color: TEXT_MUTED, marginTop: 8 }}>No stores found.</p>
             </div>
           ) : (
@@ -812,35 +812,35 @@ export default function HotFood() {
 
 const pg: Record<string, React.CSSProperties> = {
   availHours: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6 },
-  availNow: { fontSize: 12.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#F1F5F9', color: '#334155' },
-  availNowOpen: { background: '#F0FDF4', color: '#166534' },
-  availNowClosed: { background: '#FFF7ED', color: '#9A3412' },
+  availNow: { fontSize: 12.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#f1f3f6', color: '#374151' },
+  availNowOpen: { background: '#edf7f0', color: '#17663a' },
+  availNowClosed: { background: '#fdf6e8', color: '#8a5300' },
   availToday: { fontSize: 12.5, color: TEXT_MUTED },
-  availHoursBtn: { border: '1.5px solid #E5E7EB', background: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 8 },
+  availHoursBtn: { border: '1.5px solid #e4e7ec', background: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 8 },
   container:    { padding: '24px 28px', minHeight: '100%' },
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
-  iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #EA580C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #b7791f, #b7791f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   sub:          { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
 
-  toggle:       { display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 3, gap: 2 },
-  toggleBtn:    { border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'transparent', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 150ms, color 150ms' },
-  toggleBtnOn:  { background: '#fff', color: '#1D4ED8', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
-  toggleBadge:  { background: '#E2E8F0', color: '#64748B', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700 },
-  toggleBadgeOn:{ background: '#EA580C', color: '#fff' },
+  toggle:       { display: 'flex', background: '#f1f3f6', borderRadius: 10, padding: 3, gap: 2 },
+  toggleBtn:    { border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'transparent', color: '#5a6472', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 150ms, color 150ms' },
+  toggleBtnOn:  { background: '#fff', color: '#1D3557', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  toggleBadge:  { background: '#e4e7ec', color: '#5a6472', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700 },
+  toggleBadgeOn:{ background: '#b7791f', color: '#fff' },
 
-  refreshBtn:   { display: 'flex', alignItems: 'center', gap: 6, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
-  addBtn:       { display: 'flex', alignItems: 'center', gap: 6, background: '#EA580C', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  ghostBtn:     { display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
+  refreshBtn:   { display: 'flex', alignItems: 'center', gap: 6, background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
+  addBtn:       { display: 'flex', alignItems: 'center', gap: 6, background: '#b7791f', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
+  ghostBtn:     { display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
 
   toolbar:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
   tabs:         { display: 'flex', gap: 6 },
-  tab:          { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: 'none', background: '#F1F5F9', color: '#64748B', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  tabOn:        { background: '#EA580C', color: '#fff' },
-  tabBadge:     { background: '#E2E8F0', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: '#64748B' },
+  tab:          { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: 'none', background: '#f1f3f6', color: '#5a6472', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
+  tabOn:        { background: '#b7791f', color: '#fff' },
+  tabBadge:     { background: '#e4e7ec', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: '#5a6472' },
   tabBadgeOn:   { background: 'rgba(255,255,255,0.25)', color: '#fff' },
   selectWrap:   { position: 'relative', display: 'inline-flex', alignItems: 'center' },
-  select:       { appearance: 'none', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
+  select:       { appearance: 'none', border: '1px solid #e4e7ec', borderRadius: 8, padding: '7px 32px 7px 12px', fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer', outline: 'none' },
   selectIcon:   { position: 'absolute', right: 10, pointerEvents: 'none', color: TEXT_MUTED },
 
   orderGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
@@ -849,96 +849,96 @@ const pg: Record<string, React.CSSProperties> = {
   catalogBar:   { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 },
   searchWrap:   { position: 'relative', flex: 1, maxWidth: 340 },
   searchIcon:   { position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
-  searchInput:  { width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px 8px 34px', fontSize: 14, color: '#374151', outline: 'none', background: '#fff', boxSizing: 'border-box' },
+  searchInput:  { width: '100%', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 12px 8px 34px', fontSize: 14, color: '#374151', outline: 'none', background: '#fff', boxSizing: 'border-box' },
 
   availabilityHint: { fontSize: 13, color: TEXT_MUTED, marginBottom: 16, maxWidth: 640, lineHeight: 1.5 },
   availList:    { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 640 },
-  availRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '14px 16px' },
+  availRow:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12, padding: '14px 16px' },
   availInfo:    { display: 'flex', alignItems: 'center', gap: 10 },
   availIcon:    { fontSize: 20, flexShrink: 0 },
   availName:    { fontSize: 14, fontWeight: 700, color: '#111827' },
   availSub:     { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
-  availToggle:  { fontSize: 12, fontWeight: 800, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
-  availToggleOn:  { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
-  availToggleOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
+  availToggle:  { fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
+  availToggleOn:  { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  availToggleOff: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
 
   tileGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 },
-  tile:         { background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', overflow: 'hidden', cursor: 'pointer', transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
+  tile:         { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden', cursor: 'pointer', transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   tileImg:      { width: '100%', aspectRatio: '1', objectFit: 'cover' },
   tileBody:     { padding: '10px 12px' },
   tileName:     { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 6, lineHeight: '1.3', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   tileBottom:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  tilePrice:    { fontSize: 13, fontWeight: 700, color: '#EA580C' },
-  storeBadge:   { display: 'flex', alignItems: 'center', gap: 3, background: '#EFF6FF', borderRadius: 6, padding: '2px 6px' },
-  storeBadgeNone:{ background: '#F1F5F9' },
+  tilePrice:    { fontSize: 13, fontWeight: 700, color: '#b7791f' },
+  storeBadge:   { display: 'flex', alignItems: 'center', gap: 3, background: '#eef2f7', borderRadius: 6, padding: '2px 6px' },
+  storeBadgeNone:{ background: '#f1f3f6' },
 };
 
 const oc: Record<string, React.CSSProperties> = {
-  card:      { background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
+  card:      { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
   top:       { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  num:       { fontSize: 15, fontWeight: 800, color: '#0F172A' },
+  num:       { fontSize: 15, fontWeight: 700, color: '#111827' },
   badge:     { borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700 },
   meta:      { display: 'flex', alignItems: 'center', gap: 5 },
   metaTxt:   { fontSize: 12, color: TEXT_MUTED },
-  dot:       { width: 3, height: 3, borderRadius: '50%', background: '#D1D5DB' },
-  custName:  { fontSize: 14, fontWeight: 700, color: '#0F172A' },
+  dot:       { width: 3, height: 3, borderRadius: '50%', background: '#d5dae1' },
+  custName:  { fontSize: 14, fontWeight: 700, color: '#111827' },
   custPhone: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
-  items:     { borderTop: '1px solid #F1F5F9', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
+  items:     { borderTop: '1px solid #f1f3f6', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
   itemRow:   { display: 'flex', alignItems: 'center', gap: 5 },
-  qty:       { fontSize: 13, fontWeight: 700, color: '#EA580C', width: 22, flexShrink: 0 },
+  qty:       { fontSize: 13, fontWeight: 700, color: '#b7791f', width: 22, flexShrink: 0 },
   iname:     { flex: 1, fontSize: 13, color: '#374151' },
-  iprice:    { fontSize: 13, fontWeight: 600, color: '#0F172A' },
-  totalRow:  { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 6, marginTop: 2 },
+  iprice:    { fontSize: 13, fontWeight: 600, color: '#111827' },
+  totalRow:  { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f3f6', paddingTop: 6, marginTop: 2 },
   totalLbl:  { fontSize: 12, color: TEXT_MUTED, fontWeight: 600 },
-  totalVal:  { fontSize: 14, fontWeight: 800, color: '#0F172A' },
-  note:      { background: '#FFFBEB', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
-  noteLbl:   { fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' },
-  noteTxt:   { fontSize: 13, color: '#78350F', lineHeight: '1.4' },
+  totalVal:  { fontSize: 14, fontWeight: 700, color: '#111827' },
+  note:      { background: '#fdf6e8', borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 },
+  noteLbl:   { fontSize: 11, fontWeight: 700, color: '#8a5300', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  noteTxt:   { fontSize: 13, color: '#8a5300', lineHeight: '1.4' },
   actions:   { display: 'flex', gap: 8 },
   btn:       { flex: 1, border: 'none', borderRadius: 10, padding: '9px 0', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 },
-  cancelBtn: { width: 34, height: 34, borderRadius: 8, border: 'none', background: '#FEF2F2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  cancelBtn: { width: 34, height: 34, borderRadius: 8, border: 'none', background: '#fdf2f2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   done:      { display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', paddingTop: 2 },
 };
 
 const md: Record<string, React.CSSProperties> = {
   overlay:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
-  panel:     { background: '#fff', borderRadius: 16, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  head:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6' },
+  panel:     { background: '#fff', borderRadius: 12, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
+  head:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid #f1f3f6' },
   headTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
   closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
   body:      { padding: '16px 20px 0' },
-  footer:    { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #F3F4F6', marginTop: 16 },
-  imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 16, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #E2E8F0', cursor: 'pointer', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  footer:    { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #f1f3f6', marginTop: 16 },
+  imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 12, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #e4e7ec', cursor: 'pointer', background: '#f7f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   imgPreview:{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   imgPlaceholder:{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
-  imgBadge:  { position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  imgBadge:  { position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: '#b7791f', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 };
 
 const am: Record<string, React.CSSProperties> = {
-  itemRow:   { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #F3F4F6' },
+  itemRow:   { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f1f3f6' },
   thumb:     { width: 64, height: 64, borderRadius: 12, objectFit: 'cover', flexShrink: 0 },
   itemName:  { fontSize: 16, fontWeight: 700, color: '#111827' },
   itemDesc:  { fontSize: 12, color: TEXT_MUTED, marginTop: 3, lineHeight: '1.4' },
-  price:     { fontSize: 13, fontWeight: 700, color: '#EA580C' },
+  price:     { fontSize: 13, fontWeight: 700, color: '#b7791f' },
   est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: TEXT_MUTED },
-  iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' },
-  sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  bulk:      { padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#F1F5F9', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#64748B' },
+  iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+  sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#f7f8fa', borderBottom: '1px solid #f1f3f6' },
+  sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  bulk:      { padding: '4px 10px', borderRadius: 6, border: '1px solid #e4e7ec', background: '#f1f3f6', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#5a6472' },
   bulkOn:    { background: PRIMARY, border: '1px solid #1D3557', color: '#fff' },
-  count:     { fontSize: 13, fontWeight: 700, color: '#1D4ED8', minWidth: 40, textAlign: 'right' },
+  count:     { fontSize: 13, fontWeight: 700, color: '#1D3557', minWidth: 40, textAlign: 'right' },
   storeList: { maxHeight: 240, overflowY: 'auto' },
-  storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid #F9FAFB', cursor: 'pointer', transition: 'background 100ms' },
-  storeRowOn:{ background: '#F0FDF4' },
-  checkbox:  { width: 18, height: 18, borderRadius: 4, border: '2px solid #D1D5DB', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checkboxOn:{ background: '#16A34A', borderColor: '#16A34A' },
+  storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid #f7f8fa', cursor: 'pointer', transition: 'background 100ms' },
+  storeRowOn:{ background: '#edf7f0' },
+  checkbox:  { width: 18, height: 18, borderRadius: 4, border: '2px solid #d5dae1', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checkboxOn:{ background: '#1f8a4c', borderColor: '#1f8a4c' },
   storeName: { fontSize: 14, color: '#374151', fontWeight: 500 },
   footer:    { display: 'flex', gap: 10, padding: '14px 20px' },
 };
 
 const f: Record<string, React.CSSProperties> = {
   label:      { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 12 },
-  input:      { width: '100%', border: '1px solid #E5E7EB', borderRadius: 8, padding: '9px 12px', fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' },
-  cancelBtn:  { flex: 1, background: '#F3F4F6', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' },
-  primaryBtn: { flex: 1, background: '#EA580C', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },
+  input:      { width: '100%', border: '1px solid #e4e7ec', borderRadius: 8, padding: '9px 12px', fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' },
+  cancelBtn:  { flex: 1, background: '#f1f3f6', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' },
+  primaryBtn: { flex: 1, background: '#b7791f', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },
 };

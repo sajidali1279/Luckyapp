@@ -11,109 +11,109 @@ import { storeToday, addDays, startOfStoreDay, endOfStoreDay } from '../lib/stor
 
 const ACTION_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   // Points
-  GRANT_POINTS:              { label: 'Grant Points',           color: '#2DC653', bg: '#2DC65318', icon: '💰' },
+  GRANT_POINTS:              { label: 'Grant Points',           color: '#1f8a4c', bg: '#2DC65318', icon: '💰' },
   REDEEM_CREDITS:            { label: 'Redeem Credits',         color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
-  REJECT_TRANSACTION:        { label: 'Reject Transaction',     color: '#E63946', bg: '#E6394618', icon: '❌' },
-  SELF_GRANT:                { label: 'Self Grant (QR)',        color: '#2DC653', bg: '#2DC65318', icon: '📄' },
+  REJECT_TRANSACTION:        { label: 'Reject Transaction',     color: '#c42130', bg: '#E6394618', icon: '❌' },
+  SELF_GRANT:                { label: 'Self Grant (QR)',        color: '#1f8a4c', bg: '#2DC65318', icon: '📄' },
   BROADCAST:                 { label: 'Push Sent',              color: '#457b9d', bg: '#457b9d18', icon: '📢' },
-  DISPUTE_APPROVED:          { label: 'Dispute Approved',       color: '#2DC653', bg: '#2DC65318', icon: '✅' },
-  DISPUTE_REJECTED:          { label: 'Dispute Rejected',       color: '#E63946', bg: '#E6394618', icon: '❌' },
-  APPROVE:                   { label: 'Sale Approved',          color: '#2DC653', bg: '#2DC65318', icon: '✅' },
-  APPROVE_FLAGGED:           { label: 'Held Sale Approved',     color: '#2DC653', bg: '#2DC65318', icon: '🟢' },
-  REJECT_FLAGGED:            { label: 'Held Sale Rejected',     color: '#E63946', bg: '#E6394618', icon: '🔴' },
-  VOID_TRANSACTION:          { label: 'Sale Voided',            color: '#E63946', bg: '#E6394618', icon: '↩️' },
-  AUTO_EXPIRE_PENDING:       { label: 'Unfinished Sales Expired', color: '#6c757d', bg: '#6c757d18', icon: '⌛' },
-  GOODWILL_CREDIT:           { label: 'Goodwill Credit',        color: '#2DC653', bg: '#2DC65318', icon: '🤝' },
-  CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#b8860b', bg: '#b8860b18', icon: '⭐' },
+  DISPUTE_APPROVED:          { label: 'Dispute Approved',       color: '#1f8a4c', bg: '#2DC65318', icon: '✅' },
+  DISPUTE_REJECTED:          { label: 'Dispute Rejected',       color: '#c42130', bg: '#E6394618', icon: '❌' },
+  APPROVE:                   { label: 'Sale Approved',          color: '#1f8a4c', bg: '#2DC65318', icon: '✅' },
+  APPROVE_FLAGGED:           { label: 'Held Sale Approved',     color: '#1f8a4c', bg: '#2DC65318', icon: '🟢' },
+  REJECT_FLAGGED:            { label: 'Held Sale Rejected',     color: '#c42130', bg: '#E6394618', icon: '🔴' },
+  VOID_TRANSACTION:          { label: 'Sale Voided',            color: '#c42130', bg: '#E6394618', icon: '↩️' },
+  AUTO_EXPIRE_PENDING:       { label: 'Unfinished Sales Expired', color: '#5a6472', bg: '#6c757d18', icon: '⌛' },
+  GOODWILL_CREDIT:           { label: 'Goodwill Credit',        color: '#1f8a4c', bg: '#2DC65318', icon: '🤝' },
+  CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#8a5300', bg: '#b8860b18', icon: '⭐' },
   CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#457b9d', bg: '#457b9d18', icon: '🎁' },
   CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#457b9d', bg: '#457b9d18', icon: '✅' },
   // Rewards and notices
   CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
   CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  NOTICE_CREATE:             { label: 'Notice Posted',          color: '#F4A261', bg: '#F4A26118', icon: '📌' },
-  NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#6c757d', bg: '#6c757d18', icon: '⏹️' },
-  NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#2DC653', bg: '#2DC65318', icon: '📣' },
-  PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#6c757d', bg: '#6c757d18', icon: '🚫' },
-  PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  CLEAR_CHAT:                { label: 'Store Chat Cleared',     color: '#E63946', bg: '#E6394618', icon: '🧹' },
+  NOTICE_CREATE:             { label: 'Notice Posted',          color: '#b7791f', bg: '#F4A26118', icon: '📌' },
+  NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#5a6472', bg: '#6c757d18', icon: '⏹️' },
+  NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#1f8a4c', bg: '#2DC65318', icon: '📣' },
+  PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#5a6472', bg: '#6c757d18', icon: '🚫' },
+  PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  CLEAR_CHAT:                { label: 'Store Chat Cleared',     color: '#c42130', bg: '#E6394618', icon: '🧹' },
   // Accounts, stores and the daily messages
   EDIT_STAFF:                { label: 'Staff Edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#E63946', bg: '#E6394618', icon: '👋' },
-  CREATE_STORE:              { label: 'Store Added',            color: '#0369a1', bg: '#0369a118', icon: '🏪' },
-  UPDATE_HOT_FOOD_HOURS:     { label: 'Hot Food Hours Changed', color: '#ea580c', bg: '#ea580c18', icon: '🔥' },
-  MORNING_SUMMARY:           { label: 'Morning Summary Sent',   color: '#6c757d', bg: '#6c757d18', icon: '🌅' },
-  WEEKLY_SUMMARY:            { label: 'Weekly Summary Sent',    color: '#6c757d', bg: '#6c757d18', icon: '📊' },
+  DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#c42130', bg: '#E6394618', icon: '👋' },
+  CREATE_STORE:              { label: 'Store Added',            color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  UPDATE_HOT_FOOD_HOURS:     { label: 'Hot Food Hours Changed', color: '#b7791f', bg: '#ea580c18', icon: '🔥' },
+  MORNING_SUMMARY:           { label: 'Morning Summary Sent',   color: '#5a6472', bg: '#6c757d18', icon: '🌅' },
+  WEEKLY_SUMMARY:            { label: 'Weekly Summary Sent',    color: '#5a6472', bg: '#6c757d18', icon: '📊' },
   // Offers & Banners
-  CREATE_OFFER:              { label: 'Create Offer',           color: '#F4A261', bg: '#F4A26118', icon: '📢' },
-  UPDATE_OFFER:              { label: 'Update Offer',           color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
-  DELETE_OFFER:              { label: 'Delete Offer',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  CREATE_BANNER:             { label: 'Create Banner',          color: '#F4A261', bg: '#F4A26118', icon: '🖼️' },
-  DELETE_BANNER:             { label: 'Delete Banner',          color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  CREATE_OFFER:              { label: 'Create Offer',           color: '#b7791f', bg: '#F4A26118', icon: '📢' },
+  UPDATE_OFFER:              { label: 'Update Offer',           color: '#b7791f', bg: '#F4A26118', icon: '✏️' },
+  DELETE_OFFER:              { label: 'Delete Offer',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  CREATE_BANNER:             { label: 'Create Banner',          color: '#b7791f', bg: '#F4A26118', icon: '🖼️' },
+  DELETE_BANNER:             { label: 'Delete Banner',          color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   // Staff & Access
-  CREATE_STAFF:              { label: 'Create Staff',           color: '#9b5de5', bg: '#9b5de518', icon: '👤' },
-  TOGGLE_USER:               { label: 'Deactivate / Reactivate', color: '#E63946', bg: '#E6394618', icon: '🔒' },
-  RESET_PIN:                 { label: 'Reset PIN',              color: '#E63946', bg: '#E6394618', icon: '🔑' },
-  CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#9b5de5', bg: '#9b5de518', icon: '🏢' },
-  DELETE_USER:               { label: 'Delete Account',         color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  DELETE_USER_REFUSED:       { label: 'Delete Refused',         color: '#E63946', bg: '#E6394618', icon: '⛔' },
-  DENIED_ACCOUNT_ACTION:     { label: 'Refused (role too low)', color: '#E63946', bg: '#E6394618', icon: '⛔' },
-  ADD_STORE:                 { label: 'Add Store Assignment',   color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
-  REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#E63946', bg: '#E6394618', icon: '🚫' },
-  SET_STORES:                { label: 'Change Stores',          color: '#9b5de5', bg: '#9b5de518', icon: '🏪' },
+  CREATE_STAFF:              { label: 'Create Staff',           color: '#4f6d8f', bg: '#9b5de518', icon: '👤' },
+  TOGGLE_USER:               { label: 'Deactivate / Reactivate', color: '#c42130', bg: '#E6394618', icon: '🔒' },
+  RESET_PIN:                 { label: 'Reset PIN',              color: '#c42130', bg: '#E6394618', icon: '🔑' },
+  CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏢' },
+  DELETE_USER:               { label: 'Delete Account',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  DELETE_USER_REFUSED:       { label: 'Delete Refused',         color: '#c42130', bg: '#E6394618', icon: '⛔' },
+  DENIED_ACCOUNT_ACTION:     { label: 'Refused (role too low)', color: '#c42130', bg: '#E6394618', icon: '⛔' },
+  ADD_STORE:                 { label: 'Add Store Assignment',   color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
+  REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#c42130', bg: '#E6394618', icon: '🚫' },
+  SET_STORES:                { label: 'Change Stores',          color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
   // Stores
-  UPDATE_STORE:              { label: 'Store Edited',           color: '#0369a1', bg: '#0369a118', icon: '🏪' },
-  GAS_PRICE_UPDATE:          { label: 'Gas / Diesel Price',     color: '#0369a1', bg: '#0369a118', icon: '⛽' },
-  UPDATE_STORE_HOURS:        { label: 'Store Hours Changed',    color: '#0369a1', bg: '#0369a118', icon: '🕐' },
-  ADD_STORE_HOLIDAY:         { label: 'Holiday Hours Added',    color: '#0369a1', bg: '#0369a118', icon: '📅' },
-  DELETE_STORE_HOLIDAY:      { label: 'Holiday Hours Removed',  color: '#E63946', bg: '#E6394618', icon: '📅' },
-  ADD_KEYWORD_MAPPING:       { label: 'POS Keyword Added',      color: '#0369a1', bg: '#0369a118', icon: '🗂️' },
-  DELETE_KEYWORD_MAPPING:    { label: 'POS Keyword Removed',    color: '#E63946', bg: '#E6394618', icon: '🗂️' },
-  REGENERATE_API_KEY:        { label: 'Printer Key Regenerated', color: '#E63946', bg: '#E6394618', icon: '🔑' },
+  UPDATE_STORE:              { label: 'Store Edited',           color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  GAS_PRICE_UPDATE:          { label: 'Gas / Diesel Price',     color: '#1D3557', bg: '#0369a118', icon: '⛽' },
+  UPDATE_STORE_HOURS:        { label: 'Store Hours Changed',    color: '#1D3557', bg: '#0369a118', icon: '🕐' },
+  ADD_STORE_HOLIDAY:         { label: 'Holiday Hours Added',    color: '#1D3557', bg: '#0369a118', icon: '📅' },
+  DELETE_STORE_HOLIDAY:      { label: 'Holiday Hours Removed',  color: '#c42130', bg: '#E6394618', icon: '📅' },
+  ADD_KEYWORD_MAPPING:       { label: 'POS Keyword Added',      color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  DELETE_KEYWORD_MAPPING:    { label: 'POS Keyword Removed',    color: '#c42130', bg: '#E6394618', icon: '🗂️' },
+  REGENERATE_API_KEY:        { label: 'Printer Key Regenerated', color: '#c42130', bg: '#E6394618', icon: '🔑' },
   // Scheduling
-  ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#0369a1', bg: '#0369a118', icon: '📅' },
-  REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#1D3557', bg: '#0369a118', icon: '📅' },
+  REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   CREATE_SHIFT_REQUEST:      { label: 'Shift Request',          color: TEXT_MUTED, bg: '#6c757d18', icon: '🙋' },
-  APPROVE_SHIFT_REQUEST:     { label: 'Approve Shift Req.',     color: '#2DC653', bg: '#2DC65318', icon: '✅' },
-  DENY_SHIFT_REQUEST:        { label: 'Deny Shift Req.',        color: '#E63946', bg: '#E6394618', icon: '❌' },
+  APPROVE_SHIFT_REQUEST:     { label: 'Approve Shift Req.',     color: '#1f8a4c', bg: '#2DC65318', icon: '✅' },
+  DENY_SHIFT_REQUEST:        { label: 'Deny Shift Req.',        color: '#c42130', bg: '#E6394618', icon: '❌' },
   // Store Requests
-  SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#f59e0b', bg: '#f59e0b18', icon: '📋' },
-  ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#2DC653', bg: '#2DC65318', icon: '✅' },
+  SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#b7791f', bg: '#f59e0b18', icon: '📋' },
+  ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#1f8a4c', bg: '#2DC65318', icon: '✅' },
   // Billing
-  BILLING_GENERATE:          { label: 'Make Bills',             color: '#0369a1', bg: '#0369a118', icon: '🧾' },
-  BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#0369a1', bg: '#0369a118', icon: '🧩' },
-  BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#0369a1', bg: '#0369a118', icon: '🔄' },
-  BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#2DC653', bg: '#2DC65318', icon: '💳' },
-  BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#2DC653', bg: '#2DC65318', icon: '💳' },
-  BILLING_UNDO_PAID:         { label: 'Undo Payment',           color: '#E63946', bg: '#E6394618', icon: '↩️' },
-  BILLING_CHARGE_ADD:        { label: 'Add Extra Charge',       color: '#F4A261', bg: '#F4A26118', icon: '➕' },
-  BILLING_CHARGE_EDIT:       { label: 'Edit Extra Charge',      color: '#F4A261', bg: '#F4A26118', icon: '✏️' },
-  BILLING_CHARGE_DELETE:     { label: 'Delete Extra Charge',    color: '#E63946', bg: '#E6394618', icon: '🗑️' },
+  BILLING_GENERATE:          { label: 'Make Bills',             color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#1D3557', bg: '#0369a118', icon: '🧩' },
+  BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
+  BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#1f8a4c', bg: '#2DC65318', icon: '💳' },
+  BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#1f8a4c', bg: '#2DC65318', icon: '💳' },
+  BILLING_UNDO_PAID:         { label: 'Undo Payment',           color: '#c42130', bg: '#E6394618', icon: '↩️' },
+  BILLING_CHARGE_ADD:        { label: 'Add Extra Charge',       color: '#b7791f', bg: '#F4A26118', icon: '➕' },
+  BILLING_CHARGE_EDIT:       { label: 'Edit Extra Charge',      color: '#b7791f', bg: '#F4A26118', icon: '✏️' },
+  BILLING_CHARGE_DELETE:     { label: 'Delete Extra Charge',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   BILLING_REPORT_SENT:       { label: 'Billing Report Sent',    color: '#457b9d', bg: '#457b9d18', icon: '📨' },
-  STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
-  DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#9b5de5', bg: '#9b5de518', icon: '⚙️' },
+  STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
+  DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
   // Rates
-  RATE_TIER_UPDATE:          { label: 'Tier Rates Changed',     color: '#9b5de5', bg: '#9b5de518', icon: '🏆' },
-  RATE_CATEGORY_UPDATE:      { label: 'Category Bonus Changed', color: '#9b5de5', bg: '#9b5de518', icon: '📦' },
+  RATE_TIER_UPDATE:          { label: 'Tier Rates Changed',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏆' },
+  RATE_CATEGORY_UPDATE:      { label: 'Category Bonus Changed', color: '#4f6d8f', bg: '#9b5de518', icon: '📦' },
   TIER_PERIOD_RESET:         { label: 'Tier Period Reset',      color: '#457b9d', bg: '#457b9d18', icon: '🔄' },
   // Labels
   CREATE_LABEL:              { label: 'Create Label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
   UPDATE_LABEL:              { label: 'Update Label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  DELETE_LABEL:              { label: 'Delete Label',           color: '#E63946', bg: '#E6394618', icon: '🗑️' },
-  LABEL_CHANGE_REFUSED:      { label: 'Label Change Refused',   color: '#E63946', bg: '#E6394618', icon: '⛔' },
-  PRINT_LABEL:               { label: 'Print Label(s)',         color: '#0f5132', bg: '#0f513218', icon: '🖨️' },
+  DELETE_LABEL:              { label: 'Delete Label',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  LABEL_CHANGE_REFUSED:      { label: 'Label Change Refused',   color: '#c42130', bg: '#E6394618', icon: '⛔' },
+  PRINT_LABEL:               { label: 'Print Label(s)',         color: '#17663a', bg: '#0f513218', icon: '🖨️' },
   STORE_LABEL_PRICE:         { label: 'Store Label Price',      color: PRIMARY, bg: '#1D355718', icon: '💲' },
-  STORE_LABEL_REMOVED:       { label: 'Label Removed From Store', color: '#E63946', bg: '#E6394618', icon: '➖' },
+  STORE_LABEL_REMOVED:       { label: 'Label Removed From Store', color: '#c42130', bg: '#E6394618', icon: '➖' },
   PUSH_LABEL_TO_ALL_STORES:  { label: 'Label Added To All Stores', color: PRIMARY, bg: '#1D355718', icon: '📤' },
   LABEL_SALE_ENDED:          { label: 'Sale Prices Ended',      color: '#457b9d', bg: '#457b9d18', icon: '⏱️' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  DEV_ADMIN:    { label: 'Dev Admin',     color: '#2DC653' },
-  SUPER_ADMIN:  { label: 'Super Admin',   color: '#F4A261' },
+  DEV_ADMIN:    { label: 'Dev Admin',     color: '#1f8a4c' },
+  SUPER_ADMIN:  { label: 'Super Admin',   color: '#b7791f' },
   STORE_MANAGER:{ label: 'Store Manager', color: '#4cc9f0' },
   EMPLOYEE:     { label: 'Employee',      color: TEXT_MUTED },
-  CUSTOMER:     { label: 'Customer',      color: '#dee2e6' },
+  CUSTOMER:     { label: 'Customer',      color: '#e4e7ec' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export default function ActivityLog() {
             const meta = ACTION_META[a.action] || { label: a.action, color: TEXT_MUTED, bg: '#6c757d18', icon: '•' };
             return (
               <div key={a.action} style={{ ...s.statChip, background: meta.bg }}>
-                <span style={{ color: meta.color, fontWeight: 800 }}>{a._count.action}</span>
+                <span style={{ color: meta.color, fontWeight: 700 }}>{a._count.action}</span>
                 <span style={{ color: meta.color, fontSize: 14 }}>{meta.icon} {meta.label}</span>
               </div>
             );
@@ -354,7 +354,7 @@ export default function ActivityLog() {
       ) : (
         <div style={s.logList}>
           {logs.map((log) => {
-            const meta = ACTION_META[log.action] || { label: log.action, color: TEXT_MUTED, bg: '#f8f9fa', icon: '•' };
+            const meta = ACTION_META[log.action] || { label: log.action, color: TEXT_MUTED, bg: '#f7f8fa', icon: '•' };
             const roleMeta = ROLE_META[log.actorRole] || { label: log.actorRole, color: TEXT_MUTED };
             const detail = fmtDetails(log.details);
             return (
@@ -404,7 +404,7 @@ export default function ActivityLog() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
+  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
   refreshBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
@@ -413,14 +413,14 @@ const s: Record<string, React.CSSProperties> = {
   statNote: { color: TEXT_MUTED, fontSize: 14, marginLeft: 'auto' },
 
   alertBox: {
-    background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 10,
-    padding: '12px 16px', marginBottom: 20, fontSize: 14, color: '#856404',
+    background: '#fdf6e8', border: '1px solid #ffc107', borderRadius: 10,
+    padding: '12px 16px', marginBottom: 20, fontSize: 14, color: '#8a5300',
   },
 
-  filters: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20, padding: '14px 16px', background: '#f8f9fa', borderRadius: 12 },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, background: '#fff', cursor: 'pointer' },
-  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15 },
-  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
+  filters: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20, padding: '14px 16px', background: '#f7f8fa', borderRadius: 12 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, background: '#fff', cursor: 'pointer' },
+  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15 },
+  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   totalLabel: { marginLeft: 'auto', color: TEXT_MUTED, fontSize: 15, fontWeight: 600 },
 
   logList: { display: 'flex', flexDirection: 'column', gap: 6 },
@@ -432,8 +432,8 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fff',
     borderRadius: 10,
     padding: '12px 16px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-    border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+    border: '1px solid #e4e7ec',
   },
 
   actionBadge: { display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '5px 10px', fontWeight: 700, fontSize: 14 },
@@ -444,7 +444,7 @@ const s: Record<string, React.CSSProperties> = {
   roleBadge: { fontSize: 13, fontWeight: 600 },
 
   detail: { display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' },
-  detailText: { fontSize: 15, color: '#495057', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  detailText: { fontSize: 15, color: '#374151', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   storeTag: { fontSize: 13, color: TEXT_MUTED },
 
   time: { fontSize: 14, color: TEXT_MUTED, textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },

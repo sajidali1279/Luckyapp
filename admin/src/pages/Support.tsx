@@ -41,17 +41,17 @@ interface Stats {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string; border: string }> = {
-  URGENT: { label: 'Urgent',  color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-  HIGH:   { label: 'High',    color: '#d97706', bg: '#fffbeb', border: '#fcd34d' },
-  NORMAL: { label: 'Normal',  color: '#2563eb', bg: '#eff6ff', border: '#93c5fd' },
-  LOW:    { label: 'Low',     color: TEXT_MUTED, bg: '#f9fafb', border: '#d1d5db' },
+  URGENT: { label: 'Urgent',  color: '#c42130', bg: '#fdf2f2', border: '#f3cdd1' },
+  HIGH:   { label: 'High',    color: '#8a5300', bg: '#fdf6e8', border: '#f1dcaf' },
+  NORMAL: { label: 'Normal',  color: '#1D3557', bg: '#eef2f7', border: '#d3dcea' },
+  LOW:    { label: 'Low',     color: TEXT_MUTED, bg: '#f7f8fa', border: '#d5dae1' },
 };
 
 const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: string }> = {
-  BILLING:         { label: 'Billing',         emoji: '💳', color: '#7c3aed' },
-  TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#0891b2' },
-  FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#059669' },
-  ACCESS:          { label: 'Access',          emoji: '🔑', color: '#dc2626' },
+  BILLING:         { label: 'Billing',         emoji: '💳', color: '#4f6d8f' },
+  TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#457B9D' },
+  FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#1f8a4c' },
+  ACCESS:          { label: 'Access',          emoji: '🔑', color: '#c42130' },
   OTHER:           { label: 'Other',           emoji: '💬', color: TEXT_MUTED },
 };
 
@@ -209,12 +209,12 @@ export default function Support() {
         {isDevAdmin && statsQ.data && (
           <div style={s.statsBanner}>
             {[
-              { val: statsQ.data.openCount,       label: 'Open Tickets',       color: '#2563eb' },
-              { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#dc2626' },
-              { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#059669' },
+              { val: statsQ.data.openCount,       label: 'Open Tickets',       color: '#1D3557' },
+              { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#c42130' },
+              { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#1f8a4c' },
               {
                 val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : ' - ',
-                label: 'Avg Response Time', color: '#7c3aed',
+                label: 'Avg Response Time', color: '#4f6d8f',
               },
             ].map((sc, i) => (
               <div key={i} style={s.statCard}>
@@ -303,10 +303,10 @@ export default function Support() {
                       <span style={{ ...s.chip, color: pConf.color, background: pConf.bg, borderColor: pConf.border }}>
                         {pConf.label}
                       </span>
-                      <span style={{ ...s.chip, color: cConf.color, background: '#f9fafb', borderColor: '#e5e7eb' }}>
+                      <span style={{ ...s.chip, color: cConf.color, background: '#f7f8fa', borderColor: '#e4e7ec' }}>
                         {cConf.emoji} {cConf.label}
                       </span>
-                      <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#059669' : '#5a6472', background: t.status === 'OPEN' ? '#f0fdf4' : '#f9fafb', borderColor: t.status === 'OPEN' ? '#a7f3d0' : '#e5e7eb' }}>
+                      <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#1f8a4c' : '#5a6472', background: t.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: t.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
                         {t.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
                       {isDevAdmin && <span style={{ fontSize: 12, color: TEXT_MUTED }}>{t.fromName}</span>}
@@ -342,8 +342,8 @@ export default function Support() {
                             width: 'auto',
                             fontSize: 12,
                             padding: '4px 10px',
-                            color: PRIORITY_CONFIG[detail.priority]?.color || '#111',
-                            borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e5e7eb',
+                            color: PRIORITY_CONFIG[detail.priority]?.color || '#111827',
+                            borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec',
                             background: PRIORITY_CONFIG[detail.priority]?.bg || '#fff',
                           }}
                         >
@@ -352,14 +352,14 @@ export default function Support() {
                           ))}
                         </select>
                       ) : (
-                        <span style={{ ...s.chip, color: PRIORITY_CONFIG[detail.priority]?.color || '#111', background: PRIORITY_CONFIG[detail.priority]?.bg || '#f9fafb', borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e5e7eb' }}>
+                        <span style={{ ...s.chip, color: PRIORITY_CONFIG[detail.priority]?.color || '#111827', background: PRIORITY_CONFIG[detail.priority]?.bg || '#f7f8fa', borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec' }}>
                           {PRIORITY_CONFIG[detail.priority]?.label || detail.priority}
                         </span>
                       )}
-                      <span style={{ ...s.chip, color: CATEGORY_CONFIG[detail.category]?.color || '#5a6472', background: '#f9fafb', borderColor: '#e5e7eb' }}>
+                      <span style={{ ...s.chip, color: CATEGORY_CONFIG[detail.category]?.color || '#5a6472', background: '#f7f8fa', borderColor: '#e4e7ec' }}>
                         {CATEGORY_CONFIG[detail.category]?.emoji} {CATEGORY_CONFIG[detail.category]?.label || detail.category}
                       </span>
-                      <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#059669' : '#5a6472', background: detail.status === 'OPEN' ? '#f0fdf4' : '#f9fafb', borderColor: detail.status === 'OPEN' ? '#a7f3d0' : '#e5e7eb' }}>
+                      <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#1f8a4c' : '#5a6472', background: detail.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: detail.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
                         {detail.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
                       <span style={{ fontSize: 12, color: TEXT_MUTED }}>opened {timeAgo(detail.createdAt)}</span>
@@ -368,7 +368,7 @@ export default function Support() {
                       <div style={s.detailActions}>
                         {detail.status === 'OPEN' ? (
                           <button
-                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#059669', borderColor: '#a7f3d0' }}
+                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#1f8a4c', borderColor: '#c8e6d2' }}
                             onClick={() => resolveThread.mutate('RESOLVED')}
                             disabled={resolveThread.isPending}
                           >
@@ -414,13 +414,13 @@ export default function Support() {
                             ⚡ Quick replies
                           </button>
                           {showCannedMenu && (
-                            <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.1)', zIndex: 10, minWidth: 340 }}>
+                            <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.1)', zIndex: 10, minWidth: 340 }}>
                               {CANNED_REPLIES.map((r, i) => (
                                 <div
                                   key={i}
                                   onClick={() => { setReplyBody(r); setShowCannedMenu(false); }}
-                                  style={{ padding: '10px 16px', fontSize: 13, cursor: 'pointer', borderBottom: i < CANNED_REPLIES.length - 1 ? '1px solid #f3f4f6' : 'none', color: '#374151' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                                  style={{ padding: '10px 16px', fontSize: 13, cursor: 'pointer', borderBottom: i < CANNED_REPLIES.length - 1 ? '1px solid #f1f3f6' : 'none', color: '#374151' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#f7f8fa')}
                                   onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
                                 >
                                   {r}
@@ -454,7 +454,7 @@ export default function Support() {
                     </div>
                   )}
                   {detail.status === 'RESOLVED' && !isDevAdmin && (
-                    <div style={{ padding: '16px 24px', borderTop: '1px solid #f3f4f6', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>
+                    <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f3f6', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>
                       This thread is resolved. Contact support to reopen.
                     </div>
                   )}
@@ -479,7 +479,7 @@ export default function Support() {
             <div style={s.modalTitle}>New Support Request</div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Subject <span style={{ color: '#dc2626' }}>*</span></label>
+              <label style={s.label}>Subject <span style={{ color: '#c42130' }}>*</span></label>
               <input
                 style={s.input}
                 placeholder="Brief summary of your issue"
@@ -491,7 +491,7 @@ export default function Support() {
 
             <div style={{ ...s.formGroup, ...s.row2 }}>
               <div>
-                <label style={s.label}>Category <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={s.label}>Category <span style={{ color: '#c42130' }}>*</span></label>
                 <select style={s.select} value={newCategory} onChange={e => setNewCategory(e.target.value as Category)}>
                   {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
                     <option key={c} value={c}>{CATEGORY_CONFIG[c].emoji} {CATEGORY_CONFIG[c].label}</option>
@@ -509,7 +509,7 @@ export default function Support() {
             </div>
 
             <div style={s.formGroup}>
-              <label style={s.label}>Message <span style={{ color: '#dc2626' }}>*</span></label>
+              <label style={s.label}>Message <span style={{ color: '#c42130' }}>*</span></label>
               <textarea
                 style={s.textarea}
                 placeholder="Describe your issue in detail…"
@@ -543,56 +543,56 @@ const s: Record<string, React.CSSProperties> = {
   page:         { minHeight: '100vh', background: '#f8f7f4', fontFamily: 'Inter, sans-serif' },
   inner:        { maxWidth: 1280, margin: '0 auto', padding: '32px 24px' },
   header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title:        { fontSize: 26, fontWeight: 700, color: '#1a1a1a' },
+  title:        { fontSize: 26, fontWeight: 700, color: '#111827' },
   subtitle:     { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
   btn:          { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  btnPrimary:   { background: 'linear-gradient(135deg,#e53e3e,#c53030)', color: '#fff' },
-  btnGhost:     { background: '#fff', color: '#374151', border: '1px solid #e5e7eb' },
+  btnPrimary:   { background: 'linear-gradient(135deg,#c42130,#c42130)', color: '#fff' },
+  btnGhost:     { background: '#fff', color: '#374151', border: '1px solid #e4e7ec' },
   btnSm:        { padding: '6px 12px', fontSize: 13, borderRadius: 6 },
   statsBanner:  { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 },
-  statCard:     { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e5e7eb' },
-  statVal:      { fontSize: 28, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 },
+  statCard:     { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e4e7ec' },
+  statVal:      { fontSize: 28, fontWeight: 700, color: '#111827', lineHeight: 1 },
   statLabel:    { fontSize: 13, color: TEXT_MUTED, marginTop: 6 },
-  filterBar:    { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' },
-  filterInput:  { flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none' },
-  filterSelect: { padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, background: '#fff', cursor: 'pointer', outline: 'none' },
+  filterBar:    { background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' },
+  filterInput:  { flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid #e4e7ec', borderRadius: 8, fontSize: 14, outline: 'none' },
+  filterSelect: { padding: '8px 12px', border: '1px solid #e4e7ec', borderRadius: 8, fontSize: 14, background: '#fff', cursor: 'pointer', outline: 'none' },
   layout:       { display: 'grid', gridTemplateColumns: '380px 1fr', gap: 20, alignItems: 'start' },
-  listPanel:    { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' },
-  listHeader:   { padding: '16px 20px', borderBottom: '1px solid #f3f4f6', fontWeight: 600, color: '#374151', fontSize: 15 },
+  listPanel:    { background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12, overflow: 'hidden' },
+  listHeader:   { padding: '16px 20px', borderBottom: '1px solid #f1f3f6', fontWeight: 600, color: '#374151', fontSize: 15 },
   listBody:     { maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' },
-  threadItem:   { padding: '14px 20px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', transition: 'background .15s' },
-  threadItemAct:{ background: '#fef2f2' },
-  threadSubj:   { fontWeight: 600, fontSize: 14, color: '#111', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  threadItem:   { padding: '14px 20px', borderBottom: '1px solid #f1f3f6', cursor: 'pointer', transition: 'background .15s' },
+  threadItemAct:{ background: '#fdf2f2' },
+  threadSubj:   { fontWeight: 600, fontSize: 14, color: '#111827', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   threadMeta:   { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' },
   chip:         { fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 99, border: '1px solid' },
   threadTime:   { fontSize: 12, color: TEXT_MUTED },
-  badge:        { background: '#e53e3e', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 99 },
-  detailPanel:  { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 220px)' },
-  detailHeader: { padding: '20px 24px', borderBottom: '1px solid #f3f4f6' },
-  detailSubj:   { fontSize: 18, fontWeight: 700, color: '#111', marginBottom: 10 },
+  badge:        { background: '#c42130', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 99 },
+  detailPanel:  { background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 220px)' },
+  detailHeader: { padding: '20px 24px', borderBottom: '1px solid #f1f3f6' },
+  detailSubj:   { fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 10 },
   detailMeta:   { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   detailActions:{ display: 'flex', gap: 8, marginTop: 12 },
   messages:     { flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 },
   msgRow:       { display: 'flex', gap: 12 },
   msgBubble:    { flex: 1, maxWidth: '80%', padding: '12px 16px', borderRadius: 12, fontSize: 14 },
-  msgFrom:      { background: '#f3f4f6', color: '#111', borderTopLeftRadius: 4 },
-  msgMe:        { background: 'linear-gradient(135deg,#e53e3e,#c53030)', color: '#fff', borderTopRightRadius: 4, marginLeft: 'auto' },
+  msgFrom:      { background: '#f1f3f6', color: '#111827', borderTopLeftRadius: 4 },
+  msgMe:        { background: 'linear-gradient(135deg,#c42130,#c42130)', color: '#fff', borderTopRightRadius: 4, marginLeft: 'auto' },
   msgName:      { fontSize: 12, fontWeight: 600, marginBottom: 4 },
   msgTime:      { fontSize: 11, opacity: .7, marginTop: 4 },
-  replyBar:     { padding: '16px 24px', borderTop: '1px solid #f3f4f6' },
+  replyBar:     { padding: '16px 24px', borderTop: '1px solid #f1f3f6' },
   replyForm:    { display: 'flex', gap: 10, alignItems: 'flex-end' },
-  replyInput:   { flex: 1, padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 14, resize: 'vertical', minHeight: 60, maxHeight: 140, outline: 'none', fontFamily: 'inherit' },
+  replyInput:   { flex: 1, padding: '10px 14px', border: '1px solid #e4e7ec', borderRadius: 10, fontSize: 14, resize: 'vertical', minHeight: 60, maxHeight: 140, outline: 'none', fontFamily: 'inherit' },
   charCount:    { fontSize: 11, color: TEXT_MUTED, textAlign: 'right' },
   empty:        { textAlign: 'center', padding: '60px 20px', color: TEXT_MUTED },
   emptyIco:     { fontSize: 40, marginBottom: 12 },
   overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#fff', borderRadius: 16, padding: '28px 32px', width: 540, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' },
-  modalTitle:   { fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 20 },
+  modal:        { background: '#fff', borderRadius: 12, padding: '28px 32px', width: 540, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' },
+  modalTitle:   { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 20 },
   formGroup:    { marginBottom: 16 },
   label:        { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
-  input:        { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  select:       { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, background: '#fff', outline: 'none', boxSizing: 'border-box' },
-  textarea:     { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, resize: 'vertical', minHeight: 100, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
+  input:        { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+  select:       { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, background: '#fff', outline: 'none', boxSizing: 'border-box' },
+  textarea:     { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, resize: 'vertical', minHeight: 100, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
   row2:         { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   modalFooter:  { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 },
 };

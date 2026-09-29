@@ -31,20 +31,20 @@ interface Notification {
 
 // Severity color palette
 const SEV: Record<string, { border: string; readBg: string; unreadBg: string; text: string; btnBorder: string }> = {
-  success: { border: '#10b981', readBg: '#fff',    unreadBg: '#f0fdf4', text: '#065f46', btnBorder: '#10b981' },
-  warning: { border: '#f59e0b', readBg: '#fff',    unreadBg: '#fffbeb', text: '#92400e', btnBorder: '#f59e0b' },
-  error:   { border: '#ef4444', readBg: '#fff',    unreadBg: '#fef2f2', text: '#7f1d1d', btnBorder: '#ef4444' },
-  info:    { border: '#3b82f6', readBg: '#fff',    unreadBg: '#eff6ff', text: '#1e3a8a', btnBorder: '#3b82f6' },
+  success: { border: '#1f8a4c', readBg: '#fff',    unreadBg: '#edf7f0', text: '#17663a', btnBorder: '#1f8a4c' },
+  warning: { border: '#b7791f', readBg: '#fff',    unreadBg: '#fdf6e8', text: '#8a5300', btnBorder: '#b7791f' },
+  error:   { border: '#c42130', readBg: '#fff',    unreadBg: '#fdf2f2', text: '#a51b28', btnBorder: '#c42130' },
+  info:    { border: '#457B9D', readBg: '#fff',    unreadBg: '#eef2f7', text: '#1D3557', btnBorder: '#457B9D' },
 };
 
 // Category chip styles
 const CAT: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  billing:      { label: 'Billing',      icon: '💳', color: '#1e3a8a', bg: '#dbeafe' },
-  transactions: { label: 'Transactions', icon: '🧾', color: '#7c2d12', bg: '#ffedd5' },
-  scheduling:   { label: 'Scheduling',   icon: '📅', color: '#065f46', bg: '#d1fae5' },
-  customers:    { label: 'Customers',    icon: '🏪', color: '#4c1d95', bg: '#ede9fe' },
-  disputes:     { label: 'Disputes',     icon: '⚠️', color: '#92400e', bg: '#fffbeb' },
-  requests:     { label: 'Requests',     icon: '📋', color: '#166534', bg: '#f0fdf4' },
+  billing:      { label: 'Billing',      icon: '💳', color: '#1D3557', bg: '#eef2f7' },
+  transactions: { label: 'Transactions', icon: '🧾', color: '#7c2d12', bg: '#fdf6e8' },
+  scheduling:   { label: 'Scheduling',   icon: '📅', color: '#17663a', bg: '#edf7f0' },
+  customers:    { label: 'Customers',    icon: '🏪', color: '#4c1d95', bg: '#eef2f7' },
+  disputes:     { label: 'Disputes',     icon: '⚠️', color: '#8a5300', bg: '#fdf6e8' },
+  requests:     { label: 'Requests',     icon: '📋', color: '#17663a', bg: '#edf7f0' },
 };
 
 // Schedule sub-type icon override
@@ -287,10 +287,10 @@ export default function Notifications() {
                 style={{
                   ...s.filterPill,
                   ...(severityFilter === sv ? s.filterPillActive : {}),
-                  ...(sv === 'error'   ? { borderColor: '#ef4444', ...(severityFilter === sv ? { background: '#b91c1c', color: '#fff' } : { color: '#b91c1c' }) } : {}),
-                  ...(sv === 'warning' ? { borderColor: '#f59e0b', ...(severityFilter === sv ? { background: '#f59e0b', color: '#fff' } : { color: '#b45309' }) } : {}),
-                  ...(sv === 'info'    ? { borderColor: '#3b82f6', ...(severityFilter === sv ? { background: '#3b82f6', color: '#fff' } : { color: '#1d4ed8' }) } : {}),
-                  ...(sv === 'success' ? { borderColor: '#10b981', ...(severityFilter === sv ? { background: '#10b981', color: '#fff' } : { color: '#065f46' }) } : {}),
+                  ...(sv === 'error'   ? { borderColor: '#c42130', ...(severityFilter === sv ? { background: '#a51b28', color: '#fff' } : { color: '#a51b28' }) } : {}),
+                  ...(sv === 'warning' ? { borderColor: '#b7791f', ...(severityFilter === sv ? { background: '#b7791f', color: '#fff' } : { color: '#8a5300' }) } : {}),
+                  ...(sv === 'info'    ? { borderColor: '#457B9D', ...(severityFilter === sv ? { background: '#457B9D', color: '#fff' } : { color: '#1D3557' }) } : {}),
+                  ...(sv === 'success' ? { borderColor: '#1f8a4c', ...(severityFilter === sv ? { background: '#1f8a4c', color: '#fff' } : { color: '#17663a' }) } : {}),
                 }}
                 onClick={() => setSeverityFilter(sv)}
               >
@@ -431,28 +431,28 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 24,
   },
   title: {
-    margin: 0, fontSize: 26, fontWeight: 800, color: '#111827',
+    margin: 0, fontSize: 26, fontWeight: 700, color: '#111827',
     display: 'flex', alignItems: 'center', gap: 10,
   },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
   badge: {
-    background: '#b91c1c', color: '#fff',
+    background: '#a51b28', color: '#fff',
     borderRadius: 12, padding: '2px 9px', fontSize: 14, fontWeight: 700,
   },
   headerActions: { display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 },
   markAllBtn: {
-    background: 'none', border: '1.5px solid #d1d5db', color: TEXT_MUTED,
+    background: 'none', border: '1.5px solid #d5dae1', color: TEXT_MUTED,
     borderRadius: 8, padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
   },
   refreshBtn: {
-    background: 'none', border: '1.5px solid #d1d5db', color: '#374151',
+    background: 'none', border: '1.5px solid #d5dae1', color: '#374151',
     borderRadius: 8, padding: '7px 12px', fontSize: 17, fontWeight: 700, cursor: 'pointer',
     lineHeight: 1,
   },
 
   tabRow: {
     display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'flex-end',
-    marginBottom: 24, borderBottom: '2px solid #e5e7eb', paddingBottom: 0,
+    marginBottom: 24, borderBottom: '2px solid #e4e7ec', paddingBottom: 0,
   },
   tab: {
     background: 'none', border: 'none', padding: '9px 16px',
@@ -460,18 +460,18 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: 6,
     borderBottom: '2px solid transparent', marginBottom: -2, transition: 'color 0.15s',
   },
-  tabActive: { color: PRIMARY, borderBottom: '2px solid #1D3557', background: '#f8faff' },
+  tabActive: { color: PRIMARY, borderBottom: '2px solid #1D3557', background: '#eef2f7' },
   tabBadge: {
-    background: '#e5e7eb', color: TEXT_MUTED,
+    background: '#e4e7ec', color: TEXT_MUTED,
     borderRadius: 10, padding: '1px 7px', fontSize: 12, fontWeight: 700,
   },
-  tabBadgeActive: { background: '#b91c1c', color: '#fff' },
+  tabBadgeActive: { background: '#a51b28', color: '#fff' },
 
   list: { display: 'flex', flexDirection: 'column', gap: 12 },
 
   card: {
-    borderRadius: 14, padding: '18px 20px',
-    boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+    borderRadius: 12, padding: '18px 20px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', gap: 10,
     transition: 'box-shadow 0.15s',
   },
@@ -487,7 +487,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   unreadDot: {
     display: 'inline-block', width: 8, height: 8,
-    borderRadius: '50%', background: '#3b82f6', flexShrink: 0,
+    borderRadius: '50%', background: '#457B9D', flexShrink: 0,
   },
   categoryChip: {
     display: 'inline-block',
@@ -497,7 +497,7 @@ const s: Record<string, React.CSSProperties> = {
   timeStamp: { fontSize: 13, color: TEXT_MUTED, flexShrink: 0, paddingTop: 2 },
 
   message: { fontSize: 14, lineHeight: 1.65, paddingLeft: 36 },
-  paidStamp: { fontSize: 13, fontWeight: 600, color: '#065f46', paddingLeft: 36 },
+  paidStamp: { fontSize: 13, fontWeight: 600, color: '#17663a', paddingLeft: 36 },
 
   actionRow: { display: 'flex', gap: 10, paddingLeft: 36, flexWrap: 'wrap' },
   actionBtn: {
@@ -506,7 +506,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   pdfBtn: {
-    background: '#fff', border: '1.5px solid #10b981', color: '#065f46',
+    background: '#fff', border: '1.5px solid #1f8a4c', color: '#17663a',
     borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
@@ -515,12 +515,12 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     flexWrap: 'wrap', gap: 12,
     padding: '12px 16px', marginBottom: 16,
-    background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb',
+    background: '#f7f8fa', borderRadius: 12, border: '1px solid #e4e7ec',
   },
   filterGroup: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   filterLabel: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 2 },
   filterPill: {
-    background: '#fff', border: '1.5px solid #d1d5db', color: '#374151',
+    background: '#fff', border: '1.5px solid #d5dae1', color: '#374151',
     borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600,
     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
   },
@@ -530,7 +530,7 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, padding: '1px 6px', fontSize: 12,
   },
   clearBtn: {
-    background: 'none', border: '1.5px solid #fca5a5', color: '#dc2626',
+    background: 'none', border: '1.5px solid #f3cdd1', color: '#c42130',
     borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
   },
   resultCount: { fontSize: 13, color: TEXT_MUTED, marginBottom: 12, paddingLeft: 4 },
@@ -540,5 +540,5 @@ const s: Record<string, React.CSSProperties> = {
   emptyIcon: { fontSize: 52, marginBottom: 14 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
   emptyText: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6 },
-  emptyLink: { background: 'none', border: 'none', color: '#3b82f6', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
+  emptyLink: { background: 'none', border: 'none', color: '#457B9D', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
 };

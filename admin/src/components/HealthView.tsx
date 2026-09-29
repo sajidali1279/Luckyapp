@@ -76,7 +76,7 @@ export default function HealthView() {
             </TableHeader>
             <TableBody>
               {byStore.map((store, i) => (
-                <TableRow key={store.storeId} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                <TableRow key={store.storeId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                   <TableCell style={s.td}>
                     <span style={s.storeName}>{store.storeName}</span>
                   </TableCell>
@@ -106,28 +106,28 @@ const s: Record<string, CSSProperties> = {
 
   summaryBox: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px',
-    borderRadius: 14, border: '1px solid',
+    borderRadius: 12, border: '1px solid',
   },
-  summaryGood: { background: '#f0fdf4', borderColor: '#bbf7d0' },
-  summaryWarn: { background: '#fffbeb', borderColor: '#fde68a' },
+  summaryGood: { background: '#edf7f0', borderColor: '#c8e6d2' },
+  summaryWarn: { background: '#fdf6e8', borderColor: '#f1dcaf' },
   summaryIcon: { fontSize: 22 },
   summaryText: { fontSize: 15, color: PRIMARY },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, overflowX: 'auto',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
   storeName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   countBadge: {
-    display: 'inline-block', fontSize: 13, fontWeight: 700, color: '#92620a',
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 10px',
+    display: 'inline-block', fontSize: 13, fontWeight: 700, color: '#8a5300',
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 8, padding: '3px 10px',
   },
   goBtn: {
     background: PRIMARY, color: '#fff', border: 'none',

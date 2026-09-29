@@ -26,34 +26,34 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const TYPE_BG: Record<string, string> = {
-  LOW_STOCK: '#eff6ff',
-  STORE_SUPPLIES: '#fefce8',
-  CUSTOMER_REQUESTED_PRODUCT: '#f0fdf4',
-  WORK_ORDER: '#fdf4ff',
+  LOW_STOCK: '#eef2f7',
+  STORE_SUPPLIES: '#fdf6e8',
+  CUSTOMER_REQUESTED_PRODUCT: '#edf7f0',
+  WORK_ORDER: '#eef2f7',
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
-  HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
+  HIGH: '#c42130', MEDIUM: '#b7791f', LOW: '#1f8a4c',
 };
 
 const PRIORITY_BG: Record<string, string> = {
-  HIGH: '#fff1f2', MEDIUM: '#fffbeb', LOW: '#f0fdf4',
+  HIGH: '#fdf2f2', MEDIUM: '#fdf6e8', LOW: '#edf7f0',
 };
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D'];
 
 // Sentinel used for the sidebar's "All Stores" entry — never collides with a real store id (cuid).
 const ALL_STORES_ID = '__ALL_STORES__';
 
 const STORE_GRADIENTS = [
   [PRIMARY, '#457B9D'],
-  ['#0369a1', '#0ea5e9'],
-  ['#166534', '#2DC653'],
-  ['#7c3aed', '#a78bfa'],
-  ['#b45309', '#f59e0b'],
-  ['#be123c', '#f43f5e'],
-  ['#0f766e', '#14b8a6'],
-  ['#1e40af', '#3b82f6'],
+  ['#1D3557', '#457B9D'],
+  ['#17663a', '#1f8a4c'],
+  ['#4f6d8f', '#4f6d8f'],
+  ['#8a5300', '#b7791f'],
+  ['#c42130', '#c42130'],
+  ['#457B9D', '#457B9D'],
+  ['#1D3557', '#457B9D'],
 ];
 
 interface StoreRequest {
@@ -86,10 +86,10 @@ interface ProductRequest {
   customer: { id: string; name: string | null; phone: string };
 }
 
-const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#b45309', ACCEPTED: '#065f46', DECLINED: '#9f1239' };
-const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fffbeb', ACCEPTED: '#f0fdf4', DECLINED: '#fff1f2' };
-const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#fde68a', ACCEPTED: '#86efac', DECLINED: '#fecaca' };
-const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#f59e0b', ACCEPTED: '#22c55e', DECLINED: '#ef4444' };
+const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#8a5300', ACCEPTED: '#17663a', DECLINED: '#a51b28' };
+const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fdf6e8', ACCEPTED: '#edf7f0', DECLINED: '#fdf2f2' };
+const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#f1dcaf', ACCEPTED: '#c8e6d2', DECLINED: '#f3cdd1' };
+const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#b7791f', ACCEPTED: '#22c55e', DECLINED: '#c42130' };
 
 interface StockLine {
   id: string;
@@ -351,7 +351,7 @@ export default function StoreRequests() {
 
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
   const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
-  const gradient = isAllStores ? ['#374151', '#6b7280'] : (STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0]);
+  const gradient = isAllStores ? ['#374151', '#5a6472'] : (STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0]);
   const headerName = isAllStores ? 'All Stores' : (selectedStore?.name ?? 'Store');
 
   return (
@@ -381,11 +381,11 @@ export default function StoreRequests() {
                 style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
                 onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
               >
-                <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #6b7280)', fontSize: 18 }}>
+                <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #5a6472)', fontSize: 18 }}>
                   🏬
                 </div>
                 <div style={s.storeBtnInfo}>
-                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#212529' }}>All Stores</div>
+                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#111827' }}>All Stores</div>
                   <div style={s.storeBtnCity}>Every location</div>
                 </div>
                 {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
@@ -405,7 +405,7 @@ export default function StoreRequests() {
                     {getInitial(store.name)}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#212529' }}>{store.name}</div>
+                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#111827' }}>{store.name}</div>
                     {store.city && <div style={s.storeBtnCity}>{store.city}</div>}
                   </div>
                   {pendingReqs > 0 && <span style={s.pendingReqBadge}>{pendingReqs}</span>}
@@ -513,14 +513,14 @@ export default function StoreRequests() {
                 ) : (
                   <div style={s.list}>
                     {displayed.map((req, i) => {
-                      const pColor = PRIORITY_COLOR[req.priority] || '#adb5bd';
-                      const pBg = PRIORITY_BG[req.priority] || '#f3f4f6';
-                      const typeBg = TYPE_BG[req.type] || '#f3f4f6';
+                      const pColor = PRIORITY_COLOR[req.priority] || '#5a6472';
+                      const pBg = PRIORITY_BG[req.priority] || '#f1f3f6';
+                      const typeBg = TYPE_BG[req.type] || '#f1f3f6';
                       const isDone = req.status === 'ACKNOWLEDGED';
                       const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                       return (
                         <div key={req.id} className={req.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
-                          <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : pColor }} />
+                          <div style={{ ...s.priorityStripe, background: isDone ? '#c8e6d2' : pColor }} />
                           <div style={s.cardBody}>
                             <div style={s.cardTop}>
                               <div style={{ ...s.typeIconWrap, background: typeBg }}>
@@ -607,10 +607,10 @@ export default function StoreRequests() {
                       const rejectedCount = req.lines.filter(l => l.status === 'REJECTED').length;
                       return (
                         <div key={req.id} className={req.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
-                          <div style={{ ...s.priorityStripe, background: isDone ? '#bbf7d0' : '#f59e0b' }} />
+                          <div style={{ ...s.priorityStripe, background: isDone ? '#c8e6d2' : '#b7791f' }} />
                           <div style={s.cardBody}>
                             <div style={s.cardTop}>
-                              <div style={{ ...s.typeIconWrap, background: '#eff6ff' }}>
+                              <div style={{ ...s.typeIconWrap, background: '#eef2f7' }}>
                                 <Package size={22} color={PRIMARY} strokeWidth={1.75} />
                               </div>
                               <div style={{ flex: 1, minWidth: 130 }}>
@@ -624,8 +624,8 @@ export default function StoreRequests() {
                                 {isDone ? (
                                   <span style={s.doneBadge}>✓ Reviewed</span>
                                 ) : (
-                                  <span style={{ ...s.prioBadge, background: '#fffbeb', color: '#b45309', borderColor: '#fde68a55' }}>
-                                    <span style={{ ...s.prioBadgeDot, background: '#f59e0b' }} />Pending
+                                  <span style={{ ...s.prioBadge, background: '#fdf6e8', color: '#8a5300', borderColor: '#fde68a55' }}>
+                                    <span style={{ ...s.prioBadgeDot, background: '#b7791f' }} />Pending
                                   </span>
                                 )}
                               </div>
@@ -695,9 +695,9 @@ export default function StoreRequests() {
                   <div style={s.list}>
                     {prDisplayed.map((pr, i) => {
                       const statusColor  = PR_STATUS_COLOR[pr.status] || '#5a6472';
-                      const statusBg     = PR_STATUS_BG[pr.status]    || '#f3f4f6';
-                      const statusBorder = PR_STATUS_BORDER[pr.status] || '#e5e7eb';
-                      const statusDot    = PR_STATUS_DOT[pr.status]    || '#aaa';
+                      const statusBg     = PR_STATUS_BG[pr.status]    || '#f1f3f6';
+                      const statusBorder = PR_STATUS_BORDER[pr.status] || '#e4e7ec';
+                      const statusDot    = PR_STATUS_DOT[pr.status]    || '#5a6472';
                       const avatarColor  = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                       const days         = daysLeft(pr.expiresAt);
                       const isPending    = pr.status === 'PENDING';
@@ -787,8 +787,8 @@ export default function StoreRequests() {
               <div style={s.modalTitle}>Decline Request</div>
               <button style={s.modalClose} onClick={() => setRespondTarget(null)}>✕</button>
             </div>
-            <div style={{ ...s.previewCard, background: '#fff1f2', borderColor: '#fecaca' }}>
-              <div style={{ ...s.previewIconWrap, background: '#fee2e2' }}>
+            <div style={{ ...s.previewCard, background: '#fdf2f2', borderColor: '#f3cdd1' }}>
+              <div style={{ ...s.previewIconWrap, background: '#fdf2f2' }}>
                 <span style={s.previewIconEmoji}>🛍️</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -832,7 +832,7 @@ export default function StoreRequests() {
 
             {/* Request preview */}
             <div style={s.previewCard}>
-              <div style={{ ...s.previewIconWrap, background: TYPE_BG[ackTarget.type] || '#f3f4f6' }}>
+              <div style={{ ...s.previewIconWrap, background: TYPE_BG[ackTarget.type] || '#f1f3f6' }}>
                 <span style={s.previewIconEmoji}>{TYPE_ICONS[ackTarget.type]}</span>
               </div>
               <div style={{ flex: 1 }}>
@@ -844,12 +844,12 @@ export default function StoreRequests() {
               </div>
               <span style={{
                 ...s.prioBadge,
-                background: PRIORITY_BG[ackTarget.priority] || '#f3f4f6',
-                color: PRIORITY_COLOR[ackTarget.priority] || '#aaa',
-                borderColor: (PRIORITY_COLOR[ackTarget.priority] || '#aaa') + '55',
+                background: PRIORITY_BG[ackTarget.priority] || '#f1f3f6',
+                color: PRIORITY_COLOR[ackTarget.priority] || '#5a6472',
+                borderColor: (PRIORITY_COLOR[ackTarget.priority] || '#5a6472') + '55',
                 alignSelf: 'flex-start',
               }}>
-                <span style={{ ...s.prioBadgeDot, background: PRIORITY_COLOR[ackTarget.priority] || '#aaa' }} />
+                <span style={{ ...s.prioBadgeDot, background: PRIORITY_COLOR[ackTarget.priority] || '#5a6472' }} />
                 {ackTarget.priority}
               </span>
             </div>
@@ -889,7 +889,7 @@ export default function StoreRequests() {
 
             {/* Request preview */}
             <div style={s.previewCard}>
-              <div style={{ ...s.previewIconWrap, background: '#eff6ff' }}>
+              <div style={{ ...s.previewIconWrap, background: '#eef2f7' }}>
                 <Package size={20} color={PRIMARY} strokeWidth={1.75} />
               </div>
               <div style={{ flex: 1 }}>
@@ -930,9 +930,9 @@ export default function StoreRequests() {
                       <span style={{
                         ...s.prStatusBadge,
                         marginTop: 8,
-                        background: line.status === 'ACCEPTED' ? '#f0fdf4' : '#fff1f2',
-                        color: line.status === 'ACCEPTED' ? '#065f46' : '#9f1239',
-                        borderColor: line.status === 'ACCEPTED' ? '#86efac' : '#fecaca',
+                        background: line.status === 'ACCEPTED' ? '#edf7f0' : '#fdf2f2',
+                        color: line.status === 'ACCEPTED' ? '#17663a' : '#a51b28',
+                        borderColor: line.status === 'ACCEPTED' ? '#c8e6d2' : '#f3cdd1',
                       }}>
                         {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? ` - ${line.rejectionReason}` : ''}`}
                       </span>
@@ -999,15 +999,15 @@ export default function StoreRequests() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f0f2f5', overflow: 'hidden' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f1f3f6', overflow: 'hidden' },
 
   // ── Sidebar (Chat style) ──
   sidebar: {
-    width: 272, background: '#fff', borderRight: '1px solid #e5e7eb',
+    width: 272, background: '#fff', borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column', flexShrink: 0,
   },
   sidebarTop: { padding: '20px 18px 8px' },
-  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
   sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
@@ -1016,17 +1016,17 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, textAlign: 'left', position: 'relative',
     transition: 'background 0.15s',
   },
-  storeBtnActive: { background: '#eff6ff' },
+  storeBtnActive: { background: '#eef2f7' },
   storeAvatar: {
     width: 40, height: 40, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 16, fontWeight: 800,
+    color: '#fff', fontSize: 16, fontWeight: 700,
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
-  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
-  pendingReqBadge: { background: '#b45309', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1f8a4c', flexShrink: 0 },
+  pendingReqBadge: { background: '#8a5300', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
   // ── Chat Panel ──
   chatPanel: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -1037,16 +1037,16 @@ const s: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap' as const,
   },
   chatHeaderAvatar: {
-    width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
     background: 'rgba(255,255,255,0.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 18, fontWeight: 800, color: '#fff',
+    fontSize: 18, fontWeight: 700, color: '#fff',
     border: '2px solid rgba(255,255,255,0.35)',
   },
   chatHeaderInfo: { flex: 1, minWidth: 0 },
-  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 800, letterSpacing: -0.2 },
+  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' as const },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#4ade80', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
 
   emptyState: {
     flex: 1, display: 'flex', flexDirection: 'column',
@@ -1075,25 +1075,25 @@ const s: Record<string, React.CSSProperties> = {
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px',
-    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+    background: '#c42130', color: '#fff', fontSize: 12, fontWeight: 700,
   },
 
   // Sub-filter row (below header, on white bg)
   subFilterRow: {
     display: 'flex', gap: 6, padding: '10px 18px', flexWrap: 'wrap' as const,
-    borderBottom: '1px solid #f0f1f2', background: '#fff',
+    borderBottom: '1px solid #e4e7ec', background: '#fff',
   },
   subFilterTab: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '5px 12px', borderRadius: 20,
-    border: '1.5px solid #e5e7eb', background: '#f9fafb',
+    border: '1.5px solid #e4e7ec', background: '#f7f8fa',
     cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED,
   },
   subFilterTabActive: { background: PRIMARY, borderColor: PRIMARY, color: '#fff' },
   subFilterCount: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
-    background: '#e5e7eb', color: TEXT_MUTED, fontSize: 12, fontWeight: 800,
+    background: '#e4e7ec', color: TEXT_MUTED, fontSize: 12, fontWeight: 700,
   },
   subFilterCountActive: { background: 'rgba(255,255,255,0.2)', color: '#fff' },
 
@@ -1110,17 +1110,17 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9,
     background: 'rgba(255,255,255,0.2)', color: '#fff',
-    fontSize: 12, fontWeight: 800, padding: '0 4px',
+    fontSize: 12, fontWeight: 700, padding: '0 4px',
   },
   filterCountActive: { background: 'rgba(255,255,255,0.3)', color: '#fff' },
 
-  list: { flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc' },
+  list: { flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, background: '#f7f8fa' },
 
   // Cards
   card: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
     display: 'flex', overflow: 'hidden', flexShrink: 0,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     transition: 'box-shadow 0.15s',
   },
   cardDone: { opacity: 0.72 },
@@ -1140,45 +1140,45 @@ const s: Record<string, React.CSSProperties> = {
   prioBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '4px 10px', borderRadius: 10,
-    fontSize: 13, fontWeight: 800, border: '1px solid',
+    fontSize: 13, fontWeight: 700, border: '1px solid',
   },
   prioBadgeDot: { width: 7, height: 7, borderRadius: 4, display: 'inline-block' },
   doneBadge: {
     padding: '4px 10px', borderRadius: 10,
-    background: '#d1fae5', color: '#065f46',
+    background: '#edf7f0', color: '#17663a',
     fontSize: 13, fontWeight: 700,
-    border: '1px solid #a7f3d0',
+    border: '1px solid #c8e6d2',
   },
 
   submitterRow: { display: 'flex', alignItems: 'center', gap: 8 },
   avatar: {
     width: 26, height: 26, borderRadius: 8,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0,
+    color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0,
   },
   submitterText: { fontSize: 14, color: TEXT_MUTED },
 
   notesBox: {
     fontSize: 15, color: '#374151', fontStyle: 'italic',
-    background: '#f8fafc', padding: '9px 12px',
-    borderRadius: 10, border: '1px solid #e5e7eb', lineHeight: 1.5,
+    background: '#f7f8fa', padding: '9px 12px',
+    borderRadius: 10, border: '1px solid #e4e7ec', lineHeight: 1.5,
   },
 
   ackBox: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
-    background: '#f0fdf4', padding: '10px 12px',
-    borderRadius: 10, border: '1px solid #bbf7d0',
+    background: '#edf7f0', padding: '10px 12px',
+    borderRadius: 10, border: '1px solid #c8e6d2',
   },
   ackIcon: { fontSize: 16, marginTop: 1, flexShrink: 0 },
-  ackBy: { fontSize: 14, fontWeight: 700, color: '#16a34a' },
+  ackBy: { fontSize: 14, fontWeight: 700, color: '#1f8a4c' },
   ackTime: { fontWeight: 500 },
-  ackNote: { fontSize: 14, color: '#16a34a', fontStyle: 'italic', marginTop: 3 },
+  ackNote: { fontSize: 14, color: '#1f8a4c', fontStyle: 'italic', marginTop: 3 },
 
   ackBtn: {
     alignSelf: 'stretch',
-    padding: '10px 20px', background: '#0f5132',
+    padding: '10px 20px', background: '#17663a',
     color: '#fff', border: 'none', borderRadius: 10,
-    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    cursor: 'pointer', fontSize: 14, fontWeight: 700,
     boxShadow: '0 3px 10px rgba(15,81,50,0.3)',
     transition: 'opacity 0.15s',
   },
@@ -1186,12 +1186,12 @@ const s: Record<string, React.CSSProperties> = {
   pendingPill: {
     display: 'inline-flex', alignItems: 'center', gap: 7,
     alignSelf: 'flex-start',
-    background: '#fffbeb', padding: '6px 12px',
-    borderRadius: 10, border: '1px solid #fde68a',
-    fontSize: 14, fontWeight: 700, color: '#b45309',
+    background: '#fdf6e8', padding: '6px 12px',
+    borderRadius: 10, border: '1px solid #f1dcaf',
+    fontSize: 14, fontWeight: 700, color: '#8a5300',
   },
   pendingDot: {
-    width: 7, height: 7, borderRadius: 4, background: '#f59e0b',
+    width: 7, height: 7, borderRadius: 4, background: '#b7791f',
     display: 'inline-block',
   },
 
@@ -1208,18 +1208,18 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', flexDirection: 'column', gap: 18,
   },
   modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  modalTitle: { fontWeight: 800, fontSize: 20, color: '#111827' },
+  modalTitle: { fontWeight: 700, fontSize: 20, color: '#111827' },
   modalClose: {
-    width: 32, height: 32, borderRadius: 16,
-    border: 'none', background: '#f3f4f6',
+    width: 32, height: 32, borderRadius: 12,
+    border: 'none', background: '#f1f3f6',
     cursor: 'pointer', fontSize: 14, color: TEXT_MUTED, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
 
   previewCard: {
     display: 'flex', alignItems: 'flex-start', gap: 12,
-    background: '#f8fafc', borderRadius: 14, padding: '14px 16px',
-    border: '1px solid #e5e7eb',
+    background: '#f7f8fa', borderRadius: 12, padding: '14px 16px',
+    border: '1px solid #e4e7ec',
   },
   previewIconWrap: {
     width: 44, height: 44, borderRadius: 12,
@@ -1231,60 +1231,60 @@ const s: Record<string, React.CSSProperties> = {
   previewNotes: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginTop: 5 },
 
   modalLabel: {
-    fontSize: 13, fontWeight: 800, color: TEXT_MUTED,
+    fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: '0.8px',
   },
   optionalTag: { fontSize: 12, fontWeight: 500, textTransform: 'none', color: TEXT_MUTED },
   noteInput: {
     width: '100%', padding: '12px 14px',
-    borderRadius: 12, border: '1.5px solid #e5e7eb',
+    borderRadius: 12, border: '1.5px solid #e4e7ec',
     fontSize: 14, resize: 'vertical',
     boxSizing: 'border-box' as const,
-    background: '#f9fafb', color: '#111827',
+    background: '#f7f8fa', color: '#111827',
     fontFamily: 'inherit',
   },
 
   modalActions: { display: 'flex', gap: 10 },
   cancelBtn: {
     flex: 1, padding: '12px 16px',
-    borderRadius: 12, border: '1.5px solid #e5e7eb',
+    borderRadius: 12, border: '1.5px solid #e4e7ec',
     background: '#fff', cursor: 'pointer',
     fontSize: 14, fontWeight: 700, color: '#374151',
   },
   confirmBtn: {
     flex: 2, padding: '12px 16px',
     borderRadius: 12, border: 'none',
-    background: '#0f5132', color: '#fff',
-    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    background: '#17663a', color: '#fff',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700,
     boxShadow: '0 4px 14px rgba(15,81,50,0.35)',
   },
   prDeclineMdBtn: {
     flex: 2, padding: '12px 16px',
     borderRadius: 12, border: 'none',
-    background: '#dc2626', color: '#fff',
-    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    background: '#c42130', color: '#fff',
+    cursor: 'pointer', fontSize: 14, fontWeight: 700,
     boxShadow: '0 4px 14px rgba(220,38,38,0.35)',
   },
 
   // Product Request cards
   prCard: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
     display: 'flex', overflow: 'hidden', flexShrink: 0,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   prStripe: { width: 5, flexShrink: 0 },
   prBody: { flex: 1, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 },
   prTop: { display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const },
   prIconWrap: {
     width: 46, height: 46, borderRadius: 13,
-    background: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  prProductName: { fontWeight: 800, fontSize: 16, color: '#111827', lineHeight: 1.3 },
+  prProductName: { fontWeight: 700, fontSize: 16, color: '#111827', lineHeight: 1.3 },
   prDescription: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginTop: 3, lineHeight: 1.5 },
   prStatusBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '4px 10px', borderRadius: 10, border: '1px solid',
-    fontSize: 13, fontWeight: 800, flexShrink: 0,
+    fontSize: 13, fontWeight: 700, flexShrink: 0,
   },
   prStatusDot: { width: 7, height: 7, borderRadius: 4, display: 'inline-block' },
 
@@ -1293,11 +1293,11 @@ const s: Record<string, React.CSSProperties> = {
   prCustomerPhone: { fontSize: 14, color: TEXT_MUTED },
   prTime: { fontSize: 14, color: TEXT_MUTED },
   prExpiryPill: {
-    marginLeft: 'auto', background: '#fffbeb', borderRadius: 8,
-    border: '1px solid #fde68a',
+    marginLeft: 'auto', background: '#fdf6e8', borderRadius: 8,
+    border: '1px solid #f1dcaf',
     padding: '3px 8px',
   },
-  prExpiryText: { fontSize: 13, fontWeight: 700, color: '#b45309' },
+  prExpiryText: { fontSize: 13, fontWeight: 700, color: '#8a5300' },
 
   prResponseBox: {
     borderRadius: 10, padding: '10px 12px', border: '1px solid',
@@ -1308,23 +1308,23 @@ const s: Record<string, React.CSSProperties> = {
   prAcceptBtn: {
     flex: 1, padding: '9px 0',
     borderRadius: 10, border: 'none',
-    background: '#0f5132', color: '#fff',
-    cursor: 'pointer', fontSize: 15, fontWeight: 800,
+    background: '#17663a', color: '#fff',
+    cursor: 'pointer', fontSize: 15, fontWeight: 700,
     boxShadow: '0 3px 8px rgba(15,81,50,0.25)',
   },
   prDeclineBtn: {
     flex: 1, padding: '9px 0',
-    borderRadius: 10, border: '1.5px solid #fca5a5',
-    background: '#fff', color: '#dc2626',
+    borderRadius: 10, border: '1.5px solid #f3cdd1',
+    background: '#fff', color: '#c42130',
     cursor: 'pointer', fontSize: 15, fontWeight: 700,
   },
 
   // ── Stock review modal (per-line accept/reject + rejection-reason chips) ──
   acceptAllBtn: {
     alignSelf: 'stretch',
-    padding: '10px 16px', background: '#0f5132',
+    padding: '10px 16px', background: '#17663a',
     color: '#fff', border: 'none', borderRadius: 10,
-    cursor: 'pointer', fontSize: 14, fontWeight: 800,
+    cursor: 'pointer', fontSize: 14, fontWeight: 700,
     boxShadow: '0 3px 10px rgba(15,81,50,0.3)',
     transition: 'opacity 0.15s',
   },
@@ -1333,7 +1333,7 @@ const s: Record<string, React.CSSProperties> = {
     maxHeight: 320, overflowY: 'auto', padding: 2,
   },
   reviewLine: {
-    background: '#f8fafc', border: '1px solid #e5e7eb',
+    background: '#f7f8fa', border: '1px solid #e4e7ec',
     borderRadius: 12, padding: '12px 14px',
   },
   reviewLineName: { fontWeight: 700, fontSize: 14, color: '#111827' },
@@ -1341,21 +1341,21 @@ const s: Record<string, React.CSSProperties> = {
   reviewLineActionRow: { display: 'flex', gap: 8, marginTop: 8 },
   reviewLineActionBtn: {
     flex: 1, padding: '7px 0', borderRadius: 8,
-    border: '1.5px solid #e5e7eb', background: '#fff',
+    border: '1.5px solid #e4e7ec', background: '#fff',
     cursor: 'pointer', fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
   },
-  reviewLineActionBtnAccept: { background: '#f0fdf4', borderColor: '#86efac', color: '#065f46' },
-  reviewLineActionBtnReject: { background: '#fff1f2', borderColor: '#fecaca', color: '#9f1239' },
+  reviewLineActionBtnAccept: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#17663a' },
+  reviewLineActionBtnReject: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
   reasonChipRow: { display: 'flex', gap: 6, flexWrap: 'wrap' as const, marginTop: 8 },
   reasonChip: {
     padding: '4px 10px', borderRadius: 20,
-    border: '1.5px solid #e5e7eb', background: '#fff',
+    border: '1.5px solid #e4e7ec', background: '#fff',
     cursor: 'pointer', fontSize: 12, fontWeight: 600, color: TEXT_MUTED,
   },
-  reasonChipActive: { background: '#fff1f2', borderColor: '#dc2626', color: '#dc2626' },
+  reasonChipActive: { background: '#fdf2f2', borderColor: '#c42130', color: '#c42130' },
   reasonNoteInput: {
     width: '100%', marginTop: 8, padding: '8px 10px', borderRadius: 8,
-    border: '1.5px solid #e5e7eb', fontSize: 13,
+    border: '1.5px solid #e4e7ec', fontSize: 13,
     boxSizing: 'border-box' as const,
     background: '#fff', color: '#111827', fontFamily: 'inherit',
   },

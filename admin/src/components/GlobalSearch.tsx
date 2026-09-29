@@ -145,13 +145,13 @@ export default function GlobalSearch() {
 const s: Record<string, CSSProperties> = {
   wrap: { position: 'relative', width: '100%', maxWidth: 420 },
   input: {
-    width: '100%', border: '1.5px solid #ddd', borderRadius: 10,
+    width: '100%', border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '10px 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const,
     background: '#fff',
   },
   dropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6,
-    background: '#fff', borderRadius: 12, border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
     boxShadow: '0 12px 32px rgba(0,0,0,0.14)', zIndex: 50, overflow: 'hidden',
     maxHeight: 400, overflowY: 'auto',
   },

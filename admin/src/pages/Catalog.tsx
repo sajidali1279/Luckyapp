@@ -109,7 +109,7 @@ function CatalogModal({
               )}
             </div>
           ) : (
-            <div style={{ ...m.input, background: '#f5f5f5', color: '#666', cursor: 'default' }}>
+            <div style={{ ...m.input, background: '#f7f8fa', color: '#5a6472', cursor: 'default' }}>
               Lucky Stop
             </div>
           )}
@@ -123,9 +123,9 @@ function CatalogModal({
                 onClick={() => setCategory(opt.value)}
                 style={{
                   flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer',
-                  border: `2px solid ${category === opt.value ? PRIMARY : '#ddd'}`,
+                  border: `2px solid ${category === opt.value ? PRIMARY : '#d5dae1'}`,
                   background: category === opt.value ? PRIMARY : '#fff',
-                  color: category === opt.value ? '#fff' : '#444',
+                  color: category === opt.value ? '#fff' : '#374151',
                   fontWeight: 700, fontSize: 14, textAlign: 'center' as const,
                   lineHeight: 1.4,
                 }}
@@ -197,7 +197,7 @@ function CatalogModal({
               onChange={e => setIsActive(e.target.checked)}
               style={{ width: 16, height: 16, marginRight: 8, cursor: 'pointer' }}
             />
-            <span style={{ fontSize: 14, color: '#333' }}>Active (visible to customers)</span>
+            <span style={{ fontSize: 14, color: '#111827' }}>Active (visible to customers)</span>
           </label>
 
           <div style={m.actions}>
@@ -229,7 +229,7 @@ function ChainSection({
   onDelete: (item: CatalogItem) => void;
   deletingId: string | null;
 }) {
-  const meta = CHAIN_META[chain] || { icon: '🏪', color: '#555' };
+  const meta = CHAIN_META[chain] || { icon: '🏪', color: '#374151' };
   return (
     <div style={cs.section}>
       <div style={{ ...cs.chainHeader, borderLeftColor: meta.color }}>
@@ -253,7 +253,7 @@ function ChainSection({
             </TableHeader>
             <TableBody>
               {items.map((item, i) => (
-                <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                   <TableCell style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</TableCell>
                   <TableCell style={cs.td}><span style={cs.itemTitle}>{item.title}</span></TableCell>
                   <TableCell style={cs.td}>
@@ -465,12 +465,12 @@ export default function CatalogPage() {
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
-  pageSub: { color: '#666', marginTop: 4, fontSize: 14 },
+  pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
+  pageSub: { color: '#5a6472', marginTop: 4, fontSize: 14 },
   createBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
     borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
@@ -479,10 +479,10 @@ const s: Record<string, React.CSSProperties> = {
 
   statsRow: { display: 'flex', gap: 12 },
   statCard: {
-    background: '#fff', borderRadius: 14, padding: '14px 20px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center', minWidth: 90,
+    background: '#fff', borderRadius: 12, padding: '14px 20px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', textAlign: 'center', minWidth: 90,
   },
-  statVal: { fontSize: 26, fontWeight: 900, color: PRIMARY },
+  statVal: { fontSize: 26, fontWeight: 700, color: PRIMARY },
   statLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
 
   infoBanner: {
@@ -490,11 +490,11 @@ const s: Record<string, React.CSSProperties> = {
     padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10,
     fontSize: 18,
   },
-  infoText: { fontSize: 15, color: '#2c5282', lineHeight: 1.6 },
+  infoText: { fontSize: 15, color: '#1D3557', lineHeight: 1.6 },
 
   loadingBox: { textAlign: 'center', padding: 40, color: TEXT_MUTED, fontSize: 16 },
   emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
+    background: '#fff', borderRadius: 12, padding: 60,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
@@ -508,33 +508,33 @@ const cs: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', gap: 12,
     background: '#fff', borderRadius: '14px 14px 0 0',
     padding: '16px 20px', borderLeft: '5px solid #1D3557',
-    borderBottom: '1px solid #eee',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    borderBottom: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   chainIcon: { fontSize: 28 },
-  chainName: { fontSize: 18, fontWeight: 800, color: PRIMARY },
+  chainName: { fontSize: 18, fontWeight: 700, color: PRIMARY },
   chainCount: { fontSize: 14, color: TEXT_MUTED, fontWeight: 600, marginTop: 2 },
   emptyChain: {
     background: '#fff', borderRadius: '0 0 14px 14px',
-    padding: '24px', textAlign: 'center', color: '#aaa', fontSize: 14,
-    borderBottom: '1px solid #eee', borderLeft: '1px solid #eee', borderRight: '1px solid #eee',
+    padding: '24px', textAlign: 'center', color: '#5a6472', fontSize: 14,
+    borderBottom: '1px solid #e4e7ec', borderLeft: '1px solid #e4e7ec', borderRight: '1px solid #e4e7ec',
   },
   tableWrap: {
     background: '#fff', borderRadius: '0 0 14px 14px', overflowX: 'auto',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    border: '1px solid #eee', borderTop: 'none',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+    border: '1px solid #e4e7ec', borderTop: 'none',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle' },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle' },
   itemTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 160 },
   itemDesc: { fontSize: 15, color: TEXT_MUTED, display: 'block', minWidth: 180 },
   catBadge: {
-    background: '#f0f4ff', color: PRIMARY,
+    background: '#eef2f7', color: PRIMARY,
     borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 600,
   },
   ptsBadge: {
@@ -542,19 +542,19 @@ const cs: Record<string, React.CSSProperties> = {
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
   valueBadge: {
-    background: '#d4edda', color: '#155724',
+    background: '#edf7f0', color: '#17663a',
     borderRadius: 8, padding: '3px 10px', fontSize: 15, fontWeight: 700,
   },
   orderBadge: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   statusBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 700 },
-  statusActive: { background: '#d4edda', color: '#155724' },
+  statusActive: { background: '#edf7f0', color: '#17663a' },
   statusInactive: { background: '#f8d7da', color: '#721c24' },
   editBtn: {
-    background: '#e8f0fe', color: PRIMARY, border: 'none',
+    background: '#eef2f7', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
   },
   deleteBtn: {
-    background: '#fff0f0', color: '#c53030', border: 'none',
+    background: '#fdf2f2', color: '#c42130', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
   },
 };
@@ -565,24 +565,24 @@ const m: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
-    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 520,
+    background: '#fff', borderRadius: 12, width: '100%', maxWidth: 520,
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
     maxHeight: '90vh', overflowY: 'auto',
   },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '20px 24px', borderBottom: '1px solid #eee',
+    padding: '20px 24px', borderBottom: '1px solid #e4e7ec',
     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 20, fontWeight: 700, color: PRIMARY },
   closeBtn: {
     background: 'none', border: 'none', fontSize: 18,
     cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
   },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 14 },
-  label: { fontSize: 15, fontWeight: 700, color: '#333', marginBottom: -6 },
+  label: { fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: -6 },
   input: {
-    border: '1.5px solid #ddd', borderRadius: 10,
+    border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
@@ -590,8 +590,8 @@ const m: Record<string, React.CSSProperties> = {
   checkRow: { display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 14 },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 },
   cancelBtn: {
-    background: '#f4f4f4', border: 'none', borderRadius: 10,
-    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
+    background: '#f1f3f6', border: 'none', borderRadius: 10,
+    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151',
   },
   saveBtn: {
     background: PRIMARY, color: '#fff', border: 'none',

@@ -19,7 +19,7 @@ const PERIODS = [
 ];
 
 const CHART_COLORS = [
-  '#E63946', PRIMARY, '#F4A261', '#2DC653', '#6A4C93',
+  '#c42130', PRIMARY, '#b7791f', '#1f8a4c', '#6A4C93',
   '#1CBEC0', '#F7B731', '#FC5C65', '#45AAF2', '#26DE81',
 ];
 
@@ -149,7 +149,7 @@ export default function InventoryAnalytics() {
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                   <XAxis
                     dataKey="name"
                     tick={{ fontSize: 13, fill: '#5a6472' }}
@@ -159,7 +159,7 @@ export default function InventoryAnalytics() {
                   />
                   <YAxis tick={{ fontSize: 13, fill: '#5a6472' }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #e4e7ec' }}
                     formatter={(v: any) => [`${Number(v)} orders`, 'Orders']}
                   />
                   <Bar dataKey="orders" radius={[4, 4, 0, 0]}>
@@ -230,11 +230,11 @@ export default function InventoryAnalytics() {
                   data={storeBrkdown.map(s => ({ name: s.storeName, items: s.itemCount }))}
                   margin={{ top: 8, right: 16, left: 0, bottom: 60 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                   <XAxis dataKey="name" tick={{ fontSize: 13, fill: '#5a6472' }} angle={-30} textAnchor="end" interval={0} />
                   <YAxis tick={{ fontSize: 13, fill: '#5a6472' }} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #e4e7ec' }}
                     formatter={(v: any) => [`${Number(v)}`, 'Order lines']}
                   />
                   <Bar dataKey="items" fill={PRIMARY} radius={[4, 4, 0, 0]} />
@@ -256,27 +256,27 @@ const s: Record<string, React.CSSProperties> = {
   title:  { margin: 0, fontSize: 26, fontWeight: 700, color: '#111827' },
   sub:    { margin: '4px 0 0', fontSize: 15, color: TEXT_MUTED },
   refreshBtn: {
-    padding: '8px 16px', borderRadius: 8, border: '1px solid #E5E7EB',
+    padding: '8px 16px', borderRadius: 8, border: '1px solid #e4e7ec',
     backgroundColor: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151',
   },
   filterBar:   { display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' },
   filterGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
   filterLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.05em' },
-  segmented: { display: 'flex', borderRadius: 8, border: '1px solid #E5E7EB', overflow: 'hidden' },
+  segmented: { display: 'flex', borderRadius: 8, border: '1px solid #e4e7ec', overflow: 'hidden' },
   seg: {
     padding: '7px 14px', border: 'none', backgroundColor: '#fff',
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 500,
-    borderRight: '1px solid #E5E7EB',
+    borderRight: '1px solid #e4e7ec',
   },
   segActive: { backgroundColor: PRIMARY, color: '#fff', fontWeight: 700 },
   select: {
-    padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+    padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec',
     backgroundColor: '#fff', fontSize: 15, color: '#374151', minWidth: 160,
   },
   loading: { textAlign: 'center', padding: 60, color: TEXT_MUTED, fontSize: 15 },
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
   card: {
-    backgroundColor: '#fff', borderRadius: 12, border: '1px solid #E5E7EB',
+    backgroundColor: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
     padding: '20px 24px',
   },
   cardTitle: { margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#111827' },
@@ -286,17 +286,17 @@ const s: Record<string, React.CSSProperties> = {
   th: {
     padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: 13,
     color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.04em',
-    borderBottom: '2px solid #F3F4F6',
+    borderBottom: '2px solid #f1f3f6',
   },
-  td: { padding: '9px 12px', borderBottom: '1px solid #F9FAFB', color: '#374151', verticalAlign: 'middle' },
-  rowAlt: { backgroundColor: '#FAFAFA' },
+  td: { padding: '9px 12px', borderBottom: '1px solid #f7f8fa', color: '#374151', verticalAlign: 'middle' },
+  rowAlt: { backgroundColor: '#f7f8fa' },
 };
 
 const b: Record<string, React.CSSProperties> = {
   list: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 },
   row:  { display: 'flex', alignItems: 'center', gap: 10 },
   label:{ fontSize: 15, color: '#374151', width: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  track:{ flex: 1, height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden' },
+  track:{ flex: 1, height: 8, backgroundColor: '#f1f3f6', borderRadius: 4, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, transition: 'width 0.3s ease' },
   count:{ fontSize: 14, color: TEXT_MUTED, width: 90, textAlign: 'right' as const },
 };

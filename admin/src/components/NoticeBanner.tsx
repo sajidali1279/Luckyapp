@@ -55,13 +55,13 @@ export function usePinnedNotice(storeId?: string | null) {
 export default function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
   return (
     <div style={s.banner}>
-      <div style={s.iconWrap}><Pin size={16} color="#92400e" /></div>
+      <div style={s.iconWrap}><Pin size={16} color="#8a5300" /></div>
       <div style={{ flex: 1 }}>
         <div style={s.title}>{notice.title}</div>
         <div style={s.body}>{notice.body}</div>
       </div>
       <button onClick={onDismiss} style={s.dismissBtn} aria-label="Dismiss notice">
-        <X size={16} color="#92400e" strokeWidth={2.5} />
+        <X size={16} color="#8a5300" strokeWidth={2.5} />
       </button>
     </div>
   );
@@ -70,12 +70,12 @@ export default function NoticeBanner({ notice, onDismiss }: { notice: Notice; on
 const s: Record<string, React.CSSProperties> = {
   banner: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
-    background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12,
+    background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 12,
     padding: '12px 14px',
   },
   iconWrap: { marginTop: 1, flexShrink: 0 },
-  title: { fontSize: 13.5, fontWeight: 800, color: '#92400e', marginBottom: 2 },
-  body: { fontSize: 13, color: '#78350f', lineHeight: 1.5 },
+  title: { fontSize: 13.5, fontWeight: 700, color: '#8a5300', marginBottom: 2 },
+  body: { fontSize: 13, color: '#8a5300', lineHeight: 1.5 },
   dismissBtn: {
     background: 'none', border: 'none', cursor: 'pointer', padding: 2,
     marginTop: 1, flexShrink: 0, display: 'flex',

@@ -16,9 +16,9 @@ function oneWeekOutStr() { return addDays(storeToday(), 7); }
 function fmtDate(d: string) { return storeDayLong(d); }
 
 function noticeStatus(notice: any): { label: string; color: string; bg: string } {
-  if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#f1f3f5' };
-  if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: TEXT_MUTED, bg: '#f1f3f5' };
-  return { label: 'Active', color: '#16a34a', bg: '#f0fdf4' };
+  if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#e4e7ec' };
+  if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: TEXT_MUTED, bg: '#e4e7ec' };
+  return { label: 'Active', color: '#1f8a4c', bg: '#edf7f0' };
 }
 
 export default function Notices() {
@@ -138,7 +138,7 @@ export default function Notices() {
           <input style={{ ...s.input, maxWidth: 200 }} type="date" value={endDate} min={todayStr()} onChange={(e) => setEndDate(e.target.value)} />
 
           {isStoreManager && ownStoreIds.length <= 1 ? (
-            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
+            <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
               📍 This notice will appear for your store only
             </div>
           ) : isStoreManager ? (
@@ -221,32 +221,32 @@ export default function Notices() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
+  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-  addBtn: { background: '#E63946', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  addBtn: { background: '#c42130', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
-    background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12,
-    borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+    background: '#fff', borderRadius: 12, padding: '24px 28px', marginBottom: 32,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', flexDirection: 'column', gap: 12,
+    borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
   },
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit' },
+  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit' },
   saveBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
 
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
-    background: '#fff', borderRadius: 16, overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'flex-start', gap: 20, padding: '18px 20px',
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'flex-start', gap: 20, padding: '18px 20px',
   },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
   cardBody: { fontSize: 14, color: '#374151', margin: '0 0 4px', lineHeight: 1.5 },
-  tagStatus: { display: 'inline-block', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 },
-  tagAll: { display: 'inline-block', background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagDate: { display: 'inline-block', background: '#f8f9fa', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
-  deactivateBtn: { background: '#fffbeb', color: '#b45309', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fde68a', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
-  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
+  tagStatus: { display: 'inline-block', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
+  tagAll: { display: 'inline-block', background: '#eef2f7', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagStore: { display: 'inline-block', background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagDate: { display: 'inline-block', background: '#f7f8fa', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
+  deactivateBtn: { background: '#fdf6e8', color: '#8a5300', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f1dcaf', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
+  deleteBtn: { background: '#fdf2f2', color: '#c42130', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f3cdd1', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 };

@@ -158,7 +158,7 @@ function holidayDay(date: string): string {
 const REGION = { latMin: 25.8, latMax: 37.1, lngMin: -106.7, lngMax: -93.5 };
 
 const AVATAR_PALETTE = [
-  '#E63946', '#457B9D', '#2DC653', '#F4A261', '#7B2FBE',
+  '#c42130', '#457B9D', '#1f8a4c', '#b7791f', '#4f6d8f',
   '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653',
   '#6A0572', PRIMARY,
 ];
@@ -720,11 +720,11 @@ export default function Stores() {
                     <div style={s.storeSub}>{store.city}, {store.state}</div>
                   </div>
                   <div style={s.badgeStack}>
-                    <div style={{ ...s.coordBadge, background: hasCoords ? '#f0fdf4' : '#fff1f2', border: hasCoords ? '1px solid #bbf7d0' : '1px solid #fecaca', color: hasCoords ? '#15803d' : '#b91c1c' }}>
+                    <div style={{ ...s.coordBadge, background: hasCoords ? '#edf7f0' : '#fdf2f2', border: hasCoords ? '1px solid #c8e6d2' : '1px solid #f3cdd1', color: hasCoords ? '#1f8a4c' : '#a51b28' }}>
                       {hasCoords ? '📍 Located' : '❌ No coords'}
                     </div>
                     {store.minimumAge === 21 && (
-                      <div style={{ ...s.coordBadge, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                      <div style={{ ...s.coordBadge, background: '#fdf6e8', border: '1px solid #f1dcaf', color: '#8a5300' }}>
                         🔞 21+ Required
                       </div>
                     )}
@@ -748,7 +748,7 @@ export default function Stores() {
                   {store.todayHours ? (
                     <span style={s.detailVal}>{store.todayHours}</span>
                   ) : (
-                    <span style={{ ...s.detailVal, color: '#b91c1c' }}>Hours not set</span>
+                    <span style={{ ...s.detailVal, color: '#a51b28' }}>Hours not set</span>
                   )}
                 </div>
                 {hasCoords && (
@@ -835,7 +835,7 @@ export default function Stores() {
                           <div style={s.apiKeyHint}>Copy this now - it can't be shown again after you leave this page.</div>
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
-                            <button style={{ ...s.apiKeyBtn, color: '#b91c1c', borderColor: '#fca5a5' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
+                            <button style={{ ...s.apiKeyBtn, color: '#a51b28', borderColor: '#f3cdd1' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
                             <button style={{ ...s.apiKeyBtn, color: TEXT_MUTED }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
                           </div>
                         </div>
@@ -876,7 +876,7 @@ export default function Stores() {
                 {isDevAdmin && (
                   <div style={s.cardBtns}>
                     <button
-                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#b91c1c', borderColor: '#fca5a5' } : { color: '#15803d', borderColor: '#86efac' }) }}
+                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#a51b28', borderColor: '#f3cdd1' } : { color: '#1f8a4c', borderColor: '#c8e6d2' }) }}
                       onClick={() => store.isActive ? setConfirmDeactivateId(store.id) : runActive({ storeId: store.id, isActive: true })}
                       disabled={activeMutation.isPending}
                     >
@@ -1043,7 +1043,7 @@ export default function Stores() {
                       <div key={h.id} style={s.kwRow}>
                         <span style={s.holidayDate}>{holidayDay(h.date)}</span>
                         <span style={{ flex: 1, color: '#374151' }}>{h.label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: h.isClosed ? '#b91c1c' : '#15803d' }}>{scheduleSummary(h)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: h.isClosed ? '#a51b28' : '#1f8a4c' }}>{scheduleSummary(h)}</span>
                         <button style={s.kwDeleteBtn} aria-label={`Remove the ${h.label} holiday hours`} onClick={() => removeHoliday(h.id)}>✕</button>
                       </div>
                     ))}
@@ -1308,73 +1308,73 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 12, flexWrap: 'wrap' },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
   countPill: { background: PRIMARY, color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
   addStoreBtn: { padding: '9px 18px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 18 },
-  card: { background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
-  cardInactive: { opacity: 0.72, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' },
-  inactiveBanner: { background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
+  card: { background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
+  cardInactive: { opacity: 0.72, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  inactiveBanner: { background: '#fdf2f2', border: '1px solid #f3cdd1', color: '#a51b28', fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
 
   cardTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 800, flexShrink: 0 },
+  avatar: { width: 44, height: 44, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700, flexShrink: 0 },
   cardInfo: { flex: 1, minWidth: 0 },
-  storeName: { fontWeight: 700, fontSize: 15, color: '#1a1a2e', overflowWrap: 'anywhere' },
+  storeName: { fontWeight: 700, fontSize: 15, color: '#111827', overflowWrap: 'anywhere' },
   storeSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   badgeStack: { display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 },
   coordBadge: { fontSize: 13, fontWeight: 600, padding: '3px 9px', borderRadius: 20, flexShrink: 0, whiteSpace: 'nowrap' },
 
-  divider: { height: 1, background: '#f0f2f5', margin: '10px 0' },
+  divider: { height: 1, background: '#f1f3f6', margin: '10px 0' },
   detailRow: { display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 },
   detailLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, width: 78, flexShrink: 0, textTransform: 'uppercase', letterSpacing: 0.3 },
-  detailVal: { fontSize: 15, color: '#444' },
-  coordText: { fontFamily: 'monospace', fontSize: 14, color: PRIMARY, background: '#eef2ff', padding: '2px 7px', borderRadius: 5 },
-  readyLine: { fontSize: 13, fontWeight: 700, color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
-  notReadyLine: { fontSize: 13, fontWeight: 700, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
+  detailVal: { fontSize: 15, color: '#374151' },
+  coordText: { fontFamily: 'monospace', fontSize: 14, color: PRIMARY, background: '#eef2f7', padding: '2px 7px', borderRadius: 5 },
+  readyLine: { fontSize: 13, fontWeight: 700, color: '#17663a', background: '#edf7f0', border: '1px solid #c8e6d2', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
+  notReadyLine: { fontSize: 13, fontWeight: 700, color: '#8a5300', background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
 
   gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
   gasRow: { display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 4 },
   gasField: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 },
-  gasLabel: { fontSize: 13, fontWeight: 600, color: '#555' },
-  gasInput: { border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#1a1a2e', outline: 'none', width: '100%' },
-  gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e2e8f0', color: TEXT_MUTED, fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
+  gasLabel: { fontSize: 13, fontWeight: 600, color: '#374151' },
+  gasInput: { border: '1.5px solid #e4e7ec', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#111827', outline: 'none', width: '100%' },
+  gasUpdateBtn: { padding: '8px 14px', borderRadius: 8, border: 'none', background: '#e4e7ec', color: TEXT_MUTED, fontWeight: 700, fontSize: 15, cursor: 'not-allowed', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 1 },
   gasUpdateBtnActive: { background: PRIMARY, color: '#fff', cursor: 'pointer' },
-  gasDisabledHint: { fontSize: 12, fontWeight: 600, color: '#b91c1c', marginTop: 2 },
+  gasDisabledHint: { fontSize: 12, fontWeight: 600, color: '#a51b28', marginTop: 2 },
   gasAge: { fontSize: 12, fontWeight: 600, color: TEXT_MUTED },
-  gasAgeStale: { color: '#b91c1c' },
-  gasError: { fontSize: 13, fontWeight: 600, color: '#b91c1c', margin: '4px 0 6px', lineHeight: 1.4 },
+  gasAgeStale: { color: '#a51b28' },
+  gasError: { fontSize: 13, fontWeight: 600, color: '#a51b28', margin: '4px 0 6px', lineHeight: 1.4 },
 
   editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
   apiKeySection: { paddingTop: 4 },
   apiKeyLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
-  apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', cursor: 'pointer', color: PRIMARY },
-  apiKeyBox: { background: '#f8f9fb', borderRadius: 10, padding: '10px 12px', border: '1px solid #e9ecef' },
+  apiKeyRevealBtn: { fontSize: 14, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#f7f8fa', cursor: 'pointer', color: PRIMARY },
+  apiKeyBox: { background: '#f7f8fa', borderRadius: 10, padding: '10px 12px', border: '1px solid #e4e7ec' },
   apiKeyCode: { display: 'block', fontSize: 13, fontFamily: 'monospace', color: PRIMARY, wordBreak: 'break-all' as const, marginBottom: 8 },
   apiKeyHint: { fontSize: 11.5, color: TEXT_MUTED, marginBottom: 8, fontStyle: 'italic' as const },
   apiKeyStatusText: { fontSize: 13, color: TEXT_MUTED, marginBottom: 8 },
   apiKeyBtns: { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #dee2e6', background: '#fff', cursor: 'pointer', color: PRIMARY },
+  apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #e4e7ec', background: '#fff', cursor: 'pointer', color: PRIMARY },
 
-  disputeBanner: { display: 'flex', alignItems: 'center', gap: 8, background: '#fff7ed', borderRadius: 10, padding: '8px 12px', margin: '10px 0 0', border: '1px solid #fed7aa' },
-  disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#ea580c', flexShrink: 0 },
-  disputeBannerText: { flex: 1, fontSize: 14, fontWeight: 700, color: '#c2410c' },
-  disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#ea580c', textDecoration: 'none' },
+  disputeBanner: { display: 'flex', alignItems: 'center', gap: 8, background: '#fdf6e8', borderRadius: 10, padding: '8px 12px', margin: '10px 0 0', border: '1px solid #f1dcaf' },
+  disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#b7791f', flexShrink: 0 },
+  disputeBannerText: { flex: 1, fontSize: 14, fontWeight: 700, color: '#8a5300' },
+  disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#b7791f', textDecoration: 'none' },
 
   cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
-  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #dee2e6', background: '#f8f9fb', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: PRIMARY },
+  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #e4e7ec', background: '#f7f8fa', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: PRIMARY },
 
-  kwHint: { fontSize: 14, color: TEXT_MUTED, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
+  kwHint: { fontSize: 14, color: TEXT_MUTED, background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
   kwEmpty: { fontSize: 15, color: TEXT_MUTED, padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
   kwList: { display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 },
-  kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f8f9fb', borderRadius: 9, padding: '8px 11px', border: '1px solid #e9ecef' },
+  kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f7f8fa', borderRadius: 9, padding: '8px 11px', border: '1px solid #e4e7ec' },
   kwKeyword: { fontFamily: 'monospace', fontSize: 15, color: PRIMARY, fontWeight: 700, flex: 1 },
   kwArrow: { color: TEXT_MUTED, fontSize: 14 },
-  kwCat: { fontSize: 14, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderRadius: 20, padding: '2px 9px', border: '1px solid #bbf7d0' },
-  kwDeleteBtn: { background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 800, fontSize: 14, padding: '0 4px', lineHeight: 1 },
+  kwCat: { fontSize: 14, fontWeight: 700, color: '#1f8a4c', background: '#edf7f0', borderRadius: 20, padding: '2px 9px', border: '1px solid #c8e6d2' },
+  kwDeleteBtn: { background: 'none', border: 'none', color: '#a51b28', cursor: 'pointer', fontWeight: 700, fontSize: 14, padding: '0 4px', lineHeight: 1 },
   kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
   kwAddBtn: { padding: '9px 16px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
@@ -1382,47 +1382,47 @@ const s: Record<string, React.CSSProperties> = {
 
   // Boxes (the dialog itself is components/Modal)
   editForm: { display: 'flex', flexDirection: 'column', gap: 18 },
-  errorBox: { fontSize: 15, color: '#7f1d1d', lineHeight: 1.5, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px' },
-  noteBox: { fontSize: 14, color: '#78350f', lineHeight: 1.5, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', marginTop: 4 },
+  errorBox: { fontSize: 15, color: '#a51b28', lineHeight: 1.5, background: '#fdf2f2', border: '1px solid #f3cdd1', borderRadius: 10, padding: '10px 14px' },
+  noteBox: { fontSize: 14, color: '#8a5300', lineHeight: 1.5, background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 10, padding: '8px 12px', marginTop: 4 },
   presetRow: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
-  presetBtn: { fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #dee2e6', background: '#f8f9fb', color: PRIMARY, cursor: 'pointer' },
+  presetBtn: { fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#f7f8fa', color: PRIMARY, cursor: 'pointer' },
   sectionLabelFirst: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
 
   sectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 18 },
   fieldRow: { display: 'flex', gap: 12, marginBottom: 0, flexWrap: 'wrap' },
   field: { flex: '1 1 120px', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 },
-  label: { fontSize: 14, fontWeight: 600, color: '#555' },
-  input: { border: '1.5px solid #e2e8f0', borderRadius: 9, padding: '9px 12px', fontSize: 15, color: '#1a1a2e', outline: 'none', transition: 'border-color 0.15s', boxSizing: 'border-box', width: '100%' },
+  label: { fontSize: 14, fontWeight: 600, color: '#374151' },
+  input: { border: '1.5px solid #e4e7ec', borderRadius: 9, padding: '9px 12px', fontSize: 15, color: '#111827', outline: 'none', transition: 'border-color 0.15s', boxSizing: 'border-box', width: '100%' },
 
   catSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
   catPillRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 4 },
   catPill: { fontSize: 13, fontWeight: 600, borderRadius: 20, padding: '3px 9px', border: '1px solid' },
-  catPillOn: { background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' },
-  catPillOff: { background: '#f9f9f9', borderColor: '#e5e7eb', color: '#6b7280', textDecoration: 'line-through' },
+  catPillOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  catPillOff: { background: '#f9f9f9', borderColor: '#e4e7ec', color: '#5a6472', textDecoration: 'line-through' },
 
 
-  catHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
+  catHint: { fontSize: 14, color: TEXT_MUTED, background: '#f7f8fa', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
   catToggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(120px, 100%), 1fr))', gap: 8, marginBottom: 8 },
   catToggleBtn: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 6px', borderRadius: 10, border: '1.5px solid', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  catToggleBtnOn: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
-  catToggleBtnOff: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
-  catToggleCheck: { fontSize: 13, fontWeight: 800 },
+  catToggleBtnOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  catToggleBtnOff: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
+  catToggleCheck: { fontSize: 13, fontWeight: 700 },
   resetCatBtn: { fontSize: 14, color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
 
-  geocodeHint: { fontSize: 14, color: TEXT_MUTED, background: '#f8f9fb', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
+  geocodeHint: { fontSize: 14, color: TEXT_MUTED, background: '#f7f8fa', borderRadius: 8, padding: '9px 12px', marginBottom: 10, lineHeight: 1.5 },
   geocodeBtn: { width: '100%', padding: '10px 0', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 14 },
 
   hoursWeekList: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 },
-  hoursDayRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#f8f9fb', borderRadius: 10, padding: '9px 12px', border: '1px solid #e9ecef' },
-  hoursDayLabel: { fontSize: 14, fontWeight: 700, color: '#1a1a2e', width: 88, flexShrink: 0 },
+  hoursDayRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#f7f8fa', borderRadius: 10, padding: '9px 12px', border: '1px solid #e4e7ec' },
+  hoursDayLabel: { fontSize: 14, fontWeight: 700, color: '#111827', width: 88, flexShrink: 0 },
   hoursDayControls: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 },
-  hoursChip: { fontSize: 13, fontWeight: 700, padding: '5px 11px', borderRadius: 20, border: '1.5px solid #dee2e6', background: '#fff', color: TEXT_MUTED, cursor: 'pointer' },
-  hoursChipOffRed: { background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' },
-  hoursChipOnGreen: { background: '#f0fdf4', borderColor: '#86efac', color: '#15803d' },
-  hoursTimeInput: { border: '1.5px solid #e2e8f0', borderRadius: 7, padding: '5px 8px', fontSize: 14, color: '#1a1a2e', outline: 'none' },
-  holidayDate: { fontWeight: 700, color: '#1a1a2e', width: 66, flexShrink: 0, fontSize: 14 },
+  hoursChip: { fontSize: 13, fontWeight: 700, padding: '5px 11px', borderRadius: 20, border: '1.5px solid #e4e7ec', background: '#fff', color: TEXT_MUTED, cursor: 'pointer' },
+  hoursChipOffRed: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
+  hoursChipOnGreen: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  hoursTimeInput: { border: '1.5px solid #e4e7ec', borderRadius: 7, padding: '5px 8px', fontSize: 14, color: '#111827', outline: 'none' },
+  holidayDate: { fontWeight: 700, color: '#111827', width: 66, flexShrink: 0, fontSize: 14 },
 
   modalActions: { display: 'flex', gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #dee2e6', color: TEXT_MUTED, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { flex: 1, padding: '11px 0', background: '#fff', border: '1.5px solid #e4e7ec', color: TEXT_MUTED, borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   saveBtn: { flex: 2, padding: '11px 0', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

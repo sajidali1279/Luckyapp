@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import GlobalSearch from '../components/GlobalSearch';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { useAuthStore } from '../store/authStore';
-import { handleGlowMove } from '../lib/motion';
-import { s, readSetting, writeSetting } from './dashboard/shared';
+import { readSetting, writeSetting } from './dashboard/shared';
+import { Page, PageHeader, Tabs, Button, Badge } from '../components/kit';
+import Glyph from '../components/Glyph';
 import { useStores } from './dashboard/queries';
 import AttentionInbox from './dashboard/Inbox';
 import OperationsView from './dashboard/Operations';
@@ -37,12 +38,9 @@ function QuickActions({ isDevAdmin }: { isDevAdmin: boolean }) {
     { icon: '🔔', label: 'Notifications', to: '/notifications' },
   ];
   return (
-    <div style={s.quickActions}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {actions.map((a) => (
-        <button key={a.to} className="dash-quick-btn" style={s.quickBtn} onMouseMove={handleGlowMove} onClick={() => navigate(a.to)}>
-          <span style={{ fontSize: 15 }}>{a.icon}</span>
-          <span>{a.label}</span>
-        </button>
+        <Button key={a.to} size="sm" icon={<Glyph e={a.icon} />} onClick={() => navigate(a.to)}>{a.label}</Button>
       ))}
     </div>
   );
@@ -61,64 +59,45 @@ export default function Dashboard() {
   const pickView = (v: View) => { setView(v); writeSetting('dash-view', v); };
   const activeStores = (storesQ.data?.data?.data || []).length;
 
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Chicago' });
+
   return (
-    <div style={s.container}>
-
-      {/* ── Welcome ── */}
-      <div className="dash-fade-in" style={{ ...s.welcomeCard, animationDelay: '0ms' }}>
-        <div>
-          <div style={s.welcomeDate}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+    <Page>
+      <PageHeader
+        title={`${greeting()}, ${user?.name?.split(' ')[0] || 'Admin'}`}
+        description={`${today}. ${isDevAdmin
+          ? 'Full system access: billing, analytics and platform settings.'
+          : `Managing ${storesQ.isLoading ? '…' : activeStores} Lucky Stop locations.`}`}
+        actions={<Badge tone="neutral" style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', borderColor: 'rgba(255,255,255,0.24)' }}>{isDevAdmin ? 'Dev Admin' : 'Super Admin'}</Badge>}
+      >
+        {isSuperAdmin && (
+          // Above the sections below it, so the search results are never hidden behind the "Needs your attention" panel
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', position: 'relative', zIndex: 20 }}>
+            <div style={{ flex: '0 1 300px', minWidth: 220 }}><GlobalSearch /></div>
+            <QuickActions isDevAdmin={isDevAdmin} />
           </div>
-          <h1 style={s.welcomeTitle}>{greeting()}, {user?.name?.split(' ')[0] || 'Admin'} 👋</h1>
-          <p style={s.welcomeSub}>
-            {isDevAdmin
-              ? 'Full system access - billing, analytics, and platform settings.'
-              : `Managing ${storesQ.isLoading ? '…' : activeStores} Lucky Stop locations across the network.`}
-          </p>
-        </div>
-        <div style={{ ...s.roleBadge, ...(isDevAdmin ? s.roleBadgeDev : {}) }}>
-          {isDevAdmin ? '⚡ Dev Admin' : '🏢 Super Admin'}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
-      {/* ── Search and quick actions, side by side ── */}
-      {isSuperAdmin && (
-        // Above the sections below it: each of them is an animated layer, and a later layer paints over an earlier one,
-        // which hid the search results behind the "Needs your attention" panel.
-        <div className="dash-fade-in" style={{ ...s.toolRow, animationDelay: '5ms', position: 'relative', zIndex: 20 }}>
-          <div style={{ flex: '0 1 300px', minWidth: 220 }}><GlobalSearch /></div>
-          <QuickActions isDevAdmin={isDevAdmin} />
-        </div>
-      )}
-
-      {/* ── Pinned Notice ── */}
       {pinnedNotice && (
-        <div className="dash-fade-in" style={{ animationDelay: '15ms' }}>
+        <div style={{ marginBottom: 16 }}>
           <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
         </div>
       )}
 
-      {/* ── Everything waiting for a decision ── */}
-      {isSuperAdmin && (
-        <div className="dash-fade-in" style={{ animationDelay: '30ms' }}>
-          <AttentionInbox />
-        </div>
-      )}
+      {isSuperAdmin && <AttentionInbox />}
 
-      {/* ── DevAdmin: day-to-day operations, or the business side ── */}
       {isDevAdmin && (
-        <div style={s.viewTabs} role="tablist" aria-label="Dashboard view">
-          {VIEWS.map((v) => (
-            <button key={v} role="tab" aria-selected={view === v} onClick={() => pickView(v)}
-              style={{ ...s.viewTab, ...(view === v ? s.viewTabOn : {}) }}>
-              {v === 'operations' ? 'Operations' : 'Business'}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          ariaLabel="Dashboard view"
+          value={view}
+          onChange={pickView}
+          tabs={[{ value: 'operations', label: 'Operations' }, { value: 'business', label: 'Business' }]}
+          style={{ marginTop: 8 }}
+        />
       )}
 
       {isDevAdmin && view === 'business' ? <BusinessView /> : <OperationsView />}
-    </div>
+    </Page>
   );
 }

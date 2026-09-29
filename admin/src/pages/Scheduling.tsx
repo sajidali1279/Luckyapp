@@ -11,17 +11,17 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AVATAR_PALETTE = ['#7c3aed', '#0369a1', '#16a34a', '#b45309', PRIMARY, '#E63946', '#0891b2', '#be185d'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D', '#c42130'];
 
 const STORE_GRADIENTS = [
   [PRIMARY, '#457B9D'],
-  ['#0369a1', '#0ea5e9'],
-  ['#166534', '#2DC653'],
-  ['#7c3aed', '#a78bfa'],
-  ['#b45309', '#f59e0b'],
-  ['#be123c', '#f43f5e'],
-  ['#0f766e', '#14b8a6'],
-  ['#1e40af', '#3b82f6'],
+  ['#1D3557', '#457B9D'],
+  ['#17663a', '#1f8a4c'],
+  ['#4f6d8f', '#4f6d8f'],
+  ['#8a5300', '#b7791f'],
+  ['#c42130', '#c42130'],
+  ['#457B9D', '#457B9D'],
+  ['#1D3557', '#457B9D'],
 ];
 
 const DAYS: { key: string; label: string }[] = [
@@ -35,8 +35,8 @@ const DAYS: { key: string; label: string }[] = [
 ];
 
 const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] = [
-  { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#F4A261' },
-  { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#2DC653' },
+  { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#b7791f' },
+  { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#1f8a4c' },
   { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: PRIMARY },
 ];
 
@@ -264,7 +264,7 @@ export default function Scheduling() {
                     {(store.name || '?')[0].toUpperCase()}
                   </div>
                   <div style={s.storeBtnInfo}>
-                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#212529' }}>{store.name}</div>
+                    <div style={{ ...s.storeBtnName, color: active ? PRIMARY : '#111827' }}>{store.name}</div>
                     <div style={s.storeBtnCity}>{store.city}</div>
                   </div>
                   {pendingReqs > 0 && <span style={s.pendingReqBadge}>{pendingReqs}</span>}
@@ -354,14 +354,14 @@ export default function Scheduling() {
                         const avatarColor = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                         const name = r.employee.name || r.employee.phone || '?';
                         return (
-                          <div key={r.templateId} style={{ ...s.rosterCard, borderTopColor: shift?.color || '#ccc' }}>
+                          <div key={r.templateId} style={{ ...s.rosterCard, borderTopColor: shift?.color || '#d5dae1' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                               <div style={{ ...s.rosterAvatar, background: avatarColor }}>
                                 {name[0].toUpperCase()}
                               </div>
                               <div style={s.rosterName}>{name}</div>
                             </div>
-                            <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#ccc') + '18', color: shift?.color || '#666', borderColor: (shift?.color || '#ccc') + '40' }}>
+                            <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#d5dae1') + '18', color: shift?.color || '#5a6472', borderColor: (shift?.color || '#d5dae1') + '40' }}>
                               {shift?.label}
                             </div>
                             <div style={s.rosterTime}>{r.startTime} – {r.endTime}</div>
@@ -397,7 +397,7 @@ export default function Scheduling() {
                           {SHIFTS.map((shift) => (
                             <TableRow key={shift.key}>
                               <TableCell style={s.shiftLabelCell}>
-                                <div style={{ ...s.shiftLabel, borderLeftColor: shift.retired ? '#adb5bd' : shift.color }}>
+                                <div style={{ ...s.shiftLabel, borderLeftColor: shift.retired ? '#5a6472' : shift.color }}>
                                   <div style={s.shiftLabelName}>{shift.label}{shift.retired ? ' (not in use)' : ''}</div>
                                   <div style={s.shiftLabelTime}>{shift.retired ? 'This store runs 2 shifts. Move or remove these people.' : shift.time}</div>
                                 </div>
@@ -527,11 +527,11 @@ export default function Scheduling() {
               ({ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
             </h3>
             {allEmployees.length === 0 ? (
-              <div style={{ padding: '12px 16px', background: '#fff3cd', borderRadius: 8, fontSize: 15, color: '#856404' }}>
+              <div style={{ padding: '12px 16px', background: '#fdf6e8', borderRadius: 8, fontSize: 15, color: '#8a5300' }}>
                 ⚠️ No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
               </div>
             ) : getAvailableEmployees(addModal.day).length === 0 ? (
-              <div style={{ padding: '12px 16px', background: '#e2e3e5', borderRadius: 8, fontSize: 15, color: '#495057' }}>
+              <div style={{ padding: '12px 16px', background: '#e2e3e5', borderRadius: 8, fontSize: 15, color: '#374151' }}>
                 All employees are already scheduled on this day. Each employee can only have one shift per day.
               </div>
             ) : (
@@ -581,8 +581,8 @@ function RequestCard({
 }) {
   const isTimeOff = request.requestType === 'TIME_OFF';
   const isApproved = request.status === 'APPROVED';
-  const typeColor = isTimeOff ? '#E63946' : '#2DC653';
-  const statusColor = request.status === 'PENDING' ? '#f59e0b' : isApproved ? '#2DC653' : '#E63946';
+  const typeColor = isTimeOff ? '#c42130' : '#1f8a4c';
+  const statusColor = request.status === 'PENDING' ? '#b7791f' : isApproved ? '#1f8a4c' : '#c42130';
   const name = request.employee?.name || request.employee?.phone || 'Employee';
   const avatarColor = AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
 
@@ -630,26 +630,26 @@ function RequestCard({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f0f2f5' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f1f3f6' },
 
   // ── Sidebar (Chat style) ──
   sidebar: {
     width: 272, flexShrink: 0, background: '#fff',
-    borderRight: '1px solid #e5e7eb',
+    borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column',
   },
   sidebarTop: { padding: '20px 18px 8px' },
-  sidebarTitle: { fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: -0.3 },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
   sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   vacSummary: {
     margin: '6px 14px 4px',
     padding: '7px 12px',
-    background: '#fffbeb', borderRadius: 10,
-    border: '1px solid #fde68a',
-    fontSize: 14, color: '#b45309', fontWeight: 600,
+    background: '#fdf6e8', borderRadius: 10,
+    border: '1px solid #f1dcaf',
+    fontSize: 14, color: '#8a5300', fontWeight: 600,
     display: 'flex', alignItems: 'center', gap: 7,
   },
-  vacSummaryDot: { width: 7, height: 7, borderRadius: 4, background: '#f59e0b', display: 'inline-block', flexShrink: 0 },
+  vacSummaryDot: { width: 7, height: 7, borderRadius: 4, background: '#b7791f', display: 'inline-block', flexShrink: 0 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -657,18 +657,18 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, textAlign: 'left', position: 'relative',
     transition: 'background 0.15s',
   },
-  storeBtnActive: { background: '#eff6ff' },
+  storeBtnActive: { background: '#eef2f7' },
   storeAvatar: {
     width: 40, height: 40, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 16, fontWeight: 800,
+    color: '#fff', fontSize: 16, fontWeight: 700,
   },
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
-  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#2DC653', flexShrink: 0 },
-  vacBadge: { background: '#E63946', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
-  pendingReqBadge: { background: '#b45309', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1f8a4c', flexShrink: 0 },
+  vacBadge: { background: '#c42130', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  pendingReqBadge: { background: '#8a5300', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
   // ── Chat Panel ──
   chatPanel: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -678,21 +678,21 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
   },
   chatHeaderAvatar: {
-    width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
     background: 'rgba(255,255,255,0.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 18, fontWeight: 800, color: '#fff',
+    fontSize: 18, fontWeight: 700, color: '#fff',
     border: '2px solid rgba(255,255,255,0.35)',
   },
   chatHeaderInfo: { flex: 1 },
-  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 800, letterSpacing: -0.2 },
+  chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#4ade80', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
 
   vacancyBanner: {
     display: 'flex', alignItems: 'center', gap: 10,
-    background: '#fffbeb', borderBottom: '1px solid #fde68a',
-    padding: '12px 24px', fontSize: 15, color: '#b45309', flexShrink: 0,
+    background: '#fdf6e8', borderBottom: '1px solid #f1dcaf',
+    padding: '12px 24px', fontSize: 15, color: '#8a5300', flexShrink: 0,
   },
   vacancyBannerIcon: { fontSize: 18, flexShrink: 0 },
 
@@ -713,15 +713,15 @@ const s: Record<string, React.CSSProperties> = {
   },
   tabActive: { background: 'rgba(255,255,255,0.25)', color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
   badge: {
-    background: '#E63946', color: '#fff',
+    background: '#c42130', color: '#fff',
     borderRadius: 10, padding: '1px 7px',
-    fontSize: 12, fontWeight: 800,
+    fontSize: 12, fontWeight: 700,
   },
 
   // Sections
-  section: { flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8fafc' },
-  sectionTitle: { fontSize: 15, fontWeight: 800, color: '#111827', margin: '0 0 16px' },
-  subTitle: { fontSize: 15, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
+  section: { flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f7f8fa' },
+  sectionTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 16px' },
+  subTitle: { fontSize: 15, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px' },
 
   // Today's roster
   rosterGrid: {
@@ -730,15 +730,15 @@ const s: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   rosterCard: {
-    background: '#fff', borderRadius: 14, padding: 16,
-    borderTop: '4px solid #ccc',
-    border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+    background: '#fff', borderRadius: 12, padding: 16,
+    borderTop: '4px solid #d5dae1',
+    border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   rosterAvatar: {
     width: 32, height: 32, borderRadius: 9,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 15, flexShrink: 0,
+    color: '#fff', fontWeight: 700, fontSize: 15, flexShrink: 0,
   },
   rosterName: { fontWeight: 700, fontSize: 14, color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   rosterShiftTag: {
@@ -753,43 +753,43 @@ const s: Record<string, React.CSSProperties> = {
   grid: { width: '100%', borderCollapse: 'collapse', minWidth: 700 },
   gridHeaderCell: {
     padding: '10px 8px', textAlign: 'center',
-    fontSize: 13, fontWeight: 800, color: TEXT_MUTED,
+    fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase', letterSpacing: '0.5px',
-    background: '#f8fafc', borderBottom: '2px solid #f0f1f2',
+    background: '#f7f8fa', borderBottom: '2px solid #e4e7ec',
   },
-  todayCol: { color: PRIMARY, background: '#eff6ff' },
+  todayCol: { color: PRIMARY, background: '#eef2f7' },
   todayBadge: {
-    display: 'block', fontSize: 9, fontWeight: 800,
+    display: 'block', fontSize: 9, fontWeight: 700,
     color: PRIMARY, textTransform: 'uppercase', marginTop: 2,
   },
   shiftLabelCell: {
-    padding: '8px 14px', background: '#fafafa',
-    borderRight: '2px solid #f0f1f2', borderBottom: '1px solid #f0f1f2',
+    padding: '8px 14px', background: '#f7f8fa',
+    borderRight: '2px solid #e4e7ec', borderBottom: '1px solid #e4e7ec',
   },
-  shiftLabel: { borderLeft: '3px solid #ccc', paddingLeft: 10 },
-  shiftLabelName: { fontWeight: 800, fontSize: 15, color: '#111827' },
+  shiftLabel: { borderLeft: '3px solid #d5dae1', paddingLeft: 10 },
+  shiftLabelName: { fontWeight: 700, fontSize: 15, color: '#111827' },
   shiftLabelTime: { fontSize: 13, color: TEXT_MUTED, marginTop: 3 },
   cell: {
     padding: '6px 8px', verticalAlign: 'top',
-    borderBottom: '1px solid #f0f1f2', borderRight: '1px solid #f0f1f2',
+    borderBottom: '1px solid #e4e7ec', borderRight: '1px solid #e4e7ec',
     minWidth: 90,
   },
-  todayCellBg: { background: '#eff6ff' },
+  todayCellBg: { background: '#eef2f7' },
   cellContent: { display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 32 },
   chip: {
     display: 'flex', alignItems: 'center', gap: 4,
-    background: '#f0f4ff', border: '1px solid',
+    background: '#eef2f7', border: '1px solid',
     borderRadius: 8, padding: '3px 4px 3px 8px',
     fontSize: 13, fontWeight: 600, color: PRIMARY,
   },
   chipName: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   chipRemove: {
     background: 'none', border: 'none', cursor: 'pointer',
-    color: '#E63946', fontSize: 14, fontWeight: 700,
+    color: '#c42130', fontSize: 14, fontWeight: 700,
     padding: '0 2px', lineHeight: 1,
   },
   addChipBtn: {
-    background: 'none', border: '1.5px dashed #d1d5db',
+    background: 'none', border: '1.5px dashed #d5dae1',
     borderRadius: 8, width: 26, height: 26,
     cursor: 'pointer', color: TEXT_MUTED, fontSize: 16, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -799,17 +799,17 @@ const s: Record<string, React.CSSProperties> = {
   // Requests
   requestList: { display: 'flex', flexDirection: 'column', gap: 10 },
   requestCard: {
-    background: '#fff', borderRadius: 14, padding: 16,
-    borderLeft: '4px solid #ccc',
-    border: '1px solid #f0f1f2',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    background: '#fff', borderRadius: 12, padding: 16,
+    borderLeft: '4px solid #d5dae1',
+    border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', gap: 10,
   },
   requestTop: { display: 'flex', gap: 10, alignItems: 'center' },
   reqAvatar: {
     width: 36, height: 36, borderRadius: 10, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 800, fontSize: 14,
+    color: '#fff', fontWeight: 700, fontSize: 14,
   },
   requestEmployee: { fontWeight: 700, fontSize: 14, color: '#111827' },
   requestPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
@@ -817,23 +817,23 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 700,
   },
   statusBadge: {
-    borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 800,
+    borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 700,
     textTransform: 'uppercase', border: '1px solid',
   },
   requestDetails: { display: 'flex', gap: 10, fontSize: 15, color: '#374151', flexWrap: 'wrap', fontWeight: 600 },
-  dot: { color: '#e5e7eb' },
+  dot: { color: '#e4e7ec' },
   requestNotes: { fontStyle: 'italic', color: TEXT_MUTED, fontWeight: 400 },
   requestActions: { display: 'flex', gap: 10, marginTop: 2 },
   approveBtn: {
-    background: '#f0fdf4', color: '#16a34a',
-    border: '1px solid #bbf7d0',
-    borderRadius: 10, padding: '8px 20px', fontWeight: 800,
+    background: '#edf7f0', color: '#1f8a4c',
+    border: '1px solid #c8e6d2',
+    borderRadius: 10, padding: '8px 20px', fontWeight: 700,
     cursor: 'pointer', fontSize: 15,
   },
   denyBtn: {
-    background: '#fff1f2', color: '#E63946',
-    border: '1px solid #fecaca',
-    borderRadius: 10, padding: '8px 20px', fontWeight: 800,
+    background: '#fdf2f2', color: '#c42130',
+    border: '1px solid #f3cdd1',
+    borderRadius: 10, padding: '8px 20px', fontWeight: 700,
     cursor: 'pointer', fontSize: 15,
   },
 
@@ -848,23 +848,23 @@ const s: Record<string, React.CSSProperties> = {
     width: 420, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
     display: 'flex', flexDirection: 'column', gap: 14,
   },
-  modalTitle: { margin: 0, fontSize: 16, fontWeight: 800, color: '#111827' },
+  modalTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' },
   label: { fontWeight: 700, fontSize: 14, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' },
   select: {
     padding: '11px 14px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb', fontSize: 14, width: '100%',
-    boxSizing: 'border-box' as const, background: '#f9fafb', color: '#111827',
+    border: '1.5px solid #e4e7ec', fontSize: 14, width: '100%',
+    boxSizing: 'border-box' as const, background: '#f7f8fa', color: '#111827',
   },
   modalActions: { display: 'flex', gap: 10, marginTop: 4 },
   saveBtn: {
-    background: '#0f5132', color: '#fff', border: 'none',
-    borderRadius: 10, padding: '11px 24px', fontWeight: 800,
+    background: '#17663a', color: '#fff', border: 'none',
+    borderRadius: 10, padding: '11px 24px', fontWeight: 700,
     cursor: 'pointer', fontSize: 14,
     boxShadow: '0 4px 12px rgba(15,81,50,0.3)',
   },
   cancelBtn: {
-    background: '#f3f4f6', color: TEXT_MUTED,
-    border: '1.5px solid #e5e7eb', borderRadius: 10,
+    background: '#f1f3f6', color: TEXT_MUTED,
+    border: '1.5px solid #e4e7ec', borderRadius: 10,
     padding: '11px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14,
   },
 
@@ -874,10 +874,10 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: 'center', height: '100%', gap: 12, padding: 60,
   },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: { fontSize: 20, fontWeight: 800, color: PRIMARY },
+  emptyTitle: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   emptyDesc: { fontSize: 14, color: TEXT_MUTED, textAlign: 'center' },
   emptyCard: {
-    color: TEXT_MUTED, background: '#f8f9fa',
+    color: TEXT_MUTED, background: '#f7f8fa',
     borderRadius: 12, padding: '16px 20px', fontSize: 14,
   },
   loadingText: { color: TEXT_MUTED, padding: 20, fontSize: 14 },

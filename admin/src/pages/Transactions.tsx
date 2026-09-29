@@ -27,16 +27,16 @@ const CATEGORIES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:  '#F4A261',
-  FLAGGED:  '#9B2335',
-  APPROVED: '#2DC653',
-  REJECTED: '#C1121F',
-  VOIDED:   '#7c3aed',
+  PENDING:  '#b7791f',
+  FLAGGED:  '#a51b28',
+  APPROVED: '#1f8a4c',
+  REJECTED: '#c42130',
+  VOIDED:   '#4f6d8f',
 };
 
-// Text-safe greens and reds: #2DC653 and #E63946 are fine as badge backgrounds but not as small text on white.
-const APPROVED_TEXT = '#157A3E';
-const DANGER = '#C1121F';
+// Text-safe greens and reds: #1f8a4c and #c42130 are fine as badge backgrounds but not as small text on white.
+const APPROVED_TEXT = '#17663a';
+const DANGER = '#c42130';
 
 const FRAUD_FLAG_LABELS: Record<string, string> = {
   HIGH_AMOUNT:       'High amount (non-gas)',
@@ -501,7 +501,7 @@ export default function Transactions() {
           </label>
           <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
           <input aria-label="Maximum amount" style={s.amountInput} type="number" min="0" step="0.01" placeholder="Max" value={maxAmountInput} onChange={(e) => setMaxAmountInput(e.target.value)} />
-          {badAmounts && <span style={{ color: '#C1121F', fontSize: 13 }}>The minimum is more than the maximum.</span>}
+          {badAmounts && <span style={{ color: '#c42130', fontSize: 13 }}>The minimum is more than the maximum.</span>}
           <label style={s.testDataLabel}>
             <input type="checkbox" checked={includeTestData} onChange={(e) => changeIncludeTestData(e.target.checked)} />
             Include test data
@@ -584,12 +584,12 @@ export default function Transactions() {
                 const flags = parseFlags(tx.fraudFlags);
                 const hasReceipt = !!tx.receiptImageUrl;
                 const who = tx.customer?.name || tx.customer?.phone || 'customer';
-                const badgeBg = STATUS_COLORS[tx.status] || '#dee2e6';
+                const badgeBg = STATUS_COLORS[tx.status] || '#e4e7ec';
                 return (
                 <TableRow
                   key={tx.id}
                   style={{
-                    background: i === focusedIndex ? '#eef4ff' : tx.status === 'FLAGGED' ? '#fff5f5' : tx.status === 'REJECTED' ? '#f8f9fa' : undefined,
+                    background: i === focusedIndex ? '#eef2f7' : tx.status === 'FLAGGED' ? '#fdf2f2' : tx.status === 'REJECTED' ? '#f7f8fa' : undefined,
                     boxShadow: i === focusedIndex ? 'inset 3px 0 0 ' + PRIMARY : undefined,
                   }}
                 >
@@ -647,7 +647,7 @@ export default function Transactions() {
                     {flags.length > 0 && (
                       <div style={{ marginTop: 4 }}>
                         {flags.map((f: string) => (
-                          <div key={f} style={{ fontSize: 12, color: '#9B2335', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>
+                          <div key={f} style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>
                         ))}
                       </div>
                     )}
@@ -656,7 +656,7 @@ export default function Transactions() {
                     {hasReceipt ? (
                       <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
                     ) : tx.status === 'FLAGGED' ? (
-                      <span style={{ fontSize: 13, color: '#9B2335', fontWeight: 600 }}>None yet</span>
+                      <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
                     ) : ' - '}
                   </TableCell>
                   <TableCell style={s.td}>
@@ -711,7 +711,7 @@ export default function Transactions() {
           <div ref={panelDialogRef} role="dialog" aria-modal="true" aria-label="Transaction details" tabIndex={-1} style={s.panel} onClick={(e) => e.stopPropagation()}>
             <div style={s.panelHeader}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 17, color: PRIMARY }}>{panelTx.customer?.name || panelTx.customer?.phone || 'Customer'}</div>
+                <div style={{ fontWeight: 700, fontSize: 17, color: PRIMARY }}>{panelTx.customer?.name || panelTx.customer?.phone || 'Customer'}</div>
                 <div style={{ fontSize: 13, color: TEXT_MUTED }}>{panelTx.customer?.phone}</div>
               </div>
               <button type="button" style={s.panelClose} aria-label="Close details" onClick={() => setPanelId(null)}>✕</button>
@@ -720,7 +720,7 @@ export default function Transactions() {
             <div style={s.panelBody}>
               <div style={s.panelSummary}>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{fmt$(panelTx.purchaseAmount)}</span>
-                <span style={{ ...s.badge, background: STATUS_COLORS[panelTx.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[panelTx.status] || '#dee2e6') }}>
+                <span style={{ ...s.badge, background: STATUS_COLORS[panelTx.status] || '#e4e7ec', color: badgeInk(STATUS_COLORS[panelTx.status] || '#e4e7ec') }}>
                   {statusLabel(panelTx.status)}
                 </span>
               </div>
@@ -752,7 +752,7 @@ export default function Transactions() {
                   <div key={t.id} style={{ ...s.panelMiniRow, ...(t.id === panelTx.id ? s.panelMiniRowSelf : {}) }}>
                     <span>{storeDay(t.createdAt)}</span>
                     <span>{fmt$(t.purchaseAmount)}</span>
-                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[t.status] || '#dee2e6'), fontSize: 11 }}>{t.status}</span>
+                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#e4e7ec', color: badgeInk(STATUS_COLORS[t.status] || '#e4e7ec'), fontSize: 11 }}>{t.status}</span>
                   </div>
                 ))
               )}
@@ -765,7 +765,7 @@ export default function Transactions() {
                   <div key={t.id} style={{ ...s.panelMiniRow, ...(t.id === panelTx.id ? s.panelMiniRowSelf : {}) }}>
                     <span>{storeDay(t.createdAt)}</span>
                     <span>{fmt$(t.purchaseAmount)}</span>
-                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#dee2e6', color: badgeInk(STATUS_COLORS[t.status] || '#dee2e6'), fontSize: 11 }}>{t.status}</span>
+                    <span style={{ ...s.badge, background: STATUS_COLORS[t.status] || '#e4e7ec', color: badgeInk(STATUS_COLORS[t.status] || '#e4e7ec'), fontSize: 11 }}>{t.status}</span>
                   </div>
                 ))
               )}
@@ -812,73 +812,73 @@ export default function Transactions() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
+  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, marginBottom: 0 },
   totalBadge: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600, alignSelf: 'center' },
 
   filterBar: {
     display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-    marginBottom: 16, padding: '14px 16px', background: '#f8f9fa', borderRadius: 12,
+    marginBottom: 16, padding: '14px 16px', background: '#f7f8fa', borderRadius: 12,
   },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, background: '#fff', cursor: 'pointer' },
-  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15 },
-  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #dee2e6', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, background: '#fff', cursor: 'pointer' },
+  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15 },
+  clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   exportBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: PRIMARY, color: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' as const },
 
   summaryBar: {
     display: 'flex', gap: 0, background: '#fff',
     borderRadius: 12, marginBottom: 20,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
     overflow: 'hidden',
   },
   summaryItem: { flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 2 },
-  summaryDivider: { width: 1, background: '#f0f1f2' },
+  summaryDivider: { width: 1, background: '#e4e7ec' },
   summaryLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryValue: { fontSize: 20, fontWeight: 800, color: PRIMARY },
+  summaryValue: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   summaryNote: { fontSize: 13, color: TEXT_MUTED, margin: '-12px 0 16px' },
 
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  th: { background: '#f8f9fa', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' },
-  td: { padding: '12px 14px', borderBottom: '1px solid #f0f1f2', fontSize: 15, verticalAlign: 'middle' },
+  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  th: { background: '#f7f8fa', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' },
+  td: { padding: '12px 14px', borderBottom: '1px solid #e4e7ec', fontSize: 15, verticalAlign: 'middle' },
   badge: { borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600 },
-  catBadge: { background: '#f8f9fa', color: '#495057', borderRadius: 6, padding: '3px 8px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
+  catBadge: { background: '#f7f8fa', color: '#374151', borderRadius: 6, padding: '3px 8px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   link: { color: PRIMARY, fontWeight: 600, fontSize: 15 },
   copyId: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 2, fontSize: 12, color: TEXT_MUTED, cursor: 'pointer', fontFamily: 'inherit' },
   rejectBtn: { background: 'none', border: `1px solid ${DANGER}`, color: DANGER, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 },
   approveBtn: { background: APPROVED_TEXT, border: `1px solid ${APPROVED_TEXT}`, color: '#fff' },
-  voidBtn: { flex: 1, background: 'none', border: '1px solid #7c3aed', color: '#7c3aed', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  approveOff: { background: '#e9ecef', border: '1px solid #ced4da', color: '#6c757d', cursor: 'not-allowed' },
+  voidBtn: { flex: 1, background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
+  approveOff: { background: '#e4e7ec', border: '1px solid #ced4da', color: '#5a6472', cursor: 'not-allowed' },
   actionNote: { fontSize: 12, color: TEXT_MUTED, maxWidth: 130 },
-  dialogFlags: { textAlign: 'left', color: '#9B2335', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },
+  dialogFlags: { textAlign: 'left', color: '#a51b28', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
 
-  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, minWidth: 240, flex: '1 1 240px' },
+  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, minWidth: 240, flex: '1 1 240px' },
   moreFiltersBar: {
     display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
-    marginTop: -8, marginBottom: 16, padding: '12px 16px', background: '#f8f9fa', borderRadius: 12,
+    marginTop: -8, marginBottom: 16, padding: '12px 16px', background: '#f7f8fa', borderRadius: 12,
   },
   moreFiltersLabel: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: TEXT_MUTED, fontWeight: 600 },
-  amountInput: { width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid #dee2e6', fontSize: 15, boxSizing: 'border-box' },
+  amountInput: { width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, boxSizing: 'border-box' },
   testDataLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: TEXT_MUTED, fontWeight: 600, cursor: 'pointer' },
-  testBadge: { marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#92400e', background: '#fef3c7', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 },
+  testBadge: { marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#8a5300', background: '#fdf6e8', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 },
   detailsBtn: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 3, fontSize: 12, color: PRIMARY, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline' },
 
   keyboardHint: { fontSize: 13, color: TEXT_MUTED, margin: '-6px 0 12px' },
-  kbd: { fontSize: 11, fontWeight: 700, color: TEXT_MUTED, background: '#f4f4f7', border: '1px solid #e5e5ea', borderRadius: 4, padding: '1px 5px' },
+  kbd: { fontSize: 11, fontWeight: 700, color: TEXT_MUTED, background: '#f1f3f6', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px' },
 
   panelOverlay: { position: 'fixed', inset: 0, background: 'rgba(15,20,30,0.4)', zIndex: 1100, display: 'flex', justifyContent: 'flex-end' },
   panel: {
     width: '100%', maxWidth: 420, height: '100%', background: '#fff', boxShadow: '-8px 0 32px rgba(0,0,0,0.18)',
     display: 'flex', flexDirection: 'column', outline: 'none',
   },
-  panelHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 20px', borderBottom: '1px solid #f0f1f2' },
+  panelHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 20px', borderBottom: '1px solid #e4e7ec' },
   panelClose: { background: 'none', border: 'none', fontSize: 18, color: TEXT_MUTED, cursor: 'pointer', padding: 4, lineHeight: 1 },
   panelBody: { padding: '16px 20px', overflowY: 'auto', flex: 1 },
   panelSummary: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 },
   panelSectionTitle: { fontSize: 12.5, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, margin: '18px 0 8px' },
-  panelReceiptImg: { width: '100%', borderRadius: 10, border: '1px solid #f0f1f2', display: 'block' },
+  panelReceiptImg: { width: '100%', borderRadius: 10, border: '1px solid #e4e7ec', display: 'block' },
   panelEmptyNote: { fontSize: 13.5, color: TEXT_MUTED },
   panelMiniRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 13.5, borderBottom: '1px solid #f7f7f8' },
-  panelMiniRowSelf: { background: '#eef4ff', borderRadius: 6, padding: '6px 8px', margin: '0 -8px' },
-  panelActions: { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #f0f1f2' },
+  panelMiniRowSelf: { background: '#eef2f7', borderRadius: 6, padding: '6px 8px', margin: '0 -8px' },
+  panelActions: { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #e4e7ec' },
 };

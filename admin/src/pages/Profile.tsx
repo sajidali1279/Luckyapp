@@ -174,24 +174,24 @@ export default function Profile() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f0f2f5', padding: '32px 24px' },
+  page: { minHeight: '100vh', background: '#f1f3f6', padding: '32px 24px' },
   inner: { display: 'flex', flexDirection: 'column', gap: 28 },
 
   header: {
     display: 'flex', alignItems: 'center', gap: 20,
     background: '#fff', borderRadius: 20, padding: '28px 32px',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   avatar: {
     width: 64, height: 64, borderRadius: 20, flexShrink: 0,
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    background: 'linear-gradient(135deg, #1D3557, #1D3557)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontWeight: 900, fontSize: 24,
+    color: '#fff', fontWeight: 700, fontSize: 24,
   },
-  title: { fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 },
+  title: { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   meta: { display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 },
   role: {
-    background: '#EEF2FF', color: '#4f46e5',
+    background: '#eef2f7', color: '#1D3557',
     borderRadius: 6, padding: '2px 10px',
     fontSize: 14, fontWeight: 700,
   },
@@ -201,27 +201,27 @@ const s: Record<string, React.CSSProperties> = {
 
   card: {
     background: '#fff', borderRadius: 20, padding: '24px',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', gap: 8,
   },
-  cardTitle: { fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 },
+  cardTitle: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
   cardSub: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 8px', lineHeight: 1.5 },
 
   form: { display: 'flex', flexDirection: 'column', gap: 8 },
   label: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
     padding: '11px 14px', borderRadius: 10,
-    border: '1.5px solid #e5e7eb', fontSize: 15,
-    outline: 'none', background: '#f9fafb', color: '#111827',
+    border: '1.5px solid #e4e7ec', fontSize: 15,
+    outline: 'none', background: '#f7f8fa', color: '#111827',
     width: '100%', boxSizing: 'border-box' as const,
   },
   pinInput: { letterSpacing: 10, fontSize: 20, textAlign: 'center' as const },
 
   btn: {
     marginTop: 8, padding: '12px 16px',
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    background: 'linear-gradient(135deg, #1D3557, #1D3557)',
     color: '#fff', border: 'none', borderRadius: 10,
     fontSize: 14, fontWeight: 700, cursor: 'pointer',
   },
-  btnDanger: { background: 'linear-gradient(135deg, #dc2626, #b91c1c)' },
+  btnDanger: { background: 'linear-gradient(135deg, #c42130, #a51b28)' },
 };

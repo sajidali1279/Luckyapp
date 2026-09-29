@@ -99,7 +99,7 @@ export default function Banners() {
 
       {showForm && (
         <form style={s.form} onSubmit={handleCreate}>
-          <h2 style={{ margin: '0 0 16px', color: PRIMARY, fontSize: 17, fontWeight: 800 }}>Upload Banner</h2>
+          <h2 style={{ margin: '0 0 16px', color: PRIMARY, fontSize: 17, fontWeight: 700 }}>Upload Banner</h2>
 
           <label style={s.label} htmlFor="banner-title">Title *</label>
           <input id="banner-title" style={s.input} maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. March Fuel Savings" />
@@ -108,7 +108,7 @@ export default function Banners() {
           <input id="banner-link" style={s.input} type="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://... - shown as a 'Visit' button when tapped in the app" />
 
           {isStoreManager ? (
-            <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
+            <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
               📍 This banner will appear for your store only
             </div>
           ) : (
@@ -174,31 +174,31 @@ export default function Banners() {
 const s: Record<string, React.CSSProperties> = {
   container: { padding: 'clamp(16px, 4vw, 32px)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 28 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
+  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
   addBtn: { background: '#D62839', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
-    background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 12,
-    borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+    background: '#fff', borderRadius: 12, padding: '24px 28px', marginBottom: 32,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', flexDirection: 'column', gap: 12,
+    borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
   },
   label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
+  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
   saveBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
 
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
-    background: '#fff', borderRadius: 16, overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 20, padding: '14px 18px',
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 20, padding: '14px 18px',
   },
   img: { width: 220, maxWidth: '100%', height: 90, objectFit: 'cover' as const, borderRadius: 10, flexShrink: 0 },
   cardInfo: { flex: 1, minWidth: 160 },
   cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 8px' },
   cardDate: { color: TEXT_MUTED, fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
-  tagAll: { display: 'inline-block', background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagStore: { display: 'inline-block', background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagLink: { display: 'inline-block', background: '#f0fdf4', color: '#16a34a', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
-  deleteBtn: { background: '#fff1f2', color: '#E63946', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
+  tagAll: { display: 'inline-block', background: '#eef2f7', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagStore: { display: 'inline-block', background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
+  tagLink: { display: 'inline-block', background: '#edf7f0', color: '#1f8a4c', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
+  deleteBtn: { background: '#fdf2f2', color: '#c42130', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f3cdd1', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 };

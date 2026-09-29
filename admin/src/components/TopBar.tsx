@@ -142,7 +142,7 @@ const s: Record<string, React.CSSProperties> = {
     flex: '0 1 260px', minWidth: 0,
   },
   searchBtnText: { flex: 1, textAlign: 'left' as const, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
-  kbd: { fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, background: '#fff', border: '1px solid #e5e5ea', borderRadius: 4, padding: '1px 5px', flexShrink: 0 },
+  kbd: { fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px', flexShrink: 0 },
   right: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 },
   freshness: { fontSize: 12, color: TEXT_MUTED, whiteSpace: 'nowrap' as const },
   iconBtn: {
@@ -151,8 +151,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   spin: { animation: 'spin 0.8s linear infinite' },
   bellDot: {
-    position: 'absolute', top: 2, right: 2, minWidth: 15, height: 15, borderRadius: 8, background: '#b91c1c', color: '#fff',
-    fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1,
+    position: 'absolute', top: 2, right: 2, minWidth: 15, height: 15, borderRadius: 8, background: '#a51b28', color: '#fff',
+    fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1,
   },
   popover: {
     position: 'absolute', top: 40, right: 0, width: 320, maxHeight: 380, overflowY: 'auto' as const,
@@ -166,7 +166,7 @@ const s: Record<string, React.CSSProperties> = {
     border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#111827', textAlign: 'left' as const,
   },
   popoverCount: {
-    fontSize: 12, fontWeight: 800, color: '#fff', background: '#b91c1c', borderRadius: 10, minWidth: 20, height: 20,
+    fontSize: 12, fontWeight: 700, color: '#fff', background: '#a51b28', borderRadius: 10, minWidth: 20, height: 20,
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', flexShrink: 0,
   },
 };

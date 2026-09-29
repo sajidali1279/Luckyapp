@@ -35,7 +35,7 @@ export default function PageLoader() {
 const s: Record<string, React.CSSProperties> = {
   wrap: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f0f2f5 0%, #e8ecf0 100%)',
+    background: 'linear-gradient(135deg, #f1f3f6 0%, #e8ecf0 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -51,7 +51,7 @@ const s: Record<string, React.CSSProperties> = {
     width: 72,
     height: 72,
     borderRadius: 22,
-    background: 'linear-gradient(135deg, #1D3557, #2c5282)',
+    background: 'linear-gradient(135deg, #1D3557, #1D3557)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

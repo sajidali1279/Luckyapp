@@ -21,11 +21,11 @@ const POSITION_LABELS: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  NEW:      { label: 'New',            color: PRIMARY, bg: '#eff6ff' },
-  REVIEWED: { label: 'Reviewed',       color: '#7c3aed', bg: '#f5f3ff' },
-  INTERVIEW:{ label: 'Interview',      color: '#b45309', bg: '#fffbeb' },
-  HIRED:    { label: 'Hired',          color: '#166534', bg: '#f0fdf4' },
-  REJECTED: { label: 'Rejected',       color: '#9f1239', bg: '#fff1f2' },
+  NEW:      { label: 'New',            color: PRIMARY, bg: '#eef2f7' },
+  REVIEWED: { label: 'Reviewed',       color: '#4f6d8f', bg: '#eef2f7' },
+  INTERVIEW:{ label: 'Interview',      color: '#8a5300', bg: '#fdf6e8' },
+  HIRED:    { label: 'Hired',          color: '#17663a', bg: '#edf7f0' },
+  REJECTED: { label: 'Rejected',       color: '#a51b28', bg: '#fdf2f2' },
 };
 
 const SHIFT_LABELS: Record<string, string> = {
@@ -249,7 +249,7 @@ export default function Careers() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={s.opTitle}>{op.title}</span>
-                      <span style={{ ...s.badge, ...(op.isActive ? { color: '#166534', background: '#f0fdf4' } : { color: TEXT_MUTED, background: '#f5f5f5' }) }}>
+                      <span style={{ ...s.badge, ...(op.isActive ? { color: '#17663a', background: '#edf7f0' } : { color: TEXT_MUTED, background: '#f7f8fa' }) }}>
                         {op.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -518,66 +518,66 @@ export default function Careers() {
 const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
 
   tabs: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#555' },
+  tab: { padding: '7px 18px', borderRadius: 20, border: '1.5px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151' },
   tabActive: { background: PRIMARY, color: '#fff', border: '1.5px solid #1D3557' },
   tabBadge: {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
-    background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 800,
+    background: '#c42130', color: '#fff', fontSize: 12, fontWeight: 700,
   },
 
   filters: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, background: '#fff', cursor: 'pointer', minWidth: 180 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 15, background: '#fff', cursor: 'pointer', minWidth: 180 },
 
-  tableWrap: { overflowX: 'auto', borderRadius: 12, border: '1px solid #e0e0e0', background: '#fff' },
+  tableWrap: { overflowX: 'auto', borderRadius: 12, border: '1px solid #e4e7ec', background: '#fff' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#f8fafc' },
-  th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e0e0e0' },
+  thead: { background: '#f7f8fa' },
+  th: { padding: '12px 16px', textAlign: 'left', fontSize: 14, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e4e7ec' },
   tr: { cursor: 'pointer', transition: 'background 0.15s' },
-  td: { padding: '14px 16px', fontSize: 15, color: PRIMARY, borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' },
+  td: { padding: '14px 16px', fontSize: 15, color: PRIMARY, borderBottom: '1px solid #e4e7ec', verticalAlign: 'middle' },
   appName: { fontWeight: 700, color: PRIMARY },
   appPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   badge: { display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 14, fontWeight: 700 },
-  avail: { fontSize: 14, color: '#555' },
+  avail: { fontSize: 14, color: '#374151' },
 
-  empty: { textAlign: 'center', padding: '60px 0', color: '#aaa', fontSize: 15 },
+  empty: { textAlign: 'center', padding: '60px 0', color: '#5a6472', fontSize: 15 },
 
   // Modal
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 20 },
-  modal: { background: '#fff', borderRadius: 16, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
+  modal: { background: '#fff', borderRadius: 12, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  modalName: { fontSize: 20, fontWeight: 800, color: PRIMARY },
+  modalName: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
 
-  section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #f0f0f0' },
-  sectionTitle: { fontSize: 13, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
-  row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#333' },
+  section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #e4e7ec' },
+  sectionTitle: { fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#111827' },
   rowLabel: { fontWeight: 600, color: TEXT_MUTED, minWidth: 70 },
-  text: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
+  text: { fontSize: 14, color: '#111827', lineHeight: 1.6, margin: 0 },
 
-  statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e0e0e0', background: '#f8fafc', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#555' },
+  statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e4e7ec', background: '#f7f8fa', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' },
 
-  textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e0e0e0', padding: '10px 12px', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e4e7ec', padding: '10px 12px', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
   saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   metaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  metaText: { fontSize: 14, color: '#aaa' },
-  deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E63946', background: '#fff', color: '#E63946', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  metaText: { fontSize: 14, color: '#5a6472' },
+  deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #c42130', background: '#fff', color: '#c42130', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Openings
   postBtn: { padding: '10px 20px', borderRadius: 10, border: 'none', background: '#CC2936', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
-  opCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e0e0e0' },
-  opTitle: { fontSize: 17, fontWeight: 800, color: PRIMARY },
-  opMeta: { fontSize: 14, color: '#666', margin: '4px 0 6px' },
-  opDesc: { fontSize: 14, color: '#444', lineHeight: 1.5 },
+  opCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e4e7ec' },
+  opTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY },
+  opMeta: { fontSize: 14, color: '#5a6472', margin: '4px 0 6px' },
+  opDesc: { fontSize: 14, color: '#374151', lineHeight: 1.5 },
   editBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#fff', color: PRIMARY, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Form
   label: { fontSize: 13, fontWeight: 700, color: PRIMARY, display: 'block', marginBottom: 5, marginTop: 14 },
-  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' },
-  cancelBtn: { padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e0e0e0', background: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#555' },
+  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' },
+  cancelBtn: { padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151' },
 };

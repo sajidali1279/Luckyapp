@@ -20,7 +20,7 @@ interface ScannedProduct {
 }
 
 const SOURCE_META: Record<string, { label: string; bg: string; color: string }> = {
-  manual:        { label: 'Manual',           bg: '#e8f0fe', color: PRIMARY },
+  manual:        { label: 'Manual',           bg: '#eef2f7', color: PRIMARY },
   openfoodfacts: { label: 'Open Food Facts',  bg: '#eaf7ee', color: '#1e7a3d' },
 };
 
@@ -395,9 +395,9 @@ export default function ScannedProducts() {
                     </TableHeader>
                     <TableBody>
                       {visibleItems.map((p, i) => {
-                        const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f3f4f6', color: '#4b5563' };
+                        const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f1f3f6', color: '#4b5563' };
                         return (
-                          <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9fc' }}>
+                          <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                             <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
                             <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
                             <TableCell style={s.td}>{p.brand || ' - '}</TableCell>
@@ -439,18 +439,18 @@ export default function ScannedProducts() {
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f4f6fb', padding: '32px 0' },
+  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
-  pageTitle: { fontSize: 26, fontWeight: 900, color: PRIMARY, margin: 0 },
+  pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   pageSub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },
 
   searchWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
   searchIcon: { position: 'absolute', left: 12, fontSize: 14, pointerEvents: 'none' },
   searchInput: {
     paddingLeft: 36, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
-    borderRadius: 10, border: '1.5px solid #e5e7eb',
+    borderRadius: 10, border: '1.5px solid #e4e7ec',
     fontSize: 15, background: '#fff', color: '#111827', minWidth: 240,
     outline: 'none',
   },
@@ -460,42 +460,42 @@ const s: Record<string, CSSProperties> = {
   },
 
   tableWrap: {
-    background: '#fff', borderRadius: 14, overflowX: 'auto',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #eee',
+    background: '#fff', borderRadius: 12, overflowX: 'auto',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
   },
   catHeader: {
     display: 'flex', alignItems: 'center', gap: 10,
-    padding: '12px 16px', borderBottom: '1px solid #eee',
+    padding: '12px 16px', borderBottom: '1px solid #e4e7ec',
   },
-  catName: { fontSize: 14, fontWeight: 800, color: PRIMARY, textTransform: 'uppercase', letterSpacing: 0.4 },
+  catName: { fontSize: 14, fontWeight: 700, color: PRIMARY, textTransform: 'uppercase', letterSpacing: 0.4 },
   catBadge: {
     fontSize: 12, fontWeight: 700, color: PRIMARY, background: '#1D355718',
     borderRadius: 10, padding: '2px 9px',
   },
   showMoreBtn: {
-    width: '100%', padding: '11px 16px', background: '#f9f9fc', border: 'none',
-    borderTop: '1px solid #eee', color: PRIMARY, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    width: '100%', padding: '11px 16px', background: '#f7f8fa', border: 'none',
+    borderTop: '1px solid #e4e7ec', color: PRIMARY, fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
     padding: '10px 14px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-    color: TEXT_MUTED, background: '#f9f9fc', borderBottom: '1px solid #eee',
+    color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f0f0f5', verticalAlign: 'middle', fontSize: 14 },
+  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
   itemName: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 160 },
   sourceBadge: { borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   deleteBtn: {
-    background: '#fff0f0', color: '#c53030', border: 'none',
+    background: '#fdf2f2', color: '#c42130', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
   editBtn: {
-    background: '#eff6ff', color: PRIMARY, border: 'none',
+    background: '#eef2f7', color: PRIMARY, border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
 
   emptyBox: {
-    background: '#fff', borderRadius: 16, padding: 60,
+    background: '#fff', borderRadius: 12, padding: 60,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
   },
   emptyIcon: { fontSize: 56 },
@@ -509,32 +509,32 @@ const m: Record<string, CSSProperties> = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
-    background: '#fff', borderRadius: 18, width: '100%', maxWidth: 480,
+    background: '#fff', borderRadius: 12, width: '100%', maxWidth: 480,
     margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
     maxHeight: '90vh', overflowY: 'auto',
   },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '20px 24px', borderBottom: '1px solid #eee',
+    padding: '20px 24px', borderBottom: '1px solid #e4e7ec',
     position: 'sticky', top: 0, background: '#fff', zIndex: 1,
   },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 20, fontWeight: 700, color: PRIMARY },
   closeBtn: {
     background: 'none', border: 'none', fontSize: 18,
     cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
   },
   form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 8 },
-  label: { fontSize: 13, fontWeight: 700, color: '#333', marginTop: 6 },
+  label: { fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 6 },
   input: {
-    border: '1.5px solid #ddd', borderRadius: 10,
+    border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
     boxSizing: 'border-box' as const,
   },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.5 },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 },
   cancelBtn: {
-    background: '#f4f4f4', border: 'none', borderRadius: 10,
-    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#444',
+    background: '#f1f3f6', border: 'none', borderRadius: 10,
+    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151',
   },
   saveBtn: {
     background: PRIMARY, color: '#fff', border: 'none',
@@ -543,12 +543,12 @@ const m: Record<string, CSSProperties> = {
   saveBtnDim: { opacity: 0.5, cursor: 'not-allowed' },
   sugg: {
     position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff',
-    border: '1.5px solid #e5e7eb', borderTop: 'none', borderRadius: '0 0 10px 10px',
+    border: '1.5px solid #e4e7ec', borderTop: 'none', borderRadius: '0 0 10px 10px',
     zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto',
   },
   suggRow: {
     padding: '10px 14px', cursor: 'pointer', fontSize: 14,
-    borderBottom: '1px solid #f8fafc',
+    borderBottom: '1px solid #f7f8fa',
   },
-  inputReadOnly: { background: '#f4f4f4', color: '#888', cursor: 'not-allowed' },
+  inputReadOnly: { background: '#f1f3f6', color: '#888', cursor: 'not-allowed' },
 };

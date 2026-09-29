@@ -16,7 +16,7 @@ interface Item {
   snoozable?: boolean; onClick?: () => void;
 }
 
-const SEV_COLOR: Record<Sev, string> = { high: '#D62839', med: '#F4A261', low: '#94A3B8' };
+const SEV_COLOR: Record<Sev, string> = { high: '#D62839', med: '#b7791f', low: '#5a6472' };
 const SEV_RANK: Record<Sev, number> = { high: 0, med: 1, low: 2 };
 const SNOOZE_KEY = 'dash-inbox-snooze';
 const SNOOZE_MS = 7 * 86_400_000;
@@ -132,7 +132,7 @@ export default function AttentionInbox() {
           {i.meta && <span style={s.inboxMeta}> · {i.meta}</span>}
         </span>
         {i.count > 0 && <span style={{ ...s.inboxCount, background: SEV_COLOR[i.sev] }}>{formatInteger(i.count)}</span>}
-        <span aria-hidden="true" style={{ color: '#94A3B8', fontWeight: 700 }}>→</span>
+        <span aria-hidden="true" style={{ color: '#5a6472', fontWeight: 700 }}>→</span>
       </button>
       {i.snoozable && (
         <button style={{ ...s.inboxSnooze, marginRight: 14 }} onClick={() => (dim ? unsnooze(i.id) : snooze(i.id))}
@@ -154,10 +154,10 @@ export default function AttentionInbox() {
         )}
       </div>
       {live.length === 0 ? (
-        <div style={s.inboxClear}>✅ All clear. Nothing needs you right now.</div>
+        <div style={s.inboxClear}>All clear. Nothing needs you right now.</div>
       ) : (expanded ? live : live.slice(0, INBOX_VISIBLE)).map((i) => row(i))}
       {live.length > INBOX_VISIBLE && (
-        <button style={{ ...s.inboxRow, justifyContent: 'center', color: '#92400e', fontWeight: 700, fontSize: 14 }} onClick={() => setExpanded((v) => !v)}>
+        <button style={{ ...s.inboxRow, justifyContent: 'center', color: '#8a5300', fontWeight: 700, fontSize: 14 }} onClick={() => setExpanded((v) => !v)}>
           {expanded ? 'Show fewer' : `Show ${live.length - INBOX_VISIBLE} more`}
         </button>
       )}

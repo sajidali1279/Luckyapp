@@ -18,15 +18,15 @@ function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const AVATAR_PALETTE = ['#7c3aed','#0369a1','#16a34a','#b45309',PRIMARY,'#E63946','#0891b2','#be185d','#0f5132','#92400e'];
+const AVATAR_PALETTE = ['#4f6d8f','#1D3557','#1f8a4c','#8a5300',PRIMARY,'#c42130','#457B9D','#c42130','#17663a','#8a5300'];
 function avatarColor(name: string) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || 0) % AVATAR_PALETTE.length];
 }
 
 // Text colours dark enough to read on their tinted backgrounds (the brighter green and red were about 3.5 to 1)
-const GREEN_TEXT = '#166534';
-const RED_TEXT = '#b91c1c';
-const AMBER_TEXT = '#92400e';
+const GREEN_TEXT = '#17663a';
+const RED_TEXT = '#a51b28';
+const AMBER_TEXT = '#8a5300';
 
 const CREDIT_MAX = 50;
 /** The problem with an amount typed as a credit, or null when it is a good one (or still empty). Mirrors the server's rule. */
@@ -257,15 +257,15 @@ export default function Customers() {
             <span style={s.statNum}>{(activeTotal + restrictedTotal).toLocaleString()}</span>
             <span style={s.statLbl}>Total</span>
           </div>
-          <div style={{ ...s.statChip, background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+          <div style={{ ...s.statChip, background: '#edf7f0', borderColor: '#c8e6d2' }}>
             <span style={{ ...s.statNum, color: GREEN_TEXT }}>{activeTotal.toLocaleString()}</span>
             <span style={s.statLbl}>Active</span>
           </div>
-          <div style={{ ...s.statChip, ...(restrictedTotal > 0 ? { background: '#fff1f2', borderColor: '#fecaca' } : {}) }}>
+          <div style={{ ...s.statChip, ...(restrictedTotal > 0 ? { background: '#fdf2f2', borderColor: '#f3cdd1' } : {}) }}>
             <span style={{ ...s.statNum, color: restrictedTotal > 0 ? RED_TEXT : PRIMARY }}>{restrictedTotal.toLocaleString()}</span>
             <span style={s.statLbl}>Restricted</span>
           </div>
-          <div style={{ ...s.statChip, background: '#fffbeb', borderColor: '#fde68a' }}>
+          <div style={{ ...s.statChip, background: '#fdf6e8', borderColor: '#f1dcaf' }}>
             <span style={{ ...s.statNum, color: AMBER_TEXT }}>{fmt$(totalCreditsOutstanding)}</span>
             <span style={s.statLbl}>Credits Out</span>
           </div>
@@ -317,7 +317,7 @@ export default function Customers() {
                 <div key={d.id} className={d.id === highlightId ? 'ls-highlight-pulse' : undefined} style={s.disputeCard}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ ...s.disputeStatusPill, background: d.status === 'PENDING' ? '#fffbeb' : d.status === 'APPROVED' ? '#f0fdf4' : '#fff1f2', color: d.status === 'PENDING' ? AMBER_TEXT : d.status === 'APPROVED' ? GREEN_TEXT : RED_TEXT }}>
+                      <span style={{ ...s.disputeStatusPill, background: d.status === 'PENDING' ? '#fdf6e8' : d.status === 'APPROVED' ? '#edf7f0' : '#fdf2f2', color: d.status === 'PENDING' ? AMBER_TEXT : d.status === 'APPROVED' ? GREEN_TEXT : RED_TEXT }}>
                         {d.status}
                       </span>
                       <span style={s.disputeMeta}>{d.store?.name || 'Unknown store'} · {storeDayLong(d.createdAt)}</span>
@@ -443,11 +443,11 @@ export default function Customers() {
                         <div style={s.fraudBadge}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>
                       )}
                     </div>
-                    <div style={{ ...s.statusDot, background: c.isActive ? '#2DC653' : '#E63946' }} aria-hidden="true" />
+                    <div style={{ ...s.statusDot, background: c.isActive ? '#1f8a4c' : '#c42130' }} aria-hidden="true" />
                   </div>
 
                   {/* Balance */}
-                  <div style={{ ...s.balancePill, background: balance > 0 ? '#f0fdf4' : '#f8fafc', borderColor: balance > 0 ? '#bbf7d0' : '#e5e7eb' }}>
+                  <div style={{ ...s.balancePill, background: balance > 0 ? '#edf7f0' : '#f7f8fa', borderColor: balance > 0 ? '#c8e6d2' : '#e4e7ec' }}>
                     <span style={{ ...s.balanceAmt, color: balance > 0 ? GREEN_TEXT : TEXT_MUTED }}>
                       {fmt$(balance)}
                     </span>
@@ -545,7 +545,7 @@ export default function Customers() {
             {restrictError && <div role="alert" style={s.errorBox}>{restrictError}</div>}
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={closeRestrict} disabled={toggleMutation.isPending}>Cancel</button>
-              <button type="submit" style={{ ...s.confirmBtn, background: restrictTarget.isActive ? '#b91c1c' : GREEN_TEXT }} disabled={toggleMutation.isPending}>
+              <button type="submit" style={{ ...s.confirmBtn, background: restrictTarget.isActive ? '#a51b28' : GREEN_TEXT }} disabled={toggleMutation.isPending}>
                 {toggleMutation.isPending ? 'Updating…' : restrictTarget.isActive ? 'Restrict' : 'Restore'}
               </button>
             </div>
@@ -582,7 +582,7 @@ export default function Customers() {
             {deleteError && <div role="alert" style={s.errorBox}>{deleteError}</div>}
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={closeDelete} disabled={deleteMutation.isPending}>Cancel</button>
-              <button type="submit" style={{ ...s.confirmBtn, background: '#7f1d1d', ...(!fp || deleteTyped.trim() !== lastFour ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={!fp || deleteTyped.trim() !== lastFour || deleteMutation.isPending}>
+              <button type="submit" style={{ ...s.confirmBtn, background: '#a51b28', ...(!fp || deleteTyped.trim() !== lastFour ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={!fp || deleteTyped.trim() !== lastFour || deleteMutation.isPending}>
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete account'}
               </button>
             </div>
@@ -647,7 +647,7 @@ export default function Customers() {
               <button type="button" style={s.cancelBtn} onClick={closeResolve} disabled={resolveMutation.isPending}>Cancel</button>
               <button
                 type="button"
-                style={{ ...s.confirmBtn, background: '#b91c1c' }}
+                style={{ ...s.confirmBtn, background: '#a51b28' }}
                 onClick={() => runResolve({ id: resolveTarget.id, action: 'REJECTED', note: resolveNote })}
                 disabled={resolveMutation.isPending}
               >Reject</button>
@@ -766,15 +766,15 @@ const s: Record<string, React.CSSProperties> = {
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap' },
   eyebrow: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: PRIMARY },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
 
   headerStats: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
   statChip: {
-    background: '#fff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb',
+    background: '#fff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
     borderRadius: 12, padding: '10px 16px', textAlign: 'center',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
-  statNum: { display: 'block', fontSize: 18, fontWeight: 800, color: PRIMARY },
+  statNum: { display: 'block', fontSize: 18, fontWeight: 700, color: PRIMARY },
   statLbl: { display: 'block', fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
 
   exportBtn: { padding: '9px 18px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
@@ -784,26 +784,26 @@ const s: Record<string, React.CSSProperties> = {
   searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' },
   searchInput: {
     width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10,
-    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
+    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec',
     fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, background: '#fff',
   },
   searchBtn: { padding: '10px 22px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
-  clearBtn: { padding: '10px 16px', background: '#f8fafc', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 15 },
+  clearBtn: { padding: '10px 16px', background: '#f7f8fa', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec', borderRadius: 10, cursor: 'pointer', fontSize: 15 },
 
   cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 16, marginBottom: 24 },
 
   card: {
-    background: '#fff', borderRadius: 18,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: '18px 20px',
+    background: '#fff', borderRadius: 12,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', padding: '18px 20px',
     display: 'flex', flexDirection: 'column', gap: 0,
   },
-  cardInactive: { background: '#f3f4f6', border: '1px dashed #d1d5db' },
+  cardInactive: { background: '#f1f3f6', border: '1px dashed #d5dae1' },
 
   cardTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
   avatar: {
     width: 44, height: 44, borderRadius: 13, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 18, fontWeight: 800,
+    color: '#fff', fontSize: 18, fontWeight: 700,
   },
   customerName: { fontWeight: 700, fontSize: 15, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   customerPhone: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
@@ -814,31 +814,31 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, padding: '10px 14px', marginBottom: 14,
     display: 'flex', alignItems: 'baseline', gap: 6,
   },
-  balanceAmt: { fontSize: 22, fontWeight: 800 },
+  balanceAmt: { fontSize: 22, fontWeight: 700 },
   balanceLbl: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600 },
 
   statsRow: { display: 'flex', alignItems: 'center', marginBottom: 14 },
   statBlock: { flex: 1, textAlign: 'center' },
-  statBlockNum: { fontSize: 14, fontWeight: 800, color: '#111827' },
+  statBlockNum: { fontSize: 14, fontWeight: 700, color: '#111827' },
   statBlockLbl: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
-  statDivider: { width: 1, height: 28, background: '#f0f1f2' },
+  statDivider: { width: 1, height: 28, background: '#e4e7ec' },
 
-  cardDivider: { height: 1, background: '#e5e7eb', marginBottom: 14 },
+  cardDivider: { height: 1, background: '#e4e7ec', marginBottom: 14 },
 
   actionBtn: { width: '100%', padding: '9px 0', borderRadius: 10, border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
-  actionBtnView: { background: '#eff6ff', color: '#1d4ed8', marginBottom: 8 },
-  actionBtnRestrict: { background: '#fff1f2', color: RED_TEXT },
-  actionBtnRestore: { background: '#f0fdf4', color: GREEN_TEXT },
-  actionBtnDelete: { background: '#7f1d1d', color: '#fff', marginTop: 8 },
+  actionBtnView: { background: '#eef2f7', color: '#1D3557', marginBottom: 8 },
+  actionBtnRestrict: { background: '#fdf2f2', color: RED_TEXT },
+  actionBtnRestore: { background: '#edf7f0', color: GREEN_TEXT },
+  actionBtnDelete: { background: '#a51b28', color: '#fff', marginTop: 8 },
 
   // Test-account tag, next to a customer's phone
-  testBadge: { marginLeft: 8, padding: '1px 7px', background: '#f3f4f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 800, borderRadius: 6, letterSpacing: 0.5, verticalAlign: 'middle' },
+  testBadge: { marginLeft: 8, padding: '1px 7px', background: '#f1f3f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 700, borderRadius: 6, letterSpacing: 0.5, verticalAlign: 'middle' },
   testNote: { fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic' },
 
   // Filters
-  moreFiltersBtn: { padding: '10px 16px', background: '#fff', color: '#374151', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
+  moreFiltersBtn: { padding: '10px 16px', background: '#fff', color: '#374151', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
   moreFiltersBtnActive: { borderColor: PRIMARY, color: PRIMARY },
-  filterPanel: { display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', marginBottom: 24 },
+  filterPanel: { display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 12, padding: '14px 18px', marginBottom: 24 },
   filterGroupLabel: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   filterChoices: { display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' },
   radioLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#374151', cursor: 'pointer' },
@@ -846,20 +846,20 @@ const s: Record<string, React.CSSProperties> = {
 
   // Customer detail panel
   detailSummaryRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
-  detailStat: { flex: '1 1 100px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 12px', textAlign: 'center' },
-  detailStatNum: { fontSize: 15, fontWeight: 800, color: '#111827' },
+  detailStat: { flex: '1 1 100px', background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 10, padding: '10px 12px', textAlign: 'center' },
+  detailStatNum: { fontSize: 15, fontWeight: 700, color: '#111827' },
   detailStatLbl: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 2 },
   detailSectionTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   detailEmpty: { fontStyle: 'italic', fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0 },
-  detailRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '6px 0', borderBottom: '1px solid #f0f1f2', flexWrap: 'wrap' },
-  goodwillBox: { background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '14px 16px' },
+  detailRow: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14, color: '#374151', padding: '6px 0', borderBottom: '1px solid #e4e7ec', flexWrap: 'wrap' },
+  goodwillBox: { background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 12, padding: '14px 16px' },
 
   emptyState: { textAlign: 'center', padding: '60px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: 700, color: '#374151' },
   emptySub: { fontSize: 15, color: TEXT_MUTED },
 
   // Tabs
-  tabs: { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 24, borderBottom: '2px solid #f0f1f2', paddingBottom: 0 },
+  tabs: { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 24, borderBottom: '2px solid #e4e7ec', paddingBottom: 0 },
   tab: {
     padding: '10px 20px', background: 'transparent', border: 'none', cursor: 'pointer',
     fontSize: 14, fontWeight: 600, color: TEXT_MUTED, borderBottom: '2px solid transparent', marginBottom: -2,
@@ -869,12 +869,12 @@ const s: Record<string, React.CSSProperties> = {
   // Disputes
   filterSelect: {
     padding: '9px 14px', borderRadius: 10, borderWidth: '1.5px', borderStyle: 'solid',
-    borderColor: '#e5e7eb', fontSize: 15, background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
+    borderColor: '#e4e7ec', fontSize: 15, background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer',
   },
   disputeCard: {
-    background: '#fff', borderRadius: 14, padding: '16px 18px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'flex-start', gap: 14,
-    borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2',
+    background: '#fff', borderRadius: 12, padding: '16px 18px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'flex-start', gap: 14,
+    borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
   },
   disputeStatusPill: {
     display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700,
@@ -889,8 +889,8 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   linkedTxCard: {
-    marginTop: 10, padding: '12px 14px', background: '#f8fafc',
-    borderRadius: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb',
+    marginTop: 10, padding: '12px 14px', background: '#f7f8fa',
+    borderRadius: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
   },
   linkedTxHeader: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 6 },
   linkedTxRow: { fontSize: 14, color: '#374151', marginBottom: 4 },
@@ -898,7 +898,7 @@ const s: Record<string, React.CSSProperties> = {
 
   // The reason a customer was restricted, on their card
   fraudBadge: {
-    display: 'inline-block', marginTop: 4, padding: '2px 8px', background: '#fff1f2',
+    display: 'inline-block', marginTop: 4, padding: '2px 8px', background: '#fdf2f2',
     color: RED_TEXT, fontSize: 13, fontWeight: 700, borderRadius: 6,
     maxWidth: '100%', overflowWrap: 'anywhere' as const,
   },
@@ -907,11 +907,11 @@ const s: Record<string, React.CSSProperties> = {
   modalForm: { display: 'flex', flexDirection: 'column', gap: 14 },
   modalText: { fontSize: 15, color: '#374151', lineHeight: 1.6 },
   fieldLabel: { display: 'block', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  fieldInput: { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none' },
-  errorBox: { fontSize: 15, color: '#7f1d1d', lineHeight: 1.5, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px' },
+  fieldInput: { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e4e7ec', fontSize: 15, boxSizing: 'border-box' as const, outline: 'none' },
+  errorBox: { fontSize: 15, color: '#a51b28', lineHeight: 1.5, background: '#fdf2f2', border: '1px solid #f3cdd1', borderRadius: 10, padding: '10px 14px' },
   errorText: { fontSize: 13, color: RED_TEXT, marginTop: 6 },
-  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1d4ed8', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 15 },
+  linkBtn: { background: 'none', border: 'none', padding: 0, color: '#1D3557', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 15 },
   modalActions: { display: 'flex', gap: 10, flexWrap: 'wrap' },
-  cancelBtn: { flex: 1, minWidth: 90, padding: '11px 0', background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', color: '#374151', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { flex: 1, minWidth: 90, padding: '11px 0', background: '#fff', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', color: '#374151', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   confirmBtn: { flex: 1, minWidth: 90, padding: '11px 12px', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 };

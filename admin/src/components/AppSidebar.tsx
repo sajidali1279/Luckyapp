@@ -95,7 +95,7 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
           backgroundColor: '#1a2f4d',
           color: '#ffffff',
           fontWeight: 600,
-          boxShadow: 'inset 3px 0 0 #E63946',
+          boxShadow: 'inset 3px 0 0 #c42130',
         } : undefined}
       >
         <NavLink to={to} end={isEnd}>

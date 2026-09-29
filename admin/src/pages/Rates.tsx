@@ -32,15 +32,15 @@ const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> =
 const TIER_META: Record<TierKey, { emoji: string; color: string }> = {
   BRONZE:   { emoji: '🥉', color: '#CD7F32' },
   SILVER:   { emoji: '🥈', color: '#A0A0B0' },
-  GOLD:     { emoji: '🥇', color: '#F4A226' },
+  GOLD:     { emoji: '🥇', color: '#b7791f' },
   DIAMOND:  { emoji: '💎', color: '#00B4D8' },
-  PLATINUM: { emoji: '👑', color: '#9B5DE5' },
+  PLATINUM: { emoji: '👑', color: '#4f6d8f' },
 };
 
 // Text colours that pass 4.5 to 1 on white (the old bright green and orange were about 2 to 1)
 const GREEN_TEXT = '#1a7a3a';
 const AMBER_TEXT = '#8a4b00';
-const RED_TEXT = '#b42318';
+const RED_TEXT = '#c42130';
 
 const APP_TEXT_NOTE = 'The customer app shows fixed numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier) and does not follow this page. Tell customers about this change.';
 
@@ -716,9 +716,9 @@ export default function Rates() {
               <span>Bronze customer, {money(EXAMPLE_SALE)} of groceries</span>
               <span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{ratesReady ? `${pct(before.tiers.BRONZE.cashbackRate)} + ${pct(before.categories.GROCERIES ?? 0)}` : ' - '}</span>
             </div>
-            <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
+            <div style={{ ...s.calcRow, borderTop: '1px solid #e4e7ec', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{ratesReady ? `= ${money(bronzeGroceries)}` : ' - '}</span>
+              <span style={{ fontWeight: 700 }}>{ratesReady ? `= ${money(bronzeGroceries)}` : ' - '}</span>
             </div>
           </div>
         </div>
@@ -731,9 +731,9 @@ export default function Rates() {
           </p>
           <div style={s.calcBox}>
             <div style={s.calcRow}><span>Gold customer, {money(EXAMPLE_SALE)} fill ({exampleGallons.toFixed(1)} gal)</span><span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{goldFill ? `${money(goldFill.cashback)} + ${money(goldFill.bonus)}` : ' - '}</span></div>
-            <div style={{ ...s.calcRow, borderTop: '1px solid #dee2e6', paddingTop: 8 }}>
+            <div style={{ ...s.calcRow, borderTop: '1px solid #e4e7ec', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 800 }}>{goldFill ? `= ${money(goldFill.total)} (${pctOne(goldFill.percent)})` : ' - '}</span>
+              <span style={{ fontWeight: 700 }}>{goldFill ? `= ${money(goldFill.total)} (${pctOne(goldFill.percent)})` : ' - '}</span>
             </div>
           </div>
         </div>
@@ -757,7 +757,7 @@ const s: Record<string, React.CSSProperties> = {
   page: { padding: '32px 24px' },
 
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 },
-  title: { margin: '0 0 6px', fontSize: 26, fontWeight: 800, color: PRIMARY },
+  title: { margin: '0 0 6px', fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: 0, color: TEXT_MUTED, fontSize: 14 },
 
   saveAllBtn: {
@@ -767,32 +767,32 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 2px 8px rgba(29,53,87,0.25)',
   },
 
-  error: { textAlign: 'center' as const, color: '#b42318', padding: 40, background: '#fff5f5', borderRadius: 10 },
+  error: { textAlign: 'center' as const, color: '#c42130', padding: 40, background: '#fdf2f2', borderRadius: 10 },
 
   storeCostNote: {
-    background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
-    padding: '10px 16px', fontSize: 14, color: '#1d4ed8', marginBottom: 12,
+    background: '#eef2f7', border: '1px solid #d3dcea', borderRadius: 10,
+    padding: '10px 16px', fontSize: 14, color: '#1D3557', marginBottom: 12,
   },
   appNote: {
-    background: '#fff8e6', border: '1px solid #f3d98b', borderRadius: 10,
-    padding: '10px 16px', fontSize: 14, color: '#5c4400', marginBottom: 24,
+    background: '#fdf6e8', border: '1px solid #f3d98b', borderRadius: 10,
+    padding: '10px 16px', fontSize: 14, color: '#8a5300', marginBottom: 24,
   },
 
   tableWrap: {
     background: '#fff', borderRadius: 12,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     overflow: 'hidden', marginBottom: 28,
   },
   table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#f8f9fa' },
+  thead: { background: '#f7f8fa' },
   th: {
     padding: '12px 16px', textAlign: 'left' as const,
     fontSize: 14, fontWeight: 700, color: TEXT_MUTED,
     textTransform: 'uppercase' as const, letterSpacing: 0.5,
-    borderBottom: '2px solid #e9ecef',
+    borderBottom: '2px solid #e4e7ec',
   },
   thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: TEXT_MUTED, fontSize: 12, marginTop: 2 },
-  tr: { borderBottom: '1px solid #f1f3f5', transition: 'background 0.15s' },
+  tr: { borderBottom: '1px solid #e4e7ec', transition: 'background 0.15s' },
   trDirty: { background: '#fffbf0' },
   td: { padding: '14px 16px', verticalAlign: 'middle' as const },
 
@@ -804,11 +804,11 @@ const s: Record<string, React.CSSProperties> = {
   inputGroup: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' as const },
   input: {
     width: 90, padding: '7px 10px',
-    border: '1.5px solid #dee2e6', borderRadius: 7,
+    border: '1.5px solid #e4e7ec', borderRadius: 7,
     fontSize: 15, fontWeight: 600, color: PRIMARY,
     outline: 'none', transition: 'border 0.15s',
   },
-  inputDirty: { borderColor: '#F4A226' },
+  inputDirty: { borderColor: '#b7791f' },
   suffix: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   preview: { fontSize: 13, color: GREEN_TEXT, fontStyle: 'italic' },
   gasActive: { fontSize: 13, color: AMBER_TEXT, marginTop: 4 },
@@ -818,29 +818,29 @@ const s: Record<string, React.CSSProperties> = {
     border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15, fontWeight: 700,
   },
   undoBtn: {
-    padding: '6px 10px', background: '#f8f9fa',
-    border: '1px solid #dee2e6', borderRadius: 6,
+    padding: '6px 10px', background: '#f7f8fa',
+    border: '1px solid #e4e7ec', borderRadius: 6,
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED,
   },
   savedTag: { fontSize: 14, color: GREEN_TEXT, fontWeight: 600 },
-  lastChange: { padding: '12px 16px', fontSize: 14, color: TEXT_MUTED, borderTop: '1px solid #f1f3f5' },
+  lastChange: { padding: '12px 16px', fontSize: 14, color: TEXT_MUTED, borderTop: '1px solid #e4e7ec' },
 
   sectionHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
     margin: '36px 0 16px', gap: 16,
   },
-  sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 800, color: PRIMARY },
+  sectionTitle: { margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: PRIMARY },
   sectionSubtitle: { margin: 0, color: TEXT_MUTED, fontSize: 15 },
   catEmoji: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
   gasModeCard: {
     background: '#fff', borderRadius: 12,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     padding: '20px 24px', marginBottom: 28,
   },
   gasModeToggleRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const },
   modeBtn: {
     padding: '8px 18px', borderRadius: 8, cursor: 'pointer',
-    border: '1.5px solid #dee2e6', background: '#f8f9fa',
+    border: '1.5px solid #e4e7ec', background: '#f7f8fa',
     fontSize: 15, fontWeight: 600, color: TEXT_MUTED, transition: 'all 0.15s',
   },
   modeBtnActive: {
@@ -861,7 +861,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   gasModeWarning: {
     marginTop: 12, padding: '10px 14px',
-    background: '#fff8e1', color: '#7a5c00',
+    background: '#fdf6e8', color: '#7a5c00',
     borderRadius: 8, fontSize: 15,
     border: '1px solid #ffe082',
   },
@@ -882,22 +882,22 @@ const s: Record<string, React.CSSProperties> = {
   },
   byGallonTag: {
     display: 'inline-block', padding: '3px 10px',
-    background: '#f1f3f5', color: TEXT_MUTED,
+    background: '#e4e7ec', color: TEXT_MUTED,
     borderRadius: 20, fontSize: 13, fontWeight: 600,
   },
-  legend: { padding: '12px 16px', fontSize: 13, color: TEXT_MUTED, borderTop: '1px solid #f1f3f5', lineHeight: 1.5 },
+  legend: { padding: '12px 16px', fontSize: 13, color: TEXT_MUTED, borderTop: '1px solid #e4e7ec', lineHeight: 1.5 },
 
-  confirmNote: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#eef4ff', color: '#1e3a8a', fontSize: 14, lineHeight: 1.45 },
-  confirmWarn: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#fff8e6', color: '#5c4400', fontSize: 14, lineHeight: 1.45 },
+  confirmNote: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#eef2f7', color: '#1D3557', fontSize: 14, lineHeight: 1.45 },
+  confirmWarn: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#fdf6e8', color: '#8a5300', fontSize: 14, lineHeight: 1.45 },
 
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   infoCard: {
     background: '#fff', borderRadius: 12,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     padding: '18px 20px',
   },
   infoCardTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, marginBottom: 8 },
   infoCardText: { fontSize: 15, color: TEXT_MUTED, lineHeight: 1.55, margin: '0 0 12px' },
   calcBox: { display: 'flex', flexDirection: 'column' as const, gap: 6 },
-  calcRow: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15, color: '#495057' },
+  calcRow: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15, color: '#374151' },
 };

@@ -161,24 +161,24 @@ export default function BulkPrintWizard({ queue, onClose }: Props) {
 const m: Record<string, CSSProperties> = {
   itemList: {
     display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 340, overflowY: 'auto',
-    border: '1px solid #eee', borderRadius: 10, padding: '10px 12px',
+    border: '1px solid #e4e7ec', borderRadius: 10, padding: '10px 12px',
   },
   storeGroup: { display: 'flex', flexDirection: 'column', gap: 2 },
-  storeGroupName: { fontWeight: 800, fontSize: 13, color: PRIMARY, marginBottom: 2 },
+  storeGroupName: { fontWeight: 700, fontSize: 13, color: PRIMARY, marginBottom: 2 },
   storeGroupCount: { fontWeight: 600, color: TEXT_MUTED },
   itemRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0 5px 10px', borderBottom: '1px solid #f5f5f8', fontSize: 13.5 },
   itemName: { fontWeight: 600, color: PRIMARY },
   itemPrice: { fontWeight: 700, color: PRIMARY },
   hint: { fontSize: 12.5, color: TEXT_MUTED, marginTop: -6 },
 
-  para: { margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#333' },
+  para: { margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#111827' },
   actions: { display: 'flex', gap: 10 },
   skipBtn: {
-    flex: 1, background: '#f4f4f4', color: '#444', border: 'none',
+    flex: 1, background: '#f1f3f6', color: '#374151', border: 'none',
     borderRadius: 10, padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   primaryBtn: {
-    flex: 1, background: '#0f5132', color: '#fff', border: 'none',
+    flex: 1, background: '#17663a', color: '#fff', border: 'none',
     borderRadius: 10, padding: '11px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
   primaryBtnDim: { opacity: 0.6, cursor: 'not-allowed' },
@@ -186,8 +186,8 @@ const m: Record<string, CSSProperties> = {
   summaryBody: { display: 'flex', flexDirection: 'column', gap: 10, fontSize: 15 },
   summaryRow: { color: PRIMARY },
   warn: {
-    padding: '10px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10,
-    fontSize: 13.5, lineHeight: 1.5, color: '#7c5a10',
+    padding: '10px 12px', background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 10,
+    fontSize: 13.5, lineHeight: 1.5, color: '#8a5300',
   },
   list: { margin: '6px 0 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 },
 };

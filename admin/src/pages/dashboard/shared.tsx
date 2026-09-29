@@ -1,3 +1,4 @@
+import Glyph from '../../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import ErrorState from '../../components/ErrorState';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -16,9 +17,10 @@ export const CAT_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', OTHER: '🏪',
 };
 
-const AVATAR_PALETTE = ['#D62839', '#457B9D', '#2DC653', '#F4A261', '#7B2FBE', '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653', '#6A0572', PRIMARY];
+// Store badges: shades of the brand navy, so no store colour reads as a status
+const AVATAR_PALETTE = [PRIMARY, '#457B9D', '#2f4f7a', '#5c7391', '#16294a', '#3a5a85'];
 export function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
-export const MEDALS = ['🥇', '🥈', '🥉'];
+export const MEDALS = ['#1', '#2', '#3'];
 
 /** Text colour that stays readable (4.5:1) on a coloured badge: white on dark colours, near-black on light ones. */
 export function badgeInk(bg: string): string {
@@ -114,13 +116,13 @@ export function writeSetting(key: string, value: string) {
 export function SkeletonCards({ n, h = 118 }: { n: number; h?: number }) {
   return (
     <div style={s.statsGrid} aria-busy="true" aria-label="Loading">
-      {Array.from({ length: n }).map((_, i) => <Skeleton key={i} style={{ height: h, borderRadius: 16 }} />)}
+      {Array.from({ length: n }).map((_, i) => <Skeleton key={i} style={{ height: h, borderRadius: 12 }} />)}
     </div>
   );
 }
 
 export function SkeletonBox({ h, mb = 28 }: { h: number; mb?: number }) {
-  return <Skeleton style={{ height: h, borderRadius: 16, marginBottom: mb }} aria-busy="true" aria-label="Loading" />;
+  return <Skeleton style={{ height: h, borderRadius: 12, marginBottom: mb }} aria-busy="true" aria-label="Loading" />;
 }
 
 export function PanelError({ label, onRetry }: { label: string; onRetry: () => void }) {
@@ -133,17 +135,11 @@ export function PanelError({ label, onRetry }: { label: string; onRetry: () => v
 
 // ── Shared building blocks ───────────────────────────────────────────────────
 
-const STAT_BG: Record<string, string> = {
-  '🧾': '#eff6ff', '💵': '#f0fdf4', '⭐': '#fefce8', '🎁': '#fdf4ff',
-  '💰': '#f0fdf4', '📋': '#f0f9ff', '🏪': '#eff6ff', '🙋': '#fdf4ff',
-  '👷': '#fff7ed', '📢': '#fef2f2', '🖼️': '#f5f3ff', '⏳': '#fff7ed', '📅': '#f0f9ff',
-};
-
 export function StatCard({ icon, label, value, valueColor = '#111827', to }: {
   icon: string; label: string; value: any; valueColor?: string; to?: string;
 }) {
   const navigate = useNavigate();
-  const bg = STAT_BG[icon] || '#f8fafc';
+  const bg = '#eef2f7';
   return (
     <div
       className="dash-card"
@@ -153,7 +149,7 @@ export function StatCard({ icon, label, value, valueColor = '#111827', to }: {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ ...s.statIconWrap, background: bg }}>
-          <span style={s.statIcon}>{icon}</span>
+          <Glyph e={icon} size={20} color={PRIMARY} />
         </div>
         {to && <span className="dash-stat-arrow" style={s.statArrow}>→</span>}
       </div>
@@ -223,11 +219,11 @@ export function Sparkline({ values, color, width = 80, height = 28 }: { values: 
 /** "▲ 12.4%" against the previous period. `tone` says whether up is good, bad or just information. */
 export function Delta({ cur, prev, label, tone = 'up-good' }: { cur: number; prev: number; label: string; tone?: 'up-good' | 'neutral' }) {
   if (prev === 0 && cur === 0) return <span style={{ ...s.delta, color: TEXT_MUTED }}>no change · {label}</span>;
-  if (prev === 0) return <span style={{ ...s.delta, color: '#157A3E' }}>new · {label}</span>;
+  if (prev === 0) return <span style={{ ...s.delta, color: '#17663a' }}>new · {label}</span>;
   const pct = ((cur - prev) / prev) * 100;
   const flat = Math.abs(pct) < 0.05;
   const up = pct > 0;
-  const color = flat || tone === 'neutral' ? TEXT_MUTED : up ? '#157A3E' : '#C62828';
+  const color = flat || tone === 'neutral' ? TEXT_MUTED : up ? '#17663a' : '#c42130';
   return (
     <span style={{ ...s.delta, color }} title={`Now ${cur.toLocaleString('en-US')} against ${prev.toLocaleString('en-US')} ${label}`}>
       {flat ? '•' : up ? '▲' : '▼'} {Math.abs(pct) >= 1000 ? '999%+' : `${Math.abs(pct).toFixed(Math.abs(pct) >= 100 ? 0 : 1)}%`} · {label}
@@ -242,7 +238,7 @@ export const s: Record<string, React.CSSProperties> = {
 
   welcomeCard: {
     background: 'linear-gradient(135deg, #12202f 0%, #1D3557 55%, #2a4a73 100%)',
-    borderRadius: 18, padding: '18px 28px', marginBottom: 14,
+    borderRadius: 12, padding: '18px 28px', marginBottom: 14,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
     boxShadow: '0 4px 24px rgba(29,53,87,0.28)',
     position: 'relative', overflow: 'hidden',
@@ -251,30 +247,30 @@ export const s: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 700,
     textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 4,
   },
-  welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 900, margin: 0 },
+  welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 },
   welcomeSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13.5, lineHeight: 1.5, margin: '4px 0 0' },
   roleBadge: {
-    background: 'rgba(244,162,97,0.18)', color: '#F4A261',
+    background: 'rgba(244,162,97,0.18)', color: '#b7791f',
     border: '1px solid rgba(244,162,97,0.35)',
     borderRadius: 24, padding: '8px 18px', fontWeight: 700, fontSize: 14,
     whiteSpace: 'nowrap', flexShrink: 0,
   },
-  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#2DC653', border: '1px solid rgba(45,198,83,0.3)' },
+  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#1f8a4c', border: '1px solid rgba(45,198,83,0.3)' },
 
   toolRow: { display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' as const, marginBottom: 18 },
   quickActions: { display: 'flex', gap: 6, flexWrap: 'wrap' as const, flex: 1, minWidth: 260 },
   quickBtn: {
     display: 'flex', alignItems: 'center', gap: 6,
-    background: '#fff', border: '1px solid #e9ecef',
+    background: '#fff', border: '1px solid #e4e7ec',
     borderRadius: 10, padding: '7px 11px',
     fontSize: 13.5, fontWeight: 600, color: '#374151',
-    cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    cursor: 'pointer', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     transition: TRANSITION_FAST,
   },
 
   viewTabs: { display: 'flex', gap: 6, marginBottom: 18 },
   viewTab: {
-    background: '#fff', border: '1px solid #dee2e6', borderRadius: 10, padding: '8px 18px',
+    background: '#fff', border: '1px solid #e4e7ec', borderRadius: 10, padding: '8px 18px',
     fontSize: 14.5, fontWeight: 700, color: TEXT_MUTED, cursor: 'pointer',
   },
   viewTabOn: { background: PRIMARY, borderColor: PRIMARY, color: '#fff' },
@@ -283,17 +279,17 @@ export const s: Record<string, React.CSSProperties> = {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
     marginBottom: 14, marginTop: 8, gap: 12, flexWrap: 'wrap' as const,
   },
-  section: { fontSize: 15, fontWeight: 800, color: PRIMARY, margin: 0 },
+  section: { fontSize: 15, fontWeight: 700, color: PRIMARY, margin: 0 },
   sectionSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 6, marginBottom: 0 },
   sectionLink: {
-    background: 'none', border: '1px solid #dee2e6', borderRadius: 8,
+    background: 'none', border: '1px solid #e4e7ec', borderRadius: 8,
     padding: '5px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
     color: TEXT_MUTED, transition: TRANSITION_FAST, whiteSpace: 'nowrap' as const,
     alignSelf: 'flex-start', marginTop: 2,
   },
 
   periodToggle: {
-    display: 'inline-flex', background: '#fff', border: '1px solid #dee2e6', borderRadius: 8,
+    display: 'inline-flex', background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8,
     padding: 2, gap: 2, marginTop: 2,
   },
   periodBtn: {
@@ -303,47 +299,47 @@ export const s: Record<string, React.CSSProperties> = {
   periodBtnOn: { background: PRIMARY, color: '#fff' },
 
   skewNote: {
-    background: '#fff8e1', border: '1px solid #f5d98a', color: '#8a5a00', borderRadius: 10,
+    background: '#fdf6e8', border: '1px solid #f1dcaf', color: '#8a5300', borderRadius: 10,
     padding: '9px 14px', fontSize: 13.5, fontWeight: 600, marginBottom: 12,
   },
 
   panelError: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28,
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', marginBottom: 28,
   },
 
   // needs-attention inbox
   inbox: {
-    background: '#fff', border: '1.5px solid #F4A26155', borderRadius: 14, marginBottom: 22, overflow: 'hidden',
+    background: '#fff', border: '1.5px solid #F4A26155', borderRadius: 12, marginBottom: 22, overflow: 'hidden',
   },
   inboxHead: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' as const,
     padding: '12px 18px', background: '#fff8f0', borderBottom: '1px solid #F4A26133',
   },
-  inboxTitle: { fontSize: 14, fontWeight: 800, color: '#92400e' },
+  inboxTitle: { fontSize: 14, fontWeight: 700, color: '#8a5300' },
   inboxRow: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px', borderTop: '1px solid #f6f0e8',
     background: '#fff', width: '100%', textAlign: 'left' as const, border: 'none', cursor: 'pointer',
   },
   inboxDot: { width: 9, height: 9, borderRadius: '50%', flexShrink: 0 },
-  inboxText: { flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600, color: '#1f2937' },
+  inboxText: { flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600, color: '#111827' },
   inboxMeta: { fontSize: 13, color: TEXT_MUTED, fontWeight: 500 },
   inboxCount: {
-    minWidth: 26, textAlign: 'center' as const, fontSize: 13, fontWeight: 800, color: '#fff',
+    minWidth: 26, textAlign: 'center' as const, fontSize: 13, fontWeight: 700, color: '#fff',
     borderRadius: 13, padding: '2px 8px', flexShrink: 0,
   },
   inboxSnooze: {
-    background: 'none', border: '1px solid #e5e7eb', borderRadius: 7, padding: '3px 9px',
+    background: 'none', border: '1px solid #e4e7ec', borderRadius: 7, padding: '3px 9px',
     fontSize: 12, fontWeight: 600, color: TEXT_MUTED, cursor: 'pointer', flexShrink: 0,
   },
-  inboxClear: { padding: '14px 18px', fontSize: 14.5, fontWeight: 600, color: '#157A3E' },
+  inboxClear: { padding: '14px 18px', fontSize: 14.5, fontWeight: 600, color: '#17663a' },
 
   // KPI cards with a comparison
   kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(166px, 1fr))', gap: 12, marginBottom: 26 },
   kpiCard: {
-    background: '#fff', borderRadius: 14, padding: '16px 16px 14px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)',
-    border: '1px solid #f0f1f2', display: 'flex', flexDirection: 'column', gap: 0,
+    background: '#fff', borderRadius: 12, padding: '16px 16px 14px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+    border: '1px solid #e4e7ec', display: 'flex', flexDirection: 'column', gap: 0,
   },
   kpiIconWrap: { width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   delta: { fontSize: 12.5, fontWeight: 700, marginTop: 6, lineHeight: 1.35 },
@@ -351,43 +347,43 @@ export const s: Record<string, React.CSSProperties> = {
   twoColRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 28, alignItems: 'start' },
 
   offersPanel: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', overflow: 'hidden',
   },
   offersPanelHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px', borderBottom: '1px solid #f0f1f2',
-    background: '#fafbfc', gap: 8, flexWrap: 'wrap' as const,
+    padding: '14px 18px', borderBottom: '1px solid #e4e7ec',
+    background: '#f7f8fa', gap: 8, flexWrap: 'wrap' as const,
   },
-  offersPanelTitle: { fontSize: 15, fontWeight: 800, color: PRIMARY },
+  offersPanelTitle: { fontSize: 15, fontWeight: 700, color: PRIMARY },
   offersGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 14 },
   offerChip: {
-    background: '#fff', border: '1.5px solid #e9ecef',
+    background: '#fff', border: '1.5px solid #e4e7ec',
     borderRadius: 12, padding: '12px 14px',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   offerChipTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   offerChipBadge: {
-    fontSize: 11, fontWeight: 800, background: '#D62839', color: '#fff',
+    fontSize: 11, fontWeight: 700, background: '#D62839', color: '#fff',
     borderRadius: 4, padding: '2px 6px', letterSpacing: 0.5,
   },
-  offerChipRate: { fontSize: 14, fontWeight: 900, color: '#157A3E' },
+  offerChipRate: { fontSize: 14, fontWeight: 700, color: '#17663a' },
   offerChipName: { fontSize: 15, fontWeight: 700, color: PRIMARY, marginBottom: 3, lineHeight: 1.3 },
   offerChipCat: { fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   offerChipExpiry: { fontSize: 12, fontWeight: 600, marginTop: 6 },
   emptyState: { padding: '24px 18px', color: TEXT_MUTED, fontSize: 15, textAlign: 'center' as const },
 
   recentPanel: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', overflow: 'hidden',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', overflow: 'hidden',
   },
   feedGroup: {
-    padding: '8px 18px', fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase' as const,
-    color: TEXT_MUTED, background: '#f8f9fa', borderTop: '1px solid #f0f1f2', borderBottom: '1px solid #f0f1f2',
+    padding: '8px 18px', fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' as const,
+    color: TEXT_MUTED, background: '#f7f8fa', borderTop: '1px solid #e4e7ec', borderBottom: '1px solid #e4e7ec',
   },
   recentRow: {
     display: 'flex', alignItems: 'center', gap: 12,
-    padding: '11px 18px', borderBottom: '1px solid #f9fafb',
+    padding: '11px 18px', borderBottom: '1px solid #f7f8fa',
     transition: 'background 0.12s ease',
   },
   recentStatus: {
@@ -396,8 +392,8 @@ export const s: Record<string, React.CSSProperties> = {
   },
   recentCustomer: { fontSize: 15, fontWeight: 700, color: '#111827' },
   recentMeta: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },
-  recentFlags: { fontSize: 12, color: '#9B2335', fontWeight: 600, marginTop: 2 },
-  recentAmount: { fontSize: 15, fontWeight: 800, color: PRIMARY, fontVariantNumeric: 'tabular-nums' },
+  recentFlags: { fontSize: 12, color: '#a51b28', fontWeight: 600, marginTop: 2 },
+  recentAmount: { fontSize: 15, fontWeight: 700, color: PRIMARY, fontVariantNumeric: 'tabular-nums' },
   recentTime: { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
   reviewBtn: {
     border: '1px solid', borderRadius: 8, padding: '5px 11px', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#fff',
@@ -406,27 +402,27 @@ export const s: Record<string, React.CSSProperties> = {
   // store health board
   boardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(236px, 1fr))', gap: 12, marginBottom: 30 },
   tile: {
-    background: '#fff', borderRadius: 14, padding: '14px 16px', border: '1.5px solid #f0f1f2',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 6,
+    background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1.5px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', flexDirection: 'column', gap: 6,
   },
   tileHead: { display: 'flex', alignItems: 'center', gap: 9 },
   tileBadge: {
-    width: 28, height: 28, borderRadius: 8, flexShrink: 0, color: '#fff', fontSize: 12.5, fontWeight: 800,
+    width: 28, height: 28, borderRadius: 8, flexShrink: 0, color: '#fff', fontSize: 12.5, fontWeight: 700,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
-  tileName: { fontSize: 14, fontWeight: 800, color: PRIMARY, lineHeight: 1.2 },
+  tileName: { fontSize: 14, fontWeight: 700, color: PRIMARY, lineHeight: 1.2 },
   tileCity: { fontSize: 12.5, color: TEXT_MUTED },
-  tileBig: { fontSize: 24, fontWeight: 900, color: '#111827', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 },
+  tileBig: { fontSize: 24, fontWeight: 700, color: '#111827', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 },
   tileLine: { fontSize: 12.5, color: TEXT_MUTED, fontVariantNumeric: 'tabular-nums' },
   tileReason: { fontSize: 12.5, fontWeight: 700, lineHeight: 1.35 },
 
   chartBoxFull: {
-    background: '#fff', borderRadius: 16, padding: '20px 20px 12px',
-    border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 28,
+    background: '#fff', borderRadius: 12, padding: '20px 20px 12px',
+    border: '1px solid #e4e7ec', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', marginBottom: 28,
   },
   chartBox: {
-    background: '#fff', borderRadius: 16, padding: '20px 20px 12px',
-    border: '1px solid #f0f1f2', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    background: '#fff', borderRadius: 12, padding: '20px 20px 12px',
+    border: '1px solid #e4e7ec', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
   },
   chartsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 28 },
   chartTitle: { fontSize: 14, fontWeight: 700, color: TEXT_MUTED, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -437,10 +433,10 @@ export const s: Record<string, React.CSSProperties> = {
   // it; remaining cards use the freed-up room to grow, up to the max.
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 260px))', gap: 14, marginBottom: 32 },
   statCard: {
-    background: '#fff', borderRadius: 16, padding: '20px 18px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+    background: '#fff', borderRadius: 12, padding: '20px 18px',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
     display: 'flex', flexDirection: 'column', gap: 8,
-    border: '1px solid #f0f1f2', transition: TRANSITION_TRANSFORM,
+    border: '1px solid #e4e7ec', transition: TRANSITION_TRANSFORM,
   },
   statIconWrap: { width: 46, height: 46, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   statIcon: { fontSize: 22 },
@@ -449,14 +445,14 @@ export const s: Record<string, React.CSSProperties> = {
   // and a long one ("Subscriptions Collected") both leave the value number
   // starting at the same y position across a row of cards.
   statLabel: { color: TEXT_MUTED, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 1.3, minHeight: 34 },
-  statValue: { fontSize: 26, fontWeight: 800, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
+  statValue: { fontSize: 26, fontWeight: 700, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' },
 
   healthOk: {
-    color: '#157A3E', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
+    color: '#17663a', fontSize: 14, fontWeight: 600, background: 'rgba(45,198,83,0.08)',
     border: '1px solid rgba(45,198,83,0.3)', borderRadius: 10, padding: '10px 16px', marginBottom: 8,
   },
   healthList: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 },
-  healthRow: { borderRadius: 14, border: '1px solid', padding: '14px 18px', transition: TRANSITION_TRANSFORM },
+  healthRow: { borderRadius: 12, border: '1px solid', padding: '14px 18px', transition: TRANSITION_TRANSFORM },
   healthRowHeader: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     cursor: 'pointer', flexWrap: 'wrap' as const, gap: 10,
@@ -476,42 +472,42 @@ export const s: Record<string, React.CSSProperties> = {
   healthCategoryName: { fontWeight: 600, color: '#374151', minWidth: 110 },
 
   storeTable: {
-    background: '#fff', borderRadius: 16, overflow: 'hidden',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)', border: '1px solid #f0f1f2', marginBottom: 32,
+    background: '#fff', borderRadius: 12, overflow: 'hidden',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec', marginBottom: 32,
     // The table scrolls sideways inside this box; without this its min width still stretched the whole page.
     contain: 'inline-size',
   },
   storeTableHeader: {
     display: 'grid', gridTemplateColumns: 'minmax(220px, 2.4fr) 1fr 1.2fr 1.2fr 1.3fr', columnGap: 12,
-    padding: '10px 20px', background: '#f8f9fa',
+    padding: '10px 20px', background: '#f7f8fa',
     fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5,
   },
   storeTableRow: {
     display: 'grid', gridTemplateColumns: 'minmax(220px, 2.4fr) 1fr 1.2fr 1.2fr 1.3fr', columnGap: 12,
     padding: '13px 20px', alignItems: 'center',
-    borderTop: '1px solid #f0f1f2', transition: 'background 0.12s ease',
+    borderTop: '1px solid #e4e7ec', transition: 'background 0.12s ease',
   },
   storeColName: { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 },
-  storeColNum: { fontSize: 14, color: '#495057', fontVariantNumeric: 'tabular-nums', textAlign: 'right' },
+  storeColNum: { fontSize: 14, color: '#374151', fontVariantNumeric: 'tabular-nums', textAlign: 'right' },
   storeColBar: { paddingRight: 12 },
   storeRank: { fontSize: 16, width: 26, textAlign: 'center' as const, flexShrink: 0 },
   storeAvatar: {
     width: 30, height: 30, borderRadius: 8, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', fontSize: 13, fontWeight: 800,
+    color: '#fff', fontSize: 13, fontWeight: 700,
   },
-  barTrack: { height: 7, background: '#f0f1f2', borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: '100%', background: 'linear-gradient(90deg, #E63946, #1D3557)', borderRadius: 4, transition: 'width 0.6s ease' },
+  barTrack: { height: 7, background: '#e4e7ec', borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: '100%', background: 'linear-gradient(90deg, #c42130, #1D3557)', borderRadius: 4, transition: 'width 0.6s ease' },
 
   ratesWrap: {
-    background: '#fff', borderRadius: 16, border: '1px solid #f0f1f2',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', marginBottom: 36, overflow: 'hidden',
+    background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', marginBottom: 36, overflow: 'hidden',
     contain: 'inline-size',
   },
   ratesTable: { width: '100%', borderCollapse: 'collapse', minWidth: 640 },
   ratesTh: {
-    padding: '12px 14px', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, background: '#f8f9fa',
-    textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #f0f1f2',
+    padding: '12px 14px', fontSize: 13, fontWeight: 700, color: TEXT_MUTED, background: '#f7f8fa',
+    textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #e4e7ec',
   },
   ratesTd: {
     padding: '11px 14px', fontSize: 14, textAlign: 'center', borderBottom: '1px solid #f5f6f7',
@@ -519,6 +515,6 @@ export const s: Record<string, React.CSSProperties> = {
   },
   ratesLegend: {
     display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 16px',
-    fontSize: 13, color: TEXT_MUTED, background: '#fafbfc', borderTop: '1px solid #f0f1f2',
+    fontSize: 13, color: TEXT_MUTED, background: '#f7f8fa', borderTop: '1px solid #e4e7ec',
   },
 };

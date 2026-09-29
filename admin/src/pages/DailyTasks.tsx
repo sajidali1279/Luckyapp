@@ -31,9 +31,9 @@ const SHIFT_LABELS: Record<Shift, string> = {
 const SHIFT_ORDER: Shift[] = ['OPENING', 'MIDDLE', 'CLOSING'];
 
 const SHIFT_COLORS: Record<Shift, { bg: string; border: string; label: string }> = {
-  OPENING: { bg: '#FFF7ED', border: '#FED7AA', label: '#C2410C' },
-  MIDDLE:  { bg: '#FEFCE8', border: '#FDE68A', label: '#92400E' },
-  CLOSING: { bg: '#EFF6FF', border: '#BFDBFE', label: '#1E40AF' },
+  OPENING: { bg: '#fdf6e8', border: '#f1dcaf', label: '#8a5300' },
+  MIDDLE:  { bg: '#fdf6e8', border: '#f1dcaf', label: '#8a5300' },
+  CLOSING: { bg: '#eef2f7', border: '#d3dcea', label: '#1D3557' },
 };
 
 const EMPTY_FORM = { shift: 'OPENING' as Shift, title: '', description: '', storeId: '' };
@@ -263,7 +263,7 @@ export default function DailyTasks() {
             />
 
             {isStoreManager && ownStoreIds.length <= 1 ? (
-              <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 14, color: PRIMARY, fontWeight: 600, marginTop: 14 }}>
+              <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 14, color: PRIMARY, fontWeight: 600, marginTop: 14 }}>
                 📍 This task will apply to your store only
               </div>
             ) : isStoreManager ? (
@@ -307,16 +307,16 @@ const s: Record<string, React.CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   headerLeft: { display: 'flex', alignItems: 'center', gap: 14 },
   iconWrap: { width: 42, height: 42, borderRadius: 11, background: PRIMARY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  title: { margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' },
+  title: { margin: 0, fontSize: 26, fontWeight: 700, color: '#111827' },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
   headerActions: { display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 },
 
-  seedBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#f3f4f6', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' },
+  seedBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#f1f3f6', border: '1.5px solid #d5dae1', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' },
   addBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: PRIMARY, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' },
 
   filterRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 },
   filterLabel: { fontSize: 14, fontWeight: 600, color: '#374151', flexShrink: 0 },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#111827', background: '#fff', cursor: 'pointer', minWidth: 220 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', background: '#fff', cursor: 'pointer', minWidth: 220 },
 
   empty: { textAlign: 'center', padding: '60px 0', color: TEXT_MUTED, fontSize: 15 },
   emptyState: { textAlign: 'center', padding: '80px 0' },
@@ -325,30 +325,30 @@ const s: Record<string, React.CSSProperties> = {
   emptyText: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6, maxWidth: 480, margin: '0 auto' },
 
   groups: { display: 'flex', flexDirection: 'column', gap: 20 },
-  shiftGroup: { borderRadius: 14, border: '1.5px solid', overflow: 'hidden' },
+  shiftGroup: { borderRadius: 12, border: '1.5px solid', overflow: 'hidden' },
   shiftHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid rgba(0,0,0,0.06)' },
-  shiftLabel: { fontSize: 15, fontWeight: 800 },
+  shiftLabel: { fontSize: 15, fontWeight: 700 },
   shiftCount: { fontSize: 13, fontWeight: 600, opacity: 0.7 },
   shiftEmpty: { padding: '16px 18px', fontSize: 13, color: TEXT_MUTED, fontStyle: 'italic' },
 
   taskList: { display: 'flex', flexDirection: 'column' },
   taskRow: { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 18px', borderBottom: '1px solid rgba(0,0,0,0.05)', background: '#fff' },
-  taskNum: { width: 22, height: 22, borderRadius: '50%', background: '#f3f4f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
+  taskNum: { width: 22, height: 22, borderRadius: '50%', background: '#f1f3f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 },
   taskBody: { flex: 1, minWidth: 0 },
   taskTitle: { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 2 },
   taskDesc: { fontSize: 13, color: TEXT_MUTED, lineHeight: 1.5 },
-  storeBadge: { display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: PRIMARY, background: '#dbeafe', borderRadius: 6, padding: '2px 8px' },
+  storeBadge: { display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: PRIMARY, background: '#eef2f7', borderRadius: 6, padding: '2px 8px' },
   taskActions: { display: 'flex', gap: 6, flexShrink: 0 },
-  editBtn: { background: '#f3f4f6', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center' },
-  deleteBtn: { background: '#fef2f2', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center' },
+  editBtn: { background: '#f1f3f6', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center' },
+  deleteBtn: { background: '#fdf2f2', border: 'none', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: '#c42130', display: 'flex', alignItems: 'center' },
 
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  modalTitle: { margin: '0 0 20px', fontSize: 18, fontWeight: 800, color: '#111827' },
+  modal: { background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
+  modalTitle: { margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#111827' },
   fieldLabel: { display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6, marginTop: 14 },
-  req: { color: '#ef4444' },
-  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 14, color: '#111827', boxSizing: 'border-box' },
+  req: { color: '#c42130' },
+  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', boxSizing: 'border-box' },
   modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 },
-  cancelBtn: { padding: '9px 18px', background: '#f3f4f6', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer' },
+  cancelBtn: { padding: '9px 18px', background: '#f1f3f6', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer' },
   saveBtn: { padding: '9px 18px', background: PRIMARY, border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer' },
 };
