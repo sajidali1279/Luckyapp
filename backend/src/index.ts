@@ -15,6 +15,7 @@ import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
 import { startOfferAnnounceCron } from './utils/offerAnnounce';
+import { startNoticeAnnounceCron } from './utils/noticeAnnounce';
 import { startMorningSummaryCron } from './utils/morning-summary';
 import { startWeeklySummaryCron } from './utils/weekly-summary';
 import { startPendingExpiryCron } from './utils/pending-expiry-cron';
@@ -129,6 +130,7 @@ app.listen(PORT, () => {
   startLabelPriceExpiryCron();
   startNotificationRetentionCron();
   startOfferAnnounceCron();
+  startNoticeAnnounceCron();
   startMorningSummaryCron();
   startWeeklySummaryCron();
   startPendingExpiryCron();

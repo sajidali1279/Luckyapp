@@ -165,7 +165,7 @@ import {
 import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
-import { createNotice, getAllNotices, deactivateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
+import { createNotice, getAllNotices, deactivateNotice, updateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
 import {
   updateStoreBilling,
   getAllStoresBilling,
@@ -617,6 +617,7 @@ router.get('/notices/active',        authenticate, requireRole(Role.EMPLOYEE),  
 router.get('/admin/notices',         authenticate, requireRole(Role.STORE_MANAGER), getAllNotices);
 router.post('/admin/notices',        authenticate, requireRole(Role.STORE_MANAGER), createNotice);
 router.patch('/admin/notices/:id',   authenticate, requireRole(Role.STORE_MANAGER), deactivateNotice);
+router.put('/admin/notices/:id',     authenticate, requireRole(Role.STORE_MANAGER), updateNotice);     // edit, extend, bring back
 router.delete('/admin/notices/:id',  authenticate, requireRole(Role.STORE_MANAGER), deleteNotice);
 
 // ─── Points Disputes ──────────────────────────────────────────────────────────

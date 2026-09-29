@@ -80,3 +80,10 @@ export function adminProductRequestUrl(storeId: string, requestId: string): stri
 export function adminStockRequestUrl(storeId: string, requestId: string): string {
   return `/store-requests?storeId=${storeId}&tab=stock&highlightId=${requestId}`;
 }
+
+// ─── Mobile: staff notices (HQ and manager announcements) ──────────────────
+// A notice shows at the top of the home screen, so a tap goes there, in the part of the app the person uses
+export function noticeUrl(recipientRole?: string, noticeId?: string): string {
+  const base = recipientRole === 'STORE_MANAGER' ? '/(manager)/home' : '/(employee)/home';
+  return noticeId ? `${base}?noticeId=${noticeId}` : base;
+}

@@ -1388,14 +1388,33 @@ model HotFoodCatalogStore {
 
 // ─── Admin Notices (HQ broadcast → pinned banner in store chat) ─────────────
 
+enum NoticePriority {
+  NORMAL
+  URGENT // red in the app, cannot be closed, pushed as "Urgent"
+}
+
+enum NoticeAudience {
+  ALL_STAFF
+  MANAGERS
+  EMPLOYEES
+}
+
 model AdminNotice {
   id          String   @id @default(uuid())
   title       String
   body        String
-  storeId     String?  // null = all stores
+  storeId     String?  // the one store when it targets exactly one (older app builds read this); null otherwise
+  storeIds    String[] @default([]) // the stores it is for; empty = every store
+  audience    NoticeAudience @default(ALL_STAFF)
+  priority    NoticePriority @default(NORMAL)
   createdById String
+  updatedById String?
+  startDate   DateTime @default(now()) // shown from here (a store day's start when scheduled ahead)
   endDate     DateTime
   isActive    Boolean  @default(true)
+  notify      Boolean  @default(true) // send a push when it starts
+  announcedAt DateTime? // when the push went out (once; a scheduled one goes out when it starts)
+  announcedTo Int?      // how many staff it went to
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1403,6 +1422,7 @@ model AdminNotice {
   createdBy User   @relation(fields: [createdById], references: [id])
 
   @@index([isActive, endDate])
+  @@index([isActive, startDate])
   @@index([storeId])
   @@map("admin_notices")
 }
