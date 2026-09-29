@@ -12,6 +12,9 @@ import {
 import { billingApi, storesApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, isRealDate, daysBetween, dayLabel } from '../lib/storeDates';
+import { PageHeader, Button, Chip } from '../components/kit';
+import { Download } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 type Range = '7d' | '30d' | '90d' | 'custom';
 const RANGE_LABEL: Record<Range, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', custom: 'Custom' };
@@ -42,7 +45,7 @@ function checkCustom(from: string, to: string, today: string): { prompt?: string
 
 function fmt$(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
-const CATEGORY_COLORS = [PRIMARY, '#c42130', '#b7791f', '#1f8a4c', '#457b9d', '#4f6d8f', '#fd7e14', '#20c997'];
+const CATEGORY_COLORS = [PRIMARY, '#c42130', '#8a5300', '#1a7f45', '#3c6e8f', '#4f6d8f', '#fd7e14', '#20c997'];
 const DOLLAR_SERIES = ['$', 'volume', 'cut', 'revenue', 'cashback', 'redeemed', 'amount'];
 
 function catLabel(cat: string) { return cat.replace(/_/g, ' '); }
@@ -190,34 +193,22 @@ export default function Analytics() {
   return (
     <div style={s.container}>
       {/* Header */}
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>📈 Analytics</h1>
-          <p style={s.sub}>Transaction and revenue insights across all stores</p>
-          {from && to && ready && (
-            <p style={s.rangeNote}>{dayLabel(from)} to {dayLabel(to)}, counted in the stores' Central time</p>
-          )}
-        </div>
-
-        {/* Date range controls */}
-        <div style={s.rangeControls}>
-          {(['7d', '30d', '90d', 'custom'] as Range[]).map((r) => (
-            <button
-              key={r}
-              aria-pressed={range === r}
-              style={{ ...s.rangeBtn, ...(range === r ? s.rangeBtnActive : {}) }}
-              onClick={() => setRange(r)}
-            >
-              {RANGE_LABEL[r]}
-            </button>
-          ))}
-          {analytics && (
-            <button style={s.exportBtn} onClick={handleExportCsv} disabled={exporting} title="Download what is on screen as CSV">
-              {exporting ? '⏳ Exporting…' : '⬇ Export CSV'}
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Analytics"
+        description={<>Transaction and revenue insights across all stores{from && to && ready && <>. {dayLabel(from)} to {dayLabel(to)}, counted in the stores' Central time.</>}</>}
+        actions={
+          <>
+            {(['7d', '30d', '90d', 'custom'] as Range[]).map((r) => (
+              <Chip key={r} selected={range === r} onClick={() => setRange(r)}>{RANGE_LABEL[r]}</Chip>
+            ))}
+            {analytics && (
+              <Button icon={<Download />} onClick={handleExportCsv} disabled={exporting} title="Download what is on screen as CSV">
+                {exporting ? 'Exporting…' : 'Export CSV'}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {storeId && (
         <div style={s.storeChip}>
@@ -305,7 +296,7 @@ export default function Analytics() {
                     {promotionLines}
                     {compare && <Line type="monotone" dataKey="prevPurchaseVolume" stroke="#5a6472" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="Previous period" />}
                     <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
-                    <Line type="monotone" dataKey="devCut" stroke="#1f8a4c" strokeWidth={2} dot={false} name="Dev Cut" />
+                    <Line type="monotone" dataKey="devCut" stroke="#1a7f45" strokeWidth={2} dot={false} name="Dev Cut" />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -318,7 +309,7 @@ export default function Analytics() {
                     <XAxis dataKey="date" tick={{ fontSize: 13 }} tickFormatter={dateTick} />
                     <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `${v}%`} />
                     <Tooltip formatter={(v: any) => `${v}%`} labelFormatter={(v) => dayLabel(v)} />
-                    <Line type="monotone" dataKey="cashbackShare" stroke="#b7791f" strokeWidth={2} dot={false} name="Cashback share" />
+                    <Line type="monotone" dataKey="cashbackShare" stroke="#8a5300" strokeWidth={2} dot={false} name="Cashback share" />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -329,8 +320,8 @@ export default function Analytics() {
                   <AreaChart accessibilityLayer={false} data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <defs>
                       <linearGradient id="pointsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#b7791f" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#b7791f" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#8a5300" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#8a5300" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -338,7 +329,7 @@ export default function Analytics() {
                     <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip content={<CustomTooltip />} />
                     {shade('line')}
-                    <Area type="monotone" dataKey="pointsAwarded" stroke="#b7791f" strokeWidth={2} fill="url(#pointsGrad)" name="Cashback Awarded" dot={false} />
+                    <Area type="monotone" dataKey="pointsAwarded" stroke="#8a5300" strokeWidth={2} fill="url(#pointsGrad)" name="Cashback Awarded" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -355,7 +346,7 @@ export default function Analytics() {
                     <Legend />
                     {shade('bar')}
                     <Bar yAxisId="left" dataKey="redemptions" fill="#4f6d8f" name="Redemptions" radius={[4, 4, 0, 0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#1f8a4c" strokeWidth={2} name="Redeemed Amount" dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#1a7f45" strokeWidth={2} name="Redeemed Amount" dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -394,7 +385,7 @@ export default function Analytics() {
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
                       <Bar dataKey="purchaseVolume" fill="#c42130" name="Purchase Volume" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
-                      <Bar dataKey="devCut" fill="#1f8a4c" name="Dev Cut" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
+                      <Bar dataKey="devCut" fill="#1a7f45" name="Dev Cut" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -520,7 +511,7 @@ function SummaryCard({ icon, label, value, green, sub, delta }: { icon: string; 
   const deltaColor = !delta ? TEXT_MUTED : delta.startsWith('+') ? GREEN_TEXT : delta.startsWith('-') ? '#c42130' : TEXT_MUTED;
   return (
     <div style={s.summaryCard}>
-      <div style={s.summaryIcon}>{icon}</div>
+      <div style={s.summaryIcon}><Glyph e={icon} size={18} /></div>
       <div>
         <div style={s.summaryLabel}>{label}</div>
         <div style={{ ...s.summaryValue, ...(green ? { color: GREEN_TEXT } : {}) }}>{value}</div>
@@ -534,8 +525,8 @@ function SummaryCard({ icon, label, value, green, sub, delta }: { icon: string; 
 function CutCard({ totals }: { totals: any }) {
   const sales = totals.purchaseVolume || 0;
   const rows = [
-    { label: 'Cashback to customers', value: totals.pointsAwarded || 0, color: '#b7791f' },
-    { label: 'Your dev cut', value: totals.devCut || 0, color: '#1f8a4c' },
+    { label: 'Cashback to customers', value: totals.pointsAwarded || 0, color: '#8a5300' },
+    { label: 'Your dev cut', value: totals.devCut || 0, color: '#1a7f45' },
   ];
   const max = Math.max(...rows.map((r) => r.value), 0.01);
   const share = (n: number) => (sales > 0 ? `${((n / sales) * 100).toFixed(1)}% of sales` : 'no sales yet');

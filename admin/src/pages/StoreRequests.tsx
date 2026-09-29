@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -33,27 +34,27 @@ const TYPE_BG: Record<string, string> = {
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
-  HIGH: '#c42130', MEDIUM: '#b7791f', LOW: '#1f8a4c',
+  HIGH: '#c42130', MEDIUM: '#8a5300', LOW: '#1a7f45',
 };
 
 const PRIORITY_BG: Record<string, string> = {
   HIGH: '#fdf2f2', MEDIUM: '#fdf6e8', LOW: '#edf7f0',
 };
 
-const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1a7f45', '#8a5300', PRIMARY, '#c42130', '#3c6e8f'];
 
 // Sentinel used for the sidebar's "All Stores" entry — never collides with a real store id (cuid).
 const ALL_STORES_ID = '__ALL_STORES__';
 
 const STORE_GRADIENTS = [
-  [PRIMARY, '#457B9D'],
-  ['#1D3557', '#457B9D'],
-  ['#17663a', '#1f8a4c'],
+  [PRIMARY, '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
+  ['#17663a', '#1a7f45'],
   ['#4f6d8f', '#4f6d8f'],
-  ['#8a5300', '#b7791f'],
+  ['#8a5300', '#8a5300'],
   ['#c42130', '#c42130'],
-  ['#457B9D', '#457B9D'],
-  ['#1D3557', '#457B9D'],
+  ['#3c6e8f', '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
 ];
 
 interface StoreRequest {
@@ -89,7 +90,7 @@ interface ProductRequest {
 const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#8a5300', ACCEPTED: '#17663a', DECLINED: '#a51b28' };
 const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fdf6e8', ACCEPTED: '#edf7f0', DECLINED: '#fdf2f2' };
 const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#f1dcaf', ACCEPTED: '#c8e6d2', DECLINED: '#f3cdd1' };
-const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#b7791f', ACCEPTED: '#22c55e', DECLINED: '#c42130' };
+const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#8a5300', ACCEPTED: '#22c55e', DECLINED: '#c42130' };
 
 interface StockLine {
   id: string;
@@ -382,7 +383,7 @@ export default function StoreRequests() {
                 onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
               >
                 <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #5a6472)', fontSize: 18 }}>
-                  🏬
+                  
                 </div>
                 <div style={s.storeBtnInfo}>
                   <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#111827' }}>All Stores</div>
@@ -421,7 +422,7 @@ export default function StoreRequests() {
       <div style={s.chatPanel}>
         {!effectiveStoreId ? (
           <div style={s.emptyState}>
-            <div style={s.emptyIcon}>📋</div>
+            <div style={s.emptyIcon}><Glyph e="📋" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>Select a store</div>
             <div style={s.emptySub}>Choose a store from the sidebar to view its requests</div>
           </div>
@@ -460,11 +461,11 @@ export default function StoreRequests() {
                   disabled={isAllStores}
                   title={isAllStores ? 'Select a single store to view this tab' : undefined}
                 >
-                  🔔 Store Alerts
+                  Store Alerts
                   {pending.length > 0 && <span style={s.tabBadge}>{pending.length}</span>}
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'stock' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('stock')}>
-                  📦 Stock Requests
+                  Stock Requests
                   {stockPending.length > 0 && <span style={s.tabBadge}>{stockPending.length}</span>}
                 </button>
                 <button
@@ -473,7 +474,7 @@ export default function StoreRequests() {
                   disabled={isAllStores}
                   title={isAllStores ? 'Select a single store to view this tab' : undefined}
                 >
-                  🛍️ Product Requests
+                  Product Requests
                   {prPending.length > 0 && <span style={s.tabBadge}>{prPending.length}</span>}
                 </button>
               </div>
@@ -547,7 +548,7 @@ export default function StoreRequests() {
                             {req.notes && <div style={s.notesBox}>"{req.notes}"</div>}
                             {isDone ? (
                               <div style={s.ackBox}>
-                                <span style={s.ackIcon}>✅</span>
+                                <span style={s.ackIcon}><Glyph e="✅" size={16} color="#17663a" /></span>
                                 <div>
                                   <div style={s.ackBy}>Handled by {req.acknowledgerName}
                                     {req.acknowledgedAt && <span style={s.ackTime}> · {formatTime(req.acknowledgedAt)}</span>}
@@ -556,7 +557,7 @@ export default function StoreRequests() {
                                 </div>
                               </div>
                             ) : !isReadOnly ? (
-                              <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}>✅  Mark as Handled</button>
+                              <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}> Mark as Handled</button>
                             ) : (
                               <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
@@ -607,7 +608,7 @@ export default function StoreRequests() {
                       const rejectedCount = req.lines.filter(l => l.status === 'REJECTED').length;
                       return (
                         <div key={req.id} className={req.id === highlightId ? 'ls-highlight-pulse' : undefined} style={{ ...s.card, ...(isDone ? s.cardDone : {}) }}>
-                          <div style={{ ...s.priorityStripe, background: isDone ? '#c8e6d2' : '#b7791f' }} />
+                          <div style={{ ...s.priorityStripe, background: isDone ? '#c8e6d2' : '#8a5300' }} />
                           <div style={s.cardBody}>
                             <div style={s.cardTop}>
                               <div style={{ ...s.typeIconWrap, background: '#eef2f7' }}>
@@ -625,7 +626,7 @@ export default function StoreRequests() {
                                   <span style={s.doneBadge}>✓ Reviewed</span>
                                 ) : (
                                   <span style={{ ...s.prioBadge, background: '#fdf6e8', color: '#8a5300', borderColor: '#fde68a55' }}>
-                                    <span style={{ ...s.prioBadgeDot, background: '#b7791f' }} />Pending
+                                    <span style={{ ...s.prioBadgeDot, background: '#8a5300' }} />Pending
                                   </span>
                                 )}
                               </div>
@@ -637,7 +638,7 @@ export default function StoreRequests() {
                             {req.note && <div style={s.notesBox}>"{req.note}"</div>}
                             {isDone ? (
                               <div style={s.ackBox}>
-                                <span style={s.ackIcon}>✅</span>
+                                <span style={s.ackIcon}><Glyph e="✅" size={16} color="#17663a" /></span>
                                 <div>
                                   <div style={s.ackBy}>Reviewed by {req.reviewedBy?.name}
                                     {req.reviewedAt && <span style={s.ackTime}> · {formatTime(req.reviewedAt)}</span>}
@@ -648,7 +649,7 @@ export default function StoreRequests() {
                                 </div>
                               </div>
                             ) : !isReadOnly ? (
-                              <button style={s.ackBtn} onClick={() => { setReviewTarget(req); setLineState({}); }}>📦  Review Items</button>
+                              <button style={s.ackBtn} onClick={() => { setReviewTarget(req); setLineState({}); }}> Review Items</button>
                             ) : (
                               <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
@@ -687,7 +688,7 @@ export default function StoreRequests() {
                   <CardSkeleton count={3} />
                 ) : prDisplayed.length === 0 ? (
                   <div style={s.emptyState}>
-                    <div style={s.emptyIcon}>🛍️</div>
+                    <div style={s.emptyIcon}><Glyph e="🛍️" size={28} color="#5a6472" /></div>
                     <div style={s.emptyTitle}>{prStatusFilter === 'PENDING' ? 'No pending requests!' : 'Nothing here'}</div>
                     <div style={s.emptySub}>Customer product requests will appear here</div>
                   </div>
@@ -709,7 +710,7 @@ export default function StoreRequests() {
                             {/* Top row */}
                             <div style={s.prTop}>
                               <div style={s.prIconWrap}>
-                                <span style={{ fontSize: 22 }}>🛍️</span>
+                                <span style={{ fontSize: 22 }}><Glyph e="🛍️" size={20} color="#1D3557" /></span>
                               </div>
                               <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.prProductName}>{pr.productName}</div>
@@ -733,7 +734,7 @@ export default function StoreRequests() {
                               </div>
                               {isPending && days > 0 && (
                                 <div style={s.prExpiryPill}>
-                                  <span style={s.prExpiryText}>⏱ {days}d left</span>
+                                  <span style={s.prExpiryText}>{days}d left</span>
                                 </div>
                               )}
                             </div>
@@ -753,7 +754,7 @@ export default function StoreRequests() {
                                   onClick={() => setConfirmAcceptTarget(pr)}
                                   disabled={respondMutation.isPending}
                                 >
-                                  ✅ Accept
+                                  Accept
                                 </button>
                                 <button
                                   style={s.prDeclineBtn}
@@ -789,7 +790,7 @@ export default function StoreRequests() {
             </div>
             <div style={{ ...s.previewCard, background: '#fdf2f2', borderColor: '#f3cdd1' }}>
               <div style={{ ...s.previewIconWrap, background: '#fdf2f2' }}>
-                <span style={s.previewIconEmoji}>🛍️</span>
+                <span style={s.previewIconEmoji}><Glyph e="🛍️" size={20} color="#1D3557" /></span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={s.previewType}>{respondTarget.productName}</div>
@@ -833,7 +834,7 @@ export default function StoreRequests() {
             {/* Request preview */}
             <div style={s.previewCard}>
               <div style={{ ...s.previewIconWrap, background: TYPE_BG[ackTarget.type] || '#f1f3f6' }}>
-                <span style={s.previewIconEmoji}>{TYPE_ICONS[ackTarget.type]}</span>
+                <span style={s.previewIconEmoji}><Glyph e={TYPE_ICONS[ackTarget.type]} size={18} /></span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={s.previewType}>{TYPE_LABELS[ackTarget.type]}</div>
@@ -871,7 +872,7 @@ export default function StoreRequests() {
                 disabled={acknowledgeMutation.isPending}
                 onClick={() => acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
               >
-                {acknowledgeMutation.isPending ? 'Saving…' : '✅  Confirm'}
+                {acknowledgeMutation.isPending ? 'Saving…' : ' Confirm'}
               </button>
             </div>
           </div>
@@ -988,7 +989,7 @@ export default function StoreRequests() {
                 disabled={reviewMutation.isPending}
                 onClick={() => submitStockReview(reviewTarget)}
               >
-                {reviewMutation.isPending ? 'Submitting…' : '✅  Submit Review'}
+                {reviewMutation.isPending ? 'Submitting…' : ' Submit Review'}
               </button>
             </div>
           </div>
@@ -1006,9 +1007,9 @@ const s: Record<string, React.CSSProperties> = {
     width: 272, background: '#fff', borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column', flexShrink: 0,
   },
-  sidebarTop: { padding: '20px 18px 8px' },
-  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
+  sidebarTop: { background: 'linear-gradient(135deg, #1D3557 0%, #152a47 100%)', borderBottom: '3px solid #D62839', marginBottom: 8, padding: '18px 18px 16px' },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: -0.3 },
+  sidebarSubtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.74)', marginTop: 2 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -1025,7 +1026,7 @@ const s: Record<string, React.CSSProperties> = {
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
-  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1f8a4c', flexShrink: 0 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1a7f45', flexShrink: 0 },
   pendingReqBadge: { background: '#8a5300', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
   // ── Chat Panel ──
@@ -1046,7 +1047,7 @@ const s: Record<string, React.CSSProperties> = {
   chatHeaderInfo: { flex: 1, minWidth: 0 },
   chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' as const },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1a7f45', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
 
   emptyState: {
     flex: 1, display: 'flex', flexDirection: 'column',
@@ -1170,9 +1171,9 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 10, border: '1px solid #c8e6d2',
   },
   ackIcon: { fontSize: 16, marginTop: 1, flexShrink: 0 },
-  ackBy: { fontSize: 14, fontWeight: 700, color: '#1f8a4c' },
+  ackBy: { fontSize: 14, fontWeight: 700, color: '#1a7f45' },
   ackTime: { fontWeight: 500 },
-  ackNote: { fontSize: 14, color: '#1f8a4c', fontStyle: 'italic', marginTop: 3 },
+  ackNote: { fontSize: 14, color: '#1a7f45', fontStyle: 'italic', marginTop: 3 },
 
   ackBtn: {
     alignSelf: 'stretch',
@@ -1191,7 +1192,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14, fontWeight: 700, color: '#8a5300',
   },
   pendingDot: {
-    width: 7, height: 7, borderRadius: 4, background: '#b7791f',
+    width: 7, height: 7, borderRadius: 4, background: '#8a5300',
     display: 'inline-block',
   },
 

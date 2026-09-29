@@ -49,7 +49,7 @@ const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE:     'Employee',
 };
 
-const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D', '#c42130'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1a7f45', '#8a5300', PRIMARY, '#c42130', '#3c6e8f', '#c42130'];
 
 function getAvatarColor(name: string, i: number) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || i) % AVATAR_PALETTE.length];
@@ -388,7 +388,7 @@ export default function Staff() {
                               <div style={s.memberName}>{member.name || ' - '}</div>
                               <div style={s.memberPhone}>{showPhone(member.phone)}</div>
                             </div>
-                            <div style={{ ...s.activeDot, background: member.isActive ? '#1f8a4c' : '#c42130' }} aria-hidden="true" />
+                            <div style={{ ...s.activeDot, background: member.isActive ? '#1a7f45' : '#c42130' }} aria-hidden="true" />
                           </div>
 
                           {/* Role badge */}
@@ -990,7 +990,7 @@ const s: Record<string, React.CSSProperties> = {
   deleteSub: { fontSize: 15, color: '#374151', lineHeight: 1.6 },
   deletePreview: { display: 'flex', alignItems: 'center', gap: 10, background: '#f7f8fa', borderRadius: 10, padding: '10px 14px' },
   deletePreviewName: { fontSize: 14, fontWeight: 600, color: '#111827' },
-  deleteConfirmBtn: { padding: '10px 20px', background: '#a51b28', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  deleteConfirmBtn: { padding: '10px 20px', background: '#c42130', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   // Create form
   formWrap: { display: 'flex', justifyContent: 'center', paddingTop: 8 },

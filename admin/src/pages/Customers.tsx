@@ -21,7 +21,7 @@ function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const AVATAR_PALETTE = ['#4f6d8f','#1D3557','#1f8a4c','#8a5300',PRIMARY,'#c42130','#457B9D','#c42130','#17663a','#8a5300'];
+const AVATAR_PALETTE = ['#4f6d8f','#1D3557','#1a7f45','#8a5300',PRIMARY,'#c42130','#3c6e8f','#c42130','#17663a','#8a5300'];
 function avatarColor(name: string) {
   return AVATAR_PALETTE[(name?.charCodeAt(0) || 0) % AVATAR_PALETTE.length];
 }
@@ -432,7 +432,7 @@ export default function Customers() {
                         <div style={s.fraudBadge}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>
                       )}
                     </div>
-                    <div style={{ ...s.statusDot, background: c.isActive ? '#1f8a4c' : '#c42130' }} aria-hidden="true" />
+                    <div style={{ ...s.statusDot, background: c.isActive ? '#1a7f45' : '#c42130' }} aria-hidden="true" />
                   </div>
 
                   {/* Balance */}
@@ -676,7 +676,7 @@ export default function Customers() {
                 {detail.sales.map((t: any) => (
                   <div key={t.id} style={s.detailRow}>
                     <span>{storeDayTime(t.createdAt)} · {t.store?.name || 'Unknown store'}</span>
-                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }}><Glyph e="📷" size={28} color="#5a6472" /></a>}</span>
+                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }} aria-label="Open the receipt photo" title="Open the receipt photo"><Glyph e="📷" size={14} color="#1D3557" style={{ verticalAlign: -2 }} /></a>}</span>
                   </div>
                 ))}
               </div>
@@ -818,7 +818,7 @@ const s: Record<string, React.CSSProperties> = {
   actionBtnView: { background: '#eef2f7', color: '#1D3557', marginBottom: 8 },
   actionBtnRestrict: { background: '#fdf2f2', color: RED_TEXT },
   actionBtnRestore: { background: '#edf7f0', color: GREEN_TEXT },
-  actionBtnDelete: { background: '#a51b28', color: '#fff', marginTop: 8 },
+  actionBtnDelete: { background: '#c42130', color: '#fff', marginTop: 8 },
 
   // Test-account tag, next to a customer's phone
   testBadge: { marginLeft: 8, padding: '1px 7px', background: '#f1f3f6', color: TEXT_MUTED, fontSize: 11, fontWeight: 700, borderRadius: 6, letterSpacing: 0.5, verticalAlign: 'middle' },

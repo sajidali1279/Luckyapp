@@ -5,6 +5,8 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -14,7 +16,7 @@ function Stars({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <span style={{ fontSize: size, lineHeight: 1, letterSpacing: 1 }}>
       {[1, 2, 3, 4, 5].map(s => (
-        <span key={s} style={{ color: s <= Math.round(rating) ? '#b7791f' : '#d5dae1' }}>★</span>
+        <span key={s} style={{ color: s <= Math.round(rating) ? '#8a5300' : '#d5dae1' }}>★</span>
       ))}
     </span>
   );
@@ -52,12 +54,7 @@ export default function LeaderboardPage() {
       <div style={s.inner}>
 
         {/* Header */}
-        <div style={s.pageHeader}>
-          <div>
-            <h1 style={s.pageTitle}>🏆 Leaderboard</h1>
-            <p style={s.pageSub}>Customer rankings · Employee ratings</p>
-          </div>
-        </div>
+      <PageHeader title="Leaderboard" description="Customer rankings and employee ratings." />
 
         <div style={s.grid}>
 
@@ -65,7 +62,7 @@ export default function LeaderboardPage() {
           <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
-                <div style={s.panelTitle}>👥 Customer Rankings</div>
+                <div style={s.panelTitle}>Customer Rankings</div>
                 <div style={s.panelSub}>Ranked by lifetime points earned</div>
               </div>
               <select
@@ -86,7 +83,7 @@ export default function LeaderboardPage() {
               <TableSkeleton columns={3} />
             ) : customers.length === 0 ? (
               <div style={s.empty}>
-                <div style={{ fontSize: 36 }}>🏁</div>
+                <div style={{ fontSize: 36 }}><Glyph e="🏁" size={28} color="#5a6472" /></div>
                 <div style={s.emptyTitle}>No data yet</div>
                 <div style={s.emptySub}>Rankings will appear once customers earn points</div>
               </div>
@@ -104,7 +101,7 @@ export default function LeaderboardPage() {
                     {customers.map((c, i) => (
                       <TableRow key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
-                          {c.rank === 1 ? '🥇' : c.rank === 2 ? '🥈' : c.rank === 3 ? '🥉' : (
+                          {c.rank <= 3 ? <Glyph e="🏅" size={18} color={['#8a5300', '#5a6472', '#8a5300'][c.rank - 1]} style={{ verticalAlign: -4 }} /> : (
                             <span style={s.rankNum}>#{c.rank}</span>
                           )}
                         </TableCell>
@@ -126,7 +123,7 @@ export default function LeaderboardPage() {
           <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
-                <div style={s.panelTitle}>⭐ Employee Ratings</div>
+                <div style={s.panelTitle}>Employee Ratings</div>
                 <div style={s.panelSub}>
                   {empStoreName ? `Showing ${empStoreName}` : 'Select a store to view ratings'}
                 </div>
@@ -146,7 +143,7 @@ export default function LeaderboardPage() {
             {/* Employee of the Month callout */}
             {eom && (
               <div style={s.eomCard}>
-                <span style={{ fontSize: 28 }}>🏅</span>
+                <span style={{ fontSize: 28 }}><Glyph e="🏅" size={28} color="#5a6472" /></span>
                 <div style={{ flex: 1 }}>
                   <div style={s.eomLabel}>Employee of the Month</div>
                   <div style={s.eomName}>{eom.firstName}</div>
@@ -160,7 +157,7 @@ export default function LeaderboardPage() {
 
             {!employeeStoreId ? (
               <div style={s.empty}>
-                <div style={{ fontSize: 36 }}>🏪</div>
+                <div style={{ fontSize: 36 }}><Glyph e="🏪" size={28} color="#5a6472" /></div>
                 <div style={s.emptyTitle}>Choose a store</div>
                 <div style={s.emptySub}>Select a store above to see employee rankings</div>
               </div>
@@ -168,7 +165,7 @@ export default function LeaderboardPage() {
               <TableSkeleton columns={4} />
             ) : employees.length === 0 ? (
               <div style={s.empty}>
-                <div style={{ fontSize: 36 }}>⭐</div>
+                <div style={{ fontSize: 36 }}><Glyph e="⭐" size={28} color="#5a6472" /></div>
                 <div style={s.emptyTitle}>No ratings yet</div>
                 <div style={s.emptySub}>Ratings appear after customers rate their experience</div>
               </div>
@@ -186,7 +183,7 @@ export default function LeaderboardPage() {
                     {employees.map((e: EmployeeEntry, i: number) => (
                       <TableRow key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
-                          {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : (
+                          {e.rank <= 3 ? <Glyph e="🏅" size={18} color={['#8a5300', '#5a6472', '#8a5300'][e.rank - 1]} style={{ verticalAlign: -4 }} /> : (
                             <span style={s.rankNum}>#{e.rank}</span>
                           )}
                         </TableCell>
@@ -194,7 +191,7 @@ export default function LeaderboardPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={s.empName}>{e.firstName}</span>
                             {e.isEmployeeOfMonth && (
-                              <span style={s.eomChip}>🏅 Month</span>
+                              <span style={s.eomChip}>Month</span>
                             )}
                           </div>
                         </TableCell>

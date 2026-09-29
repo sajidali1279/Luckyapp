@@ -6,6 +6,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader } from '../components/kit';
 
 function fmt$(n: number) { return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -41,12 +42,7 @@ export default function SuperAdminBilling() {
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>My Billing</h1>
-          <p style={s.subtitle}>Monthly platform fee invoices from Lucky Stop developer</p>
-        </div>
-      </div>
+      <PageHeader title="My Billing" description="Monthly platform fee invoices from the Lucky Stop developer." />
 
       {/* Summary Cards */}
       <div style={s.cards}>
@@ -137,7 +133,7 @@ export default function SuperAdminBilling() {
                           onClick={(e) => { e.stopPropagation(); downloadInvoicePdf(inv); }}
                           aria-label={`Download the ${periodLabel(inv.period)} invoice as a PDF`}
                         >
-                          📄 PDF
+                          PDF
                         </button>
                       </div>
                     </TableCell>
@@ -161,7 +157,7 @@ export default function SuperAdminBilling() {
                                 .sort((a: any, b: any) => b.amount - a.amount)
                                 .map((row: any, i: number) => (
                                   <TableRow key={row.store?.id ?? `chain-${i}`} style={s.tr}>
-                                    <TableCell style={s.td}><strong>{row.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong></TableCell>
+                                    <TableCell style={s.td}><strong>{row.store?.name ?? 'All Stores (Chain-wide)'}</strong></TableCell>
                                     <TableCell style={s.td}>{row.store?.city ?? ' - '}</TableCell>
                                     <TableCell style={s.td}>{row.description || ' - '}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
@@ -245,7 +241,7 @@ const s: Record<string, React.CSSProperties> = {
   infoText: { fontSize: 15, color: '#1D3557', lineHeight: 1.6 },
 
   pdfBtn: {
-    background: '#fff', border: '1.5px solid #1f8a4c', color: '#17663a',
+    background: '#fff', border: '1.5px solid #1a7f45', color: '#17663a',
     borderRadius: 6, padding: '4px 10px', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },

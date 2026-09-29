@@ -14,6 +14,8 @@ import CombinedInvoiceModal from '../components/CombinedInvoiceModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { Link } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
+import { PageHeader, Tabs } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
 
@@ -460,7 +462,7 @@ export default function Billing() {
         onConfirm={() => { if (feeConfirm) once(() => updateBilling.mutate({ storeId: feeConfirm.store.id, data: feeConfirm.payload })); }}
         onCancel={() => setFeeConfirm(null)}
       />
-      <h1 style={s.title}>💳 Billing</h1>
+      <PageHeader title="Billing" description="Platform fees, monthly bills, manual charges and platform settings for every store." />
 
       {/* ── Revenue summary ─────────────────────────────────────────────────── */}
       {revenueError ? (
@@ -481,15 +483,18 @@ export default function Billing() {
       )}
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
-      <div style={s.tabs}>
-        <button style={tab === 'stores' ? s.tabActive : s.tab} onClick={() => setTab('stores')}>🏪 Stores</button>
-        <button style={tab === 'monthly' ? s.tabActive : s.tab} onClick={() => setTab('monthly')}>
-          🗓️ Monthly Bills
-          {billingPendingCount > 0 && <span style={s.tabBadge}>{billingPendingCount}</span>}
-        </button>
-        <button style={tab === 'manual' ? s.tabActive : s.tab} onClick={() => setTab('manual')}>🧾 Manual Charges</button>
-        <button style={tab === 'settings' ? s.tabActive : s.tab} onClick={() => setTab('settings')}>⚙️ Platform Settings</button>
-      </div>
+      <Tabs
+        asButtons
+        ariaLabel="Billing section"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'stores', label: 'Stores' },
+          { value: 'monthly', label: 'Monthly Bills', count: billingPendingCount > 0 ? billingPendingCount : undefined },
+          { value: 'manual', label: 'Manual Charges' },
+          { value: 'settings', label: 'Platform Settings' },
+        ]}
+      />
 
       {/* ══════════════════ STORES TAB ══════════════════ */}
       {tab === 'stores' && (
@@ -610,8 +615,8 @@ export default function Billing() {
             </div>
           ) : heartbeat && Array.isArray(heartbeat.missingStores) && (
             <div style={{ ...s.heartbeatBox, ...(heartbeat.staleHeartbeat ? s.heartbeatBoxWarn : s.heartbeatBoxOk) }}>
-              {heartbeat.staleHeartbeat ? '⚠️' : '✅'} Billing job {heartbeat.lastRanAt ? `last ran ${heartbeat.minutesSinceRan}m ago` : 'has never run on this server'}
-              {heartbeat.staleHeartbeat && ' — that is longer than expected (it should tick every hour); check the server is awake'}.
+              <Glyph e={heartbeat.staleHeartbeat ? '⚠️' : '✅'} size={15} style={{ verticalAlign: -3, marginRight: 6 }} />Billing job {heartbeat.lastRanAt ? `last ran ${heartbeat.minutesSinceRan}m ago` : 'has never run on this server'}
+              {heartbeat.staleHeartbeat && ' - that is longer than expected (it should tick every hour); check the server is awake'}.
               {' '}{heartbeat.billedStores} of {heartbeat.totalActiveStores} active stores have a {heartbeat.periodLabel} bill.
               {heartbeat.missingStores.length > 0 && ` Missing: ${heartbeat.missingStores.map((s) => s.name).join(', ')}.`}
             </div>
@@ -639,23 +644,23 @@ export default function Billing() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button style={s.generateBtn} onClick={() => once(() => generateBills.mutate())} disabled={generateBills.isPending || (!!selectedPeriod && selectedPeriod >= storeToday().slice(0, 7))}
                 title="Makes the bills that do not exist yet for a finished month (default: last month). It never changes an existing bill.">
-                {generateBills.isPending ? '⏳ Generating…' : `⚡ Generate ${selectedPeriod || 'last month'}`}
+                {generateBills.isPending ? 'Generating…' : `Generate ${selectedPeriod || 'last month'}`}
               </button>
               <button style={s.backfillBtn} onClick={() => setConfirmFill(true)} disabled={fillMissing.isPending}
                 title="Makes every missing bill for every finished month. It never changes or deletes an existing bill or charge.">
-                {fillMissing.isPending ? '⏳ Filling in…' : '🧩 Fill in missing bills'}
+                {fillMissing.isPending ? 'Filling in…' : 'Fill in missing bills'}
               </button>
               <button style={s.exportBtn} onClick={() => consolidatedInvoices.length ? downloadBillsCSV(consolidatedInvoices) : toast.error('No records to export')} disabled={monthlyLoading}>
-                ⬇️ Export CSV
+                Export CSV
               </button>
               <button style={s.sendBtn} onClick={() => setConfirmNotify(true)} disabled={sendReport.isPending}>
-                {sendReport.isPending ? '⏳ Sending…' : '📨 Notify Super Admin'}
+                {sendReport.isPending ? 'Sending…' : 'Notify Super Admin'}
               </button>
               {/* Development builds only. On the live site this one click filled the real database with fake sales
                   and gave every real customer fake cashback. */}
               {import.meta.env.DEV && (
                 <button style={s.clearBtn} onClick={() => setShowSeedConfirm(true)} disabled={seedData.isPending}>
-                  {seedData.isPending ? '⏳ Seeding…' : '🧪 Seed Test Data'}
+                  {seedData.isPending ? 'Seeding…' : 'Seed Test Data'}
                 </button>
               )}
             </div>
@@ -714,16 +719,16 @@ export default function Billing() {
                         </TableCell>
                         <TableCell style={s.td}>
                           <span style={inv.isPaid ? s.paidBadge : s.unpaidBadge}>
-                            {inv.isPaid ? '✓ Paid' : paidCount > 0 ? `◐ ${paidCount}/${inv.stores.length} Paid` : '⏳ Unpaid'}
+                            {inv.isPaid ? '✓ Paid' : paidCount > 0 ? `◐ ${paidCount}/${inv.stores.length} Paid` : 'Unpaid'}
                           </span>
                           {inv.isPaid && inv.paidAt && <div style={s.cityLabel}>{new Date(inv.paidAt).toLocaleDateString()}</div>}
                         </TableCell>
                         <TableCell style={s.td}>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button
-                              style={{ ...s.editBtn, background: '#457B9D', fontSize: 14 }}
+                              style={{ ...s.editBtn, background: '#3c6e8f', fontSize: 14 }}
                               onClick={() => setCombinedInvoiceView(inv)}
-                            >📄 Invoice</button>
+                            >Invoice</button>
                             {!inv.isPaid && (
                               <button style={{ ...s.saveBtn, marginRight: 0 }} onClick={() => openPay(`${inv.period} invoice`, inv.period, inv.stores.filter((r: any) => !r.isPaid), false)} disabled={payMutation.isPending}>
                                 Mark Paid
@@ -757,13 +762,13 @@ export default function Billing() {
                                       return (
                                         <TableRow key={r.id}>
                                           <TableCell style={s.catTd}>
-                                            <strong>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong>
+                                            <strong>{r.store?.name ?? 'All Stores (Chain-wide)'}</strong>
                                             <div style={s.cityLabel}>{r.store?.city}</div>
                                             {n?.generatedBy === 'cron' && (
-                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2f7', color: '#1D3557', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>🤖 Auto</span>
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#eef2f7', color: '#1D3557', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Auto</span>
                                             )}
                                             {n?.generatedBy === 'manual' && (
-                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#edf7f0', color: '#17663a', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>✋ Manual</span>
+                                              <span style={{ display: 'inline-block', marginTop: 3, padding: '1px 7px', background: '#edf7f0', color: '#17663a', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Manual</span>
                                             )}
                                             {isManual && (
                                               <div style={s.cityLabel}>{manualDescription || 'Manual charge'}</div>
@@ -777,7 +782,7 @@ export default function Billing() {
                                             {isManual && <div style={s.cityLabel}>extra charge</div>}
                                           </TableCell>
                                           <TableCell style={s.catTd}>
-                                            <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : '⏳ Unpaid'}</span>
+                                            <span style={r.isPaid ? s.paidBadge : s.unpaidBadge}>{r.isPaid ? '✓ Paid' : 'Unpaid'}</span>
                                             {r.isPaid && (
                                               <div style={s.cityLabel}>
                                                 {r.paidAt ? storeDayLong(r.paidAt) : ''}{r.notes?.payment?.method ? ` · ${METHOD_LABEL[r.notes.payment.method] ?? r.notes.payment.method}` : ''}{r.notes?.payment?.note ? ` · ${r.notes.payment.note}` : ''}
@@ -789,7 +794,7 @@ export default function Billing() {
                                               <button
                                                 style={{ padding: '4px 10px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
                                                 onClick={() => setInvoiceView({ record: r, period: inv.period })}
-                                              >📄 Invoice</button>
+                                              >Invoice</button>
                                               {!r.isPaid && (
                                                 <button style={s.rowBtn} onClick={() => openPay(`${r.store?.name ?? 'Chain-wide'} - ${inv.period}`, inv.period, [r], true)} disabled={payMutation.isPending}>Mark paid</button>
                                               )}
@@ -889,7 +894,7 @@ export default function Billing() {
 
             {/* ── Add form ── */}
             <div style={ec.card}>
-              <h2 style={ec.cardTitle}>➕ Add Extra Charge</h2>
+              <h2 style={ec.cardTitle}>Add Extra Charge</h2>
               <p style={ec.cardSub}>One-time charges for setup fees, custom work, extra services, or anything outside the standard billing plan. A charge is billed in addition to the store's usage bill for that month; it never replaces it.</p>
 
               {/* Service templates */}
@@ -910,7 +915,7 @@ export default function Billing() {
                   <select id="manual-charge-store" style={{ ...s.input, width: '100%', maxWidth: '100%', boxSizing: 'border-box' as const }} value={manualForm.storeId}
                     onChange={e => { setManualForm(f => ({ ...f, storeId: e.target.value })); setManualDone(null); }}>
                     <option value="">- Select a store -</option>
-                    <option value="chain">🔗 All Stores (Chain-wide) - one charge to SuperAdmin</option>
+                    <option value="chain">All Stores (Chain-wide) - one charge to SuperAdmin</option>
                     {allStores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
                   </select>
                 </div>
@@ -944,7 +949,7 @@ export default function Billing() {
 
               {manualDone && (
                 <div style={ec.successBox}>
-                  <strong>✅ Charge added</strong> - {manualDone.storeId ? allStores.find((st: any) => st.id === manualDone.storeId)?.name : 'All Stores (Chain-wide)'},{' '}
+                  <strong>Charge added</strong> - {manualDone.storeId ? allStores.find((st: any) => st.id === manualDone.storeId)?.name : 'All Stores (Chain-wide)'},{' '}
                   {fmt$(parseFloat(manualDone.amount))} for <strong>{manualDone.period}</strong>
                 </div>
               )}
@@ -954,7 +959,7 @@ export default function Billing() {
             <div style={ec.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h2 style={{ ...ec.cardTitle, marginBottom: 2 }}>📋 Existing Extra Charges</h2>
+                  <h2 style={{ ...ec.cardTitle, marginBottom: 2 }}>Existing Extra Charges</h2>
                   <p style={ec.cardSub}>All custom charges across stores. Paid charges cannot be edited or deleted: for a correction, add a new charge.</p>
                 </div>
                 <button style={s.editBtn} onClick={() => refetchCharges()}>↻ Refresh</button>
@@ -1006,7 +1011,7 @@ export default function Billing() {
                       return (
                         <TableRow key={charge.id}>
                           <TableCell style={s.td}>
-                            <strong>{charge.store?.name ?? '🔗 All Stores (Chain-wide)'}</strong>
+                            <strong>{charge.store?.name ?? 'All Stores (Chain-wide)'}</strong>
                             {charge.store?.city && <div style={s.cityLabel}>{charge.store.city}</div>}
                           </TableCell>
                           <TableCell style={s.td}>
@@ -1031,7 +1036,7 @@ export default function Billing() {
                           <TableCell style={s.td}>{charge.period}</TableCell>
                           <TableCell style={s.td}>
                             <span style={charge.isPaid ? s.paidBadge : s.unpaidBadge}>
-                              {charge.isPaid ? `✓ Paid` : '⏳ Unpaid'}
+                              {charge.isPaid ? `✓ Paid` : 'Unpaid'}
                             </span>
                             {charge.isPaid && charge.paidAt && (
                               <div style={s.cityLabel}>{new Date(charge.paidAt).toLocaleDateString()}</div>
@@ -1103,7 +1108,7 @@ export default function Billing() {
 
           {/* Cashback rates live on one page only (a second editor here used fractions and skipped the checks) */}
           <div style={{ ...s.settingsCard, gridColumn: '1 / -1' }}>
-            <h3 style={s.settingsCardTitle}>🏆 Cashback rates</h3>
+            <h3 style={s.settingsCardTitle}>Cashback rates</h3>
             <p style={s.settingsCardDesc}>
               Tier cashback, gas cents per gallon, points to reach a tier and category bonuses are all set on the{' '}
               <Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates page</Link>,
@@ -1113,7 +1118,7 @@ export default function Billing() {
 
           {/* Default fee card (read only: no bill reads this number; each store has its own fee on the Stores tab) */}
           <div style={s.settingsCard}>
-            <h3 style={s.settingsCardTitle}>💰 Default fee for new stores</h3>
+            <h3 style={s.settingsCardTitle}>Default fee for new stores</h3>
             <p style={s.settingsCardDesc}>
               The platform fee is a share of the <strong>cashback issued</strong> on each sale, not of the purchase amount. Every store has its own fee
               (set on the Stores tab) and that is the one billed. A store added later starts at this default. Changing a store's fee never rewrites
@@ -1154,7 +1159,7 @@ export default function Billing() {
 
           {/* Info card */}
           <div style={s.settingsCard}>
-            <h3 style={s.settingsCardTitle}>ℹ️ Billing Model</h3>
+            <h3 style={s.settingsCardTitle}>Billing Model</h3>
             <p style={s.settingsCardDesc}>How revenue flows in Lucky Stop:</p>
             <div style={s.infoList}>
               <InfoItem icon="🏪" text="Each store is billed a share of the cashback it issues (its fee, set on the Stores tab). A Monthly or Hybrid plan adds a fixed monthly subscription on top." />
@@ -1219,7 +1224,7 @@ function StatItem({ label, value, highlight }: { label: string; value: any; high
 function InfoItem({ icon, text }: { icon: string; text: string }) {
   return (
     <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-      <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: 18, flexShrink: 0 }}><Glyph e={icon} size={18} /></span>
       <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.5 }}>{text}</span>
     </div>
   );
@@ -1270,7 +1275,7 @@ const s: Record<string, React.CSSProperties> = {
   volValue: { fontWeight: 700, color: PRIMARY },
   volSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
   editBtn: { padding: '6px 14px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
-  saveBtn: { padding: '6px 14px', background: '#17663a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
+  saveBtn: { padding: '6px 14px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 6, fontSize: 15 },
   cancelBtn: { padding: '6px 14px', background: '#e4e7ec', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 15 },
   suggestionLine: { margin: '0 0 8px', fontSize: 15, color: '#374151', lineHeight: 1.5 },
 
@@ -1288,11 +1293,11 @@ const s: Record<string, React.CSSProperties> = {
   monthlyToolbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap', gap: 12 },
   monthlyFilters: { display: 'flex', gap: 16, alignItems: 'flex-end' },
   filterLabel: { display: 'block', fontSize: 14, fontWeight: 600, color: TEXT_MUTED, marginBottom: 4 },
-  generateBtn: { padding: '10px 20px', background: '#a51b28', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  generateBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   backfillBtn: { padding: '10px 20px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   rowBtn: { padding: '4px 10px', background: '#fff', color: PRIMARY, border: '1px solid #d5dae1', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
-  exportBtn: { padding: '10px 20px', background: '#17663a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
-  sendBtn: { padding: '10px 20px', background: '#8a5300', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  exportBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
+  sendBtn: { padding: '10px 20px', background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   clearBtn: { padding: '10px 20px', background: '#5a6472', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 },
   monthlyHint: { fontSize: 15, color: TEXT_MUTED, margin: '0 0 16px', padding: '10px 14px', background: '#f7f8fa', borderRadius: 8 },
   emptyBox: { background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', border: '1px dashed #e4e7ec' },

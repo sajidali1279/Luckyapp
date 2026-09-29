@@ -34,14 +34,14 @@ interface MyRequest {
 
 const LINE_STATUS: Record<string, { label: string; color: string; bg: string }> = {
   PENDING:  { label: 'Pending review', color: '#8a5300', bg: '#fdf6e8' },
-  ACCEPTED: { label: 'Accepted',       color: '#1f8a4c', bg: '#edf7f0' },
+  ACCEPTED: { label: 'Accepted',       color: '#1a7f45', bg: '#edf7f0' },
   REJECTED: { label: 'Rejected',       color: '#c42130', bg: '#fdf2f2' },
 };
 
 const ORDER_STATUS: Record<string, { label: string; color: string }> = {
   PENDING:  { label: 'On order list',  color: '#8a5300' },
   ORDERED:  { label: 'Ordered',        color: '#1D3557' },
-  RECEIVED: { label: 'Received ✓',    color: '#1f8a4c' },
+  RECEIVED: { label: 'Received ✓',    color: '#1a7f45' },
 };
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -58,7 +58,7 @@ export default function EmployeePortal() {
       <div style={s.header}>
         <div style={s.headerInner}>
           <div>
-            <div style={s.headerTitle}>📦 Stock Request</div>
+            <div style={s.headerTitle}>Stock Request</div>
             <div style={s.headerSub}>
               {user?.name || 'Employee'}
             </div>
@@ -173,13 +173,13 @@ function NewRequestTab() {
             style={{ ...s.typeBtn, ...(requestType === 'LOW_STOCK' ? s.typeBtnActive : {}) }}
             onClick={() => setRequestType('LOW_STOCK')}
           >
-            📉 Low Stock
+            Low Stock
           </button>
           <button
             style={{ ...s.typeBtn, ...(requestType === 'CUSTOMER_REQUEST' ? s.typeBtnActive : {}) }}
             onClick={() => setRequestType('CUSTOMER_REQUEST')}
           >
-            🙋 Customer Request
+            Customer Request
           </button>
         </div>
         <div style={s.typeHint}>
@@ -354,8 +354,8 @@ function MyRequestsTab() {
               >
                 <div style={{ flex: 1 }}>
                   <div style={s.reqTitle}>
-                    {req.requestType === 'CUSTOMER_REQUEST' ? '🙋 Customer Request' : '📉 Low Stock'}
-                    <span style={{ ...s.statusPill, background: isPending ? '#fdf6e8' : '#edf7f0', color: isPending ? '#8a5300' : '#1f8a4c' }}>
+                    {req.requestType === 'CUSTOMER_REQUEST' ? 'Customer Request' : 'Low Stock'}
+                    <span style={{ ...s.statusPill, background: isPending ? '#fdf6e8' : '#edf7f0', color: isPending ? '#8a5300' : '#1a7f45' }}>
                       {isPending ? 'Pending' : 'Reviewed'}
                     </span>
                   </div>

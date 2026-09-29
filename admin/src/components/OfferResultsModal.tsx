@@ -52,7 +52,7 @@ export default function OfferResultsModal({ offer, onClose }: { offer: { id: str
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={x.status}>
-            {r.running ? '🟢 Running now' : r.removedEarly ? `Removed on ${storeDayLong(r.until)}, before its end date` : 'Finished'}
+            {r.running ? 'Running now' : r.removedEarly ? `Removed on ${storeDayLong(r.until)}, before its end date` : 'Finished'}
             {r.recordedFrom && <span style={{ color: TEXT_MUTED, fontWeight: 500 }}> · counted from {storeDayLong(r.recordedFrom)}, when sales began recording their promotion</span>}
           </div>
 

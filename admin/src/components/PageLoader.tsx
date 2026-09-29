@@ -1,11 +1,12 @@
 import { PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 export default function PageLoader() {
   return (
     <div style={s.wrap}>
       <div style={s.card}>
         <div style={s.logoWrap}>
-          <span style={s.logoEmoji}>⛽</span>
+          <span style={s.logoEmoji}><Glyph e="⛽" size={26} color="#ffffff" /></span>
         </div>
         <div style={s.spinnerTrack}>
           <div style={s.spinnerArc} />

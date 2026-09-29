@@ -9,12 +9,13 @@ import ErrorState from '../components/ErrorState';
 import ConfirmModal from '../components/ConfirmModal';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 const ROLE_COLORS: Record<string, string> = {
-  DEV_ADMIN:     '#1f8a4c',
+  DEV_ADMIN:     '#1a7f45',
   SUPER_ADMIN:   PRIMARY,
   STORE_MANAGER: '#1D3557',
-  EMPLOYEE:      '#b7791f',
+  EMPLOYEE:      '#8a5300',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -25,14 +26,14 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const STORE_GRADIENTS = [
-  [PRIMARY, '#457B9D'],
-  ['#1D3557', '#457B9D'],
-  ['#17663a', '#1f8a4c'],
+  [PRIMARY, '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
+  ['#17663a', '#1a7f45'],
   ['#4f6d8f', '#4f6d8f'],
-  ['#8a5300', '#b7791f'],
+  ['#8a5300', '#8a5300'],
   ['#c42130', '#c42130'],
-  ['#457B9D', '#457B9D'],
-  ['#1D3557', '#457B9D'],
+  ['#3c6e8f', '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
 ];
 
 interface Message {
@@ -272,7 +273,7 @@ export default function Chat() {
           <ErrorState message="Failed to load your stores." onRetry={refetchStores} />
         ) : !selectedStoreId ? (
           <div style={s.emptyState}>
-            <div style={s.emptyIconWrap}>💬</div>
+            <div style={s.emptyIconWrap}><Glyph e="💬" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>Your team chats live here</div>
             <div style={s.emptySub}>Select a store from the sidebar to open its team chat</div>
           </div>
@@ -297,7 +298,7 @@ export default function Chat() {
                   onClick={() => setShowClearConfirm(true)}
                   title="Permanently delete this store's chat history"
                 >
-                  🗑 Clear Chat
+                  Clear Chat
                 </button>
               )}
             </div>
@@ -313,7 +314,7 @@ export default function Chat() {
             <div style={s.messageList}>
               {messages.length === 0 && (
                 <div style={s.noMessages}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>👋</div>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}><Glyph e="👋" size={28} color="#5a6472" /></div>
                   <div style={s.noMessagesText}>No messages yet. Be the first to say hello!</div>
                 </div>
               )}
@@ -439,11 +440,11 @@ const s: Record<string, React.CSSProperties> = {
     borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column',
   },
-  sidebarTop: {
-    padding: '20px 18px 8px',
+  sidebarTop: { background: 'linear-gradient(135deg, #1D3557 0%, #152a47 100%)', borderBottom: '3px solid #D62839', marginBottom: 8,
+    padding: '18px 18px 16px',
   },
-  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: -0.3 },
+  sidebarSubtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.74)', marginTop: 2 },
 
   storeSearch: {
     margin: '8px 14px 6px',
@@ -477,7 +478,7 @@ const s: Record<string, React.CSSProperties> = {
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
   activeIndicator: {
     width: 8, height: 8, borderRadius: 4,
-    background: '#1f8a4c', flexShrink: 0,
+    background: '#1a7f45', flexShrink: 0,
   },
   storeUnreadBadge: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -513,7 +514,7 @@ const s: Record<string, React.CSSProperties> = {
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 },
   onlineDot: {
     width: 7, height: 7, borderRadius: 4,
-    background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)',
+    background: '#1a7f45', border: '1.5px solid rgba(255,255,255,0.5)',
     display: 'inline-block',
   },
   chatHeaderBadge: {

@@ -15,6 +15,9 @@ import {
   stateFromRows, applyChanges, refusalFor, changeLines, effectLines, holdWarnings, touchesAppText, gasFill, salePays,
   type TierKey, type TierRow, type CategoryRow, type TierChange, type CategoryChange, type RateState,
 } from '../lib/rateRules';
+import { PageHeader, Button, Notice } from '../components/kit';
+import { Save, Info, Smartphone } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 const CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'HOT_FOODS', 'OTHER'] as const;
 type CatKey = typeof CATEGORIES[number];
@@ -32,7 +35,7 @@ const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> =
 const TIER_META: Record<TierKey, { emoji: string; color: string }> = {
   BRONZE:   { emoji: '🥉', color: '#CD7F32' },
   SILVER:   { emoji: '🥈', color: '#A0A0B0' },
-  GOLD:     { emoji: '🥇', color: '#b7791f' },
+  GOLD:     { emoji: '🥇', color: '#8a5300' },
   DIAMOND:  { emoji: '💎', color: '#00B4D8' },
   PLATINUM: { emoji: '👑', color: '#4f6d8f' },
 };
@@ -285,33 +288,31 @@ export default function Rates() {
           <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>{plan.effects.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
       )}
-      {plan.warnings.map((w, i) => <div key={i} style={s.confirmWarn}>⚠️ {w}</div>)}
-      {plan.notes.map((n, i) => <div key={i} style={s.confirmNote}>ℹ️ {n}</div>)}
+      {plan.warnings.map((w, i) => <div key={i} style={s.confirmWarn}>{w}</div>)}
+      {plan.notes.map((n, i) => <div key={i} style={s.confirmNote}>{n}</div>)}
       <div style={{ marginTop: 10, fontWeight: 700, color: '#111827' }}>It applies to the next sale. Sales already started keep their rate.</div>
     </div>
   );
 
   return (
     <div style={s.page}>
-      <div style={s.headerRow}>
-        <div>
-          <h1 style={s.title}>🏆 Cashback Rates</h1>
-          <p style={s.subtitle}>
-            Set the base cashback % each customer tier earns. Promotions stack on top of these.
-          </p>
-        </div>
-        {dirtyTiers.length > 0 && (
-          <button style={s.saveAllBtn} onClick={() => openTierPlan(dirtyTiers)}>
-            💾 Save {dirtyTiers.length} change{dirtyTiers.length > 1 ? 's' : ''}
-          </button>
+      <PageHeader
+        title="Cashback Rates"
+        description="Set the base cashback % each customer tier earns. Promotions stack on top of these."
+        actions={dirtyTiers.length > 0 && (
+          <Button variant="primary" icon={<Save />} onClick={() => openTierPlan(dirtyTiers)}>
+            Save {dirtyTiers.length} change{dirtyTiers.length > 1 ? 's' : ''}
+          </Button>
         )}
-      </div>
+      />
 
-      <div style={s.storeCostNote}>
-        💡 Store cost = cashback paid out × (1 + that store's platform fee). The platform fee is set per store on Billing, Stores tab, not here.
-      </div>
-      <div style={s.appNote}>
-        📱 The customer app shows fixed tier numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier, +5, +7 and +10 cents a gallon). It does not follow this page, so tell customers if you change a tier's cashback or points.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        <Notice icon={<Info size={15} />}>
+          Store cost = cashback paid out × (1 + that store's platform fee). The platform fee is set per store on Billing, Stores tab, not here.
+        </Notice>
+        <Notice tone="warning" icon={<Smartphone size={15} />}>
+          The customer app shows fixed tier numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier, +5, +7 and +10 cents a gallon). It does not follow this page, so tell customers if you change a tier's cashback or points.
+        </Notice>
       </div>
 
       {isLoading && <TableSkeleton columns={5} />}
@@ -358,7 +359,7 @@ export default function Rates() {
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
-                          <div style={s.tierName}>{meta.emoji} {name}</div>
+                          <div style={s.tierName}><Glyph e={meta.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{name}</div>
                           <div style={s.tierSub}>
                             {tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}
                           </div>
@@ -450,7 +451,7 @@ export default function Rates() {
       {/* ── Category Bonus Rates ─────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
-          <h2 style={s.sectionTitle}>📦 Category Bonus Rates</h2>
+          <h2 style={s.sectionTitle}>Category Bonus Rates</h2>
           <p style={s.sectionSubtitle}>
             This bonus adds to the tier base rate on every purchase in this category. It is not a
             promotion, it is a permanent part of the rate. The columns to the right show the
@@ -459,7 +460,7 @@ export default function Rates() {
         </div>
         {dirtyCats.length > 0 && (
           <button style={s.saveAllBtn} onClick={() => openCategoryPlan(dirtyCats)}>
-            💾 Save {dirtyCats.length} change{dirtyCats.length > 1 ? 's' : ''}
+            Save {dirtyCats.length} change{dirtyCats.length > 1 ? 's' : ''}
           </button>
         )}
       </div>
@@ -479,7 +480,7 @@ export default function Rates() {
                 </TableHead>
                 {TIERS.map((tierKey) => (
                   <TableHead key={tierKey} style={{ ...s.th, textAlign: 'center' as const }}>
-                    {TIER_META[tierKey].emoji} {tierName(tierKey)}
+                    <Glyph e={TIER_META[tierKey].emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{tierName(tierKey)}
                     <div style={s.thSub}>total cashback %</div>
                   </TableHead>
                 ))}
@@ -499,7 +500,7 @@ export default function Rates() {
                   <TableRow key={cat} style={{ ...s.tr, ...(dirty ? s.trDirty : {}) }}>
                     <TableCell style={s.td}>
                       <div style={s.tierCell}>
-                        <span style={s.catEmoji}>{meta.emoji}</span>
+                        <span style={s.catEmoji}><Glyph e={meta.emoji} size={18} /></span>
                         <div>
                           <div style={s.tierName}>{meta.label}</div>
                           <div style={s.tierSub}>{meta.desc}</div>
@@ -537,7 +538,7 @@ export default function Rates() {
                             style={over10 ? s.tagRed : over75 ? s.tagAmber : s.effectiveTag}
                             title={over10 ? `A sale never pays more than ${pct(CASHBACK_CAP)}` : over75 ? `Sales over ${pct(CASHBACK_WARN)} are held for a manager` : undefined}
                           >
-                            {over10 ? '⛔ ' : over75 ? '⚠ ' : ''}{pct(total)}
+                            {pct(total)}
                           </span>
                         </TableCell>
                       );
@@ -558,7 +559,7 @@ export default function Rates() {
             </TableBody>
           </Table>
           <div style={s.legend}>
-            ⚠ over {pct(CASHBACK_WARN)}: those sales are held for a manager to review. ⛔ over {pct(CASHBACK_CAP)}: a sale never pays more than {pct(CASHBACK_CAP)}.
+            over {pct(CASHBACK_WARN)}: those sales are held for a manager to review. over {pct(CASHBACK_CAP)}: a sale never pays more than {pct(CASHBACK_CAP)}.
             {' '}Gas and Diesel are paid by the gallon for a tier that has a ¢/gallon rate, so this bonus is not used for that tier.
           </div>
         </div>
@@ -567,7 +568,7 @@ export default function Rates() {
       {/* ── Gas & Diesel Mode ────────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
-          <h2 style={s.sectionTitle}>⛽ Gas & Diesel Mode</h2>
+          <h2 style={s.sectionTitle}>Gas & Diesel Mode</h2>
           <p style={s.sectionSubtitle}>
             Choose how cashback is calculated for gas and diesel. In ¢/gallon mode each tier earns a flat
             rate per gallon pumped. Gold, Diamond and Platinum also get a fixed extra 5, 7 and 10 cents a gallon
@@ -584,14 +585,14 @@ export default function Rates() {
             disabled={busy}
             onClick={switchGasToPercent}
           >
-            💲 % of amount
+            % of amount
           </button>
           <button
             style={{ ...s.modeBtn, ...(viewCents ? s.modeBtnActive : {}) }}
             aria-pressed={viewCents}
             onClick={() => setShowPerGallon(true)}
           >
-            ⛽ ¢ / gallon
+            ¢ / gallon
           </button>
 
           {liveCents ? (
@@ -609,7 +610,7 @@ export default function Rates() {
 
         {viewCents && !liveCents && (
           <div style={s.gasModeWarning}>
-            ⚠️ ¢/gallon mode is not active yet. Enter a rate for each tier below and click <strong>Save</strong> to switch.
+            ¢/gallon mode is not active yet. Enter a rate for each tier below and click <strong>Save</strong> to switch.
           </div>
         )}
 
@@ -649,7 +650,7 @@ export default function Rates() {
                       <div style={s.tierCell}>
                         <span style={{ ...s.dot, background: meta.color }} />
                         <div>
-                          <div style={s.tierName}>{meta.emoji} {name}</div>
+                          <div style={s.tierName}><Glyph e={meta.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{name}</div>
                           <div style={s.tierSub}>{tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}</div>
                         </div>
                       </div>
@@ -697,7 +698,7 @@ export default function Rates() {
         {viewCents && dirtyTiers.length > 1 && (
           <div style={{ marginTop: 12, textAlign: 'right' }}>
             <button style={s.saveAllBtn} disabled={busy} onClick={() => openTierPlan(dirtyTiers, { title: `Save ${dirtyTiers.length} tiers?` })}>
-              💾 Save {dirtyTiers.length} tiers together
+              Save {dirtyTiers.length} tiers together
             </button>
           </div>
         )}
@@ -706,7 +707,7 @@ export default function Rates() {
       {/* How it works, with the numbers on this page */}
       <div style={s.infoGrid}>
         <div style={s.infoCard}>
-          <div style={s.infoCardTitle}>📐 How rates apply</div>
+          <div style={s.infoCardTitle}>How rates apply</div>
           <p style={s.infoCardText}>
             When an employee grants points, the customer's tier rate is used automatically,
             plus any category bonus for that purchase (see the table above). A sale never pays more than {pct(CASHBACK_CAP)}.
@@ -724,7 +725,7 @@ export default function Rates() {
         </div>
 
         <div style={s.infoCard}>
-          <div style={s.infoCardTitle}>⛽ Gas by the gallon</div>
+          <div style={s.infoCardTitle}>Gas by the gallon</div>
           <p style={s.infoCardText}>
             For GAS and DIESEL you can set a flat cents-per-gallon rate instead of a percentage. Gold, Diamond and
             Platinum get a fixed extra on top, paid whichever way gas is set.
@@ -808,7 +809,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 15, fontWeight: 600, color: PRIMARY,
     outline: 'none', transition: 'border 0.15s',
   },
-  inputDirty: { borderColor: '#b7791f' },
+  inputDirty: { borderColor: '#8a5300' },
   suffix: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   preview: { fontSize: 13, color: GREEN_TEXT, fontStyle: 'italic' },
   gasActive: { fontSize: 13, color: AMBER_TEXT, marginTop: 4 },

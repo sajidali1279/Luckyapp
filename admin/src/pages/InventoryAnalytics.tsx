@@ -10,6 +10,8 @@ import {
 import { inventoryAnalyticsApi, storesApi, orderCategoriesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button } from '../components/kit';
+import { RefreshCw } from 'lucide-react';
 
 const PERIODS = [
   { value: '7',   label: '7 days'   },
@@ -19,7 +21,7 @@ const PERIODS = [
 ];
 
 const CHART_COLORS = [
-  '#c42130', PRIMARY, '#b7791f', '#1f8a4c', '#6A4C93',
+  '#c42130', PRIMARY, '#8a5300', '#1a7f45', '#6A4C93',
   '#1CBEC0', '#F7B731', '#FC5C65', '#45AAF2', '#26DE81',
 ];
 
@@ -83,13 +85,11 @@ export default function InventoryAnalytics() {
 
   return (
     <div style={s.page}>
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>Inventory Intelligence</h1>
-          <p style={s.sub}>Order history across {stores.length} stores - {totalItems} items tracked</p>
-        </div>
-        <button style={s.refreshBtn} onClick={() => refetch()} aria-label="Refresh analytics data">↺ Refresh</button>
-      </div>
+      <PageHeader
+        title="Inventory Intelligence"
+        description={`Order history across ${stores.length} stores - ${totalItems} items tracked.`}
+        actions={<Button icon={<RefreshCw />} onClick={() => refetch()} aria-label="Refresh analytics data">Refresh</Button>}
+      />
 
       {/* Filters */}
       <div style={s.filterBar}>

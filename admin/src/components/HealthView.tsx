@@ -6,6 +6,7 @@ import ErrorState from './ErrorState';
 import TableSkeleton from './TableSkeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 interface StoreHealth {
   storeId: string;
@@ -45,7 +46,7 @@ export default function HealthView() {
           </>
         ) : (
           <>
-            <span style={s.summaryIcon}>🏷️</span>
+            <span style={s.summaryIcon}><Glyph e="🏷️" size={18} color="#1D3557" /></span>
             <span style={s.summaryText}>
               <strong>{totalStale}</strong> item{totalStale === 1 ? '' : 's'} need{totalStale === 1 ? 's' : ''} printing across{' '}
               <strong>{storesWithStale}</strong> of {totalStores} store{totalStores === 1 ? '' : 's'}.
@@ -56,7 +57,7 @@ export default function HealthView() {
 
       {noPriceItems > 0 && (
         <div style={{ ...s.summaryBox, ...s.summaryWarn }} role="note">
-          <span style={s.summaryIcon} aria-hidden="true">💲</span>
+          <span style={s.summaryIcon} aria-hidden="true"><Glyph e="💲" size={18} color="#1D3557" /></span>
           <span style={s.summaryText}>
             <strong>{noPriceItems}</strong> item{noPriceItems === 1 ? ' has' : 's have'} no price yet, so {noPriceItems === 1 ? 'it cannot' : 'they cannot'} be printed and {noPriceItems === 1 ? 'is' : 'are'} not counted above.
             Set a price in the Catalog tab.

@@ -27,8 +27,8 @@ const REWARD_LABEL: Record<string, { icon: string; label: string }> = {
   HOT_SNACK: { icon: '🌮', label: 'Hot snack' },
 };
 
-const SIGNUP_COLOR = '#457B9D';
-const PURCHASE_COLOR = '#1f8a4c';
+const SIGNUP_COLOR = '#3c6e8f';
+const PURCHASE_COLOR = '#1a7f45';
 const VIEWS = ['shown', 'hidden'] as const;
 
 const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0);
@@ -92,7 +92,7 @@ function Steps({ t }: { t: Totals }) {
   const steps = [
     { label: 'Signed up', n: t.signups, color: SIGNUP_COLOR },
     { label: 'Claimed a welcome reward', n: t.claimed, color: '#4f6d8f' },
-    { label: 'Reward handed over at a store', n: t.confirmed, color: '#b7791f' },
+    { label: 'Reward handed over at a store', n: t.confirmed, color: '#8a5300' },
     { label: 'Made a first purchase', n: t.purchased, color: PURCHASE_COLOR },
   ];
   return (

@@ -8,6 +8,8 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { ListChecks, Plus, Pencil, Trash2, Sparkles } from 'lucide-react';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
 
@@ -23,9 +25,9 @@ interface DailyTask {
 }
 
 const SHIFT_LABELS: Record<Shift, string> = {
-  OPENING: '🌅 Morning (Opening)',
-  MIDDLE:  '☀️ Midday (Afternoon)',
-  CLOSING: '🌙 Night (Closing)',
+  OPENING: 'Morning (Opening)',
+  MIDDLE:  'Midday (Afternoon)',
+  CLOSING: 'Night (Closing)',
 };
 
 const SHIFT_ORDER: Shift[] = ['OPENING', 'MIDDLE', 'CLOSING'];
@@ -144,32 +146,23 @@ export default function DailyTasks() {
       />
 
       {/* Header */}
-      <div style={s.header}>
-        <div style={s.headerLeft}>
-          <div style={s.iconWrap}><ListChecks size={20} color="#fff" /></div>
-          <div>
-            <h1 style={s.title}>Daily Tasks</h1>
-            <p style={s.subtitle}>Employee shift checklists - {totalTasks} task{totalTasks !== 1 ? 's' : ''} loaded</p>
-          </div>
-        </div>
-        <div style={s.headerActions}>
-          {isDevAdmin && (
-            <button style={s.seedBtn} onClick={() => setConfirmSeed(true)}>
-              <Sparkles size={14} /> Load Defaults
-            </button>
-          )}
-          <button style={s.addBtn} onClick={openAdd}>
-            <Plus size={14} /> Add Task
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Daily Tasks"
+        description={`Employee shift checklists. ${totalTasks} task${totalTasks !== 1 ? 's' : ''} loaded.`}
+        actions={
+          <>
+            {isDevAdmin && <Button icon={<Sparkles />} onClick={() => setConfirmSeed(true)}>Load Defaults</Button>}
+            <Button variant="primary" icon={<Plus />} onClick={openAdd}>Add Task</Button>
+          </>
+        }
+      />
 
       {/* Scope filter - StoreManager always sees chain-wide + their own store combined */}
       {!isStoreManager && (
         <div style={s.filterRow}>
           <label style={s.filterLabel}>Showing tasks for:</label>
           <select style={s.select} value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
-            <option value="global">🌐 All Stores (Chain-wide)</option>
+            <option value="global">All Stores (Chain-wide)</option>
             {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
           </select>
         </div>
@@ -182,7 +175,7 @@ export default function DailyTasks() {
         <CardSkeleton count={3} />
       ) : totalTasks === 0 ? (
         <div style={s.emptyState}>
-          <div style={s.emptyIcon}>📋</div>
+          <div style={s.emptyIcon}><Glyph e="📋" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>No tasks yet</div>
           <div style={s.emptyText}>
             {isDevAdmin
@@ -212,7 +205,7 @@ export default function DailyTasks() {
                           <div style={s.taskTitle}>{task.title}</div>
                           {task.description && <div style={s.taskDesc}>{task.description}</div>}
                           {task.store && (
-                            <span style={s.storeBadge}>🏪 {task.store.name}</span>
+                            <span style={s.storeBadge}>{task.store.name}</span>
                           )}
                         </div>
                         {(!isStoreManager || (task.storeId !== null && ownStoreIds.includes(task.storeId))) && (
@@ -264,7 +257,7 @@ export default function DailyTasks() {
 
             {isStoreManager && ownStoreIds.length <= 1 ? (
               <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 14, color: PRIMARY, fontWeight: 600, marginTop: 14 }}>
-                📍 This task will apply to your store only
+                This task will apply to your store only
               </div>
             ) : isStoreManager ? (
               <>
@@ -278,7 +271,7 @@ export default function DailyTasks() {
               <>
                 <label style={s.fieldLabel}>Store (leave blank for all stores)</label>
                 <select style={s.input} value={form.storeId} onChange={e => setForm(f => ({ ...f, storeId: e.target.value }))}>
-                  <option value="">🌐 All Stores (Chain-wide)</option>
+                  <option value="">All Stores (Chain-wide)</option>
                   {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
                 </select>
               </>

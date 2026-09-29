@@ -115,8 +115,8 @@ type CashbackStoreHealth = {
 };
 
 const HEALTH_STATUS_META: Record<'ok' | 'warn' | 'critical', { label: string; color: string; bg: string; border: string }> = {
-  ok:       { label: 'OK',       color: '#1f8a4c', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
-  warn:     { label: 'Warn',     color: '#b7791f', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
+  ok:       { label: 'OK',       color: '#1a7f45', bg: 'rgba(45,198,83,0.08)',  border: 'rgba(45,198,83,0.3)' },
+  warn:     { label: 'Warn',     color: '#8a5300', bg: 'rgba(244,162,97,0.08)', border: 'rgba(244,162,97,0.3)' },
   critical: { label: 'Critical', color: '#D62839', bg: 'rgba(230,57,70,0.08)',  border: 'rgba(230,57,70,0.3)' },
 };
 
@@ -235,8 +235,8 @@ export default function BusinessView() {
             <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
             <StatCard icon="⭐" label="Cashback Issued" value={fmt$(revenue.totalPointsAwarded)} />
             <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
-            <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#1f8a4c" to="/billing" />
-            <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#1f8a4c" to="/billing" />
+            <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#1a7f45" to="/billing" />
+            <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#1a7f45" to="/billing" />
           </div>
           </>
         )}
@@ -283,15 +283,15 @@ export default function BusinessView() {
                   <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: 6 }}>
                     <defs>
                       <linearGradient id="devGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1f8a4c" stopOpacity={0.14} />
-                        <stop offset="95%" stopColor="#1f8a4c" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#1a7f45" stopOpacity={0.14} />
+                        <stop offset="95%" stopColor="#1a7f45" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={fmtDay} minTickGap={28} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={axisMoney} width={58} />
                     <Tooltip formatter={(v: any) => [fmt$(Number(v)), 'Purchase volume']} labelFormatter={(l) => formatChartTooltipDate(String(l))} />
-                    <Area type="monotone" dataKey="purchaseVolume" stroke="#1f8a4c" strokeWidth={2} fill="url(#devGrad)" dot={false} />
+                    <Area type="monotone" dataKey="purchaseVolume" stroke="#1a7f45" strokeWidth={2} fill="url(#devGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

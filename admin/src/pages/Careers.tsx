@@ -10,6 +10,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from '../components/TableSkeleton';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button, Tabs } from '../components/kit';
+import { Plus } from 'lucide-react';
 
 const POSITION_LABELS: Record<string, string> = {
   CASHIER: 'Cashier',
@@ -215,28 +217,25 @@ export default function Careers() {
         onCancel={() => setConfirmDeleteApp(null)}
       />
       {/* Header */}
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>💼 Careers</h1>
-          <p style={s.subtitle}>{openings.length} opening{openings.length !== 1 ? 's' : ''} · {total} application{total !== 1 ? 's' : ''}</p>
-        </div>
-        {mainTab === 'openings' && (
-          <button style={s.postBtn} onClick={() => { setEditingOpening(null); setOpeningForm(emptyForm); setShowOpeningForm(true); }}>
-            + Post Opening
-          </button>
+      <PageHeader
+        title="Careers"
+        description={`${openings.length} opening${openings.length !== 1 ? 's' : ''} · ${total} application${total !== 1 ? 's' : ''}`}
+        actions={mainTab === 'openings' && (
+          <Button variant="primary" icon={<Plus />} onClick={() => { setEditingOpening(null); setOpeningForm(emptyForm); setShowOpeningForm(true); }}>
+            Post Opening
+          </Button>
         )}
-      </div>
-
-      {/* Main Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {(['openings', 'applications'] as const).map(tab => (
-          <button key={tab} style={{ ...s.tab, ...(mainTab === tab ? s.tabActive : {}), fontSize: 16, padding: '9px 22px' }}
-            onClick={() => setMainTab(tab)}>
-            {tab === 'openings' ? '📋 Job Openings' : '📩 Applications'}
-            {tab === 'applications' && newAppCount > 0 && <span style={s.tabBadge}>{newAppCount}</span>}
-          </button>
-        ))}
-      </div>
+      />
+      <Tabs
+        asButtons
+        ariaLabel="Careers view"
+        value={mainTab}
+        onChange={setMainTab}
+        tabs={[
+          { value: 'openings', label: 'Job Openings' },
+          { value: 'applications', label: 'Applications', count: newAppCount > 0 ? newAppCount : undefined },
+        ]}
+      />
 
       {/* ── OPENINGS PANEL ── */}
       {mainTab === 'openings' && (
@@ -569,7 +568,7 @@ const s: Record<string, React.CSSProperties> = {
   deleteBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #c42130', background: '#fff', color: '#c42130', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Openings
-  postBtn: { padding: '10px 20px', borderRadius: 10, border: 'none', background: '#CC2936', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
+  postBtn: { padding: '10px 20px', borderRadius: 10, border: 'none', background: '#1D3557', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
   opCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #e4e7ec' },
   opTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   opMeta: { fontSize: 14, color: '#5a6472', margin: '4px 0 6px' },

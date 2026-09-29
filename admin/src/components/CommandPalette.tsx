@@ -10,6 +10,7 @@ import { usePinnedPages } from '../hooks/usePinnedPages';
 import { readRecents, pushRecent } from '../lib/recentPages';
 import { customersApi, staffApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 type Row =
   | { kind: 'nav'; key: string; to: string; label: string; group: string; count: number; pinned: boolean }
@@ -126,7 +127,7 @@ export default function CommandPalette({ open, onClose }: Props) {
     <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Command palette" tabIndex={-1} style={s.box} onClick={(e) => e.stopPropagation()}>
         <div style={s.searchRow}>
-          <span aria-hidden="true" style={s.searchIcon}>🔎</span>
+          <span aria-hidden="true" style={s.searchIcon}><Glyph e="🔎" size={16} color="#5a6472" /></span>
           <input
             ref={inputRef}
             style={s.input}

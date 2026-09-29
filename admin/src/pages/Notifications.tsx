@@ -9,6 +9,9 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import SendPushPanel from '../components/SendPushPanel';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button } from '../components/kit';
+import { CheckCheck, RefreshCw } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 interface Notification {
   id: string;
@@ -31,10 +34,10 @@ interface Notification {
 
 // Severity color palette
 const SEV: Record<string, { border: string; readBg: string; unreadBg: string; text: string; btnBorder: string }> = {
-  success: { border: '#1f8a4c', readBg: '#fff',    unreadBg: '#edf7f0', text: '#17663a', btnBorder: '#1f8a4c' },
-  warning: { border: '#b7791f', readBg: '#fff',    unreadBg: '#fdf6e8', text: '#8a5300', btnBorder: '#b7791f' },
+  success: { border: '#1a7f45', readBg: '#fff',    unreadBg: '#edf7f0', text: '#17663a', btnBorder: '#1a7f45' },
+  warning: { border: '#8a5300', readBg: '#fff',    unreadBg: '#fdf6e8', text: '#8a5300', btnBorder: '#8a5300' },
   error:   { border: '#c42130', readBg: '#fff',    unreadBg: '#fdf2f2', text: '#a51b28', btnBorder: '#c42130' },
-  info:    { border: '#457B9D', readBg: '#fff',    unreadBg: '#eef2f7', text: '#1D3557', btnBorder: '#457B9D' },
+  info:    { border: '#3c6e8f', readBg: '#fff',    unreadBg: '#eef2f7', text: '#1D3557', btnBorder: '#3c6e8f' },
 };
 
 // Category chip styles
@@ -197,22 +200,22 @@ export default function Notifications() {
   // the "All" tab only, with no way to look at just one; both feeds exist for Dev Admin and Super Admin alike.
   const SUPER_TABS: { key: TabKey; label: string }[] = [
     { key: 'all',          label: 'All' },
-    { key: 'billing',      label: '💳 Billing' },
-    { key: 'transactions', label: '🧾 Transactions' },
-    { key: 'disputes',     label: '⚠️ Disputes' },
-    { key: 'requests',     label: '📋 Requests' },
-    { key: 'scheduling',   label: '📅 Scheduling' },
-    { key: 'send',         label: '📢 Send Push' },
+    { key: 'billing',      label: 'Billing' },
+    { key: 'transactions', label: 'Transactions' },
+    { key: 'disputes',     label: 'Disputes' },
+    { key: 'requests',     label: 'Requests' },
+    { key: 'scheduling',   label: 'Scheduling' },
+    { key: 'send',         label: 'Send Push' },
   ];
   const DEV_TABS: { key: TabKey; label: string }[] = [
     { key: 'all',          label: 'All' },
-    { key: 'billing',      label: '💰 Revenue' },
-    { key: 'transactions', label: '📊 Transactions' },
-    { key: 'customers',    label: '🏪 Customers' },
-    { key: 'disputes',     label: '⚠️ Disputes' },
-    { key: 'requests',     label: '📋 Requests' },
-    { key: 'scheduling',   label: '📅 Scheduling' },
-    { key: 'send',         label: '📢 Send Push' },
+    { key: 'billing',      label: 'Revenue' },
+    { key: 'transactions', label: 'Transactions' },
+    { key: 'customers',    label: 'Customers' },
+    { key: 'disputes',     label: 'Disputes' },
+    { key: 'requests',     label: 'Requests' },
+    { key: 'scheduling',   label: 'Scheduling' },
+    { key: 'send',         label: 'Send Push' },
   ];
   const TABS = isDevAdmin ? DEV_TABS : SUPER_TABS;
 
@@ -231,29 +234,16 @@ export default function Notifications() {
     <div style={s.page}>
 
       {/* ── Header ── */}
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>
-            Notifications
-            {totalUnread > 0 && <span style={s.badge}>{totalUnread}</span>}
-          </h1>
-          <p style={s.subtitle}>
-            {isDevAdmin
-              ? 'Revenue, platform health, and schedule alerts'
-              : 'Billing, transaction alerts, and schedule requests'}
-          </p>
-        </div>
-        <div style={s.headerActions}>
-          {totalUnread > 0 && (
-            <button style={s.markAllBtn} onClick={markAllRead}>
-              ✓ Mark all read
-            </button>
-          )}
-          <button style={s.refreshBtn} onClick={() => refetch()} title="Refresh notifications">
-            ↻
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={<>Notifications{totalUnread > 0 && <span style={{ marginLeft: 10, verticalAlign: 3, fontSize: 13, fontWeight: 700, background: '#D62839', color: '#fff', borderRadius: 999, padding: '2px 9px' }}>{totalUnread}</span>}</>}
+        description={isDevAdmin ? 'Revenue, platform health, and schedule alerts.' : 'Billing, transaction alerts, and schedule requests.'}
+        actions={
+          <>
+            {totalUnread > 0 && <Button icon={<CheckCheck />} onClick={markAllRead}>Mark all read</Button>}
+            <Button icon={<RefreshCw />} onClick={() => refetch()} title="Refresh notifications" aria-label="Refresh notifications" />
+          </>
+        }
+      />
 
       {/* ── Tabs ── */}
       <div style={s.tabRow}>
@@ -288,17 +278,17 @@ export default function Notifications() {
                   ...s.filterPill,
                   ...(severityFilter === sv ? s.filterPillActive : {}),
                   ...(sv === 'error'   ? { borderColor: '#c42130', ...(severityFilter === sv ? { background: '#a51b28', color: '#fff' } : { color: '#a51b28' }) } : {}),
-                  ...(sv === 'warning' ? { borderColor: '#b7791f', ...(severityFilter === sv ? { background: '#b7791f', color: '#fff' } : { color: '#8a5300' }) } : {}),
-                  ...(sv === 'info'    ? { borderColor: '#457B9D', ...(severityFilter === sv ? { background: '#457B9D', color: '#fff' } : { color: '#1D3557' }) } : {}),
-                  ...(sv === 'success' ? { borderColor: '#1f8a4c', ...(severityFilter === sv ? { background: '#1f8a4c', color: '#fff' } : { color: '#17663a' }) } : {}),
+                  ...(sv === 'warning' ? { borderColor: '#8a5300', ...(severityFilter === sv ? { background: '#8a5300', color: '#fff' } : { color: '#8a5300' }) } : {}),
+                  ...(sv === 'info'    ? { borderColor: '#3c6e8f', ...(severityFilter === sv ? { background: '#3c6e8f', color: '#fff' } : { color: '#1D3557' }) } : {}),
+                  ...(sv === 'success' ? { borderColor: '#1a7f45', ...(severityFilter === sv ? { background: '#1a7f45', color: '#fff' } : { color: '#17663a' }) } : {}),
                 }}
                 onClick={() => setSeverityFilter(sv)}
               >
                 {sv === ''        ? 'All'
-                : sv === 'error'   ? '🚨 Error'
-                : sv === 'warning' ? '⚠️ Warning'
-                : sv === 'info'    ? 'ℹ️ Info'
-                :                   '✅ Success'}
+                : sv === 'error'   ? 'Error'
+                : sv === 'warning' ? 'Warning'
+                : sv === 'info'    ? 'Info'
+                :                   'Success'}
               </button>
             ))}
           </div>
@@ -308,7 +298,7 @@ export default function Notifications() {
               style={{ ...s.filterPill, ...(unreadOnly ? { ...s.filterPillActive, background: PRIMARY, borderColor: PRIMARY, color: '#fff' } : {}) }}
               onClick={() => setUnreadOnly(v => !v)}
             >
-              🔵 Unread only
+              Unread only
               {unreadOnly && totalUnread > 0 && <span style={s.filterCount}>{totalUnread}</span>}
             </button>
             {filtersActive && (
@@ -337,7 +327,7 @@ export default function Notifications() {
 
       ) : displayed.length === 0 ? (
         <div style={s.emptyState}>
-          <div style={s.emptyIcon}>{filtersActive ? '🔍' : EMPTY_STATES[activeTab].icon}</div>
+          <div style={s.emptyIcon}><Glyph e={filtersActive ? '🔍' : EMPTY_STATES[activeTab].icon} size={36} color="#5a6472" /></div>
           <div style={s.emptyTitle}>{filtersActive ? 'No matches' : EMPTY_STATES[activeTab].title}</div>
           <div style={s.emptyText}>
             {filtersActive
@@ -371,7 +361,7 @@ export default function Notifications() {
                 {/* Top row: icon + title + category chip | time + unread dot */}
                 <div style={s.cardTop}>
                   <div style={s.cardLeft}>
-                    <span style={s.cardIcon}>{cardIcon}</span>
+                    <span style={s.cardIcon}><Glyph e={cardIcon} size={18} /></span>
                     <div>
                       <div style={{ ...s.cardTitle, color: read ? '#374151' : '#111827' }}>
                         {n.title}
@@ -410,7 +400,7 @@ export default function Notifications() {
                   )}
                   {isPaidBilling && (
                     <button style={s.pdfBtn} onClick={() => handleDownloadPdf(n)}>
-                      📄 Invoice PDF
+                      Invoice PDF
                     </button>
                   )}
                 </div>
@@ -487,7 +477,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   unreadDot: {
     display: 'inline-block', width: 8, height: 8,
-    borderRadius: '50%', background: '#457B9D', flexShrink: 0,
+    borderRadius: '50%', background: '#3c6e8f', flexShrink: 0,
   },
   categoryChip: {
     display: 'inline-block',
@@ -506,7 +496,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   pdfBtn: {
-    background: '#fff', border: '1.5px solid #1f8a4c', color: '#17663a',
+    background: '#fff', border: '1.5px solid #1a7f45', color: '#17663a',
     borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
@@ -540,5 +530,5 @@ const s: Record<string, React.CSSProperties> = {
   emptyIcon: { fontSize: 52, marginBottom: 14 },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
   emptyText: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.6 },
-  emptyLink: { background: 'none', border: 'none', color: '#457B9D', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
+  emptyLink: { background: 'none', border: 'none', color: '#3c6e8f', fontWeight: 600, cursor: 'pointer', fontSize: 14, padding: 0 },
 };

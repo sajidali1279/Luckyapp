@@ -9,6 +9,8 @@ import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { serverMessage } from '../lib/apiError';
 import { storeDayLong } from '../lib/storeDates';
+import { PageHeader, Button } from '../components/kit';
+import { Plus, X } from 'lucide-react';
 
 export default function Banners() {
   const qc = useQueryClient();
@@ -87,15 +89,15 @@ export default function Banners() {
         onConfirm={() => { if (confirmId) deleteMutation.mutate(confirmId); setConfirmId(null); }}
         onCancel={() => setConfirmId(null)}
       />
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>Banners</h1>
-          <p style={s.sub}>Promotional images shown in the customer app - target all stores or one location</p>
-        </div>
-        <button style={s.addBtn} onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Banner'}
-        </button>
-      </div>
+      <PageHeader
+        title="Banners"
+        description="Promotional images shown in the customer app. Target all stores or one location."
+        actions={
+          <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />} onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Cancel' : 'New Banner'}
+          </Button>
+        }
+      />
 
       {showForm && (
         <form style={s.form} onSubmit={handleCreate}>
@@ -109,14 +111,14 @@ export default function Banners() {
 
           {isStoreManager ? (
             <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
-              📍 This banner will appear for your store only
+              This banner will appear for your store only
             </div>
           ) : (
             <>
               <label style={s.label} htmlFor="banner-scope">Apply To</label>
               <select id="banner-scope" style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-                <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
-                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
+                <option value="ALL_STORES">All {stores.length || ''} Stores</option>
+                <option value="SPECIFIC_STORE">Specific Store Only</option>
               </select>
               {storeTarget === 'SPECIFIC_STORE' && (
                 <>
@@ -156,10 +158,10 @@ export default function Banners() {
                 <h3 style={s.cardTitle}>{banner.title}</h3>
                 <span style={banner.storeId ? s.tagStore : s.tagAll}>
                   {banner.storeId
-                    ? `📍 ${storeMap[banner.storeId] || 'Specific Store'}`
-                    : '🌐 All Stores'}
+                    ? `${storeMap[banner.storeId] || 'Specific Store'}`
+                    : 'All Stores'}
                 </span>
-                {banner.linkUrl && <span style={s.tagLink}>🔗 Has link</span>}
+                {banner.linkUrl && <span style={s.tagLink}>Has link</span>}
                 <p style={s.cardDate}>Added {storeDayLong(banner.createdAt)}</p>
               </div>
               <button style={s.deleteBtn} onClick={() => setConfirmId(banner.id)} aria-label={`Remove banner ${banner.title}`}>Remove</button>
@@ -176,7 +178,7 @@ const s: Record<string, React.CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-  addBtn: { background: '#D62839', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  addBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
     background: '#fff', borderRadius: 12, padding: '24px 28px', marginBottom: 32,
@@ -198,7 +200,7 @@ const s: Record<string, React.CSSProperties> = {
   cardDate: { color: TEXT_MUTED, fontSize: 14, margin: '6px 0 0', fontWeight: 600 },
   tagAll: { display: 'inline-block', background: '#eef2f7', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
   tagStore: { display: 'inline-block', background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagLink: { display: 'inline-block', background: '#edf7f0', color: '#1f8a4c', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
+  tagLink: { display: 'inline-block', background: '#edf7f0', color: '#1a7f45', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700, marginLeft: 8 },
   deleteBtn: { background: '#fdf2f2', color: '#c42130', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f3cdd1', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 15 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
 };

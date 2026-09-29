@@ -4,6 +4,9 @@ import { supportApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import { TEXT_MUTED } from '../lib/theme';
+import { PageHeader, Button } from '../components/kit';
+import { Plus } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Priority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
@@ -49,8 +52,8 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: stri
 
 const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: string }> = {
   BILLING:         { label: 'Billing',         emoji: '💳', color: '#4f6d8f' },
-  TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#457B9D' },
-  FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#1f8a4c' },
+  TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#3c6e8f' },
+  FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#1a7f45' },
   ACCESS:          { label: 'Access',          emoji: '🔑', color: '#c42130' },
   OTHER:           { label: 'Other',           emoji: '💬', color: TEXT_MUTED },
 };
@@ -191,19 +194,11 @@ export default function Support() {
     <div style={s.page}>
       <div style={s.inner}>
         {/* Header */}
-        <div style={s.header}>
-          <div>
-            <div style={s.title}>Support</div>
-            <div style={s.subtitle}>
-              {isDevAdmin ? 'Manage support requests from store admins' : 'Contact the developer team for help'}
-            </div>
-          </div>
-          {!isDevAdmin && (
-            <button style={{ ...s.btn, ...s.btnPrimary }} onClick={() => setShowNewModal(true)}>
-              + New Request
-            </button>
-          )}
-        </div>
+        <PageHeader
+          title="Support"
+          description={isDevAdmin ? 'Manage support requests from store admins.' : 'Contact the developer team for help.'}
+          actions={!isDevAdmin && <Button variant="primary" icon={<Plus />} onClick={() => setShowNewModal(true)}>New Request</Button>}
+        />
 
         {/* DevAdmin Stats Banner */}
         {isDevAdmin && statsQ.data && (
@@ -211,7 +206,7 @@ export default function Support() {
             {[
               { val: statsQ.data.openCount,       label: 'Open Tickets',       color: '#1D3557' },
               { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#c42130' },
-              { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#1f8a4c' },
+              { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#1a7f45' },
               {
                 val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : ' - ',
                 label: 'Avg Response Time', color: '#4f6d8f',
@@ -241,7 +236,7 @@ export default function Support() {
           <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
             <option value="">All categories</option>
             {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
-              <option key={c} value={c}>{CATEGORY_CONFIG[c].emoji} {CATEGORY_CONFIG[c].label}</option>
+              <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
             ))}
           </select>
           <select style={s.filterSelect} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
@@ -271,10 +266,10 @@ export default function Support() {
               {threadsQ.isError ? (
                 <ErrorState onRetry={threadsQ.refetch} />
               ) : threadsQ.isLoading ? (
-                <div style={s.empty}><div style={s.emptyIco}>⏳</div>Loading…</div>
+                <div style={s.empty}><div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…</div>
               ) : threads.length === 0 ? (
                 <div style={s.empty}>
-                  <div style={s.emptyIco}>💬</div>
+                  <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
                   {hasActiveFilters ? 'No matches. Try clearing filters.' : 'No support threads yet.'}
                 </div>
               ) : threads.map((t) => {
@@ -304,9 +299,9 @@ export default function Support() {
                         {pConf.label}
                       </span>
                       <span style={{ ...s.chip, color: cConf.color, background: '#f7f8fa', borderColor: '#e4e7ec' }}>
-                        {cConf.emoji} {cConf.label}
+                        <Glyph e={cConf.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cConf.label}
                       </span>
-                      <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#1f8a4c' : '#5a6472', background: t.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: t.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
+                      <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: t.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: t.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
                         {t.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
                       {isDevAdmin && <span style={{ fontSize: 12, color: TEXT_MUTED }}>{t.fromName}</span>}
@@ -326,7 +321,7 @@ export default function Support() {
                 </div>
               ) : threadDetailQ.isLoading && !detail ? (
                 <div style={{ ...s.empty, flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={s.emptyIco}>⏳</div>Loading…
+                  <div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…
                 </div>
               ) : detail ? (
                 <>
@@ -357,9 +352,9 @@ export default function Support() {
                         </span>
                       )}
                       <span style={{ ...s.chip, color: CATEGORY_CONFIG[detail.category]?.color || '#5a6472', background: '#f7f8fa', borderColor: '#e4e7ec' }}>
-                        {CATEGORY_CONFIG[detail.category]?.emoji} {CATEGORY_CONFIG[detail.category]?.label || detail.category}
+                        <Glyph e={CATEGORY_CONFIG[detail.category]?.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{CATEGORY_CONFIG[detail.category]?.label || detail.category}
                       </span>
-                      <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#1f8a4c' : '#5a6472', background: detail.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: detail.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
+                      <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: detail.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: detail.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
                         {detail.status === 'OPEN' ? '● Open' : '✓ Resolved'}
                       </span>
                       <span style={{ fontSize: 12, color: TEXT_MUTED }}>opened {timeAgo(detail.createdAt)}</span>
@@ -368,7 +363,7 @@ export default function Support() {
                       <div style={s.detailActions}>
                         {detail.status === 'OPEN' ? (
                           <button
-                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#1f8a4c', borderColor: '#c8e6d2' }}
+                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#1a7f45', borderColor: '#c8e6d2' }}
                             onClick={() => resolveThread.mutate('RESOLVED')}
                             disabled={resolveThread.isPending}
                           >
@@ -411,7 +406,7 @@ export default function Support() {
                             style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
                             onClick={() => setShowCannedMenu(v => !v)}
                           >
-                            ⚡ Quick replies
+                            Quick replies
                           </button>
                           {showCannedMenu && (
                             <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.1)', zIndex: 10, minWidth: 340 }}>
@@ -464,7 +459,7 @@ export default function Support() {
           ) : (
             <div style={{ ...s.detailPanel, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
               <div style={s.empty}>
-                <div style={s.emptyIco}>💬</div>
+                <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
                 <div>Select a thread to view the conversation</div>
               </div>
             </div>
@@ -494,7 +489,7 @@ export default function Support() {
                 <label style={s.label}>Category <span style={{ color: '#c42130' }}>*</span></label>
                 <select style={s.select} value={newCategory} onChange={e => setNewCategory(e.target.value as Category)}>
                   {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
-                    <option key={c} value={c}>{CATEGORY_CONFIG[c].emoji} {CATEGORY_CONFIG[c].label}</option>
+                    <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
                   ))}
                 </select>
               </div>
@@ -540,7 +535,7 @@ export default function Support() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page:         { minHeight: '100vh', background: 'var(--background)', fontFamily: 'Inter, sans-serif' },
+  page:         { minHeight: '100vh', background: 'var(--background)' },
   inner:        { maxWidth: 1280, margin: '0 auto', padding: '32px 24px' },
   header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827' },

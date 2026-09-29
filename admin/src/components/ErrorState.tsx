@@ -1,5 +1,6 @@
 import { CSSProperties } from 'react';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 interface ErrorStateProps {
   message?: string;
@@ -11,7 +12,7 @@ interface ErrorStateProps {
 export default function ErrorState({ message = 'Something went wrong. Please try again.', onRetry, compact = false }: ErrorStateProps) {
   return (
     <div style={compact ? { ...s.wrap, ...s.wrapCompact } : s.wrap} role="alert">
-      <div style={compact ? s.iconCompact : s.icon}>⚠️</div>
+      <div style={compact ? s.iconCompact : s.icon}><Glyph e="⚠️" size={compact ? 20 : 30} color="#8a5300" /></div>
       <div style={s.msg}>{message}</div>
       {onRetry && (
         <button style={s.btn} onClick={onRetry}>Try Again</button>

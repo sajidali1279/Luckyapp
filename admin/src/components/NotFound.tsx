@@ -1,13 +1,14 @@
 import { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 // Shown for an address that does not exist, instead of quietly landing on the Dashboard.
 export default function NotFound() {
   return (
     <div style={s.wrap}>
       <div style={s.card}>
-        <div style={s.icon} aria-hidden="true">🧭</div>
+        <div style={s.icon} aria-hidden="true"><Glyph e="🧭" size={28} color="#5a6472" /></div>
         <h1 style={s.title}>Page not found</h1>
         <p style={s.text}>That page does not exist, or the link is out of date.</p>
         <Link to="/" style={s.button}>Go to the Dashboard</Link>

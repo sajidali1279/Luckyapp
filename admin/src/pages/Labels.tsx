@@ -50,7 +50,7 @@ const UNCATEGORIZED = '__uncategorized__';
 const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
   { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#a51b28' },
   { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#17663a' },
-  { value: 'SUMMER', label: 'Summer', accent: '#b7791f' },
+  { value: 'SUMMER', label: 'Summer', accent: '#8a5300' },
   { value: 'CLEARANCE', label: 'Clearance', accent: '#c42130' },
   { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1D3557' },
   { value: 'HALLOWEEN', label: 'Halloween', accent: '#4f6d8f' },
@@ -1144,7 +1144,7 @@ const s: Record<string, CSSProperties> = {
   cellError: { display: 'block', fontSize: 11.5, color: '#a51b28', fontWeight: 600, marginTop: 3 },
   // A change not saved yet: blue, so it stands apart from the amber "No price" boxes and red mistakes
   cellChanged: { background: '#eef2f7', borderColor: '#d3dcea' },
-  rowChangedMark: { boxShadow: 'inset 3px 0 0 #457B9D' },
+  rowChangedMark: { boxShadow: 'inset 3px 0 0 #3c6e8f' },
   undoBtn: {
     position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     width: 20, height: 20, borderRadius: 5, border: 'none', background: '#eef2f7', color: '#1D3557', cursor: 'pointer', padding: 0,
@@ -1168,7 +1168,7 @@ const s: Record<string, CSSProperties> = {
     border: '1.5px solid #f1dcaf', background: '#fdf6e8', color: '#8a5300', borderRadius: 999,
     padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
-  noPriceChipActive: { background: '#b7791f', borderColor: '#b7791f', color: '#fff' },
+  noPriceChipActive: { background: '#8a5300', borderColor: '#8a5300', color: '#fff' },
   quickPriceWrap: { display: 'inline-flex', alignItems: 'center', gap: 6 },
   quickPriceBox: {
     display: 'inline-flex', alignItems: 'center', border: '1.5px solid #f1dcaf', background: '#fdf6e8', borderRadius: 8, padding: '0 8px',

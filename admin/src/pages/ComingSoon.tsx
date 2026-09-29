@@ -1,5 +1,6 @@
 import { CSSProperties } from 'react';
 import { TEXT_MUTED } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 interface ComingSoonProps {
   feature: string;
@@ -8,7 +9,7 @@ interface ComingSoonProps {
 export default function ComingSoon({ feature }: ComingSoonProps) {
   return (
     <div style={s.wrap}>
-      <div style={s.icon}>🚧</div>
+      <div style={s.icon}><Glyph e="🚧" size={28} color="#5a6472" /></div>
       <h2 style={s.title}>{feature}</h2>
       <p style={s.sub}>This is coming in a future release. Check back soon.</p>
     </div>

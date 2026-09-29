@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { TEXT_MUTED } from '../lib/theme';
+import { PageHeader } from '../components/kit';
 
 const ROLE_LABELS: Record<string, string> = {
   DEV_ADMIN: 'Dev Admin',
@@ -72,16 +73,10 @@ export default function Profile() {
       <div style={s.inner}>
 
         {/* ── Header ── */}
-        <div style={s.header}>
-          <div style={s.avatar}>{initials}</div>
-          <div>
-            <h1 style={s.title}>{user?.name || 'No name set'}</h1>
-            <div style={s.meta}>
-              <span style={s.role}>{ROLE_LABELS[user?.role || ''] || user?.role}</span>
-              <span style={s.phone}>{user?.phone}</span>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title={user?.name || 'No name set'}
+          description={`${ROLE_LABELS[user?.role || ''] || user?.role} · ${user?.phone ?? ''}`}
+        />
 
         <div style={s.grid}>
 

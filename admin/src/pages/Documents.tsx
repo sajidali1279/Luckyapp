@@ -24,6 +24,8 @@ import slaMd                 from '../../../docs/legal/service-level-agreement.m
 import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
 import aupMd                 from '../../../docs/legal/acceptable-use-policy.md?raw';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
 
@@ -221,10 +223,10 @@ const ALL_DOCS: Doc[] = [
 
 const CATEGORIES = [
   { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: PRIMARY, bg: '#eef2f7' },
-  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#1f8a4c', bg: '#edf7f0' },
+  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#1a7f45', bg: '#edf7f0' },
   { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#4f6d8f', bg: '#eef2f7' },
   { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#8a5300', bg: '#fdf6e8' },
-  { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#457B9D', bg: '#F0FDFA' },
+  { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#3c6e8f', bg: '#F0FDFA' },
 ] as const;
 
 // ─── Reader modal ─────────────────────────────────────────────────────────────
@@ -291,7 +293,7 @@ function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
         {/* Header */}
         <div style={rs.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>{doc.icon}</span>
+            <span style={{ fontSize: 22 }}><Glyph e={doc.icon} size={18} /></span>
             <div>
               <div style={rs.headerTitle}>{doc.title}</div>
               <div style={rs.headerSub}>{doc.description}</div>
@@ -299,7 +301,7 @@ function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button onClick={handlePrint} style={rs.printBtn}>
-              🖨️ Print
+              Print
             </button>
             <button onClick={onClose} style={rs.closeBtn}>✕</button>
           </div>
@@ -336,12 +338,7 @@ export default function Documents() {
     <div style={ps.root}>
 
       {/* Page header */}
-      <div style={ps.hero}>
-        <div>
-          <h1 style={ps.heroTitle}>Documents</h1>
-          <p style={ps.heroSub}>Legal agreements, user manuals, and technical documentation.</p>
-        </div>
-      </div>
+      <PageHeader title="Documents" description="Legal agreements, user manuals, and technical documentation." />
 
       {/* Category filter */}
       <div style={ps.filterRow}>
@@ -360,7 +357,7 @@ export default function Documents() {
               style={{ ...ps.filterBtn, ...(activeCategory === cat.id ? ps.filterBtnActive : {}) }}
               onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
             >
-              {cat.icon} {cat.label} ({count})
+              <Glyph e={cat.icon} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cat.label} ({count})
             </button>
           );
         })}
@@ -377,14 +374,14 @@ export default function Documents() {
               onClick={() => setActiveDoc(doc)}
             >
               <div style={{ ...ps.cardIconWrap, background: cat.bg }}>
-                <span style={ps.cardIcon}>{doc.icon}</span>
+                <span style={ps.cardIcon}><Glyph e={doc.icon} size={18} /></span>
               </div>
               <div style={ps.cardBody}>
                 <div style={ps.cardTitle}>{doc.title}</div>
                 <div style={ps.cardDesc}>{doc.description}</div>
               </div>
               <div style={{ ...ps.cardCatBadge, color: cat.color, background: cat.bg }}>
-                {cat.icon} {cat.label}
+                <Glyph e={cat.icon} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cat.label}
               </div>
               <span style={ps.cardArrow}>→</span>
             </button>

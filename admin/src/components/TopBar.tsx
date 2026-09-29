@@ -10,6 +10,8 @@ import { NAV_ITEMS } from '../lib/navItems';
 import CommandPalette from './CommandPalette';
 import { TEXT_MUTED } from '../lib/theme';
 
+const OWN_TITLE_MISSING = ['/chat', '/scheduling', '/store-requests'];
+
 const badgeTarget = (key: BadgeKey) => NAV_ITEMS.find((i) => i.badgeKey === key)?.to ?? '/';
 
 function timeAgo(ms: number): string {
@@ -111,7 +113,10 @@ export default function TopBar() {
   return (
     <div style={s.bar}>
       <SidebarTrigger aria-label={isMobile ? 'Open the menu' : 'Collapse or expand the sidebar'} style={s.trigger} />
-      <h1 style={s.title}>{titleFor(pathname)}</h1>
+      {/* Every page has its own h1 in its header band; only the split-screen pages without one get it here */}
+      {OWN_TITLE_MISSING.some((p) => pathname.startsWith(p))
+        ? <h1 style={s.title}>{titleFor(pathname)}</h1>
+        : <span style={s.title}>{titleFor(pathname)}</span>}
       <button type="button" style={s.searchBtn} onClick={() => setPaletteOpen(true)}>
         <Search size={14} aria-hidden="true" />
         <span style={s.searchBtnText}>Search</span>

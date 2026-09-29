@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Tabs } from '../components/kit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,19 +65,19 @@ interface QuickItem { name: string; category: string | null; count: number }
 const PRIORITY_CFG = {
   URGENT: { label: 'Urgent', bg: '#fdf2f2', text: '#c42130' },
   NORMAL: { label: 'Normal', bg: '#f1f3f6', text: '#5a6472' },
-  LOW:    { label: 'Low',    bg: '#edf7f0', text: '#1f8a4c' },
+  LOW:    { label: 'Low',    bg: '#edf7f0', text: '#1a7f45' },
 };
 
 const ITEM_STATUS_CFG = {
   PENDING:  { label: 'Needed',   bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
-  ORDERED:  { label: 'Ordered',  bg: '#edf7f0', text: '#1f8a4c', border: '#c8e6d2' },
+  ORDERED:  { label: 'Ordered',  bg: '#edf7f0', text: '#1a7f45', border: '#c8e6d2' },
   RECEIVED: { label: 'Received', bg: '#eef2f7', text: '#4f6d8f', border: '#C4B5FD' },
   REMOVED:  { label: 'Removed',  bg: '#f1f3f6', text: '#5a6472', border: '#e4e7ec' },
 };
 
 const CAT_STATUS_CFG = {
   PENDING:  { label: 'Pending',  bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
-  APPROVED: { label: 'Approved', bg: '#edf7f0', text: '#1f8a4c', border: '#c8e6d2' },
+  APPROVED: { label: 'Approved', bg: '#edf7f0', text: '#1a7f45', border: '#c8e6d2' },
   REJECTED: { label: 'Rejected', bg: '#fdf2f2', text: '#c42130', border: '#f3cdd1' },
 };
 
@@ -121,7 +122,7 @@ function printList(list: OrderList) {
   <div class="meta">${list.store.name} &nbsp;·&nbsp; ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · by ${list.openedBy.name}</div>
   <div class="stats">
     <span style="color:#8a5300">${pending} needed</span>
-    ${ordered  > 0 ? `<span style="color:#1f8a4c">${ordered} ordered</span>` : ''}
+    ${ordered  > 0 ? `<span style="color:#1a7f45">${ordered} ordered</span>` : ''}
     ${received > 0 ? `<span style="color:#4f6d8f">${received} received</span>` : ''}
     <span style="color:#5a6472">${visibleItems.length} total</span>
   </div>
@@ -644,13 +645,13 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           </div>
           <div style={s.listDetailStats}>
             <span style={{ color: '#8a5300', fontWeight: 600 }}>{pending} needed</span>
-            {ordered  > 0 && <span style={{ color: '#1f8a4c', fontWeight: 600 }}>{ordered} ordered</span>}
+            {ordered  > 0 && <span style={{ color: '#1a7f45', fontWeight: 600 }}>{ordered} ordered</span>}
             {received > 0 && <span style={{ color: '#4f6d8f', fontWeight: 600 }}>{received} received</span>}
             <span style={{ color: TEXT_MUTED }}>{visibleItems.length} total</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={s.printBtn} onClick={() => printList(list)}>🖨 Print</button>
+          <button style={s.printBtn} onClick={() => printList(list)}>Print</button>
           {canClose && isOpen && (
             <button style={s.closeListBtn}
               onClick={() => setConfirmCloseList(true)}
@@ -689,7 +690,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
             style={{ ...s.instructionsDisplay, cursor: canClose ? 'pointer' : 'default' }}
             onClick={canClose ? () => { setInstructionsDraft(list.store.orderInstructions || ''); setEditingInstructions(true); } : undefined}
           >
-            <span style={s.instructionsLabel}>📋 Standing instructions</span>
+            <span style={s.instructionsLabel}>Standing instructions</span>
             <span style={list.store.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
               {list.store.orderInstructions || (canClose ? 'No standing instructions - click to add' : 'No standing instructions')}
             </span>
@@ -801,7 +802,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           <div style={s.itemRowSub}>
                             {item.notes && <span>{item.notes}</span>}
                             {item.source === 'EMPLOYEE_REQUEST' && (
-                              <span style={s.sourceBadge}>📋 Employee request</span>
+                              <span style={s.sourceBadge}>Employee request</span>
                             )}
                           </div>
                         )}
@@ -896,7 +897,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
       {storesMissingOpenList.length > 0 && (
         <div style={s.missingBanner}>
           <div style={s.missingBannerLabel}>
-            ⚠ {storesMissingOpenList.length} store{storesMissingOpenList.length !== 1 ? 's' : ''} with no open list
+            {storesMissingOpenList.length} store{storesMissingOpenList.length !== 1 ? 's' : ''} with no open list
           </div>
           <div style={s.missingChips}>
             {storesMissingOpenList.map(st => (
@@ -955,7 +956,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                 aria-label={`Open list ${list.name} for ${list.store?.name}`}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedList(list)}>
                 <div style={s.listCardTop}>
-                  <span style={{ ...s.statusPill, background: isOpen ? '#edf7f0' : '#f1f3f6', color: isOpen ? '#1f8a4c' : '#5a6472' }}>
+                  <span style={{ ...s.statusPill, background: isOpen ? '#edf7f0' : '#f1f3f6', color: isOpen ? '#1a7f45' : '#5a6472' }}>
                     {isOpen ? '● Open' : '✓ Closed'}
                   </span>
                   <span style={s.listCardDate}>
@@ -1052,7 +1053,7 @@ function CategoriesTab() {
 
       {pendingCount > 0 && (
         <div style={s.approveHint}>
-          ℹ️ When approving, you can edit the name to fix typos - the correction will automatically apply to every item on every list.
+          When approving, you can edit the name to fix typos - the correction will automatically apply to every item on every list.
         </div>
       )}
 
@@ -1078,7 +1079,7 @@ function CategoriesTab() {
               <div key={cat.id} style={{ ...s.catTableRow, ...(cat.status === 'PENDING' ? { background: '#fdf6e8' } : {}) }}>
                 {isApproving ? (
                   <div style={s.editRow}>
-                    <input style={{ ...s.input, flex: 1, borderColor: '#1f8a4c' }}
+                    <input style={{ ...s.input, flex: 1, borderColor: '#1a7f45' }}
                       value={approveEdit} onChange={e => setApproveEdit(e.target.value)} maxLength={80} autoFocus />
                   </div>
                 ) : isEditing ? (
@@ -1163,28 +1164,20 @@ export default function OrderListPage() {
 
   return (
     <div style={s.page}>
-      <div style={s.pageHeader}>
-        <div>
-          <h1 style={s.pageTitle}>📦 Order Lists</h1>
-          <p style={s.pageSubtitle}>
-            {isDevAdmin
-              ? 'Manage all store order lists and categories.'
-              : 'Review and close store order lists across all locations.'}
-          </p>
-        </div>
-      </div>
-
-      <div style={s.tabs}>
-        <button style={{ ...s.tab, ...(tab === 'lists' && s.tabActive) }} onClick={() => setTab('lists')}>
-          Order Lists
-        </button>
-        {isDevAdmin && (
-          <button style={{ ...s.tab, ...(tab === 'categories' && s.tabActive) }} onClick={() => setTab('categories')}>
-            Categories
-            {categoriesPendingCount > 0 && <span style={s.tabBadge}>{categoriesPendingCount}</span>}
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Order Lists"
+        description={isDevAdmin ? 'Manage all store order lists and categories.' : 'Review and close store order lists across all locations.'}
+      />
+      <Tabs
+        asButtons
+        ariaLabel="Order list view"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'lists', label: 'Order Lists' },
+          ...(isDevAdmin ? [{ value: 'categories' as const, label: 'Categories', count: categoriesPendingCount > 0 ? categoriesPendingCount : undefined }] : []),
+        ]}
+      />
 
       <div style={s.tabContent}>
         {tab === 'lists'      && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
@@ -1221,7 +1214,7 @@ const s: Record<string, React.CSSProperties> = {
   missingBanner:      { background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
   missingBannerLabel: { fontSize: 14, fontWeight: 700, color: '#8a5300', marginBottom: 10 },
   missingChips:       { display: 'flex', gap: 8, flexWrap: 'wrap' as const },
-  missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #b7791f', color: '#8a5300', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  missingChip:        { padding: '6px 12px', borderRadius: 8, background: '#fff', border: '1.5px solid #8a5300', color: '#8a5300', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
 
   loading: { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
   empty:   { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
@@ -1248,14 +1241,14 @@ const s: Record<string, React.CSSProperties> = {
   listDetailStats:  { display: 'flex', gap: 16, fontSize: 14 },
 
   printBtn:    { padding: '8px 16px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#fff', color: '#5a6472', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
-  closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#c42130', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  closeListBtn:{ padding: '8px 16px', borderRadius: 8, background: '#1D3557', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   instructionsBanner:  { background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 10, padding: '12px 16px', marginBottom: 16 },
   instructionsDisplay: { display: 'flex', flexDirection: 'column' as const, gap: 4 },
   instructionsLabel:   { fontSize: 12, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase' as const, letterSpacing: 0.4 },
   instructionsText:    { fontSize: 14, color: '#111827', lineHeight: 1.5 },
   instructionsEmpty:   { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic' as const },
   instructionsTextarea:{ width: '100%', minHeight: 60, padding: '8px 10px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' as const },
-  openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#1f8a4c', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  openListBtn:   { padding: '8px 14px', borderRadius: 8, background: '#1D3557', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   openListBtnDim:{ opacity: 0.5, cursor: 'not-allowed' },
 
   // Two-column detail layout
@@ -1273,10 +1266,10 @@ const s: Record<string, React.CSSProperties> = {
 
   statusChip: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, transition: 'opacity 0.1s', flexShrink: 0 },
   qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#f7f8fa', border: '1px solid #e4e7ec', whiteSpace: 'nowrap' as const, flexShrink: 0 },
-  qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #457B9D', fontSize: 13, outline: 'none' },
+  qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #3c6e8f', fontSize: 13, outline: 'none' },
   priorityPill: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, flexShrink: 0 },
   removeBtn:    { background: 'none', border: 'none', color: '#d5dae1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
-  sourceBadge:  { fontSize: 12, color: '#1f8a4c', background: '#edf7f0', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
+  sourceBadge:  { fontSize: 12, color: '#1a7f45', background: '#edf7f0', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
 
   // Category table
   catTable:     { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden' },
@@ -1288,7 +1281,7 @@ const s: Record<string, React.CSSProperties> = {
   storeTag:     { fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#f1f3f6', color: TEXT_MUTED, fontWeight: 500 },
 
   editRow:     { display: 'flex', alignItems: 'center', gap: 8 },
-  approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1f8a4c', border: '1px solid #c8e6d2', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  approveBtn:  { padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1a7f45', border: '1px solid #c8e6d2', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   rejectBtnSm: { padding: '5px 12px', borderRadius: 6, background: '#fdf2f2', color: '#c42130', border: '1px solid #f3cdd1', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
   editBtnSm:   { padding: '5px 10px', borderRadius: 6, background: '#eef2f7', color: '#1D3557', border: '1px solid #d3dcea', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   deleteBtnSm: { padding: '5px 10px', borderRadius: 6, background: '#f7f8fa', color: TEXT_MUTED, border: '1px solid #e4e7ec', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
@@ -1334,11 +1327,11 @@ const p: Record<string, React.CSSProperties> = {
   reqHead:     { display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer', gap: 8 },
   reqName:     { fontSize: 14, fontWeight: 700, color: '#111827' },
   reqMeta:     { fontSize: 12, color: '#5a6472', marginTop: 2 },
-  acceptAllBtn:{ padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1f8a4c', border: '1px solid #c8e6d2', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  acceptAllBtn:{ padding: '5px 12px', borderRadius: 6, background: '#edf7f0', color: '#1a7f45', border: '1px solid #c8e6d2', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
   reqLines:    { padding: '10px 14px', borderTop: '1px solid #f1dcaf', display: 'flex', flexDirection: 'column', gap: 8 },
   reqLine:     { background: '#fff', borderRadius: 6, border: '1px solid #e4e7ec', padding: '10px 12px' },
   lineBtn:     { flex: 1, padding: '6px 0', borderRadius: 6, border: '1.5px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' },
-  lineBtnAccept:{ background: '#edf7f0', borderColor: '#1f8a4c', color: '#1f8a4c' },
+  lineBtnAccept:{ background: '#edf7f0', borderColor: '#1a7f45', color: '#1a7f45' },
   lineBtnReject:{ background: '#fdf2f2', borderColor: '#c42130', color: '#c42130' },
   submitReviewBtn: { width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8, background: PRIMARY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 

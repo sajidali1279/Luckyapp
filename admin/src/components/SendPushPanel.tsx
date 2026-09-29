@@ -7,6 +7,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { storeDayTime } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
+import Glyph from '../components/Glyph';
 
 type Target = 'ALL_CUSTOMERS' | 'STORE_CUSTOMERS' | 'ALL_STAFF' | 'STORE_STAFF';
 interface StoreLite { id: string; name: string; city?: string; isActive?: boolean }
@@ -115,7 +116,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
   return (
     <div id="send-push" style={s.panel}>
       <div style={s.panelHeader}>
-        <div style={s.panelIcon} aria-hidden="true">📢</div>
+        <div style={s.panelIcon} aria-hidden="true"><Glyph e="📢" size={28} color="#5a6472" /></div>
         <div>
           <h2 style={s.panelTitle}>Send Push Notification</h2>
           <div style={s.panelSub}>Write a message, send yourself a test, then send it to customers or staff. It cannot be recalled.</div>
@@ -157,7 +158,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
 
       <div style={s.field}>
         <label style={s.label} htmlFor="push-title">Title <span style={s.charCount}>{title.length}/{TITLE_MAX}</span></label>
-        <input id="push-title" style={s.input} placeholder="e.g. 🎉 Weekend Special at Lucky Stop!" value={title} maxLength={TITLE_MAX} onChange={(e) => { setTitle(e.target.value); setError(''); }} />
+        <input id="push-title" style={s.input} placeholder="e.g. Weekend Special at Lucky Stop!" value={title} maxLength={TITLE_MAX} onChange={(e) => { setTitle(e.target.value); setError(''); }} />
       </div>
 
       <div style={s.field}>
@@ -179,7 +180,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
 
       <div style={s.buttons}>
         <button type="button" style={{ ...s.testBtn, ...(!ready || testMutation.isPending ? s.disabled : {}) }} disabled={!ready || testMutation.isPending} onClick={() => runTest()}>
-          {testMutation.isPending ? 'Sending test…' : '📱 Send me a test first'}
+          {testMutation.isPending ? 'Sending test…' : 'Send me a test first'}
         </button>
         <button type="button" style={{ ...s.sendBtn, ...(!canSend || sendMutation.isPending ? s.disabled : {}) }} disabled={!canSend || sendMutation.isPending} onClick={review}>
           Review and send…

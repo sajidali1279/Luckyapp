@@ -10,6 +10,7 @@ import { failureMessage } from '../lib/apiError';
 import ConfirmModal from './ConfirmModal';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG } from '../utils/labelStatus';
 import BulkPrintWizard, { BulkPrintStoreGroup } from './BulkPrintWizard';
+import Glyph from '../components/Glyph';
 
 const UNCATEGORIZED = '__uncategorized__';
 const PRINTABLE_STATUSES: LabelPrintStatus[] = ['new', 'needs_reprint'];
@@ -212,7 +213,7 @@ export default function CoverageView() {
             </>
           ) : (
             <>
-              <span style={s.summaryIcon}>🏷️</span>
+              <span style={s.summaryIcon}><Glyph e="🏷️" size={18} color="#1D3557" /></span>
               <span style={s.summaryText}>
                 <strong>{gapLabels.length}</strong> product{gapLabels.length === 1 ? '' : 's'} {gapLabels.length === 1 ? 'has' : 'have'} gaps — missing from{' '}
                 <strong>{totalGapSlots}</strong> store-slot{totalGapSlots === 1 ? '' : 's'} across the chain.
@@ -239,7 +240,7 @@ export default function CoverageView() {
           )}
           {selectedIds.size > 0 && (
             <button style={s.bulkPrintBtn} onClick={startBulkPrint}>
-              🖨️ Print for All Stores ({selectedIds.size} product{selectedIds.size === 1 ? '' : 's'} selected)
+              Print for All Stores ({selectedIds.size} product{selectedIds.size === 1 ? '' : 's'} selected)
             </button>
           )}
         </div>
@@ -247,13 +248,13 @@ export default function CoverageView() {
 
       {labels.length === 0 ? (
         <div style={s.emptyBox}>
-          <div style={s.emptyIcon}>🏷️</div>
+          <div style={s.emptyIcon}><Glyph e="🏷️" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>No labels yet</div>
           <div style={s.emptySub}>Add a label from the Catalog tab first</div>
         </div>
       ) : filtered.length === 0 ? (
         <div style={s.emptyBox}>
-          <div style={s.emptyIcon}>🔍</div>
+          <div style={s.emptyIcon}><Glyph e="🔍" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>No labels match your filters</div>
         </div>
       ) : (

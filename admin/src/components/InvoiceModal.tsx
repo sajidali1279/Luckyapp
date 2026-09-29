@@ -74,7 +74,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
         {/* Header */}
         <div style={inv.header}>
           <div>
-            <div style={inv.headerBrand}>⛽ Lucky Stop</div>
+            <div style={inv.headerBrand}>Lucky Stop</div>
             <div style={inv.headerSub}>Gas Station Loyalty Platform</div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -86,7 +86,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
         {/* Printable area */}
         <div id="invoice-print-area">
           <div className="header" style={{ display: 'none' }}>
-            <div><div className="brand">⛽ Lucky Stop</div><div className="brand-sub">Gas Station Loyalty Platform</div></div>
+            <div><div className="brand">Lucky Stop</div><div className="brand-sub">Gas Station Loyalty Platform</div></div>
             <div style={{ textAlign: 'right' }}><h1>INVOICE</h1><div className="inv-num">{invNum}</div></div>
           </div>
 
@@ -94,7 +94,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
           <div style={inv.metaRow}>
             <div style={inv.metaBox}>
               <div style={inv.metaLabel}>Bill To</div>
-              <div style={inv.metaValue}>{store?.name || (record.storeId ? 'Store' : '🔗 All Stores (Chain-wide)')}</div>
+              <div style={inv.metaValue}>{store?.name || (record.storeId ? 'Store' : 'All Stores (Chain-wide)')}</div>
               {store?.city && <div style={inv.metaSub}>{store.city}</div>}
               {store?.address && <div style={inv.metaSub}>{store.address}</div>}
             </div>
@@ -106,7 +106,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
               <div style={inv.metaDetail}>
                 <span>Status</span>
                 <span style={record.isPaid ? inv.paidTag : inv.unpaidTag}>
-                  {record.isPaid ? '✓ PAID' : '⏳ UNPAID'}
+                  {record.isPaid ? '✓ PAID' : 'UNPAID'}
                 </span>
               </div>
               {record.isPaid && record.paidAt && (
@@ -229,7 +229,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
 
         {/* Action buttons */}
         <div style={inv.actions}>
-          <button style={inv.printBtn} onClick={handlePrint}>🖨️ Print / Save PDF</button>
+          <button style={inv.printBtn} onClick={handlePrint}>Print / Save PDF</button>
           <button style={inv.closeBtn} onClick={onClose}>✕ Close</button>
         </div>
       </div>

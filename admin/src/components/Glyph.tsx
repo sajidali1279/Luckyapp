@@ -9,7 +9,7 @@ import {
   Circle, Handshake, Pin, Sparkles, Brush, Sunrise, Puzzle, Plus, Send, Timer, TrendingUp, TrendingDown, Award, Palmtree, Gem,
   ShieldAlert, HardHat, CupSoda, Square, Minus, Upload, Calendar, FlaskConical, Bot, Mail, Construction, Camera, Sun, Moon, ShieldCheck,
   Wifi, Cookie, ScrollText, NotebookPen, Radio, Scale, BookOpen, Wrench, Flag, Lightbulb, Ruler, Inbox, Coffee, Sprout, Ticket, Compass,
-  PartyPopper, Sandwich, Wallet, type LucideIcon,
+  PartyPopper, Sandwich, Wallet, Info, type LucideIcon,
 } from 'lucide-react';
 
 const MAP: Record<string, LucideIcon> = {
@@ -26,7 +26,7 @@ const MAP: Record<string, LucideIcon> = {
   '🥤': CupSoda, '☕': Coffee, '👷': HardHat, '⏹': Square, '🧪': FlaskConical, '🤖': Bot, '💼': Wallet, '🚧': Construction,
   '📷': Camera, '☀': Sun, '🌙': Moon, '📶': Wifi, '🍪': Cookie, '📝': NotebookPen, '📡': Radio, '⚖': Scale, '📖': BookOpen,
   '🛠': Wrench, '🔧': Wrench, '🏁': Flag, '💡': Lightbulb, '📐': Ruler, '📭': Inbox, '✨': Sparkles, '🌱': Sprout, '🎟': Ticket,
-  '🧭': Compass, '🎉': PartyPopper, '👋': Hand, '🛡': ShieldCheck,
+  '🧭': Compass, 'ℹ': Info, '🎉': PartyPopper, '👋': Hand, '🛡': ShieldCheck,
 };
 
 /** The lucide icon for an emoji, or undefined when there is none. */

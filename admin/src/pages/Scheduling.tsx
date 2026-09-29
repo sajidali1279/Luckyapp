@@ -8,20 +8,21 @@ import ConfirmModal from '../components/ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1f8a4c', '#8a5300', PRIMARY, '#c42130', '#457B9D', '#c42130'];
+const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1a7f45', '#8a5300', PRIMARY, '#c42130', '#3c6e8f', '#c42130'];
 
 const STORE_GRADIENTS = [
-  [PRIMARY, '#457B9D'],
-  ['#1D3557', '#457B9D'],
-  ['#17663a', '#1f8a4c'],
+  [PRIMARY, '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
+  ['#17663a', '#1a7f45'],
   ['#4f6d8f', '#4f6d8f'],
-  ['#8a5300', '#b7791f'],
+  ['#8a5300', '#8a5300'],
   ['#c42130', '#c42130'],
-  ['#457B9D', '#457B9D'],
-  ['#1D3557', '#457B9D'],
+  ['#3c6e8f', '#3c6e8f'],
+  ['#1D3557', '#3c6e8f'],
 ];
 
 const DAYS: { key: string; label: string }[] = [
@@ -35,8 +36,8 @@ const DAYS: { key: string; label: string }[] = [
 ];
 
 const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] = [
-  { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#b7791f' },
-  { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#1f8a4c' },
+  { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#8a5300' },
+  { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#1a7f45' },
   { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: PRIMARY },
 ];
 
@@ -281,7 +282,7 @@ export default function Scheduling() {
       <div style={s.chatPanel}>
         {!selectedStoreId ? (
           <div style={s.emptyState}>
-            <div style={s.emptyEmoji}>📅</div>
+            <div style={s.emptyEmoji}><Glyph e="📅" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>Select a Store</div>
             <div style={s.emptyDesc}>Choose a store from the sidebar to manage its schedule.</div>
           </div>
@@ -317,10 +318,10 @@ export default function Scheduling() {
               {/* Tabs */}
               <div style={s.tabRow}>
                 <button style={{ ...s.tab, ...(activeTab === 'schedule' ? s.tabActive : {}) }} onClick={() => setActiveTab('schedule')}>
-                  📅 Schedule
+                  Schedule
                 </button>
                 <button style={{ ...s.tab, ...(activeTab === 'requests' ? s.tabActive : {}), position: 'relative' as const }} onClick={() => setActiveTab('requests')}>
-                  🙋 Requests
+                  Requests
                   {pendingRequests.length > 0 && <span style={s.badge}>{pendingRequests.length}</span>}
                 </button>
               </div>
@@ -329,7 +330,7 @@ export default function Scheduling() {
             {/* Vacancy Banner */}
             {selectedStoreVacancies && selectedStoreVacancies.vacantCount > 0 && (
               <div style={s.vacancyBanner}>
-                <span style={s.vacancyBannerIcon}>⚠️</span>
+                <span style={s.vacancyBannerIcon}><Glyph e="⚠️" size={18} color="#8a5300" /></span>
                 <div style={{ flex: 1 }}>
                   <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> - {' '}
                   {selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
@@ -528,7 +529,7 @@ export default function Scheduling() {
             </h3>
             {allEmployees.length === 0 ? (
               <div style={{ padding: '12px 16px', background: '#fdf6e8', borderRadius: 8, fontSize: 15, color: '#8a5300' }}>
-                ⚠️ No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
+                No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
               </div>
             ) : getAvailableEmployees(addModal.day).length === 0 ? (
               <div style={{ padding: '12px 16px', background: '#e2e3e5', borderRadius: 8, fontSize: 15, color: '#374151' }}>
@@ -581,8 +582,8 @@ function RequestCard({
 }) {
   const isTimeOff = request.requestType === 'TIME_OFF';
   const isApproved = request.status === 'APPROVED';
-  const typeColor = isTimeOff ? '#c42130' : '#1f8a4c';
-  const statusColor = request.status === 'PENDING' ? '#b7791f' : isApproved ? '#1f8a4c' : '#c42130';
+  const typeColor = isTimeOff ? '#c42130' : '#1a7f45';
+  const statusColor = request.status === 'PENDING' ? '#8a5300' : isApproved ? '#1a7f45' : '#c42130';
   const name = request.employee?.name || request.employee?.phone || 'Employee';
   const avatarColor = AVATAR_PALETTE[name.charCodeAt(0) % AVATAR_PALETTE.length];
 
@@ -599,7 +600,7 @@ function RequestCard({
         </div>
         {/* Type badge */}
         <span style={{ ...s.requestTypeBadge, background: typeColor + '15', color: typeColor }}>
-          {isTimeOff ? '🏖️ Time Off' : '🙋 Fill-In'}
+          {isTimeOff ? 'Time Off' : 'Fill-In'}
         </span>
         {/* Status chip */}
         <span style={{ ...s.statusBadge, background: statusColor + '18', color: statusColor, borderColor: statusColor + '40' }}>
@@ -607,9 +608,9 @@ function RequestCard({
         </span>
       </div>
       <div style={s.requestDetails}>
-        <span>📅 {fmtDate(request.date)}</span>
+        <span>{fmtDate(request.date)}</span>
         <span style={s.dot}>·</span>
-        <span>🕐 {request.shiftType}</span>
+        <span>{request.shiftType}</span>
         {request.notes && (
           <>
             <span style={s.dot}>·</span>
@@ -638,9 +639,9 @@ const s: Record<string, React.CSSProperties> = {
     borderRight: '1px solid #e4e7ec',
     display: 'flex', flexDirection: 'column',
   },
-  sidebarTop: { padding: '20px 18px 8px' },
-  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: -0.3 },
-  sidebarSubtitle: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
+  sidebarTop: { background: 'linear-gradient(135deg, #1D3557 0%, #152a47 100%)', borderBottom: '3px solid #D62839', marginBottom: 8, padding: '18px 18px 16px' },
+  sidebarTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: -0.3 },
+  sidebarSubtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.74)', marginTop: 2 },
   vacSummary: {
     margin: '6px 14px 4px',
     padding: '7px 12px',
@@ -649,7 +650,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 14, color: '#8a5300', fontWeight: 600,
     display: 'flex', alignItems: 'center', gap: 7,
   },
-  vacSummaryDot: { width: 7, height: 7, borderRadius: 4, background: '#b7791f', display: 'inline-block', flexShrink: 0 },
+  vacSummaryDot: { width: 7, height: 7, borderRadius: 4, background: '#8a5300', display: 'inline-block', flexShrink: 0 },
   storeList: { flex: 1, overflowY: 'auto', padding: '4px 8px 12px' },
   storeBtn: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -666,7 +667,7 @@ const s: Record<string, React.CSSProperties> = {
   storeBtnInfo: { flex: 1, minWidth: 0 },
   storeBtnName: { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   storeBtnCity: { fontSize: 14, color: TEXT_MUTED, marginTop: 1 },
-  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1f8a4c', flexShrink: 0 },
+  activeIndicator: { width: 8, height: 8, borderRadius: 4, background: '#1a7f45', flexShrink: 0 },
   vacBadge: { background: '#c42130', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
   pendingReqBadge: { background: '#8a5300', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 12, fontWeight: 700, flexShrink: 0 },
 
@@ -687,7 +688,7 @@ const s: Record<string, React.CSSProperties> = {
   chatHeaderInfo: { flex: 1 },
   chatHeaderName: { color: '#fff', fontSize: 17, fontWeight: 700, letterSpacing: -0.2 },
   chatHeaderSub: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1f8a4c', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, background: '#1a7f45', border: '1.5px solid rgba(255,255,255,0.5)', display: 'inline-block' },
 
   vacancyBanner: {
     display: 'flex', alignItems: 'center', gap: 10,
@@ -825,7 +826,7 @@ const s: Record<string, React.CSSProperties> = {
   requestNotes: { fontStyle: 'italic', color: TEXT_MUTED, fontWeight: 400 },
   requestActions: { display: 'flex', gap: 10, marginTop: 2 },
   approveBtn: {
-    background: '#edf7f0', color: '#1f8a4c',
+    background: '#edf7f0', color: '#1a7f45',
     border: '1px solid #c8e6d2',
     borderRadius: 10, padding: '8px 20px', fontWeight: 700,
     cursor: 'pointer', fontSize: 15,

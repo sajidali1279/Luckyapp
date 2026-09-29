@@ -14,6 +14,7 @@ import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import PrintTray from './PrintTray';
 import Modal from './Modal';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge } from '../utils/labelStatus';
+import Glyph from '../components/Glyph';
 
 interface StoreLabel {
   id: string;
@@ -453,7 +454,7 @@ export default function StoreLabelsPanel() {
       <div style={s.main}>
       {!storeId ? (
         <div style={s.emptyBox}>
-          <div style={s.emptyIcon}>🏪</div>
+          <div style={s.emptyIcon}><Glyph e="🏪" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>Pick a store</div>
           <div style={s.emptySub}>See every catalog item's price and print status at that store</div>
         </div>
@@ -461,13 +462,13 @@ export default function StoreLabelsPanel() {
         <TableSkeleton columns={5} />
       ) : items.length === 0 ? (
         <div style={s.emptyBox}>
-          <div style={s.emptyIcon}>🏷️</div>
+          <div style={s.emptyIcon}><Glyph e="🏷️" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>The catalog is empty</div>
           <div style={s.emptySub}>Add a label from the Catalog tab first</div>
         </div>
       ) : filteredItems.length === 0 ? (
         <div style={s.emptyBox}>
-          <div style={s.emptyIcon}>🔍</div>
+          <div style={s.emptyIcon}><Glyph e="🔍" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>No items match your filters</div>
           <div style={s.emptySub}>Try clearing the search or category filter</div>
         </div>

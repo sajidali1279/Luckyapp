@@ -95,7 +95,7 @@ function KpiRow({ range }: { range: Range }) {
     <div style={s.kpiGrid}>
       <KPI icon="🧾" label="Transactions" value={formatInteger(cur.transactions)} color={PRIMARY} bg="#eef2f7" spark={sparkTx}
         delta={<Delta cur={cur.transactions} prev={prev.transactions} label={vs} />} />
-      <KPI icon="💵" label="Purchase Volume" value={fmt$(cur.purchaseVolume)} color="#1f8a4c" bg="#edf7f0" spark={sparkVol}
+      <KPI icon="💵" label="Purchase Volume" value={fmt$(cur.purchaseVolume)} color="#1a7f45" bg="#edf7f0" spark={sparkVol}
         delta={<Delta cur={cur.purchaseVolume} prev={prev.purchaseVolume} label={vs} />} />
       <KPI icon="⭐" label="Cashback Issued" value={fmt$(cur.cashbackIssued)} color="#4f6d8f" bg="#eef2f7" spark={sparkCash}
         delta={<Delta cur={cur.cashbackIssued} prev={prev.cashbackIssued} label={vs} tone="neutral" />} />
@@ -105,7 +105,7 @@ function KpiRow({ range }: { range: Range }) {
         <KPI icon="⏳" label="Pending Reviews" value="–" color="#c42130" bg="#fdf2f2" sub="Couldn't check" />
       ) : (
         <KPI icon="⏳" label="Pending Reviews" value={platform ? formatInteger(awaiting) : '…'}
-          color={awaiting > 0 ? '#c42130' : '#1f8a4c'} bg={awaiting > 0 ? '#fdf2f2' : '#edf7f0'}
+          color={awaiting > 0 ? '#c42130' : '#1a7f45'} bg={awaiting > 0 ? '#fdf2f2' : '#edf7f0'}
           sub={awaiting > 0 ? ((platform?.flagged ?? 0) > 0 ? `${formatInteger(platform.flagged)} flagged` : 'Need action') : 'All clear'} />
       )}
       <KPI icon="💰" label="Credits Outstanding" value={platform ? fmt$(platform.totalCreditsOutstanding) : platformQ.isError ? '–' : '…'}
@@ -195,8 +195,8 @@ function RangeChart({ range }: { range: Range }) {
 
 const STATUS_STYLE: Record<string, { border: string; dot: string; label: string }> = {
   alert: { border: '#f3cdd1', dot: '#c42130', label: 'Needs a look' },
-  watch: { border: '#F6D9A8', dot: '#b7791f', label: 'Keep an eye' },
-  ok:    { border: '#e4e7ec', dot: '#1f8a4c', label: 'Healthy' },
+  watch: { border: '#F6D9A8', dot: '#8a5300', label: 'Keep an eye' },
+  ok:    { border: '#e4e7ec', dot: '#1a7f45', label: 'Healthy' },
 };
 
 function StoreBoard() {
@@ -268,7 +268,7 @@ function StoreRow({ store, i, barWidth, color }: { store: any; i: number; barWid
       </span>
       <span style={s.storeColNum}>{formatInteger(store.transactions)}</span>
       <span style={{ ...s.storeColNum, fontWeight: 700 }}>{fmt$(store.purchaseVolume)}</span>
-      <span style={{ ...s.storeColNum, color: '#1f8a4c', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
+      <span style={{ ...s.storeColNum, color: '#1a7f45', fontWeight: 700 }}>{fmt$(store.cashbackIssued)}</span>
       <span style={s.storeColBar}><div style={s.barTrack}><div style={{ ...s.barFill, width: `${barWidth}%` }} /></div></span>
     </div>
   );
@@ -564,7 +564,7 @@ export default function OperationsView() {
           <StatCard icon="⚠️" label="Customer Disputes" value={formatInteger(disputesPendingCount)}
             valueColor={disputesPendingCount > 0 ? '#c42130' : undefined} to="/customers?tab=disputes" />
           <StatCard icon="🏷️" label="Labels Needing Print" value={count(labelQ, totalStaleLabels)}
-            valueColor={totalStaleLabels > 0 ? '#b7791f' : undefined} to="/labels?tab=health" />
+            valueColor={totalStaleLabels > 0 ? '#8a5300' : undefined} to="/labels?tab=health" />
         </div>
       </div>
     </>

@@ -8,6 +8,8 @@ import { failureMessage } from '../lib/apiError';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 function greeting() {
   const h = new Date().getHours();
@@ -52,7 +54,7 @@ export default function StoreManagerDashboard() {
     return (
       <div style={s.container}>
         <div style={s.errorCard}>
-          <div style={{ fontSize: 40 }}>⚠️</div>
+          <div style={{ fontSize: 40 }}><Glyph e="⚠️" size={28} color="#5a6472" /></div>
           <h2>No Store Assigned</h2>
           <p style={{ color: TEXT_MUTED }}>Contact your Super Admin to assign you to a store.</p>
         </div>
@@ -78,25 +80,19 @@ export default function StoreManagerDashboard() {
         onCancel={() => setConfirmRejectId(null)}
       />
       {/* Welcome Header */}
-      <div style={s.welcomeCard}>
-        <div>
-          <h1 style={s.welcomeTitle}>{greeting()}, {user?.name?.split(' ')[0] || 'Manager'} 👋</h1>
-          <p style={s.welcomeSub}>
-            {isLoading ? 'Loading store info…' : summary?.store
-              ? `${summary.store.name} - ${summary.store.city}`
-              : 'Store Dashboard'}
-          </p>
-        </div>
-        <div style={s.roleBadge}>🏪 Store Manager</div>
-      </div>
+      <PageHeader
+        title={`${greeting()}, ${user?.name?.split(' ')[0] || 'Manager'}`}
+        description={isLoading ? 'Loading store info…' : summary?.store ? `${summary.store.name} - ${summary.store.city}` : 'Store Dashboard'}
+        actions={<span style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 6, padding: '3px 9px' }}>Store Manager</span>}
+      />
 
       {/* Today's Stats */}
       <h2 style={s.sectionTitle}>Today's Activity</h2>
       <div style={s.statsGrid}>
         <StatCard icon="🧾" label="Transactions" value={isLoading ? '…' : summary?.today.transactions ?? 0} />
         <StatCard icon="💵" label="Purchase Volume" value={isLoading ? '…' : `$${Number(summary?.today.purchaseVolume ?? 0).toFixed(2)}`} />
-        <StatCard icon="⭐" label="Points Awarded" value={isLoading ? '…' : `$${Number(summary?.today.pointsAwarded ?? 0).toFixed(2)}`} valueColor="#b7791f" />
-        <StatCard icon="⏳" label="Pending Review" value={isLoading ? '…' : summary?.pending ?? 0} valueColor={summary?.pending ? '#c42130' : '#1f8a4c'} />
+        <StatCard icon="⭐" label="Points Awarded" value={isLoading ? '…' : `$${Number(summary?.today.pointsAwarded ?? 0).toFixed(2)}`} valueColor="#8a5300" />
+        <StatCard icon="⏳" label="Pending Review" value={isLoading ? '…' : summary?.pending ?? 0} valueColor={summary?.pending ? '#c42130' : '#1a7f45'} />
       </div>
 
       {/* All-time Stats */}
@@ -111,15 +107,15 @@ export default function StoreManagerDashboard() {
       <h2 style={s.sectionTitle}>Quick Actions</h2>
       <div style={s.actionGrid}>
         {[
-          { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#b7791f' },
+          { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#8a5300' },
           { icon: '📢', label: 'Offers', desc: 'Create promotions & deals for your store', to: '/offers', color: '#c42130' },
-          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#1f8a4c' },
+          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#1a7f45' },
           { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#4f6d8f' },
           { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#1D3557' },
           { icon: '🏷️', label: 'Labels', desc: 'Create and print shelf/price labels', to: '/labels', color: '#8a5300' },
         ].map((a) => (
           <button key={a.to} style={s.actionCard} onClick={() => navigate(a.to)}>
-            <div style={{ ...s.actionIcon, background: a.color + '18', color: a.color }}>{a.icon}</div>
+            <div style={{ ...s.actionIcon, background: a.color + '18', color: a.color }}><Glyph e={a.icon} size={18} /></div>
             <div>
               <div style={s.actionTitle}>{a.label}</div>
               <div style={s.actionDesc}>{a.desc}</div>
@@ -133,7 +129,7 @@ export default function StoreManagerDashboard() {
       {pendingList.length > 0 && (
         <>
           <h2 style={{ ...s.sectionTitle, marginTop: 28, color: '#c42130' }}>
-            ⏳ Pending Review ({pendingList.length})
+            Pending Review ({pendingList.length})
           </h2>
           <div style={s.pendingList}>
             {pendingList.map((tx: any) => (
@@ -147,7 +143,7 @@ export default function StoreManagerDashboard() {
                 <div style={s.pendingRight}>
                   <div style={s.pendingPoints}>+${Number(tx.pointsAwarded).toFixed(2)}</div>
                   {tx.receiptImageUrl && (
-                    <a href={tx.receiptImageUrl} target="_blank" rel="noreferrer" style={s.receiptLink}>📄 Receipt</a>
+                    <a href={tx.receiptImageUrl} target="_blank" rel="noreferrer" style={s.receiptLink}>Receipt</a>
                   )}
                   <button style={s.rejectBtn} onClick={() => setConfirmRejectId(tx.id)} disabled={rejectMutation.isPending}>Reject</button>
                 </div>
@@ -171,7 +167,7 @@ export default function StoreManagerDashboard() {
                   </div>
                 </div>
                 <div style={s.pendingRight}>
-                  <div style={{ ...s.pendingPoints, color: tx.status === 'APPROVED' ? '#1f8a4c' : tx.status === 'REJECTED' ? '#c42130' : '#b7791f' }}>
+                  <div style={{ ...s.pendingPoints, color: tx.status === 'APPROVED' ? '#1a7f45' : tx.status === 'REJECTED' ? '#c42130' : '#8a5300' }}>
                     {tx.status === 'APPROVED' ? `+$${Number(tx.pointsAwarded).toFixed(2)}` : tx.status}
                   </div>
                 </div>
@@ -187,7 +183,7 @@ export default function StoreManagerDashboard() {
 function StatCard({ icon, label, value, valueColor = PRIMARY }: { icon: string; label: string; value: any; valueColor?: string }) {
   return (
     <div style={s.statCard}>
-      <div style={s.statIcon}>{icon}</div>
+      <div style={s.statIcon}><Glyph e={icon} size={18} /></div>
       <div>
         <div style={s.statLabel}>{label}</div>
         <div style={{ ...s.statValue, color: valueColor }}>{value}</div>
@@ -248,8 +244,8 @@ const s: Record<string, React.CSSProperties> = {
   pendingCustomer: { fontWeight: 700, fontSize: 15, color: PRIMARY },
   pendingMeta: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
   pendingRight: { display: 'flex', alignItems: 'center', gap: 12 },
-  pendingPoints: { fontSize: 16, fontWeight: 700, color: '#1f8a4c' },
-  receiptLink: { fontSize: 15, color: '#457b9d', textDecoration: 'none', fontWeight: 600 },
+  pendingPoints: { fontSize: 16, fontWeight: 700, color: '#1a7f45' },
+  receiptLink: { fontSize: 15, color: '#3c6e8f', textDecoration: 'none', fontWeight: 600 },
   rejectBtn: {
     padding: '6px 16px', borderRadius: 8, border: '1px solid #c42130',
     background: 'transparent', color: '#c42130', cursor: 'pointer', fontWeight: 600, fontSize: 15,

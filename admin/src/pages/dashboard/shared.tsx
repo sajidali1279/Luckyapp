@@ -18,7 +18,7 @@ export const CAT_ICONS: Record<string, string> = {
 };
 
 // Store badges: shades of the brand navy, so no store colour reads as a status
-const AVATAR_PALETTE = [PRIMARY, '#457B9D', '#2f4f7a', '#5c7391', '#16294a', '#3a5a85'];
+const AVATAR_PALETTE = [PRIMARY, '#3c6e8f', '#2f4f7a', '#5c7391', '#16294a', '#3a5a85'];
 export function storeColor(i: number) { return AVATAR_PALETTE[i % AVATAR_PALETTE.length]; }
 export const MEDALS = ['#1', '#2', '#3'];
 
@@ -250,12 +250,12 @@ export const s: Record<string, React.CSSProperties> = {
   welcomeTitle: { color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 },
   welcomeSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13.5, lineHeight: 1.5, margin: '4px 0 0' },
   roleBadge: {
-    background: 'rgba(244,162,97,0.18)', color: '#b7791f',
+    background: 'rgba(244,162,97,0.18)', color: '#8a5300',
     border: '1px solid rgba(244,162,97,0.35)',
     borderRadius: 24, padding: '8px 18px', fontWeight: 700, fontSize: 14,
     whiteSpace: 'nowrap', flexShrink: 0,
   },
-  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#1f8a4c', border: '1px solid rgba(45,198,83,0.3)' },
+  roleBadgeDev: { background: 'rgba(45,198,83,0.15)', color: '#1a7f45', border: '1px solid rgba(45,198,83,0.3)' },
 
   toolRow: { display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' as const, marginBottom: 18 },
   quickActions: { display: 'flex', gap: 6, flexWrap: 'wrap' as const, flex: 1, minWidth: 260 },

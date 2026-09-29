@@ -151,7 +151,7 @@ export default function BulkPrintWizard({ queue, onClose }: Props) {
       <div style={m.actions}>
         <button style={m.skipBtn} onClick={onClose}>Cancel</button>
         <button style={m.primaryBtn} onClick={handlePrintAll}>
-          🖨️ Print All {totalItems}
+          Print All {totalItems}
         </button>
       </div>
     </Modal>

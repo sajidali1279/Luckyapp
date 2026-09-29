@@ -8,6 +8,9 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button, HeaderStat } from '../components/kit';
+import { Plus } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 interface CatalogItem {
   id: string;
@@ -23,12 +26,12 @@ interface CatalogItem {
 }
 
 const CATEGORY_OPTIONS = [
-  { value: 'IN_STORE',     label: '🛒 In-Store',     desc: 'General in-store items' },
-  { value: 'GAS',          label: '⛽ Gas',           desc: 'Fuel & pump rewards' },
-  { value: 'HOT_FOODS',    label: '🌮 Hot Foods',     desc: 'Hot food items (select locations)' },
-  { value: 'GROCERIES',    label: '🛍️ Groceries',    desc: 'Grocery & packaged goods' },
-  { value: 'FROZEN_FOODS', label: '🧊 Frozen Foods',  desc: 'Frozen food items' },
-  { value: 'FRESH_FOODS',  label: '🥗 Fresh Foods',   desc: 'Fresh produce & deli items' },
+  { value: 'IN_STORE',     label: 'In-Store',     desc: 'General in-store items' },
+  { value: 'GAS',          label: 'Gas',           desc: 'Fuel & pump rewards' },
+  { value: 'HOT_FOODS',    label: 'Hot Foods',     desc: 'Hot food items (select locations)' },
+  { value: 'GROCERIES',    label: 'Groceries',    desc: 'Grocery & packaged goods' },
+  { value: 'FROZEN_FOODS', label: 'Frozen Foods',  desc: 'Frozen food items' },
+  { value: 'FRESH_FOODS',  label: 'Fresh Foods',   desc: 'Fresh produce & deli items' },
 ];
 
 const KNOWN_CHAINS = ['Lucky Stop'];
@@ -233,7 +236,7 @@ function ChainSection({
   return (
     <div style={cs.section}>
       <div style={{ ...cs.chainHeader, borderLeftColor: meta.color }}>
-        <span style={cs.chainIcon}>{meta.icon}</span>
+        <span style={cs.chainIcon}><Glyph e={meta.icon} size={18} /></span>
         <div>
           <div style={cs.chainName}>{chain}</div>
           <div style={cs.chainCount}>{items.length} item{items.length !== 1 ? 's' : ''}</div>
@@ -258,7 +261,7 @@ function ChainSection({
                   <TableCell style={cs.td}><span style={cs.itemTitle}>{item.title}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.catBadge}>
-                      {{ IN_STORE: '🛒 In-Store', GAS: '⛽ Gas', HOT_FOODS: '🌮 Hot Foods' }[item.category as string] || item.category}
+                      {{ IN_STORE: 'In-Store', GAS: 'Gas', HOT_FOODS: 'Hot Foods' }[item.category as string] || item.category}
                     </span>
                   </TableCell>
                   <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || ' - '}</span></TableCell>
@@ -370,44 +373,24 @@ export default function CatalogPage() {
       <div style={s.inner}>
 
         {/* Header */}
-        <div style={s.pageHeader}>
-          <div>
-            <h1 style={s.pageTitle}>🎁 Redemption Catalog</h1>
-            <p style={s.pageSub}>
-              Fixed reward items customers redeem with their points
-              {isDevAdmin && chains.length > 0 && ` · ${chains.length} compan${chains.length > 1 ? 'ies' : 'y'}`}
-            </p>
-          </div>
-          <button style={s.createBtn} onClick={openCreate}>+ New Item</button>
-        </div>
-
-        {/* Stats bar */}
+      <PageHeader
+        title="Redemption Catalog"
+        description={<>Fixed reward items customers redeem with their points{isDevAdmin && chains.length > 0 && ` · ${chains.length} compan${chains.length > 1 ? 'ies' : 'y'}`}</>}
+        actions={<Button variant="primary" icon={<Plus />} onClick={openCreate}>New Item</Button>}
+      >
         {!isLoading && visibleItems.length > 0 && (
-          <div style={s.statsRow}>
-            <div style={s.statCard}>
-              <div style={s.statVal}>{visibleItems.length}</div>
-              <div style={s.statLabel}>Total Items</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={s.statVal}>{activeCount}</div>
-              <div style={s.statLabel}>Active</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={s.statVal}>{visibleItems.length - activeCount}</div>
-              <div style={s.statLabel}>Inactive</div>
-            </div>
-            {isDevAdmin && (
-              <div style={s.statCard}>
-                <div style={s.statVal}>{chains.length}</div>
-                <div style={s.statLabel}>Companies</div>
-              </div>
-            )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <HeaderStat label="Total Items" value={visibleItems.length} />
+            <HeaderStat label="Active" value={activeCount} tone="success" />
+            <HeaderStat label="Inactive" value={visibleItems.length - activeCount} />
+            {isDevAdmin && <HeaderStat label="Companies" value={chains.length} />}
           </div>
         )}
+      </PageHeader>
 
         {/* Info banner */}
         <div style={s.infoBanner}>
-          <span>ℹ️</span>
+          <Glyph e="ℹ️" size={16} style={{ marginTop: 2 }} />
           <span style={s.infoText}>
             100 pts = $1.00 value · cashback rate is tier-based (Bronze 1% → Platinum 5%) · cashiers process redemptions by scanning the customer's QR code
           </span>
@@ -418,7 +401,7 @@ export default function CatalogPage() {
           <TableSkeleton columns={8} />
         ) : visibleItems.length === 0 ? (
           <div style={s.emptyBox}>
-            <div style={s.emptyIcon}>🏷️</div>
+            <div style={s.emptyIcon}><Glyph e="🏷️" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>No catalog items yet</div>
             <div style={s.emptySub}>Create your first reward item to get started</div>
             <button style={s.createBtn} onClick={openCreate}>+ Create First Item</button>

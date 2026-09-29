@@ -161,7 +161,7 @@ function holidayDay(date: string): string {
 const REGION = { latMin: 25.8, latMax: 37.1, lngMin: -106.7, lngMax: -93.5 };
 
 const AVATAR_PALETTE = [
-  '#c42130', '#457B9D', '#1f8a4c', '#b7791f', '#4f6d8f',
+  '#c42130', '#3c6e8f', '#1a7f45', '#8a5300', '#4f6d8f',
   '#0077B6', '#E76F51', '#2A9D8F', '#E9C46A', '#264653',
   '#6A0572', PRIMARY,
 ];
@@ -650,7 +650,7 @@ export default function Stores() {
 
   return (
     <div style={s.page}>
-      <ConfirmModal
+      <ConfirmModal headingLevel="h2"
         open={!!confirmRegenId}
         title="Regenerate API Key"
         message="The old key stops working immediately. You must update config.json on that store's POS device before it can process transactions again."
@@ -659,7 +659,7 @@ export default function Stores() {
         onConfirm={() => { if (confirmRegenId) { regenApiKey(confirmRegenId); } setConfirmRegenId(null); }}
         onCancel={() => setConfirmRegenId(null)}
       />
-      <ConfirmModal
+      <ConfirmModal headingLevel="h2"
         open={!!confirmDeactivateId}
         title="Deactivate Store"
         message="Customers stop seeing this store anywhere in the app (gas prices, offers, hot food), and sales, redemptions and benefit claims can no longer be recorded here. Staff keep their accounts. You can reactivate it any time from this page."
@@ -668,7 +668,7 @@ export default function Stores() {
         onConfirm={() => { if (confirmDeactivateId) { runActive({ storeId: confirmDeactivateId, isActive: false }); } setConfirmDeactivateId(null); }}
         onCancel={() => setConfirmDeactivateId(null)}
       />
-      <ConfirmModal
+      <ConfirmModal headingLevel="h2"
         open={!!pendingGas}
         title={`Change prices at ${pendingGas?.store.name ?? ''}?`}
         message={pendingGas ? (
@@ -723,7 +723,7 @@ export default function Stores() {
                     <div style={s.storeSub}>{store.city}, {store.state}</div>
                   </div>
                   <div style={s.badgeStack}>
-                    <div style={{ ...s.coordBadge, background: hasCoords ? '#edf7f0' : '#fdf2f2', border: hasCoords ? '1px solid #c8e6d2' : '1px solid #f3cdd1', color: hasCoords ? '#1f8a4c' : '#a51b28' }}>
+                    <div style={{ ...s.coordBadge, background: hasCoords ? '#edf7f0' : '#fdf2f2', border: hasCoords ? '1px solid #c8e6d2' : '1px solid #f3cdd1', color: hasCoords ? '#1a7f45' : '#a51b28' }}>
                       {hasCoords ? 'Located' : 'No coords'}
                     </div>
                     {store.minimumAge === 21 && (
@@ -879,7 +879,7 @@ export default function Stores() {
                 {isDevAdmin && (
                   <div style={s.cardBtns}>
                     <button
-                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#a51b28', borderColor: '#f3cdd1' } : { color: '#1f8a4c', borderColor: '#c8e6d2' }) }}
+                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#a51b28', borderColor: '#f3cdd1' } : { color: '#1a7f45', borderColor: '#c8e6d2' }) }}
                       onClick={() => store.isActive ? setConfirmDeactivateId(store.id) : runActive({ storeId: store.id, isActive: true })}
                       disabled={activeMutation.isPending}
                     >
@@ -1046,7 +1046,7 @@ export default function Stores() {
                       <div key={h.id} style={s.kwRow}>
                         <span style={s.holidayDate}>{holidayDay(h.date)}</span>
                         <span style={{ flex: 1, color: '#374151' }}>{h.label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: h.isClosed ? '#a51b28' : '#1f8a4c' }}>{scheduleSummary(h)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: h.isClosed ? '#a51b28' : '#1a7f45' }}>{scheduleSummary(h)}</span>
                         <button style={s.kwDeleteBtn} aria-label={`Remove the ${h.label} holiday hours`} onClick={() => removeHoliday(h.id)}>✕</button>
                       </div>
                     ))}
@@ -1363,9 +1363,9 @@ const s: Record<string, React.CSSProperties> = {
   apiKeyBtn: { fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 7, border: '1.5px solid #e4e7ec', background: '#fff', cursor: 'pointer', color: PRIMARY },
 
   disputeBanner: { display: 'flex', alignItems: 'center', gap: 8, background: '#fdf6e8', borderRadius: 10, padding: '8px 12px', margin: '10px 0 0', border: '1px solid #f1dcaf' },
-  disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#b7791f', flexShrink: 0 },
+  disputeBannerDot: { width: 8, height: 8, borderRadius: 4, background: '#8a5300', flexShrink: 0 },
   disputeBannerText: { flex: 1, fontSize: 14, fontWeight: 700, color: '#8a5300' },
-  disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#b7791f', textDecoration: 'none' },
+  disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#8a5300', textDecoration: 'none' },
 
   cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
   kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #e4e7ec', background: '#f7f8fa', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: PRIMARY },
@@ -1376,7 +1376,7 @@ const s: Record<string, React.CSSProperties> = {
   kwRow: { display: 'flex', alignItems: 'center', gap: 8, background: '#f7f8fa', borderRadius: 9, padding: '8px 11px', border: '1px solid #e4e7ec' },
   kwKeyword: { fontFamily: 'monospace', fontSize: 15, color: PRIMARY, fontWeight: 700, flex: 1 },
   kwArrow: { color: TEXT_MUTED, fontSize: 14 },
-  kwCat: { fontSize: 14, fontWeight: 700, color: '#1f8a4c', background: '#edf7f0', borderRadius: 20, padding: '2px 9px', border: '1px solid #c8e6d2' },
+  kwCat: { fontSize: 14, fontWeight: 700, color: '#1a7f45', background: '#edf7f0', borderRadius: 20, padding: '2px 9px', border: '1px solid #c8e6d2' },
   kwDeleteBtn: { background: 'none', border: 'none', color: '#a51b28', cursor: 'pointer', fontWeight: 700, fontSize: 14, padding: '0 4px', lineHeight: 1 },
   kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
   kwAddBtn: { padding: '9px 16px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
@@ -1400,14 +1400,14 @@ const s: Record<string, React.CSSProperties> = {
   catSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
   catPillRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 4 },
   catPill: { fontSize: 13, fontWeight: 600, borderRadius: 20, padding: '3px 9px', border: '1px solid' },
-  catPillOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  catPillOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1a7f45' },
   catPillOff: { background: '#f9f9f9', borderColor: '#e4e7ec', color: '#5a6472', textDecoration: 'line-through' },
 
 
   catHint: { fontSize: 14, color: TEXT_MUTED, background: '#f7f8fa', borderRadius: 8, padding: '8px 12px', marginBottom: 10 },
   catToggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(120px, 100%), 1fr))', gap: 8, marginBottom: 8 },
   catToggleBtn: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, padding: '10px 6px', borderRadius: 10, border: '1.5px solid', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  catToggleBtnOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  catToggleBtnOn: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1a7f45' },
   catToggleBtnOff: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
   catToggleCheck: { fontSize: 13, fontWeight: 700 },
   resetCatBtn: { fontSize: 14, color: PRIMARY, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginBottom: 8, padding: 0 },
@@ -1421,7 +1421,7 @@ const s: Record<string, React.CSSProperties> = {
   hoursDayControls: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 },
   hoursChip: { fontSize: 13, fontWeight: 700, padding: '5px 11px', borderRadius: 20, border: '1.5px solid #e4e7ec', background: '#fff', color: TEXT_MUTED, cursor: 'pointer' },
   hoursChipOffRed: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
-  hoursChipOnGreen: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  hoursChipOnGreen: { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1a7f45' },
   hoursTimeInput: { border: '1.5px solid #e4e7ec', borderRadius: 7, padding: '5px 8px', fontSize: 14, color: '#111827', outline: 'none' },
   holidayDate: { fontWeight: 700, color: '#111827', width: 66, flexShrink: 0, fontSize: 14 },
 

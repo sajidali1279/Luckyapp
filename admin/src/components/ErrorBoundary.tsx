@@ -1,5 +1,6 @@
 import { Component, CSSProperties, ReactNode } from 'react';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 // Without this, one page that receives something it did not expect blanks the whole app, sidebar included.
 // Placed around a page, the sidebar stays and the person gets a way out. Placed at the very top, it is the last resort.
@@ -50,7 +51,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     return (
       <div style={s.wrap} role="alert">
         <div style={s.card}>
-          <div style={s.icon} aria-hidden="true">⚠️</div>
+          <div style={s.icon} aria-hidden="true"><Glyph e="⚠️" size={30} color="#8a5300" /></div>
           <h1 style={s.title}>This page ran into a problem</h1>
           <p style={s.text}>The rest of the admin still works. Try again, or go back to the Dashboard. If it keeps happening, copy the details and send them to support.</p>
           <div style={s.buttons}>

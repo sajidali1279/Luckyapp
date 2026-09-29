@@ -7,6 +7,10 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button } from '../components/kit';
+import { Plus, Search } from 'lucide-react';
+import { INPUT } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 interface ScannedProduct {
   id: string;
@@ -340,34 +344,33 @@ export default function ScannedProducts() {
       <div style={s.inner}>
 
         {/* Header */}
-        <div style={s.pageHeader}>
-          <div>
-            <h1 style={s.pageTitle}>📦 Scanned Products</h1>
-            <p style={s.pageSub}>
-              Chain-wide barcode → name/category/brand catalog built up by managers scanning products on mobile
-              {!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown`}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={s.searchWrap}>
-              <span style={s.searchIcon}>🔍</span>
+      <PageHeader
+        title="Scanned Products"
+        description={<>Chain-wide barcode catalog (name, category, brand) built up by managers scanning products on mobile{!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown`}</>}
+        actions={
+          <>
+            <div style={{ position: 'relative', width: 260 }}>
+              <Search size={15} aria-hidden="true" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
               <input
-                style={s.searchInput}
+                className="ui-input"
+                style={{ ...INPUT, paddingLeft: 32 }}
+                aria-label="Search by product name"
                 placeholder="Search by product name…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <button style={s.addBtn} onClick={() => setShowAddModal(true)}>+ Add Product</button>
-          </div>
-        </div>
+            <Button variant="primary" icon={<Plus />} onClick={() => setShowAddModal(true)}>Add Product</Button>
+          </>
+        }
+      />
 
         {/* Content */}
         {isLoading ? (
           <TableSkeleton columns={7} />
         ) : products.length === 0 ? (
           <div style={s.emptyBox}>
-            <div style={s.emptyIcon}>📦</div>
+            <div style={s.emptyIcon}><Glyph e="📦" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>{search ? 'No matching products' : 'No scanned products yet'}</div>
             <div style={s.emptySub}>
               {search ? 'Try a different search term' : 'Products appear here as managers scan barcodes while building order lists on mobile'}

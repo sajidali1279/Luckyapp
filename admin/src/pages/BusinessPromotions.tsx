@@ -7,6 +7,9 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, storeDayLong } from '../lib/storeDates';
+import { PageHeader, Button, HeaderStat } from '../components/kit';
+import { Plus } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 interface PromoRequest {
   id: string;
@@ -28,8 +31,8 @@ interface PromoRequest {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:  '#b7791f',
-  APPROVED: '#1f8a4c',
+  PENDING:  '#8a5300',
+  APPROVED: '#1a7f45',
   REJECTED: '#c42130',
 };
 
@@ -126,20 +129,20 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
                 <img src={imagePreview} alt="preview" style={m.previewImg} />
                 <div style={m.previewActions}>
                   <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
-                    🔄 Change
+                    Change
                   </button>
                   <button
                     style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
                     type="button"
                     onClick={() => { setRemoveImage(true); setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
-                    🗑 Remove
+                    Remove
                   </button>
                 </div>
               </div>
             ) : (
               <button style={m.uploadBtn} type="button" onClick={() => fileRef.current?.click()}>
-                <span style={{ fontSize: 24 }}>🖼️</span>
+                <span style={{ fontSize: 24 }}><Glyph e="🖼️" size={28} color="#5a6472" /></span>
                 <span style={m.uploadBtnText}>Click to upload banner image</span>
                 <span style={m.uploadBtnSub}>PNG, JPG, WEBP · max 10MB</span>
               </button>
@@ -167,7 +170,7 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
             onClick={() => publishMutation.mutate()}
             disabled={publishMutation.isPending || !adTitle.trim() || !adBody.trim()}
           >
-            {publishMutation.isPending ? 'Publishing...' : '🚀 Publish Ad'}
+            {publishMutation.isPending ? 'Publishing...' : 'Publish Ad'}
           </button>
         </div>
       </div>
@@ -282,20 +285,20 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
                 <img src={imagePreview} alt="preview" style={m.previewImg} />
                 <div style={m.previewActions}>
                   <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
-                    🔄 Change
+                    Change
                   </button>
                   <button
                     style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
                     type="button"
                     onClick={() => { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
-                    🗑 Remove
+                    Remove
                   </button>
                 </div>
               </div>
             ) : (
               <button style={m.uploadBtn} type="button" onClick={() => fileRef.current?.click()}>
-                <span style={{ fontSize: 24 }}>🖼️</span>
+                <span style={{ fontSize: 24 }}><Glyph e="🖼️" size={28} color="#5a6472" /></span>
                 <span style={m.uploadBtnText}>Click to upload banner image</span>
                 <span style={m.uploadBtnSub}>PNG, JPG, WEBP · max 10MB</span>
               </button>
@@ -323,7 +326,7 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending || !canSubmit}
           >
-            {createMutation.isPending ? 'Adding...' : '🚀 Add & Publish'}
+            {createMutation.isPending ? 'Adding...' : 'Add & Publish'}
           </button>
         </div>
       </div>
@@ -397,28 +400,17 @@ export default function BusinessPromotions() {
         onCancel={() => setDeleteTarget(null)}
       />
       {showCreateModal && <CreatePromotionModal onClose={() => setShowCreateModal(false)} />}
-      <div style={s.topBar}>
-        <div>
-          <h1 style={s.title}>Business Promotions</h1>
-          <p style={s.subtitle}>Review advertising requests and publish approved ads to the customer app.</p>
+      <PageHeader
+        title="Business Promotions"
+        description="Review advertising requests and publish approved ads to the customer app."
+        actions={<Button variant="primary" icon={<Plus />} onClick={() => setShowCreateModal(true)}>Add Promotion</Button>}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <HeaderStat label="Pending" value={counts.PENDING} tone={counts.PENDING > 0 ? 'warning' : 'neutral'} />
+          <HeaderStat label="Approved" value={counts.APPROVED} tone="success" />
+          <HeaderStat label="Rejected" value={counts.REJECTED} tone="danger" />
         </div>
-        <button style={s.addBtn} onClick={() => setShowCreateModal(true)}>+ Add Promotion</button>
-      </div>
-
-      {/* Stats row */}
-      <div style={s.statsRow}>
-        {(['PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
-          <div key={st} style={s.statCard}>
-            <div style={{ ...s.statIconWrap, background: STATUS_BG[st] }}>
-              <span style={s.statIcon}>{STATUS_ICONS[st]}</span>
-            </div>
-            <div>
-              <div style={s.statLabel}>{st.charAt(0) + st.slice(1).toLowerCase()}</div>
-              <div style={{ ...s.statNum, color: STATUS_COLORS[st] }}>{counts[st]}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      </PageHeader>
 
       {/* Filter */}
       <div style={s.filterRow}>
@@ -438,7 +430,7 @@ export default function BusinessPromotions() {
         <CardSkeleton count={3} />
       ) : requests.length === 0 ? (
         <div style={s.empty}>
-          <div style={s.emptyEmoji}>📣</div>
+          <div style={s.emptyEmoji}><Glyph e="📣" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>No requests yet</div>
           <div style={s.emptySub}>Customers can submit business promotion requests from their profile.</div>
         </div>
@@ -517,7 +509,7 @@ export default function BusinessPromotions() {
                             style={s.publishActionBtn}
                             onClick={() => setPublishTarget(req)}
                           >
-                            🚀 Review & Publish
+                            Review & Publish
                           </button>
                           <button
                             style={s.rejectBtn}
@@ -533,7 +525,7 @@ export default function BusinessPromotions() {
                           style={s.publishActionBtn}
                           onClick={() => setPublishTarget(req)}
                         >
-                          ✏️ Edit Ad
+                          Edit Ad
                         </button>
                       )}
                       {req.status === 'REJECTED' && (
@@ -541,7 +533,7 @@ export default function BusinessPromotions() {
                           style={s.publishActionBtn}
                           onClick={() => setPublishTarget(req)}
                         >
-                          🔄 Publish Anyway
+                          Publish Anyway
                         </button>
                       )}
                       <button
@@ -549,7 +541,7 @@ export default function BusinessPromotions() {
                         onClick={() => setDeleteTarget(req)}
                         disabled={deleteMutation.isPending}
                       >
-                        🗑️ Delete
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -637,7 +629,7 @@ const s: Record<string, React.CSSProperties> = {
   infoBlock: {},
   infoLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   infoValue: { fontSize: 14, color: '#374151', lineHeight: 1.5 },
-  link: { fontSize: 14, color: '#457B9D' },
+  link: { fontSize: 14, color: '#3c6e8f' },
 
   actionRow: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   publishActionBtn: {
@@ -695,7 +687,7 @@ const m: Record<string, React.CSSProperties> = {
   },
   publishBtn: {
     padding: '9px 20px', borderRadius: 8, border: 'none',
-    background: '#1f8a4c', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+    background: '#1a7f45', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
   },
 
   imageArea: { marginBottom: 4 },

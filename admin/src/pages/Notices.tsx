@@ -8,6 +8,8 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, addDays, endOfStoreDay, storeDayLong } from '../lib/storeDates';
+import { PageHeader, Button } from '../components/kit';
+import { Plus, X } from 'lucide-react';
 
 // Dates are store days (Central time): "today" does not turn into tomorrow after 7 pm, and a notice ends at 11:59 pm at the store
 // whatever time zone this browser is in
@@ -18,7 +20,7 @@ function fmtDate(d: string) { return storeDayLong(d); }
 function noticeStatus(notice: any): { label: string; color: string; bg: string } {
   if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#e4e7ec' };
   if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: TEXT_MUTED, bg: '#e4e7ec' };
-  return { label: 'Active', color: '#1f8a4c', bg: '#edf7f0' };
+  return { label: 'Active', color: '#1a7f45', bg: '#edf7f0' };
 }
 
 export default function Notices() {
@@ -114,15 +116,15 @@ export default function Notices() {
         onCancel={() => setConfirmDeleteId(null)}
       />
 
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>📌 Important Notices</h1>
-          <p style={s.sub}>Posted as a pinned banner at the top of store chat - for time-sensitive HQ announcements</p>
-        </div>
-        <button style={s.addBtn} onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Notice'}
-        </button>
-      </div>
+      <PageHeader
+        title="Important Notices"
+        description="Posted as a pinned banner at the top of store chat, for time-sensitive HQ announcements."
+        actions={
+          <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />} onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Cancel' : 'New Notice'}
+          </Button>
+        }
+      />
 
       {showForm && (
         <form style={s.form} onSubmit={handleCreate}>
@@ -139,7 +141,7 @@ export default function Notices() {
 
           {isStoreManager && ownStoreIds.length <= 1 ? (
             <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
-              📍 This notice will appear for your store only
+              This notice will appear for your store only
             </div>
           ) : isStoreManager ? (
             <>
@@ -155,8 +157,8 @@ export default function Notices() {
             <>
               <label style={s.label}>Apply To</label>
               <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-                <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
-                <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
+                <option value="ALL_STORES">All {stores.length || ''} Stores</option>
+                <option value="SPECIFIC_STORE">Specific Store Only</option>
               </select>
               {storeTarget === 'SPECIFIC_STORE' && (
                 <>
@@ -196,7 +198,7 @@ export default function Notices() {
                   <p style={s.cardBody}>{notice.body}</p>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     <span style={notice.storeId ? s.tagStore : s.tagAll}>
-                      {notice.storeId ? `📍 ${storeMap[notice.storeId] || 'Specific Store'}` : '🌐 All Stores'}
+                      {notice.storeId ? `${storeMap[notice.storeId] || 'Specific Store'}` : 'All Stores'}
                     </span>
                     <span style={s.tagDate}>Expires {fmtDate(notice.endDate)}</span>
                   </div>
@@ -223,7 +225,7 @@ const s: Record<string, React.CSSProperties> = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-  addBtn: { background: '#c42130', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+  addBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
 
   form: {
     background: '#fff', borderRadius: 12, padding: '24px 28px', marginBottom: 32,

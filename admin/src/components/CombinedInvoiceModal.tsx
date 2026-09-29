@@ -1,6 +1,7 @@
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from './ui/table';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
+import Glyph from '../components/Glyph';
 
 export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void }) {
   const invNum = `INV-${inv.period.replace('-', '')}-ALL`;
@@ -75,7 +76,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
         {/* Screen header */}
         <div style={inv2.header}>
           <div>
-            <div style={inv2.headerBrand}>⛽ Lucky Stop</div>
+            <div style={inv2.headerBrand}>Lucky Stop</div>
             <div style={inv2.headerSub}>Gas Station Loyalty Platform</div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -87,7 +88,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
         {/* Printable area */}
         <div id="combined-invoice-print-area">
           <div className="header" style={{ display: 'none' }}>
-            <div><div className="brand">⛽ Lucky Stop</div><div className="brand-sub">Gas Station Loyalty Platform</div></div>
+            <div><div className="brand">Lucky Stop</div><div className="brand-sub">Gas Station Loyalty Platform</div></div>
             <div style={{ textAlign: 'right' }}><h1>INVOICE</h1><div className="inv-num">{invNum}</div></div>
           </div>
 
@@ -107,7 +108,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
               <div style={inv2.metaDetail}>
                 <span>Status</span>
                 <span style={inv.isPaid ? inv2.paidTag : inv2.unpaidTag}>
-                  {inv.isPaid ? '✓ ALL PAID' : '⏳ OUTSTANDING'}
+                  {inv.isPaid ? '✓ ALL PAID' : 'OUTSTANDING'}
                 </span>
               </div>
             </div>
@@ -156,7 +157,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 return (
                   <TableRow key={r.id} style={i % 2 === 1 ? { background: '#f7f8fa' } : undefined}>
                     <TableCell style={inv2.tableTd}>
-                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? '🔗 All Stores (Chain-wide)'}</div>
+                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? 'All Stores (Chain-wide)'}</div>
                       {r.store?.city && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{r.store.city}</div>}
                       {isManual && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
                     </TableCell>
@@ -207,7 +208,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             </div>
           ) : (
             <div style={{ background: '#fdf6e8', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <span style={{ fontSize: 24 }}>⏳</span>
+              <span style={{ fontSize: 24 }}><Glyph e="⏳" size={28} color="#5a6472" /></span>
               <div>
                 <div style={{ fontWeight: 700, color: '#8a5300', fontSize: 15 }}>Payment Outstanding</div>
                 <div style={{ fontSize: 15, color: '#8a5300', marginTop: 2 }}>
@@ -224,7 +225,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
 
         {/* Actions */}
         <div style={inv2.actions}>
-          <button style={inv2.printBtn} onClick={handlePrint}>🖨️ Print / Save PDF</button>
+          <button style={inv2.printBtn} onClick={handlePrint}>Print / Save PDF</button>
           <button style={inv2.closeBtn} onClick={onClose}>✕ Close</button>
         </div>
       </div>

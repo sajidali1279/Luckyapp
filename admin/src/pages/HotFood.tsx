@@ -12,6 +12,8 @@ import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/Hot
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { PageHeader, Button, Tabs } from '../components/kit';
+import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,9 +48,9 @@ function toTitleCase(s: string) {
 }
 
 const STATUS_CFG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  PENDING:   { label: 'Pending',   color: '#b7791f', bg: '#fdf6e8' },
-  ACCEPTED:  { label: 'Preparing', color: '#457B9D', bg: '#eef2f7' },
-  READY:     { label: 'Ready',     color: '#1f8a4c', bg: '#edf7f0' },
+  PENDING:   { label: 'Pending',   color: '#8a5300', bg: '#fdf6e8' },
+  ACCEPTED:  { label: 'Preparing', color: '#3c6e8f', bg: '#eef2f7' },
+  READY:     { label: 'Ready',     color: '#1a7f45', bg: '#edf7f0' },
   COMPLETED: { label: 'Done',      color: TEXT_MUTED, bg: '#f7f8fa' },
   CANCELLED: { label: 'Cancelled', color: '#c42130', bg: '#fdf2f2' },
 };
@@ -116,20 +118,20 @@ function OrderCard({ order, onUpdate, updatingId }: {
 
       <div style={oc.actions}>
         {order.status === 'PENDING' && (
-          <button style={{ ...oc.btn, background: '#b7791f', opacity: busy ? 0.6 : 1 }}
+          <button style={{ ...oc.btn, background: '#8a5300', opacity: busy ? 0.6 : 1 }}
             onClick={() => onUpdate(order.id, 'ACCEPTED')} disabled={busy}>
             {busy ? 'Updating…' : 'Accept Order'}
           </button>
         )}
         {order.status === 'ACCEPTED' && (
-          <button style={{ ...oc.btn, background: '#457B9D', opacity: busy ? 0.6 : 1 }}
+          <button style={{ ...oc.btn, background: '#3c6e8f', opacity: busy ? 0.6 : 1 }}
             onClick={() => onUpdate(order.id, 'READY')} disabled={busy}>
             {busy ? 'Updating…' : 'Mark Ready'}
           </button>
         )}
         {order.status === 'READY' && (
           <>
-            <button style={{ ...oc.btn, background: '#1f8a4c', flex: 1, opacity: busy ? 0.6 : 1 }}
+            <button style={{ ...oc.btn, background: '#1a7f45', flex: 1, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'COMPLETED')} disabled={busy}>
               <CheckCircle size={13} color="#fff" />
               {busy ? 'Updating…' : 'Complete'}
@@ -142,8 +144,8 @@ function OrderCard({ order, onUpdate, updatingId }: {
         )}
         {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
           <div style={oc.done}>
-            <CheckCircle size={13} color={order.status === 'COMPLETED' ? '#1f8a4c' : '#d5dae1'} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#1f8a4c' : '#5a6472' }}>
+            <CheckCircle size={13} color={order.status === 'COMPLETED' ? '#1a7f45' : '#d5dae1'} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: order.status === 'COMPLETED' ? '#1a7f45' : '#5a6472' }}>
               {order.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
             </span>
           </div>
@@ -478,7 +480,7 @@ export default function HotFood() {
       await storesApi.update(store.id, { hotFoodEnabled: !store.hotFoodEnabled });
       qc.invalidateQueries({ queryKey: ['stores'] });
       qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] });
-      toast.success(store.hotFoodEnabled ? `🔥 Hot food disabled at ${store.name}` : `🔥 Hot food enabled at ${store.name}`);
+      toast.success(store.hotFoodEnabled ? `Hot food disabled at ${store.name}` : `Hot food enabled at ${store.name}`);
     } catch {
       toast.error('Failed to update hot food setting');
     } finally {
@@ -543,62 +545,30 @@ export default function HotFood() {
   return (
     <div style={pg.container}>
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div style={pg.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={pg.iconWrap}><Flame size={18} color="#fff" /></div>
-          <div>
-            <h1 style={pg.title}>Hot Food</h1>
-            <p style={pg.sub}>
-              {view === 'orders'
-                ? pendingCount > 0 ? `${pendingCount} pending order${pendingCount !== 1 ? 's' : ''} · auto-refreshes every 20s` : 'Live order board · auto-refreshes every 20s'
-                : view === 'catalog'
-                ? `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`
-                : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Orders / Catalog toggle */}
-          <div style={pg.toggle}>
-            <button
-              style={{ ...pg.toggleBtn, ...(view === 'orders' ? pg.toggleBtnOn : {}) }}
-              onClick={() => setView('orders')}
-            >
-              Orders
-              {pendingCount > 0 && (
-                <span style={{ ...pg.toggleBadge, ...(view === 'orders' ? pg.toggleBadgeOn : {}) }}>
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-            <button
-              style={{ ...pg.toggleBtn, ...(view === 'catalog' ? pg.toggleBtnOn : {}) }}
-              onClick={() => setView('catalog')}
-            >
-              Catalog
-            </button>
-            <button
-              style={{ ...pg.toggleBtn, ...(view === 'availability' ? pg.toggleBtnOn : {}) }}
-              onClick={() => setView('availability')}
-            >
-              Availability
-            </button>
-          </div>
-
-          {view === 'orders' ? (
-            <button style={pg.refreshBtn} onClick={() => refetch()}>
-              <RefreshCw size={13} style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />
-              Refresh
-            </button>
-          ) : view === 'catalog' ? (
-            <button style={pg.addBtn} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>
-              <Plus size={14} />
-              Add Item
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <PageHeader
+        title="Hot Food"
+        description={view === 'orders'
+          ? pendingCount > 0 ? `${pendingCount} pending order${pendingCount !== 1 ? 's' : ''} · auto-refreshes every 20s` : 'Live order board · auto-refreshes every 20s'
+          : view === 'catalog'
+          ? `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`
+          : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
+        actions={view === 'orders' ? (
+          <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
+        ) : view === 'catalog' ? (
+          <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add Item</Button>
+        ) : null}
+      />
+      <Tabs
+        asButtons
+        ariaLabel="Hot food view"
+        value={view}
+        onChange={setView}
+        tabs={[
+          { value: 'orders', label: 'Orders', count: pendingCount > 0 ? pendingCount : undefined },
+          { value: 'catalog', label: 'Catalog' },
+          { value: 'availability', label: 'Availability' },
+        ]}
+      />
 
       {/* ── Orders view ─────────────────────────────────────────────────── */}
       {view === 'orders' && (
@@ -709,8 +679,8 @@ export default function HotFood() {
                       <div style={pg.tileBottom}>
                         <span style={pg.tilePrice}>${Number(item.price).toFixed(2)}</span>
                         <div style={{ ...pg.storeBadge, ...(item.storeCount === 0 ? pg.storeBadgeNone : {}) }}>
-                          <Building2 size={9} color={item.storeCount > 0 ? '#457B9D' : '#5a6472'} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#457B9D' : '#5a6472' }}>
+                          <Building2 size={9} color={item.storeCount > 0 ? '#3c6e8f' : '#5a6472'} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: item.storeCount > 0 ? '#3c6e8f' : '#5a6472' }}>
                             {item.storeCount}
                           </span>
                         </div>
@@ -742,7 +712,7 @@ export default function HotFood() {
               {stores.map(store => (
                 <div key={store.id} style={pg.availRow}>
                   <div style={pg.availInfo}>
-                    <span style={pg.availIcon}>🔥</span>
+                    <span style={pg.availIcon}><Glyph e="🔥" size={28} color="#5a6472" /></span>
                     <div>
                       <div style={pg.availName}>{store.name}{store.city ? ` · ${store.city}` : ''}</div>
                       <div style={pg.availSub}>
@@ -761,7 +731,7 @@ export default function HotFood() {
                     </div>
                   </div>
                   <button type="button" style={pg.availHoursBtn} onClick={() => setHoursStore(store)} aria-label={`Hot food hours for ${store.name}`}>
-                    🕐 Hours
+                    Hours
                   </button>
                   <button
                     style={{ ...pg.availToggle, ...(store.hotFoodEnabled ? pg.availToggleOn : pg.availToggleOff) }}
@@ -819,7 +789,7 @@ const pg: Record<string, React.CSSProperties> = {
   availHoursBtn: { border: '1.5px solid #e4e7ec', background: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 8 },
   container:    { padding: '24px 28px', minHeight: '100%' },
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
-  iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #b7791f, #b7791f)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #8a5300, #8a5300)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
   sub:          { fontSize: 13, color: TEXT_MUTED, marginTop: 2 },
 
@@ -827,16 +797,16 @@ const pg: Record<string, React.CSSProperties> = {
   toggleBtn:    { border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'transparent', color: '#5a6472', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 150ms, color 150ms' },
   toggleBtnOn:  { background: '#fff', color: '#1D3557', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   toggleBadge:  { background: '#e4e7ec', color: '#5a6472', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700 },
-  toggleBadgeOn:{ background: '#b7791f', color: '#fff' },
+  toggleBadgeOn:{ background: '#8a5300', color: '#fff' },
 
   refreshBtn:   { display: 'flex', alignItems: 'center', gap: 6, background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
-  addBtn:       { display: 'flex', alignItems: 'center', gap: 6, background: '#b7791f', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
+  addBtn:       { display: 'flex', alignItems: 'center', gap: 6, background: '#1D3557', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
   ghostBtn:     { display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
 
   toolbar:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
   tabs:         { display: 'flex', gap: 6 },
   tab:          { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: 'none', background: '#f1f3f6', color: '#5a6472', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
-  tabOn:        { background: '#b7791f', color: '#fff' },
+  tabOn:        { background: '#1D3557', color: '#fff' },
   tabBadge:     { background: '#e4e7ec', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: '#5a6472' },
   tabBadgeOn:   { background: 'rgba(255,255,255,0.25)', color: '#fff' },
   selectWrap:   { position: 'relative', display: 'inline-flex', alignItems: 'center' },
@@ -859,7 +829,7 @@ const pg: Record<string, React.CSSProperties> = {
   availName:    { fontSize: 14, fontWeight: 700, color: '#111827' },
   availSub:     { fontSize: 12, color: TEXT_MUTED, marginTop: 1 },
   availToggle:  { fontSize: 12, fontWeight: 700, borderRadius: 20, padding: '5px 16px', border: '1.5px solid', cursor: 'pointer', flexShrink: 0, letterSpacing: 0.5, transition: 'all 0.15s' },
-  availToggleOn:  { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1f8a4c' },
+  availToggleOn:  { background: '#edf7f0', borderColor: '#c8e6d2', color: '#1a7f45' },
   availToggleOff: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
 
   tileGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 },
@@ -868,7 +838,7 @@ const pg: Record<string, React.CSSProperties> = {
   tileBody:     { padding: '10px 12px' },
   tileName:     { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 6, lineHeight: '1.3', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   tileBottom:   { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  tilePrice:    { fontSize: 13, fontWeight: 700, color: '#b7791f' },
+  tilePrice:    { fontSize: 13, fontWeight: 700, color: '#8a5300' },
   storeBadge:   { display: 'flex', alignItems: 'center', gap: 3, background: '#eef2f7', borderRadius: 6, padding: '2px 6px' },
   storeBadgeNone:{ background: '#f1f3f6' },
 };
@@ -885,7 +855,7 @@ const oc: Record<string, React.CSSProperties> = {
   custPhone: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   items:     { borderTop: '1px solid #f1f3f6', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 },
   itemRow:   { display: 'flex', alignItems: 'center', gap: 5 },
-  qty:       { fontSize: 13, fontWeight: 700, color: '#b7791f', width: 22, flexShrink: 0 },
+  qty:       { fontSize: 13, fontWeight: 700, color: '#8a5300', width: 22, flexShrink: 0 },
   iname:     { flex: 1, fontSize: 13, color: '#374151' },
   iprice:    { fontSize: 13, fontWeight: 600, color: '#111827' },
   totalRow:  { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f3f6', paddingTop: 6, marginTop: 2 },
@@ -911,7 +881,7 @@ const md: Record<string, React.CSSProperties> = {
   imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 12, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #e4e7ec', cursor: 'pointer', background: '#f7f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   imgPreview:{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   imgPlaceholder:{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
-  imgBadge:  { position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: '#b7791f', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  imgBadge:  { position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: '#8a5300', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 };
 
 const am: Record<string, React.CSSProperties> = {
@@ -919,7 +889,7 @@ const am: Record<string, React.CSSProperties> = {
   thumb:     { width: 64, height: 64, borderRadius: 12, objectFit: 'cover', flexShrink: 0 },
   itemName:  { fontSize: 16, fontWeight: 700, color: '#111827' },
   itemDesc:  { fontSize: 12, color: TEXT_MUTED, marginTop: 3, lineHeight: '1.4' },
-  price:     { fontSize: 13, fontWeight: 700, color: '#b7791f' },
+  price:     { fontSize: 13, fontWeight: 700, color: '#8a5300' },
   est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: TEXT_MUTED },
   iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
   sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#f7f8fa', borderBottom: '1px solid #f1f3f6' },
@@ -931,7 +901,7 @@ const am: Record<string, React.CSSProperties> = {
   storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid #f7f8fa', cursor: 'pointer', transition: 'background 100ms' },
   storeRowOn:{ background: '#edf7f0' },
   checkbox:  { width: 18, height: 18, borderRadius: 4, border: '2px solid #d5dae1', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checkboxOn:{ background: '#1f8a4c', borderColor: '#1f8a4c' },
+  checkboxOn:{ background: '#1a7f45', borderColor: '#1a7f45' },
   storeName: { fontSize: 14, color: '#374151', fontWeight: 500 },
   footer:    { display: 'flex', gap: 10, padding: '14px 20px' },
 };
@@ -940,5 +910,5 @@ const f: Record<string, React.CSSProperties> = {
   label:      { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 12 },
   input:      { width: '100%', border: '1px solid #e4e7ec', borderRadius: 8, padding: '9px 12px', fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' },
   cancelBtn:  { flex: 1, background: '#f1f3f6', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' },
-  primaryBtn: { flex: 1, background: '#b7791f', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },
+  primaryBtn: { flex: 1, background: '#1D3557', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },
 };

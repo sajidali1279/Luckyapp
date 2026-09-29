@@ -96,7 +96,7 @@ export default function PrintTray({
           <span style={s.totalInline}><span style={s.totalCount}>{totalCopies}</span> total copies</span>
           <button style={{ ...s.printBtn, ...(items.length === 0 || blocked ? s.printBtnDim : {}) }} onClick={onPrint} disabled={items.length === 0 || blocked}
             title={blocked ? 'Fix the price shown in red first' : undefined}>
-            🖨️ {printLabelText} ({totalCopies})
+            {printLabelText} ({totalCopies})
           </button>
           {blocked && <span role="alert" style={s.priceProblem}>Fix the price shown in red before printing.</span>}
         </div>

@@ -30,14 +30,14 @@ const CATEGORIES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:  '#b7791f',
+  PENDING:  '#8a5300',
   FLAGGED:  '#a51b28',
-  APPROVED: '#1f8a4c',
+  APPROVED: '#1a7f45',
   REJECTED: '#c42130',
   VOIDED:   '#4f6d8f',
 };
 
-// Text-safe greens and reds: #1f8a4c and #c42130 are fine as badge backgrounds but not as small text on white.
+// Text-safe greens and reds: #1a7f45 and #c42130 are fine as badge backgrounds but not as small text on white.
 const APPROVED_TEXT = '#17663a';
 const DANGER = '#c42130';
 

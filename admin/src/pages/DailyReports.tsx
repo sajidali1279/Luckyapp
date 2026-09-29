@@ -6,6 +6,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { TEXT_MUTED } from '../lib/theme';
 import { storeToday } from '../lib/storeDates';
+import { PageHeader } from '../components/kit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
             </span>
           )}
           {report.cigsCount != null && (
-            <span style={{ ...s.pill, background: '#edf7f0', color: '#1f8a4c' }}>
+            <span style={{ ...s.pill, background: '#edf7f0', color: '#1a7f45' }}>
               <Package size={11} /> Cigs {report.cigsCount}
             </span>
           )}
@@ -171,17 +172,7 @@ export default function DailyReports() {
   return (
     <div style={s.page}>
       {/* Header */}
-      <div style={s.header}>
-        <div style={s.headerLeft}>
-          <div style={s.iconWrap}>
-            <ClipboardCheck size={20} color="#fff" />
-          </div>
-          <div>
-            <h1 style={s.title}>Daily Reports</h1>
-            <p style={s.subtitle}>Employee shift reports submitted by store staff</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Daily Reports" description="Employee shift reports submitted by store staff." />
 
       {/* Filters */}
       <div style={s.filters}>
