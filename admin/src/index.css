@@ -326,7 +326,7 @@
   font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; transition: background-color 120ms ease, border-color 120ms ease;
 }
 .ui-chip:hover { background: #f6f7f9; }
-.ui-chip[aria-pressed="true"] { background: #eef2f7; border-color: #1D3557; color: #1D3557; font-weight: 600; }
+.ui-chip[aria-pressed="true"], .ui-chip[aria-checked="true"] { background: #eef2f7; border-color: #1D3557; color: #1D3557; font-weight: 600; }
 .ui-chip:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; }
 
 .ui-card-link { transition: border-color 120ms ease, box-shadow 120ms ease; }
@@ -346,7 +346,7 @@
 .ui-band .ui-btn:focus-visible, .ui-band .ui-chip:focus-visible { outline-color: #fff; }
 .ui-band .ui-chip { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.24); }
 .ui-band .ui-chip:hover { background: rgba(255, 255, 255, 0.16); }
-.ui-band .ui-chip[aria-pressed="true"] { background: #fff; color: #1D3557; border-color: #fff; }
+.ui-band .ui-chip[aria-pressed="true"], .ui-band .ui-chip[aria-checked="true"] { background: #fff; color: #1D3557; border-color: #fff; }
 .ui-band .ui-input, .ui-band select, .ui-band input:not([type]), .ui-band input[type="text"], .ui-band input[type="search"], .ui-band input[type="date"] {
   background: rgba(255, 255, 255, 0.96); color: #111827; border-color: transparent;
 }

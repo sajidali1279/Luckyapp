@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Pin, X } from 'lucide-react';
+import { AlertTriangle, Pin, X } from 'lucide-react';
 import { noticesApi } from '../services/api';
 
 const DISMISSED_NOTICES_KEY = 'dismissed-admin-notices';
@@ -10,6 +10,8 @@ interface Notice {
   title: string;
   body: string;
   storeId: string | null;
+  storeIds?: string[];
+  priority?: 'NORMAL' | 'URGENT';
 }
 
 /**
@@ -27,7 +29,7 @@ export function usePinnedNotice(storeId?: string | null) {
   const allNotices: Notice[] = data?.data?.data || [];
   const relevantNotices = storeId === undefined
     ? allNotices
-    : allNotices.filter((n) => !n.storeId || n.storeId === storeId);
+    : allNotices.filter((n) => (n.storeIds ? n.storeIds.length === 0 || (!!storeId && n.storeIds.includes(storeId)) : !n.storeId || n.storeId === storeId));
 
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
     try {
@@ -38,7 +40,8 @@ export function usePinnedNotice(storeId?: string | null) {
     }
   });
 
-  const notice = relevantNotices.find((n) => !dismissedIds.has(n.id)) || null;
+  // An urgent notice cannot be closed; the server lists urgent ones first
+  const notice = relevantNotices.find((n) => n.priority === 'URGENT' || !dismissedIds.has(n.id)) || null;
 
   function dismiss(id: string) {
     setDismissedIds((prev) => {
@@ -53,16 +56,20 @@ export function usePinnedNotice(storeId?: string | null) {
 }
 
 export default function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
+  const urgent = notice.priority === 'URGENT';
+  const ink = urgent ? '#a51b28' : '#8a5300';
   return (
-    <div style={s.banner}>
-      <div style={s.iconWrap}><Pin size={16} color="#8a5300" /></div>
+    <div style={{ ...s.banner, ...(urgent ? s.bannerUrgent : {}) }} role={urgent ? 'alert' : undefined}>
+      <div style={s.iconWrap}>{urgent ? <AlertTriangle size={16} color={ink} /> : <Pin size={16} color={ink} />}</div>
       <div style={{ flex: 1 }}>
-        <div style={s.title}>{notice.title}</div>
-        <div style={s.body}>{notice.body}</div>
+        <div style={{ ...s.title, color: ink }}>{urgent && 'Urgent: '}{notice.title}</div>
+        <div style={{ ...s.body, color: ink }}>{notice.body}</div>
       </div>
-      <button onClick={onDismiss} style={s.dismissBtn} aria-label="Dismiss notice">
-        <X size={16} color="#8a5300" strokeWidth={2.5} />
-      </button>
+      {!urgent && (
+        <button onClick={onDismiss} style={s.dismissBtn} aria-label="Dismiss notice">
+          <X size={16} color={ink} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }
@@ -73,6 +80,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 12,
     padding: '12px 14px',
   },
+  bannerUrgent: { background: '#fdf2f2', border: '1px solid #f3cdd1' },
   iconWrap: { marginTop: 1, flexShrink: 0 },
   title: { fontSize: 13.5, fontWeight: 700, color: '#8a5300', marginBottom: 2 },
   body: { fontSize: 13, color: '#8a5300', lineHeight: 1.5 },

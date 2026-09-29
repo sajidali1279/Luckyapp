@@ -146,8 +146,14 @@ export const labelsApi = {
   pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),
 };
 
+export interface NoticeInput {
+  title?: string; body?: string; storeIds?: string[]; audience?: 'ALL_STAFF' | 'MANAGERS' | 'EMPLOYEES'; priority?: 'NORMAL' | 'URGENT';
+  startDate?: string; endDate?: string; notify?: boolean; isActive?: boolean;
+}
 export const noticesApi = {
-  create: (data: { title: string; body: string; storeId?: string; endDate: string }) => api.post('/admin/notices', data),
+  create: (data: NoticeInput) => api.post('/admin/notices', data),
+  /** Edit, extend, bring back (isActive: true); notify: true tells staff again */
+  update: (id: string, data: NoticeInput) => api.put(`/admin/notices/${id}`, data),
   getAll: () => api.get('/admin/notices'),
   getActive: () => api.get('/notices/active'),
   deactivate: (id: string) => api.patch(`/admin/notices/${id}`, {}),

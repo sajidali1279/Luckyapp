@@ -95,8 +95,10 @@ export function Tabs<T extends string>({ tabs, value, onChange, ariaLabel, style
 }
 
 /** A choice among a few options shown as buttons (a category, a duration, a mode). */
-export function Chip({ selected, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }) {
-  return <button type="button" className="ui-chip" aria-pressed={!!selected} {...rest}>{children}</button>;
+export function Chip({ selected, children, role, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }) {
+  // One of a set (role="radio") says aria-checked; a toggle says aria-pressed
+  const state = role === 'radio' ? { role, 'aria-checked': !!selected } : { role, 'aria-pressed': !!selected };
+  return <button type="button" className="ui-chip" {...state} {...rest}>{children}</button>;
 }
 
 // ─── Surfaces ────────────────────────────────────────────────────────────────
@@ -138,10 +140,10 @@ const TONES: Record<Tone, { fg: string; bg: string; border: string }> = {
 };
 
 /** A small label. Use a colour only when it means something: success = live/paid, warning = waiting, danger = failed/removed. */
-export function Badge({ tone = 'neutral', children, icon, style }: { tone?: Tone; children: ReactNode; icon?: ReactNode; style?: CSSProperties }) {
+export function Badge({ tone = 'neutral', children, icon, style, title }: { tone?: Tone; children: ReactNode; icon?: ReactNode; style?: CSSProperties; title?: string }) {
   const t = TONES[tone];
   return (
-    <span style={{
+    <span title={title} style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, padding: '0 8px', borderRadius: RADIUS.sm,
       fontSize: FONT.caption, fontWeight: 600, color: t.fg, background: t.bg, border: `1px solid ${t.border}`, whiteSpace: 'nowrap', ...style,
     }}>{icon}{children}</span>

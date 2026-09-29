@@ -1,254 +1,198 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { AlertTriangle, CalendarPlus, Copy, Pencil, Plus, RotateCcw, Trash2, EyeOff, Pin } from 'lucide-react';
 import { noticesApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { storeToday, addDays, endOfStoreDay, storeDayLong } from '../lib/storeDates';
-import { PageHeader, Button } from '../components/kit';
-import { Plus, X } from 'lucide-react';
+import NoticeEditorModal, { type NoticeRow } from '../components/NoticeEditorModal';
+import { Page, PageHeader, HeaderStat, Tabs, Button, Card, Badge, EmptyState } from '../components/kit';
+import { C, FONT } from '../lib/theme';
+import { failureMessage } from '../lib/apiError';
+import { storeToday, addDays, endOfStoreDay, dayLabel, storeDayTime } from '../lib/storeDates';
 
-// Dates are store days (Central time): "today" does not turn into tomorrow after 7 pm, and a notice ends at 11:59 pm at the store
-// whatever time zone this browser is in
-function todayStr() { return storeToday(); }
-function oneWeekOutStr() { return addDays(storeToday(), 7); }
-function fmtDate(d: string) { return storeDayLong(d); }
+type View = 'live' | 'scheduled' | 'ended';
+type State = 'live' | 'scheduled' | 'ended' | 'down';
 
-function noticeStatus(notice: any): { label: string; color: string; bg: string } {
-  if (!notice.isActive) return { label: 'Deactivated', color: TEXT_MUTED, bg: '#e4e7ec' };
-  if (new Date(notice.endDate) < new Date()) return { label: 'Expired', color: TEXT_MUTED, bg: '#e4e7ec' };
-  return { label: 'Active', color: '#1a7f45', bg: '#edf7f0' };
+function stateOf(n: NoticeRow, now = Date.now()): State {
+  if (!n.isActive) return 'down';
+  if (new Date(n.endDate).getTime() < now) return 'ended';
+  if (new Date(n.startDate).getTime() > now) return 'scheduled';
+  return 'live';
 }
+const AUDIENCE = { ALL_STAFF: 'Everyone', MANAGERS: 'Managers only', EMPLOYEES: 'Employees only' } as const;
 
 export default function Notices() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
-  const isStoreManager = user?.role === 'STORE_MANAGER';
-  const ownStoreIds: string[] = user?.storeIds || [];
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [storeTarget, setStoreTarget] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
-  const [storeId, setStoreId] = useState('');
-  const [endDate, setEndDate] = useState(oneWeekOutStr());
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const isHQ = user?.role === 'DEV_ADMIN' || user?.role === 'SUPER_ADMIN';
+  const [view, setView] = useState<View>('live');
+  const [editor, setEditor] = useState<null | { kind: 'new' } | { kind: 'edit' | 'copy'; notice: NoticeRow }>(null);
+  const [confirmDelete, setConfirmDelete] = useState<NoticeRow | null>(null);
+  const [confirmDown, setConfirmDown] = useState<NoticeRow | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['admin-notices'],
-    queryFn: () => noticesApi.getAll(),
-  });
-
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['admin-notices'], queryFn: () => noticesApi.getAll() });
   const { data: storesData } = useQuery({ queryKey: ['accessible-stores'], queryFn: () => storesApi.getAccessible() });
-  const stores: any[] = storesData?.data?.data || [];
+  const stores: { id: string; name: string; city?: string }[] = storesData?.data?.data || [];
+  const notices: NoticeRow[] = data?.data?.data || [];
 
-  const createMutation = useMutation({
-    mutationFn: (data: { title: string; body: string; storeId?: string; endDate: string }) => noticesApi.create(data),
-    onSuccess: () => {
-      toast.success('Notice posted');
-      resetForm();
-      qc.invalidateQueries({ queryKey: ['admin-notices'] });
-    },
-    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to post notice'),
-  });
-
-  const deactivateMutation = useMutation({
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-notices'] }); qc.invalidateQueries({ queryKey: ['active-notices'] }); };
+  const takeDown = useMutation({
     mutationFn: (id: string) => noticesApi.deactivate(id),
-    onSuccess: () => { toast.success('Notice deactivated'); qc.invalidateQueries({ queryKey: ['admin-notices'] }); },
-    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to deactivate notice'),
+    onSuccess: () => { toast.success('Notice taken down. Staff no longer see it.'); refresh(); },
+    onError: (e) => toast.error(failureMessage(e, 'Could not take the notice down')),
   });
-
-  const deleteMutation = useMutation({
+  const remove = useMutation({
     mutationFn: (id: string) => noticesApi.delete(id),
-    onSuccess: () => { toast.success('Notice deleted'); qc.invalidateQueries({ queryKey: ['admin-notices'] }); },
-    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to delete notice'),
+    onSuccess: () => { toast.success('Notice deleted'); refresh(); },
+    onError: (e) => toast.error(failureMessage(e, 'Could not delete the notice')),
+  });
+  // A week more from its last day, or from today when it has already ended; bringing one back that was taken down
+  const extend = useMutation({
+    mutationFn: (n: NoticeRow) => {
+      const today = storeToday();
+      const last = storeToday(new Date(n.endDate));
+      const next = addDays(last >= today ? last : today, 7);
+      return noticesApi.update(n.id, { endDate: endOfStoreDay(next).toISOString(), isActive: true });
+    },
+    onSuccess: (_r, n) => { toast.success(n.isActive ? 'Extended by a week' : 'Brought back for a week'); refresh(); },
+    onError: (e) => toast.error(failureMessage(e, 'Could not extend the notice')),
+  });
+  const bringBack = useMutation({
+    mutationFn: (n: NoticeRow) => noticesApi.update(n.id, { isActive: true }),
+    onSuccess: () => { toast.success('Notice brought back'); refresh(); },
+    onError: (e) => toast.error(failureMessage(e, 'Could not bring the notice back')),
   });
 
-  function resetForm() {
-    setShowForm(false);
-    setTitle(''); setBody(''); setStoreTarget('ALL_STORES'); setStoreId(''); setEndDate(oneWeekOutStr());
-  }
+  if (isError) return <Page><ErrorState message="Failed to load notices." onRetry={refetch} /></Page>;
 
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) { toast.error('Title is required'); return; }
-    if (!body.trim()) { toast.error('Notice text is required'); return; }
-    if (!endDate) { toast.error('End date is required'); return; }
-    if (!isStoreManager && storeTarget === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
-    if (isStoreManager && ownStoreIds.length > 1 && !storeId) { toast.error('Select which of your stores'); return; }
-
-    createMutation.mutate({
-      title: title.trim(),
-      body: body.trim(),
-      endDate: endOfStoreDay(endDate).toISOString(),
-      ...(isStoreManager
-        ? (ownStoreIds.length > 1 && storeId ? { storeId } : {})
-        : (storeTarget === 'SPECIFIC_STORE' && storeId ? { storeId } : {})),
-    });
-  }
-
-  const notices: any[] = data?.data?.data || [];
-  const storeMap: Record<string, string> = Object.fromEntries(stores.map((st: any) => [st.id, st.name]));
-
-  if (isError) return <div style={s.container}><ErrorState message="Failed to load notices." onRetry={refetch} /></div>;
+  const now = Date.now();
+  const byState = (st: State[]) => notices.filter((n) => st.includes(stateOf(n, now)));
+  const live = byState(['live']).sort((a, b) => (a.priority === b.priority ? 0 : a.priority === 'URGENT' ? -1 : 1));
+  const scheduled = byState(['scheduled']).sort((a, b) => +new Date(a.startDate) - +new Date(b.startDate));
+  const ended = byState(['ended', 'down']);
+  const shown = view === 'live' ? live : view === 'scheduled' ? scheduled : ended;
+  const urgentLive = live.filter((n) => n.priority === 'URGENT').length;
 
   return (
-    <div style={s.container}>
+    <Page>
+      {editor && <NoticeEditorModal mode={editor} stores={stores} isHQ={isHQ} onClose={() => setEditor(null)} />}
       <ConfirmModal
-        open={!!confirmDeactivateId}
-        title="Deactivate Notice"
-        message="Employees will stop seeing this notice in chat immediately. This cannot be undone."
-        confirmLabel="Deactivate"
+        open={!!confirmDown}
+        title="Take this notice down?"
+        message="Staff stop seeing it right away. It moves to Ended, where you can bring it back."
+        confirmLabel="Take down"
         danger
-        onConfirm={() => { if (confirmDeactivateId) deactivateMutation.mutate(confirmDeactivateId); setConfirmDeactivateId(null); }}
-        onCancel={() => setConfirmDeactivateId(null)}
+        onConfirm={() => { if (confirmDown) takeDown.mutate(confirmDown.id); setConfirmDown(null); }}
+        onCancel={() => setConfirmDown(null)}
       />
       <ConfirmModal
-        open={!!confirmDeleteId}
-        title="Delete Notice"
-        message="This will permanently remove the notice from the list. This cannot be undone."
+        open={!!confirmDelete}
+        title="Delete this notice?"
+        message="It is removed from this list for good. Taking it down keeps it here instead."
         confirmLabel="Delete"
         danger
-        onConfirm={() => { if (confirmDeleteId) deleteMutation.mutate(confirmDeleteId); setConfirmDeleteId(null); }}
-        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => { if (confirmDelete) remove.mutate(confirmDelete.id); setConfirmDelete(null); }}
+        onCancel={() => setConfirmDelete(null)}
       />
 
       <PageHeader
-        title="Important Notices"
-        description="Posted as a pinned banner at the top of store chat, for time-sensitive HQ announcements."
-        actions={
-          <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />} onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : 'New Notice'}
-          </Button>
-        }
+        title="Notices"
+        description="Announcements pinned at the top of Home and Chat in the staff app. Urgent ones stay until they end."
+        actions={<Button variant="primary" icon={<Plus />} onClick={() => setEditor({ kind: 'new' })}>New Notice</Button>}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <HeaderStat label="Live" value={live.length} tone={live.length ? 'success' : 'neutral'} />
+          <HeaderStat label="Urgent now" value={urgentLive} tone={urgentLive ? 'danger' : 'neutral'} />
+          <HeaderStat label="Scheduled" value={scheduled.length} tone={scheduled.length ? 'info' : 'neutral'} />
+        </div>
+      </PageHeader>
+
+      <Tabs
+        ariaLabel="Notices"
+        value={view}
+        onChange={setView}
+        tabs={[
+          { value: 'live', label: 'Live', count: live.length },
+          { value: 'scheduled', label: 'Scheduled', count: scheduled.length },
+          { value: 'ended', label: 'Ended', count: ended.length },
+        ]}
       />
 
-      {showForm && (
-        <form style={s.form} onSubmit={handleCreate}>
-          <h3 style={{ margin: '0 0 16px', color: PRIMARY }}>Post a Notice</h3>
-
-          <label style={s.label}>Title *</label>
-          <input style={s.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Health Inspection Tomorrow" maxLength={100} />
-
-          <label style={s.label}>Notice Text *</label>
-          <textarea style={{ ...s.input, height: 90, resize: 'vertical' }} value={body} onChange={(e) => setBody(e.target.value)} placeholder="What employees need to know..." maxLength={500} />
-
-          <label style={s.label}>Expires *</label>
-          <input style={{ ...s.input, maxWidth: 200 }} type="date" value={endDate} min={todayStr()} onChange={(e) => setEndDate(e.target.value)} />
-
-          {isStoreManager && ownStoreIds.length <= 1 ? (
-            <div style={{ padding: '8px 12px', background: '#eef2f7', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
-              This notice will appear for your store only
-            </div>
-          ) : isStoreManager ? (
-            <>
-              <label style={s.label}>Post To *</label>
-              <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                <option value="">-- Choose your store --</option>
-                {stores.map((store: any) => (
-                  <option key={store.id} value={store.id}>{store.name}{store.city ? ` - ${store.city}` : ''}</option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <>
-              <label style={s.label}>Apply To</label>
-              <select style={s.input} value={storeTarget} onChange={(e) => { setStoreTarget(e.target.value as any); setStoreId(''); }}>
-                <option value="ALL_STORES">All {stores.length || ''} Stores</option>
-                <option value="SPECIFIC_STORE">Specific Store Only</option>
-              </select>
-              {storeTarget === 'SPECIFIC_STORE' && (
-                <>
-                  <label style={s.label}>Select Store *</label>
-                  <select style={s.input} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-                    <option value="">-- Choose a store --</option>
-                    {stores.map((store: any) => (
-                      <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-            </>
-          )}
-
-          <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
-            {createMutation.isPending ? 'Posting...' : 'Post Notice'}
-          </button>
-        </form>
-      )}
-
       {isLoading ? (
-        <CardSkeleton count={4} />
-      ) : notices.length === 0 ? (
-        <div style={s.empty}>No notices posted yet.</div>
+        <CardSkeleton count={3} />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          icon={<Pin size={22} />}
+          title={view === 'live' ? 'No notice is live' : view === 'scheduled' ? 'Nothing scheduled' : 'No ended notices'}
+          description={view === 'ended' ? 'Notices that ran out or were taken down show here, ready to copy or bring back.' : 'Post one, or schedule it for a later day.'}
+          action={view !== 'ended' ? <Button variant="primary" icon={<Plus />} onClick={() => setEditor({ kind: 'new' })}>New Notice</Button> : undefined}
+        />
       ) : (
-        <div style={s.list}>
-          {notices.map((notice: any) => {
-            const status = noticeStatus(notice);
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {shown.map((n) => {
+            const st = stateOf(n, now);
+            const manage = n.canManage !== false;
+            const urgent = n.priority === 'URGENT';
             return (
-              <div key={notice.id} style={s.card}>
-                <div style={s.cardInfo}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <h3 style={s.cardTitle}>{notice.title}</h3>
-                    <span style={{ ...s.tagStatus, color: status.color, background: status.bg }}>{status.label}</span>
+              <Card key={n.id} className="notice-card" padding={0} style={{ overflow: 'hidden', borderLeft: `4px solid ${urgent && st === 'live' ? C.danger : st === 'live' ? C.primary : C.border}` }}>
+                <div style={{ padding: '16px 18px' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                    {urgent && <Badge tone="danger" icon={<AlertTriangle size={12} />}>Urgent</Badge>}
+                    {st === 'live' && <Badge tone="success">Live</Badge>}
+                    {st === 'scheduled' && <Badge tone="info">Starts {dayLabel(storeToday(new Date(n.startDate)))}</Badge>}
+                    {st === 'ended' && <Badge>Ended</Badge>}
+                    {st === 'down' && <Badge>Taken down</Badge>}
+                    <Badge>{AUDIENCE[n.audience]}</Badge>
+                    <Badge title={n.storeNames?.join(', ')}>{storeWords(n)}</Badge>
                   </div>
-                  <p style={s.cardBody}>{notice.body}</p>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                    <span style={notice.storeId ? s.tagStore : s.tagAll}>
-                      {notice.storeId ? `${storeMap[notice.storeId] || 'Specific Store'}` : 'All Stores'}
-                    </span>
-                    <span style={s.tagDate}>Expires {fmtDate(notice.endDate)}</span>
+                  <h2 style={{ margin: '0 0 4px', fontSize: FONT.section, fontWeight: 600, color: C.text }}>{n.title}</h2>
+                  <p style={{ margin: 0, fontSize: FONT.body, color: C.text2, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{n.body}</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', marginTop: 10, fontSize: FONT.caption, color: C.muted }}>
+                    <span>{dayLabel(storeToday(new Date(n.startDate)))} to {dayLabel(storeToday(new Date(n.endDate)))}</span>
+                    <span>{pushWords(n, st)}</span>
+                    <span>Posted by {n.createdBy?.name || 'someone'}</span>
                   </div>
                 </div>
-                {(!isStoreManager || (notice.storeId && ownStoreIds.includes(notice.storeId))) && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {status.label === 'Active' && (
-                      <button style={s.deactivateBtn} onClick={() => setConfirmDeactivateId(notice.id)}>Deactivate</button>
+                {manage && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '10px 14px', borderTop: `1px solid ${C.border}`, background: C.subtle }}>
+                    {st !== 'down' && st !== 'ended' && <Button size="sm" icon={<Pencil />} onClick={() => setEditor({ kind: 'edit', notice: n })}>Edit</Button>}
+                    {st !== 'scheduled' && (
+                      <Button size="sm" icon={<CalendarPlus />} onClick={() => extend.mutate(n)} disabled={extend.isPending}>
+                        {st === 'live' ? 'Extend a week' : 'Run another week'}
+                      </Button>
                     )}
-                    <button style={s.deleteBtn} onClick={() => setConfirmDeleteId(notice.id)}>Delete</button>
+                    {st === 'down' && new Date(n.endDate).getTime() >= now && (
+                      <Button size="sm" icon={<RotateCcw />} onClick={() => bringBack.mutate(n)} disabled={bringBack.isPending}>Bring back</Button>
+                    )}
+                    <Button size="sm" icon={<Copy />} onClick={() => setEditor({ kind: 'copy', notice: n })}>Copy</Button>
+                    <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                      {(st === 'live' || st === 'scheduled') && <Button size="sm" variant="ghost" icon={<EyeOff />} onClick={() => setConfirmDown(n)}>Take down</Button>}
+                      <Button size="sm" variant="danger" icon={<Trash2 />} onClick={() => setConfirmDelete(n)}>Delete</Button>
+                    </span>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
-const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
-  sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-  addBtn: { background: '#1D3557', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
+function storeWords(n: NoticeRow): string {
+  const names = n.storeNames ?? [];
+  if (n.storeIds.length === 0) return 'All stores';
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+}
 
-  form: {
-    background: '#fff', borderRadius: 12, padding: '24px 28px', marginBottom: 32,
-    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', flexDirection: 'column', gap: 12,
-    borderWidth: '1px', borderStyle: 'solid', borderColor: '#e4e7ec',
-  },
-  label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e4e7ec', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit' },
-  saveBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, cursor: 'pointer', marginTop: 4, fontSize: 14 },
-
-  list: { display: 'flex', flexDirection: 'column', gap: 14 },
-  card: {
-    background: '#fff', borderRadius: 12, overflow: 'hidden',
-    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'flex-start', gap: 20, padding: '18px 20px',
-  },
-  cardInfo: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: 700, color: '#111827', margin: 0 },
-  cardBody: { fontSize: 14, color: '#374151', margin: '0 0 4px', lineHeight: 1.5 },
-  tagStatus: { display: 'inline-block', borderRadius: 6, padding: '3px 9px', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
-  tagAll: { display: 'inline-block', background: '#eef2f7', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagStore: { display: 'inline-block', background: '#fdf6e8', color: '#8a5300', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagDate: { display: 'inline-block', background: '#f7f8fa', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 600 },
-  deactivateBtn: { background: '#fdf6e8', color: '#8a5300', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f1dcaf', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
-  deleteBtn: { background: '#fdf2f2', color: '#c42130', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f3cdd1', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', flexShrink: 0, fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' },
-  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
-};
+function pushWords(n: NoticeRow, st: State): string {
+  if (n.announcedAt) return `Push sent ${storeDayTime(n.announcedAt)}${n.announcedTo != null ? ` to ${n.announcedTo} staff` : ''}`;
+  if (!n.notify) return 'No push';
+  if (st === 'scheduled') return `Push on ${dayLabel(storeToday(new Date(n.startDate)))}`;
+  return 'No push sent';
+}
