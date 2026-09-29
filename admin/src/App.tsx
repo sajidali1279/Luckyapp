@@ -84,7 +84,7 @@ function ProtectedLayout() {
           <TopBar />
           <div style={{
             minHeight: '100%',
-            background: 'oklch(0.962 0.005 80)',
+            background: 'var(--background)',
           }}>
             {/* One page failing must not take the sidebar and every other page with it */}
             <ErrorBoundary resetKey={pathname} onReset={() => queryClient.clear()}>
@@ -109,7 +109,7 @@ function EmployeeLayout() {
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--background)' }}>
       <Outlet />
     </div>
   );

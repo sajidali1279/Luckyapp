@@ -62,11 +62,6 @@ const ROLE_LABELS: Record<string, string> = {
   STORE_MANAGER: 'Store Manager',
 };
 
-const ROLE_COLOR: Record<string, string> = {
-  DEV_ADMIN: 'oklch(0.55 0.18 285)',
-  SUPER_ADMIN: 'oklch(0.50 0.22 27)',
-  STORE_MANAGER: 'oklch(0.58 0.14 145)',
-};
 
 // Visually hidden, still read aloud by screen readers
 const SR_ONLY: React.CSSProperties = {
@@ -97,8 +92,8 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
         isActive={isActive}
         tooltip={label}
         style={isActive ? {
-          backgroundColor: 'oklch(0.50 0.22 27)',
-          color: 'oklch(0.97 0.005 27)',
+          backgroundColor: '#eef2f7',
+          color: '#1D3557',
           fontWeight: 600,
         } : undefined}
       >
@@ -110,9 +105,9 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
       {badge != null && badge > 0 && (
         <SidebarMenuBadge
           style={{
-            backgroundColor: isActive ? 'oklch(0.97 0.005 27 / 0.22)' : 'oklch(0.50 0.22 27)',
-            color: 'oklch(0.97 0.005 27)',
-            fontWeight: 700,
+            backgroundColor: isActive ? '#dbe3ee' : '#f1f3f6',
+            color: isActive ? '#1D3557' : '#374151',
+            fontWeight: 600,
             fontSize: 10,
             minWidth: 18,
             height: 18,
@@ -140,10 +135,10 @@ function SidebarNavItem({ to, icon, label, badge, end: isEnd, onUnpin }: NavItem
             position: 'absolute', right: badge != null && badge > 0 ? 30 : 6, top: '50%', transform: 'translateY(-50%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 20, height: 20, padding: 0, border: 'none', borderRadius: 5,
-            background: 'transparent', color: 'oklch(0.55 0.02 245)', cursor: 'pointer',
+            background: 'transparent', color: '#6b7280', cursor: 'pointer',
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.24 0.042 245)'; (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.87 0.015 245)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.55 0.02 245)'; }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e4e7ec'; (e.currentTarget as HTMLButtonElement).style.color = '#111827'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
         >
           <PinOff size={12} aria-hidden="true" />
         </button>
@@ -161,7 +156,6 @@ export function AppSidebar() {
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const initials = (user?.name || user?.phone || '?').slice(0, 2).toUpperCase();
   const roleLabel = ROLE_LABELS[user?.role || ''] || user?.role || '';
-  const avatarColor = ROLE_COLOR[user?.role || ''] || 'oklch(0.50 0.22 27)';
 
   const badges = useAdminBadges();
   const {
@@ -186,7 +180,7 @@ export function AppSidebar() {
   function handleLogout() { queryClient.clear(); logout(); navigate('/login'); }
 
   return (
-    <Sidebar collapsible="icon" variant="floating" role="complementary" aria-label="Menu and account">
+    <Sidebar collapsible="icon" variant="sidebar" role="complementary" aria-label="Menu and account">
       {/* Brand */}
       <SidebarHeader style={{ padding: '14px 12px 10px' }}>
         <SidebarMenu>
@@ -205,31 +199,28 @@ export function AppSidebar() {
                   height: 34,
                   borderRadius: 9,
                   flexShrink: 0,
-                  background: 'oklch(0.50 0.22 27)',
+                  background: '#D62839',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 8px oklch(0.50 0.22 27 / 0.45)',
                 }}>
-                  <Fuel style={{ width: 17, height: 17, color: 'oklch(0.97 0.005 27)' }} />
+                  <Fuel style={{ width: 17, height: 17, color: '#fff' }} />
                 </div>
 
                 {/* Brand name */}
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, minWidth: 0 }}>
                   <span style={{
-                    fontWeight: 800,
-                    fontSize: 13.5,
-                    letterSpacing: '0.02em',
-                    color: 'oklch(0.92 0.012 245)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: '#111827',
                   }}>
                     Lucky Stop
                   </span>
                   <span style={{
-                    fontSize: 10.5,
-                    color: 'oklch(0.72 0.02 245)',
-                    marginTop: 2,
+                    fontSize: 12,
+                    color: '#5a6472',
+                    marginTop: 3,
                     fontWeight: 500,
-                    letterSpacing: '0.04em',
                   }}>
                     Admin Console
                   </span>
@@ -243,7 +234,7 @@ export function AppSidebar() {
       <SidebarContent role="navigation" aria-label="Main menu" style={{
         padding: '2px 0',
         scrollbarWidth: 'thin',
-        scrollbarColor: 'oklch(0.28 0.045 245) transparent',
+        scrollbarColor: '#d5dae1 transparent',
       }}>
         {/* Pinned, if any: a page saved from the command palette (Shift+Enter there) */}
         {pinnedItems.length > 0 && (
@@ -435,7 +426,7 @@ export function AppSidebar() {
         {/* Divider */}
         <div style={{
           height: 1,
-          background: 'oklch(0.24 0.042 245 / 0.65)',
+          background: '#e4e7ec',
           marginBottom: 8,
         }} />
 
@@ -453,10 +444,10 @@ export function AppSidebar() {
               borderRadius: 8,
               cursor: 'pointer',
               transition: 'background 150ms ease',
-              background: isActive ? 'oklch(0.50 0.22 27)' : 'transparent',
+              background: isActive ? '#eef2f7' : 'transparent',
             }}
               onMouseEnter={e => {
-                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'oklch(0.21 0.048 245)';
+                if (!isActive) (e.currentTarget as HTMLDivElement).style.background = '#f1f3f6';
               }}
               onMouseLeave={e => {
                 if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent';
@@ -467,11 +458,11 @@ export function AppSidebar() {
                 width: 30,
                 height: 30,
                 borderRadius: '50%',
-                background: isActive ? 'oklch(0.97 0.005 27 / 0.25)' : avatarColor,
+                background: '#1D3557',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'oklch(0.97 0.005 27)',
+                color: '#fff',
                 fontWeight: 700,
                 fontSize: 11,
                 letterSpacing: '0.02em',
@@ -485,7 +476,7 @@ export function AppSidebar() {
                 <div style={{
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: isActive ? 'oklch(0.97 0.005 27)' : 'oklch(0.87 0.015 245)',
+                  color: isActive ? '#1D3557' : '#111827',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -494,7 +485,7 @@ export function AppSidebar() {
                 </div>
                 <div style={{
                   fontSize: 10.5,
-                  color: isActive ? 'oklch(0.97 0.005 27 / 0.7)' : 'oklch(0.72 0.02 245)',
+                  color: '#5a6472',
                   marginTop: 1,
                 }}>
                   {roleLabel}
@@ -502,7 +493,7 @@ export function AppSidebar() {
               </div>
 
               <ChevronRight size={12} style={{
-                color: isActive ? 'oklch(0.97 0.005 27 / 0.6)' : 'oklch(0.40 0.022 245)',
+                color: '#9aa3ae',
                 flexShrink: 0,
               }} />
             </div>
@@ -523,19 +514,19 @@ export function AppSidebar() {
             border: 'none',
             background: 'transparent',
             cursor: 'pointer',
-            color: 'oklch(0.72 0.02 245)',
+            color: '#5a6472',
             fontSize: 12.5,
             fontWeight: 500,
             transition: 'color 150ms ease, background 150ms ease',
             fontFamily: 'inherit',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'oklch(0.50 0.22 27 / 0.12)';
-            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.65 0.22 27)';
+            (e.currentTarget as HTMLButtonElement).style.background = '#fdf2f2';
+            (e.currentTarget as HTMLButtonElement).style.color = '#c42130';
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-            (e.currentTarget as HTMLButtonElement).style.color = 'oklch(0.72 0.02 245)';
+            (e.currentTarget as HTMLButtonElement).style.color = '#5a6472';
           }}
         >
           <LogOut size={13} />

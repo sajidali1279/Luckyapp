@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Search, RotateCw } from 'lucide-react';
+import { Search, RotateCw, Bell } from 'lucide-react';
 import { SidebarTrigger, useSidebar } from './ui/sidebar';
 import { useDialog } from '../hooks/useDialog';
 import { titleFor } from '../hooks/usePageTitle';
 import { useAdminBadges, BADGE_LABELS, type BadgeKey } from '../hooks/useAdminBadges';
 import { NAV_ITEMS } from '../lib/navItems';
 import CommandPalette from './CommandPalette';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { TEXT_MUTED } from '../lib/theme';
 
 const badgeTarget = (key: BadgeKey) => NAV_ITEMS.find((i) => i.badgeKey === key)?.to ?? '/';
 
@@ -45,7 +45,7 @@ function BellPopover() {
         onClick={() => setOpen((v) => !v)}
         style={s.iconBtn}
       >
-        🔔
+        <Bell size={16} aria-hidden="true" />
         {total > 0 && <span style={s.bellDot}>{total > 99 ? '99+' : total}</span>}
       </button>
       {open && (
@@ -132,13 +132,13 @@ export default function TopBar() {
 const s: Record<string, React.CSSProperties> = {
   bar: {
     position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', gap: 10,
-    padding: '8px 14px', background: '#fff', borderBottom: '1px solid #e9ecef', minHeight: 52,
+    padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e4e7ec', minHeight: 52,
   },
-  trigger: { color: PRIMARY, flexShrink: 0 },
-  title: { margin: 0, fontSize: 16, fontWeight: 800, color: PRIMARY, flexShrink: 0, whiteSpace: 'nowrap' as const },
+  trigger: { color: '#374151', flexShrink: 0 },
+  title: { margin: 0, fontSize: 15, fontWeight: 600, color: '#111827', flexShrink: 0, whiteSpace: 'nowrap' as const },
   searchBtn: {
     display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4, padding: '6px 10px', borderRadius: 8,
-    border: '1px solid #e5e5ea', background: '#f8f9fa', color: TEXT_MUTED, cursor: 'pointer', fontSize: 13.5,
+    border: '1px solid #e4e7ec', background: '#f6f7f9', color: TEXT_MUTED, cursor: 'pointer', fontSize: 13.5,
     flex: '0 1 260px', minWidth: 0,
   },
   searchBtnText: { flex: 1, textAlign: 'left' as const, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
@@ -147,7 +147,7 @@ const s: Record<string, React.CSSProperties> = {
   freshness: { fontSize: 12, color: TEXT_MUTED, whiteSpace: 'nowrap' as const },
   iconBtn: {
     position: 'relative', width: 34, height: 34, borderRadius: 8, border: '1px solid transparent', background: 'transparent',
-    color: PRIMARY, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+    color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
   },
   spin: { animation: 'spin 0.8s linear infinite' },
   bellDot: {
@@ -156,14 +156,14 @@ const s: Record<string, React.CSSProperties> = {
   },
   popover: {
     position: 'absolute', top: 40, right: 0, width: 320, maxHeight: 380, overflowY: 'auto' as const,
-    background: '#fff', borderRadius: 12, boxShadow: '0 12px 36px rgba(0,0,0,0.18)', border: '1px solid #eee', zIndex: 40,
+    background: '#fff', borderRadius: 12, boxShadow: '0 12px 32px rgba(16,24,40,0.16)', border: '1px solid #e4e7ec', zIndex: 40,
   },
-  popoverTitle: { fontSize: 12.5, fontWeight: 800, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, padding: '12px 14px 6px' },
+  popoverTitle: { fontSize: 13, fontWeight: 600, color: '#111827', padding: '12px 14px 6px' },
   popoverEmpty: { padding: '10px 14px 16px', fontSize: 14, color: TEXT_MUTED },
   popoverList: { listStyle: 'none', margin: 0, padding: '2px 6px 8px' },
   popoverRow: {
     width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 8px', borderRadius: 8,
-    border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: PRIMARY, textAlign: 'left' as const,
+    border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: '#111827', textAlign: 'left' as const,
   },
   popoverCount: {
     fontSize: 12, fontWeight: 800, color: '#fff', background: '#b91c1c', borderRadius: 10, minWidth: 20, height: 20,
