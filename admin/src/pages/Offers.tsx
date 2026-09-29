@@ -6,7 +6,9 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { C, FONT, RADIUS, INPUT } from '../lib/theme';
+import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field } from '../components/kit';
+import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2 } from 'lucide-react';
 import { serverMessage } from '../lib/apiError';
 import OfferResultsModal from '../components/OfferResultsModal';
 import { storeToday, addDays, monthEnd, dayLabel, startOfStoreDay, endOfStoreDay, storeDayLong, storeDayTime } from '../lib/storeDates';
@@ -114,8 +116,6 @@ function stripValidity(desc: string): string {
 }
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
-type TierKey = typeof TIERS[number];
-const TIER_EMOJI: Record<TierKey, string> = { BRONZE: '🥉', SILVER: '🥈', GOLD: '🥇', DIAMOND: '💎', PLATINUM: '👑' };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -463,10 +463,12 @@ export default function Offers() {
   const pastPromotions = pastOffers.filter((o: any) => !o.dealText);
   const pastDeals = pastOffers.filter((o: any) => o.dealText);
 
-  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load offers." onRetry={refetch} /></div>;
+  if (isError) return <Page><ErrorState message="Failed to load offers." onRetry={refetch} /></Page>;
+
+  const isGasQuick = quickCategory === 'GAS' || quickCategory === 'DIESEL';
 
   return (
-    <div style={s.container}>
+    <Page>
       {resultsFor && <OfferResultsModal offer={resultsFor} onClose={() => setResultsFor(null)} />}
       <ConfirmModal
         open={!!confirmDeleteId}
@@ -481,16 +483,16 @@ export default function Offers() {
         open={!!pending}
         title={pending?.kind === 'deal' ? 'Post this deal?' : 'Post this promotion?'}
         message={pending && (
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, color: '#111827', marginBottom: 6 }}>{pending.what}</div>
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{pending.what}</div>
             <div><strong>Where:</strong> {pending.where}</div>
             <div><strong>When:</strong> {pending.when}</div>
             {pending.example && <div><strong>Example:</strong> {pending.example}</div>}
             {pending.clashes.map((c) => (
-              <div key={c.offer.id} style={s.confirmNote}>⚠️ {c.text}</div>
+              <Notice key={c.offer.id} tone="warning" icon={<AlertTriangle size={15} />} style={{ marginTop: 6 }}>{c.text}</Notice>
             ))}
-            {pending.notes.map((n, i) => <div key={i} style={s.confirmNote}>ℹ️ {n}</div>)}
-            <div style={{ marginTop: 10, fontWeight: 700, color: '#111827' }}>{pending.notify}</div>
+            {pending.notes.map((n, i) => <Notice key={i} tone="neutral" icon={<Info size={15} />} style={{ marginTop: 6 }}>{n}</Notice>)}
+            <div style={{ marginTop: 8, fontWeight: 600, color: C.text }}>{pending.notify}</div>
           </div>
         )}
         confirmLabel={createMutation.isPending ? 'Posting…' : 'Post now'}
@@ -498,414 +500,346 @@ export default function Offers() {
         onConfirm={confirmPost}
         onCancel={() => setPending(null)}
       />
-      {/* Header */}
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>📢 Offers & Promotions</h1>
-          <p style={s.sub}>Promotions boost cashback automatically - Deals display price specials in the app</p>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {mainTab === 'promotions' && (
-            <>
-              <button style={s.templateBtn} onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
-                💡 {showTemplates ? 'Hide' : 'Templates'}
-              </button>
-              <button style={{ ...s.templateBtn, background: showQuick ? '#e8f8ed' : undefined, borderColor: showQuick ? '#2DC653' : undefined, color: showQuick ? '#1a7a3a' : undefined }}
-                onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); }}>
-                ⚡ Quick Post
-              </button>
-              <button style={s.addBtn} onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); }}>
-                {showForm ? 'Cancel' : '+ Full Form'}
-              </button>
-            </>
-          )}
-          {mainTab === 'deals' && (
-            <button style={s.addBtn} onClick={() => setShowDealForm(!showDealForm)}>
-              {showDealForm ? 'Cancel' : '+ New Deal'}
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Main Tabs */}
-      <div style={s.mainTabs}>
-        <button style={{ ...s.mainTab, ...(mainTab === 'promotions' ? s.mainTabActive : {}) }}
-          onClick={() => { setMainTab('promotions'); setShowDealForm(false); }}>
-          📢 Promotions
-          <span style={{ ...s.tabCount, background: mainTab === 'promotions' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'promotions' ? '#fff' : '#5a6472' }}>{promotionOffers.length}</span>
-        </button>
-        <button style={{ ...s.mainTab, ...(mainTab === 'deals' ? s.mainTabActive : {}) }}
-          onClick={() => { setMainTab('deals'); setShowForm(false); setShowTemplates(false); }}>
-          🏷️ Deals
-          <span style={{ ...s.tabCount, background: mainTab === 'deals' ? 'rgba(255,255,255,0.2)' : '#f0f1f2', color: mainTab === 'deals' ? '#fff' : '#5a6472' }}>{dealOffers.length}</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Offers"
+        description="Promotions add cashback automatically. Deals show price specials in the app."
+        actions={mainTab === 'promotions' ? (
+          <>
+            <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
+              onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
+              Templates
+            </Button>
+            <Button icon={<Zap />} aria-pressed={showQuick}
+              onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); }}>
+              Quick post
+            </Button>
+            <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />}
+              onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); }}>
+              {showForm ? 'Cancel' : 'New promotion'}
+            </Button>
+          </>
+        ) : (
+          <Button variant={showDealForm ? 'secondary' : 'primary'} icon={showDealForm ? <X /> : <Plus />} onClick={() => setShowDealForm(!showDealForm)}>
+            {showDealForm ? 'Cancel' : 'New deal'}
+          </Button>
+        )}
+      />
 
-      {/* ⚡ Quick Post Panel */}
+      <Tabs
+        ariaLabel="Offer type"
+        value={mainTab}
+        onChange={(v) => { setMainTab(v); if (v === 'promotions') setShowDealForm(false); else { setShowForm(false); setShowTemplates(false); } }}
+        tabs={[
+          { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
+          { value: 'deals', label: 'Deals', count: dealOffers.length },
+        ]}
+      />
+
+      {/* Quick post */}
       {showQuick && (
-        <div style={s.quickPanel}>
-          <div style={s.quickTitle}>⚡ Quick Post</div>
-          <div style={s.quickRow}>
-            {/* Category chips */}
-            <div style={s.quickGroup}>
-              <div style={s.quickLabel}>Category</div>
-              <div style={s.quickChips}>
+        <Card style={{ marginBottom: 24, maxWidth: 880 }}>
+          <SectionTitle>Quick post</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={s.group}>
+              <div style={s.groupLabel}>Category</div>
+              <div style={s.chips}>
                 {[
-                  { value: '', label: '🌐 All' },
-                  { value: 'GAS', label: '⛽ Gas' },
-                  { value: 'DIESEL', label: '🚛 Diesel' },
-                  { value: 'HOT_FOODS', label: '🌭 Hot Foods' },
-                  { value: 'GROCERIES', label: '🛒 Groceries' },
-                  { value: 'FROZEN_FOODS', label: '🧊 Frozen' },
-                  { value: 'FRESH_FOODS', label: '🥗 Fresh' },
+                  { value: '', label: 'All' },
+                  { value: 'GAS', label: 'Gas' },
+                  { value: 'DIESEL', label: 'Diesel' },
+                  { value: 'HOT_FOODS', label: 'Hot Foods' },
+                  { value: 'GROCERIES', label: 'Groceries' },
+                  { value: 'FROZEN_FOODS', label: 'Frozen' },
+                  { value: 'FRESH_FOODS', label: 'Fresh' },
                 ].map(c => (
-                  <button key={c.value} type="button"
-                    style={{ ...s.chip, ...(quickCategory === c.value ? s.chipActive : {}) }}
+                  <Chip key={c.value} selected={quickCategory === c.value}
                     onClick={() => {
                       setQuickCategory(c.value);
                       if (c.value === 'GAS' || c.value === 'DIESEL') setQuickBonusMode('cpg');
                       else setQuickBonusMode('pct');
                     }}>
                     {c.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
 
-            {/* Bonus - mode toggle for GAS/DIESEL */}
-            <div style={s.quickGroup}>
-              {(quickCategory === 'GAS' || quickCategory === 'DIESEL') && (
-                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                  <button type="button"
-                    style={{ ...s.chip, ...(quickBonusMode === 'pct' ? s.chipActive : {}), fontSize: 14 }}
-                    onClick={() => setQuickBonusMode('pct')}>% Cashback</button>
-                  <button type="button"
-                    style={{ ...s.chip, ...(quickBonusMode === 'cpg' ? s.chipActive : {}), fontSize: 14 }}
-                    onClick={() => setQuickBonusMode('cpg')}>⛽ ¢/Gallon</button>
+            <div style={s.group}>
+              {isGasQuick && (
+                <div style={{ ...s.chips, marginBottom: 4 }}>
+                  <Chip selected={quickBonusMode === 'pct'} onClick={() => setQuickBonusMode('pct')}>% Cashback</Chip>
+                  <Chip selected={quickBonusMode === 'cpg'} onClick={() => setQuickBonusMode('cpg')}>¢/Gallon</Chip>
                 </div>
               )}
-              {quickBonusMode === 'cpg' && (quickCategory === 'GAS' || quickCategory === 'DIESEL') ? (
+              {quickBonusMode === 'cpg' && isGasQuick ? (
                 <>
-                  <div style={s.quickLabel}>¢ per Gallon Bonus</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={s.quickBonusRow}>
-                      {['1', '2', '3', '5', '10'].map(v => (
-                        <button key={v} type="button"
-                          style={{ ...s.chip, ...(quickCpg === v ? s.chipActive : {}) }}
-                          onClick={() => setQuickCpg(v)}>
-                          +{v}¢
-                        </button>
-                      ))}
-                    </div>
+                  <div style={s.groupLabel}>Cents per gallon</div>
+                  <div style={s.chips}>
+                    {['1', '2', '3', '5', '10'].map(v => (
+                      <Chip key={v} selected={quickCpg === v} onClick={() => setQuickCpg(v)}>+{v}¢</Chip>
+                    ))}
                     <input
                       type="number" min="0" max={MAX_CENTS_PER_GALLON} step="0.5"
                       aria-label="Custom cents per gallon bonus"
                       value={quickCpg}
                       onChange={e => setQuickCpg(e.target.value)}
-                      style={s.quickInput}
-                      placeholder="custom"
+                      className="ui-input" style={{ ...INPUT, width: 96, height: 32, padding: '0 10px' }}
+                      placeholder="Custom"
                     />
-                    <span style={{ fontSize: 15, color: TEXT_MUTED, fontWeight: 600 }}>¢/gal</span>
+                    <span style={s.unit}>¢/gal</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={s.quickLabel}>Bonus %</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={s.quickBonusRow}>
-                      {['1', '2', '3', '5', '10'].map(v => (
-                        <button key={v} type="button"
-                          style={{ ...s.chip, ...(quickBonus === v ? s.chipActive : {}) }}
-                          onClick={() => setQuickBonus(v)}>
-                          +{v}%
-                        </button>
-                      ))}
-                    </div>
+                  <div style={s.groupLabel}>Bonus</div>
+                  <div style={s.chips}>
+                    {['1', '2', '3', '5', '10'].map(v => (
+                      <Chip key={v} selected={quickBonus === v} onClick={() => setQuickBonus(v)}>+{v}%</Chip>
+                    ))}
                     <input
                       type="number" min="0" max={CASHBACK_CAP * 100} step="0.5"
                       aria-label="Custom bonus percent"
                       value={quickBonus}
                       onChange={e => setQuickBonus(e.target.value)}
-                      style={s.quickInput}
-                      placeholder="custom"
+                      className="ui-input" style={{ ...INPUT, width: 96, height: 32, padding: '0 10px' }}
+                      placeholder="Custom"
                     />
-                    <span style={{ fontSize: 15, color: TEXT_MUTED, fontWeight: 600 }}>%</span>
+                    <span style={s.unit}>%</span>
                   </div>
                 </>
               )}
             </div>
 
-            {/* Duration */}
-            <div style={s.quickGroup}>
-              <div style={s.quickLabel}>Duration</div>
-              <div style={s.quickChips}>
+            <div style={s.group}>
+              <div style={s.groupLabel}>Duration</div>
+              <div style={s.chips}>
                 {([['today', 'Today'], ['3d', '3 Days'], ['1w', '1 Week'], ['2w', '2 Weeks'], ['1m', '1 Month']] as const).map(([val, label]) => (
-                  <button key={val} type="button"
-                    style={{ ...s.chip, ...(quickDuration === val ? s.chipActive : {}) }}
-                    onClick={() => setQuickDuration(val)}>
-                    {label}
-                  </button>
+                  <Chip key={val} selected={quickDuration === val} onClick={() => setQuickDuration(val)}>{label}</Chip>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Preview + Post */}
           {(() => {
-            const isGasDiesel = quickCategory === 'GAS' || quickCategory === 'DIESEL';
-            const useCpg = isGasDiesel && quickBonusMode === 'cpg';
+            const useCpg = isGasQuick && quickBonusMode === 'cpg';
             const hasValue = useCpg ? (parseFloat(quickCpg) > 0) : (parseFloat(quickBonus) > 0);
             if (!hasValue) return null;
             const bonusDisplay = useCpg ? `+${quickCpg}¢/gal` : `+${quickBonus}%`;
             const catLabel = quickCategory ? CATEGORIES.find(c => c.value === quickCategory)?.label : 'All Categories';
             return (
-              <div style={s.quickPreview}>
-                <span style={s.quickPreviewText}>
-                  📢 Will post: <strong>{bonusDisplay} {catLabel} Bonus</strong>
+              <div style={s.previewRow}>
+                <span style={{ fontSize: FONT.body, color: C.text2 }}>
+                  Will post <strong style={{ color: C.text }}>{bonusDisplay} {catLabel} Bonus</strong>
                   {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
                 </span>
-                <button style={s.quickPostBtn} onClick={handleQuickPost} disabled={createMutation.isPending}>
-                  ⚡ Review &amp; Post
-                </button>
+                <Button variant="primary" onClick={handleQuickPost} disabled={createMutation.isPending}>Review and post</Button>
               </div>
             );
           })()}
-        </div>
+        </Card>
       )}
 
-      {/* Suggestion Templates */}
+      {/* Templates */}
       {showTemplates && (
-        <div style={s.suggestionsBox}>
-          <h2 style={s.suggestTitle}>💡 Promotion Templates</h2>
-          <p style={s.suggestSub}>Click any template to instantly pre-fill the form - you just set the dates and submit.</p>
-          <div style={s.groupTabs}>
+        <Card style={{ marginBottom: 24, maxWidth: 880 }}>
+          <SectionTitle>Promotion templates</SectionTitle>
+          <p style={{ margin: '-4px 0 14px', color: C.muted, fontSize: FONT.body }}>Pick one to fill in the form. You set the dates and post it.</p>
+          <div style={{ ...s.chips, marginBottom: 14 }}>
             {TEMPLATE_GROUPS.map((g) => (
-              <button key={g} style={{ ...s.groupTab, ...(activeGroup === g ? s.groupTabActive : {}) }} onClick={() => setActiveGroup(g)}>
+              <Chip key={g} selected={activeGroup === g} onClick={() => setActiveGroup(g)}>
                 {g} ({TEMPLATES.filter((t) => t.group === g).length})
-              </button>
+              </Chip>
             ))}
           </div>
-          <div style={s.templateGrid}>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: RADIUS.md, overflow: 'hidden' }}>
             {groupedTemplates.map((t, i) => (
-              <div key={i} style={s.templateCard}>
-                <div style={s.templateIcon}>{t.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={s.templateTitle}>{t.title}</div>
-                  <div style={s.templateDesc}>{t.description}</div>
-                  <div style={s.templateMeta}>
-                    {t.bonusRate && <span style={s.templateBadge}>+{t.bonusRate}% bonus</span>}
-                    {t.category && <span style={s.templateCat}>{t.category.replace(/_/g, ' ')}</span>}
+              <div key={i} style={{ ...s.templateRow, borderTop: i ? `1px solid ${C.border}` : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: FONT.body, color: C.text }}>{t.title}</div>
+                  <div style={{ fontSize: FONT.small, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                    {t.bonusRate && <Badge tone="info">+{t.bonusRate}% bonus</Badge>}
+                    {t.category && <Badge>{catName(t.category)}</Badge>}
                   </div>
                 </div>
-                <button style={s.useBtn} onClick={() => applyTemplate(t)}>Use →</button>
+                <Button size="sm" onClick={() => applyTemplate(t)}>Use</Button>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Create / Edit Form */}
+      {/* Create / edit form */}
       {showForm && (
-        <form id="offer-form" style={s.form} onSubmit={handleCreate}>
-          <h2 style={{ margin: '0 0 4px', color: PRIMARY, fontSize: 17, fontWeight: 800 }}>
-            {title || 'New Promotion'}
-          </h2>
+        <Card style={{ marginBottom: 28, maxWidth: 880 }}>
+          <form id="offer-form" onSubmit={handleCreate}>
+            <h2 style={{ margin: 0, color: C.text, fontSize: 17, fontWeight: 600 }}>{title || 'New promotion'}</h2>
 
-          {/* ── Step 1: Category ─────────────────────────────────────────── */}
-          <div style={s.formSection}>
-            <div style={s.formSectionLabel}>1 · Category <span style={s.required}>required</span></div>
-            <div style={s.catGrid}>
-              {[
-                { value: '',              emoji: '🌐', label: 'Store-wide' },
-                { value: 'GAS',           emoji: '⛽', label: 'Gas'        },
-                { value: 'DIESEL',        emoji: '🚛', label: 'Diesel'     },
-                { value: 'HOT_FOODS',     emoji: '🌭', label: 'Hot Foods'  },
-                { value: 'GROCERIES',     emoji: '🛒', label: 'Groceries'  },
-                { value: 'FROZEN_FOODS',  emoji: '🧊', label: 'Frozen'     },
-                { value: 'FRESH_FOODS',   emoji: '🥗', label: 'Fresh'      },
-                { value: 'OTHER',         emoji: '🏪', label: 'Other'      },
-              ].map(c => (
-                <button key={c.value} type="button"
-                  style={{ ...s.catCard, ...(category === c.value ? s.catCardActive : {}) }}
-                  onClick={() => { setCategory(c.value); setGasBonusCpg(''); setGasBonusType('cpg'); setBonusRate(''); }}>
-                  <span style={{ fontSize: 20 }}>{c.emoji}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, marginTop: 3 }}>{c.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Step 2: Bonus (only shown after category chosen) ──────────── */}
-          {category !== null && (
             <div style={s.formSection}>
-              <div style={s.formSectionLabel}>2 · Bonus</div>
-
-              {(category === 'GAS' || category === 'DIESEL') ? (
-                /* Gas/Diesel: toggle between ¢/gal and % */
-                <div>
-                  <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #dee2e6', width: 'fit-content' }}>
-                    <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', background: gasBonusType === 'cpg' ? PRIMARY : '#f8f9fa', color: gasBonusType === 'cpg' ? '#fff' : TEXT_MUTED }}
-                      onClick={() => setGasBonusType('cpg')}>
-                      ⛽ ¢ / gallon
-                    </button>
-                    <button type="button"
-                      style={{ padding: '8px 18px', fontSize: 15, fontWeight: 700, cursor: 'pointer', border: 'none', borderLeft: '1.5px solid #dee2e6', background: gasBonusType === 'pct' ? PRIMARY : '#f8f9fa', color: gasBonusType === 'pct' ? '#fff' : TEXT_MUTED }}
-                      onClick={() => setGasBonusType('pct')}>
-                      💲 % of amount
-                    </button>
-                  </div>
-                  {gasBonusType === 'cpg' ? (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="number" min="0" max={MAX_CENTS_PER_GALLON} step="0.5" aria-label="Cents per gallon bonus"
-                          style={{ ...s.input, width: 120 }}
-                          value={gasBonusCpg} onChange={e => setGasBonusCpg(e.target.value)}
-                          placeholder="e.g. 2" />
-                        <span style={s.unit}>¢ / gallon bonus</span>
-                      </div>
-                      {gasBonusCpg && !isNaN(parseFloat(gasBonusCpg)) && parseFloat(gasBonusCpg) > 0 && (
-                        <div style={s.calcHint}>10 gal fill → +${(10 * parseFloat(gasBonusCpg) / 100).toFixed(2)} cashback on top of base rate</div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent of the purchase amount"
-                          style={{ ...s.input, width: 120 }}
-                          value={bonusRate} onChange={e => setBonusRate(e.target.value)}
-                          placeholder="e.g. 2" />
-                        <span style={s.unit}>% of purchase amount</span>
-                      </div>
-                      {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
-                        <div style={s.calcHint}>$40 fill-up → +${(40 * parseFloat(bonusRate) / 100).toFixed(2)} cashback on top of base rate</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* All other categories: % only, optional per-tier */
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent, same for all tiers"
-                        style={{ ...s.input, width: 120 }}
-                        value={bonusRate} onChange={e => setBonusRate(e.target.value)}
-                        placeholder="e.g. 3" />
-                      <span style={s.unit}>% bonus - same for all tiers</span>
-                    </div>
-                    <button type="button" onClick={() => setUseTierBonuses(!useTierBonuses)}
-                      style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: '1px solid #dee2e6', background: useTierBonuses ? PRIMARY : '#f8f9fa', color: useTierBonuses ? '#fff' : TEXT_MUTED, cursor: 'pointer', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
-                      {useTierBonuses ? '🏆 Per-tier on' : '🏆 Per-tier?'}
-                    </button>
-                  </div>
-                  {useTierBonuses && (
-                    <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {TIERS.map(tier => (
-                        <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 15, minWidth: 80, fontWeight: 600 }}>{TIER_EMOJI[tier]} {tier[0]+tier.slice(1).toLowerCase()}</span>
-                          <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" value={tierBonuses[tier]} aria-label={`${tier[0]}${tier.slice(1).toLowerCase()} bonus percent`}
-                            onChange={e => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
-                            style={{ ...s.input, width: 70, margin: 0 }} placeholder="%" />
-                          <span style={{ fontSize: 14, color: TEXT_MUTED }}>%</span>
-                        </div>
-                      ))}
-                      <div style={{ gridColumn: '1 / -1', fontSize: 13, color: TEXT_MUTED }}>A tier left blank gets no bonus from this promotion, not the top tier's rate.</div>
-                    </div>
-                  )}
-                  {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
-                    <div style={s.calcHint}>$20 purchase → +${(20 * parseFloat(bonusRate) / 100).toFixed(2)} bonus cashback on top of base rate</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Step 3: Dates + Scope ─────────────────────────────────────── */}
-          {category !== null && (
-            <div style={s.formSection}>
-              <div style={s.formSectionLabel}>3 · Duration & Scope</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={s.label} htmlFor="offer-start">Start Date *</label>
-                  <input id="offer-start" style={s.input} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                </div>
-                <div>
-                  <label style={s.label} htmlFor="offer-end">End Date *</label>
-                  <input id="offer-end" style={s.input} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                </div>
+              <div style={s.stepLabel}>1. Category <span style={{ color: C.muted, fontWeight: 400 }}>(required)</span></div>
+              <div style={s.chips}>
+                {[
+                  { value: '', label: 'Store-wide' },
+                  { value: 'GAS', label: 'Gas' },
+                  { value: 'DIESEL', label: 'Diesel' },
+                  { value: 'HOT_FOODS', label: 'Hot Foods' },
+                  { value: 'GROCERIES', label: 'Groceries' },
+                  { value: 'FROZEN_FOODS', label: 'Frozen' },
+                  { value: 'FRESH_FOODS', label: 'Fresh' },
+                  { value: 'OTHER', label: 'Other' },
+                ].map(c => (
+                  <Chip key={c.value} selected={category === c.value}
+                    onClick={() => { setCategory(c.value); setGasBonusCpg(''); setGasBonusType('cpg'); setBonusRate(''); }}>
+                    {c.label}
+                  </Chip>
+                ))}
               </div>
-              {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600, marginTop: 8 }}>
-                  📍 This promotion will apply to your store only
+            </div>
+
+            {category !== null && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>2. Bonus</div>
+                {(category === 'GAS' || category === 'DIESEL') ? (
+                  <div>
+                    <div style={{ ...s.chips, marginBottom: 12 }}>
+                      <Chip selected={gasBonusType === 'cpg'} onClick={() => setGasBonusType('cpg')}>¢ per gallon</Chip>
+                      <Chip selected={gasBonusType === 'pct'} onClick={() => setGasBonusType('pct')}>% of amount</Chip>
+                    </div>
+                    {gasBonusType === 'cpg' ? (
+                      <div>
+                        <div style={s.inline}>
+                          <input type="number" min="0" max={MAX_CENTS_PER_GALLON} step="0.5" aria-label="Cents per gallon bonus"
+                            className="ui-input" style={{ ...INPUT, width: 120 }}
+                            value={gasBonusCpg} onChange={e => setGasBonusCpg(e.target.value)}
+                            placeholder="e.g. 2" />
+                          <span style={s.unit}>¢ / gallon bonus</span>
+                        </div>
+                        {gasBonusCpg && !isNaN(parseFloat(gasBonusCpg)) && parseFloat(gasBonusCpg) > 0 && (
+                          <div style={s.calcHint}>10 gal fill → +${(10 * parseFloat(gasBonusCpg) / 100).toFixed(2)} cashback on top of base rate</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={s.inline}>
+                          <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent of the purchase amount"
+                            className="ui-input" style={{ ...INPUT, width: 120 }}
+                            value={bonusRate} onChange={e => setBonusRate(e.target.value)}
+                            placeholder="e.g. 2" />
+                          <span style={s.unit}>% of purchase amount</span>
+                        </div>
+                        {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
+                          <div style={s.calcHint}>$40 fill-up → +${(40 * parseFloat(bonusRate) / 100).toFixed(2)} cashback on top of base rate</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ ...s.inline, flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                      <div style={s.inline}>
+                        <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent, same for all tiers"
+                          className="ui-input" style={{ ...INPUT, width: 120 }}
+                          value={bonusRate} onChange={e => setBonusRate(e.target.value)}
+                          placeholder="e.g. 3" />
+                        <span style={s.unit}>% bonus, same for all tiers</span>
+                      </div>
+                      <Chip selected={useTierBonuses} onClick={() => setUseTierBonuses(!useTierBonuses)}>
+                        {useTierBonuses ? 'Per-tier on' : 'Per-tier?'}
+                      </Chip>
+                    </div>
+                    {useTierBonuses && (
+                      <div style={{ background: C.subtle, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                        {TIERS.map(tier => (
+                          <div key={tier} style={s.inline}>
+                            <span style={{ fontSize: FONT.body, minWidth: 76, fontWeight: 500, color: C.text2 }}>{tier[0] + tier.slice(1).toLowerCase()}</span>
+                            <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" value={tierBonuses[tier]} aria-label={`${tier[0]}${tier.slice(1).toLowerCase()} bonus percent`}
+                              onChange={e => setTierBonuses(p => ({ ...p, [tier]: e.target.value }))}
+                              className="ui-input" style={{ ...INPUT, width: 76 }} placeholder="%" />
+                            <span style={s.unit}>%</span>
+                          </div>
+                        ))}
+                        <div style={{ gridColumn: '1 / -1', fontSize: FONT.small, color: C.muted }}>A tier left blank gets no bonus from this promotion, not the top tier's rate.</div>
+                      </div>
+                    )}
+                    {bonusRate && !isNaN(parseFloat(bonusRate)) && parseFloat(bonusRate) > 0 && (
+                      <div style={s.calcHint}>$20 purchase → +${(20 * parseFloat(bonusRate) / 100).toFixed(2)} bonus cashback on top of base rate</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {category !== null && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>3. Dates and stores</div>
+                <div style={s.twoCol}>
+                  <Field label="Start date" htmlFor="offer-start" required>
+                    <input id="offer-start" className="ui-input" style={INPUT} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                  </Field>
+                  <Field label="End date" htmlFor="offer-end" required>
+                    <input id="offer-end" className="ui-input" style={INPUT} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  </Field>
                 </div>
-              ) : (
-                <div style={{ marginTop: 8 }}>
-                  <label style={s.label} htmlFor="offer-scope">Apply To</label>
-                  <select id="offer-scope" style={s.input} value={type} onChange={e => { setType(e.target.value as any); setStoreId(''); }}>
-                    <option value="ALL_STORES">🌐 All Stores</option>
-                    <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-                  </select>
-                  {type === 'SPECIFIC_STORE' && (
-                    <>
-                      <select aria-label="Choose a store" style={{ ...s.input, marginTop: 8 }} value={storeId} onChange={e => setStoreId(e.target.value)}>
-                        <option value="">-- Choose a store --</option>
+                {isStoreManager ? (
+                  <Notice icon={<MapPin size={15} />}>This promotion will apply to your store only.</Notice>
+                ) : (
+                  <Field label="Apply to" htmlFor="offer-scope">
+                    <select id="offer-scope" className="ui-input" style={INPUT} value={type} onChange={e => { setType(e.target.value as any); setStoreId(''); }}>
+                      <option value="ALL_STORES">All stores</option>
+                      <option value="SPECIFIC_STORE">One store only</option>
+                    </select>
+                    {type === 'SPECIFIC_STORE' && (
+                      <select aria-label="Choose a store" className="ui-input" style={INPUT} value={storeId} onChange={e => setStoreId(e.target.value)}>
+                        <option value="">Choose a store</option>
                         {stores.map((store: any) => (
                           <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
                         ))}
                       </select>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                    )}
+                  </Field>
+                )}
+              </div>
+            )}
 
-          {/* ── Step 4: Title + optional image ───────────────────────────── */}
-          {category !== null && (
-            <div style={s.formSection}>
-              <div style={s.formSectionLabel}>4 · Title & Image</div>
-              <input aria-label="Title" style={s.input} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to auto-generate" />
-              <textarea aria-label="Description" style={{ ...s.input, height: 70, resize: 'vertical', marginTop: 8 }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional - auto-generated if blank)" />
-              <input aria-label="Offer image (optional)" ref={fileRef} type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={{ ...s.input, marginTop: 8 }} />
-            </div>
-          )}
+            {category !== null && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>4. Title and image</div>
+                <input aria-label="Title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to write one for you" />
+                <textarea aria-label="Description" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional, written for you if blank)" />
+                <input aria-label="Offer image (optional)" ref={fileRef} type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={s.file} />
+              </div>
+            )}
 
-          {category !== null && (
-            <div style={s.formSection}>
-              <div style={s.formSectionLabel}>5 · Age Restriction</div>
-              <button type="button" onClick={() => setRequires21(!requires21)}
-                style={{ ...s.age21Toggle, ...(requires21 ? s.age21ToggleOn : {}) }}>
-                <span>🔞 Age-restricted (21+)</span>
-                <span style={{ fontWeight: 800 }}>{requires21 ? 'ON' : 'OFF'}</span>
-              </button>
-              {requires21 && (
-                <div style={s.age21Hint}>Customers see this blurred with a 21+ prompt until they confirm their age.</div>
-              )}
-            </div>
-          )}
+            {category !== null && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>5. Age restriction</div>
+                <AgeToggle on={requires21} onToggle={() => setRequires21(!requires21)} />
+              </div>
+            )}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button style={s.saveBtn} type="submit" disabled={createMutation.isPending || category === null}>
-              {createMutation.isPending ? 'Creating...' : 'Create Offer'}
-            </button>
-            <button style={s.cancelFormBtn} type="button" onClick={resetForm}>Cancel</button>
-          </div>
-        </form>
+            <div style={{ display: 'flex', gap: 8, paddingTop: 16 }}>
+              <Button variant="primary" type="submit" disabled={createMutation.isPending || category === null}>
+                {createMutation.isPending ? 'Creating...' : 'Create Offer'}
+              </Button>
+              <Button onClick={resetForm}>Cancel</Button>
+            </div>
+          </form>
+        </Card>
       )}
 
-      {/* ── Promotions Tab ── */}
+      {/* Promotions */}
       {mainTab === 'promotions' && (
         <>
           {isLoading ? (
             <CardSkeleton count={4} />
           ) : promotionOffers.length === 0 ? (
-            <div style={s.empty}>Nothing is live or scheduled. Customers see no promotion right now. Use a template or post one.</div>
+            <EmptyState icon={<Tag size={22} />} title="No promotions" description="Nothing is live or scheduled. Customers see no promotion right now. Use a template or post one." />
           ) : (
             <>
               {livePromotions.length > 0 ? (
                 <>
-                  <h2 style={s.sectionHead}>Live Now ({livePromotions.length})</h2>
+                  <SectionTitle>Live Now ({livePromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {livePromotions.map((offer: any) => (
                       <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
@@ -913,11 +847,11 @@ export default function Offers() {
                   </div>
                 </>
               ) : (
-                <div style={s.empty}>Nothing is live right now. Customers see no promotion until a scheduled one starts.</div>
+                <EmptyState title="Nothing is live right now" description="Customers see no promotion until a scheduled one starts." />
               )}
               {scheduledPromotions.length > 0 && (
                 <>
-                  <h2 style={{ ...s.sectionHead, marginTop: 28 }}>Scheduled ({scheduledPromotions.length})</h2>
+                  <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledPromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledPromotions.map((offer: any) => (
                       <OfferCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} />
@@ -927,18 +861,16 @@ export default function Offers() {
               )}
             </>
           )}
-          <div style={{ marginTop: 40 }}>
-            <button style={s.historyToggle} onClick={() => setShowHistory(!showHistory)}>
-              {showHistory ? '▾' : '▸'} Past Promotions (click to load &amp; reuse)
-            </button>
+          <div style={{ marginTop: 32 }}>
+            <Button variant="ghost" icon={showHistory ? <ChevronDown /> : <ChevronRight />} aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)} style={{ paddingLeft: 6 }}>
+              Past promotions
+            </Button>
             {showHistory && (
               pastPromotions.length === 0 ? (
-                <div style={s.empty}>No past promotions found.</div>
+                <div style={s.pastNote}>No past promotions found.</div>
               ) : (
                 <>
-                  <p style={{ color: TEXT_MUTED, fontSize: 15, margin: '0 0 16px' }}>
-                    {pastPromotions.length} past promotions - click ♻️ Reuse on any to pre-fill the form.
-                  </p>
+                  <p style={s.pastNote}>{pastPromotions.length} past promotions. Reuse fills in the form with any of them.</p>
                   <div style={s.grid}>
                     {pastPromotions.map((offer: any) => (
                       <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
@@ -951,88 +883,82 @@ export default function Offers() {
         </>
       )}
 
-      {/* ── Deals Tab ── */}
+      {/* Deals */}
       {mainTab === 'deals' && (
         <>
-          {/* Deal create form */}
           {showDealForm && (
-            <form id="deal-form" style={s.form} onSubmit={handleCreateDeal}>
-              <h2 style={{ margin: '0 0 16px', color: PRIMARY, fontSize: 17, fontWeight: 800 }}>
-                {dealTitle ? `🏷️ ${dealTitle}` : 'New Deal'}
-              </h2>
-              <label style={s.label} htmlFor="deal-title">Product / Item Name *</label>
-              <input id="deal-title" style={s.input} value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} placeholder="e.g. Monster Energy, 2-Liter Pepsi" />
-              <label style={s.label} htmlFor="deal-text">Deal Text * (shown prominently in-app)</label>
-              <input id="deal-text" style={s.input} value={dealText} onChange={(e) => setDealText(e.target.value)} placeholder='e.g. 2 for $5, 3 for $4, Buy 2 Get 1 Free' maxLength={40} />
-              <label style={s.label} htmlFor="deal-desc">Description (optional)</label>
-              <input id="deal-desc" style={s.input} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal..." />
-              <label style={s.label} htmlFor="deal-image">Image (optional)</label>
-              <input id="deal-image" ref={dealFileRef} type="file" accept="image/*" onChange={e => setDealImageFile(e.target.files?.[0] || null)} style={s.input} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={s.label} htmlFor="deal-start">Start Date *</label>
-                  <input id="deal-start" style={s.input} type="date" value={dealStartDate} onChange={(e) => setDealStartDate(e.target.value)} />
+            <Card style={{ marginBottom: 28, maxWidth: 880 }}>
+              <form id="deal-form" onSubmit={handleCreateDeal} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <h2 style={{ margin: 0, color: C.text, fontSize: 17, fontWeight: 600 }}>{dealTitle || 'New deal'}</h2>
+                <Field label="Product or item name" htmlFor="deal-title" required>
+                  <input id="deal-title" className="ui-input" style={INPUT} value={dealTitle} onChange={(e) => setDealTitle(e.target.value)} placeholder="e.g. Monster Energy, 2-Liter Pepsi" />
+                </Field>
+                <Field label="Deal text" htmlFor="deal-text" required hint="Shown large in the app.">
+                  <input id="deal-text" className="ui-input" style={INPUT} value={dealText} onChange={(e) => setDealText(e.target.value)} placeholder="e.g. 2 for $5, 3 for $4, Buy 2 Get 1 Free" maxLength={40} />
+                </Field>
+                <Field label="Description (optional)" htmlFor="deal-desc">
+                  <input id="deal-desc" className="ui-input" style={INPUT} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal" />
+                </Field>
+                <Field label="Image (optional)" htmlFor="deal-image">
+                  <input id="deal-image" ref={dealFileRef} type="file" accept="image/*" onChange={e => setDealImageFile(e.target.files?.[0] || null)} style={s.file} />
+                </Field>
+                <div style={s.twoCol}>
+                  <Field label="Start date" htmlFor="deal-start" required>
+                    <input id="deal-start" className="ui-input" style={INPUT} type="date" value={dealStartDate} onChange={(e) => setDealStartDate(e.target.value)} />
+                  </Field>
+                  <Field label="End date" htmlFor="deal-end" required>
+                    <input id="deal-end" className="ui-input" style={INPUT} type="date" value={dealEndDate} onChange={(e) => setDealEndDate(e.target.value)} />
+                  </Field>
                 </div>
-                <div>
-                  <label style={s.label} htmlFor="deal-end">End Date *</label>
-                  <input id="deal-end" style={s.input} type="date" value={dealEndDate} onChange={(e) => setDealEndDate(e.target.value)} />
-                </div>
-              </div>
-              {isStoreManager ? (
-                <div style={{ padding: '8px 12px', background: '#f0f4ff', borderRadius: 8, fontSize: 15, color: PRIMARY, fontWeight: 600 }}>
-                  📍 This deal will apply to your store only
-                </div>
-              ) : (
-                <>
-                  <label style={s.label} htmlFor="deal-scope">Apply To</label>
-                  <select id="deal-scope" style={s.input} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
-                    <option value="ALL_STORES">🌐 All {stores.length || ''} Stores</option>
-                    <option value="SPECIFIC_STORE">📍 Specific Store Only</option>
-                  </select>
-                  {dealType === 'SPECIFIC_STORE' && (
-                    <>
-                      <label style={s.label} htmlFor="deal-store">Select Store *</label>
-                      <select id="deal-store" style={s.input} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
-                        <option value="">-- Choose a store --</option>
-                        {stores.map((store: any) => (
-                          <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
-                        ))}
+                {isStoreManager ? (
+                  <Notice icon={<MapPin size={15} />}>This deal will apply to your store only.</Notice>
+                ) : (
+                  <>
+                    <Field label="Apply to" htmlFor="deal-scope">
+                      <select id="deal-scope" className="ui-input" style={INPUT} value={dealType} onChange={(e) => { setDealType(e.target.value as any); setDealStoreId(''); }}>
+                        <option value="ALL_STORES">All {stores.length || ''} stores</option>
+                        <option value="SPECIFIC_STORE">One store only</option>
                       </select>
-                    </>
-                  )}
-                </>
-              )}
-              <label style={s.label} htmlFor="deal-category">Product Category (optional)</label>
-              <select id="deal-category" style={s.input} value={dealCategory} onChange={(e) => setDealCategory(e.target.value)}>
-                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-              <label style={s.label}>Age Restriction</label>
-              <button type="button" onClick={() => setDealRequires21(!dealRequires21)}
-                style={{ ...s.age21Toggle, ...(dealRequires21 ? s.age21ToggleOn : {}) }}>
-                <span>🔞 Age-restricted (21+)</span>
-                <span style={{ fontWeight: 800 }}>{dealRequires21 ? 'ON' : 'OFF'}</span>
-              </button>
-              {dealRequires21 && (
-                <div style={s.age21Hint}>Customers see this blurred with a 21+ prompt until they confirm their age.</div>
-              )}
-              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button style={s.saveBtn} type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Creating...' : 'Post Deal'}
-                </button>
-                <button style={s.cancelFormBtn} type="button" onClick={resetDealForm}>Cancel</button>
-              </div>
-            </form>
+                    </Field>
+                    {dealType === 'SPECIFIC_STORE' && (
+                      <Field label="Store" htmlFor="deal-store" required>
+                        <select id="deal-store" className="ui-input" style={INPUT} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
+                          <option value="">Choose a store</option>
+                          {stores.map((store: any) => (
+                            <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                  </>
+                )}
+                <Field label="Product category (optional)" htmlFor="deal-category">
+                  <select id="deal-category" className="ui-input" style={INPUT} value={dealCategory} onChange={(e) => setDealCategory(e.target.value)}>
+                    {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Age restriction">
+                  <AgeToggle on={dealRequires21} onToggle={() => setDealRequires21(!dealRequires21)} />
+                </Field>
+                <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+                  <Button variant="primary" type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? 'Creating...' : 'Post Deal'}
+                  </Button>
+                  <Button onClick={resetDealForm}>Cancel</Button>
+                </div>
+              </form>
+            </Card>
           )}
 
           {isLoading ? (
             <CardSkeleton count={4} />
           ) : dealOffers.length === 0 ? (
-            <div style={s.empty}>No live or scheduled deals. Click "+ New Deal" to post one.</div>
+            <EmptyState icon={<Tag size={22} />} title="No deals" description='Nothing is live or scheduled. Click "New deal" to post one.' />
           ) : (
             <>
               {liveDeals.length > 0 ? (
                 <>
-                  <h2 style={s.sectionHead}>Live Now ({liveDeals.length})</h2>
+                  <SectionTitle>Live Now ({liveDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {liveDeals.map((offer: any) => (
                       <DealCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} />
@@ -1040,11 +966,11 @@ export default function Offers() {
                   </div>
                 </>
               ) : (
-                <div style={s.empty}>No deal is live right now.</div>
+                <EmptyState title="No deal is live right now" />
               )}
               {scheduledDeals.length > 0 && (
                 <>
-                  <h2 style={{ ...s.sectionHead, marginTop: 28 }}>Scheduled ({scheduledDeals.length})</h2>
+                  <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledDeals.map((offer: any) => (
                       <DealCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} />
@@ -1055,15 +981,15 @@ export default function Offers() {
             </>
           )}
 
-          <div style={{ marginTop: 40 }}>
-            <button style={s.historyToggle} onClick={() => setShowHistory(!showHistory)}>
-              {showHistory ? '▾' : '▸'} Past Deals (click to load)
-            </button>
+          <div style={{ marginTop: 32 }}>
+            <Button variant="ghost" icon={showHistory ? <ChevronDown /> : <ChevronRight />} aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)} style={{ paddingLeft: 6 }}>
+              Past deals
+            </Button>
             {showHistory && (
               pastDeals.length === 0 ? (
-                <div style={s.empty}>No past deals found.</div>
+                <div style={s.pastNote}>No past deals found.</div>
               ) : (
-                <div style={s.grid}>
+                <div style={{ ...s.grid, marginTop: 12 }}>
                   {pastDeals.map((offer: any) => (
                     <DealCard key={offer.id} offer={offer} isPast />
                   ))}
@@ -1073,185 +999,122 @@ export default function Offers() {
           </div>
         </>
       )}
+    </Page>
+  );
+}
+
+// ─── Pieces ──────────────────────────────────────────────────────────────────
+
+function catName(c: string) { return c.replace(/_/g, ' ').toLowerCase().replace(/^./, (x) => x.toUpperCase()); }
+
+function AgeToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <div>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: FONT.body, color: C.text2 }}>
+        <input type="checkbox" checked={on} onChange={onToggle} style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+        Age-restricted (21+)
+      </label>
+      {on && <div style={{ fontSize: FONT.small, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>Customers see this blurred with a 21+ prompt until they confirm their age.</div>}
     </div>
   );
 }
 
-// ─── Offer Card ───────────────────────────────────────────────────────────────
+function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolean; isScheduled?: boolean }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+      {isScheduled ? <Badge tone="info">Starts {storeDayLong(offer.startDate)}</Badge>
+        : isPast ? <Badge>{offer.isActive === false ? 'Removed' : 'Ended'}</Badge>
+        : <Badge tone="success">Live</Badge>}
+      <Badge icon={offer.type === 'ALL_STORES' ? <Globe size={12} /> : <MapPin size={12} />}>
+        {offer.type === 'ALL_STORES' ? 'All Stores' : (offer.store?.name ?? 'Store')}
+      </Badge>
+      {offer.category && <Badge>{catName(offer.category)}</Badge>}
+      {offer.requires21 && <Badge tone="warning">21+</Badge>}
+    </div>
+  );
+}
+
+function bonusText(offer: any): string | null {
+  if (offer.gasBonusCentsPerGallon != null) return `+${offer.gasBonusCentsPerGallon}¢ / gallon`;
+  if (offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0) {
+    return Object.entries(offer.tierBonusRates as Record<string, number>)
+      .map(([tier, rate]) => `${tier[0]}${tier.slice(1).toLowerCase()} +${pctText(rate)}%`).join(' · ');
+  }
+  if (offer.bonusRate) return `+${pctText(offer.bonusRate)}% ${offer.category ? offer.category.replace(/_/g, ' ').toLowerCase() : 'store-wide'}`;
+  return null;
+}
 
 function OfferCard({ offer, onDelete, onReuse, onResults, isPast, isScheduled }: {
   offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; isPast?: boolean; isScheduled?: boolean;
 }) {
+  const bonus = bonusText(offer);
   return (
-    <div style={{ ...s.card, ...(isPast ? s.cardPast : {}) }}>
+    <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
       <div style={s.cardBody}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <span style={offer.type === 'ALL_STORES' ? s.tagAll : s.tagStore}>
-            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
-          </span>
-          {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
-          {offer.requires21 && <span style={s.tag21}>🔞 21+</span>}
-          {isPast && <span style={s.tagPast}>{offer.isActive === false ? 'Removed' : 'Ended'}</span>}
-          {isScheduled && <span style={s.tagScheduled}>Starts {storeDayLong(offer.startDate)}</span>}
-        </div>
+        <OfferTags offer={offer} isPast={isPast} isScheduled={isScheduled} />
         <h3 style={s.cardTitle}>{offer.title}</h3>
+        {bonus && <div style={s.bonus}>{bonus}</div>}
         {offer.description && <p style={s.cardDesc}>{offer.description}</p>}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-          {offer.gasBonusCentsPerGallon != null ? (
-            <span style={{ ...s.badge, background: '#fff3e0', color: '#c04000', border: '1px solid #ffcc80' }}>
-              ⛽ +{offer.gasBonusCentsPerGallon}¢ / gallon
-            </span>
-          ) : offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? (
-            Object.entries(offer.tierBonusRates as Record<string, number>).map(([tier, rate]) => (
-              <span key={tier} style={s.badge}>{TIER_EMOJI[tier as TierKey]} +{pctText(rate)}%</span>
-            ))
-          ) : offer.bonusRate ? (
-            <span style={{ ...s.badge, background: offer.category ? '#fff0f0' : '#fff5e0', color: offer.category ? '#c0392b' : '#b7700a' }}>
-              {offer.category ? '🎯' : '🔥'} +{pctText(offer.bonusRate)}%{offer.category ? ` ${offer.category.replace(/_/g, ' ').toLowerCase()}` : ' store-wide'}
-            </span>
-          ) : null}
-        </div>
-        <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {onResults && !isScheduled && <button type="button" style={s.resultsBtn} onClick={onResults} aria-label={`Results of ${offer.title}`}>📊 Results</button>}
-          <button style={s.reuseBtn} onClick={onReuse}>♻️ Reuse</button>
-          {!isPast && onDelete && <button style={s.deleteBtn} onClick={onDelete}>Delete</button>}
-        </div>
+        <div style={s.cardDate}>{fmtDate(offer.startDate)} to {fmtDate(offer.endDate)}</div>
       </div>
-    </div>
+      <div style={s.cardActions}>
+        {onResults && !isScheduled && <Button size="sm" icon={<BarChart3 />} onClick={onResults} aria-label={`Results of ${offer.title}`}>Results</Button>}
+        <Button size="sm" icon={<RotateCcw />} onClick={onReuse}>Reuse</Button>
+        {!isPast && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} style={{ marginLeft: 'auto' }}>Delete</Button>}
+      </div>
+    </Card>
   );
 }
-
-// ─── Deal Card ────────────────────────────────────────────────────────────────
 
 function DealCard({ offer, onDelete, isPast, isScheduled }: { offer: any; onDelete?: () => void; isPast?: boolean; isScheduled?: boolean }) {
   return (
-    <div style={{ ...s.card, ...(isPast ? s.cardPast : {}), borderLeft: '4px solid #E63946' }}>
+    <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
       <div style={s.cardBody}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <span style={offer.type === 'ALL_STORES' ? s.tagAll : s.tagStore}>
-            {offer.type === 'ALL_STORES' ? '🌐 All Stores' : `📍 ${offer.store?.name ?? 'Store'}`}
-          </span>
-          {offer.category && <span style={s.tagCat}>{offer.category.replace(/_/g, ' ')}</span>}
-          {offer.requires21 && <span style={s.tag21}>🔞 21+</span>}
-          {isPast && <span style={s.tagPast}>{offer.isActive === false ? 'Removed' : 'Ended'}</span>}
-          {isScheduled && <span style={s.tagScheduled}>Starts {storeDayLong(offer.startDate)}</span>}
-        </div>
-        <div style={s.dealTextBig}>{offer.dealText}</div>
+        <OfferTags offer={offer} isPast={isPast} isScheduled={isScheduled} />
+        <div style={s.dealText}>{offer.dealText}</div>
         <h3 style={s.cardTitle}>{offer.title}</h3>
-        {offer.description && offer.description !== offer.dealText && (
-          <p style={s.cardDesc}>{offer.description}</p>
-        )}
-        <p style={s.cardDate}>{fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}</p>
-        {!isPast && onDelete && (
-          <div style={{ marginTop: 12 }}>
-            <button style={s.deleteBtn} onClick={onDelete}>Delete</button>
-          </div>
-        )}
+        {offer.description && offer.description !== offer.dealText && <p style={s.cardDesc}>{offer.description}</p>}
+        <div style={s.cardDate}>{fmtDate(offer.startDate)} to {fmtDate(offer.endDate)}</div>
       </div>
-    </div>
+      {!isPast && onDelete && (
+        <div style={s.cardActions}>
+          <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} style={{ marginLeft: 'auto' }}>Delete</Button>
+        </div>
+      )}
+    </Card>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 'clamp(16px, 4vw, 32px)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 800, color: PRIMARY, margin: 0 },
-  sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 15 },
-
-  addBtn: { background: '#D62839', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
-  templateBtn: { background: '#fff', color: PRIMARY, borderWidth: '1.5px', borderStyle: 'solid', borderColor: PRIMARY, borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 15 },
-
-  quickPanel: {
-    background: '#f0fdf4', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac',
-    borderRadius: 16, padding: '20px 24px', marginBottom: 24,
+  group: { display: 'flex', flexDirection: 'column', gap: 8 },
+  groupLabel: { fontSize: FONT.small, fontWeight: 600, color: C.text2 },
+  chips: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  unit: { fontSize: FONT.body, color: C.muted, whiteSpace: 'nowrap' },
+  inline: { display: 'flex', alignItems: 'center', gap: 8 },
+  previewRow: {
+    marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center',
+    justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
   },
-  quickTitle: { fontWeight: 800, fontSize: 15, color: '#14532d', marginBottom: 16 },
-  quickRow: { display: 'flex', flexDirection: 'column' as const, gap: 16 },
-  quickGroup: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
-  quickLabel: { fontWeight: 700, fontSize: 13, color: '#166534', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  quickChips: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
-  quickBonusRow: { display: 'flex', flexWrap: 'wrap' as const, gap: 6 },
-  quickInput: { padding: '8px 12px', borderRadius: 8, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#86efac', fontSize: 14, width: 90, outline: 'none', background: '#fff' },
-  chip: { padding: '6px 14px', borderRadius: 20, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#d1fae5', background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151' },
-  chipActive: { background: '#15803d', color: '#fff', borderColor: '#15803d' },
-  quickPreview: { marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: '#fff', borderRadius: 10, padding: '12px 16px', borderWidth: '1px', borderStyle: 'solid', borderColor: '#86efac', flexWrap: 'wrap' as const },
-  quickPreviewText: { fontSize: 14, color: '#166534' },
-  quickPostBtn: { background: '#15803d', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 800, cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' as const },
+  templateRow: { display: 'flex', alignItems: 'center', gap: 16, padding: '12px 14px', background: C.surface },
 
-  suggestionsBox: { background: '#f8faff', borderWidth: '1px', borderStyle: 'solid', borderColor: '#d0d9f0', borderRadius: 16, padding: 24, marginBottom: 28 },
-  suggestTitle: { margin: '0 0 4px', color: PRIMARY, fontSize: 16, fontWeight: 800 },
-  suggestSub: { margin: '0 0 16px', color: TEXT_MUTED, fontSize: 15 },
-  groupTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 },
-  groupTab: { padding: '6px 14px', borderRadius: 20, borderWidth: '1px', borderStyle: 'solid', borderColor: '#dee2e6', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: TEXT_MUTED },
-  groupTabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
-  templateGrid: { display: 'flex', flexDirection: 'column', gap: 8 },
-  templateCard: { background: '#fff', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e9ecef' },
-  templateIcon: { fontSize: 22, flexShrink: 0, width: 32, textAlign: 'center' },
-  templateTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, marginBottom: 4 },
-  templateDesc: { fontSize: 14, color: TEXT_MUTED, lineHeight: 1.5 },
-  templateMeta: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  templateBadge: { background: '#fef2f2', color: '#D62839', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 700 },
-  templateCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '2px 8px', fontSize: 13, fontWeight: 600 },
-  useBtn: { background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0, alignSelf: 'center' },
+  formSection: { padding: '16px 0', borderBottom: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 10 },
+  stepLabel: { fontWeight: 600, fontSize: FONT.body, color: C.text },
+  twoCol: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 },
+  calcHint: { fontSize: FONT.small, color: C.muted, marginTop: 6 },
+  file: { fontSize: FONT.small, color: C.text2 },
 
-  form: { background: '#fff', borderRadius: 16, padding: '24px 28px', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: 0, borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
-  formSection: { padding: '16px 0', borderBottom: '1px solid #f1f3f5', display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  formSectionLabel: { fontWeight: 800, fontSize: 15, color: PRIMARY, marginBottom: 2 },
-  required: { fontWeight: 600, fontSize: 13, color: '#D62839', marginLeft: 4 },
-  catGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 8 },
-  catCard: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', padding: '10px 6px', borderRadius: 10, border: '1.5px solid #e9ecef', background: '#fafafa', cursor: 'pointer', gap: 2, transition: 'all 0.15s' },
-  catCardActive: { border: '2px solid #1D3557', background: '#e8f0fb', color: PRIMARY },
-  unit: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' as const },
-  calcHint: { fontSize: 13, color: '#15803d', fontStyle: 'italic', marginTop: 4 },
-  label: { fontWeight: 700, fontSize: 14, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { padding: '10px 14px', borderRadius: 9, borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb', fontSize: 14, width: '100%', boxSizing: 'border-box' as const, outline: 'none' },
-  saveBtn: { background: '#0f5132', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 },
-  cancelFormBtn: { background: '#f8fafc', color: TEXT_MUTED, borderWidth: '1px', borderStyle: 'solid', borderColor: '#e5e7eb', borderRadius: 10, padding: '12px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 },
-
-  age21Toggle: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '10px 14px', borderRadius: 9, border: '1.5px solid #fca5a5', background: '#fef2f2', color: '#b91c1c', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
-  age21ToggleOn: { background: '#b91c1c', borderColor: '#b91c1c', color: '#fff' },
-  age21Hint: { fontSize: 13, color: TEXT_MUTED, marginTop: 6, lineHeight: 1.5 },
-
-  sectionHead: {
-    fontSize: 14, fontWeight: 800, color: PRIMARY, marginBottom: 16,
-    display: 'flex', alignItems: 'center', gap: 8,
-    borderLeft: '4px solid #1D3557', paddingLeft: 12,
-  },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 18 },
-  card: { background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' },
-  cardPast: { opacity: 0.75, boxShadow: 'none', borderWidth: '1px', borderStyle: 'solid', borderColor: '#f0f1f2' },
-  img: { width: '100%', height: 160, objectFit: 'cover' as const },
-  cardBody: { padding: '16px 18px' },
-  cardTitle: { fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' },
-  cardDesc: { color: TEXT_MUTED, fontSize: 15, margin: '0 0 8px', lineHeight: 1.5 },
-  cardDate: { color: TEXT_MUTED, fontSize: 13, margin: '8px 0 0', fontWeight: 600 },
-  badge: { display: 'inline-block', background: '#fef2f2', color: '#D62839', borderRadius: 8, padding: '4px 10px', fontSize: 14, fontWeight: 700 },
-  tagAll: { background: '#eff6ff', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagStore: { background: '#fffbeb', color: '#b45309', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tagCat: { background: '#f0fdf4', color: '#15803d', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  resultsBtn: { background: '#fff7e6', color: '#92400e', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  tagScheduled: { background: '#e8f0fb', color: PRIMARY, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  confirmNote: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#fff8e6', color: '#5c4400', fontSize: 14, lineHeight: 1.45 },
-  tagPast: { background: '#f8fafc', color: TEXT_MUTED, borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  tag21: { background: '#fef2f2', color: '#b91c1c', borderRadius: 6, padding: '3px 9px', fontSize: 13, fontWeight: 700 },
-  reuseBtn: { background: '#eff6ff', color: PRIMARY, border: 'none', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
-  deleteBtn: { background: '#fff1f2', color: '#D62839', borderWidth: '1px', borderStyle: 'solid', borderColor: '#fecaca', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  historyToggle: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: PRIMARY, padding: '8px 0', marginBottom: 8 },
-  empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60, fontSize: 14 },
-
-  mainTabs: { display: 'flex', gap: 8, marginBottom: 24 },
-  mainTab: {
-    padding: '9px 20px', borderRadius: 10,
-    borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#e5e7eb',
-    background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700,
-    color: TEXT_MUTED, display: 'flex', alignItems: 'center', gap: 8,
-  },
-  mainTabActive: { background: PRIMARY, color: '#fff', borderColor: PRIMARY },
-  tabCount: { background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '1px 7px', fontSize: 13, fontWeight: 700 },
-  dealTextBig: { fontSize: 24, fontWeight: 900, color: '#D62839', marginBottom: 6, letterSpacing: -0.5 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16 },
+  img: { width: '100%', height: 150, objectFit: 'cover', borderBottom: `1px solid ${C.border}` },
+  cardBody: { padding: '16px 18px 14px', flex: 1 },
+  cardTitle: { fontSize: FONT.section, fontWeight: 600, color: C.text, margin: '0 0 4px' },
+  bonus: { fontSize: FONT.body, fontWeight: 600, color: C.primary, marginBottom: 6 },
+  cardDesc: { color: C.muted, fontSize: FONT.small, margin: '0 0 8px', lineHeight: 1.5 },
+  cardDate: { color: C.muted, fontSize: FONT.caption, marginTop: 8 },
+  cardActions: { display: 'flex', gap: 6, padding: '10px 14px', borderTop: `1px solid ${C.border}`, background: C.subtle },
+  dealText: { fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' },
+  pastNote: { color: C.muted, fontSize: FONT.body, margin: '8px 0 14px' },
 };
